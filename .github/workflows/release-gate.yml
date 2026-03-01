@@ -228,30 +228,32 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: puntos
-          POSTGRES_USER: loyalty
-          POSTGRES_PASSWORD: ci_test_password_123456
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U loyalty -d puntos"
+          --health-cmd "pg_isready -U postgres -d puntos"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
     env:
       NODE_ENV: test
       PORT: 3001
-      DB_HOST: 127.0.0.1
+      DB_HOST: localhost
       DB_PORT: 5432
       DB_NAME: puntos
-      DB_USER: loyalty
-      DB_PASSWORD: ci_test_password_123456
+      DB_USER: postgres
+      DB_PASSWORD: postgres
       JWT_SECRET: ci_jwt_secret_abcdefghijklmnopqrstuvwxyz_123456
       SUPER_ADMIN_EMAIL: super@example.com
       SUPER_ADMIN_PASSWORD: super_password_123456
       MESSAGE_PROVIDER: dev
       CORS_ORIGIN: http://localhost:3001
       APP_ORIGIN: http://localhost:3001
+      DB_MIGRATIONS_USER: postgres
+      DB_MIGRATIONS_PASSWORD: postgres
       TRUST_PROXY: 1
       E2E_BASE_URL: http://localhost:3001
     steps:
