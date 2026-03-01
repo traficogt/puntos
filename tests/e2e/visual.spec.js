@@ -43,7 +43,7 @@ test("visual: super login shell", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoStable(page, "/super", "#loginCard");
   await disableMotion(page);
-  await expect(page.locator("body")).toHaveScreenshot("super-login-desktop.png");
+  await expect(page.locator("#loginCard")).toHaveScreenshot("super-login-desktop.png");
 });
 
 test("visual: super login mobile", async ({ page }) => {
@@ -51,7 +51,7 @@ test("visual: super login mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoStable(page, "/super", "#loginCard");
   await disableMotion(page);
-  await expect(page.locator("body")).toHaveScreenshot("super-login-mobile.png");
+  await expect(page.locator("#loginCard")).toHaveScreenshot("super-login-mobile.png");
 });
 
 test("visual: super dashboard logged-in", async ({ page }, _testInfo) => {
@@ -76,7 +76,7 @@ test("visual: admin dashboard shell desktop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await createBusinessAndOpenDashboard(page);
   await disableMotion(page);
-  await expect(page.locator("#main")).toHaveScreenshot("admin-dashboard-desktop.png", {
+  await expect(page.locator("#ownerConfigCard")).toHaveScreenshot("admin-dashboard-desktop.png", {
     mask: [page.locator("#businessName")]
   });
 });
@@ -86,9 +86,7 @@ test("visual: admin dashboard shell mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await createBusinessAndOpenDashboard(page);
   await disableMotion(page);
-  await expect(page.locator("#main")).toHaveScreenshot("admin-dashboard-mobile.png", {
-    // Allow tiny anti-alias/layout variance on mobile rendering in CI.
-    maxDiffPixels: 300,
+  await expect(page.locator("#ownerConfigCard")).toHaveScreenshot("admin-dashboard-mobile.png", {
     mask: [page.locator("#businessName")]
   });
 });

@@ -49,7 +49,7 @@ Fecha de verificación: 2026-02-27
 En **gateway VM**:
 
 ```bash
-curl -I --max-time 5 http://10.10.0.4:3001/api/health
+curl -I --max-time 5 http://10.10.1.5:3001/api/health
 curl -I --resolve 1testdomene.xyz:443:127.0.0.1 https://1testdomene.xyz
 journalctl -u caddy -n 80 --no-pager
 ```
