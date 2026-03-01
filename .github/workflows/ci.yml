@@ -32,6 +32,10 @@ jobs:
       DB_USER: postgres
       DB_PASSWORD: postgres
       NODE_ENV: test
+      PORT: 3001
+      CORS_ORIGIN: http://localhost:3001
+      APP_ORIGIN: http://localhost:3001
+      JWT_SECRET: ci_jwt_secret_abcdefghijklmnopqrstuvwxyz_123456
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,10 +62,20 @@ jobs:
         run: npm run ops:rls-check
       - name: Security scan (patterns)
         run: npm run ops:security-scan
+      - name: Start app for perf sanity
+        run: |
+          node src/app/server.js > /tmp/puntos-build-test-api.log 2>&1 &
+          TIMEOUT=80 bash src/scripts/wait-for-api.sh http://localhost:3001/api/health
       - name: Perf sanity
         run: npm run ops:perf-sanity
       - name: Dependency audit (fail on high/critical)
         run: npm audit --omit=dev --audit-level=high --ignore-scripts
+      - name: Upload build-test API log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-test-api-log
+          path: /tmp/puntos-build-test-api.log
 
   secret-scan:
     runs-on: ubuntu-latest
