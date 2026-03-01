@@ -97,9 +97,10 @@ jobs:
           -v /var/run/docker.sock:/var/run/docker.sock
           aquasec/trivy:0.56.1
           image
+          --scanners vuln
           --exit-code 1
           --ignore-unfixed
-          --vuln-type os,library
+          --pkg-types os,library
           --severity HIGH,CRITICAL
           puntos-release:${{ github.sha }}
 

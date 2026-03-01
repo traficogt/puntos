@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { closeDatabase, listManagedMigrations, runManagedMigrations } from "../app/database.js";
+import { closeDatabase, initDatabase, listManagedMigrations } from "../app/database.js";
 
 const cmd = process.argv[2] || "status";
 const migrationsDir = path.join(process.cwd(), "src", "app", "migrations");
@@ -29,7 +29,7 @@ async function printStatus() {
 async function main() {
   try {
     if (cmd === "apply") {
-      await runManagedMigrations();
+      await initDatabase();
       await printStatus();
       return;
     }

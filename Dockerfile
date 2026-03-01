@@ -1,8 +1,9 @@
-# Use specific version for reproducibility
-FROM node:20.11.0-alpine3.19
+# Use a current Node 20 + Alpine base with recent security fixes.
+FROM node:20-alpine3.21
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install init tooling and pull in the latest patched Alpine packages.
+RUN apk upgrade --no-cache && \
+    apk add --no-cache dumb-init
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
@@ -19,6 +20,12 @@ RUN npm ci --omit=dev && \
 
 # Copy application code
 COPY --chown=nodejs:nodejs . .
+
+# The runtime image does not need the full npm CLI or the development manifest.
+RUN node -e "const fs = require('node:fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); fs.writeFileSync('package.json', JSON.stringify({ name: pkg.name, version: pkg.version, type: pkg.type, private: true }, null, 2) + '\n');" && \
+    rm -f package-lock.json && \
+    rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack && \
+    rm -rf /usr/local/lib/node_modules/npm
 
 # Remove sensitive files if they exist
 RUN rm -f .env .env.* && \
