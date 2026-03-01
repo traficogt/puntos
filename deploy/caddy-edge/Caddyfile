@@ -1,0 +1,7 @@
+# Example Caddyfile for edge VM (Caddy)
+# Replace domain + upstream IP
+
+puntofieles.gt {
+  encode zstd gzip
+  reverse_proxy 192.168.1.51:3001
+}

@@ -1,0 +1,80 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-puntos}
+      POSTGRES_USER: ${DB_USER:-loyalty}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      TZ: ${TZ:-America/Guatemala}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ${SECRETS_DIR:?Set SECRETS_DIR to an external secret directory}:/run/secrets:ro
+    profiles: ["dev"]
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3001}
+
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-puntos}
+      DB_USER: ${DB_USER:-puntos_app}
+      DB_PASSWORD_FILE: ${DB_PASSWORD_FILE:-/app/.secrets/db_password}
+      DB_MIGRATIONS_USER: ${DB_MIGRATIONS_USER:-puntos_app}
+      DB_MIGRATIONS_PASSWORD_FILE: ${DB_MIGRATIONS_PASSWORD_FILE:-/app/.secrets/db_migrations_password}
+      AUTO_APPLY_MIGRATIONS: ${AUTO_APPLY_MIGRATIONS:-false}
+
+      JWT_SECRET_FILE: ${JWT_SECRET_FILE:-/app/.secrets/jwt_secret}
+      QR_PRIVATE_KEY_PEM_FILE: ${QR_PRIVATE_KEY_PEM_FILE:-/app/.secrets/qr_private_key.pem}
+      QR_PUBLIC_KEY_PEM_FILE: ${QR_PUBLIC_KEY_PEM_FILE:-/app/.secrets/qr_public_key.pem}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-}
+      SUPER_ADMIN_PASSWORD_HASH_FILE: ${SUPER_ADMIN_PASSWORD_HASH_FILE:-/app/.secrets/super_admin_password_hash}
+
+      MESSAGE_PROVIDER: ${MESSAGE_PROVIDER:-dev}
+      WA_PHONE_NUMBER_ID: ${WA_PHONE_NUMBER_ID:-}
+      WA_ACCESS_TOKEN: ${WA_ACCESS_TOKEN:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-PuntosFieles <no-reply@puntos.gt>}
+      SMS_GATEWAY_URL: ${SMS_GATEWAY_URL:-}
+      SMS_GATEWAY_TOKEN: ${SMS_GATEWAY_TOKEN:-}
+
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:${PORT:-3001}}
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:${PORT:-3001}}
+      # Only enable when traffic comes through a trusted reverse proxy hop.
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+
+      CHURN_DAYS: ${CHURN_DAYS:-30}
+      CHURN_SEND_HOUR_LOCAL: ${CHURN_SEND_HOUR_LOCAL:-9}
+      CRON_TZ: ${CRON_TZ:-America/Guatemala}
+
+      WEBHOOK_TIMEOUT_MS: ${WEBHOOK_TIMEOUT_MS:-8000}
+      WEBHOOK_CONCURRENCY: ${WEBHOOK_CONCURRENCY:-5}
+      WEBHOOK_MAX_ATTEMPTS: ${WEBHOOK_MAX_ATTEMPTS:-3}
+      WEBHOOK_REQUIRE_HTTPS: ${WEBHOOK_REQUIRE_HTTPS:-true}
+      WEBHOOK_ALLOWLIST: ${WEBHOOK_ALLOWLIST:-}
+      WEBHOOK_SECRET_ENC_KEY_FILE: ${WEBHOOK_SECRET_ENC_KEY_FILE:-/app/.secrets/webhook_secret_enc_key}
+      WEBHOOK_SECRET_ENC_KEY_PREVIOUS: ${WEBHOOK_SECRET_ENC_KEY_PREVIOUS:-}
+      PAYMENT_WEBHOOK_REQUIRE_AUTH: ${PAYMENT_WEBHOOK_REQUIRE_AUTH:-true}
+      METRICS_TOKEN_FILE: ${METRICS_TOKEN_FILE:-/app/.secrets/metrics_token}
+
+      TZ: ${TZ:-America/Guatemala}
+
+    ports:
+      - "${PORT:-3001}:3001"
+    volumes:
+      - ${SECRETS_DIR:?Set SECRETS_DIR to an external secret directory}:/app/.secrets:ro
+    profiles: ["dev"]
+
+volumes:
+  pgdata:

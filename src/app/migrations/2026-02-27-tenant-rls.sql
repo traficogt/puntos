@@ -1,0 +1,1 @@
+-- Superseded by later RLS migrations; left as no-op to keep migration order consistent.

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#f8f2e8"/>
+  <title>Ingreso de personal • PuntosFieles</title>
+  <link rel="stylesheet" href="/styles.css"/>
+</head>
+<body>
+  <div class="nav">
+    <div class="brand">🎁 PuntosFieles</div>
+    <div class="row">
+      <a class="badge" href="/">Inicio</a>
+      <a class="badge" href="/admin">Registrar negocio</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h1>Ingreso de personal</h1>
+      <p>Ingresa como propietario o cajero.</p>
+
+      <div class="card">
+        <label>Email</label>
+        <input id="email" type="email" placeholder="owner@negocio.com"/>
+        <label>Contraseña</label>
+        <input id="password" type="password" placeholder="******"/>
+        <div class="hr"></div>
+        <div class="row">
+          <button class="primary" id="btnLogin">Entrar</button>
+          <button id="btnLogout">Salir</button>
+        </div>
+        <p class="small">Si acabas de registrarte, ya estás con sesión de propietario.</p>
+      </div>
+
+      <div class="card">
+      <h2>Ir al escáner</h2>
+      <a class="badge" href="/staff">Abrir escáner</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script type="module" src="/staff-login.js"></script>
+</body>
+</html>

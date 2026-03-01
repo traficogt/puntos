@@ -1,0 +1,324 @@
+name: Nightly E2E Matrix
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+jobs:
+  e2e-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: puntos
+          POSTGRES_USER: loyalty
+          POSTGRES_PASSWORD: ci_test_password_123456
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U loyalty -d puntos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      NODE_ENV: test
+      PORT: 3001
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: puntos
+      DB_USER: loyalty
+      DB_PASSWORD: ci_test_password_123456
+      JWT_SECRET: ci_jwt_secret_abcdefghijklmnopqrstuvwxyz_123456
+      SUPER_ADMIN_EMAIL: super@example.com
+      SUPER_ADMIN_PASSWORD: super_password_123456
+      MESSAGE_PROVIDER: dev
+      CORS_ORIGIN: http://localhost:3001
+      APP_ORIGIN: http://localhost:3001
+      TRUST_PROXY: 1
+      E2E_BASE_URL: http://localhost:3001
+      CI_NIGHTLY_MATRIX: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate QR keys for tests
+        run: |
+          openssl genpkey -algorithm Ed25519 -out qr-private.pem
+          openssl pkey -in qr-private.pem -pubout -out qr-public.pem
+          {
+            echo "QR_PRIVATE_KEY_PEM<<EOF"
+            cat qr-private.pem
+            echo "EOF"
+            echo "QR_PUBLIC_KEY_PEM<<EOF"
+            cat qr-public.pem
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Start app
+        run: |
+          node src/app/server.js > /tmp/puntos-api.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS http://localhost:3001/api/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become healthy"
+          cat /tmp/puntos-api.log
+          exit 1
+
+      - name: Run E2E for ${{ matrix.browser }} (no flaky allowed)
+        run: |
+          set -euo pipefail
+          npx playwright test --project=${{ matrix.browser }} --reporter=json > /tmp/playwright-report-${{ matrix.browser }}.json
+          node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync('/tmp/playwright-report-${{ matrix.browser }}.json','utf8')); const flaky=Number(r?.stats?.flaky||0); if (flaky>0) { console.error('Nightly gate failed: flaky tests detected ->', flaky); process.exit(1); } console.log('No flaky tests detected.');"
+
+      - name: Upload API log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-log-${{ matrix.browser }}
+          path: /tmp/puntos-api.log
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Nightly E2E (${{ matrix.browser }})"
+            echo ""
+            echo "- Status: **${{ job.status }}**"
+            echo "- Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "- Artifact (on failure): \`api-log-${{ matrix.browser }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify Slack on failure (optional)
+        if: failure() && secrets.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MESSAGE="Nightly E2E failed for browser '${{ matrix.browser }}' in repo '${{ github.repository }}'. Run: ${RUN_URL}"
+          curl -sS -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"${MESSAGE}\"}" \
+            "$SLACK_WEBHOOK_URL"
+
+      - name: Notify email on failure (optional)
+        if: failure() && secrets.SMTP_HOST != '' && secrets.SMTP_USER != '' && secrets.SMTP_PASS != '' && secrets.ALERT_EMAIL_TO != ''
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT != '' && secrets.SMTP_PORT || '587' }}
+          secure: ${{ secrets.SMTP_SECURE != '' && secrets.SMTP_SECURE || 'false' }}
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          subject: "[Nightly E2E Failed] ${{ github.repository }} (${{ matrix.browser }})"
+          to: ${{ secrets.ALERT_EMAIL_TO }}
+          from: ${{ secrets.ALERT_EMAIL_FROM != '' && secrets.ALERT_EMAIL_FROM || secrets.SMTP_USER }}
+          body: |
+            Nightly E2E failed.
+
+            Repository: ${{ github.repository }}
+            Browser: ${{ matrix.browser }}
+            Status: ${{ job.status }}
+            Run URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Check job artifacts for api logs.
+
+      - name: Auto-track repeated nightly failures
+        if: failure() && matrix.browser == 'chromium'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const workflowId = context.workflow;
+            const issueTitle = "Nightly E2E failing (auto-tracked)";
+            const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            const runsResp = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id: workflowId,
+              per_page: 20
+            });
+
+            const relevant = (runsResp.data.workflow_runs || [])
+              .filter((r) => ["schedule", "workflow_dispatch"].includes(r.event))
+              .filter((r) => r.status === "completed");
+
+            let consecutiveFailures = 0;
+            for (const r of relevant) {
+              if (r.conclusion === "failure") {
+                consecutiveFailures += 1;
+                continue;
+              }
+              if (r.conclusion === "success") break;
+            }
+
+            core.info(`Consecutive nightly failures: ${consecutiveFailures}`);
+            if (consecutiveFailures < 2) {
+              core.info("Failure threshold not reached; skipping issue creation.");
+              return;
+            }
+
+            const issuesResp = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: "open",
+              per_page: 100
+            });
+            const existing = issuesResp.data.find((i) => i.title === issueTitle);
+            const marker = `- ${new Date().toISOString()} run: ${runUrl}`;
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body: `Nightly E2E failed again.\n${marker}`
+              });
+              core.info(`Updated issue #${existing.number}`);
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title: issueTitle,
+              labels: ["bug", "ci"],
+              body: [
+                "Automated issue: nightly E2E has failed in at least 2 consecutive runs.",
+                "",
+                `Consecutive failures: ${consecutiveFailures}`,
+                marker,
+                "",
+                "Please inspect workflow logs and artifacts (api logs, Playwright traces)."
+              ].join("\n")
+            });
+
+  e2e-visual-chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: puntos
+          POSTGRES_USER: loyalty
+          POSTGRES_PASSWORD: ci_test_password_123456
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U loyalty -d puntos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      NODE_ENV: test
+      PORT: 3001
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: puntos
+      DB_USER: loyalty
+      DB_PASSWORD: ci_test_password_123456
+      JWT_SECRET: ci_jwt_secret_abcdefghijklmnopqrstuvwxyz_123456
+      SUPER_ADMIN_EMAIL: super@example.com
+      SUPER_ADMIN_PASSWORD: super_password_123456
+      MESSAGE_PROVIDER: dev
+      CORS_ORIGIN: http://localhost:3001
+      APP_ORIGIN: http://localhost:3001
+      TRUST_PROXY: 1
+      E2E_BASE_URL: http://localhost:3001
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate QR keys for tests
+        run: |
+          openssl genpkey -algorithm Ed25519 -out qr-private.pem
+          openssl pkey -in qr-private.pem -pubout -out qr-public.pem
+          {
+            echo "QR_PRIVATE_KEY_PEM<<EOF"
+            cat qr-private.pem
+            echo "EOF"
+            echo "QR_PUBLIC_KEY_PEM<<EOF"
+            cat qr-public.pem
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Start app
+        run: |
+          node src/app/server.js > /tmp/puntos-api-visual.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS http://localhost:3001/api/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become healthy"
+          cat /tmp/puntos-api-visual.log
+          exit 1
+
+      - name: Run visual regression suite
+        run: npm run test:e2e:visual
+
+      - name: Upload visual artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-failure-artifacts
+          path: |
+            /tmp/puntos-api-visual.log
+            playwright-report
+            test-results
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Nightly Visual E2E (chromium)"
+            echo ""
+            echo "- Status: **${{ job.status }}**"
+            echo "- Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "- Artifact (on failure): \`visual-failure-artifacts\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#f8f2e8"/>
+  <title>Registro • PuntosFieles</title>
+  <link rel="stylesheet" href="/styles.css"/>
+</head>
+<body>
+  <div class="nav">
+    <div class="brand">📲 Registro</div>
+    <div class="row">
+      <a class="badge" href="/">Inicio</a>
+      <a class="badge" href="/c">Mi tarjeta</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h1 id="title">Registrarte</h1>
+      <p id="subtitle">Confirma tu teléfono para acumular puntos.</p>
+      <div class="onboarding-steps">
+        <div class="step-pill active" id="joinStepRequest">1. Solicitar código</div>
+        <div class="step-pill" id="joinStepVerify">2. Verificar</div>
+        <div class="step-pill" id="joinStepDone">3. Tarjeta activa</div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>1) Solicitar código</h2>
+          <label>Teléfono</label>
+          <input id="phone" placeholder="55551234"/>
+          <label>Nombre (opcional)</label>
+          <input id="name" placeholder="María"/>
+          <button class="primary" id="btnCode">Enviar código</button>
+          <p class="small" id="codeInfo"></p>
+          <p class="small" id="codeCooldownInfo"></p>
+        </div>
+
+        <div class="card">
+          <h2>2) Verificar</h2>
+          <label>Código</label>
+          <input id="code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code"/>
+          <button class="primary" id="btnVerify">Verificar y crear tarjeta</button>
+          <div class="hr"></div>
+          <a class="badge" href="/c">Ya tengo cuenta</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="done" style="display:none">
+      <h2>¡Listo! ✅</h2>
+      <p>Tu tarjeta ya está activa.</p>
+      <div class="row">
+        <a class="badge" href="/c">Abrir mi tarjeta</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script type="module" src="/join.js"></script>
+</body>
+</html>

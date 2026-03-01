@@ -1,0 +1,319 @@
+name: Release Gate
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-gate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-verify:
+    name: Release Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: puntos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d puntos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: puntos
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install deps (locked, no scripts)
+        run: npm ci --ignore-scripts
+      - name: Migrations lock
+        run: npm run ops:migrate:lock-check
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm test
+      - name: OpenAPI generation is current
+        run: |
+          npm run openapi:generate
+          git diff --exit-code -- docs/openapi.json docs/openapi.yaml
+      - name: Migrations (apply)
+        run: npm run ops:migrate
+      - name: RLS check
+        run: npm run ops:rls-check
+      - name: Security scan
+        run: npm run ops:security-scan
+      - name: Perf sanity
+        run: npm run ops:perf-sanity
+      - name: Dependency audit (fail on high/critical)
+        run: npm audit --omit=dev --audit-level=high --ignore-scripts
+
+  release-secret-scan:
+    name: Release Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-container-scan:
+    name: Release Container Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build release image
+        run: docker build -t puntos-release:${{ github.sha }} .
+      - name: Pull Trivy image
+        run: docker pull aquasec/trivy:0.56.1
+      - name: Scan release image (high/critical)
+        run: >
+          docker run --rm
+          -v /var/run/docker.sock:/var/run/docker.sock
+          aquasec/trivy:0.56.1
+          image
+          --exit-code 1
+          --ignore-unfixed
+          --vuln-type os,library
+          --severity HIGH,CRITICAL
+          puntos-release:${{ github.sha }}
+
+  release-semgrep:
+    name: Release Semgrep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: returntocorp/semgrep-action@v1
+        with:
+          config: p/ci
+
+  release-smoke:
+    name: Release Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs:
+      - release-verify
+      - release-secret-scan
+      - release-container-scan
+      - release-semgrep
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: puntos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d puntos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: puntos
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      NODE_ENV: test
+      PORT: 3001
+      CORS_ORIGIN: http://localhost:3001
+      APP_ORIGIN: http://localhost:3001
+      SUPER_ADMIN_EMAIL: super@example.com
+      SUPER_ADMIN_PASSWORD: super_password_123456
+      JWT_SECRET: ci_jwt_secret_abcdefghijklmnopqrstuvwxyz_123456
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install deps
+        run: npm ci
+      - name: Generate QR keys for tests
+        run: |
+          openssl genpkey -algorithm Ed25519 -out qr-private.pem
+          openssl pkey -in qr-private.pem -pubout -out qr-public.pem
+          {
+            echo "QR_PRIVATE_KEY_PEM<<EOF"
+            cat qr-private.pem
+            echo "EOF"
+            echo "QR_PUBLIC_KEY_PEM<<EOF"
+            cat qr-public.pem
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Start app
+        run: |
+          node src/app/server.js > /tmp/puntos-release-api.log 2>&1 &
+          TIMEOUT=80 bash src/scripts/wait-for-api.sh http://localhost:3001/api/health
+      - name: Run HTTP smoke gate
+        run: npm run ops:smoke -- --base-url http://localhost:3001 --require-super-login
+      - name: Run smoke E2E
+        run: npx playwright test tests/e2e/smoke.spec.js --project=chromium
+      - name: Upload release smoke log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-smoke-api-log
+          path: /tmp/puntos-release-api.log
+
+  release-observability:
+    name: Release Observability
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs:
+      - release-smoke
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install deps
+        run: npm ci
+      - name: Run alert drill
+        run: npm run ops:alerts:drill
+
+  release-browser-gate:
+    name: Release Browser Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs:
+      - release-smoke
+      - release-observability
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: puntos
+          POSTGRES_USER: loyalty
+          POSTGRES_PASSWORD: ci_test_password_123456
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U loyalty -d puntos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      NODE_ENV: test
+      PORT: 3001
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: puntos
+      DB_USER: loyalty
+      DB_PASSWORD: ci_test_password_123456
+      JWT_SECRET: ci_jwt_secret_abcdefghijklmnopqrstuvwxyz_123456
+      SUPER_ADMIN_EMAIL: super@example.com
+      SUPER_ADMIN_PASSWORD: super_password_123456
+      MESSAGE_PROVIDER: dev
+      CORS_ORIGIN: http://localhost:3001
+      APP_ORIGIN: http://localhost:3001
+      TRUST_PROXY: 1
+      E2E_BASE_URL: http://localhost:3001
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate QR keys for tests
+        run: |
+          openssl genpkey -algorithm Ed25519 -out qr-private.pem
+          openssl pkey -in qr-private.pem -pubout -out qr-public.pem
+          {
+            echo "QR_PRIVATE_KEY_PEM<<EOF"
+            cat qr-private.pem
+            echo "EOF"
+            echo "QR_PUBLIC_KEY_PEM<<EOF"
+            cat qr-public.pem
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Start app
+        run: |
+          node src/app/server.js > /tmp/puntos-release-browser.log 2>&1 &
+          TIMEOUT=80 bash src/scripts/wait-for-api.sh http://localhost:3001/api/health
+      - name: Run HTTP smoke gate
+        run: npm run ops:smoke -- --base-url http://localhost:3001 --require-super-login
+      - name: Run Chromium flow + adversarial suite
+        run: npx playwright test tests/e2e/adversarial.spec.js tests/e2e/flows.spec.js tests/e2e/smoke.spec.js --project=chromium
+      - name: Run Chromium visual suite
+        run: npm run test:e2e:visual
+      - name: Upload release browser artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-browser-artifacts
+          path: |
+            /tmp/puntos-release-browser.log
+            playwright-report
+            test-results
+
+  release-summary:
+    name: Release Summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - release-verify
+      - release-secret-scan
+      - release-container-scan
+      - release-semgrep
+      - release-smoke
+      - release-browser-gate
+    steps:
+      - name: Fail if any gate failed
+        env:
+          VERIFY: ${{ needs.release-verify.result }}
+          SECRET_SCAN: ${{ needs.release-secret-scan.result }}
+          CONTAINER_SCAN: ${{ needs.release-container-scan.result }}
+          SEMGREP: ${{ needs.release-semgrep.result }}
+          SMOKE: ${{ needs.release-smoke.result }}
+          BROWSER: ${{ needs.release-browser-gate.result }}
+        run: |
+          set -euo pipefail
+          printf 'Release gate results:\n'
+          printf '  verify=%s\n' "$VERIFY"
+          printf '  secret_scan=%s\n' "$SECRET_SCAN"
+          printf '  container_scan=%s\n' "$CONTAINER_SCAN"
+          printf '  semgrep=%s\n' "$SEMGREP"
+          printf '  smoke=%s\n' "$SMOKE"
+          printf '  browser=%s\n' "$BROWSER"
+          for status in "$VERIFY" "$SECRET_SCAN" "$CONTAINER_SCAN" "$SEMGREP" "$SMOKE" "$BROWSER"; do
+            if [ "$status" != "success" ]; then
+              echo "Release gate failed."
+              exit 1
+            fi
+          done
+          echo "Release gate passed."

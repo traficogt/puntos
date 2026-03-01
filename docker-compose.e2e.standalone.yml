@@ -1,0 +1,78 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: puntos_e2e
+      POSTGRES_USER: loyalty_admin
+      POSTGRES_PASSWORD: loyalty_admin_password
+      TZ: America/Guatemala
+    volumes:
+      - pgdata_e2e:/var/lib/postgresql/data
+      - ./deploy/db/init-e2e.sql:/docker-entrypoint-initdb.d/init-e2e.sql:ro
+    expose:
+      - "5432"
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "${E2E_PORT:-3101}:3001"
+    env_file:
+      - ./deploy/e2e/api.env
+    environment:
+      DB_USER: loyalty_app
+      DB_PASSWORD: loyalty_app_password
+      DB_MIGRATIONS_USER: loyalty_admin
+      DB_MIGRATIONS_PASSWORD: loyalty_admin_password
+      # Allow both host-run Playwright (localhost:<E2E_PORT>) and in-network Playwright (api:3001).
+      CORS_ORIGIN: "http://localhost:${E2E_PORT:-3101},http://api:3001"
+      APP_ORIGIN: "http://localhost:${E2E_PORT:-3101}"
+
+  worker:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+      - api
+    command: ["node", "src/app/worker.js"]
+    ports:
+      - "${E2E_WORKER_PORT:-3102}:3002"
+    env_file:
+      - ./deploy/e2e/api.env
+    environment:
+      DB_USER: loyalty_app
+      DB_PASSWORD: loyalty_app_password
+      DB_MIGRATIONS_USER: loyalty_admin
+      DB_MIGRATIONS_PASSWORD: loyalty_admin_password
+      WORKER_PORT: 3002
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    expose:
+      - "6379"
+
+  e2e:
+    # Use the official Playwright image so browsers are available without downloading at runtime.
+    image: mcr.microsoft.com/playwright:v1.58.1-jammy
+    depends_on:
+      - api
+    working_dir: /work
+    volumes:
+      - ./:/work
+    environment:
+      # Inside the compose network, target the API service directly.
+      E2E_BASE_URL: http://api:3001
+      # Keep test runner credentials in sync with the API container.
+      # (dotenv in playwright.config.mjs does not override already-set env vars.)
+      SUPER_ADMIN_EMAIL: super@example.com
+      SUPER_ADMIN_PASSWORD: super_password_123456
+    entrypoint: ["bash", "-lc"]
+
+volumes:
+  pgdata_e2e:

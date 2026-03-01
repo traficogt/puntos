@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#f8f2e8"/>
+  <title>Panel Admin • PuntosFieles</title>
+  <link rel="stylesheet" href="/styles.css"/>
+</head>
+<body class="page-admin">
+  <div class="nav">
+    <div class="brand">🎁 Panel Admin</div>
+    <div class="row">
+      <a class="badge" href="/staff">Escáner de personal</a>
+      <a class="badge" href="/">Inicio</a>
+      <button id="btnShareView">Compartir vista</button>
+      <button id="btnLogout">Salir</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="needLogin" style="display:none">
+      <div class="card hero">
+        <h1>Acceso denegado</h1>
+        <p>Necesitas iniciar sesión como propietario para ver este panel.</p>
+        <a href="/staff/login" class="badge">Ir a ingreso</a>
+      </div>
+    </div>
+
+    <div id="main" style="display:none">
+      <h1 id="businessName">Panel de Administración</h1>
+
+      <div class="card" id="ownerConfigCard">
+        <h2>Regla de Puntos</h2>
+        <p class="small">Esta regla define cuantos puntos gana el cliente al escanear en staff.</p>
+        <div class="grid">
+          <div>
+            <label>Tipo</label>
+            <select id="programType">
+              <option value="SPEND">Por gasto (Q)</option>
+              <option value="VISIT">Por visita</option>
+              <option value="ITEM">Por item</option>
+            </select>
+
+            <div id="programSpendBox">
+              <label>Puntos por Q</label>
+              <input id="programPointsPerQ" type="number" step="0.01" min="0" value="0.10"/>
+              <label>Redondeo</label>
+              <select id="programRound">
+                <option value="ceil">Hacia arriba</option>
+                <option value="round">Normal</option>
+                <option value="floor">Hacia abajo</option>
+              </select>
+            </div>
+
+            <div id="programVisitBox" style="display:none">
+              <label>Puntos por visita</label>
+              <input id="programPointsPerVisit" type="number" min="0" step="1" value="10"/>
+            </div>
+
+            <div id="programItemBox" style="display:none">
+              <label>Puntos por item</label>
+              <input id="programPointsPerItem" type="number" min="0" step="1" value="1"/>
+            </div>
+
+            <div class="hr"></div>
+            <h3>Límites de seguridad</h3>
+            <label>Monto máximo por transacción (Q, 0 = sin límite)</label>
+            <input id="guardMaxAmount" type="number" min="0" step="0.01" value="0"/>
+            <label>Puntos máximos por transacción (0 = sin límite)</label>
+            <input id="guardMaxPoints" type="number" min="0" step="1" value="0"/>
+            <label>Visitas máximas por transacción (0 = sin límite)</label>
+            <input id="guardMaxVisits" type="number" min="0" step="1" value="0"/>
+            <label>Items máximos por transacción (0 = sin límite)</label>
+            <input id="guardMaxItems" type="number" min="0" step="1" value="0"/>
+
+            <div class="hr"></div>
+            <h3>Alertas de sospecha</h3>
+            <label>Marcar si puntos >= (0 = desactivado)</label>
+            <input id="guardSuspiciousPoints" type="number" min="0" step="1" value="0"/>
+            <label>Marcar si monto >= Q (0 = desactivado)</label>
+            <input id="guardSuspiciousAmount" type="number" min="0" step="0.01" value="0"/>
+
+            <div class="hr"></div>
+            <h3>Puntos pendientes y ciclo de vida</h3>
+            <label>Dias para liberar puntos (0 = inmediato)</label>
+            <input id="pendingHoldDays" type="number" min="0" step="1" value="0"/>
+            <label>Dias para vencer puntos (0 = nunca vencen)</label>
+            <input id="pointsExpirationDays" type="number" min="0" step="1" value="0"/>
+            <label>
+              <input type="checkbox" id="lifecycleBirthdayEnabled"/>
+              Activar bono de cumpleaños
+            </label>
+            <label>Puntos cumpleaños</label>
+            <input id="lifecycleBirthdayPoints" type="number" min="0" step="1" value="0"/>
+            <label>
+              <input type="checkbox" id="lifecycleWinbackEnabled"/>
+              Activar win-back por inactividad
+            </label>
+            <label>Dias de inactividad para win-back</label>
+            <input id="lifecycleWinbackDays" type="number" min="7" step="1" value="30"/>
+            <label>Puntos win-back</label>
+            <input id="lifecycleWinbackPoints" type="number" min="0" step="1" value="0"/>
+            <label>Hora diaria de automatizaciones (0-23)</label>
+            <input id="lifecycleSchedulerHour" type="number" min="0" max="23" step="1" value="9"/>
+            <label>Zona horaria</label>
+            <input id="lifecycleSchedulerTz" value="America/Guatemala"/>
+
+            <div class="hr"></div>
+            <h3>Plantillas de automatización</h3>
+            <p class="small">Aplica una plantilla y luego guarda la regla si quieres ajustar valores.</p>
+            <div class="row" style="gap:8px; flex-wrap:wrap">
+              <button id="btnTplCafeBasico">Cafetería básico</button>
+              <button id="btnTplReactivacion">Reactivación fuerte</button>
+              <button id="btnTplSoloAlertas">Solo alertas</button>
+            </div>
+            <p class="small" id="automationStatus">Sin plantilla aplicada aún.</p>
+
+            <div class="hr"></div>
+            <h3>Canjes: límites y enfriamiento</h3>
+            <label>Canjes máximos por cliente/día (0 = sin límite)</label>
+            <input id="redeemMaxPerDay" type="number" min="0" step="1" value="0"/>
+            <label>Canjes máximos del mismo premio por día (0 = sin límite)</label>
+            <input id="redeemMaxPerRewardDay" type="number" min="0" step="1" value="0"/>
+            <label>Enfriamiento del mismo premio (horas, 0 = sin enfriamiento)</label>
+            <input id="redeemCooldownHours" type="number" min="0" step="1" value="0"/>
+
+            <div class="hr"></div>
+            <h3>Política de niveles</h3>
+            <label>Modo</label>
+            <select id="tierPolicyMode">
+              <option value="lifetime">Acumulado histórico</option>
+              <option value="rolling_days">Ventana móvil</option>
+            </select>
+            <label>Días de ventana (si aplica)</label>
+            <input id="tierPolicyDays" type="number" min="30" step="1" value="365"/>
+            <label>Días de gracia para downgrade</label>
+            <input id="tierPolicyGrace" type="number" min="0" step="1" value="0"/>
+          </div>
+          <div class="card">
+            <h3>Resumen</h3>
+            <p class="small" id="programSummary">—</p>
+            <button class="primary" id="btnSaveProgram">Guardar regla</button>
+            <div class="hr"></div>
+            <h3>Filtro de sucursal (dashboard)</h3>
+            <label>Sucursal</label>
+            <select id="branchFilter">
+              <option value="">Todas las sucursales</option>
+            </select>
+            <p class="small">Aplica a analítica y transacciones sospechosas.</p>
+            <div class="hr"></div>
+            <div class="row">
+              <h3 style="margin:0">Transacciones sospechosas</h3>
+              <button id="btnRefreshSuspicious">Recargar</button>
+            </div>
+            <pre id="suspiciousAwards" class="small" style="white-space:pre-wrap">(sin datos)</pre>
+            <div class="hr"></div>
+            <div id="campaignRulesSection">
+              <h3>Reglas de campaña</h3>
+              <p class="small">JSON de reglas (multiplier o bonus_points).</p>
+              <textarea id="campaignRulesJson" rows="8" placeholder='[{"name":"Happy Hour","kind":"multiplier","value":1.5,"program_type":"SPEND","condition":{"weekdays":[1,2,3,4,5],"start_hour":16,"end_hour":18}}]'></textarea>
+              <div class="row" style="margin-top:8px">
+                <button id="btnLoadCampaignRules">Cargar</button>
+                <button id="btnSaveCampaignRules">Guardar reglas</button>
+              </div>
+            </div>
+            <div class="hr"></div>
+            <div id="externalAwardsSection">
+              <h3>Integración externa (card/POS)</h3>
+              <label>
+                <input type="checkbox" id="externalAwardsEnabled"/>
+                Habilitar awards externos
+              </label>
+              <label>Clave API externa</label>
+              <input id="externalAwardsApiKey" placeholder="ext_live_xxx"/>
+              <div class="row" style="margin-top:8px">
+                <button id="btnLoadExternalAwards">Cargar</button>
+                <button id="btnSaveExternalAwards">Guardar integración</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="tabs">
+        <div class="tab active" data-tab="rewards">Recompensas</div>
+        <div class="tab" data-tab="tiers">Niveles</div>
+        <div class="tab" data-tab="branches">Sucursales</div>
+        <div class="tab" data-tab="staff">Personal</div>
+        <div class="tab" data-tab="giftcards">Gift Cards</div>
+        <div class="tab" data-tab="achievements">Logros</div>
+        <div class="tab" data-tab="challenges">Retos</div>
+        <div class="tab" data-tab="referrals">Referidos</div>
+        <div class="tab" data-tab="operations">Operación</div>
+        <div class="tab" data-tab="analytics">Analítica</div>
+      </div>
+
+      <!-- REWARDS TAB -->
+      <div class="tab-content active" id="rewards-content">
+        <div class="card">
+          <h2>Recompensas</h2>
+          <p class="small">Crea y administra premios para canje con puntos.</p>
+          <div class="grid">
+            <div class="card">
+              <h3>Nueva recompensa</h3>
+              <label>Nombre</label>
+              <input id="rewardName" placeholder="Ej: Café gratis"/>
+              <label>Descripción</label>
+              <textarea id="rewardDescription" rows="2" placeholder="Canjeable en cualquier sucursal"></textarea>
+              <label>Costo en puntos</label>
+              <input id="rewardPointsCost" type="number" min="1" step="1" value="100"/>
+              <label>Stock (opcional, vacío = ilimitado)</label>
+              <input id="rewardStock" type="number" min="0" step="1" placeholder="50"/>
+              <label>Válido hasta (opcional)</label>
+              <input id="rewardValidUntil" type="datetime-local"/>
+              <label>Sucursales permitidas (opcional)</label>
+              <select id="rewardBranchIds" multiple size="4"></select>
+              <p class="small">Si no seleccionas ninguna, la recompensa aplica en todas las sucursales.</p>
+              <div class="row" style="margin-top:10px">
+                <button class="primary" id="btnCreateReward">Crear recompensa</button>
+                <button id="btnRefreshRewards">Recargar</button>
+              </div>
+              <p class="small" id="rewardLimitsInfo">—</p>
+            </div>
+            <div class="card">
+              <h3>Lista de recompensas</h3>
+              <div id="rewardsList" class="grid"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TIERS TAB -->
+      <div class="tab-content" id="tiers-content">
+        <div class="card">
+          <h2>Gestión de Niveles</h2>
+          <p class="small">Los clientes progresan automáticamente según sus puntos acumulados.</p>
+          
+          <div id="tiersList"></div>
+          
+          <div class="hr"></div>
+          <button class="primary" id="btnAddTier">+ Agregar Nivel</button>
+        </div>
+
+        <!-- Add/Edit Tier Modal -->
+        <div id="tierModal" style="display:none" class="card">
+          <h2 id="tierModalTitle">Nuevo Nivel</h2>
+          <div class="grid">
+            <div>
+              <label>Nombre</label>
+              <input id="tierName" placeholder="Ej: Platino"/>
+              
+              <label>Nivel (orden)</label>
+              <input id="tierLevel" type="number" min="1" value="4" placeholder="4"/>
+              
+              <label>Puntos mínimos</label>
+              <input id="tierMinPoints" type="number" min="0" value="5000"/>
+            </div>
+            <div>
+              <label>Multiplicador de puntos</label>
+              <input id="tierMultiplier" type="number" step="0.25" min="1" value="2.0"/>
+              
+              <label>Color (hex)</label>
+              <input id="tierColor" placeholder="#E5E4E2"/>
+              
+              <label>Icono (emoji o URL)</label>
+              <input id="tierIcon" placeholder="💎"/>
+            </div>
+          </div>
+          
+          <label>Beneficios (uno por línea)</label>
+          <textarea id="tierPerks" rows="4" placeholder="Doble puntos&#10;Envío gratis&#10;Descuentos exclusivos"></textarea>
+          
+          <div class="row" style="margin-top:16px">
+            <button class="primary" id="btnSaveTier">Guardar</button>
+            <button id="btnCancelTier">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BRANCHES TAB -->
+      <div class="tab-content" id="branches-content">
+        <div class="card">
+          <h2>Sucursales</h2>
+          <p class="small">Administra ubicaciones y usa filtros por sucursal en reportes.</p>
+          <div class="grid">
+            <div class="card">
+              <h3>Nueva sucursal</h3>
+              <label>Nombre</label>
+              <input id="branchName" placeholder="Zona 10"/>
+              <label>Dirección</label>
+              <input id="branchAddress" placeholder="Av. Reforma 12-34"/>
+              <label>Código (opcional)</label>
+              <input id="branchCode" placeholder="z10"/>
+              <button class="primary" id="btnCreateBranch" style="margin-top:12px">Crear sucursal</button>
+            </div>
+            <div class="card">
+              <h3>Listado</h3>
+              <div id="branchesList" class="small">(cargando...)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACHIEVEMENTS TAB -->
+      <div class="tab-content" id="staff-content">
+        <div class="card">
+          <h2>Gestión de Personal</h2>
+          <p class="small">Crea y administra cuentas de cajeros y managers.</p>
+          <div class="grid">
+            <div class="card">
+              <h3>Nuevo usuario</h3>
+              <label>Nombre</label>
+              <input id="staffName" placeholder="Ana Pérez"/>
+              <label>Correo</label>
+              <input id="staffEmail" type="email" placeholder="ana@negocio.com"/>
+              <label>Teléfono (opcional)</label>
+              <input id="staffPhone" placeholder="55551234"/>
+              <label>Rol</label>
+              <select id="staffRole">
+                <option value="CASHIER">Cajero</option>
+                <option value="MANAGER">Manager</option>
+              </select>
+              <label>Contraseña inicial</label>
+              <input id="staffPassword" type="password" placeholder="8+ con mayúscula, número y símbolo"/>
+              <button class="primary" id="btnCreateStaff" style="margin-top:12px">Crear usuario</button>
+            </div>
+            <div class="card">
+              <div class="row" style="justify-content:space-between;align-items:center">
+                <h3 style="margin:0">Listado</h3>
+                <button id="btnRefreshStaff">Recargar</button>
+              </div>
+              <div id="staffList" class="small">(cargando...)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="giftcards-content">
+        <div class="card">
+          <h2>Gift Cards</h2>
+          <p class="small">Crea tarjetas de regalo con saldo y comparte el código/QR.</p>
+          <div class="grid">
+            <div class="card">
+              <h3>Nueva gift card</h3>
+              <label>Monto inicial (Q)</label>
+              <input id="gcAmount" type="number" min="1" step="0.01" value="50"/>
+              <label>Nombre destinatario (opcional)</label>
+              <input id="gcName" placeholder="Juan Pérez"/>
+              <label>Teléfono destinatario (opcional)</label>
+              <input id="gcPhone" placeholder="55551234"/>
+              <button class="primary" id="btnCreateGiftCard" style="margin-top:10px">Crear gift card</button>
+              <pre id="gcLastCreated" class="small" style="white-space:pre-wrap"></pre>
+            </div>
+            <div class="card">
+              <div class="row" style="justify-content:space-between;align-items:center">
+                <h3 style="margin:0">Listado</h3>
+                <button id="btnRefreshGiftCards">Recargar</button>
+              </div>
+              <div id="giftCardList" class="small">(cargando...)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACHIEVEMENTS TAB -->
+      <div class="tab-content" id="achievements-content">
+        <div class="card">
+          <h2>Gestión de Logros</h2>
+          <p class="small">Los logros se otorgan automáticamente cuando los clientes cumplen los requisitos.</p>
+          
+          <div id="achievementsList"></div>
+          
+          <div class="hr"></div>
+          <button class="primary" id="btnAddAchievement">+ Agregar Logro</button>
+        </div>
+
+        <!-- Add/Edit Achievement Modal -->
+        <div id="achievementModal" style="display:none" class="card">
+          <h2>Nuevo Logro</h2>
+          <div class="grid">
+            <div>
+              <label>Nombre</label>
+              <input id="achName" placeholder="Ej: Comprador frecuente"/>
+              
+              <label>Descripción</label>
+              <textarea id="achDesc" rows="2" placeholder="Realiza 20 compras"></textarea>
+              
+              <label>Icono (emoji)</label>
+              <input id="achIcon" placeholder="🏆"/>
+            </div>
+            <div>
+              <label>Tipo de requisito</label>
+              <select id="achReqType">
+                <option value="visits">Visitas</option>
+                <option value="spend">Gasto total (Q)</option>
+                <option value="points">Puntos acumulados</option>
+                <option value="referrals">Referidos</option>
+                <option value="streak">Racha de días</option>
+              </select>
+              
+              <label>Valor requerido</label>
+              <input id="achReqValue" type="number" min="1" placeholder="20"/>
+              
+              <label>Puntos de recompensa</label>
+              <input id="achReward" type="number" min="0" value="50"/>
+            </div>
+          </div>
+          
+          <div class="row" style="margin-top:16px">
+            <button class="primary" id="btnSaveAchievement">Guardar</button>
+            <button id="btnCancelAchievement">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHALLENGES TAB -->
+      <div class="tab-content" id="challenges-content">
+        <div class="card">
+          <h2>Gestión de Retos</h2>
+          <p class="small">Los retos son objetivos temporales con recompensas especiales.</p>
+          
+          <div id="challengesList"></div>
+          
+          <div class="hr"></div>
+          <button class="primary" id="btnAddChallenge">+ Agregar Reto</button>
+        </div>
+
+        <!-- Add Challenge Modal -->
+        <div id="challengeModal" style="display:none" class="card">
+          <h2>Nuevo Reto</h2>
+          <div class="grid">
+            <div>
+              <label>Nombre</label>
+              <input id="chalName" placeholder="Ej: Fin de semana activo"/>
+              
+              <label>Descripción</label>
+              <textarea id="chalDesc" rows="2" placeholder="Visítanos 3 veces este fin de semana"></textarea>
+              
+              <label>Tipo</label>
+              <select id="chalType">
+                <option value="limited_time">Tiempo limitado</option>
+                <option value="recurring">Recurrente</option>
+              </select>
+
+              <label>Requisito</label>
+              <select id="chalReqType">
+                <option value="visits">Visitas</option>
+                <option value="spend">Gasto (Q)</option>
+                <option value="items">Items comprados</option>
+              </select>
+            </div>
+            <div>
+              <label>Cantidad requerida</label>
+              <input id="chalReqValue" type="number" min="1" value="3"/>
+              
+              <label>Puntos de recompensa</label>
+              <input id="chalReward" type="number" min="1" value="100"/>
+              
+              <label>Fecha inicio</label>
+              <input id="chalStartDate" type="datetime-local"/>
+              
+              <label>Fecha fin (opcional)</label>
+              <input id="chalEndDate" type="datetime-local"/>
+              
+              <label>Recurrencia (para recurrentes)</label>
+              <select id="chalRecurrence">
+                <option value="">No recurrente</option>
+                <option value="daily">Diario</option>
+                <option value="weekly">Semanal</option>
+                <option value="monthly">Mensual</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="row" style="margin-top:16px">
+            <button class="primary" id="btnSaveChallenge">Guardar</button>
+            <button id="btnCancelChallenge">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- REFERRALS TAB -->
+      <div class="tab-content" id="referrals-content">
+        <div class="card">
+          <h2>Programa de Referidos</h2>
+          
+          <div class="grid">
+            <div class="card">
+              <h3>Configuración</h3>
+              <label>
+                <input type="checkbox" id="refEnabled"/>
+                Programa activado
+              </label>
+              
+              <label>Puntos para quien refiere</label>
+              <input id="refReferrerPoints" type="number" min="0" value="100"/>
+              
+              <label>Puntos para el referido</label>
+              <input id="refReferredPoints" type="number" min="0" value="50"/>
+              
+              <label>Gasto mínimo para completar (Q, 0 = inmediato)</label>
+              <input id="refMinPurchase" type="number" min="0" step="0.01" value="0"/>
+              
+              <label>
+                <input type="checkbox" id="refRewardOnSignup"/>
+                Recompensar al registrarse (o esperar primera compra)
+              </label>
+              
+              <button class="primary" id="btnSaveRefSettings" style="margin-top:12px">Guardar Configuración</button>
+            </div>
+
+            <div class="card">
+              <h3>Estadísticas</h3>
+              <div id="refStats"></div>
+              
+              <div class="hr"></div>
+              
+              <h3>Top Referidores</h3>
+              <div id="refLeaderboard" class="small"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPERATIONS TAB -->
+      <div class="tab-content" id="operations-content">
+        <div class="card">
+          <h2>Operación diaria y onboarding</h2>
+          <div class="card">
+            <div class="row" style="justify-content:space-between;align-items:center">
+              <h3 style="margin:0">Checklist de activación</h3>
+              <button id="btnRefreshOnboarding">Actualizar</button>
+            </div>
+            <div class="onboarding-progress-wrap" style="margin-top:8px">
+              <div id="ownerOnboardingProgress" class="onboarding-progress-bar"></div>
+            </div>
+            <div id="ownerOnboardingChecklist" class="small">(cargando...)</div>
+          </div>
+          <div class="grid">
+            <div class="card">
+              <h3>Checklist de apertura</h3>
+              <ol class="small">
+                <li>Abrir panel de staff y probar un escaneo interno.</li>
+                <li>Verificar que la regla de puntos esté correcta.</li>
+                <li>Confirmar recompensas activas y stock.</li>
+                <li>Revisar alertas críticas antes de abrir caja.</li>
+              </ol>
+              <button id="btnPrintOpenSop">Imprimir SOP apertura</button>
+            </div>
+            <div class="card">
+              <h3>Checklist de cierre</h3>
+              <ol class="small">
+                <li>Revisar transacciones sospechosas del día.</li>
+                <li>Validar canjes y gift cards emitidas.</li>
+                <li>Exportar reporte IVA si corresponde.</li>
+                <li>Confirmar que no haya trabajos fallidos.</li>
+              </ol>
+              <button id="btnPrintCloseSop">Imprimir SOP cierre</button>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Material de capacitación rápida</h3>
+            <p class="small">Guía de 10 minutos para cajeros y gerentes nuevos.</p>
+            <div class="row">
+              <button id="btnPrintTraining">Imprimir guía de entrenamiento</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ANALYTICS TAB -->
+      <div class="tab-content" id="analytics-content">
+        <div class="card">
+          <h2>Analítica Avanzada</h2>
+          <div class="card">
+            <div class="row" style="justify-content:space-between;align-items:center">
+              <h3 style="margin:0">Narrativa del negocio (30 días)</h3>
+              <span class="badge">Resumen ejecutivo</span>
+            </div>
+            <div id="analyticsStory" class="story-grid small">(cargando...)</div>
+          </div>
+          <div class="grid">
+            <div class="card">
+              <h3>Radar de crecimiento</h3>
+              <p class="small">Vista rápida de adquisición, retención, frecuencia y monetización.</p>
+              <div id="growthRadar" class="small">(cargando...)</div>
+            </div>
+            <div class="card">
+              <h3>Alertas inteligentes</h3>
+              <p class="small">Acciones sugeridas según riesgos y oportunidades detectadas.</p>
+              <div id="smartAlerts" class="small">(cargando...)</div>
+            </div>
+          </div>
+          <div class="card ops-summary-card">
+            <div class="row" style="justify-content:space-between; align-items:center">
+              <h3 style="margin:0">Resumen operativo</h3>
+              <button id="btnRefreshOpsSummary">Actualizar</button>
+            </div>
+            <div id="opsSummary" class="small">(sin datos)</div>
+            <div id="opsFailedJobs" class="small" style="margin-top:8px"></div>
+          </div>
+          
+          <div class="grid">
+            <div class="card">
+              <h3>Resumen</h3>
+              <div id="analyticsSummary"></div>
+            </div>
+            
+            <div class="card">
+              <h3>Distribución RFM</h3>
+              <div id="rfmDist"></div>
+            </div>
+            <div class="card">
+              <h3>Reporte ROI</h3>
+              <div id="roiReport" class="small">(sin datos)</div>
+              <div class="row" style="margin-top:8px">
+                <button id="btnRefreshRoi">Recargar ROI</button>
+              </div>
+            </div>
+          <div class="card">
+            <h3>Tendencia (30 días)</h3>
+            <div id="revenueTrend" class="small">(sin datos)</div>
+          </div>
+          <div class="card">
+            <h3>Comparativo sucursal vs global</h3>
+            <p class="small">Cuando filtras una sucursal, aquí ves su ritmo contra el total del negocio.</p>
+            <div id="branchBenchmark" class="small">(selecciona una sucursal para comparar)</div>
+          </div>
+          <div class="card">
+            <h3>Facturación local (IVA 12%)</h3>
+              <label>Desde</label>
+              <input id="ivaFrom" type="date"/>
+              <label>Hasta</label>
+              <input id="ivaTo" type="date"/>
+              <div class="row" style="margin-top:8px">
+                <button id="btnExportIvaCsv">Descargar CSV IVA</button>
+              </div>
+              <p class="small">Formato listo para revisión contable en Guatemala.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Clientes en Riesgo de Pérdida</h3>
+            <p class="small">Clientes que no han visitado recientemente</p>
+            <div id="churnList"></div>
+          </div>
+
+          <div class="card">
+            <h3>Rendimiento por Sucursal (30 días)</h3>
+            <p class="small">Comparativo rápido de ingresos, transacciones y canjes.</p>
+            <p id="analyticsScopeHint" class="small">Vista actual: Todas las sucursales</p>
+            <div id="branchPerformance"></div>
+          </div>
+
+          <div class="card">
+            <h3>Comparativo de sucursales</h3>
+            <p class="small">Tabla rápida para detectar dónde enfocar soporte y marketing.</p>
+            <div id="branchCompareTable" class="small">(sin datos)</div>
+          </div>
+
+          <div class="card">
+            <h3>Cohortes de retención</h3>
+            <p class="small">Porcentaje de clientes que regresan por cohorte mensual.</p>
+            <div id="cohortHeatmap" class="small">(sin datos)</div>
+          </div>
+
+          <div class="row" style="margin-top:16px">
+            <button class="primary" id="btnRecalcAnalytics">🔄 Recalcular Métricas</button>
+            <span class="badge">Última actualización: <span id="lastCalc">Nunca</span></span>
+          </div>
+
+          <div class="card">
+            <div class="row" style="justify-content:space-between; align-items:center">
+              <h3 style="margin:0">Estado de trabajos en segundo plano</h3>
+              <button id="btnRefreshJobs">Recargar</button>
+            </div>
+            <div id="jobsStatus" class="small">(sin datos)</div>
+          </div>
+
+          <div class="card">
+            <div class="row" style="justify-content:space-between; align-items:center">
+              <h3 style="margin:0">Pagos pendientes por asignar</h3>
+              <button id="btnRefreshPaymentPending">Recargar</button>
+            </div>
+            <p class="small">Si el webhook llegó sin cliente, puedes asignarlo manualmente por teléfono.</p>
+            <div id="paymentPendingList" class="small">(sin datos)</div>
+          </div>
+
+          <div class="card">
+            <div class="row" style="justify-content:space-between; align-items:center">
+              <h3 style="margin:0">Centro de alertas</h3>
+              <button id="btnRefreshAlerts">Recargar</button>
+            </div>
+            <p class="small">Incluye sospechosas, webhooks fallidos y trabajos con error.</p>
+            <div id="alertsCenter" class="small">(sin datos)</div>
+          </div>
+
+          <div class="card">
+            <div class="row" style="justify-content:space-between; align-items:center">
+              <h3 style="margin:0">Línea de auditoría</h3>
+              <div class="row" style="gap:8px; align-items:center">
+                <input id="auditFrom" type="date" aria-label="Desde auditoría"/>
+                <input id="auditTo" type="date" aria-label="Hasta auditoría"/>
+                <label class="small" style="display:inline-flex; gap:6px; align-items:center">
+                  <input id="auditShowImpersonatedOnly" type="checkbox"/>
+                  Solo impersonación
+                </label>
+                <button id="btnExportAuditCsv">Exportar CSV</button>
+                <button id="btnRefreshAudit">Recargar</button>
+              </div>
+            </div>
+            <p class="small">Cambios de configuración y acciones críticas recientes.</p>
+            <p id="auditScopeHint" class="small">Vista actual: eventos recientes.</p>
+            <div id="auditTimeline" class="small">(sin datos)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script type="module" src="/admin-dashboard.js"></script>
+</body>
+</html>

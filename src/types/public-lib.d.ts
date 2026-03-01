@@ -1,0 +1,12 @@
+export function api(path: string, opts?: RequestInit): Promise<any>;
+export function $(sel: string): Element | null;
+export function $all(sel: string): Element[];
+export function toast(message: string): void;
+export function fmtQ(value: unknown): string;
+export function isStrongPassword(value: unknown): boolean;
+export function passwordRequirementsText(): string;
+export function modalAlert(message: string, opts?: Record<string, unknown>): Promise<unknown>;
+export function modalConfirm(message: string, opts?: Record<string, unknown>): Promise<boolean>;
+export function modalPrompt(message: string, opts?: Record<string, unknown>): Promise<string | null>;
+export function mountIosInstallHint(): void;
+export function uuidv4(): string;

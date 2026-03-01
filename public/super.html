@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#f8f2e8"/>
+  <title>Super administración • PuntosFieles</title>
+  <link rel="stylesheet" href="/styles.css"/>
+</head>
+<body>
+  <div class="nav">
+    <div class="brand">🛡️ Super administración</div>
+    <div class="row">
+      <a class="badge" href="/">Inicio</a>
+      <button id="btnLogout" style="display:none">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card" id="loginCard">
+      <h1>Ingreso de super admin</h1>
+      <p class="small">Acceso global de plataforma. Solo para administración central.</p>
+      <label>Correo</label>
+      <input id="email" type="email" placeholder="tu-correo@dominio.com"/>
+      <label>Contraseña</label>
+      <input id="password" type="password" placeholder="******"/>
+      <div class="row" style="margin-top:12px">
+        <button class="primary" id="btnLogin">Ingresar</button>
+      </div>
+    </div>
+
+    <div class="card" id="mainCard" style="display:none">
+      <h2>Planes y funcionalidades</h2>
+      <p class="small">Activa o desactiva funcionalidades por plan. Cambios aplican a todos los negocios en ese plan.</p>
+      <div id="planMatrix" class="small" style="margin-bottom:12px">(cargando...)</div>
+    </div>
+
+    <div class="card" id="securityCard" style="display:none">
+      <h2>Postura de seguridad (24h)</h2>
+      <p class="small">Eventos recientes de riesgo a nivel plataforma.</p>
+      <div class="row" style="margin-bottom:8px">
+        <button id="btnRotateSecrets">Rotar secretos cifrados ahora</button>
+      </div>
+      <div class="grid" id="securityCounters"></div>
+      <pre id="securityRecent" class="small" style="max-height:260px;overflow:auto;margin-top:10px"></pre>
+    </div>
+
+    <div class="card" id="businessCard" style="display:none">
+      <h2>Negocios</h2>
+      <p class="small">Puedes cambiar plan por negocio (controla funcionalidades por suscripción) e impersonar OWNER/MANAGER para soporte.</p>
+      <div class="grid">
+        <div class="card">
+          <h3>Crear negocio + owner</h3>
+          <label>Nombre negocio</label>
+          <input id="newBusinessName" placeholder="Café Central"/>
+          <label>Correo owner</label>
+          <input id="newBusinessEmail" type="email" placeholder="owner@negocio.com"/>
+          <label>Teléfono (opcional)</label>
+          <input id="newBusinessPhone" placeholder="55551234"/>
+          <label>Contraseña owner</label>
+          <input id="newBusinessPassword" type="password" placeholder="8+ con mayúscula, número y símbolo"/>
+          <label>Categoría</label>
+          <select id="newBusinessCategory">
+            <option value="cafe">Café</option>
+            <option value="salon">Salón</option>
+            <option value="gym">Gym</option>
+            <option value="otro">Otro</option>
+          </select>
+          <label>Plan inicial</label>
+          <select id="newBusinessPlan">
+            <option value="EMPRENDEDOR">EMPRENDEDOR</option>
+            <option value="NEGOCIO">NEGOCIO</option>
+            <option value="EMPRESA">EMPRESA</option>
+          </select>
+          <button class="primary" id="btnCreateBusiness" style="margin-top:10px">Crear negocio</button>
+        </div>
+        <div class="card">
+          <h3>Crear usuario en negocio</h3>
+          <label>Negocio</label>
+          <select id="newUserBusiness"></select>
+          <label>Nombre</label>
+          <input id="newUserName" placeholder="Carlos Gómez"/>
+          <label>Correo</label>
+          <input id="newUserEmail" type="email" placeholder="carlos@negocio.com"/>
+          <label>Teléfono (opcional)</label>
+          <input id="newUserPhone" placeholder="55551234"/>
+          <label>Rol</label>
+          <select id="newUserRole">
+            <option value="MANAGER">Gerente</option>
+            <option value="CASHIER">Cajero</option>
+            <option value="OWNER">Dueño</option>
+          </select>
+          <label>Contraseña</label>
+          <input id="newUserPassword" type="password" placeholder="8+ con mayúscula, número y símbolo"/>
+          <button class="primary" id="btnCreateBusinessUser" style="margin-top:10px">Crear usuario</button>
+          <p class="small" id="newUserHint"></p>
+        </div>
+      </div>
+      <div class="row" style="margin-bottom:8px">
+        <button id="btnReload">Recargar</button>
+      </div>
+      <div id="businesses" class="small">(sin datos)</div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script type="module" src="/super.js"></script>
+</body>
+</html>

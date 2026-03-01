@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#f8f2e8"/>
+  <title>Registrar negocio • PuntosFieles</title>
+  <link rel="stylesheet" href="/styles.css"/>
+</head>
+<body>
+  <div class="nav">
+    <div class="brand">🎁 PuntosFieles</div>
+    <div class="row">
+      <a class="badge" href="/">Inicio</a>
+      <a class="badge" href="/staff/login">Personal</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h1>Registrar negocio</h1>
+      <p>En 2 minutos. Esto crea tu negocio + usuario propietario.</p>
+      <div class="onboarding-steps">
+        <div class="step-pill active">1. Datos</div>
+        <div class="step-pill">2. Regla de puntos</div>
+        <div class="step-pill">3. Publicar</div>
+      </div>
+      <div class="onboarding-progress-wrap">
+        <div id="adminOnboardingProgress" class="onboarding-progress-bar"></div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Datos</h2>
+          <label>Nombre del negocio</label>
+          <input id="businessName" placeholder="Café Bourbon"/>
+
+          <label>Correo (propietario)</label>
+          <input id="email" type="email" placeholder="owner@negocio.com"/>
+
+          <label>Teléfono (opcional)</label>
+          <input id="phone" placeholder="55551234"/>
+
+          <label>Contraseña</label>
+          <input id="password" type="password" placeholder="8+ con mayúscula, número y símbolo"/>
+          <p id="passwordHint" class="small">Usa 8+ caracteres con mayúscula, minúscula, número y símbolo.</p>
+
+          <label>Categoría</label>
+          <select id="category">
+            <option value="cafe">Café</option>
+            <option value="salon">Salón</option>
+            <option value="gym">Gym</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+
+        <div class="card">
+          <h2>Regla de puntos</h2>
+          <p id="programPreview" class="small">Vista previa: Q100 ≈ 10 puntos.</p>
+
+          <label>Tipo</label>
+          <select id="program_type">
+            <option value="SPEND">Por gasto (Q)</option>
+            <option value="VISIT">Por visita</option>
+            <option value="ITEM">Por item</option>
+          </select>
+
+          <div id="spendBox">
+            <label>Points por Q (ej: 0.1 = 1 punto por Q10)</label>
+            <input id="points_per_q" type="number" step="0.01" value="0.10"/>
+            <label>Redondeo</label>
+            <select id="round">
+              <option value="ceil">Hacia arriba</option>
+              <option value="round">Normal</option>
+              <option value="floor">Hacia abajo</option>
+            </select>
+          </div>
+
+          <div id="visitBox" style="display:none">
+            <label>Puntos por visita</label>
+            <input id="points_per_visit" type="number" step="1" value="10"/>
+          </div>
+
+          <div id="itemBox" style="display:none">
+            <label>Puntos por item</label>
+            <input id="points_per_item" type="number" step="1" value="1"/>
+          </div>
+
+          <div class="hr"></div>
+          <button class="primary" id="btnCreate">Crear negocio</button>
+          <p class="small">Después de crear, quedas con sesión de propietario.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="result" style="display:none">
+      <h2>Listo ✅</h2>
+      <p>Tu <b>slug del negocio</b> es: <code id="slug"></code></p>
+      <p>Imprime un QR hacia:</p>
+      <p><code id="joinUrl"></code></p>
+      <div class="row">
+        <button id="btnCopyJoin" class="primary">Copiar enlace de registro</button>
+        <a class="badge" href="/staff">Abrir escáner del personal</a>
+        <a class="badge" href="/admin-dashboard.html">Abrir panel admin</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script type="module" src="/admin.js"></script>
+</body>
+</html>

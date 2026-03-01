@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#f8f2e8"/>
+  <title>Escáner de personal • PuntosFieles</title>
+  <link rel="stylesheet" href="/styles.css"/>
+</head>
+<body>
+  <div class="nav">
+    <div class="brand">📷 Escáner de personal</div>
+    <div class="row">
+      <a class="badge" href="/">Inicio</a>
+      <a class="badge" href="/staff/login">Ingresar</a>
+      <span class="badge" id="queueBadge">Sin conexión: 0</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="grid">
+      <div class="card">
+        <h2>Cámara</h2>
+        <video id="video" autoplay playsinline muted></video>
+        <div class="row" style="margin-top:10px">
+          <button class="primary" id="btnStart">Iniciar</button>
+          <button id="btnStop">Pausar</button>
+          <button id="btnSync">Sincronizar</button>
+        </div>
+        <p class="small">Consejo: Chrome Android tiene mejor soporte para QR. Si no hay BarcodeDetector, usa entrada manual.</p>
+      </div>
+
+      <div class="card">
+        <h2>Registrar puntos</h2>
+        <p class="small" id="programInfo">Regla activa: —</p>
+
+        <label>Token QR (manual)</label>
+        <textarea id="token" rows="3" placeholder="Pega aquí el token si no puedes escanear"></textarea>
+
+        <div class="grid">
+          <div>
+            <label>Monto (Q)</label>
+            <input id="amount" type="number" step="0.01" value="0"/>
+          </div>
+          <div>
+            <label>Visitas</label>
+            <input id="visits" type="number" step="1" value="1"/>
+          </div>
+          <div>
+            <label>Items</label>
+            <input id="items" type="number" step="1" value="1"/>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <button class="primary" id="btnAward">Registrar</button>
+          <button class="danger" id="btnLogout">Salir</button>
+        </div>
+        <p class="small" id="awardPreview"></p>
+
+        <div class="hr"></div>
+        <div class="row">
+          <span class="badge">Último cliente: <code id="lastCustomer">—</code></span>
+          <span class="badge">Puntos: <code id="lastPoints">—</code></span>
+          <span class="badge">Saldo: <code id="lastBalance">—</code></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Canjear recompensa</h2>
+      <p class="small">Primero escanea/registrar para seleccionar el cliente, luego canjea.</p>
+
+      <label>Recompensa</label>
+      <select id="rewardSelect"></select>
+
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="btnRedeem">Canjear</button>
+        <span class="badge">Código: <code id="redeemCode">—</code></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Gift Cards</h2>
+      <p class="small">Canjea saldo de gift card por monto.</p>
+      <label>Código o token</label>
+      <input id="giftCode" placeholder="GC-XXXX... o gft_xxx"/>
+      <label>Monto a descontar (Q)</label>
+      <input id="giftAmount" type="number" min="0.01" step="0.01" value="10"/>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="btnGiftRedeem">Canjear gift card</button>
+      </div>
+      <p class="small" id="giftStatus">—</p>
+    </div>
+
+    <div class="card" id="ownerAnalyticsCard">
+      <h2>Propietario: analítica</h2>
+      <div class="row">
+        <button id="btnSummary">Ver resumen</button>
+        <a class="badge" href="/admin">Registro</a>
+      </div>
+      <pre id="summary" class="small" style="white-space:pre-wrap"></pre>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script type="module" src="/staff.js"></script>
+</body>
+</html>

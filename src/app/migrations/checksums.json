@@ -1,0 +1,27 @@
+{
+  "generated_at": "2026-02-27T19:31:58.380Z",
+  "files": {
+    "001_add_transactions_type.sql": "34e119c91fa5c744920b65a77dedeb89276bfd86a1b45e9a7edd59d73e8ffefc",
+    "002_reward_branch_scope.sql": "5a076cc3a0b4df04031c5dc6d8ec26f75ebf44e648ca14a234dd8dfea08af401",
+    "2026-02-27-business-public-lockdown.sql": "0bc3e6c9d95b8b88f73748a917cac0135df1bdb4d6eb26712dc7da3b40428797",
+    "2026-02-27-business-public.sql": "10e483c0ce2207f1b9f5576ccf48592a991c8c5e96dab957578c3158953a8210",
+    "2026-02-27-business-public_lockdown.sql": "039d19daf15984453ca4f33eed1a337acdf90304dc02b9b5cf01110286f39fec",
+    "2026-02-27-staff-login-index-lockdown.sql": "b82dceb15e58227b4851264ef031f21c121e7a44143e3ae221833c1712f1f63e",
+    "2026-02-27-staff-login-index.sql": "0a1b669fa124f6038e9fc8aa63bfccc26c8b3f562c3894d427422435f8b315e0",
+    "2026-02-27-staff-login-index2-lockdown.sql": "9c227d87dbab78bd18520a6bd43cf36f8806e4021ac19785296f5dfbfced5aa8",
+    "2026-02-27-staff-login-index3-lockdown.sql": "9cf715cd79f65b1469017042b920e90c0a3440dd08dc6973977277314a9636a7",
+    "2026-02-27-staff-login-index4-schema-usage.sql": "0ca1f7116b81b571bd41f42703d9d3e392914fa4ce521826d431a8ffe3e4c79b",
+    "2026-02-27-tenant-billing.sql": "672e28259883afd5b3528f0dc7e464c0e1f414aa524cba0f2593c9f8bed26236",
+    "2026-02-27-tenant-rls-fix.sql": "0e64225f46903d8b043ddffe063b06481fc49bf583b9bb723838b4df271c0165",
+    "2026-02-27-tenant-rls-force.sql": "75e45afd2507b4926fd4a680ca7f75aafb88872aea3eeb6bc28ed37ce69f2c4b",
+    "2026-02-27-tenant-rls-hotfix.sql": "6e44d01a24ff2ddb28ac935dcf524252553f140b1952b932e1ec00c2f7bdf9b6",
+    "2026-02-27-tenant-rls-nobypass.sql": "8d4138e6902c9f35f639c00783339678d723d20431f117f6359f78db72fce146",
+    "2026-02-27-tenant-rls-nosuper.sql": "8dbbf29bae71e67ae90cc33f4980b5fa5074f4d85b31d65768eeb8176df0d975",
+    "2026-02-27-tenant-rls-relaxed.sql": "cd1d7e4660da0672a77cf02e405bfb652a4fe7d97fbceffe66e10deff16ecadd",
+    "2026-02-27-tenant-rls-strict.sql": "0bc85060a5ecd2fcad0107f54f9d73e62434feea5b09106d826f09005758653c",
+    "2026-02-27-tenant-rls-webhook-ingest.sql": "3cca12559988ec03ee10dd00523e6484b24b383e9d283d4a2d5134f003804ac7",
+    "2026-02-27-tenant-rls.sql": "f1189cf7494a67a883ec561f275045e4631c46dbf53cd802c9c46932b2dadc3c",
+    "2026-02-27-tenant-rls_canonical.sql": "6c01ad9b004f06b24463c5643ef7393c33e12757227b080d75f1778d541974f7",
+    "2026-02-27-webhook-deliveries-endpoint-index.sql": "5231ebf5187cb50752e89ecf06277dad2847782f97cec777f93d18dac2af64bc"
+  }
+}

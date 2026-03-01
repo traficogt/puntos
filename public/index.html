@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#f8f2e8"/>
+  <title>PuntosFieles</title>
+  <link rel="manifest" href="/manifest.webmanifest"/>
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
+  <link rel="stylesheet" href="/styles.css"/>
+</head>
+<body>
+  <div class="nav">
+    <div class="brand">🎁 PuntosFieles</div>
+    <div class="row">
+      <a class="badge" href="/admin">Registrar negocio</a>
+      <a class="badge" href="/staff/login">Personal</a>
+      <a class="badge" href="/c">Mi tarjeta</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card hero">
+      <h1>Convierte clientes en fans</h1>
+      <p>Sistema de lealtad con QR y modo offline. Diseñado para Guatemala. Sin Twilio.</p>
+      <div class="grid">
+        <div class="card">
+          <h2>Negocios</h2>
+          <p>Crea recompensas, escanea QR, analiza visitas y canjes.</p>
+          <div class="row">
+            <a class="badge" href="/admin">Crear cuenta</a>
+            <a class="badge" href="/staff/login">Entrar personal</a>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Clientes</h2>
+          <p>Tu tarjeta vive en tu celular (PWA). Genera tu QR para ganar puntos.</p>
+          <div class="row">
+            <a class="badge" href="/c">Ver mi tarjeta</a>
+          </div>
+          <p class="small">Para registrarte, escanea el QR del negocio (link /join/&lt;slug&gt;).</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Links útiles</h2>
+      <p>Imprime QR hacia:</p>
+      <ul>
+        <li><code>/join/&lt;slug-negocio&gt;</code> — registro de clientes</li>
+        <li><code>/staff/login</code> — ingreso de personal</li>
+        <li><code>/c</code> — tarjeta del cliente</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script type="module" src="/index.js"></script>
+</body>
+</html>

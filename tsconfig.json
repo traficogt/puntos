@@ -1,0 +1,52 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "/idb.js": ["src/types/public-idb.d.ts"],
+      "/lib.js": ["src/types/public-lib.d.ts"]
+    },
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "src/**/*",
+    "tests/**/*",
+    "public/admin-dashboard/core.js",
+    "public/admin-dashboard/view-state.js",
+    "public/admin-dashboard/modules/analytics.js",
+    "public/admin-dashboard/modules/analytics/audit.js",
+    "public/admin-dashboard/modules/analytics/cohorts.js",
+    "public/admin-dashboard/modules/analytics/dashboard.js",
+    "public/admin-dashboard/modules/analytics/operations.js",
+    "public/admin-dashboard/modules/analytics/render.js",
+    "public/admin-dashboard/modules/program.js",
+    "public/admin-dashboard/modules/program-form.js",
+    "public/admin.js",
+    "public/admin-dashboard/types.ts",
+    "public/customer/index.js",
+    "public/customer/load.js",
+    "public/customer/me.js",
+    "public/customer/network.js",
+    "public/customer/qr.js",
+    "public/customer/render.js",
+    "public/staff-login.js",
+    "public/staff.js",
+    "public/staff/index.js",
+    "public/staff/types.ts",
+    "public/super/index.js",
+    "public/super/types.ts",
+    "public/types.ts"
+  ],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,23 @@
+services:
+  db:
+    environment:
+      POSTGRES_DB: puntos_e2e
+      POSTGRES_USER: loyalty
+      POSTGRES_PASSWORD: loyalty_e2e_password
+    ports: []
+    expose:
+      - "5432"
+
+  api:
+    environment:
+      PORT: 3001
+      NODE_ENV: test
+      DB_NAME: puntos_e2e
+      DB_USER: loyalty
+      DB_PASSWORD: loyalty_e2e_password
+      DB_MIGRATIONS_USER: loyalty
+      DB_MIGRATIONS_PASSWORD: loyalty_e2e_password
+      SUPER_ADMIN_EMAIL: super@example.com
+      SUPER_ADMIN_PASSWORD: super_password_123456
+      CORS_ORIGIN: http://localhost:${E2E_PORT:-3101}
+      APP_ORIGIN: http://localhost:${E2E_PORT:-3101}
