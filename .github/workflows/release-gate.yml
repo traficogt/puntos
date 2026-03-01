@@ -287,7 +287,7 @@ jobs:
       - name: Run Chromium flow + adversarial suite
         run: npx playwright test tests/e2e/adversarial.spec.js tests/e2e/flows.spec.js tests/e2e/smoke.spec.js --project=chromium
       - name: Run Chromium visual suite
-        run: npm run test:e2e:visual
+        run: npx playwright test tests/e2e/visual.spec.js --project=chromium
       - name: Upload release browser artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
