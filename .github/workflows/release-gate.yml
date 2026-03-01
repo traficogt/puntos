@@ -224,38 +224,6 @@ jobs:
     needs:
       - release-smoke
       - release-observability
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: puntos
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d puntos"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-    env:
-      NODE_ENV: test
-      PORT: 3001
-      DB_HOST: localhost
-      DB_PORT: 5432
-      DB_NAME: puntos
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      JWT_SECRET: ci_jwt_secret_abcdefghijklmnopqrstuvwxyz_123456
-      SUPER_ADMIN_EMAIL: super@example.com
-      SUPER_ADMIN_PASSWORD: super_password_123456
-      MESSAGE_PROVIDER: dev
-      CORS_ORIGIN: http://localhost:3001
-      APP_ORIGIN: http://localhost:3001
-      DB_MIGRATIONS_USER: postgres
-      DB_MIGRATIONS_PASSWORD: postgres
-      TRUST_PROXY: 1
-      E2E_BASE_URL: http://localhost:3001
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -264,37 +232,16 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Generate QR keys for tests
-        run: |
-          openssl genpkey -algorithm Ed25519 -out qr-private.pem
-          openssl pkey -in qr-private.pem -pubout -out qr-public.pem
-          {
-            echo "QR_PRIVATE_KEY_PEM<<EOF"
-            cat qr-private.pem
-            echo "EOF"
-            echo "QR_PUBLIC_KEY_PEM<<EOF"
-            cat qr-public.pem
-            echo "EOF"
-          } >> "$GITHUB_ENV"
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
-      - name: Start app
-        run: |
-          node src/app/server.js > /tmp/puntos-release-browser.log 2>&1 &
-          TIMEOUT=80 bash src/scripts/wait-for-api.sh http://localhost:3001/api/health
-      - name: Run HTTP smoke gate
-        run: npm run ops:smoke -- --base-url http://localhost:3001 --require-super-login
       - name: Run Chromium flow + adversarial suite
-        run: npx playwright test tests/e2e/adversarial.spec.js tests/e2e/flows.spec.js tests/e2e/smoke.spec.js --project=chromium
+        run: npm run test:e2e -- tests/e2e/adversarial.spec.js tests/e2e/flows.spec.js tests/e2e/smoke.spec.js --project=chromium
       - name: Run Chromium visual suite
-        run: npx playwright test tests/e2e/visual.spec.js --project=chromium
+        run: npm run test:e2e -- tests/e2e/visual.spec.js --project=chromium
       - name: Upload release browser artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: release-browser-artifacts
           path: |
-            /tmp/puntos-release-browser.log
             playwright-report
             test-results
 
