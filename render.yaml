@@ -1,0 +1,90 @@
+# Render.com Blueprint — Design Preview
+# https://render.com/docs/blueprint-spec
+#
+# HOW TO USE:
+# 1. Sign up at https://render.com (free)
+# 2. New → Blueprint → connect this GitHub repo → select the `design` branch
+# 3. Render will create the database and web service automatically
+# 4. After the first deploy, go to the web service's Environment tab and set:
+#      QR_PRIVATE_KEY_PEM  → output of: openssl genpkey -algorithm Ed25519
+#      QR_PUBLIC_KEY_PEM   → output of: openssl pkey -in qr-private.pem -pubout
+#      CORS_ORIGIN         → https://<your-service-name>.onrender.com
+#      APP_ORIGIN          → https://<your-service-name>.onrender.com
+# 5. Every push to `design` will trigger a new deploy automatically.
+
+services:
+  - type: web
+    name: puntos-design
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm ci --ignore-scripts
+    startCommand: node src/app/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: development
+      - key: AUTO_APPLY_SCHEMA_EXTENSIONS
+        value: "true"
+      - key: AUTO_APPLY_MIGRATIONS
+        value: "true"
+      - key: MESSAGE_PROVIDER
+        value: dev
+      - key: TRUST_PROXY
+        value: "1"
+      - key: TZ
+        value: America/Guatemala
+      - key: CRON_TZ
+        value: America/Guatemala
+      - key: WEBHOOK_REQUIRE_HTTPS
+        value: "false"
+      - key: SUPER_ADMIN_EMAIL
+        value: admin@example.com
+      - key: SUPER_ADMIN_PASSWORD
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DB_HOST
+        fromDatabase:
+          name: puntos-design-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: puntos-design-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: puntos-design-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: puntos-design-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: puntos-design-db
+          property: password
+      - key: DB_MIGRATIONS_USER
+        fromDatabase:
+          name: puntos-design-db
+          property: user
+      - key: DB_MIGRATIONS_PASSWORD
+        fromDatabase:
+          name: puntos-design-db
+          property: password
+      # Set these manually in the Render dashboard after first deploy:
+      - key: QR_PRIVATE_KEY_PEM
+        value: REPLACE_WITH_GENERATED_KEY
+      - key: QR_PUBLIC_KEY_PEM
+        value: REPLACE_WITH_GENERATED_KEY
+      - key: CORS_ORIGIN
+        value: REPLACE_WITH_RENDER_URL
+      - key: APP_ORIGIN
+        value: REPLACE_WITH_RENDER_URL
+
+databases:
+  - name: puntos-design-db
+    databaseName: puntos
+    user: loyalty
+    plan: free
+    region: oregon

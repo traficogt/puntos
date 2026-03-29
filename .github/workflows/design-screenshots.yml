@@ -1,0 +1,133 @@
+name: Design Visual Preview
+
+# Runs only on the `design` branch.
+# On every push it boots the full app, captures fresh screenshots, and
+# uploads them as downloadable artifacts so you can see what changed
+# without needing a live server.
+
+on:
+  push:
+    branches:
+      - design
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    name: Capture Screenshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: puntos
+          POSTGRES_USER: loyalty
+          POSTGRES_PASSWORD: ci-postgres-design-${{ github.run_id }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U loyalty -d puntos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      NODE_ENV: test
+      PORT: 3001
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: puntos
+      DB_USER: loyalty
+      DB_PASSWORD: ci-postgres-design-${{ github.run_id }}
+      JWT_SECRET: ci-jwt-design-${{ github.run_id }}
+      SUPER_ADMIN_EMAIL: super@example.com
+      SUPER_ADMIN_PASSWORD: ci-super-design-${{ github.run_id }}
+      MESSAGE_PROVIDER: dev
+      CORS_ORIGIN: http://localhost:3001
+      APP_ORIGIN: http://localhost:3001
+      TRUST_PROXY: 1
+      E2E_BASE_URL: http://localhost:3001
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate QR signing keys
+        run: |
+          openssl genpkey -algorithm Ed25519 -out qr-private.pem
+          openssl pkey -in qr-private.pem -pubout -out qr-public.pem
+          {
+            echo "QR_PRIVATE_KEY_PEM<<EOF"
+            cat qr-private.pem
+            echo "EOF"
+            echo "QR_PUBLIC_KEY_PEM<<EOF"
+            cat qr-public.pem
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start app
+        run: |
+          node src/app/server.js > /tmp/puntos-design.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS http://localhost:3001/api/health >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          echo "App did not start in time"
+          cat /tmp/puntos-design.log
+          exit 1
+
+      - name: Capture screenshots
+        run: npm run test:e2e:visual:update
+        continue-on-error: true
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-screenshots-${{ github.sha }}
+          path: tests/e2e/visual.spec.js-snapshots/
+          retention-days: 30
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-playwright-report-${{ github.sha }}
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload app log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-app-log
+          path: /tmp/puntos-design.log
+
+      - name: Job summary
+        if: always()
+        run: |
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+          {
+            echo "## Design Visual Preview — \`${SHORT_SHA}\`"
+            echo ""
+            echo "| Artifact | What it contains |"
+            echo "|---|---|"
+            echo "| \`design-screenshots-${{ github.sha }}\` | PNG screenshots — download and open to see the current look |"
+            echo "| \`design-playwright-report-${{ github.sha }}\` | Full Playwright report — open \`index.html\` for a visual diff viewer |"
+            echo ""
+            echo "**How to view:** scroll to the bottom of this page → _Artifacts_ section → click to download."
+          } >> "$GITHUB_STEP_SUMMARY"
