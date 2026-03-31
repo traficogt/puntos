@@ -8,28 +8,48 @@
   <link rel="stylesheet" href="/styles.css"/>
   <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
-<body>
+<body class="page-join">
   <div class="nav">
-    <div class="brand">📲 Registro</div>
+    <div class="brand brand-stack">
+      <span class="brand-kicker">Alta de cliente</span>
+      <span class="brand-title">Registro</span>
+    </div>
     <div class="row">
-      <a class="badge" href="/">Inicio</a>
-      <a class="badge" href="/c">Mi tarjeta</a>
+      <a class="ghost-link" href="/">Inicio</a>
+      <a class="badge badge-soft" href="/c">Mi tarjeta</a>
     </div>
   </div>
 
   <div class="container">
-    <div class="card">
-      <h1 id="title">Registrarte</h1>
-      <p id="subtitle">Confirma tu teléfono para acumular puntos.</p>
-      <div class="onboarding-steps">
-        <div class="step-pill active" id="joinStepRequest">1. Solicitar código</div>
-        <div class="step-pill" id="joinStepVerify">2. Verificar</div>
-        <div class="step-pill" id="joinStepDone">3. Tarjeta activa</div>
+    <section class="join-shell">
+      <div class="join-intro card">
+        <p class="section-kicker">Activación rápida</p>
+        <h1 id="title">Registrarte</h1>
+        <p id="subtitle" class="lede">Confirma tu teléfono para acumular puntos.</p>
+        <div class="onboarding-steps onboarding-steps-vertical">
+          <div class="step-pill active" id="joinStepRequest">1. Solicitar código</div>
+          <div class="step-pill" id="joinStepVerify">2. Verificar</div>
+          <div class="step-pill" id="joinStepDone">3. Tarjeta activa</div>
+        </div>
+        <div class="join-note-stack">
+          <div class="join-note">
+            <strong>Sin app store</strong>
+            <span>Tu tarjeta se abre directo en el navegador.</span>
+          </div>
+          <div class="join-note">
+            <strong>Código temporal</strong>
+            <span>La verificación protege el acceso sin pedir contraseña.</span>
+          </div>
+          <div class="join-note">
+            <strong>Listo para usar</strong>
+            <span>Al terminar entras de una vez a tu tarjeta activa.</span>
+          </div>
+        </div>
       </div>
 
-      <div class="grid">
-        <div class="card">
-          <h2>1) Solicitar código</h2>
+      <div class="join-workspace">
+        <div class="card join-stage">
+          <h2>1. Solicitar código</h2>
           <label>Teléfono</label>
           <input id="phone" placeholder="55551234"/>
           <label>Nombre (opcional)</label>
@@ -39,22 +59,23 @@
           <p class="small" id="codeCooldownInfo"></p>
         </div>
 
-        <div class="card">
-          <h2>2) Verificar</h2>
+        <div class="card join-stage join-stage-verify">
+          <h2>2. Verificar</h2>
           <label>Código</label>
           <input id="code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code"/>
           <button class="primary" id="btnVerify">Verificar y crear tarjeta</button>
           <div class="hr"></div>
-          <a class="badge" href="/c">Ya tengo cuenta</a>
+          <a class="badge badge-soft" href="/c">Ya tengo cuenta</a>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="card" id="done" style="display:none">
-      <h2>¡Listo! ✅</h2>
-      <p>Tu tarjeta ya está activa.</p>
+    <div class="card join-done is-hidden" id="done">
+      <p class="section-kicker">Verificación completa</p>
+      <h2>Tu tarjeta ya está activa.</h2>
+      <p>En breve abrimos tu vista de cliente para que puedas mostrar tu QR y ver tus puntos.</p>
       <div class="row">
-        <a class="badge" href="/c">Abrir mi tarjeta</a>
+        <a class="button-link button-link-primary" href="/c">Abrir mi tarjeta</a>
       </div>
     </div>
   </div>

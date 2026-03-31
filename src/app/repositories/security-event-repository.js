@@ -26,6 +26,24 @@ export const SecurityEventRepo = {
     );
   },
 
+  async logPrivileged({
+    event_type,
+    severity = "MEDIUM",
+    business_id = null,
+    route = null,
+    method = null,
+    ip = null,
+    actor_type = null,
+    actor_id = null,
+    meta = {}
+  }) {
+    if (!event_type) return;
+    await exec(
+      `SELECT app.security_event_log($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`,
+      [id(), event_type, severity, business_id, route, method, ip, actor_type, actor_id, JSON.stringify(meta || {})]
+    );
+  },
+
   async countByEventType({ hours = 24 } = {}) {
     return many(
       `SELECT event_type, COUNT(*)::int AS count
@@ -48,4 +66,3 @@ export const SecurityEventRepo = {
     );
   }
 };
-

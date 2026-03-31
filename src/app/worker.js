@@ -8,6 +8,8 @@ import { deliverPendingOnce } from "./services/webhook-service.js";
 import { processPendingJobsOnce } from "./services/job-service.js";
 import { runChurnOnce } from "./services/churn-service.js";
 import { runLifecycleOnce } from "./services/lifecycle-service.js";
+import { runLedgerReconciliation } from "./services/ledger-reconciliation-service.js";
+import { resolveCertificationPeriod, writeLedgerCertificationArtifacts } from "./services/ledger-certification-service.js";
 import { BusinessRepo } from "./repositories/business-repository.js";
 import { WebhookRepo } from "./repositories/webhook-repository.js";
 import observabilityRoutes from "./routes/observability.js";
@@ -60,6 +62,43 @@ async function startWorkers() {
         await runChurnOnce({ businessId: bid, days: config.CHURN_DAYS });
       }
       await runLifecycleOnce();
+      const reconciliation = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => (
+        runLedgerReconciliation({
+          limit: config.LEDGER_RECONCILE_LIMIT,
+          repair: config.LEDGER_RECONCILE_REPAIR,
+          persist: true
+        })
+      ));
+      logger.info({
+        checkedCustomers: reconciliation.checkedCustomers,
+        mismatchedCustomers: reconciliation.mismatchedCustomers,
+        repairedCustomers: reconciliation.repairedCustomers,
+        repairMode: config.LEDGER_RECONCILE_REPAIR
+      }, "Worker: ledger reconciliation completed");
+      if (reconciliation.mismatchedCustomers > 0 && !config.LEDGER_RECONCILE_REPAIR) {
+        logger.warn({
+          mismatchedCustomers: reconciliation.mismatchedCustomers
+        }, "Worker: ledger reconciliation detected drift requiring manual review");
+      }
+      const period = resolveCertificationPeriod();
+      const certificationArtifacts = [];
+      for (const bid of ids) {
+        const artifact = await writeLedgerCertificationArtifacts({
+          businessId: bid,
+          from: period.from,
+          to: period.to
+        });
+        certificationArtifacts.push({
+          businessId: artifact.businessId,
+          certificationStatus: artifact.certificationStatus,
+          jsonPath: artifact.jsonPath,
+          csvPath: artifact.csvPath
+        });
+      }
+      logger.info({
+        period,
+        businesses: certificationArtifacts.length
+      }, "Worker: wrote daily ledger certification artifacts");
     } catch (e) {
       logger.warn({ err: e?.message }, "Worker: churn job failed");
     }

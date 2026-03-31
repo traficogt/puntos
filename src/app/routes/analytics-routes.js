@@ -11,6 +11,11 @@ import { analyticsCohortRoutes } from "./analytics/cohorts.js";
 import { analyticsRfmRoutes } from "./analytics/rfm.js";
 import { analyticsDashboardRoutes } from "./analytics/dashboard.js";
 import { analyticsCustomerRoutes } from "./analytics/customer-360.js";
+import { analyticsLedgerRoutes } from "./analytics/ledger.js";
+import { analyticsRedemptionRoutes } from "./analytics/redemptions.js";
+import { analyticsAnomalyRoutes } from "./analytics/anomalies.js";
+import { analyticsCorrectionRoutes } from "./analytics/corrections.js";
+import { analyticsCertificationRoutes } from "./analytics/certification.js";
 
 const router = Router();
 
@@ -26,5 +31,10 @@ router.use(analyticsCohortRoutes);
 router.use(analyticsRfmRoutes);
 router.use(analyticsDashboardRoutes);
 router.use(analyticsCustomerRoutes);
+router.use(analyticsLedgerRoutes);
+router.use(analyticsRedemptionRoutes);
+router.use(analyticsAnomalyRoutes);
+router.use(analyticsCorrectionRoutes);
+router.use(analyticsCertificationRoutes);
 
 export default router;

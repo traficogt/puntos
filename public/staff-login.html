@@ -27,12 +27,39 @@
         <input id="email" type="email" placeholder="owner@negocio.com"/>
         <label>Contraseña</label>
         <input id="password" type="password" placeholder="******"/>
+        <label>Código MFA (si aplica)</label>
+        <input id="mfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
         <div class="hr"></div>
         <div class="row">
           <button class="primary" id="btnLogin">Entrar</button>
           <button id="btnLogout">Salir</button>
         </div>
         <p class="small">Si acabas de registrarte, ya estás con sesión de propietario.</p>
+      </div>
+
+      <div class="card">
+        <h2>Recuperación de cuenta</h2>
+        <label>Email</label>
+        <input id="resetEmail" type="email" placeholder="owner@negocio.com"/>
+        <div class="row mt-8">
+          <button id="btnRequestReset">Enviar token de reset</button>
+        </div>
+        <label>Token de reset</label>
+        <input id="resetToken" placeholder="Token recibido"/>
+        <label>Nueva contraseña</label>
+        <input id="resetPassword" type="password" placeholder="8+ caracteres"/>
+        <div class="row mt-8">
+          <button id="btnConfirmReset">Cambiar contraseña</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Confirmar cambio de correo</h2>
+        <label>Token recibido</label>
+        <input id="emailChangeToken" placeholder="Token recibido por correo"/>
+        <div class="row mt-8">
+          <button id="btnConfirmEmailChange">Confirmar correo</button>
+        </div>
       </div>
 
       <div class="card">

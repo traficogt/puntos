@@ -86,6 +86,10 @@ function makeRes() {
       this.statusCode = code;
       return this;
     },
+    clearCookie(name) {
+      this.headers[`clear-cookie-${String(name).toLowerCase()}`] = true;
+      return this;
+    },
     json(payload) {
       this.body = payload;
       this.sent = true;
@@ -208,7 +212,7 @@ describe("API security integration", () => {
         name: "Demo Coffee",
         slug: "demo-coffee",
         email: "'; DROP TABLE businesses; --",
-        password: "Aa1!secure",
+        password: "VerySecurePassword123!",
         phone: "+50212345678"
       }
     });
@@ -223,7 +227,7 @@ describe("API security integration", () => {
     assert.equal(customerMe.res.statusCode, 401);
 
     const invalidCustomer = await invokeRoute(customerRoutes, "/customer/me", {
-      cookies: { pf_customer: "invalid-token" }
+      cookies: { "__Host-pf_customer": "invalid-token" }
     });
     assert.equal(invalidCustomer.res.statusCode, 401);
   });
@@ -294,6 +298,9 @@ describe("API security integration", () => {
 
     const ready = await invokeRoute(healthRoutes, "/ready");
     assert.ok(ready.res.statusCode === 200 || ready.res.statusCode === 503);
+    if (ready.res.statusCode === 200) {
+      assert.equal(ready.res.body?.checks?.database, "ok");
+    }
     if (ready.res.statusCode === 503) {
       assert.equal(ready.res.body?.error, "Service unavailable");
     }
@@ -316,5 +323,6 @@ describe("API security integration", () => {
     assert.equal(info.res.statusCode, 200);
     assert.equal(info.res.body?.service, "PuntosFieles");
     assert.ok(info.res.body?.version);
+    assert.ok(Object.hasOwn(info.res.body || {}, "build_sha"));
   });
 });

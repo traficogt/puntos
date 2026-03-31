@@ -11,7 +11,7 @@ const {
   DB_PORT = 5432,
   DB_NAME = "puntos",
   DB_USER = "postgres",
-  DB_PASSWORD = "postgres",
+  DB_PASSWORD = "",
   DB_MIGRATIONS_USER,
   DB_MIGRATIONS_PASSWORD
 } = process.env;

@@ -75,6 +75,23 @@ async function expectJson(pathname, validate) {
 
 /**
  * @param {string} pathname
+ * @param {number[]} allowedStatuses
+ * @returns {Promise<void>}
+ */
+async function expectAuthProtected(pathname, allowedStatuses = [401, 403]) {
+  const response = await request(pathname);
+  assert(
+    allowedStatuses.includes(response.status),
+    `${pathname} returned HTTP ${response.status}, expected one of ${allowedStatuses.join(", ")}`
+  );
+  const contentType = response.headers.get("content-type") || "";
+  assert(contentType.includes("application/json"), `${pathname} auth response did not return JSON`);
+  const body = await response.json();
+  assert(typeof body?.error === "string" && body.error.length > 0, `${pathname} auth response missing error`);
+}
+
+/**
+ * @param {string} pathname
  * @returns {Promise<void>}
  */
 async function expectHtml(pathname) {
@@ -84,6 +101,29 @@ async function expectHtml(pathname) {
   assert(contentType.includes("text/html"), `${pathname} did not return HTML`);
   const body = await response.text();
   assert(/<html/i.test(body), `${pathname} did not look like an HTML page`);
+}
+
+/**
+ * @param {string} pathname
+ * @param {{ origin?: string, mustContain?: string[] }} [options]
+ * @returns {Promise<void>}
+ */
+async function expectStaticAsset(pathname, { origin = "", mustContain = [] } = {}) {
+  const headers = origin ? { Origin: origin } : {};
+  const response = await request(pathname, { headers });
+  assert(response.ok, `${pathname} returned HTTP ${response.status}`);
+
+  const contentType = response.headers.get("content-type") || "";
+  const isJs = contentType.includes("javascript") || contentType.includes("ecmascript");
+  const isCss = contentType.includes("text/css");
+  const isWorker = pathname.endsWith(".js") && isJs;
+  assert(isJs || isCss || isWorker, `${pathname} returned unexpected content-type ${contentType || "(empty)"}`);
+
+  const body = await response.text();
+  assert(body.trim().length > 0, `${pathname} returned an empty asset body`);
+  for (const snippet of mustContain) {
+    assert(body.includes(snippet), `${pathname} did not contain expected snippet: ${snippet}`);
+  }
 }
 
 /**
@@ -115,7 +155,7 @@ async function checkSuperSession() {
   assert(loginResponse.ok, `/api/super/login returned HTTP ${loginResponse.status}`);
 
   const cookie = cookieHeader(loginResponse);
-  assert(cookie.includes("pf_super="), "Super login did not issue the pf_super cookie");
+  assert(cookie.includes("__Host-pf_super="), "Super login did not issue the __Host-pf_super cookie");
 
   const meResponse = await request("/api/super/me", {
     headers: { cookie }
@@ -126,6 +166,7 @@ async function checkSuperSession() {
 
 async function main() {
   console.log(`SMOKE base_url=${baseUrl}`);
+  const origin = new URL(baseUrl).origin;
 
   await expectJson(
     "/api/health",
@@ -161,8 +202,23 @@ async function main() {
 
   await expectHtml("/");
   await expectHtml("/admin.html");
+  await expectHtml("/c");
+  await expectHtml("/admin-dashboard.html");
   await expectHtml("/staff-login.html");
   await expectHtml("/super.html");
+
+  await expectStaticAsset("/customer.js", { origin, mustContain: ["initCustomerPage"] });
+  await expectStaticAsset("/admin-dashboard.js", { origin, mustContain: ["initAdminDashboard"] });
+  await expectStaticAsset("/styles.css", { origin, mustContain: ["@import url(\"/styles/components.css\")"] });
+  await expectStaticAsset("/styles/base.css", { origin, mustContain: [":root", "--display-font"] });
+  await expectStaticAsset("/styles/components.css", { origin, mustContain: [".is-hidden", "button.primary"] });
+  await expectStaticAsset("/styles/pages.css", { origin, mustContain: [".marketing-hero", ".panel-shell"] });
+  await expectStaticAsset("/styles/admin-panels.css", { origin, mustContain: [".modal-backdrop", ".analytics-kpi-grid"] });
+  await expectStaticAsset("/styles/analytics-visuals.css", { origin, mustContain: [".rfm-row", ".trend-bars"] });
+  await expectStaticAsset("/styles/responsive.css", { origin, mustContain: ["@media", ".marketing-hero"] });
+  await expectStaticAsset("/sw.js", { origin, mustContain: ["const CACHE =", "NETWORK_FIRST_DESTINATIONS"] });
+  await expectAuthProtected("/api/admin/analytics/ledger-certification");
+  await expectAuthProtected("/api/admin/analytics/ledger-certification.csv");
 
   console.log("SMOKE read-only checks OK");
   await checkSuperSession();

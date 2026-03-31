@@ -17,9 +17,7 @@ export function registerStaffModule(app) {
 
       rows.forEach((s) => {
         const card = document.createElement("div");
-        card.className = "card";
-        card.style.marginBottom = "8px";
-        card.style.padding = "10px";
+        card.className = "card compact-card mb-8";
 
         const top = document.createElement("div");
         const strong = document.createElement("strong");
@@ -32,8 +30,7 @@ export function registerStaffModule(app) {
 
         if (s.role !== "OWNER") {
           const row = document.createElement("div");
-          row.className = "row";
-          row.style.marginTop = "8px";
+          row.className = "row mt-8";
 
           const toggle = document.createElement("button");
           toggle.textContent = s.active ? "Desactivar" : "Activar";
@@ -56,7 +53,7 @@ export function registerStaffModule(app) {
             const p = (await prompt(`Nueva contraseña para ${s.email}:`, {
               title: "Reset contraseña",
               inputType: "password",
-              placeholder: "8+ con mayúscula, número y símbolo"
+              placeholder: "8+ caracteres"
             }))?.trim();
             if (!p) return;
             if (!isStrongPassword(p)) {

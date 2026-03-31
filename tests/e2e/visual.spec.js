@@ -31,7 +31,7 @@ async function createBusinessAndOpenDashboard(page) {
   await page.goto("/admin");
   await page.fill("#businessName", `Cafe Visual ${t}`);
   await page.fill("#email", `owner-visual-${t}@example.com`);
-  await page.fill("#password", `Pwd-${t}1234`);
+  await page.fill("#password", "OrchardLanternMarble2026!");
   await page.click("#btnCreate");
   await expect(page.locator("#result")).toBeVisible();
   await page.goto("/admin-dashboard.html");

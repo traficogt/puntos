@@ -1,10 +1,11 @@
 import {
-  copyCurrentViewUrl,
   currentActiveTabName,
   restoreDashboardViewFromUrl as restoreDashboardView,
   syncDashboardViewToUrl as syncDashboardView
 } from "./view-state.js";
 import { createBranchFilter } from "./branch-filter.js";
+import { createTabController } from "./tab-controller.js";
+import { initDashboardChrome, loadPlanInfo, loadStaffSession } from "./session-controller.js";
 
 /** @typedef {import("./types.js").AdminDashboardApp} AdminDashboardApp */
 /** @typedef {import("./types.js").AdminDashboardDependencies} AdminDashboardDependencies */
@@ -77,6 +78,13 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     }
   });
 
+  const tabController = createTabController({
+    state,
+    tabRegistry,
+    hasFeature,
+    syncDashboardViewToUrl
+  });
+
   function safeColor(v, fallback = "#ddd") {
     const s = String(v || "").trim();
     return /^#[0-9a-fA-F]{3,8}$/.test(s) ? s : fallback;
@@ -90,108 +98,17 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     container.appendChild(p);
   }
 
-  function activateTab(tabName, { syncUrl = true } = {}) {
-    state.persistedActiveTab = tabName || "";
-    /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab")).forEach((tab) => {
-      tab.classList.toggle("active", tab.dataset.tab === tabName);
-    });
-    /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab-content")).forEach((content) => {
-      content.classList.toggle("active", content.id === `${tabName}-content`);
-    });
-    if (syncUrl) syncDashboardViewToUrl();
-  }
-
-  function setSectionVisibility(id, visible) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = visible ? "" : "none";
-  }
-
-  function applyFeatureGates() {
-    setSectionVisibility("ownerConfigCard", !state.managerMode);
-
-    /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab")).forEach((tab) => {
-      const tabName = String(tab.dataset.tab || "");
-      const meta = tabRegistry.get(tabName);
-
-      // Manager mode is an intentionally restricted view: gift cards only.
-      if (state.managerMode) {
-        const allowed = meta?.allowManager === true;
-        tab.style.display = allowed ? "" : "none";
-        const content = document.getElementById(`${tabName}-content`);
-        if (content) content.style.display = allowed ? "" : "none";
-        return;
-      }
-
-      const allowedByFeature = !meta?.feature || hasFeature(meta.feature);
-      tab.style.display = allowedByFeature ? "" : "none";
-      const content = document.getElementById(`${tabName}-content`);
-      if (content) content.style.display = allowedByFeature ? "" : "none";
-    });
-
-    setSectionVisibility("campaignRulesSection", hasFeature("campaign_rules"));
-    setSectionVisibility("externalAwardsSection", hasFeature("external_awards"));
-
-    const currentActive = /** @type {HTMLElement | null} */ (document.querySelector(".tab.active"));
-    const activeHidden = !currentActive || currentActive.style.display === "none";
-    if (activeHidden) {
-      const firstVisible = Array.from(/** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab")))
-        .find((t) => t.style.display !== "none");
-      if (firstVisible) activateTab(firstVisible.dataset.tab);
-    }
-  }
-
-  async function loadPlanInfo() {
-    const out = await api("/api/admin/plan");
-    state.planInfo = {
-      plan: out.plan || "",
-      limits: out.limits || {},
-      features: out.features || {}
-    };
-  }
-
-  async function loadStaff() {
-    try {
-      const data = await api("/api/staff/me");
-      state.currentStaff = data.staff;
-
-      if (!["OWNER", "MANAGER"].includes(state.currentStaff.role)) {
-        $("#needLogin").style.display = "block";
-        return false;
-      }
-      state.managerMode = state.currentStaff.role === "MANAGER";
-      $("#main").style.display = "block";
-      $("#businessName").textContent = state.managerMode ? "Panel Gerente" : "Panel Admin";
-      return true;
-    } catch (_e) {
-      $("#needLogin").style.display = "block";
-      return false;
-    }
-  }
-
-  async function loadTabData(tabName) {
-    const meta = tabRegistry.get(tabName);
-    if (!meta) return;
-    if (state.managerMode && meta.allowManager !== true) return;
-    if (meta.feature && !hasFeature(meta.feature)) return;
-    await meta.load();
-  }
+  const {
+    activateTab,
+    applyFeatureGates,
+    loadTabData,
+    initTabClicks
+  } = tabController;
 
   function setBranches(next) {
     /** @type {DashboardBranch[]} */
     state.branchCache = Array.isArray(next) ? next : [];
     hooks.branchesUpdated.forEach((fn) => fn(state.branchCache));
-  }
-
-  function initTabClicks() {
-    /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab")).forEach((tab) => {
-      tab.addEventListener("click", () => {
-        if (tab.style.display === "none") return;
-        tab.classList.add("active");
-        const tabName = tab.dataset.tab;
-        activateTab(tabName);
-        loadTabData(tabName).catch(() => {});
-      });
-    });
   }
 
   function initBranchFilterEvents() {
@@ -217,25 +134,12 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
   async function start() {
     initTabClicks();
     initBranchFilterEvents();
+    initDashboardChrome({ api, $, toast, syncDashboardViewToUrl });
 
-    $("#btnShareView")?.addEventListener("click", async () => {
-      try {
-        await copyCurrentViewUrl(syncDashboardViewToUrl);
-        toast("URL de la vista copiada.");
-      } catch {
-        toast("No se pudo copiar la URL de la vista.");
-      }
-    });
-
-    $("#btnLogout").addEventListener("click", async () => {
-      await api("/api/staff/logout", { method: "POST", body: "{}" }).catch(() => {});
-      location.href = "/staff/login";
-    });
-
-    const ok = await loadStaff();
+    const ok = await loadStaffSession({ api, $, state });
     if (!ok) return;
 
-    await loadPlanInfo();
+    await loadPlanInfo(api, state);
     applyFeatureGates();
     restoreDashboardViewFromUrl();
     syncDashboardViewToUrl();
@@ -250,7 +154,7 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
 
     async function refreshPlanAndUi() {
       try {
-        await loadPlanInfo();
+        await loadPlanInfo(api, state);
         applyFeatureGates();
       } catch {}
     }
@@ -263,8 +167,6 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
       hooks.branchFilterChanged.forEach((fn) => fn(branchFilter.selectedBranchId()));
     });
     setInterval(refreshPlanAndUi, 30000);
-
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
   }
 
   return {

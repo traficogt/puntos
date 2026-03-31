@@ -1,0 +1,34 @@
+#!/bin/sh
+set -eu
+
+: "${POSTGRES_USER:?POSTGRES_USER is required}"
+: "${POSTGRES_DB:?POSTGRES_DB is required}"
+: "${E2E_APP_DB_PASSWORD:?E2E_APP_DB_PASSWORD is required}"
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres <<SQL
+DO \$\$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'loyalty_app') THEN
+    EXECUTE format(
+      'CREATE ROLE %I WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD %L',
+      'loyalty_app',
+      '${E2E_APP_DB_PASSWORD}'
+    );
+  ELSE
+    EXECUTE format(
+      'ALTER ROLE %I WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD %L',
+      'loyalty_app',
+      '${E2E_APP_DB_PASSWORD}'
+    );
+  END IF;
+END
+\$\$;
+SQL
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<SQL
+GRANT CONNECT ON DATABASE puntos_e2e TO loyalty_app;
+GRANT USAGE ON SCHEMA public TO loyalty_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO loyalty_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO loyalty_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO loyalty_app;
+SQL

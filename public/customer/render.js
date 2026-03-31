@@ -1,3 +1,5 @@
+import { setHidden } from "/lib.js";
+
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
 /** @typedef {import("../types.js").CustomerReferralCodeData} CustomerReferralCodeData */
 /** @typedef {import("../types.js").CustomerReferralStats} CustomerReferralStats */
@@ -114,9 +116,10 @@ export function renderTier($, tier) {
   const section = safeEl($, "#tierSection");
   if (!section) return;
   if (!tier) {
-    section.style.display = "none";
+    setHidden(section, true);
     return;
   }
+  setHidden(section, false);
 
   const icons = {
     1: "🥉", // Bronze
@@ -138,10 +141,10 @@ export function renderTier($, tier) {
   if (tier.points_to_next_tier && tier.next_tier_name) {
     if (progEl) progEl.textContent = `${tier.points_to_next_tier} puntos más para ${tier.next_tier_name}`;
     const progress = ((tier.current_points || 0) / (tier.next_tier_points || 1)) * 100;
-    if (barEl) barEl.style.width = `${Math.min(100, progress)}%`;
+    if (barEl) /** @type {HTMLProgressElement} */ (barEl).value = Math.min(100, progress);
   } else {
     if (progEl) progEl.textContent = "¡Nivel máximo alcanzado! 🎉";
-    if (barEl) barEl.style.width = "100%";
+    if (barEl) /** @type {HTMLProgressElement} */ (barEl).value = 100;
   }
 
   if (tier.perks && Array.isArray(tier.perks)) {
@@ -154,7 +157,7 @@ export function renderTier($, tier) {
     perksDiv.appendChild(strong);
 
     const ul = document.createElement("ul");
-    ul.style.margin = "8px 0 0 20px";
+    ul.className = "tier-perks-list";
 
     tier.perks.forEach((perk) => {
       const li = document.createElement("li");
@@ -193,7 +196,7 @@ export function renderAchievements($, data) {
     recentEarned.forEach((ach) => {
       const div = document.createElement("div");
       div.className = "badge";
-      div.style.margin = "4px 0";
+      div.classList.add("achievement-earned");
       div.textContent = `${ach.icon_url || "🏆"} ${ach.name}`;
       earnedDiv.appendChild(div);
     });
@@ -208,7 +211,7 @@ export function renderAchievements($, data) {
 
   if (topInProgress.length > 0) {
     const progressDiv = document.createElement("div");
-    progressDiv.style.marginTop = "12px";
+    progressDiv.className = "progress-block";
 
     const strong = document.createElement("strong");
     strong.textContent = "En progreso:";
@@ -216,39 +219,28 @@ export function renderAchievements($, data) {
 
     topInProgress.forEach((ach) => {
       const wrapper = document.createElement("div");
-      wrapper.style.margin = "8px 0";
+      wrapper.className = "progress-item";
 
       const row = document.createElement("div");
-      row.className = "row";
-      row.style.alignItems = "center";
-      row.style.gap = "8px";
+      row.className = "row gap-8 align-center";
 
       const icon = document.createElement("span");
       icon.textContent = ach.icon_url || "⏳";
       row.appendChild(icon);
 
       const content = document.createElement("div");
-      content.style.flex = "1";
+      content.className = "flex-1";
 
       const label = document.createElement("div");
       label.className = "small";
       label.textContent = `${ach.name} (${ach.current}/${ach.total})`;
       content.appendChild(label);
 
-      const progressBg = document.createElement("div");
-      progressBg.style.background = "#ddd";
-      progressBg.style.height = "6px";
-      progressBg.style.borderRadius = "3px";
-      progressBg.style.marginTop = "4px";
-
-      const progressBar = document.createElement("div");
-      progressBar.style.background = "#2196F3";
-      progressBar.style.height = "100%";
-      progressBar.style.width = `${ach.progress}%`;
-      progressBar.style.borderRadius = "3px";
-      progressBg.appendChild(progressBar);
-
-      content.appendChild(progressBg);
+      const progressBar = document.createElement("progress");
+      progressBar.className = "progress-inline progress-blue progress-thin progress-line";
+      progressBar.max = 100;
+      progressBar.value = ach.progress;
+      content.appendChild(progressBar);
       row.appendChild(content);
       wrapper.appendChild(row);
       progressDiv.appendChild(wrapper);
@@ -288,7 +280,7 @@ export function renderReferralStats($, stats) {
   const points = stats.total_points_earned || 0;
   container.replaceChildren();
   const wrap = document.createElement("div");
-  wrap.style.marginTop = "8px";
+  wrap.className = "mt-8";
   const rows = [
     ["📊 Amigos invitados:", total],
     ["✅ Completados:", completed],
@@ -325,5 +317,5 @@ export function renderOfflineStub($) {
   if (txEl) txEl.textContent = "(sin conexión)";
   if (rdEl) rdEl.textContent = "(sin conexión)";
   const tierSection = safeEl($, "#tierSection");
-  if (tierSection) tierSection.style.display = "none";
+  setHidden(tierSection, true);
 }

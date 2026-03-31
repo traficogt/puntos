@@ -6,11 +6,17 @@ import { AnalyticsRepository } from "../../repositories/analytics-repository.js"
 
 export const analyticsCohortRoutes = Router();
 
+export const CohortRetentionQuerySchema = z.object({
+  months: z.coerce.number().int().min(1).max(60).default(12)
+});
+
+export const TopCustomersQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50)
+});
+
 analyticsCohortRoutes.get(
   "/admin/analytics/cohorts",
-  validateQuery(z.object({
-    months: z.coerce.number().int().min(1).max(60).default(12)
-  })),
+  validateQuery(CohortRetentionQuerySchema),
   asyncRoute(async (req, res) => {
     const { months } = req.validatedQuery;
 
@@ -22,9 +28,7 @@ analyticsCohortRoutes.get(
 
 analyticsCohortRoutes.get(
   "/admin/analytics/top-customers",
-  validateQuery(z.object({
-    limit: z.coerce.number().int().min(1).max(200).default(50)
-  })),
+  validateQuery(TopCustomersQuerySchema),
   asyncRoute(async (req, res) => {
     const { limit } = req.validatedQuery;
 

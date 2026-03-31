@@ -1,4 +1,4 @@
-import { api, $, toast, isStrongPassword, passwordRequirementsText } from "/lib.js";
+import { api, $, registerServiceWorker, toast, isStrongPassword, passwordRequirementsText, setHidden } from "/lib.js";
 
 /** @typedef {import("./types.js").AdminSignupPayload} AdminSignupPayload */
 /** @typedef {import("./types.js").AdminSignupResponse} AdminSignupResponse */
@@ -29,9 +29,9 @@ function element(selector) {
 
 function toggleBoxes() {
   const t = select("#program_type").value;
-  element("#spendBox").style.display = t === "SPEND" ? "block" : "none";
-  element("#visitBox").style.display = t === "VISIT" ? "block" : "none";
-  element("#itemBox").style.display = t === "ITEM" ? "block" : "none";
+  setHidden(element("#spendBox"), t !== "SPEND");
+  setHidden(element("#visitBox"), t !== "VISIT");
+  setHidden(element("#itemBox"), t !== "ITEM");
   updateProgramPreview();
 }
 
@@ -63,7 +63,7 @@ function updateProgress() {
   ];
   const score = required.filter(Boolean).length;
   const pct = Math.max(20, Math.round((score / required.length) * 100));
-  element("#adminOnboardingProgress").style.width = `${pct}%`;
+  /** @type {HTMLProgressElement} */ (element("#adminOnboardingProgress")).value = pct;
   element("#passwordHint").textContent = isStrongPassword(input("#password").value)
     ? "Excelente: contraseña fuerte."
     : passwordRequirementsText();
@@ -80,6 +80,7 @@ select("#program_type").addEventListener("change", toggleBoxes);
 });
 toggleBoxes();
 updateProgress();
+registerServiceWorker().catch(() => {});
 
 element("#btnCreate").addEventListener("click", async () => {
   const btn = /** @type {HTMLButtonElement} */ (element("#btnCreate"));
@@ -109,7 +110,7 @@ element("#btnCreate").addEventListener("click", async () => {
     }
 
     const out = /** @type {AdminSignupResponse} */ (await api("/api/admin/signup", { method: "POST", body: JSON.stringify(payload) }));
-    element("#result").style.display = "block";
+    setHidden(element("#result"), false);
     element("#slug").textContent = out.business.slug;
     const join = `${location.origin}/join/${out.business.slug}`;
     element("#joinUrl").textContent = join;
@@ -131,5 +132,3 @@ $("#btnCopyJoin")?.addEventListener("click", async () => {
     toast("No se pudo copiar. Puedes copiar manualmente.");
   }
 });
-
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});

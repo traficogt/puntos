@@ -58,17 +58,12 @@ export function createQrController({ $, toast }) {
       }
 
       const exp = Number(resp.headers.get("x-qr-exp") || 0);
-      const token = resp.headers.get("x-qr-token") || "";
       lastExp = exp ? new Date(exp * 1000) : null;
 
       const expEl = /** @type {HTMLElement | null} */ (el("#qrExp"));
       if (expEl) expEl.textContent = lastExp ? lastExp.toLocaleTimeString() : "—";
       const hintEl = /** @type {HTMLElement | null} */ (el("#qrHint"));
       if (hintEl) hintEl.textContent = lastExp ? "Muestra este QR al personal para sumar puntos." : "";
-      const tokenEl = /** @type {HTMLInputElement | null} */ (el("#qrToken"));
-      if (tokenEl) tokenEl.value = token;
-      const copyHintEl = /** @type {HTMLElement | null} */ (el("#copyTokenHint"));
-      if (copyHintEl) copyHintEl.textContent = token ? "Token listo para pegar en personal." : "";
 
       clearTimer();
       qrTimer = setInterval(() => {

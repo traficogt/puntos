@@ -1,10 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import bcrypt from "bcryptjs";
 import { asyncRoute } from "../../../middleware/common.js";
 import { validate } from "../../../utils/validation.js";
 import { csrfProtect } from "../../../middleware/csrf.js";
-import { requireOwner, requireStaff } from "../../../middleware/auth.js";
+import { requireOwner, requireRecentReauth, requireStaff } from "../../../middleware/auth.js";
 import { tenantContext } from "../../../middleware/tenant.js";
 import { requirePlanFeature } from "../../../middleware/plan-feature.js";
 import { StaffRepo } from "../../repositories/staff-repository.js";
@@ -12,10 +11,13 @@ import { BranchRepo } from "../../repositories/branch-repository.js";
 import { dbQuery } from "../../database.js";
 import { makeId } from "./_util.js";
 import { passwordSchema } from "../../../utils/schemas.js";
+import { invalidateBrowserSessionsForActor } from "../../services/auth-session-service.js";
+import { hashPassword } from "../../../utils/password-hash.js";
+import { assertPasswordAllowed } from "../../../utils/password-policy.js";
 
 export const adminStaffRoutes = Router();
 
-const StaffCreateSchema = z.object({
+export const StaffCreateSchema = z.object({
   name: z.string().min(2).max(120),
   email: z.string().email(),
   phone: z.string().optional(),
@@ -25,7 +27,7 @@ const StaffCreateSchema = z.object({
   can_manage_gift_cards: z.boolean().optional()
 });
 
-const StaffUpdateSchema = z.object({
+export const StaffUpdateSchema = z.object({
   active: z.boolean().optional(),
   password: passwordSchema.optional(),
   role: z.enum(["CASHIER", "MANAGER"]).optional(),
@@ -37,6 +39,7 @@ adminStaffRoutes.get(
   "/admin/staff",
   requireStaff,
   requireOwner,
+  requireRecentReauth(),
   tenantContext,
   requirePlanFeature("staff_management"),
   asyncRoute(async (req, res) => {
@@ -49,6 +52,7 @@ adminStaffRoutes.post(
   "/admin/staff",
   requireStaff,
   requireOwner,
+  requireRecentReauth(),
   tenantContext,
   csrfProtect,
   requirePlanFeature("staff_management"),
@@ -59,7 +63,12 @@ adminStaffRoutes.post(
     const existing = await StaffRepo.getByEmail(v.data.email);
     if (existing) return res.status(409).json({ error: "Email already used" });
 
-    const password_hash = await bcrypt.hash(v.data.password, 10);
+    assertPasswordAllowed(v.data.password, {
+      email: v.data.email,
+      name: v.data.name,
+      phone: v.data.phone
+    });
+    const password_hash = await hashPassword(v.data.password);
 
     const staff = await StaffRepo.create({
       id: makeId(),
@@ -134,7 +143,12 @@ adminStaffRoutes.patch(
       params.push(v.data.branch_id);
     }
     if (v.data.password !== undefined) {
-      const password_hash = await bcrypt.hash(v.data.password, 10);
+      assertPasswordAllowed(v.data.password, {
+        email: target.email,
+        name: target.name,
+        phone: target.phone
+      });
+      const password_hash = await hashPassword(v.data.password);
       fields.push(`password_hash = $${idx++}`);
       params.push(password_hash);
     }
@@ -151,6 +165,20 @@ adminStaffRoutes.patch(
        WHERE id = $${idx++} AND business_id = $${idx}`,
       params
     );
+
+    if (
+      v.data.active !== undefined
+      || v.data.password !== undefined
+      || v.data.role !== undefined
+      || v.data.branch_id !== undefined
+      || v.data.can_manage_gift_cards !== undefined
+    ) {
+      await invalidateBrowserSessionsForActor({
+        actorType: "STAFF",
+        actorId: target.id,
+        reason: "staff_security_change"
+      }).catch(() => {});
+    }
 
     const updated = await StaffRepo.getById(req.params.id);
     return res.json({

@@ -210,6 +210,9 @@ export interface ProgramConfig {
   points_expiration_days?: number;
   award_guard?: AwardGuardConfig;
   redemption_guard?: RedemptionGuardConfig;
+  balance_policy?: {
+    allow_negative_balance_on_refund?: boolean;
+  };
   lifecycle?: LifecycleConfig;
   tier_policy?: TierPolicyConfig;
 }

@@ -106,7 +106,7 @@ async function getSuperCookie() {
   });
   assert(response.ok, `/api/super/login returned HTTP ${response.status}`);
   const cookie = cookieHeader(response);
-  assert(cookie.includes("pf_super="), "Super login did not issue a pf_super cookie");
+  assert(cookie.includes("__Host-pf_super="), "Super login did not issue a __Host-pf_super cookie");
   return cookie;
 }
 

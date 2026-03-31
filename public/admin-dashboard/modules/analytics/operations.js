@@ -162,9 +162,7 @@ export function createAnalyticsOperationsController(app) {
 
       jobs.forEach((job) => {
         const row = document.createElement("div");
-        row.className = "row";
-        row.style.justifyContent = "space-between";
-        row.style.marginBottom = "6px";
+        row.className = "row row-between mt-6";
 
         const left = document.createElement("div");
         const type = document.createElement("strong");
@@ -178,16 +176,15 @@ export function createAnalyticsOperationsController(app) {
         const right = document.createElement("div");
         right.className = "badge";
         right.textContent = job.status || "—";
-        if (job.status === "DONE") right.style.background = "rgba(54,211,153,.16)";
-        if (job.status === "FAILED") right.style.background = "rgba(255,91,110,.14)";
-        if (job.status === "RUNNING") right.style.background = "rgba(79,124,255,.16)";
+        if (job.status === "DONE") right.classList.add("status-done");
+        if (job.status === "FAILED") right.classList.add("status-failed");
+        if (job.status === "RUNNING") right.classList.add("status-running");
         row.append(left, right);
         box.appendChild(row);
 
         if (job.error) {
           const err = document.createElement("div");
-          err.className = "small";
-          err.style.margin = "-2px 0 8px";
+          err.className = "small mx-my-tight";
           err.textContent = `Error: ${job.error}`;
           box.appendChild(err);
         }
@@ -210,9 +207,7 @@ export function createAnalyticsOperationsController(app) {
 
       events.forEach((event) => {
         const card = document.createElement("div");
-        card.className = "card";
-        card.style.marginBottom = "8px";
-        card.style.padding = "10px";
+        card.className = "card compact-card mb-8";
 
         const top = document.createElement("div");
         top.className = "small";
@@ -222,13 +217,12 @@ export function createAnalyticsOperationsController(app) {
         card.appendChild(top);
 
         const row = document.createElement("div");
-        row.className = "row";
-        row.style.marginTop = "8px";
+        row.className = "row mt-8";
 
         const input = document.createElement("input");
         input.placeholder = "Teléfono cliente (502...)";
         input.value = event.customer_phone || "";
-        input.style.maxWidth = "240px";
+        input.className = "max-w-240";
 
         const btn = document.createElement("button");
         btn.className = "primary";
@@ -269,7 +263,7 @@ export function createAnalyticsOperationsController(app) {
       }
       rows.forEach((alertRow) => {
         const line = document.createElement("div");
-        line.style.marginBottom = "8px";
+        line.className = "mb-8";
         const when = alertRow.created_at ? new Date(alertRow.created_at).toLocaleString() : "—";
         const details = alertRow.details && typeof alertRow.details === "object" ? JSON.stringify(alertRow.details) : "";
         line.textContent = `[${alertRow.severity}] ${when} • ${alertRow.alert_type}${details ? ` • ${details}` : ""}`;

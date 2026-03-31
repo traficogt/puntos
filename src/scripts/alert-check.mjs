@@ -183,6 +183,11 @@ const apiPresenceMetrics = [
   ["puntos_webhook_deliveries_24h", { status: "failed" }],
   ["puntos_customers_total"],
   ["puntos_points_total"],
+  ["puntos_ledger_reconciliation_last_completed_timestamp"],
+  ["puntos_ledger_reconciliation_mismatched_customers_total"],
+  ["puntos_ledger_reconciliation_repaired_customers_total"],
+  ["puntos_pending_ledger_corrections_total"],
+  ["puntos_build_info"],
   ["puntos_process_memory_bytes"],
   ["puntos_process_uptime_seconds"]
 ];
@@ -190,13 +195,17 @@ const apiPresenceMetrics = [
 /** @type {MetricRequirement[]} */
 const workerPresenceMetrics = [
   ["puntos_webhook_deliveries_24h", { status: "failed" }],
+  ["puntos_payment_webhook_pending_mapping_oldest_age_seconds"],
   ["puntos_jobs_total", { status: "failed" }],
   ["puntos_jobs_oldest_age_seconds"],
+  ["puntos_jobs_running_stale_total"],
+  ["puntos_jobs_failed_24h"],
   ["puntos_job_queue_depth"],
   ["puntos_job_queue_driver"],
   ["puntos_billing_events_24h", { type: "message.sent" }],
   ["puntos_churn_last_sent_timestamp"],
   ["puntos_db_connections_active"],
+  ["puntos_build_info"],
   ["puntos_process_uptime_seconds"]
 ];
 
@@ -244,6 +253,11 @@ function buildWorkerChecks(samples) {
       ok: (value) => value <= 5
     },
     {
+      name: "PuntosPaymentWebhookPendingMappingOld",
+      value: ensureMetric(samples, "puntos_payment_webhook_pending_mapping_oldest_age_seconds"),
+      ok: (value) => value <= 900
+    },
+    {
       name: "PuntosJobBacklogOld",
       value: ensureMetric(samples, "puntos_jobs_oldest_age_seconds"),
       ok: (value) => value <= 900
@@ -251,6 +265,11 @@ function buildWorkerChecks(samples) {
     {
       name: "PuntosJobFailuresPresent",
       value: ensureMetric(samples, "puntos_jobs_total", { status: "failed" }),
+      ok: (value) => value <= 0
+    },
+    {
+      name: "PuntosRunningJobsStale",
+      value: ensureMetric(samples, "puntos_jobs_running_stale_total"),
       ok: (value) => value <= 0
     },
     {

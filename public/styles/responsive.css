@@ -1,0 +1,223 @@
+/* Responsive and motion preferences */
+@media (max-width: 640px) {
+    .rfm-row {
+        grid-template-columns: minmax(0, 1fr) max-content;
+        grid-template-areas:
+            "label count"
+            "track track";
+    }
+
+    .rfm-row > span:nth-child(1) { grid-area: label; }
+    .rfm-row > div:nth-child(2) { grid-area: track; }
+    .rfm-row > span:nth-child(3) { grid-area: count; justify-self: end; }
+
+    .branch-row {
+        grid-template-columns: minmax(0, 1fr) max-content;
+        grid-template-areas:
+            "name value"
+            "track track";
+    }
+
+    .branch-row > span:nth-child(1) { grid-area: name; }
+    .branch-row > div:nth-child(2) { grid-area: track; }
+    .branch-row > span:nth-child(3) { grid-area: value; justify-self: end; }
+
+    .radar-row {
+        grid-template-columns: minmax(0, 1fr) max-content;
+        grid-template-areas:
+            "label score"
+            "track track";
+    }
+
+    .radar-row > span:nth-child(1) { grid-area: label; }
+    .radar-row > div:nth-child(2) { grid-area: track; }
+    .radar-row > span:nth-child(3) { grid-area: score; justify-self: end; }
+
+    .benchmark-row {
+        grid-template-columns: minmax(72px, auto) minmax(0, 1fr) max-content;
+        grid-template-areas:
+            "date share share"
+            "branch branch branch"
+            "global global global";
+        row-gap: 4px;
+    }
+
+    .benchmark-row > span:nth-child(1) { grid-area: date; }
+    .benchmark-row > span:nth-child(2) { grid-area: branch; }
+    .benchmark-row > span:nth-child(3) { grid-area: global; }
+    .benchmark-row > strong { grid-area: share; justify-self: end; }
+}
+
+.ios-install-hint {
+    border: 1px solid rgba(208, 99, 54, 0.35);
+    background: linear-gradient(180deg, rgba(208, 99, 54, 0.12), rgba(255, 255, 255, 0.85));
+}
+
+@keyframes cardIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card,
+    button {
+        animation: none;
+        transition: none;
+    }
+}
+
+@media (max-width: 760px) {
+    .nav {
+        align-items: flex-start;
+    }
+
+    .nav .row {
+        justify-content: flex-end;
+    }
+
+    .brand-title {
+        font-size: 22px;
+    }
+
+    .container {
+        padding: 16px 12px 24px;
+    }
+
+    .card {
+        padding: 14px;
+        border-radius: 16px;
+    }
+
+    .marketing-hero,
+    .join-shell,
+    .customer-hero-grid,
+    .customer-hero-head,
+    .admin-header-band,
+    .admin-shell-grid,
+    .marketing-grid,
+    .brand-strip,
+    .customer-spotlight-grid,
+    .customer-activity-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-stat-band,
+    .mini-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Marketing page responsive */
+    .marketing-hero-split {
+        grid-template-columns: 1fr;
+    }
+
+    body.page-marketing .marketing-hero {
+        padding: 48px 0 64px;
+    }
+
+    .marketing-hero-intro {
+        margin-bottom: 40px;
+    }
+
+    .feature-stage {
+        grid-template-columns: 1fr;
+        gap: 0;
+        padding: 36px 0;
+    }
+
+    .feature-stage .section-kicker {
+        grid-column: 1;
+        grid-row: auto;
+        padding-top: 0;
+        margin-bottom: 10px;
+    }
+
+    .feature-stage h2,
+    .feature-stage > p,
+    .feature-stage > .row {
+        grid-column: 1;
+    }
+
+    body.page-marketing .hero-stat-band {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    body.page-marketing .stat-chip {
+        border-right: none;
+        padding-right: 0;
+        margin-right: 0;
+        padding-bottom: 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    }
+
+    body.page-marketing .stat-chip:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    /* Contact section */
+    .contact-section {
+        grid-template-columns: 1fr;
+        gap: 28px 0;
+        padding: 44px 0 60px;
+    }
+
+    .contact-intro p {
+        max-width: none;
+    }
+
+    /* Customer card responsive */
+    .lc-foot-stats {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .lc-foot-stat-wide {
+        grid-column: 1 / -1;
+    }
+
+    .customer-status-cluster,
+    .admin-quick-notes {
+        justify-content: flex-start;
+    }
+
+    .admin-tab-rail {
+        position: static;
+    }
+
+    .admin-tab-rail .tabs {
+        display: flex;
+        overflow-x: auto;
+        padding: 10px 0 14px;
+        background: transparent;
+        border: none;
+    }
+
+    .admin-tab-rail .tab {
+        width: auto;
+        flex: 0 0 auto;
+    }
+
+    .owner-onboarding-item {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    .compact-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    button,
+    .badge {
+        width: auto;
+        max-width: 100%;
+    }
+}

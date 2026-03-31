@@ -1,0 +1,40 @@
+      <div class="tab-content active" id="rewards-content">
+        <div class="card">
+          <h2>Recompensas</h2>
+          <p class="small">Crea y administra premios para canje con puntos.</p>
+          <div class="grid">
+            <div class="card">
+              <h3>Nueva recompensa</h3>
+              <label>Nombre</label>
+              <input id="rewardName" placeholder="Ej: Café gratis"/>
+              <label>Descripción</label>
+              <textarea id="rewardDescription" rows="2" placeholder="Canjeable en cualquier sucursal"></textarea>
+              <label>Costo en puntos</label>
+              <input id="rewardPointsCost" type="number" min="1" step="1" value="100"/>
+              <label>Stock (opcional, vacío = ilimitado)</label>
+              <input id="rewardStock" type="number" min="0" step="1" placeholder="50"/>
+              <label>Válido hasta (opcional)</label>
+              <input id="rewardValidUntil" type="datetime-local"/>
+              <label>Sucursales permitidas (opcional)</label>
+              <select id="rewardBranchIds" multiple size="4"></select>
+              <p class="small">Si no seleccionas ninguna, la recompensa aplica en todas las sucursales.</p>
+              <div class="row mt-10">
+                <button class="primary" id="btnCreateReward">Crear recompensa</button>
+                <button id="btnRefreshRewards">Recargar</button>
+              </div>
+              <p class="small" id="rewardLimitsInfo">—</p>
+            </div>
+            <div class="card">
+              <h3>Lista de recompensas</h3>
+              <div id="rewardsList" class="grid"></div>
+            </div>
+            <div class="card">
+              <div class="row justify-between align-center">
+                <h3 class="m-0">Ledger de canjes</h3>
+                <div id="rewardLedgerBadge" class="small muted">Selecciona una recompensa</div>
+              </div>
+              <div id="rewardLedger" class="small">Aquí verás el detalle de un canje y si el movimiento de puntos asociado es consistente.</div>
+            </div>
+          </div>
+        </div>
+      </div>

@@ -7,10 +7,12 @@ import { emitBillingEvent } from "./billing-service.js";
 
 function id() { return crypto.randomUUID(); }
 
-export async function sendMessage({ businessId, customerId = null, channel, to, body }) {
+export async function sendMessage({ businessId, customerId = null, channel, to, body, privilegedLog = false }) {
   const logId = id();
   const safeBody = channel === "verify" ? String(body).replace(/\b\d{6}\b/g, "******") : body;
-  await MessageLogRepo.create({
+  const createLog = privilegedLog ? MessageLogRepo.createSecurity.bind(MessageLogRepo) : MessageLogRepo.create.bind(MessageLogRepo);
+  const updateLog = privilegedLog ? MessageLogRepo.updateSecurityStatus.bind(MessageLogRepo) : MessageLogRepo.updateStatus.bind(MessageLogRepo);
+  await createLog({
     id: logId,
     business_id: businessId,
     customer_id: customerId,
@@ -28,7 +30,7 @@ export async function sendMessage({ businessId, customerId = null, channel, to, 
 
     if (provider === "dev") {
       logger.info({ channel, to, body: safeBody }, "[MESSAGE dev]");
-      await MessageLogRepo.updateStatus(logId, { status: "SENT", provider_id: "dev", error: null });
+      await updateLog(logId, { status: "SENT", provider_id: "dev", error: null });
       sendOk = true;
       return { ok: true, id: logId };
     }
@@ -52,7 +54,7 @@ export async function sendMessage({ businessId, customerId = null, channel, to, 
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(JSON.stringify(data));
-      await MessageLogRepo.updateStatus(logId, { status: "SENT", provider_id: data?.messages?.[0]?.id ?? "wa", error: null });
+      await updateLog(logId, { status: "SENT", provider_id: data?.messages?.[0]?.id ?? "wa", error: null });
       sendOk = true;
       return { ok: true, id: logId };
     }
@@ -71,7 +73,7 @@ export async function sendMessage({ businessId, customerId = null, channel, to, 
         subject: "PuntosFieles",
         text: body
       });
-      await MessageLogRepo.updateStatus(logId, { status: "SENT", provider_id: info.messageId, error: null });
+      await updateLog(logId, { status: "SENT", provider_id: info.messageId, error: null });
       sendOk = true;
       return { ok: true, id: logId };
     }
@@ -88,7 +90,7 @@ export async function sendMessage({ businessId, customerId = null, channel, to, 
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(JSON.stringify(data));
-      await MessageLogRepo.updateStatus(logId, { status: "SENT", provider_id: data.id ?? "sms", error: null });
+      await updateLog(logId, { status: "SENT", provider_id: data.id ?? "sms", error: null });
       sendOk = true;
       return { ok: true, id: logId };
     }
@@ -97,7 +99,7 @@ export async function sendMessage({ businessId, customerId = null, channel, to, 
   } catch (e) {
     const msg = e?.message ?? String(e);
     logger.error({ err: msg }, "sendMessage failed");
-    await MessageLogRepo.updateStatus(logId, { status: "FAILED", error: msg, provider_id: null });
+    await updateLog(logId, { status: "FAILED", error: msg, provider_id: null });
     return { ok: false, id: logId, error: msg };
   }
   finally {

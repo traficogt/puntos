@@ -31,6 +31,7 @@ export interface StaffAwardResponse {
 export interface StaffSyncResult {
   ok?: boolean;
   txId?: string;
+  error?: string;
 }
 
 export interface StaffSyncResponse {
@@ -76,4 +77,9 @@ export interface QueuedStaffAward {
     ui: string;
   };
   client_ts?: string;
+  created_at?: string;
+  updated_at?: string;
+  status?: "queued" | "syncing" | "failed";
+  retry_count?: number;
+  last_error?: string;
 }

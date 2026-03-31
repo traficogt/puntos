@@ -22,6 +22,7 @@ import { WebhookRepo } from "./repositories/webhook-repository.js";
 import { withPgClient } from "../middleware/pg-client.js";
 import { metricsMiddleware } from "../middleware/metrics.js";
 import { globalApiRateLimit } from "../middleware/rate-limit.js";
+import { isAllowedApiOrigin } from "../utils/cors-origin.js";
 
 const app = express();
 // Default to off in production to avoid duplicate workers when horizontally scaling.
@@ -44,20 +45,35 @@ if (config.TRUST_PROXY) {
 
 // Logging
 // @ts-ignore
-const pinoMw = pinoHttp({ logger });
+const pinoMw = pinoHttp({
+  logger,
+  genReqId(req, res) {
+    const requestId = String(req.headers["x-request-id"] || randomUUID());
+    res.setHeader("X-Request-Id", requestId);
+    return requestId;
+  },
+  customProps(req) {
+    return {
+      request_id: String(req.id || req.requestId || ""),
+      tenant_id: req.tenantId ?? null
+    };
+  }
+});
 app.use(pinoMw);
 
 // Correlation id in every response for faster support/debugging
 app.use((req, res, next) => {
   const requestId = req.id || req.headers["x-request-id"] || randomUUID();
   req.requestId = String(requestId);
-  res.setHeader("X-Request-Id", String(requestId));
   res.setHeader("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
   next();
 });
 
 // Security
 app.use(helmet({
+  strictTransportSecurity: config.NODE_ENV === "production"
+    ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+    : false,
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -76,16 +92,16 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // allow same-origin/non-browser tools
-    if (config.CORS_ORIGINS.includes(origin)) return callback(null, true);
-    const err = new Error("CORS origin not allowed");
-    // @ts-ignore express error typing
-    err.statusCode = 403;
-    callback(err);
-  },
-  credentials: true
+app.use("/api", cors((req, callback) => {
+  const origin = String(req.headers.origin || "").trim();
+  const requestOrigin = `${req.protocol}://${req.get("host")}`;
+  if (!origin || isAllowedApiOrigin(origin, config.CORS_ORIGINS, requestOrigin)) {
+    return callback(null, { origin: true, credentials: true });
+  }
+  const err = new Error("CORS origin not allowed");
+  // @ts-ignore express error typing
+  err.statusCode = 403;
+  return callback(err);
 }));
 
 app.use(cookieParser());

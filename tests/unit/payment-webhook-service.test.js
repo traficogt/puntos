@@ -22,10 +22,14 @@ describe("payment-webhook-service", () => {
   });
 
   it("rejects when auth is required but no provider secrets are configured", async () => {
-    // Force auth requirement with empty secrets to ensure guard triggers before DB work
-    config.PAYMENT_WEBHOOK_REQUIRE_AUTH = true;
-    config.PAYMENT_WEBHOOK_SECRETS = {};
-    config.PAYMENT_WEBHOOK_HMAC_SECRETS = {};
+    const previousRequireAuth = config.PAYMENT_WEBHOOK_REQUIRE_AUTH;
+    const previousSecrets = config.PAYMENT_WEBHOOK_SECRETS;
+    const previousHmacSecrets = config.PAYMENT_WEBHOOK_HMAC_SECRETS;
+    try {
+      // Force auth requirement with empty secrets to ensure guard triggers before DB work
+      config.PAYMENT_WEBHOOK_REQUIRE_AUTH = true;
+      config.PAYMENT_WEBHOOK_SECRETS = {};
+      config.PAYMENT_WEBHOOK_HMAC_SECRETS = {};
 	    await assert.rejects(
 	      () => processPaymentWebhook({
 	        provider: "cubo",
@@ -40,5 +44,41 @@ describe("payment-webhook-service", () => {
 	        return true;
 	      }
 	    );
+    } finally {
+      config.PAYMENT_WEBHOOK_REQUIRE_AUTH = previousRequireAuth;
+      config.PAYMENT_WEBHOOK_SECRETS = previousSecrets;
+      config.PAYMENT_WEBHOOK_HMAC_SECRETS = previousHmacSecrets;
+    }
 	  });
-	});
+  it("does not treat x-signature as a static provider secret", async () => {
+    const previousRequireAuth = config.PAYMENT_WEBHOOK_REQUIRE_AUTH;
+    const previousSecrets = config.PAYMENT_WEBHOOK_SECRETS;
+    const previousHmacSecrets = config.PAYMENT_WEBHOOK_HMAC_SECRETS;
+
+    try {
+      config.PAYMENT_WEBHOOK_REQUIRE_AUTH = true;
+      config.PAYMENT_WEBHOOK_SECRETS = { cubo: "static-secret-123" };
+      config.PAYMENT_WEBHOOK_HMAC_SECRETS = {};
+
+      await assert.rejects(
+        () => processPaymentWebhook({
+          provider: "cubo",
+          payload: { transaction_id: "tx-x-signature-only" },
+          secretHeader: "",
+          signatureHeader: "static-secret-123",
+          rawBody: "{}"
+        }),
+        (err) => {
+          const e = /** @type {any} */ (err);
+          assert.equal(e?.statusCode ?? e?.status, 403);
+          assert.match(String(e?.message || ""), /Invalid provider webhook secret/);
+          return true;
+        }
+      );
+    } finally {
+      config.PAYMENT_WEBHOOK_REQUIRE_AUTH = previousRequireAuth;
+      config.PAYMENT_WEBHOOK_SECRETS = previousSecrets;
+      config.PAYMENT_WEBHOOK_HMAC_SECRETS = previousHmacSecrets;
+    }
+  });
+});

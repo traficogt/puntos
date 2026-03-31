@@ -86,13 +86,19 @@ export const GamificationRepository = {
     return r.rowCount || 0;
   },
 
-  async awardAchievement(customerId, achievementId, progress = 100) {
-    const { rows } = await dbQuery(
-      `INSERT INTO customer_achievements (customer_id, achievement_id, progress)
-       VALUES ($1, $2, $3)
+  async awardAchievement(customerId, achievementId, progress = 100, provenance = {}, query = dbQuery) {
+    const { rows } = await query(
+      `INSERT INTO customer_achievements (customer_id, achievement_id, progress, source_transaction_id, reward_transaction_id)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (customer_id, achievement_id) DO NOTHING
        RETURNING *`,
-      [customerId, achievementId, progress]
+      [
+        customerId,
+        achievementId,
+        progress,
+        provenance?.sourceTransactionId || null,
+        provenance?.rewardTransactionId || null
+      ]
     );
     return rows[0];
   },
@@ -116,8 +122,8 @@ export const GamificationRepository = {
     return rows;
   },
 
-  async checkAchievementEarned(customerId, achievementId) {
-    const { rows } = await dbQuery(
+  async checkAchievementEarned(customerId, achievementId, query = dbQuery) {
+    const { rows } = await query(
       `SELECT * FROM customer_achievements 
        WHERE customer_id = $1 AND achievement_id = $2`,
       [customerId, achievementId]
@@ -232,8 +238,8 @@ export const GamificationRepository = {
     return r.rowCount || 0;
   },
 
-  async getCustomerChallengeProgress(customerId, challengeId) {
-    const { rows } = await dbQuery(
+  async getCustomerChallengeProgress(customerId, challengeId, query = dbQuery) {
+    const { rows } = await query(
       `SELECT * FROM customer_challenges 
        WHERE customer_id = $1 AND challenge_id = $2`,
       [customerId, challengeId]
@@ -241,8 +247,8 @@ export const GamificationRepository = {
     return rows[0];
   },
 
-  async updateChallengeProgress(customerId, challengeId, progress) {
-    const { rows } = await dbQuery(
+  async updateChallengeProgress(customerId, challengeId, progress, query = dbQuery) {
+    const { rows } = await query(
       `INSERT INTO customer_challenges (customer_id, challenge_id, progress, updated_at)
        VALUES ($1, $2, $3, now())
        ON CONFLICT (customer_id, challenge_id)
@@ -255,17 +261,46 @@ export const GamificationRepository = {
     return rows[0];
   },
 
-  async completeChallengeForCustomer(customerId, challengeId) {
-    const { rows } = await dbQuery(
+  async resetRecurringChallengeProgress(customerId, challengeId, query = dbQuery) {
+    const { rows } = await query(
       `UPDATE customer_challenges
-       SET 
-         completed = true,
-         completed_at = now(),
-         times_completed = times_completed + 1,
-         updated_at = now()
+       SET progress = 0,
+           completed = false,
+           completed_at = NULL,
+           last_reset_at = now(),
+           updated_at = now()
        WHERE customer_id = $1 AND challenge_id = $2
        RETURNING *`,
       [customerId, challengeId]
+    );
+    return rows[0];
+  },
+
+  async completeChallengeForCustomer(customerId, challengeId, completion = {}, query = dbQuery) {
+    const historyEntry = completion?.historyEntry ? JSON.stringify(completion.historyEntry) : null;
+    const { rows } = await query(
+      `UPDATE customer_challenges
+       SET 
+         completed = true,
+         completed_at = COALESCE($3::timestamptz, now()),
+         times_completed = times_completed + 1,
+         last_source_transaction_id = COALESCE($4::uuid, last_source_transaction_id),
+         last_reward_transaction_id = COALESCE($5::uuid, last_reward_transaction_id),
+         completion_history = CASE
+           WHEN $6::jsonb IS NULL THEN completion_history
+           ELSE COALESCE(completion_history, '[]'::jsonb) || jsonb_build_array($6::jsonb)
+         END,
+         updated_at = now()
+       WHERE customer_id = $1 AND challenge_id = $2
+       RETURNING *`,
+      [
+        customerId,
+        challengeId,
+        completion?.completedAt || null,
+        completion?.sourceTransactionId || null,
+        completion?.rewardTransactionId || null,
+        historyEntry
+      ]
     );
     return rows[0];
   },

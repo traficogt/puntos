@@ -14,9 +14,17 @@ import { logger } from "../../utils/logger.js";
 import { config } from "../../config/index.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 import { runPostAwardHooks } from "./staff-award-hooks.js";
+import { refreshCustomerDerivedState } from "./customer-derived-state.js";
 
 function id() {
   return crypto.randomUUID();
+}
+
+async function lockAwardRequest(client, businessId, txId) {
+  await client.query(
+    `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
+    [String(businessId), String(txId)]
+  );
 }
 
 function logAwardGuardAction({ businessId, staff, action, meta }) {
@@ -168,6 +176,7 @@ export async function awardPointsWithDeps(
   const transactionId = txId ?? id();
 
   const result = await typedDeps.withTransaction(async (client) => {
+    await lockAwardRequest(client, bid, transactionId);
     const existingTx = await client.query(
       `SELECT id, business_id, customer_id, points
        FROM transactions
@@ -179,7 +188,34 @@ export async function awardPointsWithDeps(
       const t = existingTx.rows[0];
       if (t.business_id !== bid || t.customer_id !== cid) throw conflict("txId already used for a different transaction");
       const bal = await client.query(`SELECT points FROM customer_balances WHERE customer_id=$1`, [cid]);
-      return { pointsAwarded: t.points, newBalance: bal.rows?.[0]?.points, customerId: cid, transactionId };
+      await AuditRepo.log({
+        id: id(),
+        business_id: bid,
+        actor_type: "STAFF",
+        actor_id: staff.id,
+        action: "award.replay",
+        ip: null,
+        ua: null,
+        meta: withImpersonationMeta({
+          transaction_id: transactionId,
+          customer_id: cid,
+          tx_id: transactionId
+        }, staff)
+      }).catch(() => {});
+      logger.info({
+        transactionId,
+        businessId: bid,
+        customerId: cid,
+        staffId: staff.id,
+        replay: true
+      }, "Staff award replay returned existing transaction");
+      return {
+        pointsAwarded: t.points,
+        newBalance: bal.rows?.[0]?.points,
+        customerId: cid,
+        transactionId,
+        replay: true
+      };
     }
 
     const cust = await client.query(
@@ -242,6 +278,7 @@ export async function awardPointsWithDeps(
     if (balUpd.rowCount !== 1) throw notFound("Customer balance not found");
 
     await client.query(`UPDATE customers SET last_visit_at=now() WHERE id=$1`, [cid]);
+    await refreshCustomerDerivedState(client, cid);
 
     return {
       pointsAwarded: points,
@@ -254,38 +291,52 @@ export async function awardPointsWithDeps(
     };
   });
 
-  typedDeps.enqueueWebhookEvent(bid, "points.awarded", {
-    transaction_id: result.transactionId,
-    customer_id: cid,
-    points: result.pointsAwarded,
-    amount_q: normalizedAmountQ
-  }).catch(() => {});
-
-  await AuditRepo.log({
-    id: id(),
-    business_id: bid,
-    actor_type: "STAFF",
-    actor_id: staff.id,
-    action: suspiciousReasons.length ? "award.suspicious" : "award.success",
-    ip: null,
-    ua: null,
-    meta: withImpersonationMeta({
+  if (!result.replay) {
+    typedDeps.enqueueWebhookEvent(bid, "points.awarded", {
       transaction_id: result.transactionId,
       customer_id: cid,
       points: result.pointsAwarded,
-      amount_q: normalizedAmountQ,
-      suspicious_reasons: suspiciousReasons
-    }, staff)
-  }).catch(() => {});
+      amount_q: normalizedAmountQ
+    }).catch(() => {});
 
-  void runPostAwardHooks({
-    deps: typedDeps,
-    customerId: cid,
+    await AuditRepo.log({
+      id: id(),
+      business_id: bid,
+      actor_type: "STAFF",
+      actor_id: staff.id,
+      action: suspiciousReasons.length ? "award.suspicious" : "award.success",
+      ip: null,
+      ua: null,
+      meta: withImpersonationMeta({
+        transaction_id: result.transactionId,
+        customer_id: cid,
+        points: result.pointsAwarded,
+        amount_q: normalizedAmountQ,
+        suspicious_reasons: suspiciousReasons
+      }, staff)
+    }).catch(() => {});
+
+    void runPostAwardHooks({
+      deps: typedDeps,
+      customerId: cid,
+      businessId: bid,
+      sourceTransactionId: result.transactionId,
+      pointsAwarded: result.pointsAwarded,
+      amountQ: normalizedAmountQ,
+      visits: normalizedVisits,
+      items: normalizedItems
+    });
+  }
+
+  logger.info({
+    transactionId: result.transactionId,
     businessId: bid,
+    customerId: cid,
+    staffId: staff.id,
+    pointsAwarded: result.pointsAwarded,
     amountQ: normalizedAmountQ,
-    visits: normalizedVisits,
-    items: normalizedItems
-  });
+    status: result.status
+  }, "Staff award completed");
 
   return result;
 }

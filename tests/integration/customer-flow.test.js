@@ -66,8 +66,10 @@ function makeRes() {
   const res = {
     statusCode: 200,
     headers: {},
+    clearedCookies: [],
     body: null,
     setHeader(name, value) { this.headers[name.toLowerCase()] = value; },
+    clearCookie(name) { this.clearedCookies.push(name); return this; },
     status(code) { this.statusCode = code; return this; },
     json(payload) { this.body = payload; this.sent = true; return this; },
     send(payload) { this.body = payload; this.sent = true; return this; }
@@ -146,5 +148,24 @@ describe("customer happy path flow (no network/listen)", () => {
     assert.ok((resQr.headers["content-type"] || "").includes("image/svg+xml"));
     assert.ok(resQr.headers["x-qr-exp"]);
     assert.ok(String(resQr.body || resQr.sent ? "" : "").includes("<svg") || String(resQr.body || "").includes("<svg"));
+  });
+
+  it("clears stale customer auth when the customer no longer exists", async () => {
+    const token = await tokenPromise;
+    const cookieName = config.CUSTOMER_COOKIE_NAME;
+    const originalGetById = CustomerRepo.getById;
+    CustomerRepo.getById = async () => null;
+
+    try {
+      const req = makeReq("/api/customer/history");
+      req.cookies[cookieName] = token;
+      const res = makeRes();
+      const handlers = extractHandlers(customerRoutes, "/customer/history");
+      await runHandlers(handlers, req, res);
+      assert.equal(res.statusCode, 404);
+      assert.deepEqual(res.clearedCookies, [cookieName]);
+    } finally {
+      CustomerRepo.getById = originalGetById;
+    }
   });
 });

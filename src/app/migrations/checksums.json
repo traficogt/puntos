@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-27T19:31:58.380Z",
+  "generated_at": "2026-03-19T13:03:02.884Z",
   "files": {
     "001_add_transactions_type.sql": "34e119c91fa5c744920b65a77dedeb89276bfd86a1b45e9a7edd59d73e8ffefc",
     "002_reward_branch_scope.sql": "5a076cc3a0b4df04031c5dc6d8ec26f75ebf44e648ca14a234dd8dfea08af401",
@@ -22,6 +22,19 @@
     "2026-02-27-tenant-rls-webhook-ingest.sql": "3cca12559988ec03ee10dd00523e6484b24b383e9d283d4a2d5134f003804ac7",
     "2026-02-27-tenant-rls.sql": "f1189cf7494a67a883ec561f275045e4631c46dbf53cd802c9c46932b2dadc3c",
     "2026-02-27-tenant-rls_canonical.sql": "6c01ad9b004f06b24463c5643ef7393c33e12757227b080d75f1778d541974f7",
-    "2026-02-27-webhook-deliveries-endpoint-index.sql": "5231ebf5187cb50752e89ecf06277dad2847782f97cec777f93d18dac2af64bc"
+    "2026-02-27-webhook-deliveries-endpoint-index.sql": "5231ebf5187cb50752e89ecf06277dad2847782f97cec777f93d18dac2af64bc",
+    "2026-03-07-customer-ltv-purchase-only.sql": "b21fc13ec6920e7c870048acdf404a7a43f57d5acec8fd92d880c0b465295955",
+    "2026-03-07-gamification-provenance.sql": "2f44d021866629efcbddb47354585cdaca0d8544f34d146fe55e3a7e5cf8da4a",
+    "2026-03-08-external-award-idempotency.sql": "e33865ce95f09e21207e0fdff8bc89acdcd65f0b4046001aabf95aab6d4b05c3",
+    "2026-03-08-gift-card-idempotency.sql": "b09cd6b15f85944fee2879ad43b386970b0fdeb73f94b09a6f2af848a9509443",
+    "2026-03-08-ledger-balance-adjustments.sql": "8f1b49af5621738fc7648bec3544e0e03efe3b963589fe7bf676998605297078",
+    "2026-03-08-ledger-corrections.sql": "eaaa4d4a1168e92970a1f170d60d3946168f27afba7451894107f42321396be4",
+    "2026-03-08-ledger-reconciliation.sql": "e7c1491815e9d0684bb7855a8563125860e0aa1fc15e71eb92634aa30fc35685",
+    "2026-03-08-redemption-idempotency.sql": "029df0b6ec8d0b6a258cbf8c7f398e8db3cd4832549f7548427a8084822a75f6",
+    "2026-03-08-transaction-request-id.sql": "d2037d5df84a6c9857adcdebafb4bcea23a1c789deb08c0a0ee5f94c2c0bc4e4",
+    "2026-03-19-account-security.sql": "963766db0748dd964790247be548a052733217375462424c44c779ddd925b0d5",
+    "2026-03-19-auth-session-mutations.sql": "676d9c5d8649323289a087fa9cffa9fa34c95b2f911cd88b78a2b7d8068ef63a",
+    "2026-03-19-auth-sessions.sql": "c189d68075307b165b5a4238d62e1c45f65453f02b439b0ab5d8943e5c2ffb01",
+    "2026-03-19-security-notification-rls.sql": "7ae3461787ff8dbbec98d49437e63e089a6d3cdc7edf8ed3023259c301bf24b9"
   }
 }

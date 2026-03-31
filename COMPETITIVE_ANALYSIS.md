@@ -399,13 +399,13 @@ After analyzing the loyalty program software market in Latin America and globall
 ✅ **Ownership:** Their customer data, their server
 ✅ **Flexibility:** Can hire local developer to customize
 
-### What They'd Want Added:
+### What They'd Still Want Improved:
 
-1. **Tiered rewards** - Bronze/Silver/Gold for best customers
-2. **Referral program** - "Bring a friend, both get free coffee"
-3. **Simple gamification** - "Complete 5 weekend visits for bonus"
-4. **Better mobile app** - Native app instead of PWA (future)
-5. **Email campaigns** - Send promotions to customers
+1. **Better mobile app UX** - Native app or a more polished PWA install/onboarding flow
+2. **Email campaigns** - Send promotions to customers
+3. **Richer analytics UI** - More visual cohort/retention views for non-technical owners
+4. **Self-serve branding** - Easier logo/theme customization from the admin UI
+5. **More integrations** - Accounting, POS, and marketing connectors
 
 ### Decision Factors:
 
@@ -415,7 +415,7 @@ After analyzing the loyalty program software market in Latin America and globall
 | **Offline support** | ⭐⭐⭐⭐⭐ | ✅✅ Wins | ❌ None have it |
 | **Ease of use** | ⭐⭐⭐⭐ | ⚠️ Needs tech help | ✅ Very easy (SaaS) |
 | **Local support** | ⭐⭐⭐⭐ | ✅ Guatemala-ready | ❌ Generic |
-| **Features** | ⭐⭐⭐ | ⚠️ Basic but sufficient | ✅✅ Feature-rich |
+| **Features** | ⭐⭐⭐ | ✅ Strong SMB-focused set | ✅✅ Feature-rich |
 | **Scalability** | ⭐⭐ | ✅ Can grow | ✅ Enterprise-ready |
 
 **Verdict:** PuntosFieles is the **only realistic option** for Café Bourbon

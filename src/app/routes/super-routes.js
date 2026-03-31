@@ -1,27 +1,46 @@
 import { Router } from "express";
 import { z } from "zod";
-import crypto from "node:crypto";
-import bcrypt from "bcryptjs";
 import { config } from "../../config/index.js";
-import { signStaffToken, signSuperToken, cookieOpts, cookieOptsWith } from "../../utils/auth-token.js";
+import { browserCookieMaxAge, signStaffToken, signSuperToken, cookieOpts, cookieOptsWith } from "../../utils/auth-token.js";
 import { asyncRoute } from "../../middleware/common.js";
 import { validateQuery } from "../../utils/schemas.js";
-import { requireSuperAdmin } from "../../middleware/auth.js";
+import { requireRecentReauth, requireSuperAdmin } from "../../middleware/auth.js";
 import { csrfProtect } from "../../middleware/csrf.js";
 import { strictRateLimit } from "../../middleware/rate-limit.js";
 import { dbQuery } from "../database.js";
-import { AuditRepo } from "../repositories/audit-repository.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
-import { listPlans, normalizePlan } from "../../utils/plan.js";
 import { PlanConfigService } from "../services/plan-config-service.js";
-import { createBusinessWithOwner } from "../services/business-service.js";
 import { StaffRepo } from "../repositories/staff-repository.js";
-import { BranchRepo } from "../repositories/branch-repository.js";
 import { SecurityEventRepo } from "../repositories/security-event-repository.js";
 import { WebhookRepo } from "../repositories/webhook-repository.js";
 import { timingSafeEqualString } from "../../utils/timing-safe.js";
-import { passwordSchema } from "../../utils/schemas.js";
 import { getRequestIp } from "../../utils/request-ip.js";
+import { invalidateBrowserSessionById } from "../services/auth-session-service.js";
+import { verifyPassword } from "../../utils/password-hash.js";
+import { SuperAdminAuthRepo } from "../repositories/super-admin-auth-repository.js";
+import {
+  confirmSuperEmailChange,
+  confirmSuperMfaEnrollment,
+  completeSuperPasswordReset,
+  disableSuperMfa,
+  lockdownSuperAccount,
+  reauthenticateSuperSession,
+  requestSuperEmailChange,
+  requestSuperPasswordReset,
+  startSuperMfaEnrollment,
+  verifySuperMfaForLogin
+} from "../services/account-security-service.js";
+import {
+  CreateBusinessSchema,
+  CreateBusinessUserSchema,
+  createSuperBusiness,
+  createSuperBusinessUser,
+  LoginSchema,
+  logSuperAudit,
+  requireSupportedPlan,
+  UpdatePlanFeaturesSchema,
+  UpdatePlanSchema
+} from "./super-support.js";
 
 /** @typedef {import("zod").infer<typeof LoginSchema>} SuperLoginInput */
 /** @typedef {import("zod").infer<typeof UpdatePlanSchema>} SuperPlanUpdateInput */
@@ -34,39 +53,30 @@ import { getRequestIp } from "../../utils/request-ip.js";
 
 export const superRoutes = Router();
 
-const LoginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6)
+const SuperPasswordResetRequestSchema = z.object({
+  email: z.string().email()
 });
 
-const UpdatePlanSchema = z.object({
-  plan: z.string().min(3).max(40)
+const SuperPasswordResetConfirmSchema = z.object({
+  token: z.string().min(20),
+  newPassword: z.string().min(8).max(128)
 });
 
-const UpdatePlanFeaturesSchema = z.object({
-  features: z.record(z.boolean())
+const SuperReauthSchema = z.object({
+  password: z.string().min(1).max(128),
+  mfaCode: z.string().regex(/^\d{6}$/).optional()
 });
 
-const CreateBusinessSchema = z.object({
-  businessName: z.string().min(2).max(120),
-  email: z.string().email(),
-  phone: z.string().min(6).optional(),
-  password: passwordSchema,
-  category: z.string().optional(),
-  program_type: z.enum(["SPEND", "VISIT", "ITEM"]).optional(),
-  program_json: z.record(z.any()).optional(),
-  plan: z.string().min(3).max(40).optional()
+const SuperEmailChangeSchema = z.object({
+  newEmail: z.string().email()
 });
 
-const CreateBusinessUserSchema = z.object({
-  name: z.string().min(2).max(120),
-  email: z.string().email(),
-  phone: z.string().min(6).optional(),
-  password: passwordSchema,
-  role: z.enum(["OWNER", "MANAGER", "CASHIER"]).optional(),
-  branch_id: z.string().uuid().optional(),
-  can_manage_gift_cards: z.boolean().optional(),
-  allow_multi_owner: z.boolean().optional()
+const SuperTokenConfirmSchema = z.object({
+  token: z.string().min(20)
+});
+
+const SuperMfaConfirmSchema = z.object({
+  code: z.string().regex(/^\d{6}$/)
 });
 
 superRoutes.post("/super/login", strictRateLimit, asyncRoute(async (req, res) => {
@@ -74,15 +84,16 @@ superRoutes.post("/super/login", strictRateLimit, asyncRoute(async (req, res) =>
   if (!parsed.success) return res.status(400).json({ error: "Payload de login inválido" });
   /** @type {SuperLoginInput} */
   const payload = parsed.data;
-  if (!config.SUPER_ADMIN_EMAIL || (!config.SUPER_ADMIN_PASSWORD && !config.SUPER_ADMIN_PASSWORD_HASH)) {
+  const auth = await SuperAdminAuthRepo.getEffective();
+  if (!auth.email || (!auth.password_hash && !config.SUPER_ADMIN_PASSWORD)) {
     return res.status(403).json({ error: "Super admin no está configurado" });
   }
-  if (config.NODE_ENV === "production" && !config.SUPER_ADMIN_PASSWORD_HASH) {
+  if (config.NODE_ENV === "production" && !auth.password_hash) {
     return res.status(503).json({ error: "Super admin hash requerido en producción" });
   }
-  const emailMatches = payload.email.toLowerCase() === config.SUPER_ADMIN_EMAIL.toLowerCase();
-  const passwordMatches = config.SUPER_ADMIN_PASSWORD_HASH
-    ? await bcrypt.compare(payload.password, config.SUPER_ADMIN_PASSWORD_HASH)
+  const emailMatches = payload.email.toLowerCase() === String(auth.email).toLowerCase();
+  const passwordMatches = auth.password_hash
+    ? await verifyPassword(payload.password, auth.password_hash)
     : timingSafeEqualString(payload.password, config.SUPER_ADMIN_PASSWORD);
   if (
     !emailMatches || !passwordMatches
@@ -98,21 +109,114 @@ superRoutes.post("/super/login", strictRateLimit, asyncRoute(async (req, res) =>
     }).catch(() => { });
     return res.status(401).json({ error: "Credenciales inválidas" });
   }
-  const token = await signSuperToken({ email: payload.email.toLowerCase() });
+  const mfaResult = await verifySuperMfaForLogin(payload.mfaCode);
+  const token = await signSuperToken({
+    email: payload.email.toLowerCase(),
+    mfaVerified: Boolean(mfaResult?.mfaVerified)
+  });
   res.cookie(
     config.SUPER_COOKIE_NAME,
     token,
-    { ...cookieOptsWith({ sameSite: "strict", path: "/api" }), maxAge: 7 * 24 * 60 * 60 * 1000 }
+    { ...cookieOptsWith({ sameSite: "strict", path: "/" }), maxAge: browserCookieMaxAge("SUPER") }
   );
   /** @type {SuperLoginResponse} */
   const response = { ok: true, email: payload.email.toLowerCase() };
   res.json(response);
 }));
 
-superRoutes.post("/super/logout", csrfProtect, (req, res) => {
-  res.clearCookie(config.SUPER_COOKIE_NAME, { path: "/api" });
+superRoutes.post("/public/super/password-reset/request", strictRateLimit, asyncRoute(async (req, res) => {
+  const parsed = SuperPasswordResetRequestSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Payload inválido" });
+  await requestSuperPasswordReset({
+    email: parsed.data.email,
+    ip: getRequestIp(req),
+    ua: req.headers["user-agent"] || null
+  });
   res.json({ ok: true });
-});
+}));
+
+superRoutes.post("/public/super/password-reset/confirm", strictRateLimit, asyncRoute(async (req, res) => {
+  const parsed = SuperPasswordResetConfirmSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Payload inválido" });
+  await completeSuperPasswordReset({
+    token: parsed.data.token,
+    newPassword: parsed.data.newPassword,
+    ip: getRequestIp(req),
+    ua: req.headers["user-agent"] || null
+  });
+  res.json({ ok: true });
+}));
+
+superRoutes.post("/public/super/email-change/confirm", strictRateLimit, asyncRoute(async (req, res) => {
+  const parsed = SuperTokenConfirmSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Token inválido" });
+  const out = await confirmSuperEmailChange({
+    token: parsed.data.token,
+    ip: getRequestIp(req),
+    ua: req.headers["user-agent"] || null
+  });
+  res.json(out);
+}));
+
+superRoutes.post("/super/logout", requireSuperAdmin, csrfProtect, asyncRoute(async (req, res) => {
+  if (req.authSession?.id) {
+    await invalidateBrowserSessionById(req.authSession.id, "logout").catch(() => {});
+  }
+  res.clearCookie(config.SUPER_COOKIE_NAME, { path: "/" });
+  res.json({ ok: true });
+}));
+
+superRoutes.post("/super/security/reauth", requireSuperAdmin, csrfProtect, asyncRoute(async (req, res) => {
+  const parsed = SuperReauthSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Payload inválido" });
+  const out = await reauthenticateSuperSession({
+    password: parsed.data.password,
+    mfaCode: parsed.data.mfaCode,
+    sessionId: req.authSession?.id
+  });
+  res.json(out);
+}));
+
+superRoutes.post("/super/security/mfa/enroll", requireSuperAdmin, csrfProtect, requireRecentReauth(), asyncRoute(async (_req, res) => {
+  const out = await startSuperMfaEnrollment();
+  res.json({ ok: true, ...out });
+}));
+
+superRoutes.post("/super/security/mfa/confirm", requireSuperAdmin, csrfProtect, requireRecentReauth({ requireMfaIfEnabled: false }), asyncRoute(async (req, res) => {
+  const parsed = SuperMfaConfirmSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Payload inválido" });
+  const out = await confirmSuperMfaEnrollment({
+    code: parsed.data.code,
+    sessionId: req.authSession?.id
+  });
+  res.json(out);
+}));
+
+superRoutes.post("/super/security/mfa/disable", requireSuperAdmin, csrfProtect, requireRecentReauth(), asyncRoute(async (_req, res) => {
+  const out = await disableSuperMfa();
+  res.json(out);
+}));
+
+superRoutes.post("/super/security/email-change", requireSuperAdmin, csrfProtect, requireRecentReauth(), asyncRoute(async (req, res) => {
+  const parsed = SuperEmailChangeSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Payload inválido" });
+  const out = await requestSuperEmailChange({
+    currentEmail: req.superAdmin?.email,
+    newEmail: parsed.data.newEmail,
+    ip: getRequestIp(req),
+    ua: req.headers["user-agent"] || null
+  });
+  res.json(out);
+}));
+
+superRoutes.post("/super/security/lockdown", requireSuperAdmin, csrfProtect, requireRecentReauth(), asyncRoute(async (req, res) => {
+  const out = await lockdownSuperAccount({
+    ip: getRequestIp(req),
+    ua: req.headers["user-agent"] || null
+  });
+  res.clearCookie(config.SUPER_COOKIE_NAME, { path: "/" });
+  res.json(out);
+}));
 
 superRoutes.get("/super/me", requireSuperAdmin, (req, res) => {
   const superAdmin = req.superAdmin;
@@ -149,22 +253,7 @@ superRoutes.post("/super/businesses", csrfProtect, requireSuperAdmin, asyncRoute
   if (!parsed.success) return res.status(400).json({ error: "Payload inválido" });
   /** @type {SuperBusinessCreateInput} */
   const payload = parsed.data;
-
-  const normalizedPlan = payload.plan ? normalizePlan(payload.plan) : null;
-  const allowedPlans = listPlans().map((p) => p.plan);
-  const desiredPlan = normalizedPlan && allowedPlans.includes(normalizedPlan) ? normalizedPlan : null;
-
-  const out = await createBusinessWithOwner({
-    businessName: payload.businessName,
-    email: payload.email,
-    phone: payload.phone ?? null,
-    password: payload.password,
-    category: payload.category ?? null,
-    program_type: payload.program_type ?? "SPEND",
-    program_json: payload.program_json ?? { points_per_q: 0.1, round: "ceil" },
-    plan: desiredPlan ?? undefined,
-    slug: null
-  });
+  const out = await createSuperBusiness(payload);
 
   const business = out.business;
   /** @type {SuperBusinessCreateResponse} */
@@ -189,49 +278,8 @@ superRoutes.post("/super/businesses/:businessId/users", csrfProtect, requireSupe
   if (!parsed.success) return res.status(400).json({ error: "Payload inválido" });
   /** @type {SuperBusinessUserCreateInput} */
   const payload = parsed.data;
-
   const businessId = String(req.params.businessId || "");
-  const business = await BusinessRepo.getById(businessId);
-  if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
-
-  const existing = await StaffRepo.getByEmail(payload.email);
-  if (existing) return res.status(409).json({ error: "Correo ya registrado" });
-
-  const requestedRole = payload.role ?? "MANAGER";
-  if (requestedRole === "OWNER" && !payload.allow_multi_owner) {
-    return res.status(400).json({ error: "Crear un OWNER adicional requiere allow_multi_owner=true (confirmación explícita)" });
-  }
-
-  let branchId = payload.branch_id || null;
-  if (branchId) {
-    const br = await BranchRepo.getById(branchId);
-    if (!br || br.business_id !== businessId) {
-      return res.status(400).json({ error: "branch_id inválido para este negocio" });
-    }
-  } else {
-    const branches = await BranchRepo.listByBusiness(businessId);
-    branchId = branches[0]?.id || null;
-  }
-
-  const password_hash = await bcrypt.hash(payload.password, 10);
-  const user = await StaffRepo.create({
-    id: crypto.randomUUID(),
-    business_id: businessId,
-    branch_id: branchId,
-    name: payload.name,
-    email: payload.email,
-    phone: payload.phone ?? null,
-    role: requestedRole,
-    password_hash
-  });
-
-  if (payload.can_manage_gift_cards !== undefined || user.role === "OWNER") {
-    await dbQuery(
-      `UPDATE staff_users SET can_manage_gift_cards = $2 WHERE id = $1`,
-      [user.id, user.role === "OWNER" ? true : Boolean(payload.can_manage_gift_cards)]
-    );
-  }
-  const finalUser = await StaffRepo.getById(user.id);
+  const finalUser = await createSuperBusinessUser(businessId, payload);
 
   /** @type {SuperBusinessUserCreateResponse} */
   const response = {
@@ -260,11 +308,7 @@ superRoutes.put("/super/plans/:plan/features", csrfProtect, requireSuperAdmin, a
   if (!parsed.success) return res.status(400).json({ error: "Payload inválido" });
   /** @type {SuperPlanFeaturesInput} */
   const payload = parsed.data;
-  const plan = normalizePlan(req.params.plan);
-  const plans = listPlans().map((p) => p.plan);
-  if (!plans.includes(plan)) {
-    return res.status(400).json({ error: `Plan inválido. Permitidos: ${plans.join(", ")}` });
-  }
+  const plan = requireSupportedPlan(req.params.plan);
   const features = await PlanConfigService.updatePlanFeatures(plan, payload.features);
   if (!features) return res.status(404).json({ error: "Plan no encontrado" });
   res.json({ ok: true, plan, features });
@@ -277,29 +321,19 @@ superRoutes.put("/super/businesses/:businessId/plan", csrfProtect, requireSuperA
   const payload = parsed.data;
 
   const businessId = String(req.params.businessId || "");
-  const plan = normalizePlan(payload.plan);
-  const plans = listPlans().map((p) => p.plan);
-  if (!plans.includes(plan)) {
-    return res.status(400).json({ error: `Plan inválido. Permitidos: ${plans.join(", ")}` });
-  }
+  const plan = requireSupportedPlan(payload.plan);
 
   const business = await BusinessRepo.updatePlan(businessId, plan);
   if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
   const superAdmin = req.superAdmin;
 
-  await AuditRepo.log({
-    id: crypto.randomUUID(),
-    business_id: businessId,
-    actor_type: "SUPER_ADMIN",
-    actor_id: null,
+  await logSuperAudit({
     action: "super.plan.update",
-    ip: req.ip || null,
-    ua: req.headers["user-agent"] || null,
-    meta: {
-      super_admin_email: superAdmin.email,
-      plan
-    }
-  }).catch(() => { });
+    businessId,
+    req,
+    superAdminEmail: superAdmin.email,
+    meta: { plan }
+  });
 
   res.json({ ok: true, business: { id: business.id, name: business.name, plan: business.plan } });
 }));
@@ -327,22 +361,18 @@ superRoutes.post("/super/impersonate/:businessId", csrfProtect, requireSuperAdmi
     brid: target.branch_id ?? null,
     imp: superAdmin.email
   });
-  res.cookie(config.STAFF_COOKIE_NAME, token, { ...cookieOpts(), maxAge: 12 * 60 * 60 * 1000 });
+  res.cookie(config.STAFF_COOKIE_NAME, token, { ...cookieOpts(), maxAge: browserCookieMaxAge("STAFF") });
 
-  await AuditRepo.log({
-    id: crypto.randomUUID(),
-    business_id: target.business_id,
-    actor_type: "SUPER_ADMIN",
-    actor_id: null,
+  await logSuperAudit({
     action: "super.impersonate",
-    ip: req.ip || null,
-    ua: req.headers["user-agent"] || null,
+    businessId: target.business_id,
+    req,
+    superAdminEmail: superAdmin.email,
     meta: {
-      super_admin_email: superAdmin.email,
       as_staff_id: target.id,
       as_role: target.role
     }
-  }).catch(() => { });
+  });
 
   res.json({ ok: true, impersonated: { staffId: target.id, role: target.role, businessId: target.business_id } });
 }));
@@ -371,7 +401,7 @@ superRoutes.get("/super/security/posture", requireSuperAdmin, validateQuery(z.ob
   });
 }));
 
-superRoutes.post("/super/security/rotate-secrets", csrfProtect, requireSuperAdmin, asyncRoute(async (_req, res) => {
+superRoutes.post("/super/security/rotate-secrets", csrfProtect, requireSuperAdmin, requireRecentReauth(), asyncRoute(async (_req, res) => {
   const [webhookRotated, externalAwardRotated] = await Promise.all([
     WebhookRepo.rotateSecretsToCurrentKey(),
     BusinessRepo.rotateExternalAwardApiKeysToCurrent()

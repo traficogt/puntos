@@ -15,7 +15,7 @@ async function createBusinessViaUi(page) {
   const token = rand(8);
   const businessName = `Cafe E2E ${token}`;
   const email = `owner-${token}@example.com`;
-  const password = `Pwd-${token}1234`;
+  const password = "OrchardLanternMarble2026!";
   await page.goto("/admin");
   await page.fill("#businessName", businessName);
   await page.fill("#email", email);
@@ -115,7 +115,7 @@ test("staff can award points using customer QR token", async ({ page }) => {
   const before = await apiGet(page, "/api/customer/me");
   expectOk(before, "customer me should succeed");
 
-  const award = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 50 }, { csrf: true });
+  const award = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 50, txId: globalThis.crypto.randomUUID() }, { csrf: true });
   expectOk(award, "award should succeed");
 
   const after = await apiGet(page, "/api/customer/me");
@@ -219,10 +219,10 @@ test("staff can redeem reward for customer after points award", async ({ page })
   const before = await apiGet(page, "/api/customer/me");
   expectOk(before, "customer me should succeed");
 
-  const award = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 1000 }, { csrf: true });
+  const award = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 1000, txId: globalThis.crypto.randomUUID() }, { csrf: true });
   expectOk(award, "award should succeed");
 
-  const redeem = await apiPost(page, "/api/staff/redeem", { customerId: before.body?.customer?.id, rewardId }, { csrf: true });
+  const redeem = await apiPost(page, "/api/staff/redeem", { customerId: before.body?.customer?.id, rewardId, requestId: globalThis.crypto.randomUUID() }, { csrf: true });
   expectOk(redeem, "redeem should succeed");
 
   const after = await apiGet(page, "/api/customer/me");
@@ -268,7 +268,7 @@ test("rbac: cashier cannot refund while manager can reach refund validation", as
   const token = rand(7);
   const managerEmail = `mgr-rbac-${token}@example.com`;
   const cashierEmail = `cash-rbac-${token}@example.com`;
-  const pwd = `Pwd-${token}1234`;
+  const pwd = "OrchardLanternMarble2026!";
 
   const createdManager = await apiPost(page, "/api/admin/staff", {
     name: "Manager RBAC",
@@ -287,7 +287,7 @@ test("rbac: cashier cannot refund while manager can reach refund validation", as
   expectOk(createdCashier, "cashier staff should be created");
 
   const postRefundAndGetStatus = async () => {
-    const out = await apiPost(page, "/api/staff/refund", { transactionId: "00000000-0000-0000-0000-000000000000" }, { csrf: true });
+    const out = await apiPost(page, "/api/staff/refund", { transactionId: "00000000-0000-0000-0000-000000000000", requestId: globalThis.crypto.randomUUID() }, { csrf: true });
     return out.status;
   };
 
@@ -356,7 +356,7 @@ test("super admin plan update is reflected in admin feature tabs", async ({ page
     const createdOut = await apiPost(page, "/api/super/businesses", {
       businessName: `Cafe Plan ${token}`,
       email: `owner-plan-${token}@example.com`,
-      password: `Pwd-${token}1234`,
+      password: "OrchardLanternMarble2026!",
       category: "cafe",
       plan: lowPlan
     }, { csrf: true });
@@ -420,7 +420,7 @@ test("gift cards enforce role permissions (manager/cashier)", async ({ page }) =
   const managerEmail = `manager-gc-${token}@example.com`;
   const cashierNoEmail = `cashier-no-${token}@example.com`;
   const cashierYesEmail = `cashier-yes-${token}@example.com`;
-  const pwd = `Pwd-${token}1234`;
+  const pwd = "OrchardLanternMarble2026!";
 
   const createdOut = await apiPost(page, "/api/super/businesses", {
     businessName: `Cafe GC ${token}`,
@@ -452,14 +452,14 @@ test("gift cards enforce role permissions (manager/cashier)", async ({ page }) =
     expectOk(out, `staff login should succeed: ${email}`);
   };
   const tryCreate = async () => {
-    const out = await apiPost(page, "/api/admin/gift-cards", { amount_q: 25, issued_to_name: "E2E" }, { csrf: true });
+    const out = await apiPost(page, "/api/admin/gift-cards", { amount_q: 25, issued_to_name: "E2E", requestId: globalThis.crypto.randomUUID() }, { csrf: true });
     if (out.ok) {
       return { ok: true, code: out.body?.gift_card?.code || "", token: out.body?.gift_card?.qr_token || "" };
     }
     return { ok: false, error: `status ${out.status}: ${JSON.stringify(out.body)}` };
   };
   const tryRedeem = async (codeOrToken, amount) => {
-    const out = await apiPost(page, "/api/staff/gift-cards/redeem", { code_or_token: codeOrToken, amount_q: amount }, { csrf: true });
+    const out = await apiPost(page, "/api/staff/gift-cards/redeem", { code_or_token: codeOrToken, amount_q: amount, requestId: globalThis.crypto.randomUUID() }, { csrf: true });
     if (out.ok) {
       return { ok: true, balance: Number(out.body?.gift_card?.balance_q || 0) };
     }
@@ -538,7 +538,7 @@ test("suspicious awards are flagged when guard threshold is exceeded", async ({ 
   const token = String(qr.body?.token || "");
   expect(token.length >= 20).toBeTruthy();
 
-  const award = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 5 }, { csrf: true });
+  const award = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 5, txId: globalThis.crypto.randomUUID() }, { csrf: true });
   expectOk(award, "award should succeed");
 
   const suspiciousOut = await apiGet(page, "/api/admin/awards/suspicious?limit=20");

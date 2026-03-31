@@ -10,7 +10,7 @@ import { tenantContext } from "../../middleware/tenant.js";
 
 const router = Router();
 
-const TierCreateSchema = z.object({
+export const TierCreateSchema = z.object({
   name: z.string().min(1).max(120),
   tier_level: z.number().int().min(1).max(100),
   min_points: z.number().int().min(0).optional(),
@@ -22,7 +22,7 @@ const TierCreateSchema = z.object({
   icon_url: z.string().max(300).optional().nullable()
 });
 
-const TierUpdateSchema = TierCreateSchema.partial();
+export const TierUpdateSchema = TierCreateSchema.partial();
 
 router.get(
   "/admin/tiers",

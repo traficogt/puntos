@@ -23,7 +23,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: ci-postgres-${{ github.run_id }}-${{ github.run_attempt }}
           POSTGRES_DB: puntos
         ports:
           - 5432:5432
@@ -37,12 +37,12 @@ jobs:
       DB_PORT: 5432
       DB_NAME: puntos
       DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_PASSWORD: ci-postgres-${{ github.run_id }}-${{ github.run_attempt }}
       NODE_ENV: test
       PORT: 3001
       CORS_ORIGIN: http://localhost:3001
       APP_ORIGIN: http://localhost:3001
-      JWT_SECRET: ci_jwt_secret_abcdefghijklmnopqrstuvwxyz_123456
+      JWT_SECRET: ci-jwt-${{ github.run_id }}-${{ github.run_attempt }}-release-verify
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -63,6 +63,8 @@ jobs:
         run: |
           npm run openapi:generate
           git diff --exit-code -- docs/openapi.json docs/openapi.yaml
+      - name: Release checklist
+        run: npm run ops:release:checklist
       - name: Migrations (apply)
         run: npm run ops:migrate
       - name: RLS check
@@ -133,6 +135,8 @@ jobs:
     timeout-minutes: 25
     needs:
       - release-verify
+      - release-live-gamification-integration
+      - release-migration-smoke
       - release-secret-scan
       - release-container-scan
       - release-semgrep
@@ -141,7 +145,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: ci-postgres-${{ github.run_id }}-${{ github.run_attempt }}
           POSTGRES_DB: puntos
         ports:
           - 5432:5432
@@ -155,14 +159,14 @@ jobs:
       DB_PORT: 5432
       DB_NAME: puntos
       DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_PASSWORD: ci-postgres-${{ github.run_id }}-${{ github.run_attempt }}
       NODE_ENV: test
       PORT: 3001
       CORS_ORIGIN: http://localhost:3001
       APP_ORIGIN: http://localhost:3001
       SUPER_ADMIN_EMAIL: super@example.com
-      SUPER_ADMIN_PASSWORD: super_password_123456
-      JWT_SECRET: ci_jwt_secret_abcdefghijklmnopqrstuvwxyz_123456
+      SUPER_ADMIN_PASSWORD: ci-super-${{ github.run_id }}-${{ github.run_attempt }}-release-smoke
+      JWT_SECRET: ci-jwt-${{ github.run_id }}-${{ github.run_attempt }}-release-smoke
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -193,12 +197,36 @@ jobs:
         run: npm run ops:smoke -- --base-url http://localhost:3001 --require-super-login
       - name: Run smoke E2E
         run: npx playwright test tests/e2e/smoke.spec.js --project=chromium
+      - name: Run auth security E2E
+        run: npx playwright test tests/e2e/auth-security.spec.js --project=chromium
       - name: Upload release smoke log on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: release-smoke-api-log
           path: /tmp/puntos-release-api.log
+
+  release-live-gamification-integration:
+    name: Release Live Gamification Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs:
+      - release-verify
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run isolated restricted-role refund + rollover integration
+        run: bash src/scripts/run-live-integration-isolated.sh
+
+  release-migration-smoke:
+    name: Release Migration Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs:
+      - release-verify
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run migration smoke
+        run: npm run ops:migrate:smoke
 
   release-observability:
     name: Release Observability

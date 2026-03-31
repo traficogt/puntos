@@ -62,8 +62,11 @@ API metrics:
   - `puntos_db_connections_active`
   - `puntos_db_connections_idle`
   - `puntos_webhook_deliveries_24h`
+  - `puntos_payment_webhook_events_24h`
+  - `puntos_payment_webhook_pending_mapping_oldest_age_seconds`
   - `puntos_customers_total`
   - `puntos_points_total`
+  - `puntos_build_info`
   - `puntos_process_memory_bytes`
   - `puntos_process_uptime_seconds`
 
@@ -78,6 +81,9 @@ Worker metrics:
 - Background jobs:
   - `puntos_jobs_total`
   - `puntos_jobs_oldest_age_seconds`
+  - `puntos_jobs_running_oldest_age_seconds`
+  - `puntos_jobs_running_stale_total`
+  - `puntos_jobs_failed_24h`
   - `puntos_job_queue_depth`
   - `puntos_job_queue_driver`
 - Lifecycle:

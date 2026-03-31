@@ -1,0 +1,41 @@
+      <div class="tab-content" id="referrals-content">
+        <div class="card">
+          <h2>Programa de Referidos</h2>
+          
+          <div class="grid">
+            <div class="card">
+              <h3>Configuración</h3>
+              <label>
+                <input type="checkbox" id="refEnabled"/>
+                Programa activado
+              </label>
+              
+              <label>Puntos para quien refiere</label>
+              <input id="refReferrerPoints" type="number" min="0" value="100"/>
+              
+              <label>Puntos para el referido</label>
+              <input id="refReferredPoints" type="number" min="0" value="50"/>
+              
+              <label>Gasto mínimo para completar (Q, 0 = inmediato)</label>
+              <input id="refMinPurchase" type="number" min="0" step="0.01" value="0"/>
+              
+              <label>
+                <input type="checkbox" id="refRewardOnSignup"/>
+                Recompensar al registrarse (o esperar primera compra)
+              </label>
+              
+              <button class="primary mt-12" id="btnSaveRefSettings">Guardar Configuración</button>
+            </div>
+
+            <div class="card">
+              <h3>Estadísticas</h3>
+              <div id="refStats"></div>
+              
+              <div class="hr"></div>
+              
+              <h3>Top Referidores</h3>
+              <div id="refLeaderboard" class="small"></div>
+            </div>
+          </div>
+        </div>
+      </div>

@@ -9,7 +9,7 @@ import { AnalyticsRepository } from "../../repositories/analytics-repository.js"
 
 export const analyticsSegmentRoutes = Router();
 
-const CreateSegmentSchema = z.object({
+export const CreateSegmentSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(500).optional(),
   segment_type: z.enum(["rfm", "behavioral", "custom"]),
@@ -18,7 +18,7 @@ const CreateSegmentSchema = z.object({
   color: z.string().max(20).optional()
 });
 
-const SegmentCustomersQuerySchema = z.object({
+export const SegmentCustomersQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(100),
   offset: z.coerce.number().int().min(0).default(0)
 });

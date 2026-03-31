@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import bcrypt from "bcryptjs";
 import { BusinessRepo } from "../repositories/business-repository.js";
 import { BranchRepo } from "../repositories/branch-repository.js";
 import { StaffRepo } from "../repositories/staff-repository.js";
@@ -9,6 +8,8 @@ import { planLimits } from "../../utils/plan.js";
 import { badRequest, conflict } from "../../utils/http-error.js";
 import { logger } from "../../utils/logger.js";
 import { setCurrentTenant, withTransaction, withDbClientContext } from "../database.js";
+import { hashPassword } from "../../utils/password-hash.js";
+import { assertPasswordAllowed } from "../../utils/password-policy.js";
 
 function id() { return crypto.randomUUID(); }
 
@@ -53,7 +54,12 @@ export async function createBusinessWithOwner({
   let slug = slugBase;
 
   const businessId = id();
-  const password_hash = await bcrypt.hash(password, 10);
+  assertPasswordAllowed(password, {
+    email,
+    businessName,
+    phone
+  });
+  const password_hash = await hashPassword(password);
 
   const plan = providedPlan ? String(providedPlan) : (config.DEFAULT_PLAN ?? "EMPRENDEDOR");
   const programType = program_type ?? "SPEND";
@@ -121,9 +127,7 @@ export async function createBusinessWithOwner({
         return { business };
       });
 
-      runIntegrationHooks({ businessId, programType }).catch((err) => {
-        logger.warn({ err: err?.message }, "Post-create hooks failed");
-      });
+      await runIntegrationHooks({ businessId, programType });
 
       return { business, ownerId, branchId };
     } catch (err) {

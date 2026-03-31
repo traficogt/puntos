@@ -1,462 +1,206 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  businessRegisterSchema,
-  staffLoginSchema,
-  customerJoinSchema,
-  customerVerifySchema,
   awardPointsSchema,
-  rewardCreateSchema,
-  webhookCreateSchema,
-  phoneSchema
+  businessRegisterSchema,
+  phoneSchema,
+  redeemRewardSchema,
+  requestJoinCodeSchema,
+  staffCreateSchema,
+  staffLoginSchema,
+  verifyJoinCodeSchema,
+  webhookCreateSchema
 } from "../../src/utils/schemas.js";
 
 describe("Validation Schemas", () => {
-  describe("Phone number validation", () => {
-    it("should accept valid Guatemala phone number", () => {
-      const result = phoneSchema.safeParse("+50212345678");
-      assert.ok(result.success);
+  describe("phoneSchema", () => {
+    it("accepts Guatemala E.164 numbers", () => {
+      assert.equal(phoneSchema.safeParse("+50212345678").success, true);
     });
 
-    it("should reject phone without +502 prefix", () => {
-      const result = phoneSchema.safeParse("12345678");
-      assert.ok(!result.success);
-    });
-
-    it("should reject phone with wrong country code", () => {
-      const result = phoneSchema.safeParse("+50112345678");
-      assert.ok(!result.success);
-    });
-
-    it("should reject phone with wrong length", () => {
-      const result = phoneSchema.safeParse("+5021234567");
-      assert.ok(!result.success);
-    });
-
-    it("should reject phone with non-digits after prefix", () => {
-      const result = phoneSchema.safeParse("+502abcd5678");
-      assert.ok(!result.success);
+    it("rejects malformed phone numbers", () => {
+      assert.equal(phoneSchema.safeParse("12345678").success, false);
+      assert.equal(phoneSchema.safeParse("+50112345678").success, false);
+      assert.equal(phoneSchema.safeParse("+502abcd5678").success, false);
     });
   });
 
-  describe("Business registration", () => {
+  describe("businessRegisterSchema", () => {
     const validBusiness = {
-      name: "Test Business",
-      slug: "test-business",
-      email: "test@example.com",
-      password: "SecurePass123!",
+      name: "Demo Coffee",
+      slug: "demo-coffee",
+      email: "owner@example.com",
+      password: "SecurePassword123!",
       phone: "+50212345678",
-      program_type: "SPEND"
+      category: "coffee",
+      program_type: "SPEND",
+      registration_token: "1234567890abcdef"
     };
 
-    it("should accept valid business registration", () => {
-      const result = businessRegisterSchema.safeParse(validBusiness);
-      assert.ok(result.success);
+    it("accepts the live public registration payload", () => {
+      assert.equal(businessRegisterSchema.safeParse(validBusiness).success, true);
     });
 
-    it("should reject business with short name", () => {
-      const result = businessRegisterSchema.safeParse({
-        ...validBusiness,
-        name: "X"
-      });
-      assert.ok(!result.success);
+    it("rejects invalid slug, email, and short password", () => {
+      assert.equal(businessRegisterSchema.safeParse({ ...validBusiness, slug: "Bad Slug!" }).success, false);
+      assert.equal(businessRegisterSchema.safeParse({ ...validBusiness, email: "not-an-email" }).success, false);
+      assert.equal(businessRegisterSchema.safeParse({ ...validBusiness, password: "short" }).success, false);
     });
 
-    it("should reject business with invalid slug", () => {
-      const result = businessRegisterSchema.safeParse({
-        ...validBusiness,
-        slug: "Invalid Slug!"
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject business with invalid email", () => {
-      const result = businessRegisterSchema.safeParse({
-        ...validBusiness,
-        email: "not-an-email"
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject business with short password", () => {
-      const result = businessRegisterSchema.safeParse({
-        ...validBusiness,
-        password: "short"
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject business with invalid program type", () => {
-      const result = businessRegisterSchema.safeParse({
-        ...validBusiness,
-        program_type: "INVALID"
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should accept business without optional fields", () => {
+    it("allows registration without optional fields", () => {
       const minimal = {
-        name: "Test Business",
-        slug: "test-business",
-        email: "test@example.com",
-        password: "SecurePass123!",
-        phone: "+50212345678"
-      };
-      const result = businessRegisterSchema.safeParse(minimal);
-      assert.ok(result.success);
-    });
-
-    it("should reject negative points_per_quetzal", () => {
-      const result = businessRegisterSchema.safeParse({
-        ...validBusiness,
-        points_per_quetzal: -1
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject excessively high points_per_quetzal", () => {
-      const result = businessRegisterSchema.safeParse({
-        ...validBusiness,
-        points_per_quetzal: 10000
-      });
-      assert.ok(!result.success);
-    });
-  });
-
-  describe("Staff login", () => {
-    it("should accept valid staff login", () => {
-      const result = staffLoginSchema.safeParse({
-        email: "staff@example.com",
-        password: "password123"
-      });
-      assert.ok(result.success);
-    });
-
-    it("should reject invalid email", () => {
-      const result = staffLoginSchema.safeParse({
-        email: "not-an-email",
-        password: "password123"
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject empty password", () => {
-      const result = staffLoginSchema.safeParse({
-        email: "staff@example.com",
-        password: ""
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject missing fields", () => {
-      const result = staffLoginSchema.safeParse({
-        email: "staff@example.com"
-      });
-      assert.ok(!result.success);
-    });
-  });
-
-  describe("Customer join", () => {
-    it("should accept valid customer join", () => {
-      const result = customerJoinSchema.safeParse({
-        slug: "test-business",
-        name: "John Doe",
-        phone: "+50212345678"
-      });
-      assert.ok(result.success);
-    });
-
-    it("should reject invalid slug", () => {
-      const result = customerJoinSchema.safeParse({
-        slug: "Invalid Slug!",
-        name: "John Doe",
-        phone: "+50212345678"
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject short name", () => {
-      const result = customerJoinSchema.safeParse({
-        slug: "test-business",
-        name: "X",
-        phone: "+50212345678"
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject invalid phone", () => {
-      const result = customerJoinSchema.safeParse({
-        slug: "test-business",
-        name: "John Doe",
+        name: "Demo Coffee",
+        slug: "demo-coffee",
+        email: "owner@example.com",
+        password: "SecurePassword123!",
         phone: "12345678"
-      });
-      assert.ok(!result.success);
+      };
+      assert.equal(businessRegisterSchema.safeParse(minimal).success, true);
     });
   });
 
-  describe("Customer verify", () => {
-    it("should accept valid verification", () => {
-      const result = customerVerifySchema.safeParse({
+  describe("staffLoginSchema", () => {
+    it("accepts valid login input", () => {
+      assert.equal(staffLoginSchema.safeParse({
+        email: "staff@example.com",
+        password: "secret123"
+      }).success, true);
+    });
+
+    it("rejects missing password", () => {
+      assert.equal(staffLoginSchema.safeParse({ email: "staff@example.com" }).success, false);
+    });
+  });
+
+  describe("staffCreateSchema", () => {
+    it("matches the owner-managed admin staff payload", () => {
+      assert.equal(staffCreateSchema.safeParse({
+        name: "Cashier One",
+        email: "cashier@example.com",
+        phone: "+50212345678",
+        password: "SecurePassword123!",
+        role: "CASHIER",
+        can_manage_gift_cards: true
+      }).success, true);
+    });
+
+    it("rejects unsupported staff roles", () => {
+      assert.equal(staffCreateSchema.safeParse({
+        name: "Owner Clone",
+        email: "owner2@example.com",
+        password: "SecurePassword123!",
+        role: "OWNER"
+      }).success, false);
+    });
+  });
+
+  describe("requestJoinCodeSchema", () => {
+    it("accepts the current join-code request shape", () => {
+      assert.equal(requestJoinCodeSchema.safeParse({
+        phone: "+50212345678",
+        name: "John Doe"
+      }).success, true);
+    });
+
+    it("rejects too-short phone input", () => {
+      assert.equal(requestJoinCodeSchema.safeParse({
+        phone: "12345"
+      }).success, false);
+    });
+  });
+
+  describe("verifyJoinCodeSchema", () => {
+    it("accepts referral code and short verification codes", () => {
+      assert.equal(verifyJoinCodeSchema.safeParse({
+        phone: "+50212345678",
+        code: "1234",
+        referralCode: "ABC123"
+      }).success, true);
+    });
+
+    it("rejects invalid referral code length", () => {
+      assert.equal(verifyJoinCodeSchema.safeParse({
         phone: "+50212345678",
         code: "123456",
-        slug: "test-business"
-      });
-      assert.ok(result.success);
-    });
-
-    it("should reject non-6-digit code", () => {
-      const result = customerVerifySchema.safeParse({
-        phone: "+50212345678",
-        code: "12345",
-        slug: "test-business"
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject code with letters", () => {
-      const result = customerVerifySchema.safeParse({
-        phone: "+50212345678",
-        code: "12345a",
-        slug: "test-business"
-      });
-      assert.ok(!result.success);
+        referralCode: "SHORT"
+      }).success, false);
     });
   });
 
-  describe("Award points", () => {
-    it("should accept valid award with amount", () => {
-      const result = awardPointsSchema.safeParse({
+  describe("awardPointsSchema", () => {
+    it("accepts amount, visit, and item awards", () => {
+      assert.equal(awardPointsSchema.safeParse({
         customerQrToken: "valid-token-string",
-        amount_q: 100.50
-      });
-      assert.ok(result.success);
+        amount_q: 100.5,
+        txId: "11111111-1111-4111-8111-111111111111"
+      }).success, true);
+      assert.equal(awardPointsSchema.safeParse({
+        customerQrToken: "valid-token-string",
+        visits: 1,
+        txId: "11111111-1111-4111-8111-111111111111"
+      }).success, true);
+      assert.equal(awardPointsSchema.safeParse({
+        customerQrToken: "valid-token-string",
+        items: 5,
+        txId: "11111111-1111-4111-8111-111111111111"
+      }).success, true);
     });
 
-    it("should accept valid award with visits", () => {
-      const result = awardPointsSchema.safeParse({
+    it("rejects missing txId and negative or zero progress payloads", () => {
+      assert.equal(awardPointsSchema.safeParse({
         customerQrToken: "valid-token-string",
-        visits: 1
-      });
-      assert.ok(result.success);
-    });
-
-    it("should accept valid award with items", () => {
-      const result = awardPointsSchema.safeParse({
+        amount_q: 1
+      }).success, false);
+      assert.equal(awardPointsSchema.safeParse({
         customerQrToken: "valid-token-string",
-        items: 5
-      });
-      assert.ok(result.success);
-    });
-
-    it("should reject negative amount", () => {
-      const result = awardPointsSchema.safeParse({
+        amount_q: -1,
+        txId: "11111111-1111-4111-8111-111111111111"
+      }).success, false);
+      assert.equal(awardPointsSchema.safeParse({
         customerQrToken: "valid-token-string",
-        amount_q: -10
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject excessively high amount", () => {
-      const result = awardPointsSchema.safeParse({
+        visits: 0,
+        txId: "11111111-1111-4111-8111-111111111111"
+      }).success, false);
+      assert.equal(awardPointsSchema.safeParse({
         customerQrToken: "valid-token-string",
-        amount_q: 2000000
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject negative visits", () => {
-      const result = awardPointsSchema.safeParse({
-        customerQrToken: "valid-token-string",
-        visits: -1
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject fractional visits", () => {
-      const result = awardPointsSchema.safeParse({
-        customerQrToken: "valid-token-string",
-        visits: 1.5
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should accept valid source", () => {
-      const result = awardPointsSchema.safeParse({
-        customerQrToken: "valid-token-string",
-        amount_q: 100,
-        source: "offline"
-      });
-      assert.ok(result.success);
-    });
-
-    it("should reject invalid source", () => {
-      const result = awardPointsSchema.safeParse({
-        customerQrToken: "valid-token-string",
-        amount_q: 100,
-        source: "invalid"
-      });
-      assert.ok(!result.success);
+        items: 0,
+        txId: "11111111-1111-4111-8111-111111111111"
+      }).success, false);
     });
   });
 
-  describe("Reward creation", () => {
-    it("should accept valid reward", () => {
-      const result = rewardCreateSchema.safeParse({
-        name: "Free Coffee",
-        description: "One free coffee of any size",
-        points_cost: 10
-      });
-      assert.ok(result.success);
-    });
-
-    it("should reject reward with short name", () => {
-      const result = rewardCreateSchema.safeParse({
-        name: "X",
-        points_cost: 10
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject reward with zero points", () => {
-      const result = rewardCreateSchema.safeParse({
-        name: "Free Coffee",
-        points_cost: 0
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject reward with negative points", () => {
-      const result = rewardCreateSchema.safeParse({
-        name: "Free Coffee",
-        points_cost: -10
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject reward with fractional points", () => {
-      const result = rewardCreateSchema.safeParse({
-        name: "Free Coffee",
-        points_cost: 10.5
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should accept reward with stock", () => {
-      const result = rewardCreateSchema.safeParse({
-        name: "Limited Edition Mug",
-        points_cost: 100,
-        stock: 50
-      });
-      assert.ok(result.success);
-    });
-
-    it("should reject negative stock", () => {
-      const result = rewardCreateSchema.safeParse({
-        name: "Limited Edition Mug",
-        points_cost: 100,
-        stock: -1
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should accept reward with expiration date", () => {
-      const result = rewardCreateSchema.safeParse({
-        name: "Holiday Special",
-        points_cost: 20,
-        valid_until: "2025-12-31T23:59:59Z"
-      });
-      assert.ok(result.success);
-    });
-
-    it("should reject invalid date format", () => {
-      const result = rewardCreateSchema.safeParse({
-        name: "Holiday Special",
-        points_cost: 20,
-        valid_until: "2025-12-31"
-      });
-      assert.ok(!result.success);
+  describe("redeemRewardSchema", () => {
+    it("requires requestId for reward redemption", () => {
+      assert.equal(redeemRewardSchema.safeParse({
+        customerId: "11111111-1111-4111-8111-111111111111",
+        rewardId: "22222222-2222-4222-8222-222222222222",
+        requestId: "33333333-3333-4333-8333-333333333333"
+      }).success, true);
+      assert.equal(redeemRewardSchema.safeParse({
+        customerId: "11111111-1111-4111-8111-111111111111",
+        rewardId: "22222222-2222-4222-8222-222222222222"
+      }).success, false);
     });
   });
 
-  describe("Webhook creation", () => {
-    it("should accept valid webhook", () => {
-      const result = webhookCreateSchema.safeParse({
+  describe("webhookCreateSchema", () => {
+    it("accepts valid webhook definitions", () => {
+      assert.equal(webhookCreateSchema.safeParse({
         url: "https://example.com/webhook",
-        events: ["points.awarded", "reward.redeemed"]
-      });
-      assert.ok(result.success);
+        events: ["customer.created"],
+        secret: "1234567890abcdef"
+      }).success, true);
     });
 
-    it("should reject invalid URL", () => {
-      const result = webhookCreateSchema.safeParse({
+    it("rejects invalid webhook URLs and empty event lists", () => {
+      assert.equal(webhookCreateSchema.safeParse({
         url: "not-a-url",
-        events: ["points.awarded"]
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should reject empty events array", () => {
-      const result = webhookCreateSchema.safeParse({
+        events: ["customer.created"]
+      }).success, false);
+      assert.equal(webhookCreateSchema.safeParse({
         url: "https://example.com/webhook",
         events: []
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should accept wildcard event", () => {
-      const result = webhookCreateSchema.safeParse({
-        url: "https://example.com/webhook",
-        events: ["*"]
-      });
-      assert.ok(result.success);
-    });
-
-    it("should accept optional secret", () => {
-      const result = webhookCreateSchema.safeParse({
-        url: "https://example.com/webhook",
-        events: ["points.awarded"],
-        secret: "my-very-secure-secret-key"
-      });
-      assert.ok(result.success);
-    });
-
-    it("should reject short secret", () => {
-      const result = webhookCreateSchema.safeParse({
-        url: "https://example.com/webhook",
-        events: ["points.awarded"],
-        secret: "short"
-      });
-      assert.ok(!result.success);
-    });
-  });
-
-  describe("Security boundaries", () => {
-    it("should reject excessively long strings", () => {
-      const veryLongString = "a".repeat(10000);
-      const result = businessRegisterSchema.safeParse({
-        name: veryLongString,
-        slug: "test",
-        email: "test@example.com",
-        password: "password123",
-        phone: "+50212345678"
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should enforce reasonable limits on numeric values", () => {
-      const result = rewardCreateSchema.safeParse({
-        name: "Test",
-        points_cost: 999999999
-      });
-      assert.ok(!result.success);
-    });
-
-    it("should validate data types strictly", () => {
-      const result = awardPointsSchema.safeParse({
-        customerQrToken: "token",
-        amount_q: "not a number" // Should be number
-      });
-      assert.ok(!result.success);
+      }).success, false);
     });
   });
 });

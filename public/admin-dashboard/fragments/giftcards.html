@@ -1,0 +1,33 @@
+      <div class="tab-content" id="giftcards-content">
+        <div class="card">
+          <h2>Gift Cards</h2>
+          <p class="small">Crea tarjetas de regalo con saldo y comparte el código/QR.</p>
+          <div class="grid">
+            <div class="card">
+              <h3>Nueva gift card</h3>
+              <label>Monto inicial (Q)</label>
+              <input id="gcAmount" type="number" min="1" step="0.01" value="50"/>
+              <label>Nombre destinatario (opcional)</label>
+              <input id="gcName" placeholder="Juan Pérez"/>
+              <label>Teléfono destinatario (opcional)</label>
+              <input id="gcPhone" placeholder="55551234"/>
+              <button class="primary mt-10" id="btnCreateGiftCard">Crear gift card</button>
+              <pre id="gcLastCreated" class="small pre-wrap"></pre>
+            </div>
+            <div class="card">
+              <div class="row justify-between align-center">
+                <h3 class="m-0">Listado</h3>
+                <button id="btnRefreshGiftCards">Recargar</button>
+              </div>
+              <div id="giftCardList" class="small">(cargando...)</div>
+            </div>
+            <div class="card">
+              <div class="row justify-between align-center">
+                <h3 class="m-0">Ledger</h3>
+                <div id="giftCardLedgerBadge" class="small muted">Selecciona una gift card</div>
+              </div>
+              <div id="giftCardLedger" class="small">Aquí verás el saldo guardado, el saldo esperado por movimientos y el historial reciente.</div>
+            </div>
+          </div>
+        </div>
+      </div>

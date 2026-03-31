@@ -1,5 +1,5 @@
 import { api, $, toast, uuidv4 } from "/lib.js";
-import { addAward, listAwards, deleteAward } from "/idb.js";
+import { addAward, deleteAward, listAwards } from "/idb.js";
 import { initStaffPage } from "./staff/index.js";
 
 /** @typedef {import("./staff/types.js").QueuedStaffAward} QueuedStaffAward */

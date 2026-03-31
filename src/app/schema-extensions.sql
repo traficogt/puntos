@@ -135,9 +135,13 @@ CREATE TABLE IF NOT EXISTS customer_achievements (
   progress INTEGER DEFAULT 100, -- Percentage of completion (for display)
   UNIQUE(customer_id, achievement_id)
 );
+ALTER TABLE customer_achievements ADD COLUMN IF NOT EXISTS source_transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL;
+ALTER TABLE customer_achievements ADD COLUMN IF NOT EXISTS reward_transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL;
 
 CREATE INDEX idx_customer_achievements_customer ON customer_achievements(customer_id);
 CREATE INDEX idx_customer_achievements_achievement ON customer_achievements(achievement_id);
+CREATE INDEX IF NOT EXISTS idx_customer_achievements_source_tx ON customer_achievements(source_transaction_id);
+CREATE INDEX IF NOT EXISTS idx_customer_achievements_reward_tx ON customer_achievements(reward_transaction_id);
 
 -- Challenges/missions
 CREATE TABLE IF NOT EXISTS challenges (
@@ -176,10 +180,15 @@ CREATE TABLE IF NOT EXISTS customer_challenges (
   updated_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(customer_id, challenge_id)
 );
+ALTER TABLE customer_challenges ADD COLUMN IF NOT EXISTS last_source_transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL;
+ALTER TABLE customer_challenges ADD COLUMN IF NOT EXISTS last_reward_transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL;
+ALTER TABLE customer_challenges ADD COLUMN IF NOT EXISTS completion_history JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 CREATE INDEX idx_customer_challenges_customer ON customer_challenges(customer_id);
 CREATE INDEX idx_customer_challenges_challenge ON customer_challenges(challenge_id);
 CREATE INDEX idx_customer_challenges_completed ON customer_challenges(completed);
+CREATE INDEX IF NOT EXISTS idx_customer_challenges_source_tx ON customer_challenges(last_source_transaction_id);
+CREATE INDEX IF NOT EXISTS idx_customer_challenges_reward_tx ON customer_challenges(last_reward_transaction_id);
 
 -- Visit streaks tracking
 CREATE TABLE IF NOT EXISTS visit_streaks (
@@ -385,11 +394,15 @@ BEGIN
     now()
   FROM transactions
   WHERE customer_id = NEW.customer_id
+    AND type = 'PURCHASE'
+    AND source <> 'reversal'
+    AND status <> 'REVERSED'
   ON CONFLICT (customer_id)
   DO UPDATE SET
     total_spend = EXCLUDED.total_spend,
     total_visits = EXCLUDED.total_visits,
     total_transactions = EXCLUDED.total_transactions,
+    first_purchase_at = EXCLUDED.first_purchase_at,
     avg_transaction_value = EXCLUDED.avg_transaction_value,
     last_purchase_at = EXCLUDED.last_purchase_at,
     days_since_last_purchase = EXCLUDED.days_since_last_purchase,
@@ -402,7 +415,7 @@ $$ LANGUAGE plpgsql;
 -- Trigger on transaction insert
 DROP TRIGGER IF EXISTS trigger_update_customer_ltv ON transactions;
 CREATE TRIGGER trigger_update_customer_ltv
-AFTER INSERT ON transactions
+AFTER INSERT OR UPDATE OF status, source, type, amount_q, visits ON transactions
 FOR EACH ROW
 EXECUTE FUNCTION update_customer_ltv();
 

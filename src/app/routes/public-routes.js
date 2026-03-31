@@ -3,11 +3,12 @@ import { z } from "zod";
 import { asyncRoute } from "../../middleware/common.js";
 import { validate } from "../../utils/validation.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
+import { CustomerRepo } from "../repositories/customer-repository.js";
 import { normalizePhone } from "../../utils/phone.js";
 import { requestJoinCode, verifyJoinCode, issueCustomerQr } from "../services/customer-service.js";
 import { awardFromExternalEventTrusted } from "../services/external-award-service.js";
 import { config } from "../../config/index.js";
-import { cookieOpts } from "../../utils/auth-token.js";
+import { browserCookieMaxAge, cookieOpts } from "../../utils/auth-token.js";
 import { requireCustomer } from "../../middleware/auth.js";
 import { csrfProtect } from "../../middleware/csrf.js";
 import { moderateRateLimit, rateLimitByPhone, strictRateLimit } from "../../middleware/rate-limit.js";
@@ -16,9 +17,45 @@ import { createBusinessWithOwner } from "../services/business-service.js";
 import crypto from "node:crypto";
 import { setTenantForRequest } from "../../middleware/tenant.js";
 import { timingSafeEqualString } from "../../utils/timing-safe.js";
-import { passwordSchema } from "../../utils/schemas.js";
+import {
+  businessRegisterSchema,
+  requestJoinCodeSchema,
+  verifyJoinCodeSchema
+} from "../../utils/schemas.js";
+import { invalidateBrowserSessionById } from "../services/auth-session-service.js";
+import {
+  completeStaffPasswordReset,
+  confirmStaffEmailChange,
+  requestStaffPasswordReset
+} from "../services/account-security-service.js";
+import { sendContactEmail, verifyTurnstile } from "../services/contact-service.js";
 
 export const publicRoutes = Router();
+
+const StaffPasswordResetRequestSchema = z.object({
+  email: z.string().email()
+});
+
+const StaffPasswordResetConfirmSchema = z.object({
+  token: z.string().min(20),
+  newPassword: z.string().min(8).max(128)
+});
+
+const StaffTokenConfirmSchema = z.object({
+  token: z.string().min(20)
+});
+
+const ContactSchema = z.object({
+  name: z.string().min(1).max(100).trim(),
+  contact: z.string().min(1).max(200).trim(),
+  message: z.string().min(10).max(2000).trim(),
+  turnstileToken: z.string().min(1)
+});
+
+function rejectMissingCustomer(req, res) {
+  res.clearCookie(config.CUSTOMER_COOKIE_NAME, { path: "/" });
+  return res.status(404).json({ error: "Customer not found" });
+}
 
 function sanitizeProgramJsonForPublic(programJson) {
   const json = programJson && typeof programJson === "object" ? { ...programJson } : {};
@@ -48,13 +85,8 @@ publicRoutes.get("/public/keys", (req, res) => {
   res.json({ qr_public_key_pem: config.QR_PUBLIC_KEY_PEM || null });
 });
 
-const RequestCodeSchema = z.object({
-  phone: z.string().min(6),
-  name: z.string().max(120).optional()
-});
-
 publicRoutes.post("/public/business/:slug/join/request-code", strictRateLimit, rateLimitByPhone(3, 10 * 60 * 1000), asyncRoute(async (req, res) => {
-  const v = validate(RequestCodeSchema, req.body);
+  const v = validate(requestJoinCodeSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
 
 	const business = await BusinessRepo.getPublicBySlug(req.params.slug);
@@ -67,15 +99,42 @@ publicRoutes.post("/public/business/:slug/join/request-code", strictRateLimit, r
   res.json(out);
 }));
 
-const VerifySchema = z.object({
-  phone: z.string().min(6),
-  code: z.string().min(4).max(10),
-  name: z.string().max(120).optional(),
-  referralCode: z.string().length(6).optional() // Optional 6-char referral code
-});
+publicRoutes.post("/public/staff/password-reset/request", strictRateLimit, asyncRoute(async (req, res) => {
+  const v = validate(StaffPasswordResetRequestSchema, req.body);
+  if (!v.ok) return res.status(400).json({ error: v.error });
+  await requestStaffPasswordReset({
+    email: v.data.email,
+    ip: req.ip || null,
+    ua: req.headers["user-agent"] || null
+  });
+  res.json({ ok: true });
+}));
+
+publicRoutes.post("/public/staff/password-reset/confirm", strictRateLimit, asyncRoute(async (req, res) => {
+  const v = validate(StaffPasswordResetConfirmSchema, req.body);
+  if (!v.ok) return res.status(400).json({ error: v.error });
+  await completeStaffPasswordReset({
+    token: v.data.token,
+    newPassword: v.data.newPassword,
+    ip: req.ip || null,
+    ua: req.headers["user-agent"] || null
+  });
+  res.json({ ok: true });
+}));
+
+publicRoutes.post("/public/staff/email-change/confirm", strictRateLimit, asyncRoute(async (req, res) => {
+  const v = validate(StaffTokenConfirmSchema, req.body);
+  if (!v.ok) return res.status(400).json({ error: v.error });
+  const out = await confirmStaffEmailChange({
+    token: v.data.token,
+    ip: req.ip || null,
+    ua: req.headers["user-agent"] || null
+  });
+  res.json(out);
+}));
 
 publicRoutes.post("/public/business/:slug/join/verify", moderateRateLimit, rateLimitByPhone(10, 10 * 60 * 1000), asyncRoute(async (req, res) => {
-  const v = validate(VerifySchema, req.body);
+  const v = validate(verifyJoinCodeSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
 
 	const business = await BusinessRepo.getPublicBySlug(req.params.slug);
@@ -91,22 +150,27 @@ publicRoutes.post("/public/business/:slug/join/verify", moderateRateLimit, rateL
     referralCode: v.data.referralCode ?? null // Pass referral code if provided
   });
 
-  res.cookie(config.CUSTOMER_COOKIE_NAME, token, { ...cookieOpts(), maxAge: 180 * 24 * 60 * 60 * 1000 });
+  res.cookie(config.CUSTOMER_COOKIE_NAME, token, { ...cookieOpts(), maxAge: browserCookieMaxAge("CUSTOMER") });
   res.json({ ok: true, customer: { id: customer.id, points: customer.points, name: customer.name, phone: customer.phone } });
 }));
 
-publicRoutes.post("/public/customer/logout", csrfProtect, (req, res) => {
+publicRoutes.post("/public/customer/logout", requireCustomer, csrfProtect, asyncRoute(async (req, res) => {
+  if (req.authSession?.id) {
+    await invalidateBrowserSessionById(req.authSession.id, "logout").catch(() => {});
+  }
   res.clearCookie(config.CUSTOMER_COOKIE_NAME, { path: "/" });
   res.json({ ok: true });
-});
+}));
 
 publicRoutes.post("/public/customer/qr", csrfProtect, requireCustomer, asyncRoute(async (req, res) => {
   const { id: customerId, business_id } = req.customerAuth;
+  const customer = await CustomerRepo.getById(customerId);
+  if (!customer || String(customer.business_id) !== String(business_id)) return rejectMissingCustomer(req, res);
   const out = await issueCustomerQr({ businessId: business_id, customerId });
   res.json(out);
 }));
 
-const ExternalAwardSchema = z.object({
+export const ExternalAwardSchema = z.object({
   businessSlug: z.string().min(2).max(120),
   externalEventId: z.string().min(4).max(120),
   customerId: z.string().uuid().optional(),
@@ -155,19 +219,8 @@ publicRoutes.post("/public/external/award", moderateRateLimit, asyncRoute(async 
   res.json(out);
 }));
 
-const BusinessRegisterSchema = z.object({
-  name: z.string().min(3).max(140),
-  slug: z.string().min(3).max(80).regex(/^[a-z0-9-]+$/),
-  email: z.string().email(),
-  password: passwordSchema,
-  phone: z.string().min(8),
-  category: z.string().max(50).optional(),
-  program_type: z.enum(["SPEND", "VISIT", "ITEM"]).optional(),
-  registration_token: z.string().min(16).optional()
-});
-
 publicRoutes.post("/public/business/register", strictRateLimit, asyncRoute(async (req, res) => {
-  const v = validate(BusinessRegisterSchema, req.body);
+  const v = validate(businessRegisterSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
 
   // Optional shared secret for production; if set, require correct token
@@ -203,9 +256,21 @@ publicRoutes.post("/public/business/register", strictRateLimit, asyncRoute(async
   });
 }));
 
+publicRoutes.post("/public/contact", strictRateLimit, asyncRoute(async (req, res) => {
+  const v = validate(ContactSchema, req.body);
+  if (!v.ok) return res.status(400).json({ error: v.error });
+  const ip = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "");
+  const valid = await verifyTurnstile(v.data.turnstileToken, ip).catch(() => false);
+  if (!valid) return res.status(400).json({ error: "Verificación fallida. Intenta de nuevo." });
+  await sendContactEmail(v.data).catch(() => {});
+  res.json({ ok: true });
+}));
+
 // Convenient endpoint for customer UI: returns an SVG QR for the short-lived token
 publicRoutes.get("/public/customer/qr.svg", requireCustomer, asyncRoute(async (req, res) => {
   const { id: customerId, business_id } = req.customerAuth;
+  const customer = await CustomerRepo.getById(customerId);
+  if (!customer || String(customer.business_id) !== String(business_id)) return rejectMissingCustomer(req, res);
   const out = await issueCustomerQr({ businessId: business_id, customerId });
   const svg = await QRCode.toString(out.token, {
     type: "svg",
@@ -218,6 +283,5 @@ publicRoutes.get("/public/customer/qr.svg", requireCustomer, asyncRoute(async (r
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-QR-Exp", String(out.exp));
   res.setHeader("X-QR-JTI", String(out.jti));
-  res.setHeader("X-QR-Token", String(out.token));
   res.send(svg);
 }));

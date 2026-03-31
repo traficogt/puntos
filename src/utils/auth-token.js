@@ -1,39 +1,77 @@
-import { SignJWT, jwtVerify } from "jose";
 import { config } from "../config/index.js";
+import {
+  browserSessionStatus,
+  createBrowserSession,
+  getBrowserSession
+} from "../app/services/auth-session-service.js";
 
-const enc = new TextEncoder();
-const secret = enc.encode(config.JWT_SECRET);
-
-export async function signStaffToken(payload, expiresInSeconds = 30 * 24 * 60 * 60) {
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ ...payload, typ: "staff" })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + expiresInSeconds)
-    .sign(secret);
+export async function signStaffToken(payload, _expiresInSeconds = 30 * 24 * 60 * 60) {
+  const out = await createBrowserSession({
+    actorType: "STAFF",
+    actorId: payload.sid,
+    businessId: payload.bid,
+    role: payload.role ?? "CASHIER",
+    branchId: payload.brid ?? null,
+    impersonatedBy: payload.imp ?? null,
+    reauthVerified: payload.reauthVerified ?? true,
+    mfaVerified: payload.mfaVerified ?? false
+  });
+  return out.token;
 }
 
-export async function signCustomerToken(payload, expiresInSeconds = 180 * 24 * 60 * 60) {
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ ...payload, typ: "customer" })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + expiresInSeconds)
-    .sign(secret);
+export async function signCustomerToken(payload, _expiresInSeconds = 180 * 24 * 60 * 60) {
+  const out = await createBrowserSession({
+    actorType: "CUSTOMER",
+    actorId: payload.cid,
+    businessId: payload.bid,
+    meta: payload.slug ? { business_slug: payload.slug } : {}
+  });
+  return out.token;
 }
 
-export async function signSuperToken(payload, expiresInSeconds = 7 * 24 * 60 * 60) {
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ ...payload, typ: "super" })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + expiresInSeconds)
-    .sign(secret);
+export async function signSuperToken(payload, _expiresInSeconds = 7 * 24 * 60 * 60) {
+  const out = await createBrowserSession({
+    actorType: "SUPER",
+    actorEmail: String(payload.email || "").toLowerCase(),
+    reauthVerified: payload.reauthVerified ?? true,
+    mfaVerified: payload.mfaVerified ?? false
+  });
+  return out.token;
 }
 
 export async function verifyToken(token) {
-  const { payload } = await jwtVerify(token, secret, { algorithms: ["HS256"] });
-  return payload;
+  const session = await getBrowserSession(token);
+  const status = browserSessionStatus(session);
+  if (!status.ok) throw new Error(`Invalid session: ${status.reason}`);
+  if (session.actor_type === "STAFF") {
+    return {
+      typ: "staff",
+      sid: session.actor_id,
+      bid: session.business_id,
+      role: session.role,
+      brid: session.branch_id,
+      imp: session.impersonated_by
+    };
+  }
+  if (session.actor_type === "CUSTOMER") {
+    return {
+      typ: "customer",
+      cid: session.actor_id,
+      bid: session.business_id
+    };
+  }
+  return {
+    typ: "super",
+    email: session.actor_email
+  };
+}
+
+export function browserCookieMaxAge(actorType) {
+  const normalized = String(actorType || "").toUpperCase();
+  if (normalized === "SUPER") {
+    return Number(process.env.SUPER_SESSION_ABSOLUTE_MS || 4 * 60 * 60 * 1000);
+  }
+  return Number(process.env.APP_SESSION_ABSOLUTE_MS || 8 * 60 * 60 * 1000);
 }
 
 export function cookieOpts() {

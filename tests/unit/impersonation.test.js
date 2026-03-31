@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import { requireStaff } from "../../src/middleware/auth.js";
 import { signStaffToken } from "../../src/utils/auth-token.js";
 import { withImpersonationMeta } from "../../src/utils/impersonation.js";
+import { StaffRepo } from "../../src/app/repositories/staff-repository.js";
+import { config } from "../../src/config/index.js";
 
 describe("impersonation provenance", () => {
   it("adds impersonation metadata when present", () => {
@@ -15,6 +17,15 @@ describe("impersonation provenance", () => {
   });
 
   it("preserves the impersonator on authenticated staff context", async () => {
+    const originalGetById = StaffRepo.getById;
+    StaffRepo.getById = async () => ({
+      id: "staff-1",
+      business_id: "business-1",
+      role: "OWNER",
+      branch_id: "branch-1",
+      active: true
+    });
+
     const token = await signStaffToken({
       sid: "staff-1",
       bid: "business-1",
@@ -25,7 +36,7 @@ describe("impersonation provenance", () => {
 
     const req = /** @type {any} */ ({
       cookies: {
-        pf_staff: token
+        [config.STAFF_COOKIE_NAME]: token
       }
     });
     const res = /** @type {any} */ ({
@@ -34,16 +45,20 @@ describe("impersonation provenance", () => {
       }
     });
 
-    await new Promise((resolve, reject) => {
-      requireStaff(req, res, (err) => (err ? reject(err) : resolve()));
-    });
+    try {
+      await new Promise((resolve, reject) => {
+        requireStaff(req, res, (err) => (err ? reject(err) : resolve()));
+      });
 
-    assert.deepEqual(req.staff, {
-      id: "staff-1",
-      business_id: "business-1",
-      role: "OWNER",
-      branch_id: "branch-1",
-      impersonated_by: "super@example.com"
-    });
+      assert.deepEqual(req.staff, {
+        id: "staff-1",
+        business_id: "business-1",
+        role: "OWNER",
+        branch_id: "branch-1",
+        impersonated_by: "super@example.com"
+      });
+    } finally {
+      StaffRepo.getById = originalGetById;
+    }
   });
 });

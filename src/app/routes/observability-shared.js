@@ -5,6 +5,14 @@ import { config } from "../../config/index.js";
 const require = createRequire(import.meta.url);
 const pkg = require(path.join(process.cwd(), "package.json"));
 
+function buildSha() {
+  return String(process.env.RELEASE_SHA || process.env.GITHUB_SHA || "").trim();
+}
+
+function buildTimestamp() {
+  return String(process.env.BUILD_TIMESTAMP || process.env.GITHUB_RUN_STARTED_AT || "").trim();
+}
+
 export function hasValidMetricsToken(req) {
   const configured = String(config.METRICS_TOKEN || "").trim();
   if (!configured) return false;
@@ -28,6 +36,8 @@ export function serviceInfo() {
     service: "PuntosFieles",
     version: pkg.version,
     environment: config.NODE_ENV,
+    build_sha: buildSha() || null,
+    build_timestamp: buildTimestamp() || null,
     uptime_seconds: process.uptime(),
     node_version: process.version,
     timestamp: new Date().toISOString()

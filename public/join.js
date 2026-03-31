@@ -1,4 +1,4 @@
-import { api, $, toast } from "/lib.js";
+import { api, $, registerServiceWorker, toast, setHidden } from "/lib.js";
 
 const slug = location.pathname.split("/").filter(Boolean).pop();
 if (!slug) toast("Falta slug");
@@ -73,7 +73,7 @@ $("#btnVerify").addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({ phone, code, name })
     });
-    $("#done").style.display = "block";
+    setHidden($("#done"), false);
     setStep(3);
     toast("Verificado. Abriendo tu tarjeta...");
     setTimeout(() => {
@@ -84,4 +84,4 @@ $("#btnVerify").addEventListener("click", async () => {
   }
 });
 
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+registerServiceWorker().catch(() => {});

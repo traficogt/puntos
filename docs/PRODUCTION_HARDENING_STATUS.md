@@ -1,6 +1,6 @@
 # Estado de hardening para producción
 
-Fecha de verificación: 2026-02-27
+Fecha de verificación: 2026-03-07
 
 ## Estado actual (este repo/stack)
 
@@ -9,11 +9,14 @@ Fecha de verificación: 2026-02-27
 - [x] Escaneo estático de seguridad pasando (`npm run ops:security-scan`)
 - [x] Tests unit/integration pasando (`npm test`)
 - [x] Guard de inmutabilidad de migraciones (`npm run ops:migrate:lock-check`)
+- [x] Smoke de migraciones sobre DB vacía + DB ya migrada (`npm run ops:migrate:smoke`)
+- [x] Checklist de release machine-checked (`npm run ops:release:checklist`)
 - [ ] Dependencias auditadas sin vulnerabilidades (ejecutar `npm audit --omit=dev` en un entorno con acceso a registry/CI)
 - [x] API container saludable (`docker compose ps`)
 - [x] Validación de configuración en runtime (`src/config/index.js` carga sin error)
 - [x] `.env` sin secretos inline; secretos cargados desde archivos
 - [x] Headers de seguridad fuertes en respuestas API (CSP, HSTS, COOP, XFO, etc.)
+- [x] Política operativa del motor de lealtad documentada ([LOYALTY_POLICY.md](/opt/puntos/docs/LOYALTY_POLICY.md))
 
 ## Controles de seguridad ya implementados
 
@@ -41,6 +44,7 @@ Fecha de verificación: 2026-02-27
 3. Secretos finales y rotados (JWT, DB, webhooks, métricas).
 4. Revisión final de CORS/APP_ORIGIN para dominio definitivo.
 5. Smoke test completo (login, escaneo QR, canje, super admin, jobs, analytics).
+6. `npm run ops:migrate:smoke` y `npm run ops:release:checklist` en verde.
 
 ## Ejecución práctica (VM app + VM gateway)
 

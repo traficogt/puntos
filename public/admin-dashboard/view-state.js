@@ -46,8 +46,7 @@ export async function copyCurrentViewUrl(syncUrl) {
   const input = document.createElement("textarea");
   input.value = url;
   input.setAttribute("readonly", "readonly");
-  input.style.position = "fixed";
-  input.style.opacity = "0";
+  input.className = "copy-buffer";
   document.body.appendChild(input);
   input.select();
   document.execCommand("copy");
@@ -67,7 +66,7 @@ export function restoreDashboardViewFromUrl({ $, persistedBranchId, activateTab 
 
   if (tab) {
     const targetTab = Array.from(/** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab")))
-      .find((el) => el.dataset.tab === tab && el.style.display !== "none");
+      .find((el) => el.dataset.tab === tab && !el.hidden);
     if (targetTab) {
       activateTab(tab, { syncUrl: false });
       return { branchId: nextBranchId, activeTab: tab };

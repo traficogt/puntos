@@ -1,6 +1,49 @@
 export function registerRewardsModule(app) {
   const { api, $, toast, prompt } = app;
 
+  function renderRewardLedger(details) {
+    const box = $("#rewardLedger");
+    const badge = $("#rewardLedgerBadge");
+    if (!box || !badge) return;
+    if (!details?.redemption || !details?.ledger) {
+      badge.textContent = "Selecciona una recompensa";
+      box.textContent = "Aquí verás el detalle de un canje y si el movimiento de puntos asociado es consistente.";
+      return;
+    }
+
+    const { redemption, ledger, transactions = [] } = details;
+    badge.textContent = ledger.consistent ? "Canje consistente" : "Revisar canje";
+    const lines = [
+      `Canje: ${redemption.code} • ${new Date(redemption.created_at).toLocaleString()}`,
+      `Cliente: ${redemption.customer_name || "—"} • ${redemption.customer_phone || "—"}`,
+      `Recompensa: ${redemption.reward_name}`,
+      `Costo esperado: ${Number(redemption.points_cost || 0)} pts`,
+      `Movimiento vinculado: ${Number(ledger.linked_points_total || 0)} pts`,
+      `Delta: ${Number(ledger.delta_points || 0)} pts${ledger.consistent ? "" : "  <- revisar"}`,
+      ""
+    ];
+
+    if (!transactions.length) {
+      lines.push("No hay transacciones vinculadas.");
+    } else {
+      lines.push("Transacciones vinculadas:");
+      transactions.forEach((tx) => {
+        lines.push(`${new Date(tx.created_at).toLocaleString()} • ${tx.source} • ${Number(tx.points || 0)} pts • ${tx.status}`);
+      });
+    }
+
+    box.textContent = lines.join("\n");
+  }
+
+  async function inspectRewardRedemption(redemptionId) {
+    try {
+      const out = await api(`/api/admin/analytics/redemptions/${encodeURIComponent(redemptionId)}`);
+      renderRewardLedger(out);
+    } catch (e) {
+      toast("No se pudo cargar ledger del canje: " + e.message);
+    }
+  }
+
   function toApiDateTime(value) {
     if (!value) return undefined;
     const d = new Date(value);
@@ -45,8 +88,7 @@ export function registerRewardsModule(app) {
       const sorted = [...rows].sort((a, b) => Number(a.points_cost) - Number(b.points_cost));
       sorted.forEach((r) => {
         const card = document.createElement("div");
-        card.className = "card";
-        card.style.padding = "10px";
+        card.className = "card compact-card";
 
         const title = document.createElement("strong");
         title.textContent = r.name;
@@ -61,15 +103,13 @@ export function registerRewardsModule(app) {
 
         if (r.description) {
           const desc = document.createElement("div");
-          desc.className = "small";
-          desc.style.marginTop = "6px";
+          desc.className = "small mt-6";
           desc.textContent = r.description;
           card.appendChild(desc);
         }
 
         const row = document.createElement("div");
-        row.className = "row";
-        row.style.marginTop = "8px";
+        row.className = "row mt-8";
 
         const toggleBtn = document.createElement("button");
         toggleBtn.textContent = r.active ? "Desactivar" : "Activar";
@@ -115,10 +155,29 @@ export function registerRewardsModule(app) {
           }
         });
 
-        row.append(toggleBtn, editCostBtn);
+        const inspectBtn = document.createElement("button");
+        inspectBtn.className = "secondary";
+        inspectBtn.textContent = "Ver canje";
+        inspectBtn.addEventListener("click", async () => {
+          try {
+            const detail = await api(`/api/admin/analytics/rewards/${encodeURIComponent(r.id)}/redemptions`);
+            const redemption = (detail.recent_redemptions || [])[0];
+            if (!redemption?.id) {
+              toast("No hay canjes recientes para esta recompensa.");
+              renderRewardLedger(null);
+              return;
+            }
+            await inspectRewardRedemption(redemption.id);
+          } catch (e) {
+            toast("No se pudo buscar canjes recientes: " + e.message);
+          }
+        });
+
+        row.append(toggleBtn, editCostBtn, inspectBtn);
         card.appendChild(row);
         box.appendChild(card);
       });
+      renderRewardLedger(null);
     } catch (e) {
       toast("Error cargando recompensas: " + e.message);
     }

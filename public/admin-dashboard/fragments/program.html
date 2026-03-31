@@ -1,0 +1,159 @@
+      <div class="card" id="ownerConfigCard">
+        <h2>Regla de Puntos</h2>
+        <p class="small">Esta regla define cuantos puntos gana el cliente al escanear en staff.</p>
+        <div class="grid">
+          <div>
+            <label>Tipo</label>
+            <select id="programType">
+              <option value="SPEND">Por gasto (Q)</option>
+              <option value="VISIT">Por visita</option>
+              <option value="ITEM">Por item</option>
+            </select>
+
+            <div id="programSpendBox">
+              <label>Puntos por Q</label>
+              <input id="programPointsPerQ" type="number" step="0.01" min="0" value="0.10"/>
+              <label>Redondeo</label>
+              <select id="programRound">
+                <option value="ceil">Hacia arriba</option>
+                <option value="round">Normal</option>
+                <option value="floor">Hacia abajo</option>
+              </select>
+            </div>
+
+            <div id="programVisitBox" class="is-hidden">
+              <label>Puntos por visita</label>
+              <input id="programPointsPerVisit" type="number" min="0" step="1" value="10"/>
+            </div>
+
+            <div id="programItemBox" class="is-hidden">
+              <label>Puntos por item</label>
+              <input id="programPointsPerItem" type="number" min="0" step="1" value="1"/>
+            </div>
+
+            <div class="hr"></div>
+            <h3>Límites de seguridad</h3>
+            <label>Monto máximo por transacción (Q, 0 = sin límite)</label>
+            <input id="guardMaxAmount" type="number" min="0" step="0.01" value="0"/>
+            <label>Puntos máximos por transacción (0 = sin límite)</label>
+            <input id="guardMaxPoints" type="number" min="0" step="1" value="0"/>
+            <label>Visitas máximas por transacción (0 = sin límite)</label>
+            <input id="guardMaxVisits" type="number" min="0" step="1" value="0"/>
+            <label>Items máximos por transacción (0 = sin límite)</label>
+            <input id="guardMaxItems" type="number" min="0" step="1" value="0"/>
+
+            <div class="hr"></div>
+            <h3>Alertas de sospecha</h3>
+            <label>Marcar si puntos >= (0 = desactivado)</label>
+            <input id="guardSuspiciousPoints" type="number" min="0" step="1" value="0"/>
+            <label>Marcar si monto >= Q (0 = desactivado)</label>
+            <input id="guardSuspiciousAmount" type="number" min="0" step="0.01" value="0"/>
+
+            <div class="hr"></div>
+            <h3>Puntos pendientes y ciclo de vida</h3>
+            <label>Dias para liberar puntos (0 = inmediato)</label>
+            <input id="pendingHoldDays" type="number" min="0" step="1" value="0"/>
+            <label>Dias para vencer puntos (0 = nunca vencen)</label>
+            <input id="pointsExpirationDays" type="number" min="0" step="1" value="0"/>
+            <label>
+              <input type="checkbox" id="lifecycleBirthdayEnabled"/>
+              Activar bono de cumpleaños
+            </label>
+            <label>Puntos cumpleaños</label>
+            <input id="lifecycleBirthdayPoints" type="number" min="0" step="1" value="0"/>
+            <label>
+              <input type="checkbox" id="lifecycleWinbackEnabled"/>
+              Activar win-back por inactividad
+            </label>
+            <label>Dias de inactividad para win-back</label>
+            <input id="lifecycleWinbackDays" type="number" min="7" step="1" value="30"/>
+            <label>Puntos win-back</label>
+            <input id="lifecycleWinbackPoints" type="number" min="0" step="1" value="0"/>
+            <label>Hora diaria de automatizaciones (0-23)</label>
+            <input id="lifecycleSchedulerHour" type="number" min="0" max="23" step="1" value="9"/>
+            <label>Zona horaria</label>
+            <input id="lifecycleSchedulerTz" value="America/Guatemala"/>
+
+            <div class="hr"></div>
+            <h3>Plantillas de automatización</h3>
+            <p class="small">Aplica una plantilla y luego guarda la regla si quieres ajustar valores.</p>
+            <div class="row gap-8 wrap">
+              <button id="btnTplCafeBasico">Cafetería básico</button>
+              <button id="btnTplReactivacion">Reactivación fuerte</button>
+              <button id="btnTplSoloAlertas">Solo alertas</button>
+            </div>
+            <p class="small" id="automationStatus">Sin plantilla aplicada aún.</p>
+
+            <div class="hr"></div>
+            <h3>Canjes: límites y enfriamiento</h3>
+            <label>Canjes máximos por cliente/día (0 = sin límite)</label>
+            <input id="redeemMaxPerDay" type="number" min="0" step="1" value="0"/>
+            <label>Canjes máximos del mismo premio por día (0 = sin límite)</label>
+            <input id="redeemMaxPerRewardDay" type="number" min="0" step="1" value="0"/>
+            <label>Enfriamiento del mismo premio (horas, 0 = sin enfriamiento)</label>
+            <input id="redeemCooldownHours" type="number" min="0" step="1" value="0"/>
+
+            <div class="hr"></div>
+            <h3>Política de saldo</h3>
+            <label>
+              <input type="checkbox" id="refundAllowNegativeBalance"/>
+              Permitir saldo negativo al reembolsar compras ya consumidas
+            </label>
+            <p class="small">Si está apagado, un refund que dejaría al cliente en negativo se bloquea.</p>
+
+            <div class="hr"></div>
+            <h3>Política de niveles</h3>
+            <label>Modo</label>
+            <select id="tierPolicyMode">
+              <option value="lifetime">Acumulado histórico</option>
+              <option value="rolling_days">Ventana móvil</option>
+            </select>
+            <label>Días de ventana (si aplica)</label>
+            <input id="tierPolicyDays" type="number" min="30" step="1" value="365"/>
+            <label>Días de gracia para downgrade</label>
+            <input id="tierPolicyGrace" type="number" min="0" step="1" value="0"/>
+          </div>
+          <div class="card">
+            <h3>Resumen</h3>
+            <p class="small" id="programSummary">—</p>
+            <button class="primary" id="btnSaveProgram">Guardar regla</button>
+            <div class="hr"></div>
+            <h3>Filtro de sucursal (dashboard)</h3>
+            <label>Sucursal</label>
+            <select id="branchFilter">
+              <option value="">Todas las sucursales</option>
+            </select>
+            <p class="small">Aplica a analítica y transacciones sospechosas.</p>
+            <div class="hr"></div>
+            <div class="row">
+              <h3 class="m-0">Transacciones sospechosas</h3>
+              <button id="btnRefreshSuspicious">Recargar</button>
+            </div>
+            <pre id="suspiciousAwards" class="small pre-wrap">(sin datos)</pre>
+            <div class="hr"></div>
+            <div id="campaignRulesSection">
+              <h3>Reglas de campaña</h3>
+              <p class="small">JSON de reglas (multiplier o bonus_points).</p>
+              <textarea id="campaignRulesJson" rows="8" placeholder='[{"name":"Happy Hour","kind":"multiplier","value":1.5,"program_type":"SPEND","condition":{"weekdays":[1,2,3,4,5],"start_hour":16,"end_hour":18}}]'></textarea>
+              <div class="row mt-8">
+                <button id="btnLoadCampaignRules">Cargar</button>
+                <button id="btnSaveCampaignRules">Guardar reglas</button>
+              </div>
+            </div>
+            <div class="hr"></div>
+            <div id="externalAwardsSection">
+              <h3>Integración externa (card/POS)</h3>
+              <label>
+                <input type="checkbox" id="externalAwardsEnabled"/>
+                Habilitar awards externos
+              </label>
+              <label>Clave API externa</label>
+              <input id="externalAwardsApiKey" placeholder="ext_live_xxx"/>
+              <div class="row mt-8">
+                <button id="btnLoadExternalAwards">Cargar</button>
+                <button id="btnSaveExternalAwards">Guardar integración</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
