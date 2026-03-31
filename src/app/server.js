@@ -61,14 +61,14 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for simplicity
+      scriptSrc: ["'self'", "https://privatrack.com", "https://static.cloudflareinsights.com", "https://challenges.cloudflare.com"],
+      styleSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "https://privatrack.com", "https://cloudflareinsights.com", "https://challenges.cloudflare.com"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'none'"],
+      frameSrc: ["'none'", "https://challenges.cloudflare.com"],
       upgradeInsecureRequests: config.NODE_ENV === "production" ? [] : null
     }
   },
