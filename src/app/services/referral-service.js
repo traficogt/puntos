@@ -90,10 +90,10 @@ async function logReferralReward(client, referral, customerId, points, type) {
   );
 }
 
-async function completeAndRewardReferral(referralId) {
-  return withTransaction(async (client) => {
+export async function completeAndRewardReferralWithDeps(deps, referralId) {
+  return deps.withTransaction(async (client) => {
     const { rows: referralRows } = await client.query(
-      `SELECT * FROM referrals WHERE id = $1`,
+      `SELECT * FROM referrals WHERE id = $1 FOR UPDATE`,
       [referralId]
     );
     const referral = referralRows[0];
@@ -123,19 +123,33 @@ async function completeAndRewardReferral(referralId) {
            referrer_reward_points = $2,
            referred_reward_points = $3
        WHERE id = $1
+         AND status = 'pending'
        RETURNING *`,
       [referralId, settings.referrer_reward_points, settings.referred_reward_points]
     );
+    const completedReferral = completedRows[0];
+
+    if (!completedReferral) {
+      const { rows: latestRows } = await client.query(
+        `SELECT * FROM referrals WHERE id = $1`,
+        [referralId]
+      );
+      return latestRows[0] ?? referral;
+    }
 
     await client.query(
       `UPDATE customer_balances
-       SET points = points + $1, updated_at = now()
+       SET points = points + $1,
+           lifetime_points = lifetime_points + GREATEST($1, 0),
+           updated_at = now()
        WHERE customer_id = $2`,
       [settings.referrer_reward_points, referral.referrer_customer_id]
     );
     await client.query(
       `UPDATE customer_balances
-       SET points = points + $1, updated_at = now()
+       SET points = points + $1,
+           lifetime_points = lifetime_points + GREATEST($1, 0),
+           updated_at = now()
        WHERE customer_id = $2`,
       [settings.referred_reward_points, referral.referred_customer_id]
     );
@@ -160,12 +174,20 @@ async function completeAndRewardReferral(referralId) {
        SET status = 'rewarded',
            referrer_rewarded_at = now(),
            referred_rewarded_at = now()
-       WHERE id = $1`,
+       WHERE id = $1
+       RETURNING *`,
       [referralId]
     );
-
-    return completedRows[0];
+    const { rows: rewardedRows } = await client.query(
+      `SELECT * FROM referrals WHERE id = $1`,
+      [referralId]
+    );
+    return rewardedRows[0] ?? completedReferral;
   });
+}
+
+async function completeAndRewardReferral(referralId) {
+  return completeAndRewardReferralWithDeps({ withTransaction }, referralId);
 }
 
 async function getCustomerReferralCode(customerId) {
@@ -174,28 +196,79 @@ async function getCustomerReferralCode(customerId) {
   return ReferralRepository.getOrCreateReferralCode(customerId, businessId);
 }
 
-async function applyReferralCode(referralCode, newCustomerId, businessId) {
-  const code = await ReferralRepository.getByCode(referralCode);
-  assertReferralCodeUsable(code, newCustomerId, businessId);
+export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerId, businessId) {
+  const { referral, settings } = await deps.withTransaction(async (client) => {
+    const { rows: codeRows } = await client.query(
+      `SELECT *
+       FROM referral_codes
+       WHERE code = $1
+         AND active = true
+       FOR UPDATE`,
+      [String(referralCode || "").toUpperCase()]
+    );
+    const code = codeRows[0];
+    assertReferralCodeUsable(code, newCustomerId, businessId);
 
-  const existing = await ReferralRepository.getReferralForCustomer(newCustomerId);
-  if (existing) {
-    throw badRequest("Customer has already been referred");
-  }
+    const existing = await client.query(
+      `SELECT id
+       FROM referrals
+       WHERE referred_customer_id = $1
+       LIMIT 1`,
+      [newCustomerId]
+    );
+    if (existing.rowCount > 0) {
+      throw badRequest("Customer has already been referred");
+    }
 
-  const referral = await ReferralRepository.createReferral(
-    code.id,
-    code.referrer_customer_id,
-    newCustomerId,
-    businessId
-  );
+    const codeUpdate = await client.query(
+      `UPDATE referral_codes
+       SET uses_count = uses_count + 1
+       WHERE id = $1
+         AND (max_uses IS NULL OR uses_count < max_uses)
+       RETURNING *`,
+      [code.id]
+    );
+    if (codeUpdate.rowCount !== 1) {
+      throw badRequest("Referral code has reached maximum uses");
+    }
 
-  const settings = await ReferralRepository.getSettings(businessId);
+    let createdReferral;
+    try {
+      const { rows } = await client.query(
+        `INSERT INTO referrals
+         (business_id, referral_code_id, referrer_customer_id, referred_customer_id, status)
+         VALUES ($1, $2, $3, $4, 'pending')
+         RETURNING *`,
+        [businessId, code.id, code.referrer_customer_id, newCustomerId]
+      );
+      createdReferral = rows[0];
+    } catch (error) {
+      if (String(error?.code) === "23505") {
+        throw badRequest("Customer has already been referred");
+      }
+      throw error;
+    }
+
+    const { rows: settingsRows } = await client.query(
+      `SELECT * FROM referral_settings WHERE business_id = $1`,
+      [businessId]
+    );
+
+    return {
+      referral: createdReferral,
+      settings: settingsRows[0] ?? null
+    };
+  });
+
   if (settings?.reward_on_signup) {
     await completeAndRewardReferral(referral.id);
   }
 
   return referral;
+}
+
+async function applyReferralCode(referralCode, newCustomerId, businessId) {
+  return applyReferralCodeWithDeps({ withTransaction }, referralCode, newCustomerId, businessId);
 }
 
 async function checkAndCompleteReferral(customerId) {

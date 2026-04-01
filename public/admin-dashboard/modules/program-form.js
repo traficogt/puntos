@@ -58,9 +58,9 @@ function element($, selector) {
 /** @param {QueryFn} $ */
 export function toggleProgramBoxes($) {
   const type = field($, "#programType")?.value || DEFAULTS.programType;
-  element($, "#programSpendBox").style.display = type === "SPEND" ? "block" : "none";
-  element($, "#programVisitBox").style.display = type === "VISIT" ? "block" : "none";
-  element($, "#programItemBox").style.display = type === "ITEM" ? "block" : "none";
+  element($, "#programSpendBox").hidden = type !== "SPEND";
+  element($, "#programVisitBox").hidden = type !== "VISIT";
+  element($, "#programItemBox").hidden = type !== "ITEM";
 }
 
 /** @param {QueryFn} $ */
@@ -88,12 +88,14 @@ export function updateProgramSummary($) {
   const redeemDay = Math.floor(Number(field($, "#redeemMaxPerDay").value || 0));
   const redeemRewardDay = Math.floor(Number(field($, "#redeemMaxPerRewardDay").value || 0));
   const redeemCooldown = Math.floor(Number(field($, "#redeemCooldownHours").value || 0));
+  const allowNegativeRefund = checkbox($, "#refundAllowNegativeBalance").checked;
 
   element($, "#programSummary").textContent =
     `${text}\nLímites: max puntos/tx=${maxPts || "sin límite"}, max monto=Q${maxAmt || "sin límite"}.\n` +
     `Alertas: puntos>=${susPts || "off"}, monto>=Q${susAmt || "off"}.\n` +
     `Vencimiento: ${expDays > 0 ? `${expDays} días` : "desactivado"}.\n` +
-    `Canjes: día=${redeemDay || "sin límite"}, mismo premio/día=${redeemRewardDay || "sin límite"}, enfriamiento=${redeemCooldown || 0}h.`;
+    `Canjes: día=${redeemDay || "sin límite"}, mismo premio/día=${redeemRewardDay || "sin límite"}, enfriamiento=${redeemCooldown || 0}h.\n` +
+    `Refunds: saldo negativo ${allowNegativeRefund ? "permitido" : "bloqueado"}.`;
 }
 
 /**
@@ -129,6 +131,7 @@ export function fillProgramForm($, program = {}) {
   const cfg = program.program_json || {};
   const guard = cfg.award_guard || {};
   const redemptionGuard = cfg.redemption_guard || {};
+  const balancePolicy = cfg.balance_policy || {};
 
   field($, "#programType").value = type;
   field($, "#programPointsPerQ").value = String(Number(cfg.points_per_q ?? 0.1));
@@ -149,6 +152,7 @@ export function fillProgramForm($, program = {}) {
   field($, "#redeemMaxPerDay").value = String(Number(redemptionGuard.max_redemptions_per_day ?? 0));
   field($, "#redeemMaxPerRewardDay").value = String(Number(redemptionGuard.max_reward_redemptions_per_day ?? 0));
   field($, "#redeemCooldownHours").value = String(Number(redemptionGuard.reward_cooldown_hours ?? 0));
+  checkbox($, "#refundAllowNegativeBalance").checked = Boolean(balancePolicy.allow_negative_balance_on_refund);
 
   fillLifecycleFields($, cfg.lifecycle || {});
   fillTierPolicyFields($, cfg.tier_policy || {});
@@ -191,6 +195,9 @@ export function buildProgramPayload($) {
       max_redemptions_per_day: Math.floor(Number(field($, "#redeemMaxPerDay").value || 0)),
       max_reward_redemptions_per_day: Math.floor(Number(field($, "#redeemMaxPerRewardDay").value || 0)),
       reward_cooldown_hours: Math.floor(Number(field($, "#redeemCooldownHours").value || 0))
+    },
+    balance_policy: {
+      allow_negative_balance_on_refund: checkbox($, "#refundAllowNegativeBalance").checked
     },
     lifecycle: {
       birthday_enabled: checkbox($, "#lifecycleBirthdayEnabled").checked,

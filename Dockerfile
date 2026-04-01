@@ -37,9 +37,9 @@ USER nodejs
 # Expose port
 EXPOSE 3001
 
-# Health check (routes are mounted under /api)
+# Runtime-configurable health check so worker and api can share one image safely.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "const http=require('http'); const port=process.env.HEALTHCHECK_PORT||process.env.PORT||3001; const path=process.env.HEALTHCHECK_PATH||'/api/health'; const url='http://127.0.0.1:'+port+path; http.get(url, (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]

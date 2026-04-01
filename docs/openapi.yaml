@@ -2,10 +2,2543 @@ openapi: 3.0.3
 info:
   title: "PuntosFieles API"
   version: 1.3.7
-  description: "Route-accurate OpenAPI document for the versioned /api/v1 surface."
+  description: "Route-derived OpenAPI document for versioned /api/v1 routes, with curated request/response metadata layered onto the discovered route surface."
 servers:
   - url: "https://api.puntos.local"
 paths:
+  /api/v1/admin/achievements:
+    get:
+      summary: "List gamification achievements for the current business"
+      responses:
+        200:
+          description: "Achievement list"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - gamification
+      parameters: undefined
+    post:
+      summary: "Create a gamification achievement"
+      responses:
+        201:
+          description: "Achievement created"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and plan feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - gamification
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AchievementCreateRequest"
+  /api/v1/admin/achievements/{id}:
+    put:
+      summary: "Update an achievement"
+      responses:
+        200:
+          description: "Achievement updated"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and plan feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - gamification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AchievementUpdateRequest"
+    delete:
+      summary: "Delete an achievement"
+      responses:
+        200:
+          description: "Achievement deleted"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and plan feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Achievement not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - gamification
+  /api/v1/admin/alerts:
+    get:
+      summary: "Derived GET /api/v1/admin/alerts"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+  /api/v1/admin/analytics/anomalies:
+    get:
+      summary: "Derived GET /api/v1/admin/analytics/anomalies"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - analytics
+      parameters: undefined
+  /api/v1/admin/analytics/calculate:
+    post:
+      summary: "Queue an analytics recalculation job"
+      responses:
+        202:
+          description: "Analytics recalculation queued"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - analytics
+      parameters: undefined
+  /api/v1/admin/analytics/churn-risk:
+    get:
+      summary: "List high churn-risk customers"
+      responses:
+        200:
+          description: "High churn-risk customers"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Analytics feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - analytics
+      parameters: undefined
+  /api/v1/admin/analytics/cohorts:
+    get:
+      summary: "Get cohort retention data"
+      responses:
+        200:
+          description: "Cohort retention data"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Analytics feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - analytics
+      parameters:
+        - in: query
+          name: months
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 60
+            default: 12
+  /api/v1/admin/analytics/customer/{id}:
+    get:
+      summary: "Get a customer 360 profile for analytics"
+      responses:
+        200:
+          description: "Customer analytics profile"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Analytics feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Customer not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-tenant-context: true
+      x-plan-features:
+        - analytics
+  /api/v1/admin/analytics/customer/{id}/ledger:
+    get:
+      summary: "Derived GET /api/v1/admin/analytics/customer/{id}/ledger"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      x-tenant-context: true
+      x-plan-features:
+        - analytics
+  /api/v1/admin/analytics/dashboard:
+    get:
+      summary: "Get analytics dashboard aggregates for the current business"
+      responses:
+        200:
+          description: "Analytics dashboard"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Analytics feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - analytics
+      parameters: undefined
+  /api/v1/admin/analytics/ledger-certification:
+    get:
+      summary: "Generate a period-based ledger certification report"
+      responses:
+        200:
+          description: "Certification summary and day-level value movement totals"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerCertificationResponse"
+        400:
+          description: "Invalid date range"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and analytics feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - analytics
+      parameters:
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+            format: date
+          description: "Inclusive period start. Defaults to 30 days before the end date."
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+            format: date
+          description: "Inclusive period end. Defaults to today."
+  /api/v1/admin/analytics/ledger-certification.csv:
+    get:
+      summary: "Export the ledger certification report as CSV"
+      responses:
+        200:
+          description: "Ledger certification CSV export"
+          content:
+            text/csv:
+              schema:
+                type: string
+        400:
+          description: "Invalid date range"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and analytics feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - analytics
+      parameters:
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+            format: date
+  /api/v1/admin/analytics/ledger-certification/archive:
+    get:
+      summary: "Derived GET /api/v1/admin/analytics/ledger-certification/archive"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - analytics
+      parameters: undefined
+  /api/v1/admin/analytics/ledger-certification/archive/{date}:
+    get:
+      summary: "Derived GET /api/v1/admin/analytics/ledger-certification/archive/{date}"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: date
+          required: true
+          schema:
+            type: string
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - analytics
+  /api/v1/admin/analytics/ledger-certification/archive/{date}.csv:
+    get:
+      summary: "Derived GET /api/v1/admin/analytics/ledger-certification/archive/{date}.csv"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: date
+          required: true
+          schema:
+            type: string
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - analytics
+  /api/v1/admin/analytics/ledger-corrections:
+    get:
+      summary: "Derived GET /api/v1/admin/analytics/ledger-corrections"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - analytics
+      parameters: undefined
+    post:
+      summary: "Derived POST /api/v1/admin/analytics/ledger-corrections"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - analytics
+      parameters: undefined
+  /api/v1/admin/analytics/ledger-corrections/{id}/apply:
+    post:
+      summary: "Derived POST /api/v1/admin/analytics/ledger-corrections/{id}/apply"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - analytics
+  /api/v1/admin/analytics/ledger-corrections/{id}/reject:
+    post:
+      summary: "Derived POST /api/v1/admin/analytics/ledger-corrections/{id}/reject"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - analytics
+  /api/v1/admin/analytics/ledger-reconciliation:
+    get:
+      summary: "Derived GET /api/v1/admin/analytics/ledger-reconciliation"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - analytics
+      parameters: undefined
+  /api/v1/admin/analytics/redemptions/{id}:
+    get:
+      summary: "Derived GET /api/v1/admin/analytics/redemptions/{id}"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      x-tenant-context: true
+      x-plan-features:
+        - analytics
+  /api/v1/admin/analytics/rewards/{id}/redemptions:
+    get:
+      summary: "Derived GET /api/v1/admin/analytics/rewards/{id}/redemptions"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      x-tenant-context: true
+      x-plan-features:
+        - analytics
+  /api/v1/admin/analytics/rfm:
+    get:
+      summary: "Get RFM distribution for the current business"
+      responses:
+        200:
+          description: "RFM distribution"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Analytics feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - analytics
+      parameters: undefined
+  /api/v1/admin/analytics/segments:
+    get:
+      summary: "List analytics segments"
+      responses:
+        200:
+          description: "Segment list"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Analytics feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - analytics
+      parameters: undefined
+    post:
+      summary: "Create an analytics segment"
+      responses:
+        201:
+          description: "Segment created"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and analytics feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - analytics
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyticsSegmentCreateRequest"
+  /api/v1/admin/analytics/segments/{id}:
+    get:
+      summary: "List customers in an analytics segment"
+      responses:
+        200:
+          description: "Segment customers"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSegmentCustomersResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Analytics feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-tenant-context: true
+      x-plan-features:
+        - analytics
+  /api/v1/admin/analytics/summary:
+    get:
+      summary: "Derived GET /api/v1/admin/analytics/summary"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+  /api/v1/admin/analytics/top-customers:
+    get:
+      summary: "List top customers by LTV"
+      responses:
+        200:
+          description: "Top customers"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Analytics feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - analytics
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+  /api/v1/admin/audit:
+    get:
+      summary: "Derived GET /api/v1/admin/audit"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+  /api/v1/admin/audit.csv:
+    get:
+      summary: "Derived GET /api/v1/admin/audit.csv"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+  /api/v1/admin/audit/{id}:
+    get:
+      summary: "Derived GET /api/v1/admin/audit/{id}"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+  /api/v1/admin/automations:
+    get:
+      summary: "Get lifecycle automation settings and templates"
+      responses:
+        200:
+          description: "Automation settings"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and plan feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - lifecycle_automation
+      parameters: undefined
+  /api/v1/admin/automations/template:
+    put:
+      summary: "Apply a lifecycle automation template"
+      responses:
+        200:
+          description: "Automation template applied"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and plan feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - lifecycle_automation
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutomationTemplateRequest"
+  /api/v1/admin/awards/suspicious:
+    get:
+      summary: "Derived GET /api/v1/admin/awards/suspicious"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-permissions:
+        - admin.suspicious.view
+      x-plan-features:
+        - fraud_monitoring
+      parameters: undefined
+  /api/v1/admin/billing/events:
+    get:
+      summary: "Derived GET /api/v1/admin/billing/events"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+  /api/v1/admin/billing/iva.csv:
+    get:
+      summary: "Derived GET /api/v1/admin/billing/iva.csv"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+  /api/v1/admin/branches:
+    get:
+      summary: "List branches for the current business"
+      responses:
+        200:
+          description: "Branch list"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BranchListResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled or role not allowed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - multi_branch
+      parameters: undefined
+    post:
+      summary: "Create a branch"
+      responses:
+        200:
+          description: "Branch created"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BranchDetailResponse"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled or role not allowed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - multi_branch
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BranchCreateRequest"
+  /api/v1/admin/campaign-rules:
+    get:
+      summary: "Get campaign rules for the current business"
+      responses:
+        200:
+          description: "Campaign rules"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and plan feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - campaign_rules
+      parameters: undefined
+    put:
+      summary: "Update campaign rules for the current business"
+      responses:
+        200:
+          description: "Campaign rules updated"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and plan feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - campaign_rules
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignRulesRequest"
+  /api/v1/admin/challenges:
+    get:
+      summary: "List active challenges for the current business"
+      responses:
+        200:
+          description: "Challenge list"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - gamification
+      parameters: undefined
+    post:
+      summary: "Create a challenge"
+      responses:
+        201:
+          description: "Challenge created"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and plan feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - gamification
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChallengeCreateRequest"
+  /api/v1/admin/challenges/{id}:
+    put:
+      summary: "Update a challenge"
+      responses:
+        200:
+          description: "Challenge updated"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and plan feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Challenge not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - gamification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChallengeUpdateRequest"
+    delete:
+      summary: "Delete a challenge"
+      responses:
+        200:
+          description: "Challenge deleted"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and plan feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Challenge not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - gamification
+  /api/v1/admin/customers.csv:
+    get:
+      summary: "Derived GET /api/v1/admin/customers.csv"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - customer_export
+      parameters: undefined
+  /api/v1/admin/external-awards:
+    get:
+      summary: "Get external award integration settings"
+      responses:
+        200:
+          description: "External awards configuration"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and plan feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - external_awards
+      parameters: undefined
+    put:
+      summary: "Update external award integration settings"
+      responses:
+        200:
+          description: "External awards updated"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and plan feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - external_awards
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExternalAwardsRequest"
+  /api/v1/admin/gift-cards:
+    get:
+      summary: "List gift cards for the current business"
+      responses:
+        200:
+          description: "Gift card list"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GiftCardListResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled or role not allowed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - gift_cards
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+    post:
+      summary: "Create a gift card"
+      responses:
+        201:
+          description: "Gift card created"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GiftCardDetailResponse"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled or role not allowed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-plan-features:
+        - gift_cards
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GiftCardCreateRequest"
+  /api/v1/admin/gift-cards/{codeOrToken}/ledger:
+    get:
+      summary: "Derived GET /api/v1/admin/gift-cards/{codeOrToken}/ledger"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: codeOrToken
+          required: true
+          schema:
+            type: string
+      x-tenant-context: true
+      x-plan-features:
+        - gift_cards
+  /api/v1/admin/jobs:
+    get:
+      summary: "List background jobs for the current business"
+      responses:
+        200:
+          description: "Background jobs list"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - analytics
+      parameters: undefined
+  /api/v1/admin/jobs/{id}:
+    get:
+      summary: "Get a single background job"
+      responses:
+        200:
+          description: "Background job details"
+        404:
+          description: "Job not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - analytics
+  /api/v1/admin/leaderboard/{type}:
+    get:
+      summary: "Get an admin leaderboard for the current business"
+      responses:
+        200:
+          description: "Leaderboard data"
+        400:
+          description: "Invalid leaderboard type"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: type
+          required: true
+          schema:
+            type: string
+            enum:
+              - points
+              - streak
+      x-tenant-context: true
+      x-plan-features:
+        - gamification
+  /api/v1/admin/lifecycle/run:
+    post:
+      summary: "Derived POST /api/v1/admin/lifecycle/run"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - lifecycle_automation
+      parameters: undefined
+  /api/v1/admin/ops/summary:
+    get:
+      summary: "Derived GET /api/v1/admin/ops/summary"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+  /api/v1/admin/payment-webhooks:
+    get:
+      summary: "Derived GET /api/v1/admin/payment-webhooks"
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentWebhookListResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+        - MANAGER
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            maxLength: 30
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+  /api/v1/admin/payment-webhooks/{id}/resolve:
+    post:
+      summary: "Derived POST /api/v1/admin/payment-webhooks/{id}/resolve"
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentWebhookResolveResponse"
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+        - MANAGER
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentWebhookResolveRequest"
+  /api/v1/admin/plan:
+    get:
+      summary: "Get the current business plan, limits, and features"
+      responses:
+        200:
+          description: "Plan detail"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+  /api/v1/admin/program:
+    get:
+      summary: "Get the current program configuration"
+      responses:
+        200:
+          description: "Program configuration"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role and plan feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - program_rules
+      parameters: undefined
+    post:
+      summary: "Update the current program configuration"
+      responses:
+        200:
+          description: "Program updated"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role, permission, and plan feature required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-required-permissions:
+        - admin.program.update.basic
+      x-plan-features:
+        - program_rules
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProgramUpdateRequest"
+  /api/v1/admin/rbac/matrix:
+    get:
+      summary: "Derived GET /api/v1/admin/rbac/matrix"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - rbac_matrix
+      parameters: undefined
+  /api/v1/admin/referral-leaderboard:
+    get:
+      summary: "Derived GET /api/v1/admin/referral-leaderboard"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - referrals
+      parameters: undefined
+  /api/v1/admin/referral-settings:
+    get:
+      summary: "Derived GET /api/v1/admin/referral-settings"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - referrals
+      parameters: undefined
+    put:
+      summary: "Derived PUT /api/v1/admin/referral-settings"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - referrals
+      parameters: undefined
+  /api/v1/admin/rewards:
+    get:
+      summary: "List rewards for the current business"
+      responses:
+        200:
+          description: "Reward list"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardListResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled or role not allowed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - rewards
+      parameters: undefined
+    post:
+      summary: "Create a reward"
+      responses:
+        200:
+          description: "Reward created"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardDetailResponse"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled or role not allowed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - rewards
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RewardCreateRequest"
+  /api/v1/admin/rewards/{id}:
+    patch:
+      summary: "Update reward properties such as active state or points cost"
+      responses:
+        200:
+          description: "Reward updated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardDetailResponse"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Reward not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - rewards
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RewardUpdateRequest"
+  /api/v1/admin/roi:
+    get:
+      summary: "Derived GET /api/v1/admin/roi"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+  /api/v1/admin/signup:
+    post:
+      summary: "Derived POST /api/v1/admin/signup"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      parameters: undefined
+  /api/v1/admin/staff:
+    get:
+      summary: "List staff users for the current business"
+      responses:
+        200:
+          description: "Staff list"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffListResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Role not allowed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - staff_management
+      parameters: undefined
+    post:
+      summary: "Create a staff user"
+      responses:
+        200:
+          description: "Staff user created"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffDetailResponse"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Role not allowed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        409:
+          description: "Email already registered"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - staff_management
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffCreateRequest"
+  /api/v1/admin/staff/{id}:
+    patch:
+      summary: "Update a staff user"
+      responses:
+        200:
+          description: "Staff user updated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffDetailResponse"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Role not allowed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Staff user not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - staff_management
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffUpdateRequest"
+  /api/v1/admin/tiers:
+    get:
+      summary: "List business tiers"
+      responses:
+        200:
+          description: "Tier list"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - tiers
+      parameters: undefined
+    post:
+      summary: "Create a business tier"
+      responses:
+        201:
+          description: "Tier created"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - tiers
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TierCreateRequest"
+  /api/v1/admin/tiers/{id}:
+    put:
+      summary: "Derived PUT /api/v1/admin/tiers/{id}"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - tiers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TierUpdateRequest"
+    delete:
+      summary: "Derived DELETE /api/v1/admin/tiers/{id}"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - tiers
+  /api/v1/admin/webhooks:
+    get:
+      summary: "List webhook endpoints for the current business"
+      responses:
+        200:
+          description: "Webhook endpoint list"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookListResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Role not allowed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - webhooks
+      parameters: undefined
+    post:
+      summary: "Create a webhook endpoint"
+      responses:
+        200:
+          description: "Webhook endpoint created"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookDetailResponse"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Role not allowed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      x-plan-features:
+        - webhooks
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookCreateRequest"
+  /api/v1/customer/achievements:
+    get:
+      summary: "Get earned and in-progress achievements for the current customer"
+      responses:
+        200:
+          description: "Customer achievements"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - customerAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - gamification
+      parameters: undefined
+  /api/v1/customer/challenges:
+    get:
+      summary: "Get active challenges and progress for the current customer"
+      responses:
+        200:
+          description: "Customer challenges"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - customerAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - gamification
+      parameters: undefined
+  /api/v1/customer/export:
+    get:
+      summary: "Export the current customer's data"
+      responses:
+        200:
+          description: "Customer data export"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - customerAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - customer_export
+      parameters: undefined
+  /api/v1/customer/history:
+    get:
+      summary: "Get the current customer's transaction and redemption history"
+      responses:
+        200:
+          description: "Customer history"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - customerAuth:
+            []
+      x-tenant-context: true
+      parameters: undefined
+  /api/v1/customer/leaderboard/{type}:
+    get:
+      summary: "Get the current customer's leaderboard position"
+      responses:
+        200:
+          description: "Leaderboard position"
+        400:
+          description: "Invalid leaderboard type"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - customerAuth:
+            []
+      parameters:
+        - in: path
+          name: type
+          required: true
+          schema:
+            type: string
+            enum:
+              - points
+              - streak
+      x-tenant-context: true
+      x-plan-features:
+        - gamification
+  /api/v1/customer/me:
+    get:
+      summary: "Get the current customer profile"
+      responses:
+        200:
+          description: "Current customer profile"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerProfileResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - customerAuth:
+            []
+      x-tenant-context: true
+      parameters: undefined
+    delete:
+      summary: "Delete the current customer account"
+      responses:
+        200:
+          description: "Customer account deleted"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - customerAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      parameters: undefined
+  /api/v1/customer/referral-code:
+    get:
+      summary: "Get or create the current customer's referral code"
+      responses:
+        200:
+          description: "Referral code"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralCodeResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - customerAuth:
+            []
+      x-plan-features:
+        - referrals
+      parameters: undefined
+  /api/v1/customer/referrals:
+    get:
+      summary: "Derived GET /api/v1/customer/referrals"
+      responses:
+        200:
+          description: Success
+      security:
+        - customerAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - referrals
+      parameters: undefined
+  /api/v1/customer/rewards:
+    get:
+      summary: "List rewards available to the current customer"
+      responses:
+        200:
+          description: "Available rewards"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - customerAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - rewards
+      parameters: undefined
+  /api/v1/customer/streak:
+    get:
+      summary: "Get the current customer's visit streak"
+      responses:
+        200:
+          description: "Customer streak"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - customerAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - gamification
+      parameters: undefined
+  /api/v1/customer/tier:
+    get:
+      summary: "Get the current customer's tier information"
+      responses:
+        200:
+          description: "Tier info"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TierInfoResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - customerAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - tiers
+      parameters: undefined
   /api/v1/health:
     get:
       summary: "Service health probe"
@@ -14,83 +2547,31 @@ paths:
           description: "Service healthy"
         503:
           description: "Service unhealthy"
-  /api/v1/ready:
-    get:
-      summary: "Readiness probe"
-      responses:
-        200:
-          description: "Ready for traffic"
-        503:
-          description: "Not ready"
-  /api/v1/live:
-    get:
-      summary: "Liveness probe"
-      responses:
-        200:
-          description: "Process is alive"
+      parameters: undefined
   /api/v1/info:
     get:
       summary: "Service metadata"
       responses:
         200:
           description: "Version and runtime info"
-  /api/v1/staff/login:
-    post:
-      summary: "Staff login"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/StaffLoginRequest"
-      responses:
-        200:
-          description: "Authenticated; cookie pf_staff is set"
-        400:
-          description: "Validation error"
-        401:
-          description: "Invalid credentials"
-  /api/v1/staff/me:
+      parameters: undefined
+  /api/v1/live:
     get:
-      summary: "Current staff session"
-      security:
-        - staffAuth:
-            []
+      summary: "Liveness probe"
       responses:
         200:
-          description: "Current staff session"
-        401:
-          description: "Not authenticated"
-  /api/v1/staff/award:
-    post:
-      summary: "Award points to a customer"
-      security:
-        - staffAuth:
-            []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AwardPointsRequest"
+          description: "Process is alive"
+      parameters: undefined
+  /api/v1/metrics:
+    get:
+      summary: "Derived GET /api/v1/metrics"
       responses:
         200:
-          description: "Points awarded"
-        400:
-          description: "Validation error"
-        401:
-          description: "Not authenticated"
-        403:
-          description: "Permission denied"
+          description: Success
+      parameters: undefined
   /api/v1/public/business/{slug}:
     get:
       summary: "Get a business public profile by slug"
-      parameters:
-        - in: path
-          name: slug
-          required: true
-          schema:
-            type: string
       responses:
         200:
           description: "Business public profile"
@@ -100,9 +2581,40 @@ paths:
                 $ref: "#/components/schemas/BusinessPublicResponse"
         404:
           description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
   /api/v1/public/business/{slug}/join/request-code:
     post:
       summary: "Request a customer join verification code"
+      responses:
+        200:
+          description: "Verification code requested"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        429:
+          description: "Rate limited"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
       parameters:
         - in: path
           name: slug
@@ -115,18 +2627,30 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/RequestJoinCodeRequest"
-      responses:
-        200:
-          description: "Verification code requested"
-        400:
-          description: "Validation error"
-        404:
-          description: "Business not found"
-        429:
-          description: "Rate limited"
   /api/v1/public/business/{slug}/join/verify:
     post:
       summary: "Verify a join code and create/login the customer"
+      responses:
+        200:
+          description: "Customer authenticated; cookie __Host-pf_customer is set"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        429:
+          description: "Rate limited"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
       parameters:
         - in: path
           name: slug
@@ -139,214 +2663,1785 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/VerifyJoinCodeRequest"
+  /api/v1/public/business/register:
+    post:
+      summary: "Derived POST /api/v1/public/business/register"
+      responses:
+        201:
+          description: Success
+      parameters: undefined
+  /api/v1/public/customer/logout:
+    post:
+      summary: "Derived POST /api/v1/public/customer/logout"
       responses:
         200:
-          description: "Customer authenticated; cookie pf_customer is set"
-        400:
-          description: "Validation error"
-        404:
-          description: "Business not found"
-        429:
-          description: "Rate limited"
-  /api/v1/public/customer/qr.svg:
-    get:
-      summary: "Get a short-lived customer QR as SVG"
+          description: Success
       security:
         - customerAuth:
             []
+      x-csrf-required: true
+      parameters: undefined
+  /api/v1/public/customer/qr:
+    post:
+      summary: "Derived POST /api/v1/public/customer/qr"
       responses:
         200:
-          description: "SVG QR image with X-QR-Exp, X-QR-JTI, and X-QR-Token headers"
+          description: Success
+      security:
+        - customerAuth:
+            []
+      x-csrf-required: true
+      parameters: undefined
+  /api/v1/public/customer/qr.svg:
+    get:
+      summary: "Get a short-lived customer QR as SVG"
+      responses:
+        200:
+          description: "SVG QR image with X-QR-Exp and X-QR-JTI headers"
           content:
             image/svg+xml:
               schema:
                 type: string
         401:
           description: "Not authenticated"
-  /api/v1/customer/me:
-    get:
-      summary: "Get the current customer profile"
-      security:
-        - customerAuth:
-            []
-      responses:
-        200:
-          description: "Current customer profile"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CustomerProfileResponse"
-        401:
-          description: "Not authenticated"
-  /api/v1/customer/referral-code:
-    get:
-      summary: "Get or create the current customer's referral code"
+                $ref: "#/components/schemas/ErrorResponse"
       security:
         - customerAuth:
             []
-      responses:
-        200:
-          description: "Referral code"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ReferralCodeResponse"
-        401:
-          description: "Not authenticated"
-  /api/v1/customer/tier:
-    get:
-      summary: "Get the current customer's tier information"
-      security:
-        - customerAuth:
-            []
-      responses:
-        200:
-          description: "Tier info"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TierInfoResponse"
-        401:
-          description: "Not authenticated"
-  /api/v1/admin/tiers:
-    get:
-      summary: "List business tiers"
-      security:
-        - staffAuth:
-            []
-      responses:
-        200:
-          description: "Tier list"
-        401:
-          description: "Not authenticated"
-        403:
-          description: "Owner role required"
+      parameters: undefined
+  /api/v1/public/external/award:
     post:
-      summary: "Create a business tier"
-      security:
-        - staffAuth:
-            []
+      summary: "Derived POST /api/v1/public/external/award"
       responses:
-        201:
-          description: "Tier created"
+        200:
+          description: Success
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicExternalAwardRequest"
+  /api/v1/public/keys:
+    get:
+      summary: "Derived GET /api/v1/public/keys"
+      responses:
+        200:
+          description: Success
+      parameters: undefined
+  /api/v1/public/payments/webhook/{provider}:
+    post:
+      summary: "Derived POST /api/v1/public/payments/webhook/{provider}"
+      responses:
+        200:
+          description: Success
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            type: string
+  /api/v1/ready:
+    get:
+      summary: "Readiness probe"
+      responses:
+        200:
+          description: "Ready for traffic"
+        503:
+          description: "Not ready"
+      parameters: undefined
+  /api/v1/staff/award:
+    post:
+      summary: "Award points to a customer"
+      responses:
+        200:
+          description: "Points awarded"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffAwardResponse"
         400:
           description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         401:
           description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         403:
-          description: "Owner role required"
+          description: "Permission denied"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-permissions:
+        - staff.award
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AwardPointsRequest"
+  /api/v1/staff/gift-cards/{codeOrToken}:
+    get:
+      summary: "Look up a gift card by code or QR token"
+      responses:
+        200:
+          description: "Gift card detail"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GiftCardLookupResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Plan feature not enabled or role not allowed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Gift card not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: codeOrToken
+          required: true
+          schema:
+            type: string
+      x-tenant-context: true
+      x-plan-features:
+        - gift_cards
+  /api/v1/staff/gift-cards/redeem:
+    post:
+      summary: "Derived POST /api/v1/staff/gift-cards/redeem"
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GiftCardDetailResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-plan-features:
+        - gift_cards
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GiftCardRedeemRequest"
+  /api/v1/staff/login:
+    post:
+      summary: "Staff login"
+      responses:
+        200:
+          description: "Authenticated; cookie __Host-pf_staff is set"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Invalid credentials"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffLoginRequest"
+  /api/v1/staff/logout:
+    post:
+      summary: "Derived POST /api/v1/staff/logout"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      parameters: undefined
+  /api/v1/staff/me:
+    get:
+      summary: "Current staff session"
+      responses:
+        200:
+          description: "Current staff session"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      parameters: undefined
+  /api/v1/staff/permissions:
+    get:
+      summary: "Derived GET /api/v1/staff/permissions"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      parameters: undefined
+  /api/v1/staff/program:
+    get:
+      summary: "Derived GET /api/v1/staff/program"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      parameters: undefined
+  /api/v1/staff/redeem:
+    post:
+      summary: "Derived POST /api/v1/staff/redeem"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-permissions:
+        - staff.redeem
+      x-plan-features:
+        - redemptions
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffRedeemRequest"
+  /api/v1/staff/refund:
+    post:
+      summary: "Derived POST /api/v1/staff/refund"
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffRefundResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-permissions:
+        - staff.refund
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffRefundRequest"
+  /api/v1/staff/rewards:
+    get:
+      summary: "Derived GET /api/v1/staff/rewards"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-plan-features:
+        - rewards
+      parameters: undefined
+  /api/v1/staff/settle-pending:
+    post:
+      summary: "Derived POST /api/v1/staff/settle-pending"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-permissions:
+        - staff.refund
+      x-plan-features:
+        - lifecycle_automation
+      parameters: undefined
+  /api/v1/staff/sync:
+    post:
+      summary: "Derived POST /api/v1/staff/sync"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-permissions:
+        - staff.sync
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffSyncAwardsRequest"
+  /api/v1/super/businesses:
+    get:
+      summary: "List businesses visible to the super admin"
+      responses:
+        200:
+          description: "Business list"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      parameters: undefined
+    post:
+      summary: "Create a business and owner from the super admin panel"
+      responses:
+        201:
+          description: "Business created"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      x-csrf-required: true
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuperCreateBusinessRequest"
+  /api/v1/super/businesses/{businessId}/plan:
+    put:
+      summary: "Update a business plan"
+      responses:
+        200:
+          description: "Business plan updated"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      parameters:
+        - in: path
+          name: businessId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-csrf-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuperPlanUpdateRequest"
+  /api/v1/super/businesses/{businessId}/users:
+    get:
+      summary: "List staff users for a business"
+      responses:
+        200:
+          description: "Business user list"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      parameters:
+        - in: path
+          name: businessId
+          required: true
+          schema:
+            type: string
+            format: uuid
+    post:
+      summary: "Create a staff user for a business"
+      responses:
+        201:
+          description: "Business user created"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        409:
+          description: "Email already registered"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      parameters:
+        - in: path
+          name: businessId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-csrf-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuperCreateBusinessUserRequest"
+  /api/v1/super/impersonate/{businessId}:
+    post:
+      summary: "Impersonate the first active OWNER or MANAGER for a business"
+      responses:
+        200:
+          description: "Impersonation cookie issued"
+        404:
+          description: "No eligible staff user found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      parameters:
+        - in: path
+          name: businessId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-csrf-required: true
+  /api/v1/super/login:
+    post:
+      summary: "Super admin login"
+      responses:
+        200:
+          description: "Authenticated; cookie __Host-pf_super is set"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Invalid credentials"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Super admin not configured"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuperLoginRequest"
+  /api/v1/super/logout:
+    post:
+      summary: "Derived POST /api/v1/super/logout"
+      responses:
+        200:
+          description: Success
+      security:
+        - superAuth:
+            []
+      x-csrf-required: true
+      parameters: undefined
+  /api/v1/super/me:
+    get:
+      summary: "Current super admin session"
+      responses:
+        200:
+          description: "Current super admin session"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      parameters: undefined
+  /api/v1/super/plans:
+    get:
+      summary: "List configurable plans"
+      responses:
+        200:
+          description: "Available plan configuration"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      parameters: undefined
+  /api/v1/super/plans/{plan}/features:
+    put:
+      summary: "Update plan feature flags"
+      responses:
+        200:
+          description: "Updated plan features"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      parameters:
+        - in: path
+          name: plan
+          required: true
+          schema:
+            type: string
+      x-csrf-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuperPlanFeaturesRequest"
+  /api/v1/super/security/posture:
+    get:
+      summary: "Derived GET /api/v1/super/security/posture"
+      responses:
+        200:
+          description: Success
+      security:
+        - superAuth:
+            []
+      parameters: undefined
+  /api/v1/super/security/rotate-secrets:
+    post:
+      summary: "Derived POST /api/v1/super/security/rotate-secrets"
+      responses:
+        200:
+          description: Success
+      security:
+        - superAuth:
+            []
+      x-csrf-required: true
+      parameters: undefined
 components:
   securitySchemes:
     staffAuth:
       type: apiKey
       in: cookie
-      name: pf_staff
+      name: __Host-pf_staff
     customerAuth:
       type: apiKey
       in: cookie
-      name: pf_customer
+      name: __Host-pf_customer
+    superAuth:
+      type: apiKey
+      in: cookie
+      name: __Host-pf_super
   schemas:
     StaffLoginRequest:
-      $ref: "#/definitions/StaffLoginRequest"
-      definitions:
-        StaffLoginRequest:
-          type: object
-          properties:
-            email:
-              type: string
-              format: email
-              maxLength: 255
-            password:
-              type: string
-              minLength: 6
-          required:
-            - email
-            - password
-          additionalProperties: false
-      $schema: "http://json-schema.org/draft-07/schema#"
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+      required:
+        - email
+        - password
+      additionalProperties: false
     AwardPointsRequest:
-      $ref: "#/definitions/AwardPointsRequest"
-      definitions:
-        AwardPointsRequest:
+      type: object
+      properties:
+        customerQrToken:
+          type: string
+          minLength: 1
+        amount_q:
+          type: number
+          minimum: 0
+          maximum: 1000000
+        visits:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 1000
+        items:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 10000
+        meta:
           type: object
-          properties:
-            customerQrToken:
-              type: string
-              minLength: 1
-            amount_q:
-              type: number
-              minimum: 0
-              maximum: 1000000
-            visits:
-              type: integer
-              minimum: 0
-              maximum: 1000
-            items:
-              type: integer
-              minimum: 0
-              maximum: 10000
-            source:
-              type: string
-              enum:
-                - online
-                - offline
-              default: online
-            meta:
-              type: object
-              additionalProperties:
+          additionalProperties:
+            {}
+        txId:
+          type: string
+          format: uuid
+      required:
+        - customerQrToken
+        - txId
+      additionalProperties: false
+    StaffRedeemRequest:
+      type: object
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        rewardId:
+          $ref: "#/definitions/StaffRedeemRequest/properties/customerId"
+        requestId:
+          $ref: "#/definitions/StaffRedeemRequest/properties/customerId"
+      required:
+        - customerId
+        - rewardId
+        - requestId
+      additionalProperties: false
+    StaffSyncAwardsRequest:
+      type: object
+      properties:
+        awards:
+          type: array
+          items:
+            type: object
+            properties:
+              txId:
+                type: string
+                format: uuid
+              customerQrToken:
+                type: string
+                minLength: 20
+              amount_q:
+                type: number
+                minimum: 0
+              visits:
+                type: integer
+                exclusiveMinimum: 0
+              items:
+                type: integer
+                exclusiveMinimum: 0
+              meta:
                 {}
-            txId:
-              type: string
-              format: uuid
-          required:
-            - customerQrToken
-          additionalProperties: false
-      $schema: "http://json-schema.org/draft-07/schema#"
+              client_ts:
+                type: string
+            required:
+              - txId
+              - customerQrToken
+            additionalProperties: false
+          maxItems: 200
+      required:
+        - awards
+      additionalProperties: false
+    StaffRefundRequest:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        requestId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          minLength: 2
+          maxLength: 200
+      required:
+        - transactionId
+        - requestId
+      additionalProperties: false
     RequestJoinCodeRequest:
-      $ref: "#/definitions/RequestJoinCodeRequest"
-      definitions:
-        RequestJoinCodeRequest:
-          type: object
-          properties:
-            phone:
-              type: string
-              minLength: 6
-            name:
-              type: string
-              maxLength: 120
-          required:
-            - phone
-          additionalProperties: false
-      $schema: "http://json-schema.org/draft-07/schema#"
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 6
+        name:
+          type: string
+          maxLength: 120
+      required:
+        - phone
+      additionalProperties: false
     VerifyJoinCodeRequest:
-      $ref: "#/definitions/VerifyJoinCodeRequest"
-      definitions:
-        VerifyJoinCodeRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 6
+        code:
+          type: string
+          minLength: 4
+          maxLength: 10
+        name:
+          type: string
+          maxLength: 120
+        referralCode:
+          type: string
+          minLength: 6
+          maxLength: 6
+      required:
+        - phone
+        - code
+      additionalProperties: false
+    PublicExternalAwardRequest:
+      type: object
+      properties:
+        businessSlug:
+          type: string
+          minLength: 2
+          maxLength: 120
+        externalEventId:
+          type: string
+          minLength: 4
+          maxLength: 120
+        customerId:
+          type: string
+          format: uuid
+        customerPhone:
+          type: string
+          minLength: 6
+        amount_q:
+          type: number
+          minimum: 0
+        visits:
+          type: integer
+          minimum: 0
+        items:
+          type: integer
+          minimum: 0
+        meta:
+          type: object
+          additionalProperties:
+            {}
+      required:
+        - businessSlug
+        - externalEventId
+      additionalProperties: false
+    SuperLoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+      required:
+        - email
+        - password
+      additionalProperties: false
+    SuperPlanUpdateRequest:
+      type: object
+      properties:
+        plan:
+          type: string
+          minLength: 3
+          maxLength: 40
+      required:
+        - plan
+      additionalProperties: false
+    SuperPlanFeaturesRequest:
+      type: object
+      properties:
+        features:
+          type: object
+          additionalProperties:
+            type: boolean
+      required:
+        - features
+      additionalProperties: false
+    SuperCreateBusinessRequest:
+      type: object
+      properties:
+        businessName:
+          type: string
+          minLength: 2
+          maxLength: 120
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          minLength: 6
+        password:
+          type: string
+          minLength: 6
+          maxLength: 128
+        category:
+          type: string
+        program_type:
+          type: string
+          enum:
+            - SPEND
+            - VISIT
+            - ITEM
+        program_json:
+          type: object
+          additionalProperties:
+            {}
+        plan:
+          type: string
+          minLength: 3
+          maxLength: 40
+      required:
+        - businessName
+        - email
+        - password
+      additionalProperties: false
+    SuperCreateBusinessUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          minLength: 6
+        password:
+          type: string
+          minLength: 6
+          maxLength: 128
+        role:
+          type: string
+          enum:
+            - OWNER
+            - MANAGER
+            - CASHIER
+        branch_id:
+          type: string
+          format: uuid
+        can_manage_gift_cards:
+          type: boolean
+        allow_multi_owner:
+          type: boolean
+      required:
+        - name
+        - email
+        - password
+      additionalProperties: false
+    BusinessPublicResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        category:
+          type:
+            - string
+            - null
+        program_type:
+          type: string
+          enum:
+            - SPEND
+            - VISIT
+            - ITEM
+      required:
+        - id
+        - name
+        - slug
+        - program_type
+      additionalProperties: false
+    CustomerProfileResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        business:
           type: object
           properties:
-            phone:
+            id:
               type: string
-              minLength: 6
-            code:
-              type: string
-              minLength: 4
-              maxLength: 10
             name:
               type: string
-              maxLength: 120
-            referralCode:
+            slug:
               type: string
-              minLength: 6
-              maxLength: 6
           required:
-            - phone
-            - code
+            - id
+            - name
+            - slug
           additionalProperties: false
-      $schema: "http://json-schema.org/draft-07/schema#"
-    BusinessPublicResponse:
-      $ref: "#/definitions/BusinessPublicResponse"
-      definitions:
-        BusinessPublicResponse:
+        customer:
+          type: object
+          properties:
+            id:
+              type: string
+            phone:
+              type: string
+            name:
+              type:
+                - string
+                - null
+            points:
+              type: number
+            pending_points:
+              type: number
+            lifetime_points:
+              type: number
+            created_at:
+              type: string
+            last_visit_at:
+              type:
+                - string
+                - null
+          required:
+            - id
+            - phone
+            - name
+            - points
+            - pending_points
+            - lifetime_points
+            - created_at
+            - last_visit_at
+          additionalProperties: false
+      required:
+        - ok
+        - business
+        - customer
+      additionalProperties: false
+    ReferralCodeResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        referral_code:
+          type: string
+      required:
+        - ok
+        - referral_code
+      additionalProperties: false
+    TierInfoResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        tier:
+          type: object
+          additionalProperties:
+            {}
+      required:
+        - ok
+        - tier
+      additionalProperties: false
+    AchievementCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 500
+        icon_url:
+          type: string
+          maxLength: 300
+        badge_image_url:
+          type: string
+          maxLength: 300
+        requirement_type:
+          type: string
+          enum:
+            - visits
+            - spend
+            - points
+            - items
+            - referrals
+            - streak
+        requirement_value:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+        requirement_config:
+          type: object
+          additionalProperties:
+            {}
+        points_reward:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+        tier_boost:
+          type: number
+          minimum: 0
+          maximum: 10
+        active:
+          type: boolean
+      required:
+        - name
+        - requirement_type
+        - requirement_value
+      additionalProperties: false
+    AchievementUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 500
+        icon_url:
+          type: string
+          maxLength: 300
+        badge_image_url:
+          type: string
+          maxLength: 300
+        requirement_value:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+        points_reward:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+        active:
+          type: boolean
+      additionalProperties: false
+    ChallengeCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 500
+        challenge_type:
+          type: string
+          enum:
+            - limited_time
+            - recurring
+            - milestone
+        requirement_type:
+          type: string
+          enum:
+            - visits
+            - spend
+            - points
+            - items
+            - referrals
+            - streak
+        requirement_value:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+        reward_points:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          anyOf:
+            - anyOf:
+                - not:
+                    {}
+                - type: string
+                  format: date-time
+            - type: null
+        recurrence:
+          anyOf:
+            - anyOf:
+                - not:
+                    {}
+                - type: string
+                  maxLength: 60
+            - type: null
+        max_completions:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        active:
+          type: boolean
+      required:
+        - name
+        - challenge_type
+        - requirement_type
+        - requirement_value
+        - reward_points
+        - start_date
+      additionalProperties: false
+    ChallengeUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 500
+        reward_points:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+        end_date:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: null
+        active:
+          type: boolean
+      additionalProperties: false
+    TierCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        tier_level:
+          type: integer
+          minimum: 1
+          maximum: 100
+        min_points:
+          type: integer
+          minimum: 0
+        min_spend:
+          type: number
+          minimum: 0
+        min_visits:
+          type: integer
+          minimum: 0
+        points_multiplier:
+          type: number
+          minimum: 1
+          maximum: 20
+        perks:
+          type: array
+          items:
+            type: string
+            maxLength: 200
+          maxItems: 30
+        color:
+          anyOf:
+            - anyOf:
+                - not:
+                    {}
+                - type: string
+                  maxLength: 20
+            - type: null
+        icon_url:
+          anyOf:
+            - anyOf:
+                - not:
+                    {}
+                - type: string
+                  maxLength: 300
+            - type: null
+      required:
+        - name
+        - tier_level
+      additionalProperties: false
+    TierUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        tier_level:
+          type: integer
+          minimum: 1
+          maximum: 100
+        min_points:
+          type: integer
+          minimum: 0
+        min_spend:
+          type: number
+          minimum: 0
+        min_visits:
+          type: integer
+          minimum: 0
+        points_multiplier:
+          type: number
+          minimum: 1
+          maximum: 20
+        perks:
+          type: array
+          items:
+            type: string
+            maxLength: 200
+          maxItems: 30
+        color:
+          anyOf:
+            - anyOf:
+                - not:
+                    {}
+                - type: string
+                  maxLength: 20
+            - type: null
+        icon_url:
+          anyOf:
+            - anyOf:
+                - not:
+                    {}
+                - type: string
+                  maxLength: 300
+            - type: null
+      additionalProperties: false
+    RewardCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        points_cost:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+        stock:
+          type: integer
+          minimum: 0
+        valid_until:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+          default: true
+        branch_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 200
+      required:
+        - name
+        - points_cost
+      additionalProperties: false
+    RewardUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        points_cost:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+        stock:
+          type: integer
+          minimum: 0
+        valid_until:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+        branch_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 200
+      additionalProperties: false
+    BranchCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        address:
+          type: string
+          maxLength: 250
+        code:
+          type: string
+          minLength: 3
+          maxLength: 80
+      required:
+        - name
+      additionalProperties: false
+    StaffCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        password:
+          type: string
+          minLength: 6
+          maxLength: 128
+        role:
+          type: string
+          enum:
+            - CASHIER
+            - MANAGER
+        branch_id:
+          type: string
+          format: uuid
+        can_manage_gift_cards:
+          type: boolean
+      required:
+        - name
+        - email
+        - password
+      additionalProperties: false
+    StaffUpdateRequest:
+      type: object
+      properties:
+        active:
+          type: boolean
+        password:
+          type: string
+          minLength: 6
+          maxLength: 128
+        role:
+          type: string
+          enum:
+            - CASHIER
+            - MANAGER
+        branch_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: null
+        can_manage_gift_cards:
+          type: boolean
+      additionalProperties: false
+    WebhookCreateRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+        secret:
+          type: string
+          minLength: 8
+        events:
+          type: array
+          items:
+            type: string
+          minItems: 1
+      required:
+        - url
+        - secret
+        - events
+      additionalProperties: false
+    RewardResource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        business_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - null
+        points_cost:
+          type: number
+        active:
+          type: boolean
+        stock:
+          type:
+            - number
+            - null
+        valid_until:
+          type:
+            - string
+            - null
+        created_at:
+          type: string
+        branch_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+        - id
+        - business_id
+        - name
+        - points_cost
+        - active
+      additionalProperties: true
+    GiftCardCreateRequest:
+      type: object
+      properties:
+        amount_q:
+          type: number
+          exclusiveMinimum: 0
+        issued_to_name:
+          type: string
+          maxLength: 120
+        issued_to_phone:
+          type: string
+          minLength: 6
+          maxLength: 30
+        expires_at:
+          type: string
+          format: date-time
+        requestId:
+          type: string
+          format: uuid
+      required:
+        - amount_q
+        - requestId
+      additionalProperties: false
+    GiftCardRedeemRequest:
+      type: object
+      properties:
+        code_or_token:
+          type: string
+          minLength: 4
+          maxLength: 200
+        amount_q:
+          type: number
+          exclusiveMinimum: 0
+        note:
+          type: string
+          maxLength: 200
+        requestId:
+          type: string
+          format: uuid
+      required:
+        - code_or_token
+        - amount_q
+        - requestId
+      additionalProperties: false
+    AnalyticsSegmentCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 500
+        segment_type:
+          type: string
+          enum:
+            - rfm
+            - behavioral
+            - custom
+        criteria:
+          type: object
+          additionalProperties:
+            {}
+          default:
+            {}
+        auto_update:
+          type: boolean
+        color:
+          type: string
+          maxLength: 20
+      required:
+        - name
+        - segment_type
+      additionalProperties: false
+    PaymentWebhookResolveRequest:
+      type: object
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        customerPhone:
+          type: string
+          minLength: 6
+      additionalProperties: false
+    ProgramUpdateRequest:
+      type: object
+      properties:
+        program_type:
+          type: string
+          enum:
+            - SPEND
+            - VISIT
+            - ITEM
+        program_json:
+          type: object
+          additionalProperties:
+            {}
+      required:
+        - program_type
+        - program_json
+      additionalProperties: false
+    CampaignRulesRequest:
+      type: object
+      properties:
+        rules:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+                minLength: 1
+                maxLength: 120
+              active:
+                type: boolean
+              kind:
+                type: string
+                enum:
+                  - multiplier
+                  - bonus_points
+              value:
+                type: number
+              max_points:
+                type: number
+              program_type:
+                type: string
+                enum:
+                  - SPEND
+                  - VISIT
+                  - ITEM
+              condition:
+                type: object
+                properties:
+                  weekdays:
+                    type: array
+                    items:
+                      type: integer
+                      minimum: 0
+                      maximum: 6
+                  min_amount_q:
+                    type: number
+                  min_visits:
+                    type: number
+                  min_items:
+                    type: number
+                  start_hour:
+                    type: integer
+                    minimum: 0
+                    maximum: 23
+                  end_hour:
+                    type: integer
+                    minimum: 0
+                    maximum: 23
+                additionalProperties: false
+            required:
+              - name
+              - kind
+              - value
+            additionalProperties: false
+          maxItems: 100
+      required:
+        - rules
+      additionalProperties: false
+    ExternalAwardsRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        api_key:
+          type: string
+          minLength: 8
+          maxLength: 120
+      required:
+        - enabled
+      additionalProperties: false
+    AutomationTemplateRequest:
+      type: object
+      properties:
+        template:
+          type: string
+          enum:
+            - cafeteria_basico
+            - reactivacion_fuerte
+            - solo_alertas
+      required:
+        - template
+      additionalProperties: false
+    GiftCardListQuery:
+      type: object
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      additionalProperties: false
+    AnalyticsSegmentCustomersQuery:
+      type: object
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+      additionalProperties: false
+    AnalyticsCohortsQuery:
+      type: object
+      properties:
+        months:
+          type: integer
+          minimum: 1
+          maximum: 60
+          default: 12
+      additionalProperties: false
+    AnalyticsTopCustomersQuery:
+      type: object
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      additionalProperties: false
+    PaymentWebhookListQuery:
+      type: object
+      properties:
+        status:
+          type: string
+          maxLength: 30
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      additionalProperties: false
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+      required:
+        - error
+      additionalProperties: false
+    LedgerCertificationResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        business:
           type: object
           properties:
             id:
@@ -356,116 +4451,1218 @@ components:
               type: string
             slug:
               type: string
-            category:
-              type:
-                - string
-                - null
-            program_type:
-              type: string
-              enum:
-                - SPEND
-                - VISIT
-                - ITEM
           required:
             - id
             - name
             - slug
-            - program_type
           additionalProperties: false
-      $schema: "http://json-schema.org/draft-07/schema#"
-    CustomerProfileResponse:
-      $ref: "#/definitions/CustomerProfileResponse"
-      definitions:
-        CustomerProfileResponse:
+        generated_at:
+          type: string
+        period:
           type: object
           properties:
-            ok:
-              type: boolean
-              const: true
-            business:
-              type: object
-              properties:
-                id:
-                  type: string
-                name:
-                  type: string
-                slug:
-                  type: string
-              required:
-                - id
-                - name
-                - slug
-              additionalProperties: false
-            customer:
-              type: object
-              properties:
-                id:
-                  type: string
-                phone:
-                  type: string
-                name:
-                  type:
-                    - string
-                    - null
-                points:
-                  type: number
-                pending_points:
-                  type: number
-                lifetime_points:
-                  type: number
-                created_at:
-                  type: string
-                last_visit_at:
-                  type:
-                    - string
-                    - null
-              required:
-                - id
-                - phone
-                - name
-                - points
-                - pending_points
-                - lifetime_points
-                - created_at
-                - last_visit_at
-              additionalProperties: false
-          required:
-            - ok
-            - business
-            - customer
-          additionalProperties: false
-      $schema: "http://json-schema.org/draft-07/schema#"
-    ReferralCodeResponse:
-      $ref: "#/definitions/ReferralCodeResponse"
-      definitions:
-        ReferralCodeResponse:
-          type: object
-          properties:
-            ok:
-              type: boolean
-              const: true
-            referral_code:
+            from:
+              type: string
+            to:
               type: string
           required:
-            - ok
-            - referral_code
+            - from
+            - to
           additionalProperties: false
-      $schema: "http://json-schema.org/draft-07/schema#"
-    TierInfoResponse:
-      $ref: "#/definitions/TierInfoResponse"
-      definitions:
-        TierInfoResponse:
+        certification_status:
+          type: string
+          enum:
+            - OK
+            - REVIEW_REQUIRED
+        summary:
           type: object
           properties:
-            ok:
-              type: boolean
-              const: true
-            tier:
-              type: object
-              additionalProperties:
-                {}
+            points_issued:
+              type: number
+            points_redeemed:
+              type: number
+            points_reversed:
+              type: number
+            points_expired:
+              type: number
+            adjustment_points:
+              type: number
+            gift_cards_issued_q:
+              type: number
+            gift_cards_redeemed_q:
+              type: number
+            replay_events:
+              type: number
+            pending_corrections_count:
+              type: number
+            negative_balance_count:
+              type: number
+            latest_reconciliation_mismatches:
+              type: number
+            latest_reconciliation_completed_at:
+              type:
+                - string
+                - null
           required:
-            - ok
-            - tier
+            - points_issued
+            - points_redeemed
+            - points_reversed
+            - points_expired
+            - adjustment_points
+            - gift_cards_issued_q
+            - gift_cards_redeemed_q
+            - replay_events
+            - pending_corrections_count
+            - negative_balance_count
+            - latest_reconciliation_mismatches
+            - latest_reconciliation_completed_at
           additionalProperties: false
-      $schema: "http://json-schema.org/draft-07/schema#"
+        daily_rows:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              points_issued:
+                type: number
+              points_redeemed:
+                type: number
+              points_reversed:
+                type: number
+              points_expired:
+                type: number
+              adjustment_points:
+                type: number
+              gift_cards_issued_q:
+                type: number
+              gift_cards_redeemed_q:
+                type: number
+              replay_events:
+                type: number
+            required:
+              - date
+              - points_issued
+              - points_redeemed
+              - points_reversed
+              - points_expired
+              - adjustment_points
+              - gift_cards_issued_q
+              - gift_cards_redeemed_q
+              - replay_events
+            additionalProperties: false
+      required:
+        - ok
+        - business
+        - generated_at
+        - period
+        - certification_status
+        - summary
+        - daily_rows
+      additionalProperties: true
+    BranchResource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        business_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        address:
+          type:
+            - string
+            - null
+        code:
+          type: string
+        created_at:
+          type: string
+      required:
+        - id
+        - name
+        - code
+      additionalProperties: true
+    BranchListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        branches:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              business_id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              address:
+                type:
+                  - string
+                  - null
+              code:
+                type: string
+              created_at:
+                type: string
+            required:
+              - id
+              - name
+              - code
+            additionalProperties: true
+      required:
+        - ok
+        - branches
+      additionalProperties: false
+    BranchDetailResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        branch:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            business_id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            address:
+              type:
+                - string
+                - null
+            code:
+              type: string
+            created_at:
+              type: string
+          required:
+            - id
+            - name
+            - code
+          additionalProperties: true
+      required:
+        - ok
+        - branch
+      additionalProperties: false
+    StaffResource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          anyOf:
+            - type: string
+              format: email
+            - type: null
+        phone:
+          type:
+            - string
+            - null
+        role:
+          type: string
+        branch_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: null
+        active:
+          type: boolean
+        can_manage_gift_cards:
+          type: boolean
+        created_at:
+          type: string
+      required:
+        - id
+        - name
+        - role
+      additionalProperties: true
+    StaffListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        staff:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              email:
+                anyOf:
+                  - type: string
+                    format: email
+                  - type: null
+              phone:
+                type:
+                  - string
+                  - null
+              role:
+                type: string
+              branch_id:
+                anyOf:
+                  - type: string
+                    format: uuid
+                  - type: null
+              active:
+                type: boolean
+              can_manage_gift_cards:
+                type: boolean
+              created_at:
+                type: string
+            required:
+              - id
+              - name
+              - role
+            additionalProperties: true
+      required:
+        - ok
+        - staff
+      additionalProperties: false
+    StaffDetailResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        staff:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            email:
+              anyOf:
+                - type: string
+                  format: email
+                - type: null
+            phone:
+              type:
+                - string
+                - null
+            role:
+              type: string
+            branch_id:
+              anyOf:
+                - type: string
+                  format: uuid
+                - type: null
+            active:
+              type: boolean
+            can_manage_gift_cards:
+              type: boolean
+            created_at:
+              type: string
+          required:
+            - id
+            - name
+            - role
+          additionalProperties: true
+      required:
+        - ok
+        - staff
+      additionalProperties: false
+    WebhookEndpointResource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        business_id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        active:
+          type: boolean
+        created_at:
+          type: string
+        secret_masked:
+          type:
+            - string
+            - null
+        has_secret:
+          type: boolean
+      required:
+        - id
+        - url
+        - events
+        - active
+      additionalProperties: true
+    WebhookListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        endpoints:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              business_id:
+                type: string
+                format: uuid
+              url:
+                type: string
+                format: uri
+              events:
+                type: array
+                items:
+                  type: string
+              active:
+                type: boolean
+              created_at:
+                type: string
+              secret_masked:
+                type:
+                  - string
+                  - null
+              has_secret:
+                type: boolean
+            required:
+              - id
+              - url
+              - events
+              - active
+            additionalProperties: true
+      required:
+        - ok
+        - endpoints
+      additionalProperties: false
+    WebhookDetailResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        endpoint:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            business_id:
+              type: string
+              format: uuid
+            url:
+              type: string
+              format: uri
+            events:
+              type: array
+              items:
+                type: string
+            active:
+              type: boolean
+            created_at:
+              type: string
+            secret_masked:
+              type:
+                - string
+                - null
+            has_secret:
+              type: boolean
+          required:
+            - id
+            - url
+            - events
+            - active
+          additionalProperties: true
+      required:
+        - ok
+        - endpoint
+      additionalProperties: false
+    RewardListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        rewards:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              business_id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              description:
+                type:
+                  - string
+                  - null
+              points_cost:
+                type: number
+              active:
+                type: boolean
+              stock:
+                type:
+                  - number
+                  - null
+              valid_until:
+                type:
+                  - string
+                  - null
+              created_at:
+                type: string
+              branch_ids:
+                type: array
+                items:
+                  type: string
+                  format: uuid
+            required:
+              - id
+              - business_id
+              - name
+              - points_cost
+              - active
+            additionalProperties: true
+      required:
+        - ok
+        - rewards
+      additionalProperties: false
+    RewardDetailResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        reward:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            business_id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            description:
+              type:
+                - string
+                - null
+            points_cost:
+              type: number
+            active:
+              type: boolean
+            stock:
+              type:
+                - number
+                - null
+            valid_until:
+              type:
+                - string
+                - null
+            created_at:
+              type: string
+            branch_ids:
+              type: array
+              items:
+                type: string
+                format: uuid
+          required:
+            - id
+            - business_id
+            - name
+            - points_cost
+            - active
+          additionalProperties: true
+      required:
+        - ok
+        - reward
+      additionalProperties: false
+    GiftCardResource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        business_id:
+          type: string
+          format: uuid
+        branch_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: null
+        code:
+          type: string
+        qr_token:
+          type: string
+        issued_to_name:
+          type:
+            - string
+            - null
+        issued_to_phone:
+          type:
+            - string
+            - null
+        initial_amount_q:
+          type:
+            - number
+            - string
+        balance_q:
+          type:
+            - number
+            - string
+        status:
+          type: string
+        expires_at:
+          type:
+            - string
+            - null
+        created_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: null
+        created_at:
+          type: string
+        updated_at:
+          $ref: "#/definitions/GiftCardResource/properties/created_at"
+      required:
+        - id
+        - business_id
+        - code
+        - initial_amount_q
+        - balance_q
+        - status
+      additionalProperties: true
+    GiftCardTransactionResource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        gift_card_id:
+          type: string
+          format: uuid
+        business_id:
+          type: string
+          format: uuid
+        staff_user_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: null
+        tx_type:
+          type: string
+        amount_q:
+          type:
+            - number
+            - string
+        balance_after_q:
+          type:
+            - number
+            - string
+        meta:
+          type: object
+          additionalProperties:
+            {}
+        created_at:
+          type: string
+      required:
+        - id
+        - gift_card_id
+        - business_id
+        - tx_type
+        - amount_q
+        - balance_after_q
+      additionalProperties: true
+    GiftCardListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        gift_cards:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              business_id:
+                type: string
+                format: uuid
+              branch_id:
+                anyOf:
+                  - type: string
+                    format: uuid
+                  - type: null
+              code:
+                type: string
+              qr_token:
+                type: string
+              issued_to_name:
+                type:
+                  - string
+                  - null
+              issued_to_phone:
+                type:
+                  - string
+                  - null
+              initial_amount_q:
+                type:
+                  - number
+                  - string
+              balance_q:
+                type:
+                  - number
+                  - string
+              status:
+                type: string
+              expires_at:
+                type:
+                  - string
+                  - null
+              created_by:
+                anyOf:
+                  - type: string
+                    format: uuid
+                  - type: null
+              created_at:
+                type: string
+              updated_at:
+                $ref: "#/definitions/GiftCardListResponse/properties/gift_cards/items/properties/created_at"
+            required:
+              - id
+              - business_id
+              - code
+              - initial_amount_q
+              - balance_q
+              - status
+            additionalProperties: true
+      required:
+        - ok
+        - gift_cards
+      additionalProperties: false
+    GiftCardDetailResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        gift_card:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            business_id:
+              type: string
+              format: uuid
+            branch_id:
+              anyOf:
+                - type: string
+                  format: uuid
+                - type: null
+            code:
+              type: string
+            qr_token:
+              type: string
+            issued_to_name:
+              type:
+                - string
+                - null
+            issued_to_phone:
+              type:
+                - string
+                - null
+            initial_amount_q:
+              type:
+                - number
+                - string
+            balance_q:
+              type:
+                - number
+                - string
+            status:
+              type: string
+            expires_at:
+              type:
+                - string
+                - null
+            created_by:
+              anyOf:
+                - type: string
+                  format: uuid
+                - type: null
+            created_at:
+              type: string
+            updated_at:
+              $ref: "#/definitions/GiftCardDetailResponse/properties/gift_card/properties/created_at"
+          required:
+            - id
+            - business_id
+            - code
+            - initial_amount_q
+            - balance_q
+            - status
+          additionalProperties: true
+      required:
+        - ok
+        - gift_card
+      additionalProperties: false
+    GiftCardLookupResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        card:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            business_id:
+              type: string
+              format: uuid
+            branch_id:
+              anyOf:
+                - type: string
+                  format: uuid
+                - type: null
+            code:
+              type: string
+            qr_token:
+              type: string
+            issued_to_name:
+              type:
+                - string
+                - null
+            issued_to_phone:
+              type:
+                - string
+                - null
+            initial_amount_q:
+              type:
+                - number
+                - string
+            balance_q:
+              type:
+                - number
+                - string
+            status:
+              type: string
+            expires_at:
+              type:
+                - string
+                - null
+            created_by:
+              anyOf:
+                - type: string
+                  format: uuid
+                - type: null
+            created_at:
+              type: string
+            updated_at:
+              $ref: "#/definitions/GiftCardLookupResponse/properties/card/properties/created_at"
+          required:
+            - id
+            - business_id
+            - code
+            - initial_amount_q
+            - balance_q
+            - status
+          additionalProperties: true
+        transactions:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              gift_card_id:
+                type: string
+                format: uuid
+              business_id:
+                type: string
+                format: uuid
+              staff_user_id:
+                anyOf:
+                  - type: string
+                    format: uuid
+                  - type: null
+              tx_type:
+                type: string
+              amount_q:
+                type:
+                  - number
+                  - string
+              balance_after_q:
+                type:
+                  - number
+                  - string
+              meta:
+                type: object
+                additionalProperties:
+                  {}
+              created_at:
+                $ref: "#/definitions/GiftCardLookupResponse/properties/card/properties/created_at"
+            required:
+              - id
+              - gift_card_id
+              - business_id
+              - tx_type
+              - amount_q
+              - balance_after_q
+            additionalProperties: true
+      required:
+        - ok
+        - card
+        - transactions
+      additionalProperties: false
+    PaymentWebhookEventResource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+        provider_event_id:
+          type: string
+        event_type:
+          type:
+            - string
+            - null
+        business_slug:
+          type:
+            - string
+            - null
+        business_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: null
+        customer_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: null
+        customer_phone:
+          type:
+            - string
+            - null
+        amount_q:
+          type:
+            - number
+            - string
+        currency:
+          type:
+            - string
+            - null
+        status:
+          type: string
+        reason:
+          type:
+            - string
+            - null
+        error:
+          type:
+            - string
+            - null
+        linked_transaction_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: null
+        created_at:
+          type: string
+        updated_at:
+          $ref: "#/definitions/PaymentWebhookEventResource/properties/created_at"
+      required:
+        - id
+        - provider
+        - provider_event_id
+        - amount_q
+        - status
+      additionalProperties: true
+    PaymentWebhookListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              provider:
+                type: string
+              provider_event_id:
+                type: string
+              event_type:
+                type:
+                  - string
+                  - null
+              business_slug:
+                type:
+                  - string
+                  - null
+              business_id:
+                anyOf:
+                  - type: string
+                    format: uuid
+                  - type: null
+              customer_id:
+                anyOf:
+                  - type: string
+                    format: uuid
+                  - type: null
+              customer_phone:
+                type:
+                  - string
+                  - null
+              amount_q:
+                type:
+                  - number
+                  - string
+              currency:
+                type:
+                  - string
+                  - null
+              status:
+                type: string
+              reason:
+                type:
+                  - string
+                  - null
+              error:
+                type:
+                  - string
+                  - null
+              linked_transaction_id:
+                anyOf:
+                  - type: string
+                    format: uuid
+                  - type: null
+              created_at:
+                type: string
+              updated_at:
+                $ref: "#/definitions/PaymentWebhookListResponse/properties/events/items/properties/created_at"
+            required:
+              - id
+              - provider
+              - provider_event_id
+              - amount_q
+              - status
+            additionalProperties: true
+      required:
+        - ok
+        - events
+      additionalProperties: false
+    PaymentWebhookResolveResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        event:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            provider:
+              type: string
+            provider_event_id:
+              type: string
+            event_type:
+              type:
+                - string
+                - null
+            business_slug:
+              type:
+                - string
+                - null
+            business_id:
+              anyOf:
+                - type: string
+                  format: uuid
+                - type: null
+            customer_id:
+              anyOf:
+                - type: string
+                  format: uuid
+                - type: null
+            customer_phone:
+              type:
+                - string
+                - null
+            amount_q:
+              type:
+                - number
+                - string
+            currency:
+              type:
+                - string
+                - null
+            status:
+              type: string
+            reason:
+              type:
+                - string
+                - null
+            error:
+              type:
+                - string
+                - null
+            linked_transaction_id:
+              anyOf:
+                - type: string
+                  format: uuid
+                - type: null
+            created_at:
+              type: string
+            updated_at:
+              $ref: "#/definitions/PaymentWebhookResolveResponse/properties/event/properties/created_at"
+          required:
+            - id
+            - provider
+            - provider_event_id
+            - amount_q
+            - status
+          additionalProperties: true
+        transaction:
+          type: object
+          additionalProperties:
+            {}
+      required:
+        - ok
+      additionalProperties: true
+    AnalyticsSegmentCustomersResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        customers:
+          type: array
+          items:
+            type: object
+            additionalProperties:
+              {}
+        limit:
+          type: number
+        offset:
+          type: number
+      required:
+        - ok
+        - customers
+        - limit
+        - offset
+      additionalProperties: false
+    StaffAwardResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        pointsAwarded:
+          type: number
+        newBalance:
+          type: number
+        newPendingBalance:
+          type: number
+        customerId:
+          type: string
+          format: uuid
+        transactionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        availableAt:
+          type:
+            - string
+            - null
+      required:
+        - ok
+        - pointsAwarded
+        - newBalance
+        - customerId
+        - transactionId
+      additionalProperties: true
+    StaffRefundResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        transactionId:
+          type: string
+          format: uuid
+        reversalTransactionId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        pointsEffect:
+          type: number
+        gamificationReconciliation:
+          type: object
+          properties:
+            achievementsRevoked:
+              type: number
+            challengesRevoked:
+              type: number
+          required:
+            - achievementsRevoked
+            - challengesRevoked
+          additionalProperties: false
+        newBalance:
+          type: number
+        newPendingBalance:
+          type: number
+      required:
+        - ok
+        - transactionId
+        - reversalTransactionId
+        - customerId
+        - pointsEffect
+        - gamificationReconciliation
+        - newBalance
+        - newPendingBalance
+      additionalProperties: true

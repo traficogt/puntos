@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { config } from "../config/index.js";
 import { SecurityEventRepo } from "../app/repositories/security-event-repository.js";
 import { getRequestIp } from "../utils/request-ip.js";
 
@@ -7,6 +8,7 @@ const CSRF_HEADER_NAME = "x-csrf-token";
 const CSRF_BODY_FIELD = "csrf_token";
 const CSRF_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const STATEFUL_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const TRUSTED_ORIGINS = new Set([config.APP_ORIGIN, ...(config.CORS_ORIGINS || [])].filter(Boolean));
 
 function generateToken() {
   return crypto.randomBytes(32).toString("base64url");
@@ -73,6 +75,35 @@ function getRequestToken(req) {
   return null;
 }
 
+function normalizeOrigin(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return "";
+  }
+}
+
+function verifyRequestOrigin(req) {
+  const requestOrigin = normalizeOrigin(`${req.protocol}://${req.get("host")}`);
+  const origin = normalizeOrigin(req.headers.origin);
+  if (origin) {
+    return origin === requestOrigin || TRUSTED_ORIGINS.has(origin)
+      ? { ok: true, reason: "origin_ok" }
+      : { ok: false, reason: "origin_mismatch" };
+  }
+
+  const referer = normalizeOrigin(req.headers.referer);
+  if (referer) {
+    return referer === requestOrigin || TRUSTED_ORIGINS.has(referer)
+      ? { ok: true, reason: "referer_ok" }
+      : { ok: false, reason: "referer_mismatch" };
+  }
+
+  return { ok: false, reason: "missing_origin_and_referer" };
+}
+
 export function csrfInit(req, res, next) {
   if (!req.cookies[CSRF_COOKIE_NAME]) {
     const token = generateToken();
@@ -107,6 +138,12 @@ export function csrfProtect(req, res, next) {
     });
   }
 
+  const originCheck = verifyRequestOrigin(req);
+  if (!originCheck.ok) {
+    logDenied(req, method, originCheck.reason);
+    return res.status(403).json({ error: "Origen de solicitud inválido" });
+  }
+
   if (cookieToken.length !== requestToken.length) {
     logDenied(req, method, "token_length_mismatch");
     return res.status(403).json({ error: "Token CSRF inválido" });
@@ -119,6 +156,7 @@ export function csrfProtect(req, res, next) {
 
   next();
 }
+csrfProtect.__openapi = { csrfRequired: true };
 
 export function getCsrfToken(req) {
   return req.csrfToken || req.cookies[CSRF_COOKIE_NAME];

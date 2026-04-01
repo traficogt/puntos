@@ -184,9 +184,9 @@ export const config = {
   JWT_SECRET: requireSecret("JWT_SECRET", "CHANGE_ME_LONG_RANDOM", { minLen: 32 }),
 
   // Cookie names
-  STAFF_COOKIE_NAME: process.env.STAFF_COOKIE_NAME ?? "pf_staff",
-  CUSTOMER_COOKIE_NAME: process.env.CUSTOMER_COOKIE_NAME ?? "pf_customer",
-  SUPER_COOKIE_NAME: process.env.SUPER_COOKIE_NAME ?? "pf_super",
+  STAFF_COOKIE_NAME: process.env.STAFF_COOKIE_NAME ?? "__Host-pf_staff",
+  CUSTOMER_COOKIE_NAME: process.env.CUSTOMER_COOKIE_NAME ?? "__Host-pf_customer",
+  SUPER_COOKIE_NAME: process.env.SUPER_COOKIE_NAME ?? "__Host-pf_super",
 
   // Platform super admin (optional)
   SUPER_ADMIN_EMAIL: envValue("SUPER_ADMIN_EMAIL", ""),
@@ -214,6 +214,13 @@ export const config = {
   SMTP_PASS: envValue("SMTP_PASS", ""),
   SMTP_FROM: envValue("SMTP_FROM", "PuntosFieles <no-reply@puntos.gt>"),
 
+  // Contact form email
+  CONTACT_SMTP_HOST: envValue("CONTACT_SMTP_HOST", "10.10.1.20"),
+  CONTACT_SMTP_PORT: Number(process.env.CONTACT_SMTP_PORT ?? 26),
+  CONTACT_TO: envValue("CONTACT_TO", "gandhiponce@gmail.com"),
+  CONTACT_FROM: envValue("CONTACT_FROM", "hola@puntosfieles.com"),
+  CONTACT_TURNSTILE_SECRET: envValue("CONTACT_TURNSTILE_SECRET", "0x4AAAAAACxpj6xjqnerF0ayGYgsoZq87bQ"),
+
   // HTTP SMS Gateway (optional)
   SMS_GATEWAY_URL: envValue("SMS_GATEWAY_URL", ""),
   SMS_GATEWAY_TOKEN: envValue("SMS_GATEWAY_TOKEN", ""),
@@ -232,6 +239,9 @@ export const config = {
   CHURN_DAYS: Number(process.env.CHURN_DAYS ?? 30),
   CHURN_SEND_HOUR_LOCAL: Number(process.env.CHURN_SEND_HOUR_LOCAL ?? 9),
   CRON_TZ: envValue("CRON_TZ", "America/Guatemala"),
+  LEDGER_RECONCILE_HOUR_LOCAL: Number(process.env.LEDGER_RECONCILE_HOUR_LOCAL ?? 2),
+  LEDGER_RECONCILE_LIMIT: Number(process.env.LEDGER_RECONCILE_LIMIT ?? 10000),
+  LEDGER_RECONCILE_REPAIR: (process.env.LEDGER_RECONCILE_REPAIR ?? "false") === "true",
 
   // Webhooks
   WEBHOOK_TIMEOUT_MS: Number(process.env.WEBHOOK_TIMEOUT_MS ?? 8000),

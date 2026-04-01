@@ -16,7 +16,7 @@ async function createBusinessViaUi(page) {
   const token = rand(8);
   const businessName = `Cafe ADV ${token}`;
   const email = `owner-adv-${token}@example.com`;
-  const password = `Pwd-ADV-${token}1234`;
+  const password = "OrchardLanternMarble2026!";
   await page.goto("/admin");
   await page.fill("#businessName", businessName);
   await page.fill("#email", email);
@@ -71,12 +71,13 @@ test("adversarial: same QR token cannot be replayed", async ({ page }) => {
   const token = String(qr.body?.token || "");
   expect(token.length >= 20).toBeTruthy();
 
-  const first = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 12 }, { csrf: true });
+  const txId = globalThis.crypto.randomUUID();
+  const first = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 12, txId }, { csrf: true });
   expectOk(first, "first award should succeed");
 
-  const second = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 12 }, { csrf: true });
-  expect(second.status).toBe(409);
-  expect(String(second.body?.error || "").toLowerCase()).toContain("already used");
+  const second = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 12, txId }, { csrf: true });
+  expectOk(second, "duplicate award with same txId should replay cleanly");
+  expect(second.body?.transactionId).toBe(first.body?.transactionId);
 });
 
 test("adversarial: csrf is required for staff logout", async ({ page }) => {

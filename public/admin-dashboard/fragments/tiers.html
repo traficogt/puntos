@@ -1,0 +1,46 @@
+      <div class="tab-content" id="tiers-content">
+        <div class="card">
+          <h2>Gestión de Niveles</h2>
+          <p class="small">Los clientes progresan automáticamente según sus puntos acumulados.</p>
+          
+          <div id="tiersList"></div>
+          
+          <div class="hr"></div>
+          <button class="primary" id="btnAddTier">+ Agregar Nivel</button>
+        </div>
+
+        <!-- Add/Edit Tier Modal -->
+        <div id="tierModal" class="card is-hidden">
+          <h2 id="tierModalTitle">Nuevo Nivel</h2>
+          <div class="grid">
+            <div>
+              <label>Nombre</label>
+              <input id="tierName" placeholder="Ej: Platino"/>
+              
+              <label>Nivel (orden)</label>
+              <input id="tierLevel" type="number" min="1" value="4" placeholder="4"/>
+              
+              <label>Puntos mínimos</label>
+              <input id="tierMinPoints" type="number" min="0" value="5000"/>
+            </div>
+            <div>
+              <label>Multiplicador de puntos</label>
+              <input id="tierMultiplier" type="number" step="0.25" min="1" value="2.0"/>
+              
+              <label>Color (hex)</label>
+              <input id="tierColor" placeholder="#E5E4E2"/>
+              
+              <label>Icono (emoji o URL)</label>
+              <input id="tierIcon" placeholder="💎"/>
+            </div>
+          </div>
+          
+          <label>Beneficios (uno por línea)</label>
+          <textarea id="tierPerks" rows="4" placeholder="Doble puntos&#10;Envío gratis&#10;Descuentos exclusivos"></textarea>
+          
+          <div class="row mt-16">
+            <button class="primary" id="btnSaveTier">Guardar</button>
+            <button id="btnCancelTier">Cancelar</button>
+          </div>
+        </div>
+      </div>

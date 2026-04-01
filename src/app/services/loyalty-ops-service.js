@@ -3,8 +3,42 @@ import { dbQuery, withTransaction } from "../database.js";
 import { conflict, forbidden, notFound } from "../../utils/http-error.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
+import { refreshCustomerDerivedState } from "./customer-derived-state.js";
+import { reconcileCustomerGamificationAfterRefund } from "./gamification/reconciliation-service.js";
+import { logger } from "../../utils/logger.js";
 
 function id() { return crypto.randomUUID(); }
+
+async function lockRefundRequest(client, businessId, requestId) {
+  await client.query(
+    `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
+    [String(businessId), String(requestId)]
+  );
+}
+
+async function findExistingRefundByRequestId(client, businessId, requestId) {
+  const { rows } = await client.query(
+    `SELECT reversal.id AS reversal_transaction_id,
+            reversal.business_id,
+            reversal.customer_id,
+            reversal.original_transaction_id,
+            reversal.points,
+            balances.points AS new_balance,
+            balances.pending_points AS new_pending_balance
+     FROM transactions reversal
+     JOIN customer_balances balances ON balances.customer_id = reversal.customer_id
+     WHERE reversal.business_id = $1
+       AND reversal.request_id = $2
+       AND reversal.source = 'reversal'
+     LIMIT 1`,
+    [businessId, requestId]
+  );
+  return rows[0] ?? null;
+}
+
+function allowNegativeRefundBalance(programJson = {}) {
+  return programJson?.balance_policy?.allow_negative_balance_on_refund === true;
+}
 
 async function getPointsExpirationDays({ businessId, client = null }) {
   const q = client ? client.query.bind(client) : dbQuery;
@@ -200,8 +234,41 @@ export async function expirePointsForBusiness(businessId, limit = 1000) {
   return { totalCustomers, totalExpired, totalExpiredPoints, totalDeductedPoints };
 }
 
-export async function refundAwardTransaction({ staff, transactionId, reason = "refund", allowNegative = true }) {
+export async function refundAwardTransaction({ staff, transactionId, requestId, reason = "refund" }) {
   return withTransaction(async (client) => {
+    await lockRefundRequest(client, staff.business_id, requestId);
+    const replay = await findExistingRefundByRequestId(client, staff.business_id, requestId);
+    if (replay) {
+      if (replay.original_transaction_id !== transactionId) {
+        throw conflict("requestId already used for a different refund");
+      }
+      await AuditRepo.log({
+        id: id(),
+        business_id: staff.business_id,
+        actor_type: "STAFF",
+        actor_id: staff.id,
+        action: "award.refund.replay",
+        ip: null,
+        ua: null,
+        meta: withImpersonationMeta({
+          transaction_id: transactionId,
+          reversal_transaction_id: replay.reversal_transaction_id,
+          request_id: requestId
+        }, staff)
+      }).catch(() => {});
+      return {
+        ok: true,
+        transactionId,
+        reversalTransactionId: replay.reversal_transaction_id,
+        customerId: replay.customer_id,
+        pointsEffect: Number(replay.points ?? 0),
+        gamificationReconciliation: { replay: true },
+        newBalance: Number(replay.new_balance ?? 0),
+        newPendingBalance: Number(replay.new_pending_balance ?? 0),
+        replay: true
+      };
+    }
+
     const { rows } = await client.query(
       `SELECT *
        FROM transactions
@@ -214,12 +281,11 @@ export async function refundAwardTransaction({ staff, transactionId, reason = "r
     if (tx.business_id !== staff.business_id) throw forbidden("Transaction belongs to different business");
     if (tx.source === "reversal") throw conflict("Cannot reverse a reversal transaction");
     if (tx.status === "REVERSED") throw conflict("Transaction already reversed");
-
-    const alreadyReversed = await client.query(
-      `SELECT id FROM transactions WHERE original_transaction_id = $1 LIMIT 1`,
-      [transactionId]
+    const businessResult = await client.query(
+      `SELECT program_json FROM businesses WHERE id = $1`,
+      [tx.business_id]
     );
-    if (alreadyReversed.rowCount > 0) throw conflict("Transaction already reversed");
+    const allowNegative = allowNegativeRefundBalance(businessResult.rows?.[0]?.program_json ?? {});
 
     const points = Number(tx.points || 0);
     let pointsEffect = 0;
@@ -257,8 +323,8 @@ export async function refundAwardTransaction({ staff, transactionId, reason = "r
     const reversalId = id();
     await client.query(
       `INSERT INTO transactions
-       (id, business_id, branch_id, customer_id, staff_user_id, amount_q, visits, items, points, status, source, original_transaction_id, meta)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'POSTED','reversal',$10,$11)`,
+       (id, business_id, branch_id, customer_id, staff_user_id, amount_q, visits, items, points, status, source, original_transaction_id, request_id, meta)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'POSTED','reversal',$10,$11,$12)`,
       [
         reversalId,
         tx.business_id,
@@ -270,11 +336,13 @@ export async function refundAwardTransaction({ staff, transactionId, reason = "r
         0,
         pointsEffect,
         tx.id,
+        requestId,
         {
           refund_reason: reason,
           original_status: tx.status,
           original_points: points,
-          refunded_by: staff.id
+          refunded_by: staff.id,
+          request_id: requestId
         }
       ]
     );
@@ -288,10 +356,24 @@ export async function refundAwardTransaction({ staff, transactionId, reason = "r
       [tx.id, reversalId, reason]
     );
 
+    await refreshCustomerDerivedState(client, tx.customer_id);
+    const gamificationReconciliation = await reconcileCustomerGamificationAfterRefund(client, {
+      customerId: tx.customer_id,
+      staff,
+      reason,
+      referenceAt: new Date(),
+      refundedTransactionId: tx.id
+    });
+
     const newBal = await client.query(
       `SELECT points, pending_points FROM customer_balances WHERE customer_id = $1`,
       [tx.customer_id]
     );
+    const newBalance = Number(newBal.rows?.[0]?.points ?? 0);
+    const newPendingBalance = Number(newBal.rows?.[0]?.pending_points ?? 0);
+    if (!allowNegative && newBalance < 0) {
+      throw conflict("Refund policy forbids negative balances");
+    }
 
     await AuditRepo.log({
       id: id(),
@@ -304,10 +386,26 @@ export async function refundAwardTransaction({ staff, transactionId, reason = "r
       meta: withImpersonationMeta({
         transaction_id: tx.id,
         reversal_transaction_id: reversalId,
+        request_id: requestId,
         reason,
-        points_effect: pointsEffect
+        points_effect: pointsEffect,
+        allow_negative_refund_balance: allowNegative,
+        gamification_reconciliation: gamificationReconciliation
       }, staff)
     }).catch(() => { });
+
+    logger.info({
+      transactionId: tx.id,
+      reversalTransactionId: reversalId,
+      customerId: tx.customer_id,
+      businessId: tx.business_id,
+      staffId: staff.id,
+      pointsEffect,
+      requestId,
+      allowNegative,
+      achievementsRevoked: Number(gamificationReconciliation?.achievementsRevoked ?? 0),
+      challengesRevoked: Number(gamificationReconciliation?.challengesRevoked ?? 0)
+    }, "Staff refund completed");
 
     return {
       ok: true,
@@ -315,8 +413,9 @@ export async function refundAwardTransaction({ staff, transactionId, reason = "r
       reversalTransactionId: reversalId,
       customerId: tx.customer_id,
       pointsEffect,
-      newBalance: Number(newBal.rows?.[0]?.points ?? 0),
-      newPendingBalance: Number(newBal.rows?.[0]?.pending_points ?? 0)
+      gamificationReconciliation,
+      newBalance,
+      newPendingBalance
     };
   });
 }

@@ -1,0 +1,220 @@
+      <div class="tab-content" id="analytics-content">
+        <div class="card">
+          <h2>Analítica Avanzada</h2>
+          <div class="card">
+            <div class="row justify-between align-center">
+              <h3 class="m-0">Narrativa del negocio (30 días)</h3>
+              <span class="badge">Resumen ejecutivo</span>
+            </div>
+            <div id="analyticsStory" class="story-grid small">(cargando...)</div>
+          </div>
+          <div class="grid">
+            <div class="card">
+              <h3>Radar de crecimiento</h3>
+              <p class="small">Vista rápida de adquisición, retención, frecuencia y monetización.</p>
+              <div id="growthRadar" class="small">(cargando...)</div>
+            </div>
+            <div class="card">
+              <h3>Alertas inteligentes</h3>
+              <p class="small">Acciones sugeridas según riesgos y oportunidades detectadas.</p>
+              <div id="smartAlerts" class="small">(cargando...)</div>
+            </div>
+          </div>
+          <div class="card ops-summary-card">
+            <div class="row justify-between align-center">
+              <h3 class="m-0">Resumen operativo</h3>
+              <button id="btnRefreshOpsSummary">Actualizar</button>
+            </div>
+            <div id="opsSummary" class="small">(sin datos)</div>
+            <div id="opsFailedJobs" class="small mt-8"></div>
+          </div>
+          
+          <div class="grid">
+            <div class="card">
+              <h3>Resumen</h3>
+              <div id="analyticsSummary"></div>
+            </div>
+            
+            <div class="card">
+              <h3>Distribución RFM</h3>
+              <div id="rfmDist"></div>
+            </div>
+            <div class="card">
+              <h3>Reporte ROI</h3>
+              <div id="roiReport" class="small">(sin datos)</div>
+              <div class="row mt-8">
+                <button id="btnRefreshRoi">Recargar ROI</button>
+              </div>
+            </div>
+          <div class="card">
+            <h3>Tendencia (30 días)</h3>
+            <div id="revenueTrend" class="small">(sin datos)</div>
+          </div>
+          <div class="card">
+            <h3>Comparativo sucursal vs global</h3>
+            <p class="small">Cuando filtras una sucursal, aquí ves su ritmo contra el total del negocio.</p>
+            <div id="branchBenchmark" class="small">(selecciona una sucursal para comparar)</div>
+          </div>
+          <div class="card">
+            <h3>Facturación local (IVA 12%)</h3>
+              <label>Desde</label>
+              <input id="ivaFrom" type="date"/>
+              <label>Hasta</label>
+              <input id="ivaTo" type="date"/>
+              <div class="row mt-8">
+                <button id="btnExportIvaCsv">Descargar CSV IVA</button>
+              </div>
+              <p class="small">Formato listo para revisión contable en Guatemala.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Clientes en Riesgo de Pérdida</h3>
+            <p class="small">Clientes que no han visitado recientemente</p>
+            <div id="churnList"></div>
+          </div>
+
+          <div class="card">
+            <h3>Rendimiento por Sucursal (30 días)</h3>
+            <p class="small">Comparativo rápido de ingresos, transacciones y canjes.</p>
+            <p id="analyticsScopeHint" class="small">Vista actual: Todas las sucursales</p>
+            <div id="branchPerformance"></div>
+          </div>
+
+          <div class="card">
+            <h3>Comparativo de sucursales</h3>
+            <p class="small">Tabla rápida para detectar dónde enfocar soporte y marketing.</p>
+            <div id="branchCompareTable" class="small">(sin datos)</div>
+          </div>
+
+          <div class="card">
+            <h3>Cohortes de retención</h3>
+            <p class="small">Porcentaje de clientes que regresan por cohorte mensual.</p>
+            <div id="cohortHeatmap" class="small">(sin datos)</div>
+          </div>
+
+          <div class="row mt-16">
+            <button class="primary" id="btnRecalcAnalytics">🔄 Recalcular Métricas</button>
+            <span class="badge">Última actualización: <span id="lastCalc">Nunca</span></span>
+          </div>
+
+          <div class="card">
+            <div class="row justify-between align-center">
+              <h3 class="m-0">Estado de trabajos en segundo plano</h3>
+              <button id="btnRefreshJobs">Recargar</button>
+            </div>
+            <div id="jobsStatus" class="small">(sin datos)</div>
+          </div>
+
+          <div class="card">
+            <div class="row justify-between align-center">
+              <h3 class="m-0">Pagos pendientes por asignar</h3>
+              <button id="btnRefreshPaymentPending">Recargar</button>
+            </div>
+            <p class="small">Si el webhook llegó sin cliente, puedes asignarlo manualmente por teléfono.</p>
+            <div id="paymentPendingList" class="small">(sin datos)</div>
+          </div>
+
+          <div class="card">
+            <div class="row justify-between align-center">
+              <h3 class="m-0">Centro de alertas</h3>
+              <button id="btnRefreshAlerts">Recargar</button>
+            </div>
+            <p class="small">Incluye sospechosas, webhooks fallidos y trabajos con error.</p>
+            <div id="alertsCenter" class="small">(sin datos)</div>
+          </div>
+
+          <div class="card">
+            <div class="row justify-between align-center">
+              <h3 class="m-0">Anomalías de valor</h3>
+              <button id="btnRefreshAnomalies">Recargar</button>
+            </div>
+            <p class="small">Balances negativos, replays deduplicados, reversas y el último estado de conciliación.</p>
+            <div id="valueAnomaliesSummary" class="small">(sin datos)</div>
+            <div id="valueAnomaliesBreakdown" class="small mt-8">(sin datos)</div>
+          </div>
+
+          <div class="card">
+            <div class="row justify-between align-center">
+              <h3 class="m-0">Conciliación del ledger</h3>
+              <button id="btnRefreshLedgerReconciliation">Recargar</button>
+            </div>
+            <p class="small">Prueba operativa de que los balances guardados coinciden con el ledger de puntos.</p>
+            <div id="ledgerReconciliationSummary" class="small">(sin datos)</div>
+            <div id="ledgerReconciliationFindings" class="small mt-8">(sin hallazgos recientes)</div>
+          </div>
+
+          <div class="card">
+            <div class="row justify-between align-center">
+              <h3 class="m-0">Certificación del ledger</h3>
+              <div class="row gap-8 align-center">
+                <button id="btnRefreshLedgerCertification">Ver reporte</button>
+                <button id="btnExportLedgerCertificationCsv">Exportar CSV</button>
+              </div>
+            </div>
+            <p class="small">Resumen certificable por periodo: puntos emitidos, canjeados, reversados, ajustes, movimientos de gift cards y riesgos abiertos.</p>
+            <div class="grid">
+              <div>
+                <label for="ledgerCertificationFrom">Desde</label>
+                <input id="ledgerCertificationFrom" type="date"/>
+              </div>
+              <div>
+                <label for="ledgerCertificationTo">Hasta</label>
+                <input id="ledgerCertificationTo" type="date"/>
+              </div>
+            </div>
+            <div id="ledgerCertificationSummary" class="small mt-8">(sin reporte)</div>
+            <div id="ledgerCertificationRows" class="small mt-8">(sin detalle diario)</div>
+            <div class="row justify-between align-center mt-16">
+              <h4 class="m-0">Archivo de certificaciones</h4>
+              <button id="btnRefreshLedgerCertificationArchive">Recargar archivo</button>
+            </div>
+            <div id="ledgerCertificationArchiveSummary" class="small mt-8">(sin archivo)</div>
+            <div id="ledgerCertificationArchiveList" class="small mt-8">(sin certificaciones históricas)</div>
+          </div>
+
+          <div class="card">
+            <div class="row justify-between align-center">
+              <h3 class="m-0">Correcciones manuales del ledger</h3>
+              <button id="btnRefreshLedgerCorrections">Recargar</button>
+            </div>
+            <p class="small">Solo para descuadres reales. Requiere dos dueños distintos: uno solicita y otro aprueba o rechaza.</p>
+            <div class="grid">
+              <div>
+                <label for="ledgerCorrectionCustomerId">Customer ID</label>
+                <input id="ledgerCorrectionCustomerId" type="text" placeholder="UUID del cliente"/>
+              </div>
+              <div>
+                <label for="ledgerCorrectionReason">Razón</label>
+                <input id="ledgerCorrectionReason" type="text" placeholder="Explica el descuadre y la revisión realizada"/>
+              </div>
+            </div>
+            <div class="row mt-8">
+              <button id="btnRequestLedgerCorrection">Solicitar corrección</button>
+            </div>
+            <div id="ledgerCorrectionsList" class="small mt-8">(sin correcciones recientes)</div>
+          </div>
+
+          <div class="card">
+            <div class="row justify-between align-center">
+              <h3 class="m-0">Línea de auditoría</h3>
+              <div class="row gap-8 align-center">
+                <input id="auditFrom" type="date" aria-label="Desde auditoría"/>
+                <input id="auditTo" type="date" aria-label="Hasta auditoría"/>
+                <label class="small inline-flex-center">
+                  <input id="auditShowImpersonatedOnly" type="checkbox"/>
+                  Solo impersonación
+                </label>
+                <button id="btnExportAuditCsv">Exportar CSV</button>
+                <button id="btnRefreshAudit">Recargar</button>
+              </div>
+            </div>
+            <p class="small">Cambios de configuración y acciones críticas recientes.</p>
+            <p id="auditScopeHint" class="small">Vista actual: eventos recientes.</p>
+            <div id="auditTimeline" class="small">(sin datos)</div>
+            <div id="auditDetail" class="small mt-8">Selecciona un evento para ver su contexto operativo.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

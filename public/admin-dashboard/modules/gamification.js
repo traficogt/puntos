@@ -29,13 +29,10 @@ export function registerGamificationModule(app) {
 
       data.achievements.forEach((ach) => {
         const div = document.createElement("div");
-        div.className = "card";
-        div.style.marginBottom = "12px";
+        div.className = "card mb-12";
 
         const top = document.createElement("div");
-        top.className = "row";
-        top.style.justifyContent = "space-between";
-        top.style.alignItems = "start";
+        top.className = "row row-between-start";
 
         const left = document.createElement("div");
         const h = document.createElement("h3");
@@ -44,9 +41,7 @@ export function registerGamificationModule(app) {
         p.className = "small";
         p.textContent = ach.description || "";
         const badges = document.createElement("div");
-        badges.className = "row";
-        badges.style.gap = "8px";
-        badges.style.marginTop = "4px";
+        badges.className = "row gap-8 mt-4";
 
         const b1 = document.createElement("span");
         b1.className = "badge";
@@ -61,8 +56,7 @@ export function registerGamificationModule(app) {
         left.append(h, p, badges);
 
         const right = document.createElement("div");
-        right.className = "row";
-        right.style.gap = "8px";
+        right.className = "row gap-8";
 
         const toggle = document.createElement("button");
         toggle.className = "secondary";
@@ -122,7 +116,7 @@ export function registerGamificationModule(app) {
       });
 
       toast("Logro creado");
-      $("#achievementModal").style.display = "none";
+      $("#achievementModal").hidden = true;
       await loadAchievements();
     }, (error) => {
       toast("Error: " + error.message);
@@ -142,15 +136,13 @@ export function registerGamificationModule(app) {
 
       data.challenges.forEach((chal) => {
         const div = document.createElement("div");
-        div.className = "card";
-        div.style.marginBottom = "12px";
+        div.className = "card mb-12";
 
         const startDate = new Date(chal.start_date).toLocaleDateString();
         const endDate = chal.end_date ? new Date(chal.end_date).toLocaleDateString() : "Sin límite";
 
         const row = document.createElement("div");
-        row.className = "row";
-        row.style.justifyContent = "space-between";
+        row.className = "row row-between";
 
         const left = document.createElement("div");
         const h = document.createElement("h3");
@@ -159,9 +151,7 @@ export function registerGamificationModule(app) {
         p.className = "small";
         p.textContent = chal.description || "";
         const badges = document.createElement("div");
-        badges.className = "row";
-        badges.style.gap = "8px";
-        badges.style.marginTop = "4px";
+        badges.className = "row gap-8 mt-4";
         [chal.challenge_type, `${chal.requirement_type}: ${chal.requirement_value}`, `+${chal.reward_points} pts`, `${startDate} - ${endDate}`]
           .forEach((txt) => {
             const b = document.createElement("span");
@@ -215,7 +205,7 @@ export function registerGamificationModule(app) {
       });
 
       toast("Reto creado");
-      $("#challengeModal").style.display = "none";
+      $("#challengeModal").hidden = true;
       await loadChallenges();
     }, (error) => {
       toast("Error: " + error.message);
@@ -230,11 +220,11 @@ export function registerGamificationModule(app) {
       $("#achReqType").value = "visits";
       $("#achReqValue").value = "";
       $("#achReward").value = "50";
-      $("#achievementModal").style.display = "block";
+      $("#achievementModal").hidden = false;
     });
 
     $("#btnSaveAchievement")?.addEventListener("click", fire(createAchievement));
-    $("#btnCancelAchievement")?.addEventListener("click", () => { $("#achievementModal").style.display = "none"; });
+    $("#btnCancelAchievement")?.addEventListener("click", () => { $("#achievementModal").hidden = true; });
 
     $("#btnAddChallenge")?.addEventListener("click", () => {
       const now = new Date();
@@ -249,11 +239,11 @@ export function registerGamificationModule(app) {
       $("#chalReward").value = "100";
       $("#chalEndDate").value = "";
       $("#chalRecurrence").value = "";
-      $("#challengeModal").style.display = "block";
+      $("#challengeModal").hidden = false;
     });
 
     $("#btnSaveChallenge")?.addEventListener("click", fire(createChallenge));
-    $("#btnCancelChallenge")?.addEventListener("click", () => { $("#challengeModal").style.display = "none"; });
+    $("#btnCancelChallenge")?.addEventListener("click", () => { $("#challengeModal").hidden = true; });
   }
 
   app.onAfterPlanReady(() => {

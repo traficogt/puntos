@@ -1,4 +1,4 @@
-import { isStrongPassword, passwordRequirementsText } from "/lib.js";
+import { isStrongPassword, passwordRequirementsText, registerServiceWorker, setHidden } from "/lib.js";
 
 /** @typedef {import("./types.js").SuperPlanDefinition} SuperPlanDefinition */
 /** @typedef {import("./types.js").SuperBusinessRow} SuperBusinessRow */
@@ -75,6 +75,16 @@ export async function initSuperPage({ api, $, toast }) {
     return /** @type {HTMLElement} */ ($(selector));
   }
 
+  function setPendingSuperMfa(secret, otpauthUri = "") {
+    const pendingSuperMfaSecret = String(secret || "").trim();
+    const box = element("#superMfaSecret");
+    if (!pendingSuperMfaSecret) {
+      box.textContent = "(sin secreto pendiente)";
+      return;
+    }
+    box.textContent = `Secreto: ${pendingSuperMfaSecret}${otpauthUri ? `\n\nURI: ${otpauthUri}` : ""}`;
+  }
+
   /**
    * @param {string} plan
    * @returns {SuperPlanDefinition | null}
@@ -121,12 +131,10 @@ export async function initSuperPage({ api, $, toast }) {
 
     planList.forEach((p) => {
       const card = document.createElement("div");
-      card.className = "card";
-      card.style.marginBottom = "8px";
-      card.style.padding = "10px";
+      card.className = "card compact-card mb-8";
 
       const title = document.createElement("h3");
-      title.style.margin = "0 0 8px";
+      title.className = "m-0 mb-8";
       title.textContent = `${p.plan} · ${priceSummary(p.pricing_gtq)}`;
       card.appendChild(title);
 
@@ -138,10 +146,7 @@ export async function initSuperPage({ api, $, toast }) {
       featureKeys.forEach((feature) => {
         const label = FEATURE_LABELS[feature] || feature;
         const wrap = document.createElement("label");
-        wrap.className = "small";
-        wrap.style.display = "flex";
-        wrap.style.alignItems = "center";
-        wrap.style.gap = "8px";
+        wrap.className = "small row-inline-flex";
         const cb = document.createElement("input");
         cb.type = "checkbox";
         cb.checked = Boolean(p.features?.[feature]);
@@ -152,8 +157,7 @@ export async function initSuperPage({ api, $, toast }) {
       card.appendChild(grid);
 
       const foot = document.createElement("div");
-      foot.className = "row";
-      foot.style.marginTop = "10px";
+      foot.className = "row mt-10";
       const limits = p.limits || {};
       const msg = p.messaging_gtq || {};
       const info = document.createElement("span");
@@ -206,35 +210,33 @@ export async function initSuperPage({ api, $, toast }) {
   async function loadMe() {
     await run(async () => {
       await api("/api/super/me");
-      element("#loginCard").style.display = "none";
-      element("#mainCard").style.display = "block";
-      element("#securityCard").style.display = "block";
-      element("#businessCard").style.display = "block";
-      element("#btnLogout").style.display = "inline-flex";
+      setHidden(element("#loginCard"), true);
+      setHidden(element("#mainCard"), false);
+      setHidden(element("#securityCard"), false);
+      setHidden(element("#businessCard"), false);
+      setHidden(element("#btnLogout"), false);
       await loadPlans();
       renderPlanMatrix();
       await loadSecurityPosture();
       await loadBusinesses();
     }, () => {
-      element("#loginCard").style.display = "block";
-      element("#mainCard").style.display = "none";
-      element("#securityCard").style.display = "none";
-      element("#businessCard").style.display = "none";
-      element("#btnLogout").style.display = "none";
+      setHidden(element("#loginCard"), false);
+      setHidden(element("#mainCard"), true);
+      setHidden(element("#securityCard"), true);
+      setHidden(element("#businessCard"), true);
+      setHidden(element("#btnLogout"), true);
     });
   }
 
   function counterCard(label, value, tone = "") {
     const card = document.createElement("div");
-    card.className = "card";
-    card.style.padding = "10px";
-    if (tone) card.style.borderColor = tone;
+    card.className = "card compact-card counter-card";
+    if (tone) card.dataset.tone = tone;
     const labelEl = document.createElement("div");
     labelEl.className = "small";
     labelEl.textContent = label;
     const valueEl = document.createElement("div");
-    valueEl.style.fontSize = "24px";
-    valueEl.style.fontWeight = "700";
+    valueEl.className = "text-24-strong";
     valueEl.textContent = String(value);
     card.append(labelEl, valueEl);
     return card;
@@ -246,11 +248,11 @@ export async function initSuperPage({ api, $, toast }) {
       const counts = out.counts || {};
       const box = element("#securityCounters");
       box.replaceChildren();
-      box.appendChild(counterCard("Super login fallido", Number(counts.super_login_failed || 0), "#ffadad"));
-      box.appendChild(counterCard("Staff login fallido", Number(counts.staff_login_failed || 0), "#ffd6a5"));
-      box.appendChild(counterCard("CSRF bloqueado", Number(counts.csrf_denied || 0), "#fdffb6"));
-      box.appendChild(counterCard("Replay QR bloqueado", Number(counts.qr_replay_blocked || 0), "#caffbf"));
-      box.appendChild(counterCard("Webhook auth fallida", Number(counts.webhook_auth_failed || 0), "#9bf6ff"));
+      box.appendChild(counterCard("Super login fallido", Number(counts.super_login_failed || 0), "danger"));
+      box.appendChild(counterCard("Staff login fallido", Number(counts.staff_login_failed || 0), "warning"));
+      box.appendChild(counterCard("CSRF bloqueado", Number(counts.csrf_denied || 0), "notice"));
+      box.appendChild(counterCard("Replay QR bloqueado", Number(counts.qr_replay_blocked || 0), "success"));
+      box.appendChild(counterCard("Webhook auth fallida", Number(counts.webhook_auth_failed || 0), "info"));
 
       const recent = out.recent || [];
       if (!recent.length) {
@@ -280,9 +282,7 @@ export async function initSuperPage({ api, $, toast }) {
 
       rows.forEach((business) => {
         const card = document.createElement("div");
-        card.className = "card";
-        card.style.marginBottom = "8px";
-        card.style.padding = "10px";
+        card.className = "card compact-card mb-8";
 
         const title = document.createElement("div");
         const strong = document.createElement("strong");
@@ -299,15 +299,12 @@ export async function initSuperPage({ api, $, toast }) {
         card.appendChild(meta);
 
         const planInfo = document.createElement("div");
-        planInfo.className = "small";
-        planInfo.style.marginTop = "6px";
-        planInfo.style.whiteSpace = "pre-wrap";
+        planInfo.className = "small mt-6 pre-wrap";
         planInfo.textContent = planSummaryText(business.plan);
         card.appendChild(planInfo);
 
         const row = document.createElement("div");
-        row.className = "row";
-        row.style.marginTop = "8px";
+        row.className = "row mt-8";
 
         const planSel = makePlanSelect(business.plan);
         planSel.addEventListener("change", () => {
@@ -425,7 +422,11 @@ export async function initSuperPage({ api, $, toast }) {
     await run(async () => {
       await api("/api/super/login", {
         method: "POST",
-        body: JSON.stringify({ email: input("#email").value.trim(), password: input("#password").value })
+        body: JSON.stringify({
+          email: input("#email").value.trim(),
+          password: input("#password").value,
+          ...(input("#loginMfaCode").value.trim() ? { mfaCode: input("#loginMfaCode").value.trim() } : {})
+        })
       });
       toast("Sesión iniciada.");
       await loadMe();
@@ -455,9 +456,124 @@ export async function initSuperPage({ api, $, toast }) {
       toast("No se pudo rotar secretos: " + error.message);
     });
   });
+  element("#btnRequestSuperReset").addEventListener("click", async () => {
+    await run(async () => {
+      const email = input("#email").value.trim();
+      if (!email) return toast("Escribe el correo del super admin.");
+      await api("/api/public/super/password-reset/request", {
+        method: "POST",
+        body: JSON.stringify({ email })
+      });
+      toast("Si el correo coincide, enviamos un token de reset.");
+    }, (error) => {
+      toast(error.message);
+    });
+  });
+  element("#btnConfirmSuperReset").addEventListener("click", async () => {
+    await run(async () => {
+      const token = input("#superResetToken").value.trim();
+      const newPassword = input("#superResetPassword").value;
+      if (!token || !newPassword) return toast("Completa token y nueva contraseña.");
+      await api("/api/public/super/password-reset/confirm", {
+        method: "POST",
+        body: JSON.stringify({ token, newPassword })
+      });
+      input("#superResetToken").value = "";
+      input("#superResetPassword").value = "";
+      toast("Contraseña actualizada.");
+    }, (error) => {
+      toast(error.message);
+    });
+  });
+  element("#btnConfirmSuperEmail").addEventListener("click", async () => {
+    await run(async () => {
+      const token = input("#superEmailToken").value.trim();
+      if (!token) return toast("Escribe el token recibido.");
+      await api("/api/public/super/email-change/confirm", {
+        method: "POST",
+        body: JSON.stringify({ token })
+      });
+      input("#superEmailToken").value = "";
+      toast("Cambio de correo confirmado.");
+    }, (error) => {
+      toast(error.message);
+    });
+  });
+  element("#btnSuperReauth").addEventListener("click", async () => {
+    await run(async () => {
+      const password = input("#superReauthPassword").value;
+      if (!password) return toast("Escribe tu contraseña actual.");
+      await api("/api/super/security/reauth", {
+        method: "POST",
+        body: JSON.stringify({
+          password,
+          ...(input("#superReauthMfaCode").value.trim() ? { mfaCode: input("#superReauthMfaCode").value.trim() } : {})
+        })
+      });
+      toast("Sesión revalidada.");
+    }, (error) => {
+      toast(error.message);
+    });
+  });
+  element("#btnSuperMfaEnroll").addEventListener("click", async () => {
+    await run(async () => {
+      const out = await api("/api/super/security/mfa/enroll", { method: "POST", body: "{}" });
+      setPendingSuperMfa(out.secret, out.otpauth_uri || "");
+      toast("Se generó un secreto MFA. Confirma con el código.");
+    }, (error) => {
+      toast(error.message);
+    });
+  });
+  element("#btnSuperMfaConfirm").addEventListener("click", async () => {
+    await run(async () => {
+      const code = input("#superMfaConfirmCode").value.trim();
+      if (!code) return toast("Escribe el código MFA.");
+      await api("/api/super/security/mfa/confirm", {
+        method: "POST",
+        body: JSON.stringify({ code })
+      });
+      input("#superMfaConfirmCode").value = "";
+      setPendingSuperMfa("");
+      toast("MFA activado.");
+    }, (error) => {
+      toast(error.message);
+    });
+  });
+  element("#btnSuperMfaDisable").addEventListener("click", async () => {
+    await run(async () => {
+      await api("/api/super/security/mfa/disable", { method: "POST", body: "{}" });
+      setPendingSuperMfa("");
+      toast("MFA desactivado.");
+      await loadMe();
+    }, (error) => {
+      toast(error.message);
+    });
+  });
+  element("#btnSuperEmailChange").addEventListener("click", async () => {
+    await run(async () => {
+      const newEmail = input("#superNewEmail").value.trim();
+      if (!newEmail) return toast("Escribe el nuevo correo.");
+      await api("/api/super/security/email-change", {
+        method: "POST",
+        body: JSON.stringify({ newEmail })
+      });
+      toast("Cambio solicitado. Revisa ambos correos.");
+    }, (error) => {
+      toast(error.message);
+    });
+  });
+  element("#btnSuperLockdown").addEventListener("click", async () => {
+    await run(async () => {
+      await api("/api/super/security/lockdown", { method: "POST", body: "{}" });
+      toast("Sesiones revocadas por seguridad.");
+      await loadMe();
+    }, (error) => {
+      toast(error.message);
+    });
+  });
   element("#btnCreateBusiness").addEventListener("click", createBusiness);
   element("#btnCreateBusinessUser").addEventListener("click", createBusinessUser);
 
   await loadMe();
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+  registerServiceWorker().catch(() => {});
 }

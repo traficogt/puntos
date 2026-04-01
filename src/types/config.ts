@@ -49,6 +49,9 @@ export interface AppConfig {
   CHURN_DAYS: number;
   CHURN_SEND_HOUR_LOCAL: number;
   CRON_TZ: string;
+  LEDGER_RECONCILE_HOUR_LOCAL: number;
+  LEDGER_RECONCILE_LIMIT: number;
+  LEDGER_RECONCILE_REPAIR: boolean;
 
   WEBHOOK_TIMEOUT_MS: number;
   WEBHOOK_CONCURRENCY: number;

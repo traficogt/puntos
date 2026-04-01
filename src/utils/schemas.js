@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "./password-policy.js";
 
 // Common schemas
 
@@ -7,12 +8,8 @@ export const emailSchema = z.string().email().max(255);
 export const phoneSchema = z.string().regex(/^\+502\d{8}$/, "Phone must be +502 followed by 8 digits");
 export const slugSchema = z.string().min(2).max(50).regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens");
 export const passwordSchema = z.string()
-  .min(8, "Password must be at least 8 characters")
-  .max(100, "Password must not exceed 100 characters")
-  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-  .regex(/[0-9]/, "Password must contain at least one number")
-  .regex(/[^a-zA-Z0-9]/, "Password must contain at least one special character");
+  .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
+  .max(PASSWORD_MAX_LENGTH, `Password must not exceed ${PASSWORD_MAX_LENGTH} characters`);
 
 // Program JSON validation schemas
 export const spendProgramSchema = z.object({
@@ -37,15 +34,14 @@ export const metaSchema = z.record(z.any()).refine(
 // Business schemas
 
 export const businessRegisterSchema = z.object({
-  name: z.string().min(2).max(100),
+  name: z.string().min(3).max(140),
   slug: slugSchema,
   email: emailSchema,
   password: passwordSchema,
-  phone: phoneSchema,
-  program_type: z.enum(["SPEND", "VISIT", "ITEM"]).default("SPEND"),
-  points_per_quetzal: z.number().min(0).max(1000).optional(),
-  points_per_visit: z.number().int().min(0).max(10000).optional(),
-  points_per_item: z.number().int().min(0).max(10000).optional()
+  phone: z.string().min(8).max(30),
+  category: z.string().max(50).optional(),
+  program_type: z.enum(["SPEND", "VISIT", "ITEM"]).optional(),
+  registration_token: z.string().min(16).optional()
 });
 
 export const businessUpdateSchema = z.object({
@@ -57,42 +53,93 @@ export const businessUpdateSchema = z.object({
   points_per_item: z.number().int().min(0).max(10000).optional()
 });
 
+const brandingHexColorSchema = z.string()
+  .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a 6-digit hex value")
+  .transform((value) => value.toUpperCase());
+
+function optionalTrimmedStringSchema(max) {
+  return z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      return trimmed === "" ? undefined : trimmed;
+    },
+    z.string().max(max).optional()
+  );
+}
+
+function optionalUrlSchema(max) {
+  return z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      return trimmed === "" ? undefined : trimmed;
+    },
+    z.string().url().max(max).optional()
+  );
+}
+
+function optionalHexColorSchema() {
+  return z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      return trimmed === "" ? undefined : trimmed;
+    },
+    brandingHexColorSchema.optional()
+  );
+}
+
+export const businessCustomerBrandingSchema = z.object({
+  branding_mode: z.enum(["platform_led", "endorsed_brand", "white_label_ready"]).default("endorsed_brand"),
+  customer_program_name: optionalTrimmedStringSchema(120),
+  customer_logo_url: optionalUrlSchema(1000),
+  primary_color: optionalHexColorSchema(),
+  accent_color: optionalHexColorSchema(),
+  neutral_theme: z.enum(["warm", "neutral", "cool"]).optional(),
+  powered_by_visible: z.boolean().default(true),
+  wallet_headline: optionalTrimmedStringSchema(140),
+  join_headline: optionalTrimmedStringSchema(140)
+});
+
 // Staff schemas
 
 export const staffLoginSchema = z.object({
   email: emailSchema,
-  password: z.string().min(6)
+  password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+  mfaCode: z.string().regex(/^\d{6}$/).optional()
 });
 
 export const staffCreateSchema = z.object({
   name: z.string().min(2).max(100),
   email: emailSchema,
+  phone: z.string().max(30).optional(),
   password: passwordSchema,
-  role: z.enum(["OWNER", "MANAGER", "STAFF"]),
-  branch_id: uuidSchema.optional()
+  role: z.enum(["CASHIER", "MANAGER"]).optional(),
+  branch_id: uuidSchema.optional(),
+  can_manage_gift_cards: z.boolean().optional()
 });
 
 export const staffUpdateSchema = z.object({
-  name: z.string().min(2).max(100).optional(),
-  email: emailSchema.optional(),
+  active: z.boolean().optional(),
   password: passwordSchema.optional(),
-  role: z.enum(["OWNER", "MANAGER", "STAFF"]).optional(),
-  branch_id: uuidSchema.optional(),
-  active: z.boolean().optional()
+  role: z.enum(["CASHIER", "MANAGER"]).optional(),
+  branch_id: uuidSchema.nullable().optional(),
+  can_manage_gift_cards: z.boolean().optional()
 });
 
 // Customer schemas
 
-export const customerJoinSchema = z.object({
-  slug: slugSchema,
-  name: z.string().min(2).max(100),
-  phone: phoneSchema
+export const requestJoinCodeSchema = z.object({
+  phone: z.string().min(6),
+  name: z.string().max(120).optional()
 });
 
-export const customerVerifySchema = z.object({
-  phone: phoneSchema,
-  code: z.string().regex(/^\d{6}$/, "Code must be 6 digits"),
-  slug: slugSchema
+export const verifyJoinCodeSchema = z.object({
+  phone: z.string().min(6),
+  code: z.string().min(4).max(10),
+  name: z.string().max(120).optional(),
+  referralCode: z.string().length(6).optional()
 });
 
 export const customerUpdateSchema = z.object({
@@ -100,16 +147,19 @@ export const customerUpdateSchema = z.object({
   email: emailSchema.optional()
 });
 
+// Backward-compatible aliases for older imports.
+export const customerJoinSchema = requestJoinCodeSchema;
+export const customerVerifySchema = verifyJoinCodeSchema;
+
 // Transaction schemas
 
 export const awardPointsSchema = z.object({
   customerQrToken: z.string().min(1),
   amount_q: z.number().min(0).max(1000000).optional(),
-  visits: z.number().int().min(0).max(1000).optional(),
-  items: z.number().int().min(0).max(10000).optional(),
-  source: z.enum(["online", "offline"]).default("online"),
+  visits: z.number().int().positive().max(1000).optional(),
+  items: z.number().int().positive().max(10000).optional(),
   meta: z.record(z.any()).optional(),
-  txId: uuidSchema.optional()
+  txId: uuidSchema
 });
 
 export const syncAwardsSchema = z.object({
@@ -148,7 +198,8 @@ export const rewardUpdateSchema = z.object({
 
 export const redeemRewardSchema = z.object({
   customerId: uuidSchema,
-  rewardId: uuidSchema
+  rewardId: uuidSchema,
+  requestId: uuidSchema
 });
 
 // Branch schemas

@@ -16,6 +16,7 @@ export function tenantContext(req, res, next) {
 
   setCurrentTenant(req.tenantId).then(() => next()).catch(next);
 }
+tenantContext.__openapi = { tenantContext: true };
 
 export async function setTenantForRequest(req, businessId) {
   req.tenantId = String(businessId);

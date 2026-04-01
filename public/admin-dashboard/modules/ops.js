@@ -10,7 +10,7 @@ export function registerOpsModule(app) {
     const totalRequired = items.filter((x) => x.required).length || 1;
     const completedRequired = items.filter((x) => x.required && x.done).length;
     const pct = Math.round((completedRequired / totalRequired) * 100);
-    progressBar.style.width = `${Math.max(6, pct)}%`;
+    /** @type {HTMLProgressElement} */ (progressBar).value = Math.max(6, pct);
 
     const next = items.find((x) => x.required && !x.done && x.action?.label);
     const nextCard = document.createElement("div");
@@ -82,8 +82,7 @@ export function registerOpsModule(app) {
     });
 
     const footer = document.createElement("div");
-    footer.className = "small";
-    footer.style.marginTop = "8px";
+    footer.className = "small mt-8";
     footer.textContent = `Progreso: ${completedRequired}/${totalRequired} tareas clave (${pct}%).`;
     box.appendChild(footer);
   }
@@ -227,4 +226,3 @@ export function registerOpsModule(app) {
     load: async () => initOperationsTab()
   });
 }
-

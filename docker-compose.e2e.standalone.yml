@@ -5,11 +5,12 @@ services:
     environment:
       POSTGRES_DB: puntos_e2e
       POSTGRES_USER: loyalty_admin
-      POSTGRES_PASSWORD: loyalty_admin_password
+      POSTGRES_PASSWORD: ${E2E_DB_ADMIN_PASSWORD:?set E2E_DB_ADMIN_PASSWORD}
+      E2E_APP_DB_PASSWORD: ${E2E_APP_DB_PASSWORD:?set E2E_APP_DB_PASSWORD}
       TZ: America/Guatemala
     volumes:
       - pgdata_e2e:/var/lib/postgresql/data
-      - ./deploy/db/init-e2e.sql:/docker-entrypoint-initdb.d/init-e2e.sql:ro
+      - ./deploy/db/init-e2e.sh:/docker-entrypoint-initdb.d/init-e2e.sh:ro
     expose:
       - "5432"
 
@@ -25,9 +26,10 @@ services:
       - ./deploy/e2e/api.env
     environment:
       DB_USER: loyalty_app
-      DB_PASSWORD: loyalty_app_password
+      DB_PASSWORD: ${E2E_APP_DB_PASSWORD:?set E2E_APP_DB_PASSWORD}
       DB_MIGRATIONS_USER: loyalty_admin
-      DB_MIGRATIONS_PASSWORD: loyalty_admin_password
+      DB_MIGRATIONS_PASSWORD: ${E2E_DB_ADMIN_PASSWORD:?set E2E_DB_ADMIN_PASSWORD}
+      SUPER_ADMIN_PASSWORD: ${E2E_SUPER_ADMIN_PASSWORD:?set E2E_SUPER_ADMIN_PASSWORD}
       # Allow both host-run Playwright (localhost:<E2E_PORT>) and in-network Playwright (api:3001).
       CORS_ORIGIN: "http://localhost:${E2E_PORT:-3101},http://api:3001"
       APP_ORIGIN: "http://localhost:${E2E_PORT:-3101}"
@@ -46,9 +48,10 @@ services:
       - ./deploy/e2e/api.env
     environment:
       DB_USER: loyalty_app
-      DB_PASSWORD: loyalty_app_password
+      DB_PASSWORD: ${E2E_APP_DB_PASSWORD:?set E2E_APP_DB_PASSWORD}
       DB_MIGRATIONS_USER: loyalty_admin
-      DB_MIGRATIONS_PASSWORD: loyalty_admin_password
+      DB_MIGRATIONS_PASSWORD: ${E2E_DB_ADMIN_PASSWORD:?set E2E_DB_ADMIN_PASSWORD}
+      SUPER_ADMIN_PASSWORD: ${E2E_SUPER_ADMIN_PASSWORD:?set E2E_SUPER_ADMIN_PASSWORD}
       WORKER_PORT: 3002
 
   redis:
@@ -71,7 +74,7 @@ services:
       # Keep test runner credentials in sync with the API container.
       # (dotenv in playwright.config.mjs does not override already-set env vars.)
       SUPER_ADMIN_EMAIL: super@example.com
-      SUPER_ADMIN_PASSWORD: super_password_123456
+      SUPER_ADMIN_PASSWORD: ${E2E_SUPER_ADMIN_PASSWORD:?set E2E_SUPER_ADMIN_PASSWORD}
     entrypoint: ["bash", "-lc"]
 
 volumes:

@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#f8f2e8"/>
   <title>Escáner de personal • PuntosFieles</title>
   <link rel="stylesheet" href="/styles.css"/>
+  <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
 <body>
   <div class="nav">
@@ -22,12 +23,14 @@
       <div class="card">
         <h2>Cámara</h2>
         <video id="video" autoplay playsinline muted></video>
-        <div class="row" style="margin-top:10px">
+        <div class="row mt-10">
           <button class="primary" id="btnStart">Iniciar</button>
           <button id="btnStop">Pausar</button>
           <button id="btnSync">Sincronizar</button>
         </div>
         <p class="small">Consejo: Chrome Android tiene mejor soporte para QR. Si no hay BarcodeDetector, usa entrada manual.</p>
+        <p class="small" id="queueMeta">Pendientes: 0 • Fallidos: 0 • Última actividad: —</p>
+        <pre id="queueList" class="small pre-wrap">(sin operaciones pendientes)</pre>
       </div>
 
       <div class="card">
@@ -52,7 +55,7 @@
           </div>
         </div>
 
-        <div class="row" style="margin-top:10px">
+        <div class="row mt-10">
           <button class="primary" id="btnAward">Registrar</button>
           <button class="danger" id="btnLogout">Salir</button>
         </div>
@@ -74,7 +77,7 @@
       <label>Recompensa</label>
       <select id="rewardSelect"></select>
 
-      <div class="row" style="margin-top:10px">
+      <div class="row mt-10">
         <button class="primary" id="btnRedeem">Canjear</button>
         <span class="badge">Código: <code id="redeemCode">—</code></span>
       </div>
@@ -87,7 +90,7 @@
       <input id="giftCode" placeholder="GC-XXXX... o gft_xxx"/>
       <label>Monto a descontar (Q)</label>
       <input id="giftAmount" type="number" min="0.01" step="0.01" value="10"/>
-      <div class="row" style="margin-top:10px">
+      <div class="row mt-10">
         <button class="primary" id="btnGiftRedeem">Canjear gift card</button>
       </div>
       <p class="small" id="giftStatus">—</p>
@@ -99,7 +102,46 @@
         <button id="btnSummary">Ver resumen</button>
         <a class="badge" href="/admin">Registro</a>
       </div>
-      <pre id="summary" class="small" style="white-space:pre-wrap"></pre>
+      <pre id="summary" class="small pre-wrap"></pre>
+    </div>
+
+    <div class="card">
+      <h2>Seguridad de cuenta</h2>
+      <div class="grid">
+        <div class="card compact-card">
+          <h3>Revalidar sesión</h3>
+          <label>Contraseña actual</label>
+          <input id="staffReauthPassword" type="password" placeholder="Contraseña actual"/>
+          <label>Código MFA (si aplica)</label>
+          <input id="staffReauthMfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
+          <div class="row mt-8">
+            <button id="btnStaffReauth">Revalidar</button>
+          </div>
+        </div>
+        <div class="card compact-card">
+          <h3>MFA</h3>
+          <div class="row">
+            <button id="btnStaffMfaEnroll">Generar MFA</button>
+            <button id="btnStaffMfaDisable">Desactivar MFA</button>
+          </div>
+          <label>Código para confirmar MFA</label>
+          <input id="staffMfaConfirmCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
+          <div class="row mt-8">
+            <button id="btnStaffMfaConfirm">Confirmar MFA</button>
+          </div>
+          <pre id="staffMfaSecret" class="small pre-wrap">(sin secreto pendiente)</pre>
+        </div>
+        <div class="card compact-card">
+          <h3>Cuenta</h3>
+          <label>Nuevo correo</label>
+          <input id="staffNewEmail" type="email" placeholder="nuevo-correo@dominio.com"/>
+          <div class="row mt-8">
+            <button id="btnStaffEmailChange">Solicitar cambio</button>
+            <button class="danger" id="btnStaffLockdown">Revocar sesiones</button>
+          </div>
+          <p class="small">El cambio de correo requiere confirmar tokens enviados al correo actual y al nuevo.</p>
+        </div>
+      </div>
     </div>
   </div>
 

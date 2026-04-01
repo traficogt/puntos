@@ -15,9 +15,11 @@ CREATE TABLE IF NOT EXISTS businesses (
   plan TEXT NOT NULL DEFAULT 'EMPRENDEDOR',
   program_type TEXT NOT NULL DEFAULT 'SPEND',
   program_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  customer_branding_json JSONB NOT NULL DEFAULT '{"branding_mode":"endorsed_brand","powered_by_visible":true}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS customer_branding_json JSONB NOT NULL DEFAULT '{"branding_mode":"endorsed_brand","powered_by_visible":true}'::jsonb;
 
 CREATE TABLE IF NOT EXISTS branches (
   id UUID PRIMARY KEY,
@@ -56,6 +58,37 @@ CREATE TABLE IF NOT EXISTS customers (
   UNIQUE (business_id, phone)
 );
 CREATE INDEX IF NOT EXISTS idx_customers_business ON customers(business_id);
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  id UUID PRIMARY KEY,
+  session_token_hash TEXT NOT NULL UNIQUE,
+  actor_type TEXT NOT NULL,
+  actor_id UUID,
+  actor_email TEXT,
+  business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
+  role TEXT,
+  branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
+  impersonated_by TEXT,
+  meta JSONB NOT NULL DEFAULT '{}'::jsonb,
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  idle_expires_at TIMESTAMPTZ NOT NULL,
+  absolute_expires_at TIMESTAMPTZ NOT NULL,
+  invalidated_at TIMESTAMPTZ,
+  invalidation_reason TEXT,
+  reauth_verified_at TIMESTAMPTZ,
+  mfa_verified_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (actor_type IN ('STAFF', 'CUSTOMER', 'SUPER')),
+  CHECK (idle_expires_at <= absolute_expires_at),
+  CHECK (
+    (actor_type = 'SUPER' AND actor_email IS NOT NULL AND actor_id IS NULL AND business_id IS NULL)
+    OR (actor_type IN ('STAFF', 'CUSTOMER') AND actor_id IS NOT NULL AND business_id IS NOT NULL)
+  )
+);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_actor_id ON auth_sessions(actor_type, actor_id);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_actor_email ON auth_sessions(actor_type, actor_email);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_business ON auth_sessions(business_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_expiry ON auth_sessions(invalidated_at, absolute_expires_at, idle_expires_at);
 
 CREATE TABLE IF NOT EXISTS customer_balances (
   customer_id UUID PRIMARY KEY REFERENCES customers(id) ON DELETE CASCADE,
@@ -101,6 +134,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   expired_at TIMESTAMPTZ,
   original_transaction_id UUID,
   reversed_transaction_id UUID,
+  request_id UUID,
   reversal_reason TEXT,
   source TEXT NOT NULL DEFAULT 'online',
   meta JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -114,6 +148,7 @@ ALTER TABLE transactions ADD COLUMN IF NOT EXISTS available_at TIMESTAMPTZ;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS expired_at TIMESTAMPTZ;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS original_transaction_id UUID;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS reversed_transaction_id UUID;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS request_id UUID;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS reversal_reason TEXT;
 ALTER TABLE customer_balances ADD COLUMN IF NOT EXISTS pending_points INT NOT NULL DEFAULT 0;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS birthday DATE;
@@ -125,6 +160,12 @@ CREATE INDEX IF NOT EXISTS idx_txn_expiration ON transactions(status, expired_at
 CREATE UNIQUE INDEX IF NOT EXISTS idx_txn_unique_reversal_per_original
 ON transactions(original_transaction_id)
 WHERE original_transaction_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_txn_business_request_id
+ON transactions(business_id, request_id)
+WHERE request_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_txn_external_event_id
+ON transactions(business_id, (meta->>'external_event_id'))
+WHERE source = 'external' AND meta ? 'external_event_id';
 
 CREATE TABLE IF NOT EXISTS redemptions (
   id UUID PRIMARY KEY,
@@ -133,14 +174,21 @@ CREATE TABLE IF NOT EXISTS redemptions (
   reward_id UUID NOT NULL REFERENCES rewards(id) ON DELETE CASCADE,
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   staff_user_id UUID REFERENCES staff_users(id) ON DELETE SET NULL,
+  request_id UUID,
   code TEXT UNIQUE NOT NULL,
   points_cost INT NOT NULL,
+  balance_after INT,
   status TEXT NOT NULL DEFAULT 'REDEEMED',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   redeemed_at TIMESTAMPTZ
 );
+ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS request_id UUID;
+ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS balance_after INT;
 CREATE INDEX IF NOT EXISTS idx_red_business ON redemptions(business_id);
 CREATE INDEX IF NOT EXISTS idx_red_customer ON redemptions(customer_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_redemptions_business_request_id
+ON redemptions(business_id, request_id)
+WHERE request_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS verify_codes (
   id UUID PRIMARY KEY,
@@ -168,7 +216,7 @@ CREATE TABLE IF NOT EXISTS qr_tokens (
 
 CREATE TABLE IF NOT EXISTS message_logs (
   id UUID PRIMARY KEY,
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
   customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
   channel TEXT NOT NULL,
   to_addr TEXT NOT NULL,
@@ -310,20 +358,67 @@ CREATE TABLE IF NOT EXISTS gift_card_transactions (
   gift_card_id UUID NOT NULL REFERENCES gift_cards(id) ON DELETE CASCADE,
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   staff_user_id UUID REFERENCES staff_users(id) ON DELETE SET NULL,
+  request_id UUID,
   tx_type TEXT NOT NULL,
   amount_q NUMERIC(10,2) NOT NULL,
   balance_after_q NUMERIC(10,2) NOT NULL,
   meta JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE gift_card_transactions ADD COLUMN IF NOT EXISTS request_id UUID;
 CREATE INDEX IF NOT EXISTS idx_gift_card_tx_business ON gift_card_transactions(business_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_gift_card_tx_card ON gift_card_transactions(gift_card_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_gift_card_tx_business_request_id
+ON gift_card_transactions(business_id, request_id)
+WHERE request_id IS NOT NULL;
 
 -- Platform-level settings (super admin)
 CREATE TABLE IF NOT EXISTS platform_settings (
   key TEXT PRIMARY KEY,
   value JSONB NOT NULL DEFAULT '{}'::jsonb,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS auth_action_tokens (
+  id UUID PRIMARY KEY,
+  request_id UUID,
+  actor_type TEXT NOT NULL,
+  actor_id UUID,
+  actor_email TEXT,
+  business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
+  purpose TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  consumed_meta JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (actor_type IN ('STAFF', 'SUPER'))
+);
+CREATE INDEX IF NOT EXISTS idx_auth_action_tokens_actor
+  ON auth_action_tokens(actor_type, actor_id, actor_email, purpose, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_auth_action_tokens_request
+  ON auth_action_tokens(request_id, purpose);
+CREATE INDEX IF NOT EXISTS idx_auth_action_tokens_expiry
+  ON auth_action_tokens(used_at, expires_at);
+
+ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS mfa_secret_enc TEXT;
+ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS mfa_pending_secret_enc TEXT;
+ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS mfa_pending_created_at TIMESTAMPTZ;
+ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS mfa_confirmed_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS super_admin_auth_settings (
+  singleton BOOLEAN PRIMARY KEY DEFAULT true,
+  email TEXT,
+  password_hash TEXT,
+  mfa_enabled BOOLEAN NOT NULL DEFAULT false,
+  mfa_secret_enc TEXT,
+  mfa_pending_secret_enc TEXT,
+  mfa_pending_created_at TIMESTAMPTZ,
+  mfa_confirmed_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (singleton = true)
 );
 
 -- Trigger to update businesses.updated_at

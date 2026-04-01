@@ -1,6 +1,9 @@
+import { clearCustomerCache } from "/idb.js";
 import { loadAll } from "./load.js";
 import { setOnlineBadge } from "./network.js";
 import { createQrController } from "./qr.js";
+import { registerServiceWorker } from "/lib.js";
+import { applyWalletBranding } from "../customer-branding.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
 
@@ -55,20 +58,14 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   if (loginSlugEl) loginSlugEl.value = cachedSlug;
   if (loginPhoneEl) loginPhoneEl.value = cachedPhone;
 
-  const { generateQR } = createQrController({ $, toast });
-
-  safeEl($, "#btnCopyToken")?.addEventListener("click", async () => {
-    const token = safeEl($, "#qrToken")?.value?.trim() || "";
-    if (!token) return toast("Genera el QR primero.");
+  if (cachedSlug) {
     await run(async () => {
-      await navigator.clipboard.writeText(token);
-      toast("Token copiado.");
-    }, () => {
-      safeEl($, "#qrToken")?.focus();
-      safeEl($, "#qrToken")?.select?.();
-      toast("Copia manualmente el token.");
+      const business = await api(`/api/public/business/${encodeURIComponent(cachedSlug)}`);
+      applyWalletBranding($, business);
     });
-  });
+  }
+
+  const { generateQR } = createQrController({ $, toast });
 
   safeEl($, "#btnGoJoin")?.addEventListener("click", () => {
     const slug = (safeEl($, "#slug")?.value || "").trim();
@@ -120,7 +117,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   safeEl($, "#btnLogout")?.addEventListener("click", async () => {
     await api("/api/public/customer/logout", { method: "POST", body: "{}" }).catch(() => {});
     toast("Sesión cerrada.");
-    localStorage.removeItem("pf_me");
+    await clearCustomerCache().catch(() => {});
     setTimeout(() => location.reload(), 600);
   });
 
@@ -144,7 +141,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     await run(async () => {
       await api("/api/customer/me", { method: "DELETE" });
       await api("/api/public/customer/logout", { method: "POST", body: "{}" }).catch(() => {});
-      localStorage.removeItem("pf_me");
+      await clearCustomerCache().catch(() => {});
       toast("Cuenta eliminada.");
       setTimeout(() => location.reload(), 800);
     }, (e) => {
@@ -200,5 +197,5 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   await loadAll({ api, $, toast });
   setOnlineBadge($);
 
-  if ("serviceWorker" in navigator) ignore(navigator.serviceWorker.register("/sw.js"));
+  ignore(registerServiceWorker());
 }

@@ -1,3 +1,6 @@
+import { getAwardQueueStats, requeueSyncingAwards, updateAward, listAwards as listStoredAwards } from "/idb.js";
+import { registerServiceWorker, setHidden } from "/lib.js";
+
 /** @typedef {import("./types.js").StaffAwardResponse} StaffAwardResponse */
 /** @typedef {import("./types.js").StaffGiftRedeemResponse} StaffGiftRedeemResponse */
 /** @typedef {import("./types.js").StaffMeResponse} StaffMeResponse */
@@ -15,10 +18,52 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   let detector = null;
   let lastScannedToken = "";
   let lastScannedAt = 0;
+  let redeemInFlight = false;
+  let giftRedeemInFlight = false;
   /** @type {StaffProgramRule | null} */
   let programRule = null;
   /** @type {Set<string> | null} */
   let permissionSet = null;
+
+  function isAuthError(error) {
+    const code = String(error?.code || "");
+    const message = String(error?.message || "");
+    return code === "AUTH_REQUIRED"
+      || code === "AUTH_INVALID_TOKEN"
+      || code === "FORBIDDEN"
+      || /No autenticado|Token invalido|No autorizado|no auth/i.test(message);
+  }
+
+  function isNetworkFailure(error) {
+    const message = String(error?.message || "");
+    return !navigator.onLine || /NetworkError|Failed to fetch|fetch|abort/i.test(message);
+  }
+
+  function readOfflineSnapshot() {
+    try {
+      const raw = localStorage.getItem("pf_staff_snapshot");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeOfflineSnapshot() {
+    try {
+      localStorage.setItem("pf_staff_snapshot", JSON.stringify({
+        staff,
+        permissions: permissionSet ? [...permissionSet] : [],
+        programRule,
+        updatedAt: new Date().toISOString()
+      }));
+    } catch {}
+  }
+
+  function clearOfflineSnapshot() {
+    try {
+      localStorage.removeItem("pf_staff_snapshot");
+    } catch {}
+  }
 
   /**
    * @template T
@@ -59,24 +104,67 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     return /** @type {HTMLSelectElement} */ ($(selector));
   }
 
-  function redirectToLogin() {
-    toast("Necesitas iniciar sesión.");
+  function setPendingStaffMfa(secret, otpauthUri = "") {
+    const pendingStaffMfaSecret = String(secret || "").trim();
+    const box = element("#staffMfaSecret");
+    if (!pendingStaffMfaSecret) {
+      box.textContent = "(sin secreto pendiente)";
+      return;
+    }
+    box.textContent = `Secreto: ${pendingStaffMfaSecret}${otpauthUri ? `\n\nURI: ${otpauthUri}` : ""}`;
+  }
+
+  function redirectToLogin(message = "Necesitas iniciar sesión.") {
+    toast(message);
     setTimeout(() => location.href = "/staff/login", 600);
-    throw new Error("no auth");
+    return null;
   }
 
   async function refreshQueue() {
     const q = await listAwards();
-    element("#queueBadge").textContent = "Sin conexión: " + q.length;
+    const stats = await getAwardQueueStats();
+    element("#queueBadge").textContent = `Cola: ${stats.total}`;
+    element("#queueMeta").textContent = `Pendientes: ${stats.queued} • Fallidos: ${stats.failed} • Última actividad: ${stats.lastQueuedAt ? new Date(stats.lastQueuedAt).toLocaleTimeString() : "—"}`;
+    element("#queueList").textContent = q.length
+      ? q.slice(-5).reverse().map((award) => {
+        const base = `${new Date(award.updated_at || award.created_at || Date.now()).toLocaleTimeString()} • ${award.status || "queued"} • tx ${award.txId}`;
+        return award.last_error ? `${base} • ${award.last_error}` : base;
+      }).join("\n")
+      : "(sin operaciones pendientes)";
   }
 
   async function ensureAuth() {
-    await run(async () => {
+    return run(async () => {
       const me = /** @type {StaffMeResponse} */ (await api("/api/staff/me"));
       staff = me.staff;
       if (!permissionSet) await loadPermissions();
       if (!programRule) await loadProgramRule();
-    }, redirectToLogin);
+      writeOfflineSnapshot();
+      return true;
+    }, async (error) => {
+      if (isNetworkFailure(error)) {
+        const snapshot = readOfflineSnapshot();
+        if (snapshot?.staff) {
+          staff = snapshot.staff;
+          permissionSet = new Set(snapshot.permissions || []);
+          programRule = snapshot.programRule || null;
+          renderProgramInfo();
+          updateInputsForRule();
+          applyUiPermissions();
+          toast("Modo sin conexión: usando la última sesión guardada.");
+          return true;
+        }
+        return redirectToLogin("Sin conexión y sin sesión guardada.");
+      }
+
+      if (isAuthError(error)) {
+        clearOfflineSnapshot();
+        return redirectToLogin();
+      }
+
+      toast(error?.message || "No se pudo validar la sesión.");
+      return null;
+    });
   }
 
   function hasPerm(p) {
@@ -95,7 +183,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     /** @type {HTMLButtonElement} */ (element("#btnSync")).disabled = !canSync;
 
     // Analytics quick panel remains owner-only because endpoint is owner-only.
-    element("#ownerAnalyticsCard").style.display = staff.role === "OWNER" ? "block" : "none";
+    setHidden(element("#ownerAnalyticsCard"), staff.role !== "OWNER");
   }
 
   async function loadPermissions() {
@@ -296,24 +384,129 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   element("#btnSync").addEventListener("click", async () => {
     await run(async () => {
       await ensureAuth();
-      const queued = await listAwards();
+      const queued = await listStoredAwards({ statuses: ["queued", "failed", "syncing"] });
       if (!queued.length) return toast("Nada que sincronizar.");
+      await Promise.all(queued.map((award) => updateAward(award.txId, { status: "syncing", last_error: "" })));
+      await refreshQueue();
       const out = /** @type {StaffSyncResponse} */ (await api("/api/staff/sync", { method: "POST", body: JSON.stringify({ awards: queued }) }));
       let ok = 0;
       for (const r of out.results) {
-        if (r.ok) { ok++; await deleteAward(r.txId); }
+        if (r.ok) {
+          ok++;
+          await deleteAward(r.txId);
+        } else {
+          const current = queued.find((award) => award.txId === r.txId);
+          await updateAward(r.txId, {
+            status: "failed",
+            last_error: String(r.error || "Error de sincronización"),
+            retry_count: Number(current?.retry_count || 0) + 1
+          });
+        }
       }
       await refreshQueue();
       toast("Sincronizados: " + ok + "/" + queued.length);
     }, (error) => {
+      listStoredAwards({ statuses: ["syncing"] })
+        .then((syncing) => Promise.all(syncing.map((award) => updateAward(award.txId, {
+          status: "failed",
+          last_error: error.message,
+          retry_count: Number(award.retry_count || 0) + 1
+        }))))
+        .then(refreshQueue)
+        .catch(() => {});
       toast(error.message);
     });
   });
 
   element("#btnLogout").addEventListener("click", async () => {
     await api("/api/staff/logout", { method: "POST", body: "{}" }).catch(() => {});
+    clearOfflineSnapshot();
     toast("Sesión cerrada.");
     setTimeout(() => location.href = "/staff/login", 600);
+  });
+
+  element("#btnStaffReauth").addEventListener("click", async () => {
+    await run(async () => {
+      await ensureAuth();
+      const password = input("#staffReauthPassword").value;
+      if (!password) return toast("Escribe tu contraseña actual.");
+      await api("/api/staff/security/reauth", {
+        method: "POST",
+        body: JSON.stringify({
+          password,
+          ...(input("#staffReauthMfaCode").value.trim() ? { mfaCode: input("#staffReauthMfaCode").value.trim() } : {})
+        })
+      });
+      toast("Sesión revalidada.");
+    }, (error) => {
+      toast(error.message);
+    });
+  });
+
+  element("#btnStaffMfaEnroll").addEventListener("click", async () => {
+    await run(async () => {
+      await ensureAuth();
+      const out = await api("/api/staff/security/mfa/enroll", { method: "POST", body: "{}" });
+      setPendingStaffMfa(out.secret, out.otpauth_uri || "");
+      toast("Se generó un secreto MFA. Confirma con el código.");
+    }, (error) => {
+      toast(error.message);
+    });
+  });
+
+  element("#btnStaffMfaConfirm").addEventListener("click", async () => {
+    await run(async () => {
+      await ensureAuth();
+      const code = input("#staffMfaConfirmCode").value.trim();
+      if (!code) return toast("Escribe el código MFA.");
+      await api("/api/staff/security/mfa/confirm", {
+        method: "POST",
+        body: JSON.stringify({ code })
+      });
+      input("#staffMfaConfirmCode").value = "";
+      setPendingStaffMfa("");
+      toast("MFA activado.");
+    }, (error) => {
+      toast(error.message);
+    });
+  });
+
+  element("#btnStaffMfaDisable").addEventListener("click", async () => {
+    await run(async () => {
+      await ensureAuth();
+      await api("/api/staff/security/mfa/disable", { method: "POST", body: "{}" });
+      setPendingStaffMfa("");
+      toast("MFA desactivado.");
+    }, (error) => {
+      toast(error.message);
+    });
+  });
+
+  element("#btnStaffEmailChange").addEventListener("click", async () => {
+    await run(async () => {
+      await ensureAuth();
+      const newEmail = input("#staffNewEmail").value.trim();
+      if (!newEmail) return toast("Escribe el nuevo correo.");
+      await api("/api/staff/security/email-change", {
+        method: "POST",
+        body: JSON.stringify({ newEmail })
+      });
+      toast("Cambio solicitado. Revisa ambos correos.");
+    }, (error) => {
+      toast(error.message);
+    });
+  });
+
+  element("#btnStaffLockdown").addEventListener("click", async () => {
+    await run(async () => {
+      await ensureAuth();
+      await api("/api/staff/security/lockdown", { method: "POST", body: "{}" });
+      clearOfflineSnapshot();
+      toast("Sesiones revocadas por seguridad.");
+      setTimeout(() => location.href = "/staff/login", 600);
+    }, (error) => {
+      toast(error.message);
+    });
   });
 
   async function loadRewards() {
@@ -332,14 +525,21 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
 
   element("#btnRedeem").addEventListener("click", async () => {
     if (!lastCustomerId) return toast("Primero registra/escanea un cliente.");
+    if (redeemInFlight) return;
+    redeemInFlight = true;
     await run(async () => {
       const rewardId = select("#rewardSelect").value;
-      const out = /** @type {StaffRedeemResponse} */ (await api("/api/staff/redeem", { method: "POST", body: JSON.stringify({ customerId: lastCustomerId, rewardId }) }));
+      const out = /** @type {StaffRedeemResponse} */ (await api("/api/staff/redeem", {
+        method: "POST",
+        body: JSON.stringify({ customerId: lastCustomerId, rewardId, requestId: uuidv4() })
+      }));
       element("#redeemCode").textContent = out.redemptionCode;
       element("#lastBalance").textContent = String(out.newBalance);
       toast("Canje listo. Código: " + out.redemptionCode);
     }, (error) => {
       toast(error.message);
+    }).finally(() => {
+      redeemInFlight = false;
     });
   });
 
@@ -353,6 +553,8 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   });
 
   element("#btnGiftRedeem").addEventListener("click", async () => {
+    if (giftRedeemInFlight) return;
+    giftRedeemInFlight = true;
     await run(async () => {
       await ensureAuth();
       const code_or_token = input("#giftCode").value.trim();
@@ -361,13 +563,15 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       if (!(amount_q > 0)) return toast("Monto inválido.");
       const out = /** @type {StaffGiftRedeemResponse} */ (await api("/api/staff/gift-cards/redeem", {
         method: "POST",
-        body: JSON.stringify({ code_or_token, amount_q })
+        body: JSON.stringify({ code_or_token, amount_q, requestId: uuidv4() })
       }));
       const g = out.gift_card;
       element("#giftStatus").textContent = `OK. Saldo restante: Q${Number(g.balance_q || 0).toFixed(2)} (${g.status || "ACTIVE"})`;
       toast("Gift card canjeada.");
     }, (error) => {
       toast(error.message);
+    }).finally(() => {
+      giftRedeemInFlight = false;
     });
   });
 
@@ -376,9 +580,12 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   input("#visits").addEventListener("input", updateAwardPreview);
   input("#items").addEventListener("input", updateAwardPreview);
 
-  await ensureAuth().catch(() => {});
+  await requeueSyncingAwards().catch(() => {});
+  await ensureAuth();
   await refreshQueue();
-  await loadRewards();
+  if (navigator.onLine) {
+    await loadRewards();
+  }
 
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+  registerServiceWorker().catch(() => {});
 }

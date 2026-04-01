@@ -84,6 +84,105 @@ async function listAuditEvents(businessId, { limit, impersonatedOnly, from, to }
   return rows;
 }
 
+async function getAuditEventDetail(businessId, eventId) {
+  const { rows } = await dbQuery(
+    `SELECT
+       a.id,
+       a.created_at,
+       a.actor_type,
+       a.actor_id,
+       a.action,
+       a.meta,
+       s.name AS actor_name,
+       s.email AS actor_email
+     FROM audit_logs a
+     LEFT JOIN staff_users s ON s.id = a.actor_id
+     WHERE a.business_id = $1
+       AND a.id = $2`,
+    [businessId, eventId]
+  );
+  const event = rows[0] ?? null;
+  if (!event) return null;
+
+  const meta = event.meta && typeof event.meta === "object" ? event.meta : {};
+  const detail = { event, linked: {} };
+
+  if (meta.transaction_id) {
+    const tx = await dbQuery(
+      `SELECT
+         t.*,
+         c.name AS customer_name,
+         c.phone AS customer_phone,
+         su.name AS staff_name
+       FROM transactions t
+       LEFT JOIN customers c ON c.id = t.customer_id
+       LEFT JOIN staff_users su ON su.id = t.staff_user_id
+       WHERE t.business_id = $1
+         AND t.id = $2`,
+      [businessId, meta.transaction_id]
+    );
+    detail.linked.transaction = tx.rows[0] ?? null;
+  }
+
+  if (meta.reversal_transaction_id) {
+    const tx = await dbQuery(
+      `SELECT
+         t.*,
+         c.name AS customer_name,
+         c.phone AS customer_phone,
+         su.name AS staff_name
+       FROM transactions t
+       LEFT JOIN customers c ON c.id = t.customer_id
+       LEFT JOIN staff_users su ON su.id = t.staff_user_id
+       WHERE t.business_id = $1
+         AND t.id = $2`,
+      [businessId, meta.reversal_transaction_id]
+    );
+    detail.linked.reversal_transaction = tx.rows[0] ?? null;
+  }
+
+  if (meta.redemption_id) {
+    const redemption = await dbQuery(
+      `SELECT
+         r.*,
+         rw.name AS reward_name,
+         c.name AS customer_name,
+         c.phone AS customer_phone
+       FROM redemptions r
+       JOIN rewards rw ON rw.id = r.reward_id
+       JOIN customers c ON c.id = r.customer_id
+       WHERE r.business_id = $1
+         AND r.id = $2`,
+      [businessId, meta.redemption_id]
+    );
+    detail.linked.redemption = redemption.rows[0] ?? null;
+  }
+
+  if (meta.gift_card_id) {
+    const card = await dbQuery(
+      `SELECT *
+       FROM gift_cards
+       WHERE business_id = $1
+         AND id = $2`,
+      [businessId, meta.gift_card_id]
+    );
+    detail.linked.gift_card = card.rows[0] ?? null;
+  }
+
+  if (meta.gift_card_tx_id) {
+    const tx = await dbQuery(
+      `SELECT *
+       FROM gift_card_transactions
+       WHERE business_id = $1
+         AND id = $2`,
+      [businessId, meta.gift_card_tx_id]
+    );
+    detail.linked.gift_card_transaction = tx.rows[0] ?? null;
+  }
+
+  return detail;
+}
+
 adminAuditRoutes.get(
   "/admin/audit",
   requireStaff,
@@ -101,6 +200,18 @@ adminAuditRoutes.get(
     } = req.validatedQuery;
     const rows = await listAuditEvents(req.tenantId, { limit, impersonatedOnly, from, to });
     return res.json({ ok: true, events: rows });
+  })
+);
+
+adminAuditRoutes.get(
+  "/admin/audit/:id",
+  requireStaff,
+  requireOwner,
+  tenantContext,
+  asyncRoute(async (req, res) => {
+    const detail = await getAuditEventDetail(req.tenantId, String(req.params.id || ""));
+    if (!detail) return res.status(404).json({ error: "Audit event not found" });
+    return res.json({ ok: true, ...detail });
   })
 );
 

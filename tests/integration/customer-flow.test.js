@@ -1,14 +1,21 @@
 process.env.NODE_ENV = "test";
+process.env.DB_HOST = "localhost";
+process.env.DB_NAME = "puntos";
+process.env.DB_USER = "puntos";
+process.env.DB_PASSWORD_FILE = "";
+process.env.DB_PASSWORD = "test-db-password-12345";
+process.env.JWT_SECRET_FILE = "";
+process.env.JWT_SECRET = "test-jwt-secret-abcdefghijklmnopqrstuvwxyz";
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
 
-import { customerRoutes } from "../../src/app/routes/customer-routes.js";
-import { publicRoutes } from "../../src/app/routes/public-routes.js";
-import { signCustomerToken } from "../../src/utils/auth-token.js";
-import { config } from "../../src/config/index.js";
-import { pool } from "../../src/app/database.js";
+const { customerRoutes } = await import("../../src/app/routes/customer-routes.js");
+const { publicRoutes } = await import("../../src/app/routes/public-routes.js");
+const { signCustomerToken } = await import("../../src/utils/auth-token.js");
+const { config } = await import("../../src/config/index.js");
+const { pool } = await import("../../src/app/database.js");
 
 // Ensure downstream guards treat this as test environment
 config.NODE_ENV = "test";
@@ -22,15 +29,26 @@ if (!config.QR_PRIVATE_KEY_PEM || !config.QR_PUBLIC_KEY_PEM) {
 pool.end().catch(() => {});
 pool.query = async () => ({ rows: [] });
 pool.connect = async () => ({ query: pool.query, release() {} });
-import { CustomerRepo } from "../../src/app/repositories/customer-repository.js";
-import { BusinessRepo } from "../../src/app/repositories/business-repository.js";
-import { TxnRepo } from "../../src/app/repositories/transaction-repository.js";
-import { RedemptionRepo } from "../../src/app/repositories/redemption-repository.js";
+const { CustomerRepo } = await import("../../src/app/repositories/customer-repository.js");
+const { BusinessRepo } = await import("../../src/app/repositories/business-repository.js");
+const { TxnRepo } = await import("../../src/app/repositories/transaction-repository.js");
+const { RedemptionRepo } = await import("../../src/app/repositories/redemption-repository.js");
 
 // Stub data
 const businessId = "biz-test";
 const customerId = "cust-test";
-const business = { id: businessId, name: "Test Biz", slug: "test-biz" };
+const business = {
+  id: businessId,
+  name: "Test Biz",
+  slug: "test-biz",
+  customer_branding_json: {
+    branding_mode: "endorsed_brand",
+    customer_program_name: "Recompensas Test Biz",
+    primary_color: "#6D3524",
+    accent_color: "#D7A554",
+    powered_by_visible: true
+  }
+};
 const customer = {
   id: customerId,
   business_id: businessId,
@@ -66,8 +84,10 @@ function makeRes() {
   const res = {
     statusCode: 200,
     headers: {},
+    clearedCookies: [],
     body: null,
     setHeader(name, value) { this.headers[name.toLowerCase()] = value; },
+    clearCookie(name) { this.clearedCookies.push(name); return this; },
     status(code) { this.statusCode = code; return this; },
     json(payload) { this.body = payload; this.sent = true; return this; },
     send(payload) { this.body = payload; this.sent = true; return this; }
@@ -130,6 +150,7 @@ describe("customer happy path flow (no network/listen)", () => {
     assert.equal(resMe.statusCode, 200);
     assert.equal(resMe.body.customer.id, customerId);
     assert.equal(resMe.body.business.id, businessId);
+    assert.equal(resMe.body.business.customer_branding.customer_program_name, "Recompensas Test Biz");
 
     // /public/customer/qr.svg
     const reqQr = makeReq("/api/public/customer/qr.svg");
@@ -146,5 +167,24 @@ describe("customer happy path flow (no network/listen)", () => {
     assert.ok((resQr.headers["content-type"] || "").includes("image/svg+xml"));
     assert.ok(resQr.headers["x-qr-exp"]);
     assert.ok(String(resQr.body || resQr.sent ? "" : "").includes("<svg") || String(resQr.body || "").includes("<svg"));
+  });
+
+  it("clears stale customer auth when the customer no longer exists", async () => {
+    const token = await tokenPromise;
+    const cookieName = config.CUSTOMER_COOKIE_NAME;
+    const originalGetById = CustomerRepo.getById;
+    CustomerRepo.getById = async () => null;
+
+    try {
+      const req = makeReq("/api/customer/history");
+      req.cookies[cookieName] = token;
+      const res = makeRes();
+      const handlers = extractHandlers(customerRoutes, "/customer/history");
+      await runHandlers(handlers, req, res);
+      assert.equal(res.statusCode, 404);
+      assert.deepEqual(res.clearedCookies, [cookieName]);
+    } finally {
+      CustomerRepo.getById = originalGetById;
+    }
   });
 });

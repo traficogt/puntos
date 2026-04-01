@@ -1,0 +1,59 @@
+      <div class="tab-content" id="branding-content">
+        <div class="card">
+          <h2>Branding de clientes</h2>
+          <p class="small">Define cómo se verá el programa para clientes en la página de registro y en su wallet. La estructura se mantiene igual; aquí solo cambias intensidad de marca y contenido visible.</p>
+          <div class="grid">
+            <div class="card">
+              <label>Modo de marca</label>
+              <select id="brandingMode">
+                <option value="platform_led">PuntosFieles visible</option>
+                <option value="endorsed_brand">Negocio + Powered by</option>
+                <option value="white_label_ready">Negocio al frente</option>
+              </select>
+              <p class="small" id="brandingModeHint">La experiencia mostrará el negocio y mantendrá a PuntosFieles como respaldo visible.</p>
+
+              <label>Nombre del programa</label>
+              <input id="brandingProgramName" placeholder="Ej: Recompensas Café Bourbon"/>
+
+              <label>Logo del negocio (URL)</label>
+              <input id="brandingLogoUrl" placeholder="https://cdn.tunegocio.com/logo.png"/>
+
+              <label>Color principal</label>
+              <input id="brandingPrimaryColor" placeholder="#6D3524"/>
+
+              <label>Color acento</label>
+              <input id="brandingAccentColor" placeholder="#D7A554"/>
+
+              <label>Tema neutral</label>
+              <select id="brandingNeutralTheme">
+                <option value="warm">Cálido</option>
+                <option value="neutral">Neutral</option>
+                <option value="cool">Frío</option>
+              </select>
+
+              <label>
+                <input type="checkbox" id="brandingPoweredByVisible" checked/>
+                Mostrar “Powered by PuntosFieles”
+              </label>
+
+              <label>Titular del wallet</label>
+              <input id="brandingWalletHeadline" placeholder="Tus puntos en un solo lugar"/>
+
+              <label>Titular de registro</label>
+              <input id="brandingJoinHeadline" placeholder="Únete y gana beneficios"/>
+
+              <div class="row mt-10">
+                <button class="primary" id="btnSaveBranding">Guardar branding</button>
+                <button id="btnReloadBranding">Recargar</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>Vista rápida</h3>
+              <p class="small" id="brandingSummary">Cargando branding...</p>
+              <div class="hr"></div>
+              <p class="small">Este módulo prepara la base para subdominios y white label más adelante, pero hoy solo modifica la identidad visible al cliente.</p>
+            </div>
+          </div>
+        </div>
+      </div>

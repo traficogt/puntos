@@ -3,56 +3,131 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="theme-color" content="#f8f2e8"/>
+  <meta name="theme-color" content="#0d0a07"/>
   <title>PuntosFieles</title>
   <link rel="manifest" href="/manifest.webmanifest"/>
   <link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/styles.css"/>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
-<body>
+<body class="page-marketing">
   <div class="nav">
-    <div class="brand">🎁 PuntosFieles</div>
-    <div class="row">
-      <a class="badge" href="/admin">Registrar negocio</a>
-      <a class="badge" href="/staff/login">Personal</a>
-      <a class="badge" href="/c">Mi tarjeta</a>
-    </div>
+    <a href="/" class="brand brand-stack">
+      <span class="brand-kicker">Lealtad que sí se siente</span>
+      <span class="brand-title">PuntosFieles</span>
+    </a>
   </div>
 
   <div class="container">
-    <div class="card hero">
-      <h1>Convierte clientes en fans</h1>
-      <p>Sistema de lealtad con QR y modo offline. Diseñado para Guatemala. Sin Twilio.</p>
-      <div class="grid">
-        <div class="card">
-          <h2>Negocios</h2>
-          <p>Crea recompensas, escanea QR, analiza visitas y canjes.</p>
-          <div class="row">
-            <a class="badge" href="/admin">Crear cuenta</a>
-            <a class="badge" href="/staff/login">Entrar personal</a>
+    <section class="marketing-hero">
+      <div class="marketing-hero-intro">
+        <p class="section-kicker">Para cafés, restaurantes y salones de belleza</p>
+        <h1>Lealtad que se ve premium y opera sin fricción.</h1>
+      </div>
+      <div class="marketing-hero-split">
+        <div class="marketing-copy">
+          <p class="lede">QR de un solo uso, panel operativo, recompensas, retos y analítica. Pensado para Guatemala.</p>
+          <div class="hero-stat-band">
+            <div class="stat-chip">
+              <strong>1 min</strong>
+              <span>para emitir un QR seguro</span>
+            </div>
+            <div class="stat-chip">
+              <strong>3 roles</strong>
+              <span>cliente, staff y dueño</span>
+            </div>
+            <div class="stat-chip">
+              <strong>Modo fuera de línea</strong>
+              <span>para no frenar caja</span>
+            </div>
           </div>
         </div>
-        <div class="card">
-          <h2>Clientes</h2>
-          <p>Tu tarjeta vive en tu celular (PWA). Genera tu QR para ganar puntos.</p>
-          <div class="row">
-            <a class="badge" href="/c">Ver mi tarjeta</a>
+
+        <div class="marketing-panel">
+          <div class="panel-shell">
+            <div class="panel-card-head">
+              <div>
+                <p class="micro-label">Programa activo</p>
+                <div class="mini-title">Café Bourbon</div>
+              </div>
+              <span class="panel-tier">Oro ✦</span>
+            </div>
+            <div class="panel-pts">
+              <span class="panel-pts-num">340</span>
+              <span class="panel-pts-label">puntos</span>
+            </div>
+            <div class="mini-reward-list">
+              <div class="mini-reward mini-reward-next">
+                <span>Próxima recompensa</span>
+                <strong>Americano gratis</strong>
+              </div>
+              <div class="mini-reward">
+                <span>Nivel Oro · 1.4×</span>
+                <strong>+20 pts referido</strong>
+              </div>
+            </div>
           </div>
-          <p class="small">Para registrarte, escanea el QR del negocio (link /join/&lt;slug&gt;).</p>
         </div>
       </div>
-    </div>
+    </section>
+  </div>
 
-    <div class="card">
-      <h2>Links útiles</h2>
-      <p>Imprime QR hacia:</p>
-      <ul>
-        <li><code>/join/&lt;slug-negocio&gt;</code> — registro de clientes</li>
-        <li><code>/staff/login</code> — ingreso de personal</li>
-        <li><code>/c</code> — tarjeta del cliente</li>
-      </ul>
+  <div class="marketing-body">
+    <div class="container">
+      <section class="marketing-grid reveal">
+        <article class="feature-stage feature-stage-owner">
+          <p class="section-kicker">Para dueños</p>
+          <h2>Opera recompensas, personal y sucursales sin pelear con la interfaz.</h2>
+          <p>El panel prioriza lo que mueve caja: recompensas activas, equipos, campañas, retos y señales de comportamiento.</p>
+          <div class="row">
+            <a class="button-link button-link-secondary" href="/admin">Acceder al panel</a>
+            <a class="ghost-link ghost-link-strong" href="/staff/login">Entrar como personal</a>
+          </div>
+        </article>
+
+        <article class="feature-stage feature-stage-customer">
+          <p class="section-kicker">Para clientes</p>
+          <h2>La tarjeta vive en el celular y se siente como un beneficio, no como un trámite.</h2>
+          <p>Registro por enlace compartido por el negocio. QR rotativo, niveles, referidos y recompensas claras. Todo desde el navegador, sin descargar nada.</p>
+        </article>
+      </section>
+
+      <section class="contact-section reveal d2">
+        <div class="contact-intro">
+          <p class="section-kicker">Contacto</p>
+          <h2>¿Listo para arrancar?</h2>
+          <p>Cuéntanos sobre tu negocio y encontramos la mejor forma de ayudarte.</p>
+        </div>
+        <form class="contact-form" id="contactForm" novalidate>
+          <div class="contact-field">
+            <label for="cfName">Nombre</label>
+            <input id="cfName" name="name" type="text" placeholder="Tu nombre" autocomplete="name" maxlength="100"/>
+          </div>
+          <div class="contact-field">
+            <label for="cfContact">Correo o teléfono</label>
+            <input id="cfContact" name="contact" type="text" placeholder="correo@ejemplo.com" autocomplete="email" maxlength="200"/>
+          </div>
+          <div class="contact-field">
+            <label for="cfMessage">Mensaje</label>
+            <textarea id="cfMessage" name="message" placeholder="Cuéntanos sobre tu negocio..." rows="4" maxlength="2000"></textarea>
+          </div>
+          <div class="cf-turnstile" data-sitekey="0x4AAAAAACxpjwCi9p0pY8BF" data-theme="light"></div>
+          <button type="submit" class="button-link button-link-primary contact-submit" id="contactSubmit">Enviar mensaje</button>
+          <p class="contact-status" id="contactStatus" aria-live="polite"></p>
+        </form>
+      </section>
     </div>
   </div>
+
+  <footer class="marketing-footer">
+    <div class="container">
+      <span class="marketing-footer-copy">Creado por <a href="https://viasolvia.com" target="_blank" rel="noopener noreferrer" class="marketing-footer-link"><svg class="viasolvia-mark" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M5 4V20H20" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><circle cx="5" cy="4" r="2.5" fill="currentColor"/><circle cx="20" cy="20" r="2.5" fill="currentColor"/></svg>Viasolvia</a></span>
+    </div>
+  </footer>
 
   <div id="toast" class="toast"></div>
   <script type="module" src="/index.js"></script>

@@ -13,8 +13,17 @@ import { settlePendingPointsForCustomer, expirePointsForCustomer } from "../serv
 import { logger } from "../../utils/logger.js";
 import { config } from "../../config/index.js";
 import { tenantContext } from "../../middleware/tenant.js";
+import { invalidateBrowserSessionById, invalidateBrowserSessionsForActor } from "../services/auth-session-service.js";
 
 export const customerRoutes = Router();
+
+function rejectMissingCustomer(req, res) {
+  if (req.authSession?.id) {
+    void invalidateBrowserSessionById(req.authSession.id, "customer_missing").catch(() => {});
+  }
+  res.clearCookie(config.CUSTOMER_COOKIE_NAME, { path: "/" });
+  res.status(404).json({ error: "Customer not found" });
+}
 
 customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(async (req, res) => {
   if (!req.tenantId) return res.status(400).json({ error: "Tenant context missing", code: "TENANT_REQUIRED" });
@@ -28,11 +37,17 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
     });
   }
   const customer = await CustomerRepo.getById(auth.id);
-  if (!customer || customer.business_id !== auth.business_id) return res.status(404).json({ error: "Customer not found" });
+  if (!customer || customer.business_id !== auth.business_id) return rejectMissingCustomer(req, res);
   const business = await BusinessRepo.getById(req.tenantId);
+  if (!business || business.id !== auth.business_id) return rejectMissingCustomer(req, res);
   res.json({
     ok: true,
-    business: { id: business.id, name: business.name, slug: business.slug },
+    business: {
+      id: business.id,
+      name: business.name,
+      slug: business.slug,
+      customer_branding: business.customer_branding_json ?? null
+    },
     customer: {
       id: customer.id,
       phone: customer.phone,
@@ -48,6 +63,8 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
 
 customerRoutes.get("/customer/history", requireCustomer, tenantContext, asyncRoute(async (req, res) => {
   const auth = req.customerAuth;
+  const customer = await CustomerRepo.getById(auth.id);
+  if (!customer || customer.business_id !== auth.business_id) return rejectMissingCustomer(req, res);
   const tx = await TxnRepo.listByCustomer(auth.id, 50);
   const red = await RedemptionRepo.listByCustomer(auth.id, 50);
   res.json({ ok: true, transactions: tx, redemptions: red });
@@ -55,6 +72,8 @@ customerRoutes.get("/customer/history", requireCustomer, tenantContext, asyncRou
 
 customerRoutes.get("/customer/rewards", requireCustomer, tenantContext, requirePlanFeature("rewards"), asyncRoute(async (req, res) => {
   const auth = req.customerAuth;
+  const customer = await CustomerRepo.getById(auth.id);
+  if (!customer || customer.business_id !== auth.business_id) return rejectMissingCustomer(req, res);
   const rewards = await RewardRepo.listByBusiness(auth.business_id);
   res.json({ ok: true, rewards: rewards.filter(r => r.active) });
 }));
@@ -62,6 +81,7 @@ customerRoutes.get("/customer/rewards", requireCustomer, tenantContext, requireP
 customerRoutes.get("/customer/export", requireCustomer, tenantContext, requirePlanFeature("customer_export"), asyncRoute(async (req, res) => {
   const auth = req.customerAuth;
   const customer = await CustomerRepo.getById(auth.id);
+  if (!customer || customer.business_id !== auth.business_id) return rejectMissingCustomer(req, res);
   const tx = await TxnRepo.listByCustomer(auth.id, 200);
   const red = await RedemptionRepo.listByCustomer(auth.id, 200);
 
@@ -84,5 +104,11 @@ customerRoutes.get("/customer/export", requireCustomer, tenantContext, requirePl
 customerRoutes.delete("/customer/me", csrfProtect, requireCustomer, tenantContext, asyncRoute(async (req, res) => {
   const auth = req.customerAuth;
   await CustomerRepo.softDelete(auth.id);
+  await invalidateBrowserSessionsForActor({
+    actorType: "CUSTOMER",
+    actorId: auth.id,
+    reason: "customer_deleted"
+  }).catch(() => {});
+  res.clearCookie(config.CUSTOMER_COOKIE_NAME, { path: "/" });
   res.json({ ok: true });
 }));

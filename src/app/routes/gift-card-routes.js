@@ -6,19 +6,20 @@ import { validateQuery } from "../../utils/schemas.js";
 import { requireStaff } from "../../middleware/auth.js";
 import { csrfProtect } from "../../middleware/csrf.js";
 import { requirePlanFeature } from "../../middleware/plan-feature.js";
-import { createGiftCard, giftCardDetails, listGiftCards, redeemGiftCard } from "../services/gift-card-service.js";
+import { createGiftCard, giftCardDetails, giftCardLedgerDetails, listGiftCards, redeemGiftCard } from "../services/gift-card-service.js";
 import { tenantContext } from "../../middleware/tenant.js";
 
 const router = Router();
 
-const CreateGiftCardSchema = z.object({
+export const CreateGiftCardSchema = z.object({
   amount_q: z.number().positive(),
   issued_to_name: z.string().max(120).optional(),
   issued_to_phone: z.string().min(6).max(30).optional(),
-  expires_at: z.string().datetime().optional()
+  expires_at: z.string().datetime().optional(),
+  requestId: z.string().uuid()
 });
 
-const GiftCardListQuerySchema = z.object({
+export const GiftCardListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50)
 });
 
@@ -35,10 +36,11 @@ router.post("/admin/gift-cards", csrfProtect, requireStaff, tenantContext, requi
   res.status(201).json({ ok: true, gift_card: card });
 }));
 
-const RedeemGiftCardSchema = z.object({
+export const RedeemGiftCardSchema = z.object({
   code_or_token: z.string().min(4).max(200),
   amount_q: z.number().positive(),
-  note: z.string().max(200).optional()
+  note: z.string().max(200).optional(),
+  requestId: z.string().uuid()
 });
 
 router.post("/staff/gift-cards/redeem", csrfProtect, requireStaff, tenantContext, requirePlanFeature("gift_cards"), asyncRoute(async (req, res) => {
@@ -50,6 +52,11 @@ router.post("/staff/gift-cards/redeem", csrfProtect, requireStaff, tenantContext
 
 router.get("/staff/gift-cards/:codeOrToken", requireStaff, tenantContext, requirePlanFeature("gift_cards"), asyncRoute(async (req, res) => {
   const details = await giftCardDetails({ staff: req.staff, code_or_token: String(req.params.codeOrToken || "") });
+  res.json({ ok: true, ...details });
+}));
+
+router.get("/admin/gift-cards/:codeOrToken/ledger", requireStaff, tenantContext, requirePlanFeature("gift_cards"), asyncRoute(async (req, res) => {
+  const details = await giftCardLedgerDetails({ staff: req.staff, code_or_token: String(req.params.codeOrToken || "") });
   res.json({ ok: true, ...details });
 }));
 

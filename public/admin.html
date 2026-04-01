@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#f8f2e8"/>
   <title>Registrar negocio • PuntosFieles</title>
   <link rel="stylesheet" href="/styles.css"/>
+  <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
 <body>
   <div class="nav">
@@ -26,7 +27,7 @@
         <div class="step-pill">3. Publicar</div>
       </div>
       <div class="onboarding-progress-wrap">
-        <div id="adminOnboardingProgress" class="onboarding-progress-bar"></div>
+        <progress id="adminOnboardingProgress" class="onboarding-progress-bar" max="100" value="25"></progress>
       </div>
 
       <div class="grid">
@@ -42,8 +43,8 @@
           <input id="phone" placeholder="55551234"/>
 
           <label>Contraseña</label>
-          <input id="password" type="password" placeholder="8+ con mayúscula, número y símbolo"/>
-          <p id="passwordHint" class="small">Usa 8+ caracteres con mayúscula, minúscula, número y símbolo.</p>
+          <input id="password" type="password" placeholder="8+ caracteres"/>
+          <p id="passwordHint" class="small">Usa 8 a 128 caracteres. Evita claves comunes o fáciles de adivinar.</p>
 
           <label>Categoría</label>
           <select id="category">
@@ -76,12 +77,12 @@
             </select>
           </div>
 
-          <div id="visitBox" style="display:none">
+          <div id="visitBox" class="is-hidden">
             <label>Puntos por visita</label>
             <input id="points_per_visit" type="number" step="1" value="10"/>
           </div>
 
-          <div id="itemBox" style="display:none">
+          <div id="itemBox" class="is-hidden">
             <label>Puntos por item</label>
             <input id="points_per_item" type="number" step="1" value="1"/>
           </div>
@@ -93,7 +94,7 @@
       </div>
     </div>
 
-    <div class="card" id="result" style="display:none">
+    <div class="card is-hidden" id="result">
       <h2>Listo ✅</h2>
       <p>Tu <b>slug del negocio</b> es: <code id="slug"></code></p>
       <p>Imprime un QR hacia:</p>

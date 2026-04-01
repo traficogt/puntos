@@ -16,22 +16,16 @@ export function registerTiersModule(app) {
 
       data.tiers.forEach((tier) => {
         const div = document.createElement("div");
-        div.className = "card";
-        div.style.marginBottom = "12px";
+        div.className = "card mb-12";
 
-        const color = app.safeColor(tier.color, "#ddd");
         const top = document.createElement("div");
-        top.className = "row";
-        top.style.alignItems = "center";
-        top.style.justifyContent = "space-between";
+        top.className = "row row-between align-center";
 
         const badge = document.createElement("div");
         badge.className = "tier-badge";
-        badge.style.background = color;
-        badge.style.color = "#000";
 
         const icon = document.createElement("span");
-        icon.style.fontSize = "24px";
+        icon.className = "text-24-strong";
         icon.textContent = tier.icon_url || "⭐";
         badge.appendChild(icon);
 
@@ -45,8 +39,7 @@ export function registerTiersModule(app) {
         badge.appendChild(textWrap);
 
         const actions = document.createElement("div");
-        actions.className = "row";
-        actions.style.gap = "8px";
+        actions.className = "row gap-8";
 
         const count = document.createElement("span");
         count.className = "badge";
@@ -68,8 +61,7 @@ export function registerTiersModule(app) {
 
         if (Array.isArray(tier.perks) && tier.perks.length > 0) {
           const perks = document.createElement("div");
-          perks.className = "small";
-          perks.style.marginTop = "8px";
+          perks.className = "small mt-8";
           const strong = document.createElement("strong");
           strong.textContent = "Beneficios: ";
           perks.appendChild(strong);
@@ -106,7 +98,7 @@ export function registerTiersModule(app) {
       $("#tierColor").value = tier.color || "";
       $("#tierIcon").value = tier.icon_url || "";
       $("#tierPerks").value = tier.perks ? tier.perks.join("\n") : "";
-      $("#tierModal").style.display = "block";
+      $("#tierModal").hidden = false;
     } catch (e) {
       toast("Error: " + e.message);
     }
@@ -138,7 +130,7 @@ export function registerTiersModule(app) {
         toast("Nivel creado");
       }
 
-      $("#tierModal").style.display = "none";
+      $("#tierModal").hidden = true;
       await loadTiers();
     } catch (e) {
       toast("Error: " + e.message);
@@ -169,13 +161,13 @@ export function registerTiersModule(app) {
     $("#tierColor").value = "";
     $("#tierIcon").value = "";
     $("#tierPerks").value = "";
-    $("#tierModal").style.display = "block";
+    $("#tierModal").hidden = false;
   }
 
   app.onAfterPlanReady(() => {
     $("#btnAddTier")?.addEventListener("click", openNewTierModal);
     $("#btnSaveTier")?.addEventListener("click", () => saveTier().catch(() => {}));
-    $("#btnCancelTier")?.addEventListener("click", () => { $("#tierModal").style.display = "none"; });
+    $("#btnCancelTier")?.addEventListener("click", () => { $("#tierModal").hidden = true; });
   });
 
   app.registerTab("tiers", {

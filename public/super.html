@@ -6,13 +6,14 @@
   <meta name="theme-color" content="#f8f2e8"/>
   <title>Super administración • PuntosFieles</title>
   <link rel="stylesheet" href="/styles.css"/>
+  <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
 <body>
   <div class="nav">
     <div class="brand">🛡️ Super administración</div>
     <div class="row">
       <a class="badge" href="/">Inicio</a>
-      <button id="btnLogout" style="display:none">Cerrar sesión</button>
+      <button id="btnLogout" class="is-hidden">Cerrar sesión</button>
     </div>
   </div>
 
@@ -24,28 +25,82 @@
       <input id="email" type="email" placeholder="tu-correo@dominio.com"/>
       <label>Contraseña</label>
       <input id="password" type="password" placeholder="******"/>
-      <div class="row" style="margin-top:12px">
+      <label>Código MFA (si aplica)</label>
+      <input id="loginMfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
+      <div class="row mt-12">
         <button class="primary" id="btnLogin">Ingresar</button>
       </div>
+      <div class="hr"></div>
+      <h3>Recuperación</h3>
+      <div class="row">
+        <button id="btnRequestSuperReset">Enviar token de reset</button>
+      </div>
+      <label>Token de reset</label>
+      <input id="superResetToken" placeholder="Token recibido"/>
+      <label>Nueva contraseña</label>
+      <input id="superResetPassword" type="password" placeholder="8+ caracteres"/>
+      <div class="row mt-8">
+        <button id="btnConfirmSuperReset">Cambiar contraseña</button>
+      </div>
+      <label>Token de confirmación de correo</label>
+      <input id="superEmailToken" placeholder="Token recibido"/>
+      <div class="row mt-8">
+        <button id="btnConfirmSuperEmail">Confirmar correo</button>
+      </div>
     </div>
 
-    <div class="card" id="mainCard" style="display:none">
+    <div class="card is-hidden" id="mainCard">
       <h2>Planes y funcionalidades</h2>
       <p class="small">Activa o desactiva funcionalidades por plan. Cambios aplican a todos los negocios en ese plan.</p>
-      <div id="planMatrix" class="small" style="margin-bottom:12px">(cargando...)</div>
+      <div id="planMatrix" class="small mb-12">(cargando...)</div>
     </div>
 
-    <div class="card" id="securityCard" style="display:none">
+    <div class="card is-hidden" id="securityCard">
       <h2>Postura de seguridad (24h)</h2>
       <p class="small">Eventos recientes de riesgo a nivel plataforma.</p>
-      <div class="row" style="margin-bottom:8px">
+      <div class="row mb-8">
         <button id="btnRotateSecrets">Rotar secretos cifrados ahora</button>
       </div>
+      <div class="grid mb-12">
+        <div class="card compact-card">
+          <h3>Revalidar sesión</h3>
+          <label>Contraseña actual</label>
+          <input id="superReauthPassword" type="password" placeholder="Contraseña actual"/>
+          <label>Código MFA (si aplica)</label>
+          <input id="superReauthMfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
+          <div class="row mt-8">
+            <button id="btnSuperReauth">Revalidar</button>
+          </div>
+        </div>
+        <div class="card compact-card">
+          <h3>MFA</h3>
+          <div class="row">
+            <button id="btnSuperMfaEnroll">Generar MFA</button>
+            <button id="btnSuperMfaDisable">Desactivar MFA</button>
+          </div>
+          <label>Código para confirmar MFA</label>
+          <input id="superMfaConfirmCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
+          <div class="row mt-8">
+            <button id="btnSuperMfaConfirm">Confirmar MFA</button>
+          </div>
+          <pre id="superMfaSecret" class="small pre-wrap">(sin secreto pendiente)</pre>
+        </div>
+        <div class="card compact-card">
+          <h3>Cuenta</h3>
+          <label>Nuevo correo</label>
+          <input id="superNewEmail" type="email" placeholder="nuevo-correo@dominio.com"/>
+          <div class="row mt-8">
+            <button id="btnSuperEmailChange">Solicitar cambio</button>
+            <button class="danger" id="btnSuperLockdown">Revocar sesiones</button>
+          </div>
+          <p class="small">El cambio de correo requiere confirmar tokens enviados al correo actual y al nuevo.</p>
+        </div>
+      </div>
       <div class="grid" id="securityCounters"></div>
-      <pre id="securityRecent" class="small" style="max-height:260px;overflow:auto;margin-top:10px"></pre>
+      <pre id="securityRecent" class="small max-h-260 overflow-auto mt-10"></pre>
     </div>
 
-    <div class="card" id="businessCard" style="display:none">
+    <div class="card is-hidden" id="businessCard">
       <h2>Negocios</h2>
       <p class="small">Puedes cambiar plan por negocio (controla funcionalidades por suscripción) e impersonar OWNER/MANAGER para soporte.</p>
       <div class="grid">
@@ -58,7 +113,7 @@
           <label>Teléfono (opcional)</label>
           <input id="newBusinessPhone" placeholder="55551234"/>
           <label>Contraseña owner</label>
-          <input id="newBusinessPassword" type="password" placeholder="8+ con mayúscula, número y símbolo"/>
+          <input id="newBusinessPassword" type="password" placeholder="8+ caracteres"/>
           <label>Categoría</label>
           <select id="newBusinessCategory">
             <option value="cafe">Café</option>
@@ -72,7 +127,7 @@
             <option value="NEGOCIO">NEGOCIO</option>
             <option value="EMPRESA">EMPRESA</option>
           </select>
-          <button class="primary" id="btnCreateBusiness" style="margin-top:10px">Crear negocio</button>
+          <button class="primary mt-10" id="btnCreateBusiness">Crear negocio</button>
         </div>
         <div class="card">
           <h3>Crear usuario en negocio</h3>
@@ -91,12 +146,12 @@
             <option value="OWNER">Dueño</option>
           </select>
           <label>Contraseña</label>
-          <input id="newUserPassword" type="password" placeholder="8+ con mayúscula, número y símbolo"/>
-          <button class="primary" id="btnCreateBusinessUser" style="margin-top:10px">Crear usuario</button>
+          <input id="newUserPassword" type="password" placeholder="8+ caracteres"/>
+          <button class="primary mt-10" id="btnCreateBusinessUser">Crear usuario</button>
           <p class="small" id="newUserHint"></p>
         </div>
       </div>
-      <div class="row" style="margin-bottom:8px">
+      <div class="row mb-8">
         <button id="btnReload">Recargar</button>
       </div>
       <div id="businesses" class="small">(sin datos)</div>

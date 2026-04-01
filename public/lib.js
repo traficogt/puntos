@@ -46,7 +46,10 @@ export async function api(path, opts = {}) {
   if (!res.ok) {
     const code = typeof data?.code === "string" ? data.code : "";
     const requestId = data?.request_id || res.headers.get("x-request-id") || "";
-    let err = ERROR_BY_CODE[code] || data?.error || `HTTP ${res.status}`;
+    const rawError = typeof data?.error === "string" ? data.error : "";
+    let err = rawError === "MFA_REQUIRED"
+      ? "Se requiere código MFA"
+      : (ERROR_BY_CODE[code] || data?.error || `HTTP ${res.status}`);
     if (err && typeof err === "object") {
       const formErrors = Array.isArray(err.formErrors) ? err.formErrors.filter(Boolean) : [];
       const fieldErrors = err.fieldErrors && typeof err.fieldErrors === "object" ? err.fieldErrors : {};
@@ -99,6 +102,60 @@ export async function api(path, opts = {}) {
 export function $(sel) { return document.querySelector(sel); }
 export function $all(sel) { return [...document.querySelectorAll(sel)]; }
 
+export function setHidden(el, hidden) {
+  if (!el) return;
+  const nextHidden = Boolean(hidden);
+  el.hidden = nextHidden;
+  el.classList.toggle("is-hidden", nextHidden);
+  if (nextHidden) {
+    el.setAttribute("aria-hidden", "true");
+  } else {
+    el.removeAttribute("aria-hidden");
+  }
+}
+
+export function registerServiceWorker() {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+    return Promise.resolve();
+  }
+  if (typeof location !== "undefined") {
+    const params = new URLSearchParams(location.search || "");
+    if (params.get("sw") === "off") {
+      return Promise.resolve(null);
+    }
+  }
+
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    refreshing = true;
+    location.reload();
+  });
+
+  return navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" })
+    .then((registration) => {
+      registration.update().catch(() => {});
+
+      if (registration.waiting) {
+        registration.waiting.postMessage({ type: "SKIP_WAITING" });
+      }
+
+      registration.addEventListener("updatefound", () => {
+        const worker = registration.installing;
+        if (!worker) return;
+
+        worker.addEventListener("statechange", () => {
+          if (worker.state === "installed" && navigator.serviceWorker.controller) {
+            worker.postMessage({ type: "SKIP_WAITING" });
+          }
+        });
+      });
+
+      return registration;
+    })
+    .catch(() => null);
+}
+
 export function toast(msg) {
   const t = document.querySelector("#toast");
   if (!t) {
@@ -110,9 +167,9 @@ export function toast(msg) {
     return;
   }
   t.textContent = msg;
-  t.style.display = "block";
+  t.hidden = false;
   clearTimeout(t._to);
-  t._to = setTimeout(() => { t.style.display = "none"; }, 3200);
+  t._to = setTimeout(() => { t.hidden = true; }, 3200);
 }
 
 export function fmtQ(n) {
@@ -123,15 +180,12 @@ export function fmtQ(n) {
 export function isStrongPassword(value) {
   const password = String(value || "");
   return password.length >= 8
-    && password.length <= 100
-    && /[a-z]/.test(password)
-    && /[A-Z]/.test(password)
-    && /[0-9]/.test(password)
-    && /[^a-zA-Z0-9]/.test(password);
+    && password.length <= 128
+    && password.trim().length >= 1;
 }
 
 export function passwordRequirementsText() {
-  return "Usa 8+ caracteres con mayúscula, minúscula, número y símbolo.";
+  return "Usa 8 a 128 caracteres. Evita claves comunes o fáciles de adivinar.";
 }
 
 function canRenderModal() {
@@ -304,17 +358,14 @@ export function mountIosInstallHint() {
   box.id = "iosInstallHint";
   box.className = "card ios-install-hint";
   const row = document.createElement("div");
-  row.className = "row";
-  row.style.justifyContent = "space-between";
-  row.style.alignItems = "flex-start";
-  row.style.gap = "10px";
+  row.className = "row row-between-start";
 
   const left = document.createElement("div");
   const strong = document.createElement("strong");
   strong.textContent = "Instalar app en iPhone";
   const p = document.createElement("p");
   p.className = "small";
-  p.style.marginTop = "6px";
+  p.classList.add("mt-6");
   p.textContent = msg;
   left.append(strong, p);
 

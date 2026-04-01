@@ -17,14 +17,14 @@ import { getRequestIp } from "../../utils/request-ip.js";
 
 export const paymentWebhookRoutes = Router();
 
-const PaymentWebhookListQuerySchema = z.object({
+export const PaymentWebhookListQuerySchema = z.object({
   status: z.preprocess((v) => (v === "" || v === null ? undefined : v), z.string().max(30).optional()),
   limit: z.coerce.number().int().min(1).max(200).default(50)
 });
 
 paymentWebhookRoutes.post("/public/payments/webhook/:provider", moderateRateLimit, asyncRoute(async (req, res) => {
   const provider = String(req.params.provider || "").trim().toLowerCase();
-  const secretHeader = String(req.headers["x-webhook-secret"] || req.headers["x-signature"] || "");
+  const secretHeader = String(req.headers["x-webhook-secret"] || "");
   const signatureHeader = String(req.headers["x-signature"] || req.headers["x-provider-signature"] || "");
   let out;
   try {
@@ -70,7 +70,7 @@ paymentWebhookRoutes.get(
   res.json({ ok: true, events: rows });
 }));
 
-const ResolveSchema = z.object({
+export const ResolveSchema = z.object({
   customerId: z.string().uuid().optional(),
   customerPhone: z.string().min(6).optional()
 }).refine((v) => Boolean(v.customerId || v.customerPhone), {

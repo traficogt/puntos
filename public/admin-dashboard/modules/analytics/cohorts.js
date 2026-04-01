@@ -3,7 +3,7 @@
 /**
  * @param {{ $: (selector: string) => HTMLElement | null; api: (path: string, opts?: RequestInit) => Promise<any> }} args
  */
-export async function loadCohortHeatmap({ $, api }) {
+export async function loadCohortSummary({ $, api }) {
   const box = $("#cohortHeatmap");
   if (!box) return;
   try {

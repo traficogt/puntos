@@ -35,7 +35,7 @@ export const BusinessRepo = {
   // Public, non-sensitive lookup for join flows (no password_hash/email).
   async getPublicBySlug(slug) {
     return one(
-      `SELECT business_id AS id, slug, name, category, program_type, program_json
+      `SELECT business_id AS id, slug, name, category, program_type, program_json, customer_branding_json
        FROM business_public
        WHERE slug=$1`,
       [slug]
@@ -81,6 +81,26 @@ export const BusinessRepo = {
   async updatePlan(businessId, plan) {
     await exec(`UPDATE businesses SET plan=$2 WHERE id=$1`, [businessId, plan]);
     return this.getById(businessId);
+  },
+
+  async updateCustomerBranding(businessId, branding) {
+    await exec(
+      `UPDATE businesses
+       SET customer_branding_json=$2, updated_at=now()
+       WHERE id=$1`,
+      [businessId, branding]
+    );
+    return this.getById(businessId);
+  },
+
+  async getCustomerBrandingById(businessId) {
+    const row = await one(
+      `SELECT customer_branding_json
+       FROM businesses
+       WHERE id=$1`,
+      [businessId]
+    );
+    return row?.customer_branding_json ?? null;
   },
 
   async rotateExternalAwardApiKeysToCurrent() {

@@ -7,7 +7,14 @@ const CUSTOMER_STATS_SQL = `SELECT
   cl.total_spend,
   cl.total_visits,
   vs.current_streak,
-  COUNT(r.id) as referral_count
+  COUNT(r.id) as referral_count,
+  (
+    SELECT COALESCE(SUM(t.items), 0)
+    FROM transactions t
+    WHERE t.customer_id = c.id
+      AND t.source <> 'reversal'
+      AND t.status <> 'REVERSED'
+  ) AS total_items
 FROM customers c
 LEFT JOIN customer_balances cb ON cb.customer_id = c.id
 LEFT JOIN customer_ltv cl ON cl.customer_id = c.id

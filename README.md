@@ -34,7 +34,7 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/puntos/secrets-dev
 
 ## Runtime model
 - API health endpoints are mounted under `/api/health`, `/api/ready`, `/api/live`, `/api/info`
-- OpenAPI is served at `/api/v1/openapi.json`, `/api/v1/openapi.yaml`, and Swagger UI at `/api/v1/docs`
+- A curated OpenAPI subset is served at `/api/v1/openapi.json`, `/api/v1/openapi.yaml`, and Swagger UI at `/api/v1/docs`
 - Docker Compose binds Postgres to loopback only in the dev profile
 - Secrets are loaded from files via `*_FILE` env vars and should live outside the repo tree
 

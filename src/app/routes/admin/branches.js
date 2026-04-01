@@ -14,7 +14,7 @@ import { makeId } from "./_util.js";
 
 export const adminBranchRoutes = Router();
 
-const BranchSchema = z.object({
+export const BranchSchema = z.object({
   name: z.string().min(2).max(120),
   address: z.string().max(250).optional(),
   code: z.string().min(3).max(80).optional()
@@ -59,4 +59,3 @@ adminBranchRoutes.post(
     return res.json({ ok: true, branch });
   })
 );
-

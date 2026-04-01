@@ -53,13 +53,14 @@ export const GiftCardRepo = {
 
   async addTx(tx) {
     await exec(
-      `INSERT INTO gift_card_transactions (id, gift_card_id, business_id, staff_user_id, tx_type, amount_q, balance_after_q, meta)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      `INSERT INTO gift_card_transactions (id, gift_card_id, business_id, staff_user_id, request_id, tx_type, amount_q, balance_after_q, meta)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [
         tx.id,
         tx.gift_card_id,
         tx.business_id,
         tx.staff_user_id ?? null,
+        tx.request_id ?? null,
         tx.tx_type,
         tx.amount_q,
         tx.balance_after_q,

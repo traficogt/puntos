@@ -52,6 +52,16 @@ groups:
           summary: "Webhook failures are accumulating"
           description: "Failed webhook deliveries in the last 24h exceeded 5."
 
+      - alert: PuntosPaymentWebhookPendingMappingOld
+        expr: puntos_payment_webhook_pending_mapping_oldest_age_seconds > 900
+        for: 10m
+        labels:
+          severity: warning
+          service: puntos-payments
+        annotations:
+          summary: "Payment webhook mapping backlog is old"
+          description: "A payment webhook has been waiting for mapping for more than 15 minutes."
+
       - alert: PuntosJobBacklogOld
         expr: puntos_jobs_oldest_age_seconds > 900
         for: 10m
@@ -71,6 +81,16 @@ groups:
         annotations:
           summary: "Failed background jobs present"
           description: "There are failed jobs in the background_jobs table."
+
+      - alert: PuntosRunningJobsStale
+        expr: puntos_jobs_running_stale_total > 0
+        for: 10m
+        labels:
+          severity: warning
+          service: puntos-jobs
+        annotations:
+          summary: "Background jobs are stuck in running state"
+          description: "At least one background job has been running for more than 15 minutes."
 
       - alert: PuntosRedisQueueHealthFailing
         expr: puntos_job_queue_depth < 0
@@ -101,3 +121,33 @@ groups:
         annotations:
           summary: "Active DB connections are high"
           description: "Active database connections exceeded 40 for 10 minutes."
+
+      - alert: PuntosLedgerReconciliationStale
+        expr: puntos_ledger_reconciliation_last_completed_timestamp == 0 or time() - puntos_ledger_reconciliation_last_completed_timestamp > 172800
+        for: 30m
+        labels:
+          severity: warning
+          service: puntos-ledger
+        annotations:
+          summary: "Ledger reconciliation is stale"
+          description: "No completed ledger reconciliation has been recorded in the last 48 hours."
+
+      - alert: PuntosLedgerReconciliationMismatch
+        expr: puntos_ledger_reconciliation_mismatched_customers_total > 0
+        for: 15m
+        labels:
+          severity: critical
+          service: puntos-ledger
+        annotations:
+          summary: "Ledger reconciliation detected customer balance drift"
+          description: "The latest completed ledger reconciliation found one or more mismatched customer balances."
+
+      - alert: PuntosLedgerCorrectionsPending
+        expr: puntos_pending_ledger_corrections_total > 0
+        for: 30m
+        labels:
+          severity: warning
+          service: puntos-ledger
+        annotations:
+          summary: "Manual ledger corrections are pending review"
+          description: "There are unresolved ledger corrections waiting for a second-owner decision."

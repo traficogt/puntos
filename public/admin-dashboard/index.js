@@ -1,5 +1,6 @@
 import { createAdminDashboardApp } from "./core.js";
 import { registerProgramModule } from "./modules/program.js";
+import { registerBrandingModule } from "./modules/branding.js";
 import { registerRewardsModule } from "./modules/rewards.js";
 import { registerTiersModule } from "./modules/tiers.js";
 import { registerGamificationModule } from "./modules/gamification.js";
@@ -19,6 +20,7 @@ export async function initAdminDashboard({ api, $, toast, alert, confirm, prompt
   const app = createAdminDashboardApp({ api, $, toast, alert, confirm, prompt });
 
   registerProgramModule(app);
+  registerBrandingModule(app);
   registerRewardsModule(app);
   registerTiersModule(app);
   registerGamificationModule(app);

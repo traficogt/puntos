@@ -87,6 +87,75 @@ export function createAnalyticsAuditController(app) {
     window.open(`/api/admin/audit.csv${q ? `?${q}` : ""}`, "_blank");
   }
 
+  function renderAuditDetail(detail) {
+    const box = $("#auditDetail");
+    if (!box) return;
+    if (!detail?.event) {
+      box.textContent = "Selecciona un evento para ver su contexto operativo.";
+      return;
+    }
+
+    const lines = [
+      `Evento: ${detail.event.action}`,
+      `Fecha: ${detail.event.created_at ? new Date(detail.event.created_at).toLocaleString() : "—"}`,
+      `Actor: ${detail.event.actor_name || detail.event.actor_email || detail.event.actor_type || "sistema"}`,
+      ""
+    ];
+
+    if (detail.linked?.transaction) {
+      const tx = detail.linked.transaction;
+      lines.push(`Transacción: ${tx.id}`);
+      lines.push(`Cliente: ${tx.customer_name || "—"} • ${tx.customer_phone || "—"}`);
+      lines.push(`Origen: ${tx.source} • Estado: ${tx.status} • Puntos: ${Number(tx.points || 0)}`);
+      lines.push("");
+    }
+
+    if (detail.linked?.reversal_transaction) {
+      const tx = detail.linked.reversal_transaction;
+      lines.push(`Reversa: ${tx.id}`);
+      lines.push(`Estado: ${tx.status} • Puntos: ${Number(tx.points || 0)} • Motivo: ${tx.reversal_reason || "—"}`);
+      lines.push("");
+    }
+
+    if (detail.linked?.redemption) {
+      const redemption = detail.linked.redemption;
+      lines.push(`Canje: ${redemption.code} • ${redemption.reward_name}`);
+      lines.push(`Cliente: ${redemption.customer_name || "—"} • ${redemption.customer_phone || "—"}`);
+      lines.push(`Costo: ${Number(redemption.points_cost || 0)} pts`);
+      lines.push("");
+    }
+
+    if (detail.linked?.gift_card) {
+      const card = detail.linked.gift_card;
+      lines.push(`Gift card: ${card.code}`);
+      lines.push(`Saldo: Q${Number(card.balance_q || 0).toFixed(2)} • Estado: ${card.status}`);
+      lines.push("");
+    }
+
+    if (detail.linked?.gift_card_transaction) {
+      const tx = detail.linked.gift_card_transaction;
+      lines.push(`Movimiento gift card: ${tx.tx_type} • Q${Number(tx.amount_q || 0).toFixed(2)} • saldo Q${Number(tx.balance_after_q || 0).toFixed(2)}`);
+      lines.push("");
+    }
+
+    if (detail.event.meta && Object.keys(detail.event.meta).length) {
+      lines.push("Meta:");
+      lines.push(JSON.stringify(detail.event.meta, null, 2));
+    }
+
+    box.textContent = lines.join("\n");
+  }
+
+  async function loadAuditDetail(eventId) {
+    try {
+      const out = await api(`/api/admin/audit/${encodeURIComponent(eventId)}`);
+      renderAuditDetail(out);
+    } catch (e) {
+      const box = $("#auditDetail");
+      if (box) box.textContent = "Error cargando detalle de auditoría: " + e.message;
+    }
+  }
+
   async function loadAuditTimeline() {
     const box = $("#auditTimeline");
     const from = /** @type {HTMLInputElement | null} */ ($("#auditFrom"))?.value;
@@ -111,25 +180,34 @@ export function createAnalyticsAuditController(app) {
 
       rows.forEach((ev) => {
         const row = document.createElement("div");
-        row.style.marginBottom = "8px";
+        row.className = "mb-8";
         const when = ev.created_at ? new Date(ev.created_at).toLocaleString() : "—";
         const actor = ev.actor_name || ev.actor_email || ev.actor_type || "sistema";
         const impersonatedBy = ev.meta?.impersonated_by_super_admin_email;
 
         const summaryRow = document.createElement("div");
-        summaryRow.className = "row";
-        summaryRow.style.gap = "8px";
-        summaryRow.style.alignItems = "center";
+        summaryRow.className = "row gap-8 align-center";
 
         const summary = document.createElement("div");
         summary.textContent = `${when} • ${actor} • ${ev.action}`;
         summaryRow.appendChild(summary);
 
+        const inspectable = ev.meta?.transaction_id
+          || ev.meta?.reversal_transaction_id
+          || ev.meta?.redemption_id
+          || ev.meta?.gift_card_id
+          || ev.meta?.gift_card_tx_id;
+        if (inspectable) {
+          const button = document.createElement("button");
+          button.className = "secondary";
+          button.textContent = "Ver detalle";
+          button.addEventListener("click", () => loadAuditDetail(ev.id).catch(() => {}));
+          summaryRow.appendChild(button);
+        }
+
         if (impersonatedBy) {
           const badge = document.createElement("span");
-          badge.className = "badge";
-          badge.style.padding = "4px 8px";
-          badge.style.fontSize = "11px";
+          badge.className = "badge badge-compact";
           badge.textContent = "Impersonación";
           summaryRow.appendChild(badge);
         }
@@ -144,6 +222,7 @@ export function createAnalyticsAuditController(app) {
         }
         box.appendChild(row);
       });
+      renderAuditDetail(null);
     } catch (e) {
       box.textContent = "Error cargando auditoría: " + e.message;
     }

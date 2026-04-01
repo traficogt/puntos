@@ -1,0 +1,32 @@
+      <div class="tab-content" id="staff-content">
+        <div class="card">
+          <h2>Gestión de Personal</h2>
+          <p class="small">Crea y administra cuentas de cajeros y managers.</p>
+          <div class="grid">
+            <div class="card">
+              <h3>Nuevo usuario</h3>
+              <label>Nombre</label>
+              <input id="staffName" placeholder="Ana Pérez"/>
+              <label>Correo</label>
+              <input id="staffEmail" type="email" placeholder="ana@negocio.com"/>
+              <label>Teléfono (opcional)</label>
+              <input id="staffPhone" placeholder="55551234"/>
+              <label>Rol</label>
+              <select id="staffRole">
+                <option value="CASHIER">Cajero</option>
+                <option value="MANAGER">Manager</option>
+              </select>
+              <label>Contraseña inicial</label>
+              <input id="staffPassword" type="password" placeholder="8+ caracteres"/>
+              <button class="primary mt-12" id="btnCreateStaff">Crear usuario</button>
+            </div>
+            <div class="card">
+              <div class="row justify-between align-center">
+                <h3 class="m-0">Listado</h3>
+                <button id="btnRefreshStaff">Recargar</button>
+              </div>
+              <div id="staffList" class="small">(cargando...)</div>
+            </div>
+          </div>
+        </div>
+      </div>

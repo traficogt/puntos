@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncRoute } from "../../../middleware/common.js";
 import { validate } from "../../../utils/validation.js";
-import { cookieOpts, signStaffToken } from "../../../utils/auth-token.js";
+import { browserCookieMaxAge, cookieOpts, signStaffToken } from "../../../utils/auth-token.js";
 import { config } from "../../../config/index.js";
 import { createBusinessWithOwner } from "../../services/business-service.js";
 import { rateLimitByPhone, strictRateLimit } from "../../../middleware/rate-limit.js";
@@ -54,7 +54,7 @@ adminSignupRoutes.post(
 
     // Auto-login owner (staff cookie)
     const token = await signStaffToken({ sid: ownerId, bid: business.id, role: "OWNER", brid: branchId });
-    res.cookie(config.STAFF_COOKIE_NAME, token, { ...cookieOpts(), maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.cookie(config.STAFF_COOKIE_NAME, token, { ...cookieOpts(), maxAge: browserCookieMaxAge("STAFF") });
 
     /** @type {AdminSignupResponse} */
     const response = { ok: true, business: { id: business.id, slug: business.slug, name: business.name } };

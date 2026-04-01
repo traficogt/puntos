@@ -1,0 +1,64 @@
+      <div class="tab-content" id="challenges-content">
+        <div class="card">
+          <h2>Gestión de Retos</h2>
+          <p class="small">Los retos son objetivos temporales con recompensas especiales.</p>
+          
+          <div id="challengesList"></div>
+          
+          <div class="hr"></div>
+          <button class="primary" id="btnAddChallenge">+ Agregar Reto</button>
+        </div>
+
+        <!-- Add Challenge Modal -->
+        <div id="challengeModal" class="card is-hidden">
+          <h2>Nuevo Reto</h2>
+          <div class="grid">
+            <div>
+              <label>Nombre</label>
+              <input id="chalName" placeholder="Ej: Fin de semana activo"/>
+              
+              <label>Descripción</label>
+              <textarea id="chalDesc" rows="2" placeholder="Visítanos 3 veces este fin de semana"></textarea>
+              
+              <label>Tipo</label>
+              <select id="chalType">
+                <option value="limited_time">Tiempo limitado</option>
+                <option value="recurring">Recurrente</option>
+              </select>
+
+              <label>Requisito</label>
+              <select id="chalReqType">
+                <option value="visits">Visitas</option>
+                <option value="spend">Gasto (Q)</option>
+                <option value="items">Items comprados</option>
+              </select>
+            </div>
+            <div>
+              <label>Cantidad requerida</label>
+              <input id="chalReqValue" type="number" min="1" value="3"/>
+              
+              <label>Puntos de recompensa</label>
+              <input id="chalReward" type="number" min="1" value="100"/>
+              
+              <label>Fecha inicio</label>
+              <input id="chalStartDate" type="datetime-local"/>
+              
+              <label>Fecha fin (opcional)</label>
+              <input id="chalEndDate" type="datetime-local"/>
+              
+              <label>Recurrencia (para recurrentes)</label>
+              <select id="chalRecurrence">
+                <option value="">No recurrente</option>
+                <option value="daily">Diario</option>
+                <option value="weekly">Semanal</option>
+                <option value="monthly">Mensual</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="row mt-16">
+            <button class="primary" id="btnSaveChallenge">Guardar</button>
+            <button id="btnCancelChallenge">Cancelar</button>
+          </div>
+        </div>
+      </div>

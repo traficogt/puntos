@@ -13,7 +13,7 @@ import { makeId, maskSecret } from "./_util.js";
 
 export const adminWebhookRoutes = Router();
 
-const WebhookSchema = z.object({
+export const WebhookSchema = z.object({
   url: z.string().url(),
   secret: z.string().min(8),
   events: z.array(z.string()).min(1)
@@ -77,4 +77,3 @@ adminWebhookRoutes.post(
     });
   })
 );
-

@@ -1,0 +1,49 @@
+      <div class="tab-content" id="achievements-content">
+        <div class="card">
+          <h2>Gestión de Logros</h2>
+          <p class="small">Los logros se otorgan automáticamente cuando los clientes cumplen los requisitos.</p>
+          
+          <div id="achievementsList"></div>
+          
+          <div class="hr"></div>
+          <button class="primary" id="btnAddAchievement">+ Agregar Logro</button>
+        </div>
+
+        <!-- Add/Edit Achievement Modal -->
+        <div id="achievementModal" class="card is-hidden">
+          <h2>Nuevo Logro</h2>
+          <div class="grid">
+            <div>
+              <label>Nombre</label>
+              <input id="achName" placeholder="Ej: Comprador frecuente"/>
+              
+              <label>Descripción</label>
+              <textarea id="achDesc" rows="2" placeholder="Realiza 20 compras"></textarea>
+              
+              <label>Icono (emoji)</label>
+              <input id="achIcon" placeholder="🏆"/>
+            </div>
+            <div>
+              <label>Tipo de requisito</label>
+              <select id="achReqType">
+                <option value="visits">Visitas</option>
+                <option value="spend">Gasto total (Q)</option>
+                <option value="points">Puntos acumulados</option>
+                <option value="referrals">Referidos</option>
+                <option value="streak">Racha de días</option>
+              </select>
+              
+              <label>Valor requerido</label>
+              <input id="achReqValue" type="number" min="1" placeholder="20"/>
+              
+              <label>Puntos de recompensa</label>
+              <input id="achReward" type="number" min="0" value="50"/>
+            </div>
+          </div>
+          
+          <div class="row mt-16">
+            <button class="primary" id="btnSaveAchievement">Guardar</button>
+            <button id="btnCancelAchievement">Cancelar</button>
+          </div>
+        </div>
+      </div>

@@ -3,166 +3,186 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="theme-color" content="#f8f2e8"/>
+  <meta name="theme-color" content="#1e1208"/>
   <title>Mi tarjeta • PuntosFieles</title>
+  <link rel="icon" href="/icon.svg?v=3" type="image/svg+xml"/>
   <link rel="manifest" href="/manifest.webmanifest"/>
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3"/>
+  <script src="/runtime-config.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/styles.css"/>
+  <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
 <body class="page-customer">
   <div class="nav">
-    <div class="brand">🎫 Mi tarjeta</div>
+    <div class="brand brand-lockup">
+      <img id="customerBrandLogo" class="customer-brand-logo" alt="" hidden/>
+      <div class="brand-copy">
+        <span class="brand-kicker" id="customerBrandKicker">PuntosFieles</span>
+        <span class="brand-title" id="customerBrandTitle">Mi tarjeta</span>
+      </div>
+    </div>
     <div class="row">
-      <a class="badge" href="/">Inicio</a>
-      <a class="badge" href="/staff/login">Personal</a>
-      <button id="btnLogout" style="display:none">Salir</button>
+      <a class="ghost-link" href="/">Inicio</a>
+      <button id="btnLogout" class="is-hidden">Salir</button>
     </div>
   </div>
 
-  <div class="container">
-    <div class="card" id="needLogin" style="display:none">
-      <h1>Tu tarjeta</h1>
-      <p>Para ver tu tarjeta necesitas registrarte en un negocio (te llega un código por mensaje).</p>
-      <div class="grid">
-        <div class="card">
-          <h2>¿Ya tienes el enlace del negocio?</h2>
-          <p class="small">Abre: <code>/join/&lt;slug&gt;</code> (el negocio te lo comparte o lo pones en su QR impreso).</p>
+  <div class="cus-page">
+
+    <!-- ── Not logged in ── -->
+    <div class="is-hidden" id="needLogin">
+      <div class="cus-entry-intro">
+        <h1 id="customerEntryTitle">Tu tarjeta digital vive aquí.</h1>
+        <p id="customerEntrySubtitle">Regístrate en un negocio para comenzar. El negocio te comparte un enlace con su slug.</p>
+        <p class="small brand-powered-by" id="customerPoweredBy">Powered by PuntosFieles</p>
+      </div>
+      <div class="cus-entry-stack">
+        <div class="cus-entry-card">
+          <p class="cus-entry-label">¿Tienes el enlace del negocio?</p>
+          <h2>Ir a registro</h2>
+          <p class="small">Abre <code>/join/&lt;slug&gt;</code> o ingresa el slug aquí.</p>
           <label>Slug del negocio</label>
           <input id="slug" placeholder="cafe-bourbon"/>
           <button class="primary" id="btnGoJoin">Ir a registro</button>
         </div>
-        <div class="card">
-          <h2>Ingresar con código</h2>
-          <p class="small">Si ya tienes cuenta, pide código y entra sin salir de esta página.</p>
+        <div class="cus-entry-card">
+          <p class="cus-entry-label">¿Ya tienes cuenta?</p>
+          <h2>Ingresar</h2>
+          <p class="small">Solicita un código y entra sin salir de esta página.</p>
           <label>Slug del negocio</label>
           <input id="loginSlug" placeholder="cafe-bourbon"/>
           <label>Teléfono</label>
           <input id="loginPhone" placeholder="55551234"/>
           <label>Código</label>
           <input id="loginCode" placeholder="123456"/>
-          <div class="row" style="margin-top:10px">
+          <div class="row mt-10">
             <button id="btnSendLoginCode">Enviar código</button>
             <button class="primary" id="btnLoginVerify">Ingresar</button>
           </div>
         </div>
-        <div class="card">
-          <h2>Consejo</h2>
-          <p class="small">Si ya te registraste antes, revisa que estés en el mismo navegador/teléfono donde lo hiciste.</p>
-          <p class="small">Este sitio funciona como app (PWA). Puedes “Agregar a pantalla principal”.</p>
+        <div class="cus-entry-note">
+          Usa el mismo navegador y teléfono donde te registraste. Puedes agregar esta página a tu pantalla de inicio.
         </div>
       </div>
     </div>
 
-    <div class="card hero" id="main" style="display:none">
-      <h1 id="bizName">—</h1>
-      <p id="who" class="small">—</p>
+    <!-- ── Logged in ── -->
+    <div class="is-hidden" id="main">
 
-      <div class="grid">
-        <div class="card">
-          <h2>Saldo</h2>
-          <div class="row" style="gap:14px; align-items:baseline">
-            <div>
-              <div class="kpi" id="points">—</div>
-              <div class="small">puntos disponibles</div>
-            </div>
-            <div>
-              <div class="kpi" id="lifetime">—</div>
-              <div class="small">puntos acumulados (histórico)</div>
-            </div>
+      <!-- The loyalty card face -->
+      <div class="loyalty-card">
+        <div class="lc-head">
+          <div class="lc-brand">
+            <p class="lc-meta">Programa activo</p>
+            <h1 class="lc-name" id="bizName">—</h1>
+            <p class="lc-holder" id="who">—</p>
           </div>
-          <div class="hr"></div>
-          <div class="row">
-            <span class="badge">Última visita: <code id="lastVisit">—</code></span>
-            <span class="badge">Pendientes: <code id="pendingPoints">0</code></span>
-            <span class="badge" id="netBadge">En línea</span>
-          </div>
+          <span class="lc-badge" id="netBadge">En línea</span>
         </div>
 
-        <div class="card">
-          <h2>Tu QR</h2>
-          <p class="small">Este QR es de un solo uso y cambia cada minuto para evitar fraude.</p>
-          <div class="card" id="qrWrap" style="text-align:center; padding:12px"></div>
-          <div class="row" style="margin-top:10px">
-            <button class="primary" id="btnQr">Generar QR</button>
-            <span class="badge">Vence: <code id="qrExp">—</code></span>
+        <div class="lc-points">
+          <div class="lc-points-value" id="points">—</div>
+          <div class="lc-points-label">puntos disponibles</div>
+        </div>
+
+        <div class="lc-qr-area">
+          <div class="lc-qr-stage" id="qrWrap">
+            <div class="lc-qr-placeholder">Presiona el botón para generar tu QR</div>
           </div>
-          <label style="margin-top:10px">Token (manual)</label>
-          <textarea id="qrToken" rows="3" readonly placeholder="Genera el QR para ver el token"></textarea>
-          <div class="row" style="margin-top:8px">
-            <button id="btnCopyToken">Copiar token</button>
-            <span class="small" id="copyTokenHint"></span>
+          <button class="lc-qr-btn" id="btnQr">Generar QR</button>
+          <p class="lc-qr-hint" id="qrHint"></p>
+        </div>
+
+        <div class="lc-footer">
+          <div class="lc-foot-stats">
+            <div class="lc-foot-stat">
+              <strong id="lifetime">—</strong>
+              <span>histórico</span>
+            </div>
+            <div class="lc-foot-stat">
+              <strong id="pendingPoints">0</strong>
+              <span>pendientes</span>
+            </div>
+            <div class="lc-foot-stat lc-foot-stat-wide">
+              <strong id="lastVisit">—</strong>
+              <span>última visita</span>
+            </div>
           </div>
-          <p class="small" id="qrHint"></p>
+          <div class="lc-foot-badges">
+            <span class="lc-badge" id="qrExp">QR: —</span>
+            <span class="lc-badge" id="syncBadge">—</span>
+          </div>
         </div>
       </div>
 
-      <!-- TIER DISPLAY -->
-      <div class="card" id="tierSection">
-        <h2>Tu Nivel</h2>
-        <div class="row" style="gap:14px; align-items:center">
-          <div style="font-size:48px" id="tierIcon">🥉</div>
-          <div style="flex:1">
-            <div class="row" style="align-items:baseline; gap:8px">
-              <h3 id="tierName" style="margin:0">Bronce</h3>
-              <span class="badge" id="tierMultiplier">1.0x puntos</span>
-            </div>
-            <p class="small" id="tierProgress" style="margin:4px 0">—</p>
-            <div style="background:#ddd; height:8px; border-radius:4px; margin-top:8px">
-              <div id="tierProgressBar" style="background:#4CAF50; height:100%; width:0%; border-radius:4px; transition:width 0.3s"></div>
+      <!-- Sections below the card -->
+      <div class="customer-sections">
+
+        <div class="cus-section" id="tierSection">
+          <p class="cus-section-label">Tu nivel</p>
+          <div class="cus-tier-row">
+            <div class="cus-tier-icon" id="tierIcon">🥉</div>
+            <div class="cus-tier-info">
+              <div class="row align-center gap-8">
+                <h3 id="tierName" class="m-0">Bronce</h3>
+                <span class="badge" id="tierMultiplier">1.0x</span>
+              </div>
+              <p class="small my-4" id="tierProgress">—</p>
+              <progress id="tierProgressBar" class="progress-inline" max="100" value="0"></progress>
             </div>
           </div>
+          <div id="tierPerks" class="small mt-8"></div>
         </div>
-        <div class="hr"></div>
-        <div id="tierPerks" class="small" style="margin-top:8px"></div>
-      </div>
 
-      <!-- ACHIEVEMENTS & REFERRALS -->
-      <div class="grid">
-        <div class="card">
-          <h2>Logros 🏆</h2>
+        <div class="cus-section">
+          <p class="cus-section-label">Recompensas</p>
+          <p class="cus-next-reward" id="nextReward">—</p>
+          <div id="rewards" class="cus-rewards-list"></div>
+        </div>
+
+        <div class="cus-section">
+          <p class="cus-section-label">Logros</p>
           <div id="achievements" class="small"></div>
-          <button id="btnViewAllAchievements" class="secondary" style="margin-top:12px">Ver todos los logros</button>
+          <button id="btnViewAllAchievements" class="mt-12">Ver todos los logros</button>
         </div>
-        
-        <div class="card">
-          <h2>Invita amigos 🎁</h2>
-          <p class="small">Comparte tu código y ambos ganan puntos</p>
-          <div class="row" style="gap:8px; margin:12px 0">
-            <input id="referralCode" readonly style="flex:1; text-align:center; font-size:20px; font-weight:bold; letter-spacing:2px" value="---">
+
+        <div class="cus-section">
+          <p class="cus-section-label">Invita amigos</p>
+          <p class="small">Comparte tu código — ambos ganan puntos.</p>
+          <div class="row gap-8 mt-12 mb-12">
+            <input id="referralCode" class="flex-1 input-emphasis" readonly value="---"/>
             <button id="btnCopyCode" class="primary">Copiar</button>
           </div>
           <div id="referralStats" class="small"></div>
         </div>
-      </div>
 
-      <div class="card">
-        <h2>Recompensas</h2>
-        <p class="small" id="nextReward">—</p>
-        <div id="rewards" class="grid"></div>
-      </div>
-
-      <div class="card">
-        <h2>Actividad reciente</h2>
-        <div class="grid">
-          <div class="card">
-            <h2>Transacciones</h2>
-            <div id="tx" class="small" style="white-space:pre-wrap"></div>
-          </div>
-          <div class="card">
-            <h2>Canjes</h2>
-            <div id="red" class="small" style="white-space:pre-wrap"></div>
+        <div class="cus-section">
+          <p class="cus-section-label">Actividad reciente</p>
+          <div class="cus-activity-pair">
+            <div class="cus-activity-pane">
+              <p class="cus-activity-label">Transacciones</p>
+              <div id="tx" class="small pre-wrap"></div>
+            </div>
+            <div class="cus-activity-pane">
+              <p class="cus-activity-label">Canjes</p>
+              <div id="red" class="small pre-wrap"></div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="card">
-        <h2>Tu información</h2>
-        <p class="small">Puedes exportar o borrar tu cuenta (derechos tipo GDPR).</p>
-        <div class="row">
-          <button id="btnExport">Exportar</button>
-          <button class="danger" id="btnDelete">Borrar mi cuenta</button>
+        <div class="cus-section cus-section-account">
+          <p class="cus-section-label">Tu información</p>
+          <p class="small">Exportar o borrar tu cuenta (derechos tipo GDPR).</p>
+          <div class="row mt-10">
+            <button id="btnExport">Exportar</button>
+            <button class="danger" id="btnDelete">Borrar cuenta</button>
+          </div>
+          <pre id="exportOut" class="small pre-wrap"></pre>
         </div>
-        <pre id="exportOut" class="small" style="white-space:pre-wrap"></pre>
+
       </div>
     </div>
   </div>
