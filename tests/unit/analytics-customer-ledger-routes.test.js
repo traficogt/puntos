@@ -91,7 +91,7 @@ function makeRes() {
 async function runRoute(routePath, req) {
   const layer = analyticsCustomerRoutes.stack.find((entry) => entry.route?.path === routePath);
   if (!layer) throw new Error(`Route not found: ${routePath}`);
-  const res = makeRes();
+  const res = /** @type {any} */ (makeRes());
   const handlers = layer.route.stack.map((entry) => entry.handle);
   for (const handler of handlers) {
     await new Promise((resolve, reject) => {

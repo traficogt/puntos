@@ -69,6 +69,8 @@ describe("gift card idempotency", () => {
         staff: { id: "s1" },
         amount_q: 25,
         issued_to_name: "Cliente",
+        issued_to_phone: undefined,
+        expires_at: undefined,
         requestId: "11111111-1111-4111-8111-111111111111"
       }
     );
@@ -137,6 +139,7 @@ describe("gift card idempotency", () => {
         staff: { id: "s1" },
         code_or_token: "GC-123",
         amount_q: 10,
+        note: undefined,
         requestId: "22222222-2222-4222-8222-222222222222"
       }
     );

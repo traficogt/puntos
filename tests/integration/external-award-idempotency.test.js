@@ -89,8 +89,10 @@ integrationDescribe("External award idempotency integration", () => {
     const invoke = (metaSource) => runWithDbContext({ tenantId: null, platformAdmin: false, webhookIngest: false }, () => (
       awardFromExternalEventWithDeps(deps, {
         businessSlug: slug,
+        apiKey: undefined,
         externalEventId,
         customerId,
+        customerPhone: undefined,
         amount_q: 50,
         visits: 1,
         items: 2,

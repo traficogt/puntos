@@ -19,9 +19,12 @@ test("worker schedules ledger reconciliation and observability exports its metri
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const worker = fs.readFileSync(new URL("../../src/app/worker.js", import.meta.url), "utf8");
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const observability = fs.readFileSync(new URL("../../src/app/routes/observability-router.js", import.meta.url), "utf8");
+  const observabilityRouter = fs.readFileSync(new URL("../../src/app/routes/observability-router.js", import.meta.url), "utf8");
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  const observabilityShared = fs.readFileSync(new URL("../../src/app/routes/observability-shared.js", import.meta.url), "utf8");
 
   assert.match(worker, /runLedgerReconciliation/);
-  assert.match(observability, /puntos_ledger_reconciliation_last_completed_timestamp/);
-  assert.match(observability, /puntos_ledger_reconciliation_mismatched_customers_total/);
+  assert.match(observabilityRouter, /appendBackgroundJobMetricsShared/);
+  assert.match(observabilityShared, /puntos_ledger_reconciliation_last_completed_timestamp/);
+  assert.match(observabilityShared, /puntos_ledger_reconciliation_mismatched_customers_total/);
 });

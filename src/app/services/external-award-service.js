@@ -9,6 +9,54 @@ import { timingSafeEqualString } from "../../utils/timing-safe.js";
 
 function id() { return crypto.randomUUID(); }
 
+function hashPayload(prefix, payload) {
+  return crypto
+    .createHash("sha256")
+    .update(`${prefix}:${JSON.stringify(payload)}`)
+    .digest("hex");
+}
+
+function buildExternalAwardFingerprint({ customerId, amountQ, visits, items, status, meta }) {
+  return hashPayload("external-award", {
+    customerId: String(customerId || ""),
+    amountQ: Number(amountQ || 0),
+    visits: Number(visits || 0),
+    items: Number(items || 0),
+    status: String(status || ""),
+    meta: meta && typeof meta === "object" ? meta : {}
+  });
+}
+
+/**
+ * @typedef {{
+ *   withTransaction: <T>(fn: (client: { query: (...args: any[]) => Promise<any> }) => Promise<T>) => Promise<T>,
+ *   setCurrentTenant: (tenantId: string) => Promise<void>,
+ *   BusinessRepo: {
+ *     getPublicBySlug: (slug: string) => Promise<{ id: string } | null>,
+ *     getById: (id: string) => Promise<{ id: string, program_json?: Record<string, any> } | null>
+ *   },
+ *   CustomerRepo: {
+ *     getById: (customerId: string) => Promise<{ id: string, business_id: string } | null>,
+ *     getByBusinessAndPhone: (businessId: string, phone: string) => Promise<{ id: string, business_id: string } | null>
+ *   },
+ *   computePoints: (business: any, values: { amount_q?: number, visits?: number, items?: number }) => number,
+ *   timingSafeEqualString: (left: string, right: string) => boolean
+ * }} ExternalAwardDeps
+ *
+ * @typedef {{
+ *   businessSlug: string,
+ *   apiKey?: string,
+ *   externalEventId: string,
+ *   customerId?: string,
+ *   customerPhone?: string,
+ *   amount_q?: number,
+ *   visits?: number,
+ *   items?: number,
+ *   meta?: Record<string, unknown>,
+ *   skipApiKeyCheck?: boolean
+ * }} ExternalAwardInput
+ */
+
 async function lockExternalEventRequest(client, businessId, externalEventId) {
   await client.query(
     `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
@@ -18,7 +66,7 @@ async function lockExternalEventRequest(client, businessId, externalEventId) {
 
 async function findExistingExternalEventTransaction(client, businessId, externalEventId) {
   const { rows } = await client.query(
-    `SELECT id, customer_id, points, status, available_at
+    `SELECT id, customer_id, points, status, available_at, meta
      FROM transactions
      WHERE business_id = $1
        AND source = 'external'
@@ -29,6 +77,10 @@ async function findExistingExternalEventTransaction(client, businessId, external
   return rows[0] ?? null;
 }
 
+/**
+ * @param {ExternalAwardDeps} deps
+ * @param {ExternalAwardInput} args
+ */
 export async function awardFromExternalEventWithDeps(deps, {
   businessSlug,
   apiKey,
@@ -60,13 +112,29 @@ export async function awardFromExternalEventWithDeps(deps, {
   const holdDays = Math.max(0, Math.floor(Number(business.program_json?.pending_points_hold_days ?? 0)));
   const status = holdDays > 0 ? "PENDING" : "POSTED";
   const availableAt = holdDays > 0 ? new Date(Date.now() + holdDays * 24 * 60 * 60 * 1000) : null;
+  const requestFingerprint = buildExternalAwardFingerprint({
+    customerId: customer.id,
+    amountQ: amount_q,
+    visits,
+    items,
+    status,
+    meta
+  });
 
   return deps.withTransaction(async (client) => {
     await lockExternalEventRequest(client, business.id, externalEventId);
     const existing = await findExistingExternalEventTransaction(client, business.id, externalEventId);
     if (existing) {
+      const existingMeta = existing.meta && typeof existing.meta === "object" ? existing.meta : {};
+      const existingFingerprint = String(existingMeta.external_request_fingerprint || "");
       if (existing.customer_id !== customer.id) {
         throw conflict("externalEventId already used for a different customer");
+      }
+      if (existingFingerprint && existingFingerprint !== requestFingerprint) {
+        throw conflict("externalEventId already used for a different payload");
+      }
+      if (!existingFingerprint && (Number(existing.points || 0) !== Number(points) || String(existing.status || "") !== status)) {
+        throw conflict("externalEventId already used for a different payload");
       }
       await AuditRepo.log({
         id: id(),
@@ -108,7 +176,11 @@ export async function awardFromExternalEventWithDeps(deps, {
         points,
         status,
         availableAt,
-        { ...meta, external_event_id: String(externalEventId) }
+        {
+          ...meta,
+          external_event_id: String(externalEventId),
+          external_request_fingerprint: requestFingerprint
+        }
       ]
     );
 
@@ -135,10 +207,16 @@ const externalAwardDeps = {
   timingSafeEqualString
 };
 
+/**
+ * @param {ExternalAwardInput} args
+ */
 export async function awardFromExternalEvent(args) {
   return awardFromExternalEventWithDeps(externalAwardDeps, { ...args, skipApiKeyCheck: false });
 }
 
+/**
+ * @param {ExternalAwardInput} args
+ */
 export async function awardFromExternalEventTrusted(args) {
   return awardFromExternalEventWithDeps(externalAwardDeps, { ...args, skipApiKeyCheck: true });
 }

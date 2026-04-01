@@ -5,6 +5,7 @@ export interface AppConfig {
 
   APP_ORIGIN: string;
   CORS_ORIGINS: string[];
+  COOKIE_SAME_SITE: string;
   TRUST_PROXY: number;
 
   DB_HOST: string;
@@ -37,6 +38,11 @@ export interface AppConfig {
   SMTP_USER: string;
   SMTP_PASS: string;
   SMTP_FROM: string;
+  CONTACT_SMTP_HOST: string;
+  CONTACT_SMTP_PORT: number;
+  CONTACT_TO: string;
+  CONTACT_FROM: string;
+  CONTACT_TURNSTILE_SECRET: string;
   SMS_GATEWAY_URL: string;
   SMS_GATEWAY_TOKEN: string;
 

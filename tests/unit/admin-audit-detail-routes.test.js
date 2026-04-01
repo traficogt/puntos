@@ -79,7 +79,7 @@ function makeRes() {
 async function runRoute(routePath, req) {
   const layer = adminAuditRoutes.stack.find((entry) => entry.route?.path === routePath);
   if (!layer) throw new Error(`Route not found: ${routePath}`);
-  const res = makeRes();
+  const res = /** @type {any} */ (makeRes());
   const handler = layer.route.stack[layer.route.stack.length - 1].handle;
   await new Promise((resolve, reject) => {
     try {

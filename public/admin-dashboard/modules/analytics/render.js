@@ -1,3 +1,5 @@
+import { apiUrl } from "/lib.js";
+
 /** @typedef {import("../../types.js").AdminDashboardApp} AdminDashboardApp */
 /** @typedef {import("../../types.js").AnalyticsSummary} AnalyticsSummary */
 /** @typedef {import("../../types.js").AnalyticsRfmSegment} AnalyticsRfmSegment */
@@ -5,6 +7,8 @@
 /** @typedef {import("../../types.js").AnalyticsChurnCustomer} AnalyticsChurnCustomer */
 /** @typedef {import("../../types.js").AnalyticsBranchPerformanceRow} AnalyticsBranchPerformanceRow */
 /** @typedef {import("../../types.js").AnalyticsDashboardResponse} AnalyticsDashboardResponse */
+/** @typedef {{ from?: string, to?: string }} AnalyticsCertificationPeriod */
+/** @typedef {{ date?: string, certification_status?: string, period?: AnalyticsCertificationPeriod, generated_at?: string, json_url?: string, csv_url?: string }} AnalyticsCertificationArchiveDay */
 
 /**
  * @param {(selector: string) => HTMLElement | null} $
@@ -171,13 +175,14 @@ export function renderLedgerCertification($, payload) {
 
 /**
  * @param {(selector: string) => HTMLElement | null} $
- * @param {{ retention_days?: number, available_days?: Record<string, unknown>[] }} payload
+ * @param {{ retention_days?: number, available_days?: AnalyticsCertificationArchiveDay[] }} payload
  */
 export function renderLedgerCertificationArchive($, payload) {
   const summary = $("#ledgerCertificationArchiveSummary");
   const list = $("#ledgerCertificationArchiveList");
   if (!summary || !list) return;
 
+  /** @type {Array<{ date?: string, certification_status?: string, period?: { from?: string, to?: string }, generated_at?: string, json_url?: string, csv_url?: string }>} */
   const days = Array.isArray(payload?.available_days) ? payload.available_days : [];
   const retentionDays = Number(payload?.retention_days || 0);
 
@@ -560,4 +565,124 @@ export function renderBranchPerformance({ $, dashboard, app }) {
     perfContainer.appendChild(row);
   });
   return perfRows;
+}
+
+/**
+ * @param {(selector: string) => HTMLElement | null} $
+ * @returns {HTMLInputElement | null}
+ */
+function input($, selector) {
+  return /** @type {HTMLInputElement | null} */ ($(selector));
+}
+
+/**
+ * @param {(selector: string) => HTMLElement | null} $
+ */
+export function ensureLedgerCertificationDates($) {
+  const fromEl = input($, "#ledgerCertificationFrom");
+  const toEl = input($, "#ledgerCertificationTo");
+  if (!fromEl || !toEl) return;
+  if (fromEl.value && toEl.value) return;
+  const end = new Date();
+  const to = end.toISOString().slice(0, 10);
+  const start = new Date(end);
+  start.setDate(start.getDate() - 29);
+  const from = start.toISOString().slice(0, 10);
+  if (!fromEl.value) fromEl.value = from;
+  if (!toEl.value) toEl.value = to;
+}
+
+/**
+ * @param {{ $: (selector: string) => HTMLElement | null; api: (path: string, options?: Record<string, unknown>) => Promise<unknown> }} args
+ */
+export async function loadLedgerCertification({ $, api }) {
+  ensureLedgerCertificationDates($);
+  const params = new URLSearchParams();
+  const from = input($, "#ledgerCertificationFrom")?.value;
+  const to = input($, "#ledgerCertificationTo")?.value;
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const query = params.toString();
+  const certification = await api(`/api/admin/analytics/ledger-certification${query ? `?${query}` : ""}`);
+  renderLedgerCertification($, certification);
+}
+
+/**
+ * @param {{ $: (selector: string) => HTMLElement | null; api: (path: string, options?: Record<string, unknown>) => Promise<unknown> }} args
+ */
+export async function loadLedgerCertificationArchive({ $, api }) {
+  const archive = await api("/api/admin/analytics/ledger-certification/archive");
+  renderLedgerCertificationArchive($, archive);
+}
+
+/**
+ * @param {(selector: string) => HTMLElement | null} $
+ */
+export function exportLedgerCertificationCsv($) {
+  ensureLedgerCertificationDates($);
+  const params = new URLSearchParams();
+  const from = input($, "#ledgerCertificationFrom")?.value;
+  const to = input($, "#ledgerCertificationTo")?.value;
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const query = params.toString();
+  window.open(apiUrl(`/api/admin/analytics/ledger-certification.csv${query ? `?${query}` : ""}`), "_blank");
+}
+
+/**
+ * @param {{ $: (selector: string) => HTMLElement | null; api: (path: string, options?: Record<string, unknown>) => Promise<unknown>; toast: (message: string) => void; loadAnalytics: () => Promise<void> }} args
+ */
+export async function requestLedgerCorrection({ $, api, toast, loadAnalytics }) {
+  const customerId = input($, "#ledgerCorrectionCustomerId")?.value?.trim();
+  const reason = input($, "#ledgerCorrectionReason")?.value?.trim();
+  if (!customerId || !reason) {
+    toast("Ingresa customer ID y razón.");
+    return;
+  }
+  await api("/api/admin/analytics/ledger-corrections", {
+    method: "POST",
+    body: JSON.stringify({ customerId, reason })
+  });
+  const customerIdEl = input($, "#ledgerCorrectionCustomerId");
+  const reasonEl = input($, "#ledgerCorrectionReason");
+  if (customerIdEl) customerIdEl.value = "";
+  if (reasonEl) reasonEl.value = "";
+  toast("Corrección solicitada.");
+  await loadAnalytics();
+}
+
+/**
+ * @param {{ api: (path: string, options?: Record<string, unknown>) => Promise<unknown>; toast: (message: string) => void; loadAnalytics: () => Promise<void> }} args
+ * @param {string} correctionId
+ */
+export async function applyLedgerCorrection({ api, toast, loadAnalytics }, correctionId) {
+  await api(`/api/admin/analytics/ledger-corrections/${encodeURIComponent(correctionId)}/apply`, {
+    method: "POST",
+    body: "{}"
+  });
+  toast("Corrección aplicada.");
+  await loadAnalytics();
+}
+
+/**
+ * @param {{ api: (path: string, options?: Record<string, unknown>) => Promise<unknown>; toast: (message: string) => void; loadAnalytics: () => Promise<void> }} args
+ * @param {string} correctionId
+ */
+export async function rejectLedgerCorrection({ api, toast, loadAnalytics }, correctionId) {
+  const reason = window.prompt("Razón del rechazo de la corrección:");
+  if (!reason) return;
+  await api(`/api/admin/analytics/ledger-corrections/${encodeURIComponent(correctionId)}/reject`, {
+    method: "POST",
+    body: JSON.stringify({ reason })
+  });
+  toast("Corrección rechazada.");
+  await loadAnalytics();
+}
+
+/**
+ * @param {{ $: (selector: string) => HTMLElement | null; api: (path: string, options?: Record<string, unknown>) => Promise<unknown> }} args
+ */
+export async function loadLedgerCorrections({ $, api }) {
+  const corrections = await api("/api/admin/analytics/ledger-corrections");
+  renderLedgerCorrections($, corrections);
 }

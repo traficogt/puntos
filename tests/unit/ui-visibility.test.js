@@ -47,7 +47,7 @@ function makeElement(initialClasses = []) {
 
 describe("ui visibility helper", () => {
   it("hides elements by syncing hidden state, class, and aria metadata", () => {
-    const el = makeElement();
+    const el = /** @type {any} */ (makeElement());
 
     setHidden(el, true);
 
@@ -57,7 +57,7 @@ describe("ui visibility helper", () => {
   });
 
   it("reveals elements that started with the is-hidden class", () => {
-    const el = makeElement(["is-hidden"]);
+    const el = /** @type {any} */ (makeElement(["is-hidden"]));
     el.hidden = true;
     el.setAttribute("aria-hidden", "true");
 

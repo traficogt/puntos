@@ -7,6 +7,9 @@ import {
   requestLedgerCorrectionWithDeps
 } from "../../src/app/services/ledger-correction-service.js";
 
+/**
+ * @param {{ client?: { query: (...args: any[]) => Promise<any>, adjusted?: boolean }, row?: any, correction?: any }} [options]
+ */
 function makeDeps({ client, row, correction } = {}) {
   return {
     withTransaction: async (fn) => fn(client),

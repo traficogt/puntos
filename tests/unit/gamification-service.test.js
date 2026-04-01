@@ -195,10 +195,9 @@ describe("recurring challenge state transitions", () => {
 
     function setFakeNow(isoString) {
       const fixed = new originalDate(isoString);
-      global.Date = class extends originalDate {
+      global.Date = /** @type {DateConstructor} */ (class FakeDate extends originalDate {
         constructor(...args) {
-          if (!args.length) return fixed;
-          return new originalDate(...args);
+          super(args.length ? String(args[0]) : fixed.toISOString());
         }
         static now() {
           return fixed.getTime();
@@ -207,9 +206,9 @@ describe("recurring challenge state transitions", () => {
           return originalDate.parse(value);
         }
         static UTC(...args) {
-          return originalDate.UTC(...args);
+          return originalDate.UTC.apply(originalDate, args);
         }
-      };
+      });
     }
 
     try {

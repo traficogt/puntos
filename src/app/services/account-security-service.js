@@ -326,7 +326,7 @@ export async function confirmStaffEmailChange({ token, ip = null, ua: _ua = null
     actorId: active.actor_id,
     action: "staff.email_change.confirmed",
     ip,
-    ua,
+    ua: _ua,
     meta: { purpose: active.purpose, request_id: active.request_id, applied: result.applied }
   });
   return { ok: true, applied: result.applied };

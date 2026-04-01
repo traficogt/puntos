@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createCachedMetricSection } from "../../src/app/routes/observability-router.js";
+import { buildProbeErrorBody, createCachedMetricSection } from "../../src/app/routes/observability-shared.js";
 
 describe("observability metric cache", () => {
   it("reuses metric snapshots within the TTL", async () => {
@@ -25,7 +25,8 @@ describe("observability metric cache", () => {
 
   it("deduplicates concurrent refreshes", async () => {
     let calls = 0;
-    let release;
+    /** @type {(value?: unknown) => void} */
+    let release = () => {};
     const gate = new Promise((resolve) => {
       release = resolve;
     });
@@ -45,5 +46,15 @@ describe("observability metric cache", () => {
     assert.deepEqual(await pendingA, ["metric_value 1"]);
     assert.deepEqual(await pendingB, ["metric_value 1"]);
     assert.equal(calls, 1);
+  });
+});
+
+describe("observability probe helpers", () => {
+  it("wraps probe failures in the standard unavailable payload", () => {
+    const body = buildProbeErrorBody({ ready: false });
+    assert.equal(body.ready, false);
+    assert.equal(body.error, "Service unavailable");
+    assert.equal(typeof body.timestamp, "string");
+    assert.ok(body.timestamp.length > 0);
   });
 });

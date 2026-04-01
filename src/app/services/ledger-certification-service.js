@@ -486,6 +486,9 @@ export function rebuildLedgerCertificationIndexes({
   });
 }
 
+/**
+ * @param {{ fsModule?: typeof import("node:fs"), outputRoot?: string, businessId?: string }} [options]
+ */
 export function readLedgerCertificationArchiveIndexWithDeps({
   fsModule = fs,
   outputRoot = certificationOutputRoot(),
@@ -531,6 +534,9 @@ export function readLedgerCertificationArchiveIndexWithDeps({
   };
 }
 
+/**
+ * @param {{ outputRoot?: string, businessId?: string }} [options]
+ */
 export function readLedgerCertificationArchiveIndex({
   outputRoot = certificationOutputRoot(),
   businessId
@@ -542,6 +548,9 @@ export function readLedgerCertificationArchiveIndex({
   });
 }
 
+/**
+ * @param {{ fsModule?: typeof import("node:fs"), outputRoot?: string, businessId?: string, date?: string, format?: string }} [options]
+ */
 export function readLedgerCertificationArtifactWithDeps({
   fsModule = fs,
   outputRoot = certificationOutputRoot(),
@@ -574,6 +583,9 @@ export function readLedgerCertificationArtifactWithDeps({
   };
 }
 
+/**
+ * @param {{ outputRoot?: string, businessId?: string, date?: string, format?: string }} [options]
+ */
 export function readLedgerCertificationArtifact({
   outputRoot = certificationOutputRoot(),
   businessId,

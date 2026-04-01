@@ -1,6 +1,10 @@
 export function api(path: string, opts?: RequestInit): Promise<any>;
+export function apiUrl(path: string): string;
+export function publicUrl(path: string): string;
 export function $(sel: string): Element | null;
 export function $all(sel: string): Element[];
+export function setHidden(el: HTMLElement | null | undefined, hidden: boolean): void;
+export function registerServiceWorker(): Promise<unknown>;
 export function toast(message: string): void;
 export function fmtQ(value: unknown): string;
 export function isStrongPassword(value: unknown): boolean;
@@ -9,4 +13,5 @@ export function modalAlert(message: string, opts?: Record<string, unknown>): Pro
 export function modalConfirm(message: string, opts?: Record<string, unknown>): Promise<boolean>;
 export function modalPrompt(message: string, opts?: Record<string, unknown>): Promise<string | null>;
 export function mountIosInstallHint(): void;
+export function isNativeShell(): boolean;
 export function uuidv4(): string;

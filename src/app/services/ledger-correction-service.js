@@ -9,6 +9,43 @@ function id() {
   return crypto.randomUUID();
 }
 
+/**
+ * @typedef {{
+ *   withTransaction: <T>(fn: (client: { query: (...args: any[]) => Promise<any> }) => Promise<T>) => Promise<T>,
+ *   AuditRepo: { log: (...args: any[]) => Promise<unknown> },
+ *   readCustomerLedgerRow: (query: (...args: any[]) => Promise<any>, customerId: string) => Promise<any>,
+ *   applyBalanceAdjustment: (client: { query: (...args: any[]) => Promise<any> }, correctionId: string, requestedByStaffId: string, reason: string, finding: Record<string, any>) => Promise<string>
+ * }} LedgerCorrectionDeps
+ *
+ * @typedef {{
+ *   businessId: string,
+ *   customerId: string,
+ *   requestedByStaffId: string,
+ *   reason: string,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   sourceRunId?: string | null,
+ *   sourceFindingId?: string | null
+ * }} RequestLedgerCorrectionInput
+ *
+ * @typedef {{
+ *   businessId: string,
+ *   correctionId: string,
+ *   resolvedByStaffId: string,
+ *   ip?: string | null,
+ *   ua?: string | null
+ * }} ResolveLedgerCorrectionInput
+ *
+ * @typedef {{
+ *   businessId: string,
+ *   correctionId: string,
+ *   resolvedByStaffId: string,
+ *   reason: string,
+ *   ip?: string | null,
+ *   ua?: string | null
+ * }} RejectLedgerCorrectionInput
+ */
+
 function normalizeReason(reason) {
   const value = String(reason || "").trim();
   if (value.length < 8) throw badRequest("Reason is required");
@@ -109,6 +146,10 @@ function buildResolutionMeta(finding) {
   };
 }
 
+/**
+ * @param {LedgerCorrectionDeps} deps
+ * @param {RequestLedgerCorrectionInput} args
+ */
 export async function requestLedgerCorrectionWithDeps(deps, {
   businessId,
   customerId,
@@ -188,6 +229,10 @@ export async function requestLedgerCorrectionWithDeps(deps, {
   });
 }
 
+/**
+ * @param {LedgerCorrectionDeps} deps
+ * @param {ResolveLedgerCorrectionInput} args
+ */
 export async function applyLedgerCorrectionWithDeps(deps, {
   businessId,
   correctionId,
@@ -275,6 +320,10 @@ export async function applyLedgerCorrectionWithDeps(deps, {
   });
 }
 
+/**
+ * @param {LedgerCorrectionDeps} deps
+ * @param {RejectLedgerCorrectionInput} args
+ */
 export async function rejectLedgerCorrectionWithDeps(deps, {
   businessId,
   correctionId,
@@ -346,19 +395,31 @@ const correctionDeps = {
   applyBalanceAdjustment
 };
 
+/**
+ * @param {RequestLedgerCorrectionInput} args
+ */
 export async function requestLedgerCorrection(args) {
   return requestLedgerCorrectionWithDeps(correctionDeps, args);
 }
 
+/**
+ * @param {ResolveLedgerCorrectionInput} args
+ */
 export async function applyLedgerCorrection(args) {
   return applyLedgerCorrectionWithDeps(correctionDeps, args);
 }
 
+/**
+ * @param {RejectLedgerCorrectionInput} args
+ */
 export async function rejectLedgerCorrection(args) {
   return rejectLedgerCorrectionWithDeps(correctionDeps, args);
 }
 
-export async function listLedgerCorrections({ businessId, limit = 50 } = {}) {
+/**
+ * @param {{ businessId?: string, limit?: number }} [args]
+ */
+export async function listLedgerCorrections({ businessId = "", limit = 50 } = {}) {
   const cappedLimit = Math.max(1, Math.min(200, Math.floor(Number(limit) || 0) || 50));
   const { rows } = await dbQuery(
     `SELECT

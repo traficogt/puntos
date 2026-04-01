@@ -1,5 +1,7 @@
 export const API = "";
+const RUNTIME_CONFIG_KEY = "__PF_RUNTIME_CONFIG__";
 const CSRF_COOKIE = "pf_csrf_readable";
+const CSRF_STORAGE_KEY = "pf_csrf_token";
 const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 const ERROR_BY_CODE = {
@@ -18,22 +20,104 @@ const ERROR_BY_CODE = {
   RATE_LIMITED: "Demasiadas solicitudes, intenta de nuevo en un momento"
 };
 
-export async function api(path, opts = {}) {
-  const csrfToken = document.cookie
+let csrfTokenMemory = "";
+
+function readRuntimeConfig() {
+  const runtime = globalThis?.[RUNTIME_CONFIG_KEY];
+  return runtime && typeof runtime === "object" ? runtime : {};
+}
+
+function normalizeBaseUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    return new URL(raw).toString().replace(/\/+$/, "");
+  } catch {
+    return raw.replace(/\/+$/, "");
+  }
+}
+
+function isAbsoluteUrl(value) {
+  return /^[a-z][a-z\d+\-.]*:/i.test(String(value || ""));
+}
+
+function withBase(path, base) {
+  const rawPath = String(path || "").trim();
+  if (!rawPath) return base || "";
+  if (isAbsoluteUrl(rawPath)) return rawPath;
+  const normalizedPath = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+  return base ? `${base}${normalizedPath}` : normalizedPath;
+}
+
+function readCookieCsrfToken() {
+  if (typeof document === "undefined") return "";
+  return document.cookie
     .split("; ")
     .find((row) => row.startsWith(`${CSRF_COOKIE}=`))
-    ?.split("=")[1];
-  
+    ?.split("=")[1] || "";
+}
+
+function readStoredCsrfToken() {
+  if (csrfTokenMemory) return csrfTokenMemory;
+  if (typeof localStorage === "undefined") return "";
+  try {
+    csrfTokenMemory = localStorage.getItem(CSRF_STORAGE_KEY) || "";
+  } catch {
+    csrfTokenMemory = "";
+  }
+  return csrfTokenMemory;
+}
+
+function storeCsrfToken(token) {
+  const nextToken = String(token || "").trim();
+  if (!nextToken) return;
+  csrfTokenMemory = nextToken;
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(CSRF_STORAGE_KEY, nextToken);
+  } catch {
+    // Ignore storage failures in restricted browser contexts.
+  }
+}
+
+export function getApiBaseUrl() {
+  return normalizeBaseUrl(readRuntimeConfig().apiBaseUrl || API);
+}
+
+export function getPublicWebOrigin() {
+  return normalizeBaseUrl(readRuntimeConfig().publicWebOrigin);
+}
+
+export function apiUrl(path) {
+  return withBase(path, getApiBaseUrl());
+}
+
+export function publicUrl(path) {
+  return withBase(path, getPublicWebOrigin());
+}
+
+export function isNativeShell() {
+  const shell = String(readRuntimeConfig().shell || "").trim().toLowerCase();
+  const protocol = typeof location !== "undefined" ? String(location.protocol || "").toLowerCase() : "";
+  return shell === "capacitor"
+    || shell === "native"
+    || protocol === "capacitor:"
+    || protocol === "ionic:";
+}
+
+export async function api(path, opts = {}) {
+  const csrfToken = readCookieCsrfToken() || readStoredCsrfToken();
+
   const headers = {
     "Content-Type": "application/json",
     ...(opts.headers ?? {})
   };
-  
+
   if (csrfToken && MUTATION_METHODS.has(String(opts.method || "").toUpperCase())) {
     headers["X-CSRF-Token"] = csrfToken;
   }
-  
-  const res = await fetch(API + path, {
+
+  const res = await fetch(apiUrl(path), {
     credentials: "include",
     headers,
     ...opts
@@ -42,6 +126,7 @@ export async function api(path, opts = {}) {
   const txt = await res.text();
   let data = null;
   try { data = txt ? JSON.parse(txt) : null; } catch { data = { raw: txt }; }
+  storeCsrfToken(res.headers.get("x-csrf-token") || data?.csrfToken || "");
 
   if (!res.ok) {
     const code = typeof data?.code === "string" ? data.code : "";
@@ -91,7 +176,9 @@ export async function api(path, opts = {}) {
       }
     }
     const message = typeof err === "string" ? err : JSON.stringify(err);
-    const wrapped = new Error(requestId ? `${message} (Ref: ${requestId})` : message);
+    const wrapped = /** @type {Error & { code?: string; requestId?: string }} */ (
+      new Error(requestId ? `${message} (Ref: ${requestId})` : message)
+    );
     wrapped.code = code || undefined;
     wrapped.requestId = requestId || undefined;
     throw wrapped;
@@ -102,6 +189,10 @@ export async function api(path, opts = {}) {
 export function $(sel) { return document.querySelector(sel); }
 export function $all(sel) { return [...document.querySelectorAll(sel)]; }
 
+/**
+ * @param {HTMLElement | null | undefined} el
+ * @param {boolean} hidden
+ */
 export function setHidden(el, hidden) {
   if (!el) return;
   const nextHidden = Boolean(hidden);
@@ -115,18 +206,21 @@ export function setHidden(el, hidden) {
 }
 
 export function registerServiceWorker() {
-  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+  if (isNativeShell() || typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
     return Promise.resolve();
   }
+  let suppressReloadOnControl = false;
   if (typeof location !== "undefined") {
     const params = new URLSearchParams(location.search || "");
     if (params.get("sw") === "off") {
       return Promise.resolve(null);
     }
+    suppressReloadOnControl = params.get("sw") === "noreload";
   }
 
   let refreshing = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (suppressReloadOnControl) return;
     if (refreshing) return;
     refreshing = true;
     location.reload();
@@ -157,7 +251,7 @@ export function registerServiceWorker() {
 }
 
 export function toast(msg) {
-  const t = document.querySelector("#toast");
+  const t = /** @type {(HTMLElement & { _to?: ReturnType<typeof setTimeout> }) | null} */ (document.querySelector("#toast"));
   if (!t) {
     if (document?.body) {
       modalAlert(msg).catch(() => {});
@@ -338,11 +432,12 @@ function isIos() {
 }
 
 function isStandalone() {
-  return window.matchMedia?.("(display-mode: standalone)")?.matches || Boolean(navigator.standalone);
+  return window.matchMedia?.("(display-mode: standalone)")?.matches
+    || Boolean((/** @type {Navigator & { standalone?: boolean }} */ (navigator)).standalone);
 }
 
 export function mountIosInstallHint() {
-  if (!isIos() || isStandalone()) return;
+  if (isNativeShell() || !isIos() || isStandalone()) return;
   if (document.querySelector("#iosInstallHint")) return;
 
   const ua = navigator.userAgent || "";

@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { isSecureClientOrigin, isValidClientOrigin, normalizeOrigin } from "../utils/origin.js";
 
 /** @typedef {import("../types/config.js").AppConfig} AppConfig */
 
@@ -99,13 +100,15 @@ function parseCsv(v) {
  */
 function parseOrigins(v, fallback) {
   const list = parseCsv(v);
-  const origins = list.length ? list : [fallback];
-  for (const o of origins) {
-    if (!/^https?:\/\/[^ ]+$/i.test(o)) {
-      throw new Error(`Invalid origin value: ${o}`);
+  const rawOrigins = list.length ? list : [fallback];
+  const origins = rawOrigins.map((origin) => {
+    if (origin.trim() === "*") throw new Error("CORS origins cannot be '*'");
+    const normalized = normalizeOrigin(origin);
+    if (!normalized || !isValidClientOrigin(origin)) {
+      throw new Error(`Invalid origin value: ${origin}`);
     }
-    if (o.trim() === "*") throw new Error("CORS origins cannot be '*'");
-  }
+    return normalized;
+  });
   return origins;
 }
 
@@ -159,14 +162,29 @@ function isHttpsOrigin(origin) {
   return String(origin).toLowerCase().startsWith("https://");
 }
 
+/**
+ * @param {string | undefined} value
+ * @param {"strict" | "lax" | "none"} [fallback]
+ * @returns {"strict" | "lax" | "none"}
+ */
+function parseSameSite(value, fallback = "strict") {
+  const normalized = String(value || fallback).trim().toLowerCase();
+  if (normalized === "strict" || normalized === "lax" || normalized === "none") {
+    return normalized;
+  }
+  throw new Error(`Invalid cookie same-site value: ${value}`);
+}
+
 /** @type {AppConfig} */
 export const config = {
   NODE_ENV: envValue("NODE_ENV", "production"),
   PORT: Number(process.env.PORT ?? 3001),
   WORKER_PORT: Number(process.env.WORKER_PORT ?? 3002),
 
-  APP_ORIGIN: envValue("APP_ORIGIN", `http://localhost:${process.env.PORT ?? 3001}`),
+  APP_ORIGIN: normalizeOrigin(envValue("APP_ORIGIN", `http://localhost:${process.env.PORT ?? 3001}`))
+    || envValue("APP_ORIGIN", `http://localhost:${process.env.PORT ?? 3001}`),
   CORS_ORIGINS: parseOrigins(envValue("CORS_ORIGIN", ""), `http://localhost:${process.env.PORT ?? 3001}`),
+  COOKIE_SAME_SITE: parseSameSite(envValue("COOKIE_SAME_SITE", "strict")),
 
   // When behind Caddy/Nginx reverse proxy, set TRUST_PROXY=1
   TRUST_PROXY: Number(process.env.TRUST_PROXY ?? 0),
@@ -219,7 +237,7 @@ export const config = {
   CONTACT_SMTP_PORT: Number(process.env.CONTACT_SMTP_PORT ?? 26),
   CONTACT_TO: envValue("CONTACT_TO", "gandhiponce@gmail.com"),
   CONTACT_FROM: envValue("CONTACT_FROM", "hola@puntosfieles.com"),
-  CONTACT_TURNSTILE_SECRET: envValue("CONTACT_TURNSTILE_SECRET", "0x4AAAAAACxpj6xjqnerF0ayGYgsoZq87bQ"),
+  CONTACT_TURNSTILE_SECRET: envValue("CONTACT_TURNSTILE_SECRET", ""),
 
   // HTTP SMS Gateway (optional)
   SMS_GATEWAY_URL: envValue("SMS_GATEWAY_URL", ""),
@@ -293,7 +311,7 @@ export const config = {
 if (config.NODE_ENV === "production") {
   for (const o of config.CORS_ORIGINS) {
     if (String(o).trim() === "*") throw new Error("CORS_ORIGIN cannot be '*' in production");
-    if (!isHttpsOrigin(o)) throw new Error(`CORS_ORIGIN must use https in production: ${o}`);
+    if (!isSecureClientOrigin(o)) throw new Error(`CORS_ORIGIN must use https or an approved app origin in production: ${o}`);
   }
   if (!isHttpsOrigin(config.APP_ORIGIN)) {
     throw new Error(`APP_ORIGIN must use https in production: ${config.APP_ORIGIN}`);

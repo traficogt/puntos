@@ -78,7 +78,7 @@ function makeReferralClient(initialStatus = "pending") {
 }
 
 describe("completeAndRewardReferral", () => {
-  /** @type {{ client: { query: Function }, state: Record<string, unknown> }} */
+  /** @type {{ client: { query: Function }, state: { balanceUpdates: any[], rewardLogs: any[], seenSql: string[] } }} */
   let harness;
 
   beforeEach(() => {
