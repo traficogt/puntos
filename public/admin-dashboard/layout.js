@@ -1,5 +1,6 @@
 const PROGRAM_FRAGMENT_PATH = "/admin-dashboard/fragments/program.html";
 const TAB_FRAGMENT_PATHS = [
+  "/admin-dashboard/fragments/branding.html",
   "/admin-dashboard/fragments/rewards.html",
   "/admin-dashboard/fragments/tiers.html",
   "/admin-dashboard/fragments/branches.html",
@@ -20,6 +21,14 @@ async function loadFragment(path) {
   return response.text();
 }
 
+function parseFragment(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  const fragment = document.createDocumentFragment();
+  fragment.append(...doc.body.childNodes);
+  return fragment;
+}
+
 export async function ensureAdminDashboardLayout() {
   const programHost = document.getElementById("dashboardProgramHost");
   const tabHost = document.getElementById("dashboardTabsHost");
@@ -33,15 +42,10 @@ export async function ensureAdminDashboardLayout() {
 
   const tabContent = document.createDocumentFragment();
   tabFragments.forEach((html) => {
-    const template = document.createElement("template");
-    template.innerHTML = html.trim();
-    tabContent.appendChild(template.content);
+    tabContent.append(parseFragment(html.trim()));
   });
 
-  const programTemplate = document.createElement("template");
-  programTemplate.innerHTML = programHtml.trim();
-
-  programHost.replaceChildren(programTemplate.content);
+  programHost.replaceChildren(parseFragment(programHtml.trim()));
   tabHost.replaceChildren(tabContent);
   programHost.dataset.loaded = "true";
   tabHost.dataset.loaded = "true";

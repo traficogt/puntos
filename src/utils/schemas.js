@@ -53,6 +53,55 @@ export const businessUpdateSchema = z.object({
   points_per_item: z.number().int().min(0).max(10000).optional()
 });
 
+const brandingHexColorSchema = z.string()
+  .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a 6-digit hex value")
+  .transform((value) => value.toUpperCase());
+
+function optionalTrimmedStringSchema(max) {
+  return z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      return trimmed === "" ? undefined : trimmed;
+    },
+    z.string().max(max).optional()
+  );
+}
+
+function optionalUrlSchema(max) {
+  return z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      return trimmed === "" ? undefined : trimmed;
+    },
+    z.string().url().max(max).optional()
+  );
+}
+
+function optionalHexColorSchema() {
+  return z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      return trimmed === "" ? undefined : trimmed;
+    },
+    brandingHexColorSchema.optional()
+  );
+}
+
+export const businessCustomerBrandingSchema = z.object({
+  branding_mode: z.enum(["platform_led", "endorsed_brand", "white_label_ready"]).default("endorsed_brand"),
+  customer_program_name: optionalTrimmedStringSchema(120),
+  customer_logo_url: optionalUrlSchema(1000),
+  primary_color: optionalHexColorSchema(),
+  accent_color: optionalHexColorSchema(),
+  neutral_theme: z.enum(["warm", "neutral", "cool"]).optional(),
+  powered_by_visible: z.boolean().default(true),
+  wallet_headline: optionalTrimmedStringSchema(140),
+  join_headline: optionalTrimmedStringSchema(140)
+});
+
 // Staff schemas
 
 export const staffLoginSchema = z.object({

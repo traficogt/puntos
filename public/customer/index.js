@@ -3,6 +3,7 @@ import { loadAll } from "./load.js";
 import { setOnlineBadge } from "./network.js";
 import { createQrController } from "./qr.js";
 import { registerServiceWorker } from "/lib.js";
+import { applyWalletBranding } from "../customer-branding.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
 
@@ -56,6 +57,13 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   if (slugEl) slugEl.value = cachedSlug;
   if (loginSlugEl) loginSlugEl.value = cachedSlug;
   if (loginPhoneEl) loginPhoneEl.value = cachedPhone;
+
+  if (cachedSlug) {
+    await run(async () => {
+      const business = await api(`/api/public/business/${encodeURIComponent(cachedSlug)}`);
+      applyWalletBranding($, business);
+    });
+  }
 
   const { generateQR } = createQrController({ $, toast });
 

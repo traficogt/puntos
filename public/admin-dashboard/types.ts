@@ -222,6 +222,22 @@ export interface ProgramResponse {
   program_json?: ProgramConfig;
 }
 
+export interface CustomerBrandingConfig {
+  branding_mode?: "platform_led" | "endorsed_brand" | "white_label_ready";
+  customer_program_name?: string;
+  customer_logo_url?: string;
+  primary_color?: string;
+  accent_color?: string;
+  neutral_theme?: "warm" | "neutral" | "cool";
+  powered_by_visible?: boolean;
+  wallet_headline?: string;
+  join_headline?: string;
+}
+
+export interface BrandingResponse {
+  customer_branding?: CustomerBrandingConfig;
+}
+
 export interface ProgramPayload {
   program_type: string;
   program_json: ProgramConfig;

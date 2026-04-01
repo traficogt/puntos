@@ -5,19 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="theme-color" content="#1e1208"/>
   <title>Mi tarjeta • PuntosFieles</title>
+  <link rel="icon" href="/icon.svg?v=3" type="image/svg+xml"/>
   <link rel="manifest" href="/manifest.webmanifest"/>
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3"/>
+  <script src="/runtime-config.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/styles.css"/>
   <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
 <body class="page-customer">
   <div class="nav">
-    <div class="brand brand-stack">
-      <span class="brand-kicker">PuntosFieles</span>
-      <span class="brand-title">Mi tarjeta</span>
+    <div class="brand brand-lockup">
+      <img id="customerBrandLogo" class="customer-brand-logo" alt="" hidden/>
+      <div class="brand-copy">
+        <span class="brand-kicker" id="customerBrandKicker">PuntosFieles</span>
+        <span class="brand-title" id="customerBrandTitle">Mi tarjeta</span>
+      </div>
     </div>
     <div class="row">
       <a class="ghost-link" href="/">Inicio</a>
@@ -30,8 +35,9 @@
     <!-- ── Not logged in ── -->
     <div class="is-hidden" id="needLogin">
       <div class="cus-entry-intro">
-        <h1>Tu tarjeta digital vive aquí.</h1>
-        <p>Regístrate en un negocio para comenzar. El negocio te comparte un enlace con su slug.</p>
+        <h1 id="customerEntryTitle">Tu tarjeta digital vive aquí.</h1>
+        <p id="customerEntrySubtitle">Regístrate en un negocio para comenzar. El negocio te comparte un enlace con su slug.</p>
+        <p class="small brand-powered-by" id="customerPoweredBy">Powered by PuntosFieles</p>
       </div>
       <div class="cus-entry-stack">
         <div class="cus-entry-card">

@@ -18,6 +18,7 @@ import crypto from "node:crypto";
 import { setTenantForRequest } from "../../middleware/tenant.js";
 import { timingSafeEqualString } from "../../utils/timing-safe.js";
 import {
+  businessCustomerBrandingSchema,
   businessRegisterSchema,
   requestJoinCodeSchema,
   verifyJoinCodeSchema
@@ -29,6 +30,7 @@ import {
   requestStaffPasswordReset
 } from "../services/account-security-service.js";
 import { sendContactEmail, verifyTurnstile } from "../services/contact-service.js";
+import { getRequestIp } from "../../utils/request-ip.js";
 
 export const publicRoutes = Router();
 
@@ -67,6 +69,16 @@ function sanitizeProgramJsonForPublic(programJson) {
   return json;
 }
 
+function sanitizeCustomerBrandingForPublic(customerBrandingJson) {
+  const parsed = businessCustomerBrandingSchema.safeParse(
+    customerBrandingJson && typeof customerBrandingJson === "object"
+      ? customerBrandingJson
+      : {}
+  );
+  if (parsed.success) return parsed.data;
+  return businessCustomerBrandingSchema.parse({});
+}
+
 publicRoutes.get("/public/business/:slug", asyncRoute(async (req, res) => {
   const business = await BusinessRepo.getPublicBySlug(req.params.slug);
   if (!business) return res.status(404).json({ error: "Business not found" });
@@ -76,7 +88,8 @@ publicRoutes.get("/public/business/:slug", asyncRoute(async (req, res) => {
     slug: business.slug,
     category: business.category,
     program_type: business.program_type,
-    program_json: sanitizeProgramJsonForPublic(business.program_json)
+    program_json: sanitizeProgramJsonForPublic(business.program_json),
+    customer_branding: sanitizeCustomerBrandingForPublic(business.customer_branding_json)
   });
 }));
 
@@ -259,10 +272,14 @@ publicRoutes.post("/public/business/register", strictRateLimit, asyncRoute(async
 publicRoutes.post("/public/contact", strictRateLimit, asyncRoute(async (req, res) => {
   const v = validate(ContactSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
-  const ip = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "");
+  const ip = getRequestIp(req);
   const valid = await verifyTurnstile(v.data.turnstileToken, ip).catch(() => false);
   if (!valid) return res.status(400).json({ error: "Verificación fallida. Intenta de nuevo." });
-  await sendContactEmail(v.data).catch(() => {});
+  try {
+    await sendContactEmail(v.data);
+  } catch {
+    return res.status(502).json({ error: "No se pudo enviar el mensaje. Intenta de nuevo en unos minutos." });
+  }
   res.json({ ok: true });
 }));
 

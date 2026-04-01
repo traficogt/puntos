@@ -42,7 +42,12 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
   if (!business || business.id !== auth.business_id) return rejectMissingCustomer(req, res);
   res.json({
     ok: true,
-    business: { id: business.id, name: business.name, slug: business.slug },
+    business: {
+      id: business.id,
+      name: business.name,
+      slug: business.slug,
+      customer_branding: business.customer_branding_json ?? null
+    },
     customer: {
       id: customer.id,
       phone: customer.phone,

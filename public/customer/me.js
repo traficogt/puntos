@@ -1,5 +1,6 @@
 import { putCustomerCache } from "/idb.js";
 import { setHidden } from "/lib.js";
+import { applyWalletBranding } from "../customer-branding.js";
 import { fmtDT } from "./format.js";
 import {
   renderAchievements,
@@ -109,6 +110,7 @@ export async function renderFromMe({ api, $, toast }, me, isLive, snapshot = nul
 
   const biz = me.business;
   const c = me.customer;
+  const branding = applyWalletBranding($, biz || {});
   const bizName = safeEl($, "#bizName");
   const who = safeEl($, "#who");
   const points = safeEl($, "#points");
@@ -116,14 +118,14 @@ export async function renderFromMe({ api, $, toast }, me, isLive, snapshot = nul
   const lifetime = safeEl($, "#lifetime");
   const lastVisit = safeEl($, "#lastVisit");
 
-  if (bizName) bizName.textContent = biz?.name ? `Tarjeta • ${biz.name}` : "Mi tarjeta";
+  if (bizName) bizName.textContent = branding.walletHeadline;
   if (who) who.textContent = `${c?.name || "Cliente"} • ${c?.phone || ""} • ID: ${c?.id || ""}`;
   if (points) points.textContent = String(c?.points ?? 0);
   if (pendingPoints) pendingPoints.textContent = String(c?.pending_points ?? 0);
   if (lifetime) lifetime.textContent = String(c?.lifetime_points ?? 0);
   if (lastVisit) lastVisit.textContent = c?.last_visit_at ? fmtDT(c.last_visit_at) : "—";
 
-  document.title = biz?.name ? `Mi tarjeta • ${biz.name}` : "Mi tarjeta • PuntosFieles";
+  document.title = `Mi tarjeta • ${branding.programName}`;
 
   if (isLive) {
     await quietly(async () => {

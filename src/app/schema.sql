@@ -15,9 +15,11 @@ CREATE TABLE IF NOT EXISTS businesses (
   plan TEXT NOT NULL DEFAULT 'EMPRENDEDOR',
   program_type TEXT NOT NULL DEFAULT 'SPEND',
   program_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  customer_branding_json JSONB NOT NULL DEFAULT '{"branding_mode":"endorsed_brand","powered_by_visible":true}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS customer_branding_json JSONB NOT NULL DEFAULT '{"branding_mode":"endorsed_brand","powered_by_visible":true}'::jsonb;
 
 CREATE TABLE IF NOT EXISTS branches (
   id UUID PRIMARY KEY,

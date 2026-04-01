@@ -1,4 +1,5 @@
 import { api, $, registerServiceWorker, toast, setHidden } from "/lib.js";
+import { applyJoinBranding } from "./customer-branding.js";
 
 const slug = location.pathname.split("/").filter(Boolean).pop();
 if (!slug) toast("Falta slug");
@@ -35,9 +36,8 @@ function startCooldown(seconds = 30) {
 
 try {
   const b = await api("/api/public/business/" + slug);
-  $("#title").textContent = "Registrarte en " + b.name;
-  $("#subtitle").textContent = "Gana puntos en " + b.name + ".";
-  document.title = "Registro • " + b.name;
+  localStorage.setItem("pf_customer_slug", slug);
+  applyJoinBranding($, b);
 } catch {
   toast("Negocio no encontrado");
 }

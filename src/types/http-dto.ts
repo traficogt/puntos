@@ -31,6 +31,23 @@ export interface AdminProgramResponse {
   program_json: Record<string, unknown>;
 }
 
+export interface BusinessCustomerBranding {
+  branding_mode: "platform_led" | "endorsed_brand" | "white_label_ready";
+  customer_program_name?: string;
+  customer_logo_url?: string;
+  primary_color?: string;
+  accent_color?: string;
+  neutral_theme?: "warm" | "neutral" | "cool";
+  powered_by_visible: boolean;
+  wallet_headline?: string;
+  join_headline?: string;
+}
+
+export interface AdminBrandingResponse {
+  ok: true;
+  customer_branding: BusinessCustomerBranding;
+}
+
 export interface SuperLoginPayload {
   email: string;
   password: string;

@@ -1,7 +1,7 @@
 # Customer Branding Foundation Design
 
 **Date:** 2026-04-01  
-**Status:** Approved for spec review  
+**Status:** Approved and in implementation  
 **Scope:** Customer-facing branding foundation only
 
 ## Goal
@@ -251,6 +251,23 @@ Required test coverage:
 - metadata/title/icon tests where the shell supports branding-aware identity
 
 The testing objective is to prove that branding intensity can vary while the product structure remains stable.
+
+## Implementation Notes
+
+The first implementation pass now covers:
+
+- validated branding config stored per business
+- admin API + dashboard editor for customer-facing branding
+- public business payloads with sanitized branding
+- join + customer wallet shells using shared branding helpers
+- strict fallback behavior when branding is missing or invalid
+
+Still intentionally deferred:
+
+- custom domains
+- manifest/app-name per tenant
+- merchant/staff shell branding
+- arbitrary theming beyond validated tokens
 
 ## Future-Ready Boundaries
 

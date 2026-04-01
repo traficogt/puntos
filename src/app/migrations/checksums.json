@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-19T13:03:02.884Z",
+  "generated_at": "2026-04-01T00:00:00.000Z",
   "files": {
     "001_add_transactions_type.sql": "34e119c91fa5c744920b65a77dedeb89276bfd86a1b45e9a7edd59d73e8ffefc",
     "002_reward_branch_scope.sql": "5a076cc3a0b4df04031c5dc6d8ec26f75ebf44e648ca14a234dd8dfea08af401",
@@ -35,6 +35,7 @@
     "2026-03-19-account-security.sql": "963766db0748dd964790247be548a052733217375462424c44c779ddd925b0d5",
     "2026-03-19-auth-session-mutations.sql": "676d9c5d8649323289a087fa9cffa9fa34c95b2f911cd88b78a2b7d8068ef63a",
     "2026-03-19-auth-sessions.sql": "c189d68075307b165b5a4238d62e1c45f65453f02b439b0ab5d8943e5c2ffb01",
-    "2026-03-19-security-notification-rls.sql": "7ae3461787ff8dbbec98d49437e63e089a6d3cdc7edf8ed3023259c301bf24b9"
+    "2026-03-19-security-notification-rls.sql": "7ae3461787ff8dbbec98d49437e63e089a6d3cdc7edf8ed3023259c301bf24b9",
+    "2026-04-01-business-customer-branding.sql": "7ffa664fd62d54afd793980638021e6400a97bf55668a716433c33f621358c44"
   }
 }

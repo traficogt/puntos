@@ -21,6 +21,7 @@
     --radius-lg: 22px;
     --radius-md: 16px;
     --display-font: "Fraunces", Georgia, serif;
+    --brand-font: "Bricolage Grotesque", "Inter", "Segoe UI", "Helvetica Neue", sans-serif;
     --body-font: "Inter", "Segoe UI", "Helvetica Neue", sans-serif;
 }
 
@@ -84,6 +85,43 @@ a {
     gap: 3px;
 }
 
+.brand-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.brand-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.brand-mark {
+    width: 40px;
+    height: 40px;
+    display: block;
+    flex-shrink: 0;
+    border-radius: 10px;
+    box-shadow: 0 10px 22px rgba(53, 31, 20, 0.16);
+}
+
+.customer-brand-logo {
+    width: 42px;
+    height: 42px;
+    display: block;
+    flex-shrink: 0;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(91, 63, 45, 0.14);
+    background: rgba(255, 255, 255, 0.75);
+    box-shadow: 0 10px 22px rgba(53, 31, 20, 0.12);
+}
+
+.brand-powered-by {
+    margin: 10px 0 0;
+}
+
 .brand-kicker {
     font-size: 11px;
     letter-spacing: 0.18em;
@@ -92,7 +130,9 @@ a {
 }
 
 .brand-title {
-    font-family: var(--display-font);
+    font-family: var(--brand-font);
+    font-weight: 600;
+    letter-spacing: -0.03em;
     font-size: 24px;
     line-height: 1;
 }
