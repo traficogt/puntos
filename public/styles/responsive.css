@@ -108,7 +108,9 @@
     .marketing-grid,
     .brand-strip,
     .customer-spotlight-grid,
-    .customer-activity-grid {
+    .customer-activity-grid,
+    .staff-workstage,
+    .staff-support-grid {
         grid-template-columns: 1fr;
     }
 

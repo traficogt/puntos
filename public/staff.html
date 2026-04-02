@@ -15,7 +15,10 @@
 </head>
 <body class="app-shell page-staff">
   <div class="nav app-topbar">
-    <div class="brand">📷 Escáner de personal</div>
+    <div class="brand brand-stack">
+      <span class="brand-kicker">Operación en caja</span>
+      <span class="brand-title">Escáner de personal</span>
+    </div>
     <div class="row">
       <button type="button" id="themeToggle">Tema claro</button>
       <a class="badge" href="/">Inicio</a>
@@ -25,8 +28,30 @@
   </div>
 
   <div class="container">
-    <div class="grid">
-      <div class="card">
+    <section class="admin-header-band staff-header-band">
+      <div class="app-stage-copy">
+        <p class="section-kicker">Validación operativa</p>
+        <h1>Escanea, valida y registra sin fricción.</h1>
+        <p class="lede admin-lede">Una vista enfocada para caja: cámara al centro, acción inmediata a la derecha y soporte operativo debajo.</p>
+      </div>
+      <div class="admin-quick-notes app-stage-aside">
+        <div class="admin-note-card">
+          <span>Modo</span>
+          <strong>Escanea</strong>
+        </div>
+        <div class="admin-note-card">
+          <span>Acción</span>
+          <strong>Registra</strong>
+        </div>
+        <div class="admin-note-card">
+          <span>Estado</span>
+          <strong>Sincroniza</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="staff-workstage">
+      <div class="card staff-camera-stage">
         <h2>Cámara</h2>
         <video id="video" autoplay playsinline muted></video>
         <div class="row mt-10">
@@ -39,116 +64,117 @@
         <pre id="queueList" class="small pre-wrap">(sin operaciones pendientes)</pre>
       </div>
 
-      <div class="card">
-        <h2>Registrar puntos</h2>
-        <p class="small" id="programInfo">Regla activa: —</p>
+      <div class="staff-action-stack">
+        <div class="card">
+          <h2>Registrar puntos</h2>
+          <p class="small" id="programInfo">Regla activa: —</p>
+          <label>Token QR (manual)</label>
+          <textarea id="token" rows="3" placeholder="Pega aquí el token si no puedes escanear"></textarea>
 
-        <label>Token QR (manual)</label>
-        <textarea id="token" rows="3" placeholder="Pega aquí el token si no puedes escanear"></textarea>
-
-        <div class="grid">
-          <div>
-            <label>Monto (Q)</label>
-            <input id="amount" type="number" step="0.01" value="0"/>
+          <div class="grid">
+            <div>
+              <label>Monto (Q)</label>
+              <input id="amount" type="number" step="0.01" value="0"/>
+            </div>
+            <div>
+              <label>Visitas</label>
+              <input id="visits" type="number" step="1" value="1"/>
+            </div>
+            <div>
+              <label>Items</label>
+              <input id="items" type="number" step="1" value="1"/>
+            </div>
           </div>
-          <div>
-            <label>Visitas</label>
-            <input id="visits" type="number" step="1" value="1"/>
+
+          <div class="row mt-10">
+            <button class="primary" id="btnAward">Registrar</button>
+            <button class="danger" id="btnLogout">Salir</button>
           </div>
-          <div>
-            <label>Items</label>
-            <input id="items" type="number" step="1" value="1"/>
-          </div>
-        </div>
+          <p class="small" id="awardPreview">Listo para registrar en cuanto el QR sea válido.</p>
 
-        <div class="row mt-10">
-          <button class="primary" id="btnAward">Registrar</button>
-          <button class="danger" id="btnLogout">Salir</button>
-        </div>
-        <p class="small" id="awardPreview"></p>
-
-        <div class="hr"></div>
-        <div class="row">
-          <span class="badge">Último cliente: <code id="lastCustomer">—</code></span>
-          <span class="badge">Puntos: <code id="lastPoints">—</code></span>
-          <span class="badge">Saldo: <code id="lastBalance">—</code></span>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Canjear recompensa</h2>
-      <p class="small">Primero escanea/registrar para seleccionar el cliente, luego canjea.</p>
-
-      <label>Recompensa</label>
-      <select id="rewardSelect"></select>
-
-      <div class="row mt-10">
-        <button class="primary" id="btnRedeem">Canjear</button>
-        <span class="badge">Código: <code id="redeemCode">—</code></span>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Gift Cards</h2>
-      <p class="small">Canjea saldo de gift card por monto.</p>
-      <label>Código o token</label>
-      <input id="giftCode" placeholder="GC-XXXX... o gft_xxx"/>
-      <label>Monto a descontar (Q)</label>
-      <input id="giftAmount" type="number" min="0.01" step="0.01" value="10"/>
-      <div class="row mt-10">
-        <button class="primary" id="btnGiftRedeem">Canjear gift card</button>
-      </div>
-      <p class="small" id="giftStatus">—</p>
-    </div>
-
-    <div class="card" id="ownerAnalyticsCard">
-      <h2>Propietario: analítica</h2>
-      <div class="row">
-        <button id="btnSummary">Ver resumen</button>
-        <a class="badge" href="/admin">Registro</a>
-      </div>
-      <pre id="summary" class="small pre-wrap"></pre>
-    </div>
-
-    <div class="card">
-      <h2>Seguridad de cuenta</h2>
-      <div class="grid">
-        <div class="card compact-card">
-          <h3>Revalidar sesión</h3>
-          <label>Contraseña actual</label>
-          <input id="staffReauthPassword" type="password" placeholder="Contraseña actual"/>
-          <label>Código MFA (si aplica)</label>
-          <input id="staffReauthMfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
-          <div class="row mt-8">
-            <button id="btnStaffReauth">Revalidar</button>
-          </div>
-        </div>
-        <div class="card compact-card">
-          <h3>MFA</h3>
+          <div class="hr"></div>
           <div class="row">
-            <button id="btnStaffMfaEnroll">Generar MFA</button>
-            <button id="btnStaffMfaDisable">Desactivar MFA</button>
+            <span class="badge">Último cliente: <code id="lastCustomer">—</code></span>
+            <span class="badge">Puntos: <code id="lastPoints">—</code></span>
+            <span class="badge">Saldo: <code id="lastBalance">—</code></span>
           </div>
-          <label>Código para confirmar MFA</label>
-          <input id="staffMfaConfirmCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
-          <div class="row mt-8">
-            <button id="btnStaffMfaConfirm">Confirmar MFA</button>
-          </div>
-          <pre id="staffMfaSecret" class="small pre-wrap">(sin secreto pendiente)</pre>
         </div>
-        <div class="card compact-card">
-          <h3>Cuenta</h3>
-          <label>Nuevo correo</label>
-          <input id="staffNewEmail" type="email" placeholder="nuevo-correo@dominio.com"/>
-          <div class="row mt-8">
-            <button id="btnStaffEmailChange">Solicitar cambio</button>
-            <button class="danger" id="btnStaffLockdown">Revocar sesiones</button>
+
+        <div class="card">
+          <h2>Canjear recompensa</h2>
+          <p class="small">Primero escanea o registra para seleccionar el cliente, luego canjea.</p>
+          <label>Recompensa</label>
+          <select id="rewardSelect"></select>
+          <div class="row mt-10">
+            <button class="primary" id="btnRedeem">Canjear</button>
+            <span class="badge">Código: <code id="redeemCode">—</code></span>
           </div>
-          <p class="small">El cambio de correo requiere confirmar tokens enviados al correo actual y al nuevo.</p>
+        </div>
+
+        <div class="card">
+          <h2>Gift Cards</h2>
+          <p class="small">Canjea saldo de gift card por monto.</p>
+          <label>Código o token</label>
+          <input id="giftCode" placeholder="GC-XXXX... o gft_xxx"/>
+          <label>Monto a descontar (Q)</label>
+          <input id="giftAmount" type="number" min="0.01" step="0.01" value="10"/>
+          <div class="row mt-10">
+            <button class="primary" id="btnGiftRedeem">Canjear gift card</button>
+          </div>
+          <p class="small" id="giftStatus">—</p>
         </div>
       </div>
-    </div>
+    </section>
+
+    <section class="staff-support-grid">
+      <div class="card" id="ownerAnalyticsCard">
+        <h2>Propietario: analítica</h2>
+        <div class="row">
+          <button id="btnSummary">Ver resumen</button>
+          <a class="badge" href="/admin">Registro</a>
+        </div>
+        <pre id="summary" class="small pre-wrap"></pre>
+      </div>
+
+      <div class="card">
+        <h2>Seguridad de cuenta</h2>
+        <div class="grid">
+          <div class="card compact-card">
+            <h3>Revalidar sesión</h3>
+            <label>Contraseña actual</label>
+            <input id="staffReauthPassword" type="password" placeholder="Contraseña actual"/>
+            <label>Código MFA (si aplica)</label>
+            <input id="staffReauthMfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
+            <div class="row mt-8">
+              <button id="btnStaffReauth">Revalidar</button>
+            </div>
+          </div>
+          <div class="card compact-card">
+            <h3>MFA</h3>
+            <div class="row">
+              <button id="btnStaffMfaEnroll">Generar MFA</button>
+              <button id="btnStaffMfaDisable">Desactivar MFA</button>
+            </div>
+            <label>Código para confirmar MFA</label>
+            <input id="staffMfaConfirmCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
+            <div class="row mt-8">
+              <button id="btnStaffMfaConfirm">Confirmar MFA</button>
+            </div>
+            <pre id="staffMfaSecret" class="small pre-wrap">(sin secreto pendiente)</pre>
+          </div>
+          <div class="card compact-card">
+            <h3>Cuenta</h3>
+            <label>Nuevo correo</label>
+            <input id="staffNewEmail" type="email" placeholder="nuevo-correo@dominio.com"/>
+            <div class="row mt-8">
+              <button id="btnStaffEmailChange">Solicitar cambio</button>
+              <button class="danger" id="btnStaffLockdown">Revocar sesiones</button>
+            </div>
+            <p class="small">El cambio de correo requiere confirmar tokens enviados al correo actual y al nuevo.</p>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 
   <div id="toast" class="toast"></div>
