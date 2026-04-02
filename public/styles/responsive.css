@@ -79,6 +79,7 @@
 
     .nav .row {
         justify-content: flex-end;
+        width: 100%;
     }
 
     .brand-title {

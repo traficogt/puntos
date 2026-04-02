@@ -1,14 +1,15 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="theme-color" content="#f8f2e8"/>
+  <meta name="theme-color" content="#0b0f14"/>
   <title>Panel Admin • PuntosFieles</title>
   <link rel="icon" href="/icon.svg?v=4" type="image/svg+xml"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script type="module" src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css"/>
   <script src="/runtime-config.js"></script>
   <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
@@ -20,6 +21,7 @@
       <span class="brand-title">Panel Admin</span>
     </div>
     <div class="row">
+      <button type="button" id="themeToggle">Tema claro</button>
       <a class="ghost-link" href="/staff">Escáner de personal</a>
       <a class="ghost-link" href="/">Inicio</a>
       <button id="btnShareView">Compartir vista</button>
