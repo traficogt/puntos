@@ -1,0 +1,29 @@
+.page-customer .lc-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.page-customer .lc-foot-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.page-customer #btnRefreshWallet {
+  min-height: 40px;
+  border-radius: 999px;
+  padding: 0.6rem 1rem;
+}
+
+@media (max-width: 640px) {
+  .page-customer .lc-footer,
+  .page-customer .lc-foot-actions {
+    width: 100%;
+  }
+
+  .page-customer #btnRefreshWallet {
+    width: 100%;
+  }
+}

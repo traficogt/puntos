@@ -29,12 +29,78 @@ const PLAN_LABELS = {
   external_awards: "EMPRESA"
 };
 
+const TAB_PRESENTATION = {
+  branding: {
+    title: "Branding",
+    description: "Define cómo se presenta el programa al cliente sin tocar la estructura operativa del producto.",
+    plan: "NEGOCIO"
+  },
+  rewards: {
+    title: "Recompensas",
+    description: "Diseña el catálogo, controla el costo de puntos y valida que cada premio esté listo para operar.",
+    plan: "Base"
+  },
+  tiers: {
+    title: "Niveles",
+    description: "Configura el progreso del cliente, los umbrales de valor y la lógica que sostiene cada nivel.",
+    plan: "NEGOCIO"
+  },
+  branches: {
+    title: "Sucursales",
+    description: "Organiza ubicaciones, alcances y comparativos sin perder control sobre el negocio completo.",
+    plan: "NEGOCIO"
+  },
+  staff: {
+    title: "Personal",
+    description: "Gestiona quién opera el programa y mantén permisos claros entre caja, supervisión y control.",
+    plan: "Base"
+  },
+  giftcards: {
+    title: "Gift Cards",
+    description: "Administra saldo, emisión y conciliación de tarjetas cuando el programa necesita una capa extra de valor.",
+    plan: "NEGOCIO"
+  },
+  achievements: {
+    title: "Logros",
+    description: "Convierte comportamiento frecuente en objetivos visibles que empujen recurrencia sin ruido promocional.",
+    plan: "EMPRESA"
+  },
+  challenges: {
+    title: "Retos",
+    description: "Crea campañas con objetivos claros para mover visitas, frecuencia y recompensas durante ventanas concretas.",
+    plan: "EMPRESA"
+  },
+  referrals: {
+    title: "Referidos",
+    description: "Activa crecimiento orgánico con incentivos medidos y trazables para invitar nuevos clientes.",
+    plan: "NEGOCIO"
+  },
+  operations: {
+    title: "Operación",
+    description: "Ajusta reglas, alertas y salvaguardas que sostienen el programa cuando ya está en marcha.",
+    plan: "Base"
+  },
+  analytics: {
+    title: "Analítica",
+    description: "Lee ritmo, riesgo y retorno desde una vista de decisión, no como una pared de tarjetas compitiendo entre sí.",
+    plan: "NEGOCIO"
+  }
+};
+
 /**
  * @param {string} feature
  * @returns {string}
  */
 export function requiredPlanLabel(feature) {
   return PLAN_LABELS[feature] || "";
+}
+
+function tabPresentation(tabName) {
+  return TAB_PRESENTATION[tabName] || {
+    title: "Panel",
+    description: "Administra el programa desde una vista centralizada.",
+    plan: "Base"
+  };
 }
 
 /**
@@ -103,7 +169,10 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     state,
     tabRegistry,
     hasFeature,
-    syncDashboardViewToUrl
+    syncDashboardViewToUrl,
+    onTabActivated(tabName) {
+      updateDashboardChrome(tabName);
+    }
   });
 
   function safeColor(v, fallback = "#ddd") {
@@ -126,9 +195,68 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     initTabClicks
   } = tabController;
 
+  function selectedScopeLabel() {
+    return branchFilter.selectedBranchLabel() || "Todo el negocio";
+  }
+
+  function selectedRoleLabel() {
+    if (state.managerMode) return "Gerencia";
+    if (!state.currentStaff?.role) return "Cargando…";
+    return state.currentStaff.role === "OWNER" ? "Propietario" : state.currentStaff.role;
+  }
+
+  function planLabel() {
+    const raw = String(state.planInfo?.plan || "").trim();
+    return raw || "Base";
+  }
+
+  function businessLabel() {
+    return (
+      state.currentStaff?.businessName ||
+      state.currentStaff?.business_name ||
+      "Panel de control"
+    );
+  }
+
+  function updateDashboardChrome(tabName = state.persistedActiveTab || currentActiveTabName() || "rewards") {
+    const meta = tabPresentation(tabName);
+    const businessName = $("#businessName");
+    if (businessName) businessName.textContent = state.managerMode ? "Panel Gerente" : businessLabel();
+
+    const overviewPlan = $("#adminOverviewPlan");
+    if (overviewPlan) overviewPlan.textContent = planLabel();
+    const overviewRole = $("#adminOverviewRole");
+    if (overviewRole) overviewRole.textContent = selectedRoleLabel();
+    const overviewTab = $("#adminOverviewTab");
+    if (overviewTab) overviewTab.textContent = meta.title;
+    const overviewScope = $("#adminOverviewScope");
+    if (overviewScope) overviewScope.textContent = selectedScopeLabel();
+
+    const workspaceTitle = $("#adminWorkspaceTitle");
+    if (workspaceTitle) workspaceTitle.textContent = meta.title;
+    const workspaceDesc = $("#adminWorkspaceDesc");
+    if (workspaceDesc) workspaceDesc.textContent = meta.description;
+    const stageTitle = $("#adminStageTitle");
+    if (stageTitle) stageTitle.textContent = meta.title;
+    const stageDesc = $("#adminStageDesc");
+    if (stageDesc) stageDesc.textContent = meta.description;
+    const stagePlan = $("#adminStagePlan");
+    if (stagePlan) stagePlan.textContent = meta.plan;
+    const stageScope = $("#adminStageScope");
+    if (stageScope) stageScope.textContent = selectedScopeLabel();
+  }
+
+  function focusTab(tabName) {
+    const tabEl = /** @type {HTMLElement | null} */ (document.querySelector(`.tab[data-tab="${tabName}"]`));
+    if (!tabEl || tabEl.hidden) return;
+    activateTab(tabName);
+    loadTabData(tabName).catch(() => {});
+  }
+
   function setBranches(next) {
     /** @type {DashboardBranch[]} */
     state.branchCache = Array.isArray(next) ? next : [];
+    updateDashboardChrome();
     hooks.branchesUpdated.forEach((fn) => fn(state.branchCache));
   }
 
@@ -138,6 +266,7 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     sel.addEventListener("change", () => {
       state.persistedBranchId = sel.value || "";
       syncDashboardViewToUrl();
+      updateDashboardChrome();
       hooks.branchFilterChanged.forEach((fn) => fn(branchFilter.selectedBranchId()));
     });
   }
@@ -156,6 +285,9 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     initTabClicks();
     initBranchFilterEvents();
     initDashboardChrome({ api, $, toast, syncDashboardViewToUrl });
+    $("#btnFocusRewards")?.addEventListener("click", () => focusTab("rewards"));
+    $("#btnFocusAnalytics")?.addEventListener("click", () => focusTab("analytics"));
+    $("#btnFocusStaff")?.addEventListener("click", () => focusTab("staff"));
 
     const ok = await loadStaffSession({ api, $, state });
     if (!ok) return;
@@ -164,6 +296,7 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     applyFeatureGates();
     restoreDashboardViewFromUrl();
     syncDashboardViewToUrl();
+    updateDashboardChrome();
     for (const fn of hooks.afterPlanReady) {
       // Keep startup resilient: a non-critical widget shouldn't break the whole dashboard.
       // The underlying API calls are still validated server-side.
@@ -184,6 +317,7 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     window.addEventListener("popstate", () => {
       restoreDashboardViewFromUrl();
       const activeTab = state.persistedActiveTab || currentActiveTabName();
+      updateDashboardChrome(activeTab);
       if (activeTab) loadTabData(activeTab).catch(() => {});
       hooks.branchFilterChanged.forEach((fn) => fn(branchFilter.selectedBranchId()));
     });
@@ -214,6 +348,7 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     loadTabData,
     applyFeatureGates,
     setBranches,
+    updateDashboardChrome,
     start
   };
 }

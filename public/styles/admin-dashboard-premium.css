@@ -1,0 +1,236 @@
+.page-admin .container {
+  max-width: 1400px;
+}
+
+.page-admin .admin-command-deck {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(280px, 0.95fr);
+  gap: 22px;
+  margin: 1.5rem 0 1.75rem;
+}
+
+.page-admin .admin-command-main,
+.page-admin .admin-brief-card,
+.page-admin .admin-stage-header {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top right, rgba(214, 172, 96, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.page-admin .admin-command-main {
+  padding: 1.75rem;
+}
+
+.page-admin .admin-command-aside {
+  display: grid;
+  gap: 18px;
+}
+
+.page-admin .admin-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 1.5rem;
+}
+
+.page-admin .admin-signal-card,
+.page-admin .admin-stage-meta-item {
+  border-radius: 18px;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(8, 11, 16, 0.56);
+}
+
+.page-admin .admin-signal-card span,
+.page-admin .admin-stage-meta-item span,
+.page-admin .admin-brief-label,
+.page-admin .admin-tab-group-label,
+.page-admin .admin-stage-kicker {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.page-admin .admin-signal-card strong,
+.page-admin .admin-stage-meta-item strong {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.page-admin .admin-command-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 1.5rem;
+}
+
+.page-admin .admin-command-actions button {
+  min-height: 44px;
+}
+
+.page-admin .admin-brief-card {
+  padding: 1.1rem 1.15rem;
+}
+
+.page-admin .admin-brief-card strong {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 1.15rem;
+  color: var(--headline);
+}
+
+.page-admin .admin-brief-card p {
+  margin: 0.55rem 0 0;
+}
+
+.page-admin .admin-discipline-list {
+  margin: 0.85rem 0 0;
+  padding-left: 1rem;
+  color: var(--muted);
+}
+
+.page-admin .admin-discipline-list li + li {
+  margin-top: 0.5rem;
+}
+
+.page-admin .admin-shell-grid {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.page-admin .admin-tab-rail {
+  position: sticky;
+  top: 88px;
+  display: grid;
+  gap: 16px;
+}
+
+.page-admin .admin-tab-group {
+  padding: 1rem;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(10, 14, 21, 0.86);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
+}
+
+.page-admin .admin-tab-group .tabs {
+  display: grid;
+  gap: 8px;
+  margin-top: 0.75rem;
+}
+
+.page-admin .admin-tab-group .tab {
+  width: 100%;
+  text-align: left;
+  justify-content: flex-start;
+  border-radius: 16px;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.page-admin .admin-tab-group .tab:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.page-admin .admin-tab-group .tab.active {
+  border-color: rgba(214, 172, 96, 0.28);
+  background: linear-gradient(180deg, rgba(214, 172, 96, 0.18), rgba(214, 172, 96, 0.08));
+  color: #fff7eb;
+}
+
+.page-admin .admin-tab-stage {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.page-admin .admin-stage-header {
+  padding: 1.35rem 1.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(220px, 0.8fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.page-admin .admin-stage-header h2 {
+  margin: 0.35rem 0 0.4rem;
+}
+
+.page-admin .admin-stage-header p {
+  margin: 0;
+  max-width: 62ch;
+}
+
+.page-admin .admin-stage-meta {
+  display: grid;
+  gap: 10px;
+}
+
+.page-admin .admin-tab-panel {
+  min-width: 0;
+}
+
+.page-admin .admin-tab-panel .tab-content > .card:first-child,
+.page-admin .admin-program-host > .card:first-child {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+}
+
+.page-admin .admin-program-host {
+  margin-bottom: 1.25rem;
+}
+
+.page-admin .admin-program-host .grid,
+.page-admin .admin-tab-panel .grid {
+  gap: 18px;
+}
+
+.page-admin .admin-program-host .card .card,
+.page-admin .admin-tab-panel .card .card {
+  background: rgba(255, 255, 255, 0.022);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 1100px) {
+  .page-admin .admin-command-deck,
+  .page-admin .admin-shell-grid,
+  .page-admin .admin-stage-header {
+    grid-template-columns: 1fr;
+  }
+
+  .page-admin .admin-tab-rail {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .page-admin .admin-signal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .page-admin .admin-command-main,
+  .page-admin .admin-brief-card,
+  .page-admin .admin-stage-header {
+    padding: 1.1rem;
+  }
+
+  .page-admin .admin-command-actions {
+    flex-direction: column;
+  }
+
+  .page-admin .admin-command-actions button {
+    width: 100%;
+  }
+}

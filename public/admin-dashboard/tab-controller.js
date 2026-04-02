@@ -6,10 +6,11 @@
  *   state: DashboardState,
  *   tabRegistry: Map<string, TabDefinition>,
  *   hasFeature: (feature: string) => boolean,
- *   syncDashboardViewToUrl: () => void
+ *   syncDashboardViewToUrl: () => void,
+ *   onTabActivated?: (tabName: string) => void
  * }} deps
  */
-export function createTabController({ state, tabRegistry, hasFeature, syncDashboardViewToUrl }) {
+export function createTabController({ state, tabRegistry, hasFeature, syncDashboardViewToUrl, onTabActivated = () => {} }) {
   function setSectionVisibility(id, visible) {
     const el = document.getElementById(id);
     if (el) el.hidden = !visible;
@@ -23,6 +24,7 @@ export function createTabController({ state, tabRegistry, hasFeature, syncDashbo
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab-content")).forEach((content) => {
       content.classList.toggle("active", content.id === `${tabName}-content`);
     });
+    onTabActivated(tabName);
     if (syncUrl) syncDashboardViewToUrl();
   }
 

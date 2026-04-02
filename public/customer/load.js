@@ -28,7 +28,7 @@ function isNetworkFailure(error) {
   return !navigator.onLine || /NetworkError|Failed to fetch|fetch|abort/i.test(message);
 }
 
-export async function loadAll({ api, $, toast }) {
+export async function loadAll({ api, $, toast, silent = false }) {
   setOnlineBadge($);
   const cachedSlug = typeof localStorage !== "undefined"
     ? (localStorage.getItem("pf_customer_slug") || "").trim()
@@ -38,6 +38,10 @@ export async function loadAll({ api, $, toast }) {
     const me = /** @type {CustomerMeResponse} */ (await api("/api/customer/me"));
     await putCustomerCache("me", me);
     await renderFromMe({ api, $, toast }, me, true);
+    if (!silent) {
+      const syncBadge = safeEl($, "#syncBadge");
+      if (syncBadge?.textContent) toast(String(syncBadge.textContent));
+    }
     return;
   } catch (error) {
     if (isAuthError(error) && navigator.onLine) {

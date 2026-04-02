@@ -46,6 +46,8 @@ async function run(action, onError) {
 
 export async function initCustomerPage({ api, $, toast, mountIosInstallHint, modalAlert, modalConfirm }) {
   const cachedSlug = localStorage.getItem("pf_customer_slug") || "";
+  let refreshInFlight = false;
+  let refreshTimer = null;
 
   const slugEl = safeEl($, "#slug");
 
@@ -60,6 +62,27 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
 
   const { generateQR } = createQrController({ $, toast });
 
+  async function refreshWallet({ silent = true } = {}) {
+    if (refreshInFlight) return;
+    refreshInFlight = true;
+    const btn = safeEl($, "#btnRefreshWallet");
+    const previousText = btn?.textContent || "Actualizar tarjeta";
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = silent ? "Actualizando…" : "Actualizando tarjeta…";
+    }
+    try {
+      await loadAll({ api, $, toast, silent });
+      if (!silent) toast("Tarjeta actualizada.");
+    } finally {
+      refreshInFlight = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = previousText;
+      }
+    }
+  }
+
   safeEl($, "#btnGoJoin")?.addEventListener("click", () => {
     const slug = (safeEl($, "#slug")?.value || "").trim();
     if (!slug) {
@@ -72,6 +95,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   });
 
   safeEl($, "#btnQr")?.addEventListener("click", () => ignore(generateQR()));
+  safeEl($, "#btnRefreshWallet")?.addEventListener("click", () => ignore(refreshWallet({ silent: false })));
 
   safeEl($, "#btnLogout")?.addEventListener("click", async () => {
     await api("/api/public/customer/logout", { method: "POST", body: "{}" }).catch(() => {});
@@ -149,12 +173,28 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     });
   });
 
-  window.addEventListener("online", () => { setOnlineBadge($); ignore(loadAll({ api, $, toast })); });
+  window.addEventListener("online", () => { setOnlineBadge($); ignore(refreshWallet({ silent: true })); });
   window.addEventListener("offline", () => setOnlineBadge($));
+  window.addEventListener("focus", () => ignore(refreshWallet({ silent: true })));
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") ignore(refreshWallet({ silent: true }));
+  });
 
   mountIosInstallHint();
-  await loadAll({ api, $, toast });
+  await loadAll({ api, $, toast, silent: true });
   setOnlineBadge($);
+
+  refreshTimer = window.setInterval(() => {
+    const main = safeEl($, "#main");
+    if (document.visibilityState !== "visible") return;
+    if (!navigator.onLine) return;
+    if (main?.classList.contains("is-hidden")) return;
+    ignore(refreshWallet({ silent: true }));
+  }, 15000);
+
+  window.addEventListener("beforeunload", () => {
+    if (refreshTimer) window.clearInterval(refreshTimer);
+  }, { once: true });
 
   ignore(registerServiceWorker());
 }

@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script type="module" src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css"/>
+  <link rel="stylesheet" href="/styles/admin-dashboard-premium.css"/>
   <script src="/runtime-config.js"></script>
   <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
@@ -39,26 +40,50 @@
     </div>
 
     <div id="main" class="is-hidden">
-      <section class="admin-header-band">
-        <div class="app-stage-copy">
+      <section class="admin-command-deck">
+        <div class="admin-command-main card">
           <p class="section-kicker">Centro de control</p>
           <h1 id="businessName">Panel de control</h1>
           <p class="lede admin-lede">Recompensas, personal, sucursales, campañas y analítica en una sola vista operativa. Lo táctico vive aquí; la caja y el escaneo siguen viviendo en el flujo operativo.</p>
+          <div class="admin-signal-grid">
+            <div class="admin-signal-card">
+              <span>Plan activo</span>
+              <strong id="adminOverviewPlan">Cargando…</strong>
+            </div>
+            <div class="admin-signal-card">
+              <span>Rol</span>
+              <strong id="adminOverviewRole">Cargando…</strong>
+            </div>
+            <div class="admin-signal-card">
+              <span>Vista actual</span>
+              <strong id="adminOverviewTab">Recompensas</strong>
+            </div>
+            <div class="admin-signal-card">
+              <span>Alcance</span>
+              <strong id="adminOverviewScope">Todo el negocio</strong>
+            </div>
+          </div>
+          <div class="admin-command-actions">
+            <button type="button" class="primary" id="btnFocusRewards">Configurar recompensas</button>
+            <button type="button" id="btnFocusAnalytics">Ver analítica</button>
+            <button type="button" id="btnFocusStaff">Gestionar personal</button>
+          </div>
         </div>
-        <div class="admin-quick-notes app-stage-aside">
-          <div class="admin-note-card">
-            <span>Flujo</span>
-            <strong>Configura</strong>
+        <aside class="admin-command-aside">
+          <div class="card admin-brief-card">
+            <span class="admin-brief-label">Enfoque actual</span>
+            <strong id="adminWorkspaceTitle">Recompensas</strong>
+            <p id="adminWorkspaceDesc">Diseña los premios que el cliente puede alcanzar, controla costos y valida que el catálogo esté listo para operar.</p>
           </div>
-          <div class="admin-note-card">
-            <span>Equipo</span>
-            <strong>Opera</strong>
+          <div class="card admin-brief-card">
+            <span class="admin-brief-label">Disciplina operativa</span>
+            <ul class="admin-discipline-list">
+              <li>Configura el programa antes de abrir caja.</li>
+              <li>Usa staff para operar y este panel para decidir.</li>
+              <li>Deja la analítica para revisar ritmo y riesgo, no para cada cobro.</li>
+            </ul>
           </div>
-          <div class="admin-note-card">
-            <span>Datos</span>
-            <strong>Decide</strong>
-          </div>
-        </div>
+        </aside>
       </section>
 
       <div id="dashboardProgramHost" class="admin-program-host">
@@ -69,24 +94,57 @@
 
       <section class="admin-shell-grid">
         <aside class="admin-tab-rail">
-          <div class="tabs">
-            <div class="tab" data-tab="branding">Branding</div>
-            <div class="tab active" data-tab="rewards">Recompensas</div>
-            <div class="tab" data-tab="tiers">Niveles</div>
-            <div class="tab" data-tab="branches">Sucursales</div>
-            <div class="tab" data-tab="staff">Personal</div>
-            <div class="tab" data-tab="giftcards">Gift Cards</div>
-            <div class="tab" data-tab="achievements">Logros</div>
-            <div class="tab" data-tab="challenges">Retos</div>
-            <div class="tab" data-tab="referrals">Referidos</div>
-            <div class="tab" data-tab="operations">Operación</div>
-            <div class="tab" data-tab="analytics">Analítica</div>
+          <div class="admin-tab-group">
+            <p class="admin-tab-group-label">Programa</p>
+            <div class="tabs">
+              <button type="button" class="tab" data-tab="branding">Branding</button>
+              <button type="button" class="tab active" data-tab="rewards">Recompensas</button>
+              <button type="button" class="tab" data-tab="tiers">Niveles</button>
+              <button type="button" class="tab" data-tab="giftcards">Gift Cards</button>
+              <button type="button" class="tab" data-tab="referrals">Referidos</button>
+            </div>
+          </div>
+          <div class="admin-tab-group">
+            <p class="admin-tab-group-label">Operación</p>
+            <div class="tabs">
+              <button type="button" class="tab" data-tab="branches">Sucursales</button>
+              <button type="button" class="tab" data-tab="staff">Personal</button>
+              <button type="button" class="tab" data-tab="operations">Operación</button>
+            </div>
+          </div>
+          <div class="admin-tab-group">
+            <p class="admin-tab-group-label">Crecimiento</p>
+            <div class="tabs">
+              <button type="button" class="tab" data-tab="achievements">Logros</button>
+              <button type="button" class="tab" data-tab="challenges">Retos</button>
+              <button type="button" class="tab" data-tab="analytics">Analítica</button>
+            </div>
           </div>
         </aside>
 
-        <div id="dashboardTabsHost" class="admin-tab-stage">
+        <div class="admin-tab-stage">
+          <header class="admin-stage-header card">
+            <div>
+              <span class="admin-stage-kicker">Área activa</span>
+              <h2 id="adminStageTitle">Recompensas</h2>
+              <p id="adminStageDesc">Diseña el catálogo, controla el costo de puntos y valida que cada premio esté listo para ser canjeado sin fricción.</p>
+            </div>
+            <div class="admin-stage-meta">
+              <div class="admin-stage-meta-item">
+                <span>Plan requerido</span>
+                <strong id="adminStagePlan">Base</strong>
+              </div>
+              <div class="admin-stage-meta-item">
+                <span>Sucursal</span>
+                <strong id="adminStageScope">Todo el negocio</strong>
+              </div>
+            </div>
+          </header>
+
+          <div id="dashboardTabsHost" class="admin-tab-panel">
           <div class="card admin-loading-card">
             <p class="small">Cargando panel...</p>
+          </div>
           </div>
         </div>
       </section>
