@@ -34,6 +34,7 @@ export interface CustomerCardBusiness {
   id?: string;
   name?: string;
   slug?: string;
+  plan?: string;
   features?: {
     customer_export?: boolean;
     referrals?: boolean;
@@ -44,6 +45,7 @@ export interface CustomerCardBusiness {
     branding_mode?: "platform_led" | "endorsed_brand" | "white_label_ready";
     customer_program_name?: string;
     customer_logo_url?: string;
+    qr_logo_enabled?: boolean;
     primary_color?: string;
     accent_color?: string;
     neutral_theme?: "warm" | "neutral" | "cool";

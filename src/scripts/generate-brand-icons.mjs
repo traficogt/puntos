@@ -5,6 +5,7 @@ import { chromium } from "playwright";
 const ROOT = process.cwd();
 const PUBLIC_DIR = path.join(ROOT, "public");
 const SVG_PATH = path.join(PUBLIC_DIR, "icon.svg");
+/** @type {Array<[string, number]>} */
 const OUTPUTS = [
   ["favicon-16.png", 16],
   ["favicon-32.png", 32],

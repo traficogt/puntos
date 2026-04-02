@@ -74,6 +74,7 @@ export interface AdminDashboardApp extends AdminDashboardDependencies {
   onBranchFilterChanged(fn: BranchChangedHook): void;
   onBranchesUpdated(fn: BranchesUpdatedHook): void;
   hasFeature(feature: string): boolean;
+  requiredPlanLabel(feature: string): string;
   selectedBranchId(): string;
   branchQueryString(): string;
   selectedBranchLabel(): string;
@@ -84,6 +85,7 @@ export interface AdminDashboardApp extends AdminDashboardDependencies {
   loadTabData(tabName: string): Promise<void>;
   applyFeatureGates(): void;
   setBranches(next: DashboardBranch[]): void;
+  updateDashboardChrome(tabName?: string): void;
   start(): Promise<void>;
 }
 
@@ -226,6 +228,7 @@ export interface CustomerBrandingConfig {
   branding_mode?: "platform_led" | "endorsed_brand" | "white_label_ready";
   customer_program_name?: string;
   customer_logo_url?: string;
+  qr_logo_enabled?: boolean;
   primary_color?: string;
   accent_color?: string;
   neutral_theme?: "warm" | "neutral" | "cool";

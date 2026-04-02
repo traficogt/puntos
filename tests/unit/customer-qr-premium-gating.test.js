@@ -69,6 +69,13 @@ describe("customer qr premium gating", () => {
 
   it("keeps the QR plain when the premium logo asset does not load", async () => {
     class BrokenImage {
+      constructor() {
+        /** @type {((error?: unknown) => void) | null} */
+        this.onerror = null;
+        /** @type {(() => void) | null} */
+        this.onload = null;
+      }
+
       set src(_value) {
         queueMicrotask(() => this.onerror?.(new Error("load failed")));
       }
@@ -76,7 +83,7 @@ describe("customer qr premium gating", () => {
 
     assert.equal(
       await waitForQrLogoAsset("https://cdn.example.com/logo.png", {
-        ImageCtor: BrokenImage,
+        ImageCtor: /** @type {typeof Image} */ (/** @type {unknown} */ (BrokenImage)),
         timeoutMs: 25
       }),
       false
@@ -85,6 +92,13 @@ describe("customer qr premium gating", () => {
 
   it("allows decoration only after the premium logo asset loads", async () => {
     class GoodImage {
+      constructor() {
+        /** @type {((error?: unknown) => void) | null} */
+        this.onerror = null;
+        /** @type {(() => void) | null} */
+        this.onload = null;
+      }
+
       set src(_value) {
         queueMicrotask(() => this.onload?.());
       }
@@ -92,7 +106,7 @@ describe("customer qr premium gating", () => {
 
     assert.equal(
       await waitForQrLogoAsset("https://cdn.example.com/logo.png", {
-        ImageCtor: GoodImage,
+        ImageCtor: /** @type {typeof Image} */ (/** @type {unknown} */ (GoodImage)),
         timeoutMs: 25
       }),
       true

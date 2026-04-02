@@ -7,6 +7,15 @@ import { registerServiceWorker } from "/lib.js";
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
 
 /**
+ * @param {(selector: string) => Element | null} $
+ * @param {string} selector
+ * @returns {HTMLElement | null}
+ */
+function safeEl($, selector) {
+  return /** @type {HTMLElement | null} */ ($(selector));
+}
+
+/**
  * @param {Promise<unknown>} promise
  */
 function ignore(promise) {
@@ -37,7 +46,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   async function refreshWallet({ silent = true } = {}) {
     if (refreshInFlight) return;
     refreshInFlight = true;
-    const btn = safeEl($, "#btnRefreshWallet");
+    const btn = /** @type {HTMLButtonElement | null} */ (safeEl($, "#btnRefreshWallet"));
     const previousText = btn?.textContent || "Actualizar tarjeta";
     if (btn) {
       btn.disabled = true;

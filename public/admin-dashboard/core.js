@@ -211,11 +211,12 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
   }
 
   function businessLabel() {
-    return (
-      state.currentStaff?.businessName ||
-      state.currentStaff?.business_name ||
-      "Panel de control"
-    );
+    if (!state.currentStaff) return "Panel de control";
+    const businessName = state.currentStaff.businessName;
+    if (typeof businessName === "string" && businessName.trim()) return businessName;
+    const legacyBusinessName = state.currentStaff.business_name;
+    if (typeof legacyBusinessName === "string" && legacyBusinessName.trim()) return legacyBusinessName;
+    return "Panel de control";
   }
 
   function updateDashboardChrome(tabName = state.persistedActiveTab || currentActiveTabName() || "rewards") {

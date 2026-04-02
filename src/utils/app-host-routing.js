@@ -36,6 +36,9 @@ function isLocalOrigin(origin) {
   return !host || isLocalHost(host);
 }
 
+/**
+ * @param {{ forwardedProto?: string, protocol?: string, host?: string }} params
+ */
 function pickProtocol({ forwardedProto, protocol, host }) {
   const forwarded = String(forwardedProto || "").split(",")[0]?.trim().toLowerCase();
   if (forwarded === "https" || forwarded === "http") return forwarded;
@@ -45,6 +48,9 @@ function pickProtocol({ forwardedProto, protocol, host }) {
   return isLocalHost(host) ? "http" : "https";
 }
 
+/**
+ * @param {{ host?: string, forwardedProto?: string, protocol?: string }} params
+ */
 function inferOriginsFromHost({ host, forwardedProto, protocol }) {
   const normalizedHost = normalizeHostHeader(host);
   if (!normalizedHost || isLocalHost(normalizedHost)) {
@@ -63,6 +69,9 @@ function inferOriginsFromHost({ host, forwardedProto, protocol }) {
   };
 }
 
+/**
+ * @param {{ host?: string, forwardedProto?: string, protocol?: string, appOrigin?: string, marketingOrigin?: string }} params
+ */
 function effectiveOriginsForRequest({ host, forwardedProto, protocol, appOrigin, marketingOrigin }) {
   const normalizedHost = normalizeHostHeader(host);
   if (!normalizedHost) return { appOrigin, marketingOrigin };
@@ -107,6 +116,9 @@ export function isAppRoutePath(path) {
     || /^\/registro\/[^/]+$/i.test(normalized);
 }
 
+/**
+ * @param {{ host?: string, path?: string, originalUrl?: string, forwardedProto?: string, protocol?: string, appOrigin?: string, marketingOrigin?: string }} params
+ */
 export function resolveHostSplitRedirect({ host, path, originalUrl, forwardedProto, protocol, appOrigin, marketingOrigin }) {
   const normalizedHost = normalizeHostHeader(host);
   const effectiveOrigins = effectiveOriginsForRequest({ host, forwardedProto, protocol, appOrigin, marketingOrigin });
@@ -128,6 +140,9 @@ export function resolveHostSplitRedirect({ host, path, originalUrl, forwardedPro
   return "";
 }
 
+/**
+ * @param {{ host?: string, forwardedProto?: string, protocol?: string, appOrigin?: string, marketingOrigin?: string }} params
+ */
 export function runtimeConfigForHost({ host, forwardedProto, protocol, appOrigin, marketingOrigin }) {
   const effectiveOrigins = effectiveOriginsForRequest({ host, forwardedProto, protocol, appOrigin, marketingOrigin });
   const normalizedHost = normalizeHostHeader(host);

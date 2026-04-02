@@ -1997,3 +1997,13 @@ body.page-customer .progress-inline::-moz-progress-bar {
     color: var(--muted);
     line-height: 1.65;
 }
+
+.legal-main {
+    padding-top: 3rem;
+    padding-bottom: 4rem;
+    max-width: 860px;
+}
+
+.legal-card {
+    padding: 2rem;
+}

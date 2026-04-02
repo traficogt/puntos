@@ -1,9 +1,12 @@
 export function api(path: string, opts?: RequestInit): Promise<any>;
 export function apiUrl(path: string): string;
 export function publicUrl(path: string): string;
+export function appUrl(path: string): string;
+export function marketingUrl(path: string): string;
 export function $(sel: string): Element | null;
 export function $all(sel: string): Element[];
 export function setHidden(el: HTMLElement | null | undefined, hidden: boolean): void;
+export function hydrateShellLinks(root?: ParentNode): void;
 export function registerServiceWorker(): Promise<unknown>;
 export function toast(message: string): void;
 export function fmtQ(value: unknown): string;
