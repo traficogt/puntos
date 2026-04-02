@@ -28,6 +28,23 @@ The marketing site can remain warmer and more editorial.
 
 The application should move into a darker, calmer, more operational visual system.
 
+## Platform Constraint
+
+This redesign must remain PWA-first and native-ready.
+
+That means:
+
+- application surfaces must continue to work as installable web experiences first
+- theme, shell, and navigation choices must not assume a browser-only environment
+- the design must remain compatible with a future Capacitor or similar native wrapper
+- browser metadata, icons, theme colors, safe spacing, and shell primitives should be suitable for both installed PWAs and future native shells
+
+This pass must not introduce:
+
+- browser-only UI assumptions that break in a native webview
+- route structures that depend on marketing-site context to function
+- visual treatments that only work when multiple browser tabs/windows are visible
+
 ## Core Design Direction
 
 The application should feel like a premium operational product:
