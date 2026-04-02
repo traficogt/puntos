@@ -98,12 +98,12 @@ a {
 }
 
 .brand-mark {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     display: block;
     flex-shrink: 0;
-    border-radius: 10px;
-    box-shadow: 0 10px 22px rgba(53, 31, 20, 0.16);
+    border-radius: 12px;
+    box-shadow: 0 14px 30px rgba(16, 17, 39, 0.22);
 }
 
 .customer-brand-logo {

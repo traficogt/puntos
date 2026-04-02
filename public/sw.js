@@ -1,4 +1,4 @@
-const CACHE = "pf-v31";
+const CACHE = "pf-v32";
 const CORE_ASSETS = [
   "/",
   "/admin",
@@ -25,6 +25,8 @@ const CORE_ASSETS = [
   "/idb.js",
   "/manifest.webmanifest",
   "/icon.svg",
+  "/favicon-16.png",
+  "/favicon-32.png",
   "/icon-192.png",
   "/icon-512.png",
   "/apple-touch-icon.png",

@@ -12,6 +12,29 @@
     gap: 18px;
 }
 
+body.page-marketing .nav {
+    background: rgba(247, 241, 233, 0.82);
+    border-bottom-color: rgba(20, 19, 46, 0.08);
+}
+
+body.page-marketing .brand-lockup {
+    gap: 14px;
+}
+
+body.page-marketing .brand-copy {
+    gap: 4px;
+}
+
+body.page-marketing .brand-kicker {
+    color: rgba(36, 23, 18, 0.68);
+}
+
+body.page-marketing .brand-mark {
+    box-shadow:
+        0 14px 30px rgba(16, 17, 39, 0.22),
+        0 0 0 1px rgba(226, 232, 240, 0.06);
+}
+
 .marketing-hero {
     grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
     align-items: stretch;
