@@ -28,6 +28,18 @@ export interface StaffAwardResponse {
   status?: string;
 }
 
+export interface StaffSelectedCustomer {
+  id: string;
+  name?: string | null;
+  phone?: string | null;
+  points?: number;
+  pending_points?: number;
+}
+
+export interface StaffLookupCustomerResponse {
+  customer: StaffSelectedCustomer;
+}
+
 export interface StaffSyncResult {
   ok?: boolean;
   txId?: string;

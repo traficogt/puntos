@@ -1,4 +1,5 @@
 import { setHidden } from "/lib.js";
+import { getRewardViewModel, rewardsWithState } from "./rewards.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
 /** @typedef {import("../types.js").CustomerReferralCodeData} CustomerReferralCodeData */
@@ -42,19 +43,38 @@ export function renderRewards($, points, rewards) {
   }
 
   // Siguiente recompensa sugerida
-  const sorted = [...rewards].sort((a, b) => a.points_cost - b.points_cost);
-  const next = sorted.find((r) => r.points_cost > points) || sorted[0];
-  const remain = Math.max(0, next.points_cost - points);
+  const { sorted, eligible, next, remain } = rewardsWithState(points, rewards);
   if (nextRewardEl) {
     nextRewardEl.textContent = remain === 0
       ? `¡Ya puedes canjear “${next.name}”!`
       : `Te faltan ${remain} puntos para “${next.name}”.`;
   }
 
-  for (const r of sorted) {
-    const can = points >= r.points_cost;
+  const callout = document.createElement("div");
+  callout.className = "card cus-rewards-callout";
+  const calloutTitle = document.createElement("h2");
+  calloutTitle.textContent = eligible.length > 0
+    ? `${eligible.length} recompensa${eligible.length === 1 ? "" : "s"} lista${eligible.length === 1 ? "" : "s"} para canjear en caja`
+    : `Te faltan ${remain} puntos para canjear "${next.name}".`;
+  const calloutText = document.createElement("p");
+  calloutText.className = "small";
+  calloutText.textContent = eligible.length > 0
+    ? "Muestra tu QR en caja para canjear esta recompensa."
+    : `La siguiente recompensa es "${next.name}".`;
+  const calloutBadge = document.createElement("span");
+  calloutBadge.className = "badge";
+  calloutBadge.textContent = eligible.length > 0 ? "Disponible en caja" : `Faltan ${remain} pts`;
+  callout.appendChild(calloutTitle);
+  callout.appendChild(calloutText);
+  callout.appendChild(calloutBadge);
+  box.appendChild(callout);
+
+  for (const entry of sorted) {
+    const r = entry.reward;
+    const { canRedeem: can, remainingPoints } = getRewardViewModel(points, r);
     const div = document.createElement("div");
-    div.className = "card";
+    div.className = "card cus-reward-card";
+    if (can) div.classList.add("cus-reward-ready");
     const title = document.createElement("h2");
     title.textContent = r.name;
     const desc = document.createElement("p");
@@ -71,7 +91,13 @@ export function renderRewards($, points, rewards) {
 
     const badge2 = document.createElement("span");
     badge2.className = "badge";
-    badge2.textContent = can ? "✅ Disponible" : "⏳ Aún no";
+    badge2.textContent = can ? "✅ Canjeable en caja" : `⏳ Te faltan ${remainingPoints} pts`;
+
+    const hint = document.createElement("p");
+    hint.className = "small cus-reward-note";
+    hint.textContent = can
+      ? "Muestra tu QR en caja para canjear esta recompensa."
+      : `Te faltan ${remainingPoints} puntos para canjear esta recompensa.`;
 
     row.appendChild(badge1);
     row.appendChild(badge2);
@@ -79,6 +105,7 @@ export function renderRewards($, points, rewards) {
     div.appendChild(title);
     div.appendChild(desc);
     div.appendChild(row);
+    div.appendChild(hint);
     box.appendChild(div);
   }
 }

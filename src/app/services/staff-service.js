@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 import { StaffRepo } from "../repositories/staff-repository.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
+import { CustomerRepo } from "../repositories/customer-repository.js";
 import { RewardRepo } from "../repositories/reward-repository.js";
 import { SecurityEventRepo } from "../repositories/security-event-repository.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
@@ -14,10 +15,39 @@ import { awardPoints, awardPointsWithDeps } from "./staff-award-service.js";
 import { logger } from "../../utils/logger.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 import { hashPassword, needsPasswordRehash, verifyPassword } from "../../utils/password-hash.js";
+import { verifyQrToken } from "../../utils/qr-token.js";
 import { verifyStaffMfaForLogin } from "./account-security-service.js";
 
 function id() {
   return crypto.randomUUID();
+}
+
+export async function lookupCustomerByQrTokenWithDeps(
+  deps,
+  { staff, customerQrToken }
+) {
+  let decoded;
+  try {
+    decoded = await deps.verifyQrToken(customerQrToken);
+  } catch (error) {
+    throw badRequest(error?.message ?? "Invalid QR token");
+  }
+
+  const { bid, cid } = decoded;
+  if (bid !== staff.business_id) throw forbidden("QR token is for a different business");
+
+  const customer = await deps.CustomerRepo.getById(cid);
+  if (!customer || customer.business_id !== staff.business_id) throw notFound("Customer not found");
+
+  return {
+    customer: {
+      id: customer.id,
+      name: customer.name ?? null,
+      phone: customer.phone ?? null,
+      points: Number(customer.points ?? 0),
+      pending_points: Number(customer.pending_points ?? 0)
+    }
+  };
 }
 
 async function findExistingRedemptionByRequestId(client, businessId, requestId) {
@@ -111,6 +141,15 @@ export async function staffLogin({ email, password, mfaCode = undefined }) {
     },
     token
   };
+}
+
+const customerLookupDeps = {
+  verifyQrToken,
+  CustomerRepo
+};
+
+export async function lookupCustomerByQrToken(payload) {
+  return lookupCustomerByQrTokenWithDeps(customerLookupDeps, payload);
 }
 
 const redeemDeps = {

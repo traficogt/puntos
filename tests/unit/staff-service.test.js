@@ -23,7 +23,7 @@ const fakeClient = {
   }
 };
 
-const { awardPointsWithDeps, redeemRewardWithDeps } = await import("../../src/app/services/staff-service.js");
+const { awardPointsWithDeps, redeemRewardWithDeps, lookupCustomerByQrTokenWithDeps } = await import("../../src/app/services/staff-service.js");
 
 describe("awardPoints", () => {
   beforeEach(() => {
@@ -324,5 +324,39 @@ describe("redeemReward", () => {
     });
     assert.equal(advisoryLockCount, 1);
     assert.equal(webhookCalls.length, 0);
+  });
+});
+
+describe("lookupCustomerByQrToken", () => {
+  it("returns the selected customer when the QR token belongs to the same business", async () => {
+    const out = await lookupCustomerByQrTokenWithDeps(
+      {
+        verifyQrToken: async () => ({ bid: "b1", cid: "c1", jti: "j1", exp: 999999 }),
+        CustomerRepo: {
+          getById: async () => ({
+            id: "c1",
+            business_id: "b1",
+            name: "Ana Pérez",
+            phone: "55555555",
+            points: 125,
+            pending_points: 10
+          })
+        }
+      },
+      {
+        staff: { id: "s1", business_id: "b1", role: "MANAGER" },
+        customerQrToken: "token"
+      }
+    );
+
+    assert.deepEqual(out, {
+      customer: {
+        id: "c1",
+        name: "Ana Pérez",
+        phone: "55555555",
+        points: 125,
+        pending_points: 10
+      }
+    });
   });
 });

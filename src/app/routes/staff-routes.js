@@ -8,11 +8,11 @@ import { requireRecentReauth, requireStaff, requireStaffPermission } from "../..
 import { csrfProtect } from "../../middleware/csrf.js";
 import { requirePlanFeature } from "../../middleware/plan-feature.js";
 import { strictRateLimit } from "../../middleware/rate-limit.js";
-import { staffLogin, awardPoints, redeemReward, syncAwards, refundAward } from "../services/staff-service.js";
+import { staffLogin, awardPoints, redeemReward, syncAwards, refundAward, lookupCustomerByQrToken } from "../services/staff-service.js";
 import { RewardRepo } from "../repositories/reward-repository.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
 import { getPermissionMatrix, Permission } from "../../utils/permissions.js";
-import { awardPointsSchema, redeemRewardSchema, staffLoginSchema } from "../../utils/schemas.js";
+import { awardPointsSchema, redeemRewardSchema, staffLoginSchema, staffLookupCustomerSchema } from "../../utils/schemas.js";
 import { settlePendingPointsForBusiness } from "../services/loyalty-ops-service.js";
 import { tenantContext } from "../../middleware/tenant.js";
 import { invalidateBrowserSessionById } from "../services/auth-session-service.js";
@@ -145,6 +145,17 @@ staffRoutes.get("/staff/rewards", requireStaff, tenantContext, requirePlanFeatur
       return scope.includes(String(req.staff.branch_id));
     });
   res.json({ ok: true, rewards: visible });
+}));
+
+staffRoutes.post("/staff/customer/lookup", csrfProtect, requireStaff, tenantContext, asyncRoute(async (req, res) => {
+  const v = validate(staffLookupCustomerSchema, req.body);
+  if (!v.ok) return res.status(400).json({ error: v.error });
+
+  const out = await lookupCustomerByQrToken({
+    staff: req.staff,
+    customerQrToken: v.data.customerQrToken
+  });
+  res.json({ ok: true, ...out });
 }));
 
 

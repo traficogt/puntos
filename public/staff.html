@@ -32,17 +32,17 @@
     <section class="admin-header-band staff-header-band">
       <div class="app-stage-copy">
         <p class="section-kicker">Validación operativa</p>
-        <h1>Escanea, valida y registra sin fricción.</h1>
-        <p class="lede admin-lede">Una vista enfocada para caja: cámara al centro, acción inmediata a la derecha y soporte operativo debajo. Si eres dueño, desde aquí saltas al panel sin salir del mismo sistema.</p>
+        <h1>Selecciona al cliente, luego registra o canjea.</h1>
+        <p class="lede admin-lede">Una vista enfocada para caja: la cámara selecciona al cliente, después eliges la acción. Registrar suma puntos; canjear usa el cliente ya seleccionado.</p>
       </div>
       <div class="admin-quick-notes app-stage-aside">
         <div class="admin-note-card">
           <span>Modo</span>
-          <strong>Escanea</strong>
+          <strong>Selecciona</strong>
         </div>
         <div class="admin-note-card">
           <span>Ruta</span>
-          <strong>Registra y canjea</strong>
+          <strong>Cliente activo</strong>
         </div>
         <div class="admin-note-card">
           <span>Estado</span>
@@ -53,13 +53,14 @@
 
     <section class="staff-workstage">
       <div class="card staff-camera-stage">
-        <h2>Cámara</h2>
+        <h2>Seleccionar cliente</h2>
         <video id="video" autoplay playsinline muted></video>
         <div class="row mt-10">
-          <button class="primary" id="btnStart">Iniciar</button>
+          <button class="primary" id="btnStart">Seleccionar cliente</button>
           <button id="btnStop">Pausar</button>
           <button id="btnSync">Sincronizar</button>
         </div>
+        <p class="small" id="selectionStatus">Escanea o pega un token válido para seleccionar un cliente.</p>
         <p class="small">Consejo: Chrome Android tiene mejor soporte para QR. Si no hay BarcodeDetector, usa entrada manual.</p>
         <p class="small" id="queueMeta">Pendientes: 0 • Fallidos: 0 • Última actividad: —</p>
         <pre id="queueList" class="small pre-wrap">(sin operaciones pendientes)</pre>
@@ -71,6 +72,9 @@
           <p class="small" id="programInfo">Regla activa: —</p>
           <label>Token QR (manual)</label>
           <textarea id="token" rows="3" placeholder="Pega aquí el token si no puedes escanear"></textarea>
+          <div class="row mt-10">
+            <button id="btnSelectCustomer">Seleccionar cliente</button>
+          </div>
 
           <div class="grid">
             <div>
@@ -91,11 +95,13 @@
             <button class="primary" id="btnAward">Registrar</button>
             <button class="danger" id="btnLogout">Salir</button>
           </div>
-          <p class="small" id="awardPreview">Listo para registrar en cuanto el QR sea válido.</p>
+          <p class="small" id="awardPreview">Primero selecciona un cliente. Luego registra la compra, visita o items.</p>
 
           <div class="hr"></div>
           <div class="row">
-            <span class="badge">Último cliente: <code id="lastCustomer">—</code></span>
+            <span class="badge">Cliente seleccionado: <code id="lastCustomer">—</code></span>
+            <span class="badge">Nombre: <code id="lastCustomerName">—</code></span>
+            <span class="badge">Teléfono: <code id="lastCustomerPhone">—</code></span>
             <span class="badge">Puntos: <code id="lastPoints">—</code></span>
             <span class="badge">Saldo: <code id="lastBalance">—</code></span>
           </div>
@@ -103,9 +109,10 @@
 
         <div class="card">
           <h2>Canjear recompensa</h2>
-          <p class="small">Primero escanea o registra para seleccionar el cliente, luego canjea.</p>
+          <p class="small">Selecciona al cliente, luego elige la recompensa disponible y canjea.</p>
           <label>Recompensa</label>
           <select id="rewardSelect"></select>
+          <p class="small" id="rewardSelectionHint">Selecciona un cliente para ver qué recompensas puede canjear ahora.</p>
           <div class="row mt-10">
             <button class="primary" id="btnRedeem">Canjear</button>
             <span class="badge">Código: <code id="redeemCode">—</code></span>

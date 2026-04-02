@@ -163,6 +163,10 @@ export const awardPointsSchema = z.object({
   txId: uuidSchema
 });
 
+export const staffLookupCustomerSchema = z.object({
+  customerQrToken: z.string().min(1)
+});
+
 export const syncAwardsSchema = z.object({
   awards: z.array(z.object({
     customerQrToken: z.string().min(1),

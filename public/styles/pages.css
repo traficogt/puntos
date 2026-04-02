@@ -1806,12 +1806,40 @@ body.page-customer .progress-inline::-moz-progress-bar {
     margin: 6px 0;
 }
 
+.cus-rewards-callout {
+    background: linear-gradient(135deg, rgba(248, 237, 225, 0.98), rgba(255, 255, 255, 0.98));
+    border-color: rgba(184, 120, 51, 0.22);
+    box-shadow: 0 18px 40px rgba(91, 63, 45, 0.08);
+}
+
+.cus-rewards-callout h2 {
+    margin-bottom: 6px;
+}
+
+.cus-rewards-callout .badge {
+    margin-top: 10px;
+}
+
+.cus-reward-card {
+    position: relative;
+}
+
+.cus-reward-ready {
+    border-color: rgba(184, 120, 51, 0.26);
+    box-shadow: 0 10px 28px rgba(184, 120, 51, 0.08);
+}
+
 .cus-rewards-list .card h2 {
     font-size: 15px;
     font-family: var(--body-font);
     font-weight: 600;
     color: #1a1008;
     margin: 0 0 4px;
+}
+
+.cus-reward-note {
+    margin: 10px 0 0;
+    color: rgba(0, 0, 0, 0.58);
 }
 
 /* Activity section */

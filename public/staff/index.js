@@ -3,6 +3,7 @@ import { registerServiceWorker, setHidden } from "/lib.js";
 
 /** @typedef {import("./types.js").StaffAwardResponse} StaffAwardResponse */
 /** @typedef {import("./types.js").StaffGiftRedeemResponse} StaffGiftRedeemResponse */
+/** @typedef {import("./types.js").StaffLookupCustomerResponse} StaffLookupCustomerResponse */
 /** @typedef {import("./types.js").StaffMeResponse} StaffMeResponse */
 /** @typedef {import("./types.js").StaffPermissionsResponse} StaffPermissionsResponse */
 /** @typedef {import("./types.js").StaffProgramRule} StaffProgramRule */
@@ -15,6 +16,8 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   let staff = null;
   let scanning = false;
   let lastCustomerId = null;
+  let lastCustomerToken = "";
+  let lastCustomerPoints = 0;
   let detector = null;
   let lastScannedToken = "";
   let lastScannedAt = 0;
@@ -22,6 +25,8 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   let giftRedeemInFlight = false;
   /** @type {StaffProgramRule | null} */
   let programRule = null;
+  /** @type {StaffRewardsResponse["rewards"]} */
+  let rewardOptions = [];
   /** @type {Set<string> | null} */
   let permissionSet = null;
 
@@ -223,6 +228,10 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   function updateAwardPreview() {
     const out = element("#awardPreview");
     if (!out || !programRule) return;
+    if (!lastCustomerId) {
+      out.textContent = "Primero selecciona un cliente. Luego registra la compra, visita o items.";
+      return;
+    }
     const cfg = programRule.program_json || {};
     const amount = Number(input("#amount").value || 0);
     const visits = Math.floor(Number(input("#visits").value || 0));
@@ -240,6 +249,100 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       preview = round === "floor" ? Math.floor(raw) : round === "round" ? Math.round(raw) : Math.ceil(raw);
     }
     out.textContent = `Vista previa: se otorgarán aprox. ${Math.max(0, preview)} puntos con los valores actuales.`;
+  }
+
+  function renderRewardOptions() {
+    const sel = select("#rewardSelect");
+    const hint = element("#rewardSelectionHint");
+    sel.replaceChildren();
+
+    if (!rewardOptions.length) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "No hay recompensas activas";
+      sel.appendChild(opt);
+      sel.disabled = true;
+      if (hint) hint.textContent = "No hay recompensas activas para este programa.";
+      return;
+    }
+
+    const sortedRewards = [...rewardOptions].sort((a, b) => {
+      const aEligible = lastCustomerPoints >= Number(a.points_cost || 0);
+      const bEligible = lastCustomerPoints >= Number(b.points_cost || 0);
+      if (aEligible !== bEligible) return aEligible ? -1 : 1;
+      return Number(a.points_cost || 0) - Number(b.points_cost || 0);
+    });
+
+    for (const reward of sortedRewards) {
+      const pointsCost = Number(reward.points_cost || 0);
+      const eligible = lastCustomerPoints >= pointsCost;
+      const opt = document.createElement("option");
+      opt.value = reward.id;
+      opt.disabled = !eligible;
+      opt.textContent = eligible
+        ? `${reward.name} (${pointsCost} pts)`
+        : `${reward.name} (${pointsCost} pts • faltan ${Math.max(0, pointsCost - lastCustomerPoints)})`;
+      sel.appendChild(opt);
+    }
+
+    sel.disabled = !lastCustomerId;
+    const status = element("#selectionStatus");
+    if (hint) {
+      hint.textContent = lastCustomerId
+        ? "Las recompensas disponibles aparecen primero. Las que faltan puntos quedan deshabilitadas."
+        : "Selecciona un cliente para ver qué recompensas puede canjear ahora.";
+    }
+    if (status && !lastCustomerId) {
+      status.textContent = "Escanea o pega un token válido para seleccionar un cliente.";
+    }
+  }
+
+  function applySelectedCustomer(customer, token, { silent = true } = {}) {
+    lastCustomerId = customer?.id || null;
+    lastCustomerToken = token || "";
+    lastCustomerPoints = Number(customer?.points || 0);
+    element("#lastCustomer").textContent = customer?.id || "—";
+    element("#lastCustomerName").textContent = customer?.name || "—";
+    element("#lastCustomerPhone").textContent = customer?.phone || "—";
+    element("#lastBalance").textContent = customer ? String(Number(customer.points || 0)) : "—";
+    element("#lastPoints").textContent = "—";
+    const status = element("#selectionStatus");
+    if (status) {
+      status.textContent = lastCustomerId
+        ? `Cliente seleccionado: ${lastCustomerId}. Ahora puedes registrar o canjear.`
+        : "Escanea o pega un token válido para seleccionar un cliente.";
+    }
+    updateAwardPreview();
+    renderRewardOptions();
+    if (!silent && lastCustomerId) {
+      toast("Cliente seleccionado.");
+    }
+  }
+
+  function clearSelectedCustomer() {
+    applySelectedCustomer(null, "", { silent: true });
+    element("#redeemCode").textContent = "—";
+  }
+
+  async function selectCustomerFromToken(token, { silent = true } = {}) {
+    const trimmed = String(token || "").trim();
+    if (!trimmed) {
+      toast("Pega un token o escanea.");
+      return false;
+    }
+
+    return run(async () => {
+      const out = /** @type {StaffLookupCustomerResponse} */ (await api("/api/staff/customer/lookup", {
+        method: "POST",
+        body: JSON.stringify({ customerQrToken: trimmed })
+      }));
+      applySelectedCustomer(out.customer, trimmed, { silent });
+      return true;
+    }, (error) => {
+      clearSelectedCustomer();
+      toast(error.message);
+      return false;
+    });
   }
 
   async function loadProgramRule() {
@@ -305,9 +408,16 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     return run(async () => {
       const out = /** @type {StaffAwardResponse} */ (await api("/api/staff/award", { method: "POST", body: JSON.stringify(payload) }));
       element("#lastCustomer").textContent = out.customerId;
+      const selectionStatus = element("#selectionStatus");
+      if (selectionStatus) {
+        selectionStatus.textContent = `Cliente seleccionado: ${out.customerId}. Ahora puedes registrar o canjear.`;
+      }
       element("#lastPoints").textContent = String(out.pointsAwarded);
       element("#lastBalance").textContent = String(out.newBalance);
       lastCustomerId = out.customerId;
+      lastCustomerToken = token;
+      lastCustomerPoints = Number(out.newBalance || 0);
+      renderRewardOptions();
       if (out.status === "PENDING") {
         toast("Puntos pendientes: +" + out.pointsAwarded + " (se liberan después).");
       } else {
@@ -346,7 +456,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
           lastScannedAt = now;
         }
         input("#token").value = token;
-        await award(token);
+        await selectCustomerFromToken(token, { silent: false });
         setTimeout(() => { scanning = true; requestAnimationFrame(scanLoop); }, 1200);
         return;
       }
@@ -360,7 +470,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       await startCamera();
       scanning = true;
       requestAnimationFrame(scanLoop);
-      toast("Escaneando...");
+      toast("Selecciona un cliente...");
     }, (error) => {
       toast(error?.message || "No se pudo iniciar la camara.");
     });
@@ -375,9 +485,16 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   element("#btnAward").addEventListener("click", async () => {
     await run(async () => {
       await ensureAuth();
+      if (!lastCustomerId || !lastCustomerToken) return toast("Primero selecciona un cliente.");
+      await award(lastCustomerToken);
+    });
+  });
+
+  element("#btnSelectCustomer").addEventListener("click", async () => {
+    await run(async () => {
+      await ensureAuth();
       const token = input("#token").value.trim();
-      if (!token) return toast("Pega un token o escanea.");
-      await award(token);
+      await selectCustomerFromToken(token, { silent: false });
     });
   });
 
@@ -512,29 +629,26 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   async function loadRewards() {
     await run(async () => {
       const out = /** @type {StaffRewardsResponse} */ (await api("/api/staff/rewards"));
-      const sel = select("#rewardSelect");
-      sel.replaceChildren();
-      for (const r of out.rewards) {
-        const opt = document.createElement("option");
-        opt.value = r.id;
-        opt.textContent = `${r.name} (${r.points_cost} pts)`;
-        sel.appendChild(opt);
-      }
+      rewardOptions = out.rewards || [];
+      renderRewardOptions();
     });
   }
 
   element("#btnRedeem").addEventListener("click", async () => {
-    if (!lastCustomerId) return toast("Primero registra/escanea un cliente.");
+    if (!lastCustomerId) return toast("Primero selecciona un cliente.");
     if (redeemInFlight) return;
     redeemInFlight = true;
     await run(async () => {
       const rewardId = select("#rewardSelect").value;
+      if (!rewardId) return toast("Selecciona una recompensa disponible.");
       const out = /** @type {StaffRedeemResponse} */ (await api("/api/staff/redeem", {
         method: "POST",
         body: JSON.stringify({ customerId: lastCustomerId, rewardId, requestId: uuidv4() })
       }));
       element("#redeemCode").textContent = out.redemptionCode;
       element("#lastBalance").textContent = String(out.newBalance);
+      lastCustomerPoints = Number(out.newBalance || 0);
+      renderRewardOptions();
       toast("Canje listo. Código: " + out.redemptionCode);
     }, (error) => {
       toast(error.message);
@@ -579,10 +693,16 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   input("#amount").addEventListener("input", updateAwardPreview);
   input("#visits").addEventListener("input", updateAwardPreview);
   input("#items").addEventListener("input", updateAwardPreview);
+  input("#token").addEventListener("input", () => {
+    if (input("#token").value.trim() !== lastCustomerToken) {
+      clearSelectedCustomer();
+    }
+  });
 
   await requeueSyncingAwards().catch(() => {});
   await ensureAuth();
   await refreshQueue();
+  clearSelectedCustomer();
   if (navigator.onLine) {
     await loadRewards();
   }
