@@ -44,7 +44,7 @@ async function run(action, onError) {
   }
 }
 
-export async function initCustomerPage({ api, $, toast, mountIosInstallHint, modalAlert, modalConfirm }) {
+export async function initCustomerPage({ api, $, toast, mountIosInstallHint, modalAlert }) {
   const cachedSlug = localStorage.getItem("pf_customer_slug") || "";
   let refreshInFlight = false;
   let refreshTimer = null;
@@ -102,34 +102,6 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     toast("Sesión cerrada.");
     await clearCustomerCache().catch(() => {});
     setTimeout(() => location.reload(), 600);
-  });
-
-  safeEl($, "#btnExport")?.addEventListener("click", async () => {
-    await run(async () => {
-      const out = await api("/api/customer/export");
-      const exportOut = safeEl($, "#exportOut");
-      if (exportOut) exportOut.textContent = JSON.stringify(out, null, 2);
-      toast("Exportación lista.");
-    }, (e) => {
-      toast(e.message);
-    });
-  });
-
-  safeEl($, "#btnDelete")?.addEventListener("click", async () => {
-    const ok = await modalConfirm("¿Eliminar cuenta? Esto desactiva tu tarjeta.", {
-      title: "Eliminar cuenta",
-      confirmText: "Eliminar"
-    });
-    if (!ok) return;
-    await run(async () => {
-      await api("/api/customer/me", { method: "DELETE" });
-      await api("/api/public/customer/logout", { method: "POST", body: "{}" }).catch(() => {});
-      await clearCustomerCache().catch(() => {});
-      toast("Cuenta eliminada.");
-      setTimeout(() => location.reload(), 800);
-    }, (e) => {
-      toast(e.message);
-    });
   });
 
   safeEl($, "#btnCopyCode")?.addEventListener("click", () => {

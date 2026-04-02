@@ -61,6 +61,14 @@ function updateSyncBadge($, isLive, updatedAt) {
   badge.classList.remove("status-online");
 }
 
+function applyCustomerFeatureVisibility($, business) {
+  const features = business?.features || {};
+  const referralsSection = safeEl($, "#referralsSection");
+  const achievementsSection = safeEl($, "#achievementsSection");
+  setHidden(referralsSection, !features.referrals);
+  setHidden(achievementsSection, !features.gamification);
+}
+
 function renderOfflineSections($, snapshot) {
   const sections = snapshot?.sections || {};
   const me = sections.me?.customer || {};
@@ -111,6 +119,7 @@ export async function renderFromMe({ api, $, toast }, me, isLive, snapshot = nul
   const biz = me.business;
   const c = me.customer;
   const branding = applyWalletBranding($, biz || {});
+  applyCustomerFeatureVisibility($, biz || {});
   const bizName = safeEl($, "#bizName");
   const who = safeEl($, "#who");
   const points = safeEl($, "#points");
@@ -164,29 +173,33 @@ export async function renderFromMe({ api, $, toast }, me, isLive, snapshot = nul
       }
     });
 
-    await quietly(async () => {
-      const achData = /** @type {CustomerAchievementsResponse} */ (await api("/api/customer/achievements"));
-      await putCustomerCache("achievements", achData);
-      renderAchievements($, achData);
-    }, () => {
-      if (snapshot?.sections?.achievements) renderAchievements($, snapshot.sections.achievements);
-    });
+    if (biz?.features?.gamification) {
+      await quietly(async () => {
+        const achData = /** @type {CustomerAchievementsResponse} */ (await api("/api/customer/achievements"));
+        await putCustomerCache("achievements", achData);
+        renderAchievements($, achData);
+      }, () => {
+        if (snapshot?.sections?.achievements) renderAchievements($, snapshot.sections.achievements);
+      });
+    }
 
-    await quietly(async () => {
-      const refData = /** @type {CustomerReferralCodeResponse} */ (await api("/api/customer/referral-code"));
-      await putCustomerCache("referralCode", refData);
-      renderReferralCode($, refData.referral_code);
-    }, () => {
-      if (snapshot?.sections?.referralCode) renderReferralCode($, snapshot.sections.referralCode.referral_code);
-    });
+    if (biz?.features?.referrals) {
+      await quietly(async () => {
+        const refData = /** @type {CustomerReferralCodeResponse} */ (await api("/api/customer/referral-code"));
+        await putCustomerCache("referralCode", refData);
+        renderReferralCode($, refData.referral_code);
+      }, () => {
+        if (snapshot?.sections?.referralCode) renderReferralCode($, snapshot.sections.referralCode.referral_code);
+      });
 
-    await quietly(async () => {
-      const refStats = /** @type {CustomerReferralStats} */ (await api("/api/customer/referrals"));
-      await putCustomerCache("referralStats", refStats);
-      renderReferralStats($, refStats);
-    }, () => {
-      if (snapshot?.sections?.referralStats) renderReferralStats($, snapshot.sections.referralStats);
-    });
+      await quietly(async () => {
+        const refStats = /** @type {CustomerReferralStats} */ (await api("/api/customer/referrals"));
+        await putCustomerCache("referralStats", refStats);
+        renderReferralStats($, refStats);
+      }, () => {
+        if (snapshot?.sections?.referralStats) renderReferralStats($, snapshot.sections.referralStats);
+      });
+    }
     updateSyncBadge($, true, new Date().toISOString());
   } else {
     renderOfflineSections($, snapshot);

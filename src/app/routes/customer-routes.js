@@ -9,11 +9,13 @@ import { RewardRepo } from "../repositories/reward-repository.js";
 import { RedemptionRepo } from "../repositories/redemption-repository.js";
 import { toCSV } from "../../utils/csv.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
+import { PlanConfigService } from "../services/plan-config-service.js";
 import { settlePendingPointsForCustomer, expirePointsForCustomer } from "../services/loyalty-ops-service.js";
 import { logger } from "../../utils/logger.js";
 import { config } from "../../config/index.js";
 import { tenantContext } from "../../middleware/tenant.js";
 import { invalidateBrowserSessionById, invalidateBrowserSessionsForActor } from "../services/auth-session-service.js";
+import { planFeaturesWithOverrides } from "../../utils/plan.js";
 
 export const customerRoutes = Router();
 
@@ -40,6 +42,8 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
   if (!customer || customer.business_id !== auth.business_id) return rejectMissingCustomer(req, res);
   const business = await BusinessRepo.getById(req.tenantId);
   if (!business || business.id !== auth.business_id) return rejectMissingCustomer(req, res);
+  const overrides = await PlanConfigService.getPlanFeatureOverrides().catch(() => ({}));
+  const features = planFeaturesWithOverrides(business.plan, overrides);
   res.json({
     ok: true,
     business: {
@@ -47,6 +51,7 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
       name: business.name,
       slug: business.slug,
       plan: business.plan,
+      features,
       customer_branding: business.customer_branding_json ?? null
     },
     customer: {
@@ -79,7 +84,7 @@ customerRoutes.get("/customer/rewards", requireCustomer, tenantContext, requireP
   res.json({ ok: true, rewards: rewards.filter(r => r.active) });
 }));
 
-customerRoutes.get("/customer/export", requireCustomer, tenantContext, requirePlanFeature("customer_export"), asyncRoute(async (req, res) => {
+customerRoutes.get("/customer/export", requireCustomer, tenantContext, asyncRoute(async (req, res) => {
   const auth = req.customerAuth;
   const customer = await CustomerRepo.getById(auth.id);
   if (!customer || customer.business_id !== auth.business_id) return rejectMissingCustomer(req, res);

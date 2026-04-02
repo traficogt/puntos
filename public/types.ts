@@ -34,6 +34,12 @@ export interface CustomerCardBusiness {
   id?: string;
   name?: string;
   slug?: string;
+  features?: {
+    customer_export?: boolean;
+    referrals?: boolean;
+    gamification?: boolean;
+    tiers?: boolean;
+  };
   customer_branding?: {
     branding_mode?: "platform_led" | "endorsed_brand" | "white_label_ready";
     customer_program_name?: string;
