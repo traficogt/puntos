@@ -23,7 +23,11 @@ test("customer wallet exposes a dominant hero and progress band near the top", (
   assert.match(walletShell, /class="[^"]*\blc-hero\b[^"]*"/, "expected lc-hero inside the top wallet shell");
   assert.match(walletShell, /class="[^"]*\blc-focus-band\b[^"]*"/, "expected lc-focus-band inside the top wallet shell");
   assert.match(walletShell, /id="nextReward"/, "expected nextReward inside the top wallet shell");
-  assert.match(walletShell, /id="tierSection"/, "expected tierSection inside the top wallet shell");
+  assert.match(
+    html,
+    /<div class="customer-sections">\s*<div class="cus-section" id="tierSection">/,
+    "expected tierSection to be the first lower section immediately after the wallet card",
+  );
 });
 
 test("customer wallet keeps account utilities in a separate quiet section", () => {

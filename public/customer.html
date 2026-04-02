@@ -26,8 +26,8 @@
       </div>
     </div>
     <div class="row">
-      <button type="button" id="themeToggle">Tema claro</button>
-      <a class="ghost-link" href="/">Inicio</a>
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><span class="theme-toggle-glyph" aria-hidden="true">◐</span></button>
+      <a class="ghost-link" href="/sitio" data-shell-link="marketing-home">Sitio</a>
       <button id="btnLogout" class="is-hidden">Salir</button>
     </div>
   </div>
@@ -37,15 +37,15 @@
     <!-- ── Not logged in ── -->
     <div class="is-hidden" id="needLogin">
       <div class="cus-entry-intro">
-        <h1 id="customerEntryTitle">Tu tarjeta digital vive aquí.</h1>
-        <p id="customerEntrySubtitle">Regístrate en un negocio para comenzar. El negocio te comparte un enlace con su slug.</p>
+        <h1 id="customerEntryTitle">Tu programa activo vive aquí.</h1>
+        <p id="customerEntrySubtitle">Entra con el enlace que te compartió el negocio. Después, este navegador queda listo para volver a tu programa activo sin buscar nada más.</p>
         <p class="small brand-powered-by" id="customerPoweredBy">Powered by PuntosFieles</p>
       </div>
       <div class="cus-entry-stack">
         <div class="cus-entry-card">
           <p class="cus-entry-label">¿Tienes el enlace del negocio?</p>
           <h2>Ir a registro</h2>
-          <p class="small">Abre <code>/join/&lt;slug&gt;</code> o ingresa el slug aquí.</p>
+          <p class="small">Abre <code>/registro/&lt;slug&gt;</code> o ingresa el slug aquí.</p>
           <label>Slug del negocio</label>
           <input id="slug" placeholder="cafe-bourbon"/>
           <button class="primary" id="btnGoJoin">Ir a registro</button>
@@ -66,7 +66,7 @@
           </div>
         </div>
         <div class="cus-entry-note">
-          Usa el mismo navegador y teléfono donde te registraste. Puedes agregar esta página a tu pantalla de inicio.
+          Usa el mismo navegador y teléfono donde te registraste. Puedes agregar esta página a tu pantalla de inicio para volver más rápido.
         </div>
       </div>
     </div>
@@ -76,30 +76,38 @@
 
       <!-- The loyalty card face -->
       <div class="loyalty-card">
-        <div class="lc-head">
-          <div class="lc-brand">
-            <p class="lc-meta">Programa activo</p>
-            <h1 class="lc-name" id="bizName">—</h1>
-            <p class="lc-holder" id="who">—</p>
+        <div class="lc-hero">
+          <div class="lc-head">
+            <div class="lc-brand">
+              <p class="lc-meta">Programa activo</p>
+              <h1 class="lc-name" id="bizName">—</h1>
+              <p class="lc-holder" id="who">—</p>
+            </div>
+            <span class="lc-badge" id="netBadge">En línea</span>
           </div>
-          <span class="lc-badge" id="netBadge">En línea</span>
-        </div>
 
-        <div class="lc-points">
-          <div class="lc-points-value" id="points">—</div>
-          <div class="lc-points-label">puntos disponibles</div>
-        </div>
+          <div class="lc-balance">
+            <div class="lc-points">
+              <div class="lc-points-value" id="points">—</div>
+              <div class="lc-points-label">puntos disponibles</div>
+            </div>
 
-        <div class="lc-qr-area">
-          <div class="lc-qr-stage" id="qrWrap">
-            <div class="lc-qr-placeholder">Presiona el botón para generar tu QR</div>
+            <div class="lc-qr-area">
+              <div class="lc-qr-stage" id="qrWrap">
+                <div class="lc-qr-placeholder">Genera tu QR cuando vayas a pagar o canjear.</div>
+              </div>
+              <button class="lc-qr-btn" id="btnQr">Generar QR</button>
+              <p class="lc-qr-hint" id="qrHint"></p>
+            </div>
           </div>
-          <button class="lc-qr-btn" id="btnQr">Generar QR</button>
-          <p class="lc-qr-hint" id="qrHint"></p>
         </div>
 
-        <div class="lc-footer">
-          <div class="lc-foot-stats">
+        <div class="lc-focus-band">
+          <div class="lc-focus-copy">
+            <p class="lc-focus-label">Siguiente recompensa</p>
+            <p class="cus-next-reward" id="nextReward">—</p>
+          </div>
+          <div class="lc-focus-meta">
             <div class="lc-foot-stat">
               <strong id="lifetime">—</strong>
               <span>histórico</span>
@@ -113,6 +121,9 @@
               <span>última visita</span>
             </div>
           </div>
+        </div>
+
+        <div class="lc-footer">
           <div class="lc-foot-badges">
             <span class="lc-badge" id="qrExp">QR: —</span>
             <span class="lc-badge" id="syncBadge">—</span>
@@ -122,7 +133,6 @@
 
       <!-- Sections below the card -->
       <div class="customer-sections">
-
         <div class="cus-section" id="tierSection">
           <p class="cus-section-label">Tu nivel</p>
           <div class="cus-tier-row">
@@ -141,24 +151,7 @@
 
         <div class="cus-section">
           <p class="cus-section-label">Recompensas</p>
-          <p class="cus-next-reward" id="nextReward">—</p>
           <div id="rewards" class="cus-rewards-list"></div>
-        </div>
-
-        <div class="cus-section">
-          <p class="cus-section-label">Logros</p>
-          <div id="achievements" class="small"></div>
-          <button id="btnViewAllAchievements" class="mt-12">Ver todos los logros</button>
-        </div>
-
-        <div class="cus-section">
-          <p class="cus-section-label">Invita amigos</p>
-          <p class="small">Comparte tu código — ambos ganan puntos.</p>
-          <div class="row gap-8 mt-12 mb-12">
-            <input id="referralCode" class="flex-1 input-emphasis" readonly value="---"/>
-            <button id="btnCopyCode" class="primary">Copiar</button>
-          </div>
-          <div id="referralStats" class="small"></div>
         </div>
 
         <div class="cus-section">
@@ -173,6 +166,22 @@
               <div id="red" class="small pre-wrap"></div>
             </div>
           </div>
+        </div>
+
+        <div class="cus-section">
+          <p class="cus-section-label">Invita amigos</p>
+          <p class="small">Comparte tu código — ambos ganan puntos.</p>
+          <div class="row gap-8 mt-12 mb-12">
+            <input id="referralCode" class="flex-1 input-emphasis" readonly value="---"/>
+            <button id="btnCopyCode" class="primary">Copiar</button>
+          </div>
+          <div id="referralStats" class="small"></div>
+        </div>
+
+        <div class="cus-section">
+          <p class="cus-section-label">Logros</p>
+          <div id="achievements" class="small"></div>
+          <button id="btnViewAllAchievements" class="mt-12">Ver todos los logros</button>
         </div>
 
         <div class="cus-section cus-section-account">
