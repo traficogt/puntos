@@ -65,7 +65,7 @@ This keeps the app root aligned with the operational use case while customers co
 
 ### Customer
 
-- `/join/:slug`
+- `/registro/:slug`
   Customer entry for a specific business. This is the primary customer acquisition path.
 
 - `/c`
@@ -91,11 +91,11 @@ This keeps the app root aligned with the operational use case while customers co
 
 ## Customer Entry Model
 
-The business is responsible for distributing the customer join link.
+The business is responsible for distributing the customer registration link.
 
 Primary customer journey:
 
-1. Business shares `app.puntosfieles.com/join/:slug`
+1. Business shares `app.puntosfieles.com/registro/:slug`
 2. Customer verifies phone and activates their card
 3. Customer is taken directly to `/c`
 4. `/c` becomes the return surface for that active business context on that device/browser
@@ -110,9 +110,28 @@ This means:
 - `/c` is not a marketplace or directory
 - the user should not be asked to “find their business” from a generic customer hub
 
-If a customer later joins another business from a different `join/:slug` link, that new program may replace the active customer context on the current device/browser. Multi-program switching can be designed later as a deliberate product feature if it becomes necessary.
+If a customer later joins another business from a different `registro/:slug` link, that new program may replace the active customer context on the current device/browser. Multi-program switching can be designed later as a deliberate product feature if it becomes necessary.
 
 This keeps v1 simple and aligned with the current data and session model.
+
+### Spanish-First Route Naming
+
+Customer-facing route names should be Spanish-first.
+
+This means:
+
+- use `/registro/:slug` instead of `/join/:slug`
+- prefer Spanish public/customer URLs where practical
+
+Slug values themselves should remain ASCII-safe for URL reliability, QR compatibility, and lower support friction.
+
+Examples:
+
+- `cafe-bourbon`
+- `ninos-felices`
+- `panaderia-central`
+
+This preserves Spanish naming without introducing accented URL edge cases.
 
 ## Staff And Owner Entry Model
 
@@ -215,7 +234,7 @@ Those can build on top of this route and entry architecture later.
 - `puntosfieles.com` is marketing only
 - `app.puntosfieles.com` is product only
 - `app.puntosfieles.com/` redirects to `/staff/login`
-- customers enter through `/join/:slug`
+- customers enter through `/registro/:slug`
 - customers return through `/c`
 - staff and owners share `/staff/login`
 - role decides whether they land on `/staff` or `/admin-dashboard`
