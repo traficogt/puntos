@@ -86,6 +86,10 @@
         font-size: 22px;
     }
 
+    .theme-toggle {
+        min-width: auto;
+    }
+
     .container {
         padding: 16px 12px 24px;
     }

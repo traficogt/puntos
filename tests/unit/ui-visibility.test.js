@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 
 import { setHidden } from "../../public/lib.js";
 
@@ -66,5 +67,17 @@ describe("ui visibility helper", () => {
     assert.equal(el.hidden, false);
     assert.equal(el.classList.contains("is-hidden"), false);
     assert.equal(el.getAttribute("aria-hidden"), null);
+  });
+
+  it("application entrypoints expose the premium app shell markers", () => {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    const admin = fs.readFileSync(new URL("../../public/admin-dashboard.html", import.meta.url), "utf8");
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    const customer = fs.readFileSync(new URL("../../public/customer.html", import.meta.url), "utf8");
+
+    assert.match(admin, /<body class="app-shell page-admin">/);
+    assert.match(admin, /class="nav app-topbar"/);
+    assert.match(customer, /<body class="app-shell page-customer">/);
+    assert.match(customer, /class="nav app-topbar"/);
   });
 });
