@@ -25,7 +25,7 @@ async function gotoStable(page, url, options) {
 
 async function waitForServiceWorker(page) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    await gotoStable(page, appUrl("/"), { waitUntil: "domcontentloaded", timeout: 20_000 });
+    await gotoStable(page, appUrl("/staff/login"), { waitUntil: "domcontentloaded", timeout: 20_000 });
     await page.waitForFunction(async () => {
       if (!("serviceWorker" in navigator)) return false;
       const registration = await navigator.serviceWorker.ready;
@@ -123,10 +123,10 @@ test.describe("PWA coverage", () => {
     await expect(page.locator("#syncBadge")).toContainText(/Guardado:/);
     await expect(page.locator("#netBadge")).toContainText(/Sin conexión/);
 
-    await gotoStable(page, appUrl("/"), { waitUntil: "domcontentloaded", timeout: 20_000 });
-    await expect(page).toHaveTitle(/PuntosFieles/);
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(/lealtad que se ve premium/i);
-    await expect(page.locator('a[href="/admin"]')).toBeVisible();
+    await gotoStable(page, appUrl("/staff/login"), { waitUntil: "domcontentloaded", timeout: 20_000 });
+    await expect(page).toHaveTitle(/Ingreso del equipo/i);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/Una sola entrada para caja y dueño/i);
+    await expect(page.locator('a[href="/staff"]')).toBeVisible();
 
     await page.evaluate(async () => {
       localStorage.setItem("pf_staff_snapshot", JSON.stringify({
