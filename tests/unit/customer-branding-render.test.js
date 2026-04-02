@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 
 import { buildBrandingPayload } from "../../public/admin-dashboard/modules/branding-form.js";
 
@@ -65,4 +66,13 @@ test("customer branding helpers derive visibility and fallback copy from brandin
       joinSubtitle: "Confirma tu telefono para acumular puntos en Cafe Bourbon."
     }
   );
+});
+
+test("customer shell keeps branding anchors while using the premium app shell", () => {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  const source = fs.readFileSync(new URL("../../public/customer.html", import.meta.url), "utf8");
+
+  assert.match(source, /id="customerBrandTitle"/);
+  assert.match(source, /<body class="app-shell page-customer">/);
+  assert.match(source, /id="themeToggle"/);
 });

@@ -225,12 +225,14 @@ body.page-marketing .brand-mark {
 .join-shell {
     grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.15fr);
     align-items: start;
+    gap: 18px;
 }
 
 .join-intro,
 .join-stage,
 .join-done {
     margin: 0;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--paper-strong) 94%, transparent), color-mix(in srgb, var(--paper) 88%, transparent));
 }
 
 .join-workspace {
@@ -252,8 +254,8 @@ body.page-marketing .brand-mark {
 .join-note {
     padding: 14px 16px;
     border-radius: 18px;
-    background: rgba(255, 249, 242, 0.72);
-    border: 1px solid rgba(91, 63, 45, 0.1);
+    background: color-mix(in srgb, var(--paper) 74%, transparent);
+    border: 1px solid var(--line);
 }
 
 .join-note strong,
@@ -1192,16 +1194,18 @@ body.page-customer .nav {
 /* ── Loyalty card face ─────────────────── */
 
 .loyalty-card {
-    background: #1e1208;
-    border: 1px solid rgba(184, 87, 47, 0.16);
+    background:
+        radial-gradient(circle at top, rgba(245, 158, 11, 0.12), transparent 34%),
+        linear-gradient(180deg, #101623 0%, #0d121d 100%);
+    border: 1px solid rgba(148, 163, 184, 0.14);
     border-radius: 24px;
     padding: 28px;
     box-shadow:
         0 2px 4px rgba(0, 0, 0, 0.1),
         0 8px 20px rgba(0, 0, 0, 0.16),
         0 32px 60px rgba(0, 0, 0, 0.26),
-        0 0 0 1px rgba(184, 87, 47, 0.05);
-    color: #f0e2c8;
+        0 0 0 1px rgba(245, 158, 11, 0.04);
+    color: #e7edf4;
     display: grid;
     gap: 22px;
     margin-bottom: 20px;
@@ -1222,7 +1226,7 @@ body.page-customer .nav {
     font-size: 10px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: rgba(240, 226, 200, 0.3);
+    color: rgba(231, 237, 244, 0.42);
     margin: 0 0 8px;
     line-height: 1;
 }
@@ -1232,14 +1236,14 @@ body.page-customer .nav {
     font-size: 26px;
     font-weight: 300;
     letter-spacing: -0.02em;
-    color: #f5eadb;
+    color: #f5f7fa;
     margin: 0 0 5px;
     line-height: 1.1;
 }
 
 .lc-holder {
     font-size: 12px;
-    color: rgba(240, 226, 200, 0.34);
+    color: rgba(231, 237, 244, 0.5);
     margin: 0;
     line-height: 1.4;
     white-space: nowrap;
@@ -1255,9 +1259,9 @@ body.page-customer .nav {
     border-radius: 6px;
     font-size: 11px;
     font-weight: 500;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: rgba(240, 226, 200, 0.56);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    color: rgba(231, 237, 244, 0.68);
     white-space: nowrap;
 }
 
@@ -1284,12 +1288,12 @@ body.page-customer .nav {
     font-weight: 300;
     letter-spacing: -0.04em;
     line-height: 1;
-    color: #fff;
+    color: #f8fafc;
 }
 
 .lc-points-label {
     font-size: 11px;
-    color: rgba(240, 226, 200, 0.34);
+    color: rgba(231, 237, 244, 0.48);
     margin-top: 6px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -1302,7 +1306,7 @@ body.page-customer .nav {
 }
 
 .lc-qr-stage {
-    background: #fff;
+    background: rgba(248, 250, 252, 0.98);
     border-radius: 16px;
     padding: 16px;
     display: flex;
@@ -1313,7 +1317,7 @@ body.page-customer .nav {
 
 .lc-qr-placeholder {
     font-size: 13px;
-    color: rgba(0, 0, 0, 0.28);
+    color: rgba(15, 23, 42, 0.4);
     text-align: center;
     padding: 16px;
     line-height: 1.5;
@@ -1329,10 +1333,10 @@ body.page-customer #qrWrap svg {
 
 body.page-customer .lc-qr-btn {
     width: 100%;
-    background: rgba(184, 87, 47, 0.88);
-    border: 1px solid rgba(184, 87, 47, 0.28);
+    background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+    border: 1px solid color-mix(in srgb, var(--accent-deep) 76%, transparent);
     border-radius: 11px;
-    color: #fff5ee;
+    color: #130d05;
     font-size: 15px;
     font-weight: 600;
     font-family: var(--body-font);
@@ -1340,19 +1344,19 @@ body.page-customer .lc-qr-btn {
     min-height: 48px;
     cursor: pointer;
     letter-spacing: 0;
-    box-shadow: 0 4px 14px rgba(184, 87, 47, 0.26);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
     transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease;
 }
 
 body.page-customer .lc-qr-btn:hover {
-    background: rgba(200, 94, 46, 1);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 92%, #ffffff 8%), color-mix(in srgb, var(--accent-deep) 92%, #ffffff 8%));
     transform: translateY(-1px);
-    box-shadow: 0 8px 24px rgba(184, 87, 47, 0.38);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
 }
 
 .lc-qr-hint {
     font-size: 12px;
-    color: rgba(240, 226, 200, 0.34);
+    color: rgba(231, 237, 244, 0.48);
     margin: 0;
     text-align: center;
     line-height: 1.5;
@@ -1360,7 +1364,7 @@ body.page-customer .lc-qr-btn:hover {
 
 /* Footer */
 .lc-footer {
-    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    border-top: 1px solid rgba(148, 163, 184, 0.14);
     padding-top: 18px;
     display: grid;
     gap: 10px;
@@ -1376,7 +1380,7 @@ body.page-customer .lc-qr-btn:hover {
     display: block;
     font-size: 13px;
     font-weight: 600;
-    color: #f0e2c8;
+    color: #edf2f7;
     line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
@@ -1386,7 +1390,7 @@ body.page-customer .lc-qr-btn:hover {
 .lc-foot-stat span {
     display: block;
     font-size: 10px;
-    color: rgba(240, 226, 200, 0.28);
+    color: rgba(231, 237, 244, 0.38);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     margin-top: 2px;
@@ -1402,15 +1406,17 @@ body.page-customer .lc-qr-btn:hover {
 
 .customer-sections {
     display: grid;
-    gap: 2px;
-    background: rgba(91, 63, 45, 0.1);
+    gap: 10px;
+    background: transparent;
     border-radius: 20px;
-    overflow: hidden;
-    border: 1px solid rgba(91, 63, 45, 0.07);
+    overflow: visible;
+    border: none;
 }
 
 .cus-section {
-    background: #fdfaf5;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--paper-strong) 94%, transparent), color-mix(in srgb, var(--paper) 88%, transparent));
+    border: 1px solid var(--line);
+    border-radius: 20px;
     padding: 22px;
 }
 
@@ -1419,12 +1425,12 @@ body.page-customer .lc-qr-btn:hover {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: rgba(0, 0, 0, 0.28);
+    color: var(--muted);
     margin: 0 0 14px;
 }
 
 .cus-section-account {
-    background: #fdf7ef;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--paper-strong) 92%, transparent), color-mix(in srgb, var(--paper) 86%, transparent));
 }
 
 /* Tier section */
@@ -1464,7 +1470,7 @@ body.page-customer .progress-inline::-moz-progress-bar {
 /* Rewards section */
 .cus-next-reward {
     font-size: 14px;
-    color: #7a6250;
+    color: var(--muted);
     margin: 0 0 14px;
     line-height: 1.5;
     font-weight: 500;
@@ -1513,29 +1519,31 @@ body.page-customer .progress-inline::-moz-progress-bar {
     font-size: clamp(26px, 7vw, 38px);
     font-weight: 300;
     letter-spacing: -0.02em;
-    color: #1a1008;
+    color: var(--text);
     margin: 0 0 8px;
     line-height: 1.1;
 }
 
 .cus-entry-intro p {
     font-size: 15px;
-    color: #7a6250;
+    color: var(--muted);
     margin: 0;
     line-height: 1.6;
 }
 
 .cus-entry-stack {
     display: grid;
-    gap: 2px;
-    background: rgba(91, 63, 45, 0.1);
+    gap: 10px;
+    background: transparent;
     border-radius: 20px;
-    overflow: hidden;
-    border: 1px solid rgba(91, 63, 45, 0.07);
+    overflow: visible;
+    border: none;
 }
 
 .cus-entry-card {
-    background: #fdfaf5;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--paper-strong) 94%, transparent), color-mix(in srgb, var(--paper) 88%, transparent));
+    border: 1px solid var(--line);
+    border-radius: 20px;
     padding: 22px;
     display: grid;
     gap: 0;
@@ -1544,7 +1552,7 @@ body.page-customer .progress-inline::-moz-progress-bar {
 .cus-entry-card h2 {
     font-size: 18px;
     font-weight: 600;
-    color: #1a1008;
+    color: var(--text);
     font-family: var(--body-font);
     margin: 0 0 8px;
 }
@@ -1554,14 +1562,16 @@ body.page-customer .progress-inline::-moz-progress-bar {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: rgba(0, 0, 0, 0.28);
+    color: var(--muted);
     margin: 0 0 6px;
 }
 
 .cus-entry-note {
-    background: #fdf7ef;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--paper-strong) 92%, transparent), color-mix(in srgb, var(--paper) 84%, transparent));
+    border: 1px solid var(--line);
+    border-radius: 20px;
     padding: 18px 22px;
     font-size: 13px;
-    color: #7a6250;
+    color: var(--muted);
     line-height: 1.65;
 }
