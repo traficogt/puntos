@@ -1,4 +1,4 @@
-import { api, $, registerServiceWorker, toast, setHidden, hydrateShellLinks } from "/lib.js";
+import { api, $, toast, setHidden, hydrateShellLinks } from "/lib.js";
 import { applyJoinBranding } from "./customer-branding.js";
 
 hydrateShellLinks();
@@ -173,5 +173,3 @@ $("#btnVerify").addEventListener("click", async () => {
     toast(e.message);
   }
 });
-
-registerServiceWorker().catch(() => {});

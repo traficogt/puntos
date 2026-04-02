@@ -1,4 +1,4 @@
-import { api, $, registerServiceWorker, toast, hydrateShellLinks } from "/lib.js";
+import { api, $, toast, hydrateShellLinks } from "/lib.js";
 
 /** @typedef {import("./staff/types.js").StaffLoginPayload} StaffLoginPayload */
 
@@ -90,5 +90,3 @@ element("#btnLogout").addEventListener("click", async () => {
   await api("/api/staff/logout", { method: "POST", body: "{}" }).catch(() => {});
   toast("Sesión cerrada.");
 });
-
-registerServiceWorker().catch(() => {});
