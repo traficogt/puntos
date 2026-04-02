@@ -3,30 +3,14 @@ import { loadAll } from "./load.js";
 import { setOnlineBadge } from "./network.js";
 import { createQrController } from "./qr.js";
 import { registerServiceWorker } from "/lib.js";
-import { applyWalletBranding } from "../customer-branding.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
-
-/**
- * @param {(selector: string) => Element | null} $
- * @param {string} id
- * @returns {HTMLInputElement | HTMLTextAreaElement | null}
- */
-function safeEl($, id) {
-  return /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ ($(id));
-}
 
 /**
  * @param {Promise<unknown>} promise
  */
 function ignore(promise) {
   promise.catch(() => {});
-}
-
-function setEntryFeedback($, selector, message) {
-  const el = safeEl($, selector);
-  if (!el) return;
-  el.textContent = String(message || "").trim();
 }
 
 /**
@@ -45,20 +29,8 @@ async function run(action, onError) {
 }
 
 export async function initCustomerPage({ api, $, toast, mountIosInstallHint, modalAlert }) {
-  const cachedSlug = localStorage.getItem("pf_customer_slug") || "";
   let refreshInFlight = false;
   let refreshTimer = null;
-
-  const slugEl = safeEl($, "#slug");
-
-  if (slugEl) slugEl.value = cachedSlug;
-
-  if (cachedSlug) {
-    await run(async () => {
-      const business = await api(`/api/public/business/${encodeURIComponent(cachedSlug)}`);
-      applyWalletBranding($, business);
-    });
-  }
 
   const { generateQR } = createQrController({ $, toast });
 
@@ -83,29 +55,27 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     }
   }
 
-  safeEl($, "#btnGoJoin")?.addEventListener("click", () => {
-    const slug = (safeEl($, "#slug")?.value || "").trim();
-    if (!slug) {
-      setEntryFeedback($, "#joinFeedback", "Escribe el slug del negocio para abrir su registro.");
-      return toast("Escribe el slug");
-    }
-    setEntryFeedback($, "#joinFeedback", `Abriendo /registro/${slug}...`);
-    localStorage.setItem("pf_customer_slug", slug);
-    location.href = `/registro/${encodeURIComponent(slug)}`;
-  });
+  $("#btnQr")?.addEventListener("click", () => ignore(generateQR()));
+  $("#btnRefreshWallet")?.addEventListener("click", () => ignore(refreshWallet({ silent: false })));
 
-  safeEl($, "#btnQr")?.addEventListener("click", () => ignore(generateQR()));
-  safeEl($, "#btnRefreshWallet")?.addEventListener("click", () => ignore(refreshWallet({ silent: false })));
-
-  safeEl($, "#btnLogout")?.addEventListener("click", async () => {
+  $("#btnLogout")?.addEventListener("click", async () => {
+    const cachedSlug = typeof localStorage !== "undefined"
+      ? (localStorage.getItem("pf_customer_slug") || "").trim()
+      : "";
     await api("/api/public/customer/logout", { method: "POST", body: "{}" }).catch(() => {});
     toast("Sesión cerrada.");
     await clearCustomerCache().catch(() => {});
-    setTimeout(() => location.reload(), 600);
+    setTimeout(() => {
+      if (cachedSlug) {
+        location.href = `/registro/${encodeURIComponent(cachedSlug)}?motivo=salida`;
+        return;
+      }
+      location.reload();
+    }, 600);
   });
 
-  safeEl($, "#btnCopyCode")?.addEventListener("click", () => {
-    const code = safeEl($, "#referralCode")?.value || "";
+  $("#btnCopyCode")?.addEventListener("click", () => {
+    const code = /** @type {HTMLInputElement | null} */ ($("#referralCode"))?.value || "";
     if (code && code !== "N/A" && code !== "---") {
       navigator.clipboard.writeText(code).then(() => {
         toast("¡Código copiado! Compártelo con tus amigos.");
@@ -115,7 +85,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     }
   });
 
-  safeEl($, "#btnViewAllAchievements")?.addEventListener("click", async () => {
+  $("#btnViewAllAchievements")?.addEventListener("click", async () => {
     await run(async () => {
       const achData = /** @type {CustomerAchievementsResponse} */ (await api("/api/customer/achievements"));
       const earned = achData.earned || [];

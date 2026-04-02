@@ -599,21 +599,6 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     });
   });
 
-  element("#btnStaffEmailChange").addEventListener("click", async () => {
-    await run(async () => {
-      await ensureAuth();
-      const newEmail = input("#staffNewEmail").value.trim();
-      if (!newEmail) return toast("Escribe el nuevo correo.");
-      await api("/api/staff/security/email-change", {
-        method: "POST",
-        body: JSON.stringify({ newEmail })
-      });
-      toast("Cambio solicitado. Revisa ambos correos.");
-    }, (error) => {
-      toast(error.message);
-    });
-  });
-
   element("#btnStaffLockdown").addEventListener("click", async () => {
     await run(async () => {
       await ensureAuth();

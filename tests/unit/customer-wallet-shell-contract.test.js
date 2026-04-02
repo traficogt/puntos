@@ -58,18 +58,20 @@ test("logged-out wallet shell stays Spanish-first and treats /c as wallet-only e
   const html = readCustomerShellHtml();
   const brandingModule = readCustomerBrandingModule();
 
-  assert.match(html, /Ir a registro/, "expected registration path copy in Spanish");
-  assert.match(html, /Abre el registro del negocio/, "expected wallet-only customer entry copy");
+  assert.match(html, /Tu tarjeta se abre con el enlace del negocio\./, "expected wallet-only customer entry copy");
+  assert.match(html, /Si tu sesión venció, vuelve a abrir el enlace del negocio para entrar de nuevo\./);
+  assert.match(html, /No hay formulario aquí\./);
   assert.match(
     html,
-    /<h1\b[^>]*id="customerEntryTitle"[^>]*>\s*Tu programa activo vive aquí\.\s*<\/h1>/,
+    /<h1\b[^>]*id="customerEntryTitle"[^>]*>\s*Tu tarjeta se abre con el enlace del negocio\.\s*<\/h1>/,
     "expected the refined logged-out heading copy",
   );
-  assert.doesNotMatch(html, /id="btnSendLoginCode"/, "expected /c to stop exposing pseudo-login actions");
-  assert.doesNotMatch(html, /id="btnLoginVerify"/, "expected /c to stop exposing inline verify actions");
+  assert.doesNotMatch(html, /id="btnGoJoin"/, "expected /c to stop exposing pseudo-login actions");
+  assert.doesNotMatch(html, /id="slug"/, "expected /c to stop exposing inline slug entry");
+  assert.doesNotMatch(html, /id="joinFeedback"/, "expected /c to stop exposing inline feedback entry");
   assert.match(
     brandingModule,
-    /setText\("#customerEntryTitle", "Tu programa activo vive aquí\."\)/,
+    /setText\("#customerEntryTitle", "Tu tarjeta se abre con el enlace del negocio\."\)/,
     "expected runtime wallet branding to preserve the approved entry heading copy",
   );
 });

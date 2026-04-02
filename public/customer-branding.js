@@ -169,10 +169,10 @@ export function applyWalletBranding($, business) {
   setLogo("#customerBrandLogo", branding.logoUrl);
   setText("#customerBrandKicker", branding.navKicker);
   setText("#customerBrandTitle", branding.navTitle);
-  setText("#customerEntryTitle", "Tu programa activo vive aquí.");
+  setText("#customerEntryTitle", "Tu tarjeta se abre con el enlace del negocio.");
   setText(
     "#customerEntrySubtitle",
-    `Entra con el enlace que te compartió ${branding.businessName}. Después, este navegador queda listo para volver a tu programa activo sin buscar nada más.`,
+    `Si tu sesión venció, vuelve a abrir el enlace de ${branding.businessName} para entrar de nuevo.`,
   );
   setText("#bizName", branding.walletHeadline);
 

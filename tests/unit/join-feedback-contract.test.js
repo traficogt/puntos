@@ -10,7 +10,11 @@ test("join page exposes inline feedback for request and verify actions", () => {
 
   assert.match(html, /id="joinRequestFeedback"/);
   assert.match(html, /id="joinVerifyFeedback"/);
+  assert.match(html, /id="joinEntryContext"/);
   assert.match(js, /setFeedback\("#joinRequestFeedback"/);
   assert.match(js, /setFeedback\("#joinVerifyFeedback"/);
+  assert.match(js, /new URLSearchParams\(location\.search\)/);
+  assert.match(js, /Tu sesión venció en este navegador/);
+  assert.match(js, /Tu sesión se cerró\./);
   assert.doesNotMatch(js, /out\.expiresAt/);
 });

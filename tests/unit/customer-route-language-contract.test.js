@@ -10,10 +10,17 @@ test("customer-facing routes use /registro while preserving temporary compatibil
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const customerJs = fs.readFileSync(new URL("../../public/customer/index.js", import.meta.url), "utf8");
   // eslint-disable-next-line security/detect-non-literal-fs-filename
+  const customerLoadJs = fs.readFileSync(new URL("../../public/customer/load.js", import.meta.url), "utf8");
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  const joinJs = fs.readFileSync(new URL("../../public/join.js", import.meta.url), "utf8");
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const adminJs = fs.readFileSync(new URL("../../public/admin.js", import.meta.url), "utf8");
 
   assert.match(customerHtml, /\/registro\/&lt;slug&gt;/);
-  assert.match(customerJs, /location\.href = `\/registro\//);
+  assert.match(customerLoadJs, /location\.href = `\/registro\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=sesion-vencida`/);
+  assert.match(customerJs, /location\.href = `\/registro\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=salida`/);
+  assert.match(joinJs, /new URLSearchParams\(location\.search\)/);
+  assert.match(joinJs, /sesion-vencida|salida/);
   assert.match(adminJs, /\/registro\//);
   assert.doesNotMatch(customerHtml, /\/join\/&lt;slug&gt;/);
   assert.match(joinHtml, /Registro/);
