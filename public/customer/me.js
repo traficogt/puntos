@@ -125,6 +125,13 @@ export async function renderFromMe({ api, $, toast }, me, isLive, snapshot = nul
   if (lifetime) lifetime.textContent = String(c?.lifetime_points ?? 0);
   if (lastVisit) lastVisit.textContent = c?.last_visit_at ? fmtDT(c.last_visit_at) : "—";
 
+  const qrWrap = /** @type {HTMLElement | null} */ (safeEl($, "#qrWrap"));
+  if (qrWrap) {
+    qrWrap.dataset.plan = String(biz?.plan || "");
+    qrWrap.dataset.logoUrl = String(biz?.customer_branding?.customer_logo_url || "");
+    qrWrap.dataset.qrLogoEnabled = String(biz?.customer_branding?.qr_logo_enabled === true);
+  }
+
   document.title = `Mi tarjeta • ${branding.programName}`;
 
   if (isLive) {

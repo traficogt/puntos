@@ -1,4 +1,4 @@
-import { api, $, registerServiceWorker, toast, isStrongPassword, passwordRequirementsText, setHidden } from "/lib.js";
+import { api, $, registerServiceWorker, toast, isStrongPassword, passwordRequirementsText, setHidden, hydrateShellLinks } from "/lib.js";
 
 /** @typedef {import("./types.js").AdminSignupPayload} AdminSignupPayload */
 /** @typedef {import("./types.js").AdminSignupResponse} AdminSignupResponse */
@@ -26,6 +26,8 @@ function select(selector) {
 function element(selector) {
   return /** @type {HTMLElement} */ ($(selector));
 }
+
+hydrateShellLinks();
 
 function toggleBoxes() {
   const t = select("#program_type").value;
@@ -112,7 +114,7 @@ element("#btnCreate").addEventListener("click", async () => {
     const out = /** @type {AdminSignupResponse} */ (await api("/api/admin/signup", { method: "POST", body: JSON.stringify(payload) }));
     setHidden(element("#result"), false);
     element("#slug").textContent = out.business.slug;
-    const join = `${location.origin}/join/${out.business.slug}`;
+    const join = `${location.origin}/registro/${out.business.slug}`;
     element("#joinUrl").textContent = join;
     toast("Negocio creado. Ya estás con sesión de propietario.");
   } catch (e) {

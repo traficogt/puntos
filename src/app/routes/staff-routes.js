@@ -45,7 +45,7 @@ staffRoutes.post("/staff/login", strictRateLimit, asyncRoute(async (req, res) =>
   if (!v.ok) return res.status(400).json({ error: v.error });
 
   const { staff, token } = await staffLogin(v.data);
-  res.cookie(config.STAFF_COOKIE_NAME, token, { ...cookieOpts(), maxAge: browserCookieMaxAge("STAFF") });
+  res.cookie(config.STAFF_COOKIE_NAME, token, { ...cookieOpts(req), maxAge: browserCookieMaxAge("STAFF") });
   res.json({ ok: true, staff });
 }));
 

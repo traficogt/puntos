@@ -1,110 +1,156 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="theme-color" content="#f8f2e8"/>
-  <title>Registrar negocio • PuntosFieles</title>
+  <meta name="theme-color" content="#0b0f14"/>
+  <title>Alta interna de negocio • PuntosFieles</title>
+  <link rel="icon" href="/icon.svg?v=4" type="image/svg+xml"/>
+  <link rel="manifest" href="/manifest.webmanifest"/>
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=4"/>
+  <script src="/runtime-config.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script type="module" src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css"/>
   <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
-<body>
-  <div class="nav">
-    <div class="brand">🎁 PuntosFieles</div>
+<body class="app-shell page-admin-entry">
+  <div class="nav app-topbar">
+    <a href="/admin" class="brand brand-lockup">
+      <img src="/icon.svg?v=4" alt="PuntosFieles" class="brand-mark"/>
+      <span class="brand-copy">
+        <span class="brand-kicker">Uso interno</span>
+        <span class="brand-title">Alta de negocio</span>
+      </span>
+    </a>
     <div class="row">
-      <a class="badge" href="/">Inicio</a>
-      <a class="badge" href="/staff/login">Personal</a>
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><span class="theme-toggle-glyph" aria-hidden="true">◐</span></button>
+      <a class="ghost-link" href="/staff/login" data-shell-link="app-login">Ingreso del equipo</a>
+      <a class="ghost-link" href="/sitio" data-shell-link="marketing-home">Sitio</a>
     </div>
   </div>
 
   <div class="container">
-    <div class="card">
-      <h1>Registrar negocio</h1>
-      <p>En 2 minutos. Esto crea tu negocio + usuario propietario.</p>
-      <div class="onboarding-steps">
-        <div class="step-pill active">1. Datos</div>
-        <div class="step-pill">2. Regla de puntos</div>
-        <div class="step-pill">3. Publicar</div>
-      </div>
-      <div class="onboarding-progress-wrap">
-        <progress id="adminOnboardingProgress" class="onboarding-progress-bar" max="100" value="25"></progress>
-      </div>
-
-      <div class="grid">
-        <div class="card">
-          <h2>Datos</h2>
-          <label>Nombre del negocio</label>
-          <input id="businessName" placeholder="Café Bourbon"/>
-
-          <label>Correo (propietario)</label>
-          <input id="email" type="email" placeholder="owner@negocio.com"/>
-
-          <label>Teléfono (opcional)</label>
-          <input id="phone" placeholder="55551234"/>
-
-          <label>Contraseña</label>
-          <input id="password" type="password" placeholder="8+ caracteres"/>
-          <p id="passwordHint" class="small">Usa 8 a 128 caracteres. Evita claves comunes o fáciles de adivinar.</p>
-
-          <label>Categoría</label>
-          <select id="category">
-            <option value="cafe">Café</option>
-            <option value="salon">Salón</option>
-            <option value="gym">Gym</option>
-            <option value="otro">Otro</option>
-          </select>
+    <section class="entry-shell">
+      <aside class="card entry-stage entry-stage-intro">
+        <p class="section-kicker">Uso interno</p>
+        <h1>Alta interna de negocio para operación de PuntosFieles.</h1>
+        <p class="lede">Esta vista es solo para operación interna. Crea el negocio, define la regla de puntos y deja listo el acceso del cliente y del equipo.</p>
+        <div class="onboarding-steps-vertical">
+          <div class="join-note">
+            <strong>1. Datos del negocio</strong>
+            <span>Nombre, dueño y categoría para dejar listo el programa.</span>
+          </div>
+          <div class="join-note">
+            <strong>2. Regla de puntos</strong>
+            <span>Por gasto, visita o item, con una vista previa clara.</span>
+          </div>
+          <div class="join-note">
+            <strong>3. Publicar y compartir</strong>
+            <span>Recibe el enlace del programa y abre el panel o el escáner.</span>
+          </div>
         </div>
+        <div class="entry-note-stack">
+          <div class="admin-note-card">
+            <span>Perfil</span>
+            <strong>Operación interna</strong>
+          </div>
+          <div class="admin-note-card">
+            <span>Tiempo estimado</span>
+            <strong>2 min</strong>
+          </div>
+        </div>
+      </aside>
 
-        <div class="card">
-          <h2>Regla de puntos</h2>
-          <p id="programPreview" class="small">Vista previa: Q100 ≈ 10 puntos.</p>
-
-          <label>Tipo</label>
-          <select id="program_type">
-            <option value="SPEND">Por gasto (Q)</option>
-            <option value="VISIT">Por visita</option>
-            <option value="ITEM">Por item</option>
-          </select>
-
-          <div id="spendBox">
-            <label>Points por Q (ej: 0.1 = 1 punto por Q10)</label>
-            <input id="points_per_q" type="number" step="0.01" value="0.10"/>
-            <label>Redondeo</label>
-            <select id="round">
-              <option value="ceil">Hacia arriba</option>
-              <option value="round">Normal</option>
-              <option value="floor">Hacia abajo</option>
-            </select>
+      <div class="entry-workspace">
+        <article class="card entry-stage entry-stage-form">
+          <p class="section-kicker">Alta manual</p>
+          <h2>Registrar negocio</h2>
+          <p>Esto crea el negocio y deja listo el acceso del propietario para que luego compartas enlaces y credenciales.</p>
+          <div class="onboarding-progress-wrap">
+            <progress id="adminOnboardingProgress" class="onboarding-progress-bar" max="100" value="25"></progress>
           </div>
 
-          <div id="visitBox" class="is-hidden">
-            <label>Puntos por visita</label>
-            <input id="points_per_visit" type="number" step="1" value="10"/>
-          </div>
+          <div class="entry-form-grid">
+            <div class="card entry-inner-card">
+              <h3>Datos</h3>
+              <label>Nombre del negocio</label>
+              <input id="businessName" placeholder="Café Bourbon"/>
 
-          <div id="itemBox" class="is-hidden">
-            <label>Puntos por item</label>
-            <input id="points_per_item" type="number" step="1" value="1"/>
-          </div>
+              <label>Correo (propietario)</label>
+              <input id="email" type="email" placeholder="owner@negocio.com"/>
 
-          <div class="hr"></div>
-          <button class="primary" id="btnCreate">Crear negocio</button>
-          <p class="small">Después de crear, quedas con sesión de propietario.</p>
+              <label>Teléfono (opcional)</label>
+              <input id="phone" placeholder="55551234"/>
+
+              <label>Contraseña</label>
+              <input id="password" type="password" placeholder="8+ caracteres"/>
+              <p id="passwordHint" class="small">Usa 8 a 128 caracteres. Evita claves comunes o fáciles de adivinar.</p>
+
+              <label>Categoría</label>
+              <select id="category">
+                <option value="cafe">Café</option>
+                <option value="salon">Salón</option>
+                <option value="gym">Gym</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+
+            <div class="card entry-inner-card">
+              <h3>Regla de puntos</h3>
+              <p id="programPreview" class="small">Vista previa: Q100 ≈ 10 puntos.</p>
+
+              <label>Tipo</label>
+              <select id="program_type">
+                <option value="SPEND">Por gasto (Q)</option>
+                <option value="VISIT">Por visita</option>
+                <option value="ITEM">Por item</option>
+              </select>
+
+              <div id="spendBox">
+                <label>Points por Q (ej: 0.1 = 1 punto por Q10)</label>
+                <input id="points_per_q" type="number" step="0.01" value="0.10"/>
+                <label>Redondeo</label>
+                <select id="round">
+                  <option value="ceil">Hacia arriba</option>
+                  <option value="round">Normal</option>
+                  <option value="floor">Hacia abajo</option>
+                </select>
+              </div>
+
+              <div id="visitBox" class="is-hidden">
+                <label>Puntos por visita</label>
+                <input id="points_per_visit" type="number" step="1" value="10"/>
+              </div>
+
+              <div id="itemBox" class="is-hidden">
+                <label>Puntos por item</label>
+                <input id="points_per_item" type="number" step="1" value="1"/>
+              </div>
+
+              <div class="hr"></div>
+              <button class="primary" id="btnCreate">Crear negocio</button>
+              <p class="small">Después de crear, quedas con sesión de propietario.</p>
+            </div>
+          </div>
+        </article>
+
+        <div class="card is-hidden entry-stage entry-result-card" id="result">
+          <p class="section-kicker">Negocio listo</p>
+          <h2>Configuración completada</h2>
+          <p>Tu <b>slug del negocio</b> es: <code id="slug"></code></p>
+          <p>Comparte este enlace para que tus clientes se registren:</p>
+          <p><code id="joinUrl"></code></p>
+          <div class="row">
+            <button id="btnCopyJoin" class="primary">Copiar enlace de registro</button>
+            <a class="button-link button-link-secondary" href="/staff" data-shell-link="app-scanner">Abrir escáner</a>
+            <a class="ghost-link ghost-link-strong" href="/admin-dashboard" data-shell-link="app-dashboard">Abrir panel</a>
+          </div>
         </div>
       </div>
-    </div>
-
-    <div class="card is-hidden" id="result">
-      <h2>Listo ✅</h2>
-      <p>Tu <b>slug del negocio</b> es: <code id="slug"></code></p>
-      <p>Imprime un QR hacia:</p>
-      <p><code id="joinUrl"></code></p>
-      <div class="row">
-        <button id="btnCopyJoin" class="primary">Copiar enlace de registro</button>
-        <a class="badge" href="/staff">Abrir escáner del personal</a>
-        <a class="badge" href="/admin-dashboard.html">Abrir panel admin</a>
-      </div>
-    </div>
+    </section>
   </div>
 
   <div id="toast" class="toast"></div>

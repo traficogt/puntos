@@ -4,13 +4,37 @@ Base de referencia para SaaS de lealtad en Guatemala y LATAM:
 
 - Plan de entrada accesible para micro y pequenos negocios.
 - Precio medio competitivo para negocios con varias sedes y automatizaciones.
-- Plan alto para cadenas con integraciones y gobierno avanzado.
+- Plan alto para cadenas con integraciones y branding avanzado.
 
 ## Precios recomendados (sin IVA)
 
-- EMPRENDEDOR: Q149/mes (Q1,490/año)
-- NEGOCIO: Q399/mes (Q3,990/año)
-- EMPRESA: Q999/mes (Q9,990/año)
+### EMPRENDEDOR: Q149/mes (Q1,490/año)
+- QR y cartera de cliente
+- puntos, recompensas y canjes
+- reglas básicas
+- un local
+- personal básico
+
+### NEGOCIO: Q399/mes (Q3,990/año)
+- todo lo anterior
+- analítica
+- niveles
+- referidos
+- exportación
+- multi-sucursal
+- gift cards
+- campañas
+- webhooks
+- automatizaciones
+- branding premium para superficies de cliente
+
+### EMPRESA: Q999/mes (Q9,990/año)
+- todo lo anterior
+- gamificación
+- integraciones / external awards
+- branding avanzado
+- futuro dominio propio
+- futuro logo dentro del QR
 
 ## Mensajería incluida por plan
 

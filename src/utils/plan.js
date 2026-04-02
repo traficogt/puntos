@@ -26,7 +26,7 @@ export const DEFAULT_PLAN_FEATURES = {
     program_rules: true,
     staff_management: true,
     fraud_monitoring: true,
-    lifecycle_automation: true,
+    lifecycle_automation: false,
     customer_export: false,
     rbac_matrix: false,
     analytics: false,

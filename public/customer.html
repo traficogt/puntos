@@ -43,30 +43,16 @@
       </div>
       <div class="cus-entry-stack">
         <div class="cus-entry-card">
-          <p class="cus-entry-label">¿Tienes el enlace del negocio?</p>
-          <h2>Ir a registro</h2>
-          <p class="small">Abre <code>/registro/&lt;slug&gt;</code> o ingresa el slug aquí.</p>
+          <p class="cus-entry-label">Entrada del cliente</p>
+          <h2>Abre el registro del negocio</h2>
+          <p class="small">La tarjeta se activa desde <code>/registro/&lt;slug&gt;</code>. Si ya te registraste antes, vuelve a entrar por ese mismo enlace.</p>
           <label>Slug del negocio</label>
           <input id="slug" placeholder="cafe-bourbon"/>
           <button class="primary" id="btnGoJoin">Ir a registro</button>
-        </div>
-        <div class="cus-entry-card">
-          <p class="cus-entry-label">¿Ya tienes cuenta?</p>
-          <h2>Ingresar</h2>
-          <p class="small">Solicita un código y entra sin salir de esta página.</p>
-          <label>Slug del negocio</label>
-          <input id="loginSlug" placeholder="cafe-bourbon"/>
-          <label>Teléfono</label>
-          <input id="loginPhone" placeholder="55551234"/>
-          <label>Código</label>
-          <input id="loginCode" placeholder="123456"/>
-          <div class="row mt-10">
-            <button id="btnSendLoginCode">Enviar código</button>
-            <button class="primary" id="btnLoginVerify">Ingresar</button>
-          </div>
+          <p class="small cus-entry-feedback" id="joinFeedback"></p>
         </div>
         <div class="cus-entry-note">
-          Usa el mismo navegador y teléfono donde te registraste. Puedes agregar esta página a tu pantalla de inicio para volver más rápido.
+          Si esta pantalla apareció sola, no tienes una sesión activa en este navegador. Entra de nuevo por el enlace del negocio y luego volverás aquí con tu tarjeta lista.
         </div>
       </div>
     </div>

@@ -17,18 +17,16 @@ function safeEl($, id) {
 }
 
 /**
- * @param {(selector: string) => Element | null} $
- * @returns {string}
- */
-function selectedSlug($) {
-  return (safeEl($, "#loginSlug")?.value || safeEl($, "#slug")?.value || "").trim();
-}
-
-/**
  * @param {Promise<unknown>} promise
  */
 function ignore(promise) {
   promise.catch(() => {});
+}
+
+function setEntryFeedback($, selector, message) {
+  const el = safeEl($, selector);
+  if (!el) return;
+  el.textContent = String(message || "").trim();
 }
 
 /**
@@ -47,16 +45,11 @@ async function run(action, onError) {
 }
 
 export async function initCustomerPage({ api, $, toast, mountIosInstallHint, modalAlert, modalConfirm }) {
-  const cachedPhone = localStorage.getItem("pf_phone") || "";
   const cachedSlug = localStorage.getItem("pf_customer_slug") || "";
 
   const slugEl = safeEl($, "#slug");
-  const loginSlugEl = safeEl($, "#loginSlug");
-  const loginPhoneEl = safeEl($, "#loginPhone");
 
   if (slugEl) slugEl.value = cachedSlug;
-  if (loginSlugEl) loginSlugEl.value = cachedSlug;
-  if (loginPhoneEl) loginPhoneEl.value = cachedPhone;
 
   if (cachedSlug) {
     await run(async () => {
@@ -69,47 +62,13 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
 
   safeEl($, "#btnGoJoin")?.addEventListener("click", () => {
     const slug = (safeEl($, "#slug")?.value || "").trim();
-    if (!slug) return toast("Escribe el slug");
+    if (!slug) {
+      setEntryFeedback($, "#joinFeedback", "Escribe el slug del negocio para abrir su registro.");
+      return toast("Escribe el slug");
+    }
+    setEntryFeedback($, "#joinFeedback", `Abriendo /registro/${slug}...`);
     localStorage.setItem("pf_customer_slug", slug);
     location.href = `/registro/${encodeURIComponent(slug)}`;
-  });
-
-  safeEl($, "#btnSendLoginCode")?.addEventListener("click", async () => {
-    const slug = selectedSlug($);
-    const phone = (safeEl($, "#loginPhone")?.value || "").trim();
-    if (!slug) return toast("Escribe el slug");
-    if (!phone) return toast("Escribe el teléfono");
-    await run(async () => {
-      await api(`/api/public/business/${encodeURIComponent(slug)}/join/request-code`, {
-        method: "POST",
-        body: JSON.stringify({ phone })
-      });
-      localStorage.setItem("pf_phone", phone);
-      localStorage.setItem("pf_customer_slug", slug);
-      toast("Código enviado.");
-    }, (e) => {
-      toast(e.message);
-    });
-  });
-
-  safeEl($, "#btnLoginVerify")?.addEventListener("click", async () => {
-    const slug = selectedSlug($);
-    const phone = (safeEl($, "#loginPhone")?.value || "").trim();
-    const code = (safeEl($, "#loginCode")?.value || "").trim();
-    if (!slug) return toast("Escribe el slug");
-    if (!phone || !code) return toast("Falta teléfono o código");
-    await run(async () => {
-      await api(`/api/public/business/${encodeURIComponent(slug)}/join/verify`, {
-        method: "POST",
-        body: JSON.stringify({ phone, code })
-      });
-      localStorage.setItem("pf_phone", phone);
-      localStorage.setItem("pf_customer_slug", slug);
-      toast("Sesión iniciada.");
-      await loadAll({ api, $, toast });
-    }, (e) => {
-      toast(e.message);
-    });
   });
 
   safeEl($, "#btnQr")?.addEventListener("click", () => ignore(generateQR()));

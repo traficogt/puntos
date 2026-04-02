@@ -41,10 +41,14 @@ export function cycleTheme(currentTheme) {
 function bindThemeToggle(doc = document, win = window) {
   const toggle = doc.getElementById("themeToggle");
   if (!toggle) return;
+  const glyph = toggle.querySelector(".theme-toggle-glyph");
 
   const syncLabel = () => {
     const activeTheme = doc.documentElement.dataset.theme === "light" ? "light" : "dark";
-    toggle.textContent = activeTheme === "dark" ? "Tema claro" : "Tema oscuro";
+    const nextTheme = activeTheme === "dark" ? "claro" : "oscuro";
+    if (glyph) glyph.textContent = activeTheme === "dark" ? "☀" : "☾";
+    toggle.setAttribute("aria-label", `Cambiar a tema ${nextTheme}`);
+    toggle.setAttribute("title", `Cambiar a tema ${nextTheme}`);
     toggle.setAttribute("aria-pressed", activeTheme === "light" ? "true" : "false");
   };
 

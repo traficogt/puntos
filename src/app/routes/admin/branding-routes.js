@@ -35,13 +35,18 @@ adminBrandingRoutes.put(
   requireStaffPermission(Permission.ADMIN_PROGRAM_UPDATE_BASIC),
   tenantContext,
   asyncRoute(async (req, res) => {
+    const business = await BusinessRepo.getById(req.tenantId);
+    if (!business) return res.status(404).json({ error: "Business not found" });
     const parsed = validate(businessCustomerBrandingSchema, req.body);
     if (!parsed.ok) return res.status(400).json({ error: parsed.error });
-    const business = await BusinessRepo.updateCustomerBranding(req.tenantId, parsed.data);
+    if (parsed.data.qr_logo_enabled === true && String(business.plan || "").toUpperCase() !== "EMPRESA") {
+      return res.status(403).json({ error: "QR premium requiere plan EMPRESA" });
+    }
+    const updatedBusiness = await BusinessRepo.updateCustomerBranding(req.tenantId, parsed.data);
     /** @type {AdminBrandingResponse} */
     const response = {
       ok: true,
-      customer_branding: business?.customer_branding_json ?? parsed.data
+      customer_branding: updatedBusiness?.customer_branding_json ?? parsed.data
     };
     return res.json(response);
   })

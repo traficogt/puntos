@@ -79,7 +79,7 @@ integrationDescribe("Plan enforcement regression", () => {
         email: ownerEmail,
         password,
         category: "cafe",
-        plan: "BASICO"
+        plan: "EMPRENDEDOR"
       })
     });
     assert.equal(createdBusiness.status, 201);

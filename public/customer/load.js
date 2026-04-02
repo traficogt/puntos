@@ -30,6 +30,9 @@ function isNetworkFailure(error) {
 
 export async function loadAll({ api, $, toast }) {
   setOnlineBadge($);
+  const cachedSlug = typeof localStorage !== "undefined"
+    ? (localStorage.getItem("pf_customer_slug") || "").trim()
+    : "";
 
   try {
     const me = /** @type {CustomerMeResponse} */ (await api("/api/customer/me"));
@@ -39,6 +42,10 @@ export async function loadAll({ api, $, toast }) {
   } catch (error) {
     if (isAuthError(error) && navigator.onLine) {
       await clearCustomerCache().catch(() => {});
+      if (cachedSlug) {
+        location.href = `/registro/${encodeURIComponent(cachedSlug)}`;
+        return;
+      }
       const needLogin = safeEl($, "#needLogin");
       setHidden(needLogin, false);
       return;

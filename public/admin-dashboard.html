@@ -21,9 +21,9 @@
       <span class="brand-title">Panel Admin</span>
     </div>
     <div class="row">
-      <button type="button" id="themeToggle">Tema claro</button>
-      <a class="ghost-link" href="/staff">Escáner de personal</a>
-      <a class="ghost-link" href="/">Inicio</a>
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><span class="theme-toggle-glyph" aria-hidden="true">◐</span></button>
+      <a class="ghost-link" href="/staff" data-shell-link="app-scanner">Escáner</a>
+      <a class="ghost-link" href="/sitio" data-shell-link="marketing-home">Sitio</a>
       <button id="btnShareView">Compartir vista</button>
       <button id="btnLogout">Salir</button>
     </div>
@@ -34,7 +34,7 @@
       <div class="card hero">
         <h1>Acceso denegado</h1>
         <p>Necesitas iniciar sesión como propietario para ver este panel.</p>
-        <a href="/staff/login" class="badge">Ir a ingreso</a>
+        <a href="/staff/login" data-shell-link="app-login" class="badge">Ir a ingreso</a>
       </div>
     </div>
 
@@ -42,8 +42,8 @@
       <section class="admin-header-band">
         <div class="app-stage-copy">
           <p class="section-kicker">Centro de control</p>
-          <h1 id="businessName">Panel de Administración</h1>
-          <p class="lede admin-lede">Recompensas, personal, sucursales, campañas y analítica en una sola vista operativa.</p>
+          <h1 id="businessName">Panel de control</h1>
+          <p class="lede admin-lede">Recompensas, personal, sucursales, campañas y analítica en una sola vista operativa. Lo táctico vive aquí; la caja y el escaneo siguen viviendo en el flujo operativo.</p>
         </div>
         <div class="admin-quick-notes app-stage-aside">
           <div class="admin-note-card">

@@ -54,7 +54,7 @@ adminSignupRoutes.post(
 
     // Auto-login owner (staff cookie)
     const token = await signStaffToken({ sid: ownerId, bid: business.id, role: "OWNER", brid: branchId });
-    res.cookie(config.STAFF_COOKIE_NAME, token, { ...cookieOpts(), maxAge: browserCookieMaxAge("STAFF") });
+    res.cookie(config.STAFF_COOKIE_NAME, token, { ...cookieOpts(req), maxAge: browserCookieMaxAge("STAFF") });
 
     /** @type {AdminSignupResponse} */
     const response = { ok: true, business: { id: business.id, slug: business.slug, name: business.name } };

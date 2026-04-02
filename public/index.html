@@ -14,8 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/styles.css"/>
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <link rel="stylesheet" href="/styles.css?v=5"/>
   <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
 <body class="page-marketing">
@@ -32,12 +31,15 @@
   <div class="container">
     <section class="marketing-hero">
       <div class="marketing-hero-intro">
-        <p class="section-kicker">Para cafés, restaurantes y salones de belleza</p>
+        <p class="section-kicker">Para cafés, restaurantes y otros negocios</p>
         <h1>Lealtad que se ve premium y opera sin fricción.</h1>
       </div>
       <div class="marketing-hero-split">
         <div class="marketing-copy">
-          <p class="lede">QR de un solo uso, panel operativo, recompensas, retos y analítica. Pensado para Guatemala.</p>
+          <p class="lede">QR de un solo uso, panel operativo, recompensas, retos y analítica. Diseñado para operar sin fricción en caja y con una experiencia premium para tus clientes.</p>
+          <div class="hero-actions">
+            <a class="button-link button-link-primary" href="#contacto">Solicitar demo</a>
+          </div>
           <div class="hero-stat-band">
             <div class="stat-chip">
               <strong>1 min</strong>
@@ -91,8 +93,7 @@
           <h2>Opera recompensas, personal y sucursales sin pelear con la interfaz.</h2>
           <p>El panel prioriza lo que mueve caja: recompensas activas, equipos, campañas, retos y señales de comportamiento.</p>
           <div class="row">
-            <a class="button-link button-link-secondary" href="/admin">Acceder al panel</a>
-            <a class="ghost-link ghost-link-strong" href="/staff/login">Entrar como personal</a>
+            <a class="button-link button-link-secondary" href="#contacto">Solicitar demo</a>
           </div>
         </article>
 
@@ -103,27 +104,43 @@
         </article>
       </section>
 
-      <section class="contact-section reveal d2">
+      <section class="contact-section reveal d2" id="contacto">
         <div class="contact-intro">
-          <p class="section-kicker">Contacto</p>
-          <h2>¿Listo para arrancar?</h2>
-          <p>Cuéntanos sobre tu negocio y encontramos la mejor forma de ayudarte.</p>
+          <p class="section-kicker">Solicitar demo</p>
+          <h2>Te ayudamos a activarlo bien desde el inicio.</h2>
+          <p>Cuéntanos qué negocio operas, cuántas ubicaciones manejas y cómo atiende tu equipo. Activamos cada programa contigo, no te soltamos una plantilla.</p>
+          <div class="contact-note-card">
+            <strong>Implementación acompañada</strong>
+            <span>La activación inicial la hacemos contigo. Te dejamos listos los accesos, el flujo para staff y el enlace de registro para clientes.</span>
+          </div>
         </div>
         <form class="contact-form" id="contactForm" novalidate>
-          <div class="contact-field">
-            <label for="cfName">Nombre</label>
-            <input id="cfName" name="name" type="text" placeholder="Tu nombre" autocomplete="name" maxlength="100"/>
+          <div class="contact-grid contact-grid-primary">
+            <div class="contact-field">
+              <label for="cfName">Nombre</label>
+              <input id="cfName" name="name" type="text" placeholder="Tu nombre" autocomplete="name" maxlength="100"/>
+            </div>
+            <div class="contact-field">
+              <label for="cfBusiness">Negocio</label>
+              <input id="cfBusiness" name="business" type="text" placeholder="Café Bourbon" autocomplete="organization" maxlength="160"/>
+            </div>
+          </div>
+          <div class="contact-grid">
+            <div class="contact-field">
+              <label for="cfContact">Correo o teléfono</label>
+              <input id="cfContact" name="contact" type="text" placeholder="correo@ejemplo.com" autocomplete="email" maxlength="200"/>
+            </div>
+            <div class="contact-field">
+              <label for="cfLocations">Sucursales o puntos de atención</label>
+              <input id="cfLocations" name="locations" type="text" placeholder="1 ubicación · 6 personas en caja" autocomplete="off" maxlength="120"/>
+            </div>
           </div>
           <div class="contact-field">
-            <label for="cfContact">Correo o teléfono</label>
-            <input id="cfContact" name="contact" type="text" placeholder="correo@ejemplo.com" autocomplete="email" maxlength="200"/>
+            <label for="cfMessage">¿Qué quieres resolver?</label>
+            <textarea id="cfMessage" name="message" placeholder="Queremos lanzar lealtad en dos sucursales y darle acceso a caja y gerente." rows="4" maxlength="2000"></textarea>
           </div>
-          <div class="contact-field">
-            <label for="cfMessage">Mensaje</label>
-            <textarea id="cfMessage" name="message" placeholder="Cuéntanos sobre tu negocio..." rows="4" maxlength="2000"></textarea>
-          </div>
-          <div class="cf-turnstile" data-sitekey="0x4AAAAAACxpjwCi9p0pY8BF" data-theme="light"></div>
-          <button type="submit" class="button-link button-link-primary contact-submit" id="contactSubmit">Enviar mensaje</button>
+          <div class="cf-turnstile" data-sitekey="0x4AAAAAACxpjwCi9p0pY8BF" data-language="es" data-theme="light"></div>
+          <button type="submit" class="button-link button-link-primary contact-submit" id="contactSubmit">Solicitar demo</button>
           <p class="contact-status" id="contactStatus" aria-live="polite"></p>
         </form>
       </section>
@@ -137,6 +154,6 @@
   </footer>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="/index.js"></script>
+  <script type="module" src="/index.js?v=5"></script>
 </body>
 </html>

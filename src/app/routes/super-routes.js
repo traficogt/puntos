@@ -117,7 +117,7 @@ superRoutes.post("/super/login", strictRateLimit, asyncRoute(async (req, res) =>
   res.cookie(
     config.SUPER_COOKIE_NAME,
     token,
-    { ...cookieOptsWith({ sameSite: "strict", path: "/" }), maxAge: browserCookieMaxAge("SUPER") }
+    { ...cookieOptsWith(req, { sameSite: "strict", path: "/" }), maxAge: browserCookieMaxAge("SUPER") }
   );
   /** @type {SuperLoginResponse} */
   const response = { ok: true, email: payload.email.toLowerCase() };
@@ -361,7 +361,7 @@ superRoutes.post("/super/impersonate/:businessId", csrfProtect, requireSuperAdmi
     brid: target.branch_id ?? null,
     imp: superAdmin.email
   });
-  res.cookie(config.STAFF_COOKIE_NAME, token, { ...cookieOpts(), maxAge: browserCookieMaxAge("STAFF") });
+  res.cookie(config.STAFF_COOKIE_NAME, token, { ...cookieOpts(req), maxAge: browserCookieMaxAge("STAFF") });
 
   await logSuperAudit({
     action: "super.impersonate",

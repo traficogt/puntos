@@ -34,6 +34,21 @@ export async function initSuperPage({ api, $, toast }) {
     campaign_rules: "Reglas de campaña"
   };
 
+  const PLAN_POSITIONING = {
+    EMPRENDEDOR: {
+      summary: "Base operativo: QR, cartera, recompensas, canjes y operación básica en un local.",
+      highlight: "Listo para operar, sin módulos avanzados."
+    },
+    NEGOCIO: {
+      summary: "Plan objetivo para negocios serios: analítica, niveles, referidos, gift cards y automatizaciones.",
+      highlight: "La mayoría de negocios debería terminar aquí."
+    },
+    EMPRESA: {
+      summary: "Capa estratégica: gamificación, external awards, branding avanzado y QR premium.",
+      highlight: "Reservado para branding e integraciones de alto valor."
+    }
+  };
+
   /**
    * @template T
    * @param {() => Promise<T>} task
@@ -137,6 +152,19 @@ export async function initSuperPage({ api, $, toast }) {
       title.className = "m-0 mb-8";
       title.textContent = `${p.plan} · ${priceSummary(p.pricing_gtq)}`;
       card.appendChild(title);
+
+      const positioning = PLAN_POSITIONING[p.plan] || null;
+      if (positioning) {
+        const summary = document.createElement("p");
+        summary.className = "small mb-8";
+        summary.textContent = positioning.summary;
+        card.appendChild(summary);
+
+        const highlight = document.createElement("div");
+        highlight.className = "badge badge-soft mb-8";
+        highlight.textContent = positioning.highlight;
+        card.appendChild(highlight);
+      }
 
       const grid = document.createElement("div");
       grid.className = "grid";

@@ -74,9 +74,22 @@ export function browserCookieMaxAge(actorType) {
   return Number(process.env.APP_SESSION_ABSOLUTE_MS || 8 * 60 * 60 * 1000);
 }
 
-export function cookieOpts() {
+function requestIsHttps(req) {
+  const forwardedProto = String(req?.get?.("x-forwarded-proto") || req?.headers?.["x-forwarded-proto"] || "")
+    .split(",")[0]
+    .trim()
+    .toLowerCase();
+  if (forwardedProto === "https") return true;
+  if (req?.secure === true) return true;
+  if (String(req?.protocol || "").toLowerCase() === "https") return true;
+  return false;
+}
+
+export function cookieOpts(req = null) {
   const prod = config.NODE_ENV === "production";
-  const securePreferred = prod || String(config.APP_ORIGIN || "").startsWith("https://");
+  const securePreferred = prod
+    || String(config.APP_ORIGIN || "").startsWith("https://")
+    || requestIsHttps(req);
   return {
     httpOnly: true,
     sameSite: "strict",
@@ -85,9 +98,13 @@ export function cookieOpts() {
   };
 }
 
-export function cookieOptsWith(overrides = {}) {
+export function cookieOptsWith(reqOrOverrides = null, maybeOverrides = {}) {
+  const req = (reqOrOverrides && typeof reqOrOverrides === "object" && ("headers" in reqOrOverrides || "protocol" in reqOrOverrides || "secure" in reqOrOverrides))
+    ? reqOrOverrides
+    : null;
+  const overrides = req ? maybeOverrides : (reqOrOverrides || {});
   return {
-    ...cookieOpts(),
+    ...cookieOpts(req),
     ...overrides
   };
 }

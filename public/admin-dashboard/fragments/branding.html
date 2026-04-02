@@ -2,6 +2,7 @@
         <div class="card">
           <h2>Branding de clientes</h2>
           <p class="small">Define cómo se verá el programa para clientes en la página de registro y en su wallet. La estructura se mantiene igual; aquí solo cambias intensidad de marca y contenido visible.</p>
+          <p class="small" id="brandingPlanNotice">Branding premium disponible en planes superiores. Requiere NEGOCIO o EMPRESA.</p>
           <div class="grid">
             <div class="card">
               <label>Modo de marca</label>
@@ -17,6 +18,11 @@
 
               <label>Logo del negocio (URL)</label>
               <input id="brandingLogoUrl" placeholder="https://cdn.tunegocio.com/logo.png"/>
+              <label class="row-inline-flex">
+                <input id="brandingQrLogoEnabled" type="checkbox"/>
+                <span>Insertar logo del negocio dentro del QR del cliente</span>
+              </label>
+              <p class="small" id="brandingQrLogoHint">Disponible únicamente en EMPRESA. Si el logo no es válido, el QR seguirá normal.</p>
 
               <label>Color principal</label>
               <input id="brandingPrimaryColor" placeholder="#6D3524"/>

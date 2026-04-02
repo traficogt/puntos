@@ -10,4 +10,6 @@ test("theme bootstrap honors saved preference before system preference", () => {
   assert.match(source, /prefers-color-scheme: dark/);
   assert.match(source, /dataset\.theme/);
   assert.match(source, /theme-color/);
+  assert.match(source, /aria-label/);
+  assert.match(source, /title/);
 });

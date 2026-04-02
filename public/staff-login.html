@@ -1,72 +1,124 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="theme-color" content="#f8f2e8"/>
-  <title>Ingreso de personal • PuntosFieles</title>
+  <meta name="theme-color" content="#0b0f14"/>
+  <title>Ingreso del equipo • PuntosFieles</title>
+  <link rel="icon" href="/icon.svg?v=4" type="image/svg+xml"/>
+  <link rel="manifest" href="/manifest.webmanifest"/>
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=4"/>
+  <script src="/runtime-config.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script type="module" src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css"/>
   <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
-<body>
-  <div class="nav">
-    <div class="brand">🎁 PuntosFieles</div>
+<body class="app-shell page-staff-login">
+  <div class="nav app-topbar">
+    <a href="/staff/login" data-shell-link="app-login" class="brand brand-lockup">
+      <img src="/icon.svg?v=4" alt="PuntosFieles" class="brand-mark"/>
+      <span class="brand-copy">
+        <span class="brand-kicker">Acceso operativo</span>
+        <span class="brand-title">Ingreso del equipo</span>
+      </span>
+    </a>
     <div class="row">
-      <a class="badge" href="/">Inicio</a>
-      <a class="badge" href="/admin">Registrar negocio</a>
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><span class="theme-toggle-glyph" aria-hidden="true">◐</span></button>
+      <a class="ghost-link" href="/sitio" data-shell-link="marketing-home">Sitio</a>
     </div>
   </div>
 
   <div class="container">
-    <div class="card">
-      <h1>Ingreso de personal</h1>
-      <p>Ingresa como propietario o cajero.</p>
-
-      <div class="card">
-        <label>Email</label>
-        <input id="email" type="email" placeholder="owner@negocio.com"/>
-        <label>Contraseña</label>
-        <input id="password" type="password" placeholder="******"/>
-        <label>Código MFA (si aplica)</label>
-        <input id="mfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
-        <div class="hr"></div>
-        <div class="row">
-          <button class="primary" id="btnLogin">Entrar</button>
-          <button id="btnLogout">Salir</button>
+    <section class="entry-shell">
+      <aside class="card entry-stage entry-stage-intro">
+        <p class="section-kicker">Dueños y cajeros</p>
+        <h1>Una sola entrada para caja y dueño.</h1>
+        <p class="lede">Inicia sesión, recupera tu cuenta o confirma cambios sensibles desde una sola vista. Según tu rol, te llevamos al escáner o al panel sin cambiar de entorno.</p>
+        <div class="onboarding-steps-vertical">
+          <div class="join-note">
+            <strong>Acceso principal</strong>
+            <span>Correo, contraseña y MFA cuando aplique.</span>
+          </div>
+          <div class="join-note">
+            <strong>Recuperación</strong>
+            <span>Solicita token y restablece la contraseña sin salir de la página.</span>
+          </div>
+          <div class="join-note">
+            <strong>Destino automático</strong>
+            <span>Si eres cajero vas al escáner; si eres dueño, al panel de control.</span>
+          </div>
         </div>
-        <p class="small">Si acabas de registrarte, ya estás con sesión de propietario.</p>
-      </div>
-
-      <div class="card">
-        <h2>Recuperación de cuenta</h2>
-        <label>Email</label>
-        <input id="resetEmail" type="email" placeholder="owner@negocio.com"/>
-        <div class="row mt-8">
-          <button id="btnRequestReset">Enviar token de reset</button>
+        <div class="entry-note-stack">
+          <div class="admin-note-card">
+            <span>Ruta</span>
+            <strong>Escáner o panel</strong>
+          </div>
+          <div class="admin-note-card">
+            <span>Modo</span>
+            <strong>Operación diaria</strong>
+          </div>
         </div>
-        <label>Token de reset</label>
-        <input id="resetToken" placeholder="Token recibido"/>
-        <label>Nueva contraseña</label>
-        <input id="resetPassword" type="password" placeholder="8+ caracteres"/>
-        <div class="row mt-8">
-          <button id="btnConfirmReset">Cambiar contraseña</button>
-        </div>
-      </div>
+      </aside>
 
-      <div class="card">
-        <h2>Confirmar cambio de correo</h2>
-        <label>Token recibido</label>
-        <input id="emailChangeToken" placeholder="Token recibido por correo"/>
-        <div class="row mt-8">
-          <button id="btnConfirmEmailChange">Confirmar correo</button>
-        </div>
-      </div>
+      <div class="entry-workspace">
+        <article class="card entry-stage entry-stage-form">
+          <p class="section-kicker">Ingreso</p>
+          <h2>Entrar al sistema</h2>
+          <p>Ingresa como propietario o cajero. El sistema te envía a la vista correcta según tu acceso.</p>
+          <div class="entry-form-grid entry-form-grid-single">
+            <div class="card entry-inner-card">
+              <label>Email</label>
+              <input id="email" type="email" placeholder="owner@negocio.com"/>
+              <label>Contraseña</label>
+              <input id="password" type="password" placeholder="******"/>
+              <label>Código MFA (si aplica)</label>
+              <input id="mfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
+              <div class="hr"></div>
+              <div class="row">
+                <button class="primary" id="btnLogin">Entrar al equipo</button>
+                <button id="btnLogout">Salir</button>
+                <a class="ghost-link ghost-link-strong" href="/staff" data-shell-link="app-scanner">Abrir escáner</a>
+              </div>
+              <p class="small">Si ya tienes sesión activa, puedes entrar directo a la vista operativa correspondiente.</p>
+            </div>
+          </div>
+        </article>
 
-      <div class="card">
-      <h2>Ir al escáner</h2>
-      <a class="badge" href="/staff">Abrir escáner</a>
+        <article class="card entry-stage entry-stage-form">
+          <p class="section-kicker">Soporte de cuenta</p>
+          <h2>Recuperación y confirmación</h2>
+          <div class="entry-form-grid">
+            <div class="card entry-inner-card">
+              <h3>Recuperar contraseña</h3>
+              <label>Email</label>
+              <input id="resetEmail" type="email" placeholder="owner@negocio.com"/>
+              <div class="row mt-8">
+                <button id="btnRequestReset">Enviar token de reset</button>
+              </div>
+              <label>Token de reset</label>
+              <input id="resetToken" placeholder="Token recibido"/>
+              <label>Nueva contraseña</label>
+              <input id="resetPassword" type="password" placeholder="8+ caracteres"/>
+              <div class="row mt-8">
+                <button id="btnConfirmReset">Cambiar contraseña</button>
+              </div>
+            </div>
+
+            <div class="card entry-inner-card">
+              <h3>Confirmar cambio de correo</h3>
+              <label>Token recibido</label>
+              <input id="emailChangeToken" placeholder="Token recibido por correo"/>
+              <div class="row mt-8">
+                <button id="btnConfirmEmailChange">Confirmar correo</button>
+              </div>
+            </div>
+          </div>
+        </article>
       </div>
-    </div>
+    </section>
   </div>
 
   <div id="toast" class="toast"></div>

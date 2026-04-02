@@ -64,17 +64,19 @@ test("customer wallet keeps account utilities in a separate quiet section", () =
   assert.match(html, /id="btnDelete"/, "expected delete control to remain available");
 });
 
-test("logged-out wallet shell stays Spanish-first and exposes registro plus login", () => {
+test("logged-out wallet shell stays Spanish-first and treats /c as wallet-only entry back to registro", () => {
   const html = readCustomerShellHtml();
   const brandingModule = readCustomerBrandingModule();
 
   assert.match(html, /Ir a registro/, "expected registration path copy in Spanish");
-  assert.match(html, /Ingresar/, "expected login path copy in Spanish");
+  assert.match(html, /Abre el registro del negocio/, "expected wallet-only customer entry copy");
   assert.match(
     html,
     /<h1\b[^>]*id="customerEntryTitle"[^>]*>\s*Tu programa activo vive aquí\.\s*<\/h1>/,
     "expected the refined logged-out heading copy",
   );
+  assert.doesNotMatch(html, /id="btnSendLoginCode"/, "expected /c to stop exposing pseudo-login actions");
+  assert.doesNotMatch(html, /id="btnLoginVerify"/, "expected /c to stop exposing inline verify actions");
   assert.match(
     brandingModule,
     /setText\("#customerEntryTitle", "Tu programa activo vive aquí\."\)/,

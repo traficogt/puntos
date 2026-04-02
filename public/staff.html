@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#0b0f14"/>
   <title>Escáner de personal • PuntosFieles</title>
   <link rel="icon" href="/icon.svg?v=4" type="image/svg+xml"/>
+  <script src="/runtime-config.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
@@ -20,9 +21,9 @@
       <span class="brand-title">Escáner de personal</span>
     </div>
     <div class="row">
-      <button type="button" id="themeToggle">Tema claro</button>
-      <a class="badge" href="/">Inicio</a>
-      <a class="badge" href="/staff/login">Ingresar</a>
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><span class="theme-toggle-glyph" aria-hidden="true">◐</span></button>
+      <a class="badge" href="/admin-dashboard" data-shell-link="app-dashboard">Panel</a>
+      <a class="ghost-link" href="/sitio" data-shell-link="marketing-home">Sitio</a>
       <span class="badge" id="queueBadge">Sin conexión: 0</span>
     </div>
   </div>
@@ -32,7 +33,7 @@
       <div class="app-stage-copy">
         <p class="section-kicker">Validación operativa</p>
         <h1>Escanea, valida y registra sin fricción.</h1>
-        <p class="lede admin-lede">Una vista enfocada para caja: cámara al centro, acción inmediata a la derecha y soporte operativo debajo.</p>
+        <p class="lede admin-lede">Una vista enfocada para caja: cámara al centro, acción inmediata a la derecha y soporte operativo debajo. Si eres dueño, desde aquí saltas al panel sin salir del mismo sistema.</p>
       </div>
       <div class="admin-quick-notes app-stage-aside">
         <div class="admin-note-card">
@@ -40,8 +41,8 @@
           <strong>Escanea</strong>
         </div>
         <div class="admin-note-card">
-          <span>Acción</span>
-          <strong>Registra</strong>
+          <span>Ruta</span>
+          <strong>Registra y canjea</strong>
         </div>
         <div class="admin-note-card">
           <span>Estado</span>
@@ -128,10 +129,10 @@
 
     <section class="staff-support-grid">
       <div class="card" id="ownerAnalyticsCard">
-        <h2>Propietario: analítica</h2>
+        <h2>Si eres dueño</h2>
         <div class="row">
           <button id="btnSummary">Ver resumen</button>
-          <a class="badge" href="/admin">Registro</a>
+          <a class="badge" href="/admin-dashboard" data-shell-link="app-dashboard">Panel</a>
         </div>
         <pre id="summary" class="small pre-wrap"></pre>
       </div>

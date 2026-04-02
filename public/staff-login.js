@@ -1,4 +1,4 @@
-import { api, $, registerServiceWorker, toast } from "/lib.js";
+import { api, $, registerServiceWorker, toast, hydrateShellLinks } from "/lib.js";
 
 /** @typedef {import("./staff/types.js").StaffLoginPayload} StaffLoginPayload */
 
@@ -18,6 +18,8 @@ function element(selector) {
   return /** @type {HTMLElement} */ ($(selector));
 }
 
+hydrateShellLinks();
+
 element("#btnLogin").addEventListener("click", async () => {
   try {
     /** @type {StaffLoginPayload} */
@@ -26,10 +28,12 @@ element("#btnLogin").addEventListener("click", async () => {
       password: input("#password").value,
       ...(input("#mfaCode").value.trim() ? { mfaCode: input("#mfaCode").value.trim() } : {})
     };
-    await api("/api/staff/login", { method: "POST", body: JSON.stringify(payload) });
-    toast("Listo. Abriendo escáner...");
+    const out = await api("/api/staff/login", { method: "POST", body: JSON.stringify(payload) });
+    const role = String(out?.staff?.role || "").toUpperCase();
+    const destination = role === "OWNER" ? "/admin-dashboard" : "/staff";
+    toast(role === "OWNER" ? "Listo. Abriendo panel..." : "Listo. Abriendo escáner...");
     setTimeout(() => {
-      location.href = "/staff";
+      location.href = destination;
     }, 400);
   } catch (e) {
     toast(e.message);

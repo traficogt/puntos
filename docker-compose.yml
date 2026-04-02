@@ -52,8 +52,14 @@ services:
 
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:${PORT:-3001}}
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:${PORT:-3001}}
+      MARKETING_ORIGIN: ${MARKETING_ORIGIN:-http://localhost:${PORT:-3001}}
       # Only enable when traffic comes through a trusted reverse proxy hop.
       TRUST_PROXY: ${TRUST_PROXY:-0}
+      CONTACT_SMTP_HOST: ${CONTACT_SMTP_HOST:-10.10.1.20}
+      CONTACT_SMTP_PORT: ${CONTACT_SMTP_PORT:-26}
+      CONTACT_TO: ${CONTACT_TO:-}
+      CONTACT_FROM: ${CONTACT_FROM:-hola@puntosfieles.com}
+      CONTACT_TURNSTILE_SECRET: ${CONTACT_TURNSTILE_SECRET:-}
 
       CHURN_DAYS: ${CHURN_DAYS:-30}
       CHURN_SEND_HOUR_LOCAL: ${CHURN_SEND_HOUR_LOCAL:-9}
@@ -116,7 +122,13 @@ services:
 
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:${PORT:-3001}}
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:${PORT:-3001}}
+      MARKETING_ORIGIN: ${MARKETING_ORIGIN:-http://localhost:${PORT:-3001}}
       TRUST_PROXY: ${TRUST_PROXY:-0}
+      CONTACT_SMTP_HOST: ${CONTACT_SMTP_HOST:-10.10.1.20}
+      CONTACT_SMTP_PORT: ${CONTACT_SMTP_PORT:-26}
+      CONTACT_TO: ${CONTACT_TO:-}
+      CONTACT_FROM: ${CONTACT_FROM:-hola@puntosfieles.com}
+      CONTACT_TURNSTILE_SECRET: ${CONTACT_TURNSTILE_SECRET:-}
 
       CHURN_DAYS: ${CHURN_DAYS:-30}
       CHURN_SEND_HOUR_LOCAL: ${CHURN_SEND_HOUR_LOCAL:-9}

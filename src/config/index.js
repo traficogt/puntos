@@ -183,6 +183,8 @@ export const config = {
 
   APP_ORIGIN: normalizeOrigin(envValue("APP_ORIGIN", `http://localhost:${process.env.PORT ?? 3001}`))
     || envValue("APP_ORIGIN", `http://localhost:${process.env.PORT ?? 3001}`),
+  MARKETING_ORIGIN: normalizeOrigin(envValue("MARKETING_ORIGIN", `http://localhost:${process.env.PORT ?? 3001}`))
+    || envValue("MARKETING_ORIGIN", `http://localhost:${process.env.PORT ?? 3001}`),
   CORS_ORIGINS: parseOrigins(envValue("CORS_ORIGIN", ""), `http://localhost:${process.env.PORT ?? 3001}`),
   COOKIE_SAME_SITE: parseSameSite(envValue("COOKIE_SAME_SITE", "strict")),
 

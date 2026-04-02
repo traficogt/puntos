@@ -46,6 +46,7 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
       id: business.id,
       name: business.name,
       slug: business.slug,
+      plan: business.plan,
       customer_branding: business.customer_branding_json ?? null
     },
     customer: {

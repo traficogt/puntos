@@ -88,12 +88,47 @@ export function getPublicWebOrigin() {
   return normalizeBaseUrl(readRuntimeConfig().publicWebOrigin);
 }
 
+export function getAppOrigin() {
+  return normalizeBaseUrl(readRuntimeConfig().appOrigin);
+}
+
+export function getMarketingOrigin() {
+  return normalizeBaseUrl(readRuntimeConfig().marketingOrigin);
+}
+
 export function apiUrl(path) {
   return withBase(path, getApiBaseUrl());
 }
 
 export function publicUrl(path) {
   return withBase(path, getPublicWebOrigin());
+}
+
+export function appUrl(path) {
+  return withBase(path, getAppOrigin() || getPublicWebOrigin());
+}
+
+export function marketingUrl(path) {
+  return withBase(path, getMarketingOrigin() || getPublicWebOrigin());
+}
+
+export function hydrateShellLinks(root = document) {
+  /** @type {Record<string, () => string>} */
+  const linkMap = {
+    "marketing-home": () => marketingUrl("/"),
+    "app-login": () => appUrl("/staff/login"),
+    "app-scanner": () => appUrl("/staff"),
+    "app-dashboard": () => appUrl("/admin-dashboard"),
+    "customer-wallet": () => appUrl("/c")
+  };
+
+  root.querySelectorAll("[data-shell-link]").forEach((node) => {
+    const key = node.getAttribute("data-shell-link") || "";
+    const resolver = linkMap[key];
+    const href = resolver ? resolver() : "";
+    if (!href) return;
+    node.setAttribute("href", href);
+  });
 }
 
 export function isNativeShell() {
@@ -261,9 +296,13 @@ export function toast(msg) {
     return;
   }
   t.textContent = msg;
+  t.classList.add("is-visible");
   t.hidden = false;
   clearTimeout(t._to);
-  t._to = setTimeout(() => { t.hidden = true; }, 3200);
+  t._to = setTimeout(() => {
+    t.hidden = true;
+    t.classList.remove("is-visible");
+  }, 3200);
 }
 
 export function fmtQ(n) {

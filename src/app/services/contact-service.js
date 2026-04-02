@@ -11,7 +11,7 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
-function buildEmailHtml({ name, contact, message }) {
+function buildEmailHtml({ name, business, contact, message }) {
   const timestamp = new Date().toLocaleString("es-GT", { timeZone: "America/Guatemala" });
   return `<!DOCTYPE html>
 <html lang="es">
@@ -25,14 +25,16 @@ function buildEmailHtml({ name, contact, message }) {
       <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
         <tr><td style="background:#1a1008;border-radius:16px 16px 0 0;padding:28px 32px 24px;">
           <p style="margin:0;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(240,235,228,0.36);">PuntosFieles</p>
-          <p style="margin:8px 0 0;font-size:20px;font-weight:300;letter-spacing:-0.01em;color:#fff;">Nuevo mensaje de contacto</p>
+          <p style="margin:8px 0 0;font-size:20px;font-weight:300;letter-spacing:-0.01em;color:#fff;">Nueva solicitud de demo</p>
         </td></tr>
         <tr><td style="background:#ffffff;padding:28px 32px;border-left:1px solid #e8dfd0;border-right:1px solid #e8dfd0;">
           <p style="margin:0 0 4px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#a08060;">Nombre</p>
           <p style="margin:0 0 20px;font-size:16px;color:#1a1008;">${escapeHtml(name)}</p>
+          <p style="margin:0 0 4px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#a08060;">Negocio</p>
+          <p style="margin:0 0 20px;font-size:16px;color:#1a1008;">${escapeHtml(business)}</p>
           <p style="margin:0 0 4px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#a08060;">Correo / Teléfono</p>
           <p style="margin:0 0 20px;font-size:16px;color:#1a1008;">${escapeHtml(contact)}</p>
-          <p style="margin:0 0 4px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#a08060;">Mensaje</p>
+          <p style="margin:0 0 4px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#a08060;">Contexto</p>
           <p style="margin:0;font-size:15px;line-height:1.65;color:#1a1008;white-space:pre-wrap;">${escapeHtml(message)}</p>
         </td></tr>
         <tr><td style="background:#f3ece0;border-radius:0 0 16px 16px;padding:14px 32px;border:1px solid #e8dfd0;border-top:none;">
@@ -60,9 +62,9 @@ export async function verifyTurnstile(token, remoteip) {
   return data.success === true;
 }
 
-export async function sendContactEmail({ name, contact, message }) {
+export async function sendContactEmail({ name, business, contact, message }) {
   if (!config.CONTACT_TO) {
-    logger.info({ name, contact }, "[CONTACT] CONTACT_TO not configured — logging only");
+    logger.info({ name, business, contact }, "[CONTACT] CONTACT_TO not configured — logging only");
     return;
   }
 
@@ -76,10 +78,10 @@ export async function sendContactEmail({ name, contact, message }) {
   await transport.sendMail({
     from: config.CONTACT_FROM,
     to: config.CONTACT_TO,
-    subject: `Mensaje de contacto — ${name}`,
-    text: `Nombre: ${name}\nContacto: ${contact}\n\nMensaje:\n${message}`,
-    html: buildEmailHtml({ name, contact, message })
+    subject: `Solicitud de demo — ${business}`,
+    text: `Nombre: ${name}\nNegocio: ${business}\nContacto: ${contact}\n\nContexto:\n${message}`,
+    html: buildEmailHtml({ name, business, contact, message })
   });
 
-  logger.info({ name }, "[CONTACT] Email sent");
+  logger.info({ name, business }, "[CONTACT] Email sent");
 }

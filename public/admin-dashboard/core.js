@@ -16,6 +16,27 @@ import { initDashboardChrome, loadPlanInfo, loadStaffSession } from "./session-c
 /** @typedef {import("./types.js").DashboardState} DashboardState */
 /** @typedef {import("./types.js").TabDefinition} TabDefinition */
 
+const PLAN_LABELS = {
+  analytics: "NEGOCIO",
+  tiers: "NEGOCIO",
+  referrals: "NEGOCIO",
+  gift_cards: "NEGOCIO",
+  multi_branch: "NEGOCIO",
+  webhooks: "NEGOCIO",
+  lifecycle_automation: "NEGOCIO",
+  rbac_matrix: "NEGOCIO",
+  gamification: "EMPRESA",
+  external_awards: "EMPRESA"
+};
+
+/**
+ * @param {string} feature
+ * @returns {string}
+ */
+export function requiredPlanLabel(feature) {
+  return PLAN_LABELS[feature] || "";
+}
+
 /**
  * @param {AdminDashboardDependencies} deps
  * @returns {AdminDashboardApp}
@@ -186,6 +207,7 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     branchQueryString: branchFilter.branchQueryString,
     selectedBranchLabel: branchFilter.selectedBranchLabel,
     applyBranchDrilldown: branchFilter.applyBranchDrilldown,
+    requiredPlanLabel,
     safeColor,
     setSmallMessage,
     activateTab,

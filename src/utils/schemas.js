@@ -94,6 +94,7 @@ export const businessCustomerBrandingSchema = z.object({
   branding_mode: z.enum(["platform_led", "endorsed_brand", "white_label_ready"]).default("endorsed_brand"),
   customer_program_name: optionalTrimmedStringSchema(120),
   customer_logo_url: optionalUrlSchema(1000),
+  qr_logo_enabled: z.boolean().optional(),
   primary_color: optionalHexColorSchema(),
   accent_color: optionalHexColorSchema(),
   neutral_theme: z.enum(["warm", "neutral", "cool"]).optional(),

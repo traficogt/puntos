@@ -101,6 +101,7 @@
 
     .marketing-hero,
     .join-shell,
+    .entry-shell,
     .customer-hero-grid,
     .customer-hero-head,
     .admin-header-band,
@@ -115,7 +116,8 @@
     }
 
     .hero-stat-band,
-    .mini-grid {
+    .mini-grid,
+    .cus-entry-stack {
         grid-template-columns: 1fr;
     }
 
@@ -151,6 +153,14 @@
         grid-column: 1;
     }
 
+    .entry-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .entry-stage-intro {
+        position: static;
+    }
+
     body.page-marketing .hero-stat-band {
         flex-direction: column;
         gap: 0;
@@ -176,6 +186,14 @@
         padding: 44px 0 60px;
     }
 
+    .pricing-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .contact-grid {
+        grid-template-columns: 1fr;
+    }
+
     .contact-intro p {
         max-width: none;
     }
@@ -196,6 +214,11 @@
 
     .admin-tab-rail {
         position: static;
+    }
+
+    .staff-camera-stage {
+        position: static;
+        top: auto;
     }
 
     .admin-tab-rail .tabs {

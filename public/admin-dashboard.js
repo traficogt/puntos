@@ -1,6 +1,8 @@
-import { api, $, toast, modalAlert, modalConfirm, modalPrompt } from "/lib.js";
+import { api, $, toast, modalAlert, modalConfirm, modalPrompt, hydrateShellLinks } from "/lib.js";
 import { ensureAdminDashboardLayout } from "./admin-dashboard/layout.js";
 import { initAdminDashboard } from "./admin-dashboard/index.js";
+
+hydrateShellLinks();
 
 await ensureAdminDashboardLayout();
 await initAdminDashboard({ api, $, toast, alert: modalAlert, confirm: modalConfirm, prompt: modalPrompt });

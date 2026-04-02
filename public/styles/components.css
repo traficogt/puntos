@@ -432,6 +432,16 @@ button.danger {
     box-shadow: 0 14px 28px rgba(40, 18, 6, 0.3);
 }
 
+.toast.is-visible {
+    display: block;
+}
+
+.cus-entry-feedback {
+    min-height: 18px;
+    margin-top: 10px;
+    color: var(--muted);
+}
+
 video {
     width: 100%;
     border-radius: 14px;

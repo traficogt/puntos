@@ -25,6 +25,7 @@ test("branding form serializes the allowed customer-facing fields and preserves 
     branding_mode: "white_label_ready",
     customer_program_name: "Cafe Bourbon Rewards",
     customer_logo_url: "https://cdn.example.com/logo.png",
+    qr_logo_enabled: false,
     primary_color: "#6D3524",
     accent_color: "#D7A554",
     neutral_theme: "warm",

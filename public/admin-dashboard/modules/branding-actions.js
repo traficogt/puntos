@@ -16,7 +16,7 @@ export function createBrandingActions(app) {
     try {
       const out = await api("/api/admin/branding");
       fillBrandingForm($, out.customer_branding || {});
-      updateBrandingSummary($);
+      updateBrandingSummary($, app);
     } catch (error) {
       toast("No se pudo cargar branding de clientes: " + error.message);
     }
@@ -29,7 +29,7 @@ export function createBrandingActions(app) {
         body: JSON.stringify(buildBrandingPayload($))
       });
       fillBrandingForm($, out.customer_branding || {});
-      updateBrandingSummary($);
+      updateBrandingSummary($, app);
       toast("Branding de clientes guardado.");
     } catch (error) {
       toast("No se pudo guardar branding de clientes: " + error.message);

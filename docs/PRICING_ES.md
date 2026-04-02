@@ -5,33 +5,38 @@ Precio simple por sucursal, fácil de vender a cafeterías y negocios similares.
 
 ## Planes sugeridos
 
-### Plan Inicio — USD 39 / sucursal / mes
-- Registro por QR
-- Acumulación y canje de puntos
-- Reglas básicas (gasto/visita/artículo)
-- Panel básico de clientes y recompensas
-- Soporte por correo
+### EMPRENDEDOR — USD 39 / sucursal / mes
+- QR y cartera de cliente
+- puntos, recompensas y canjes
+- reglas básicas
+- un local
+- personal básico
 
-### Plan Crecimiento — USD 79 / sucursal / mes
-- Todo lo de Inicio
-- Niveles (tiers)
-- Referidos y campañas
-- Controles anti-fraude básicos
-- Sucursales y analítica por sucursal
-- Soporte prioritario (SLA hábil)
+### NEGOCIO — USD 79 / sucursal / mes
+- todo lo anterior
+- analítica
+- niveles
+- referidos
+- exportación
+- multi-sucursal
+- gift cards
+- campañas
+- webhooks
+- automatizaciones
+- branding premium para superficies de cliente
 
-### Plan Pro — USD 129 / sucursal / mes
-- Todo lo de Crecimiento
-- Automatizaciones de ciclo de vida
-- Reglas avanzadas de canje/expiración
-- Roles y permisos avanzados
-- Exportaciones y auditoría completa
-- Soporte prioritario extendido
+### EMPRESA — USD 129 / sucursal / mes
+- todo lo anterior
+- gamificación
+- integraciones / external awards
+- branding avanzado
+- futuro dominio propio
+- futuro logo dentro del QR
 
 ## Extras recomendados
 - **Implementación inicial**: USD 199 a 499 (único pago)
 - **SMS**: cobro por consumo (costo + margen)
-- **Dominio/marca blanca**: desde USD 19/mes por negocio
+- **Dominio propio / logo dentro del QR**: futuro premium, no incluido por defecto
 
 ## Mensaje comercial corto
 “Desde **USD 39 por sucursal** puedes activar un programa de lealtad con QR, puntos y recompensas en menos de una semana.”

@@ -23,6 +23,7 @@ import { withPgClient } from "../middleware/pg-client.js";
 import { metricsMiddleware } from "../middleware/metrics.js";
 import { globalApiRateLimit } from "../middleware/rate-limit.js";
 import { isAllowedApiOrigin } from "../utils/cors-origin.js";
+import { resolveHostSplitRedirect, runtimeConfigForHost } from "../utils/app-host-routing.js";
 
 const app = express();
 // Default to off in production to avoid duplicate workers when horizontally scaling.
@@ -78,13 +79,13 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "https://privatrack.com", "https://static.cloudflareinsights.com", "https://challenges.cloudflare.com"],
-      styleSrc: ["'self'"],
+      styleSrc: ["'self'", "https://fonts.googleapis.com"],
       imgSrc: ["'self'", "data:", "https:"],
       connectSrc: ["'self'", "https://privatrack.com", "https://cloudflareinsights.com", "https://challenges.cloudflare.com"],
-      fontSrc: ["'self'"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'none'", "https://challenges.cloudflare.com"],
+      frameSrc: ["https://challenges.cloudflare.com"],
       upgradeInsecureRequests: config.NODE_ENV === "production" ? [] : null
     }
   },
@@ -129,19 +130,63 @@ app.use("/api", globalApiRateLimit((req) => {
 // Static (PWA)
 const publicDir = path.join(process.cwd(), "public");
 
+app.use((req, res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD") return next();
+  const redirectTo = resolveHostSplitRedirect({
+    host: req.get("host"),
+    path: req.path,
+    originalUrl: req.originalUrl,
+    forwardedProto: req.get("x-forwarded-proto"),
+    protocol: req.protocol,
+    appOrigin: config.APP_ORIGIN,
+    marketingOrigin: config.MARKETING_ORIGIN
+  });
+  if (!redirectTo) return next();
+  return res.redirect(302, redirectTo);
+});
+
+app.get("/runtime-config.js", (req, res) => {
+  const runtimeConfig = runtimeConfigForHost({
+    host: req.get("host"),
+    forwardedProto: req.get("x-forwarded-proto"),
+    protocol: req.protocol,
+    appOrigin: config.APP_ORIGIN,
+    marketingOrigin: config.MARKETING_ORIGIN
+  });
+  res.setHeader("Cache-Control", "no-store");
+  res.type("application/javascript");
+  res.send(`window.__PF_RUNTIME_CONFIG__ = ${JSON.stringify(runtimeConfig, null, 2)};\n`);
+});
+
+app.get("/sitio", (req, res) => {
+  const runtimeConfig = runtimeConfigForHost({
+    host: req.get("host"),
+    forwardedProto: req.get("x-forwarded-proto"),
+    protocol: req.protocol,
+    appOrigin: config.APP_ORIGIN,
+    marketingOrigin: config.MARKETING_ORIGIN
+  });
+  return res.redirect(302, new URL("/", runtimeConfig.marketingOrigin).toString());
+});
+
 // Ensure SW isn't aggressively cached
 app.get("/sw.js", (req, res, next) => {
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   next();
 });
-app.use(express.static(publicDir, { extensions: ["html"] }));
+app.use(express.static(publicDir, { extensions: ["html"], redirect: false }));
 
 // Friendly routes
 app.get("/", (req, res) => res.sendFile(path.join(publicDir, "index.html")));
 app.get("/admin", (req, res) => res.sendFile(path.join(publicDir, "admin.html")));
+app.get("/admin-dashboard", (req, res) => res.sendFile(path.join(publicDir, "admin-dashboard.html")));
 app.get("/staff/login", (req, res) => res.sendFile(path.join(publicDir, "staff-login.html")));
 app.get("/staff", (req, res) => res.sendFile(path.join(publicDir, "staff.html")));
-app.get("/join/:slug", (req, res) => res.sendFile(path.join(publicDir, "join.html")));
+app.get("/registro/:slug", (req, res) => res.sendFile(path.join(publicDir, "join.html")));
+app.get("/join/:slug", (req, res) => {
+  const slug = encodeURIComponent(String(req.params.slug || "").trim());
+  return res.redirect(302, `/registro/${slug}`);
+});
 app.get("/c", (req, res) => res.sendFile(path.join(publicDir, "customer.html")));
 app.get("/super", (req, res) => res.sendFile(path.join(publicDir, "super.html")));
 

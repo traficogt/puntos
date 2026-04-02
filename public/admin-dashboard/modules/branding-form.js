@@ -1,6 +1,5 @@
 /** @typedef {import("../types.js").CustomerBrandingConfig} CustomerBrandingConfig */
 /** @typedef {import("../types.js").QueryFn} QueryFn */
-
 /** @type {{
  *   branding_mode: import("../types.js").CustomerBrandingConfig["branding_mode"],
  *   neutral_theme: import("../types.js").CustomerBrandingConfig["neutral_theme"],
@@ -71,6 +70,7 @@ export function buildBrandingPayload($) {
     branding_mode: brandingMode,
     customer_program_name: trimOptional(field($, "#brandingProgramName").value),
     customer_logo_url: trimOptional(field($, "#brandingLogoUrl").value),
+    qr_logo_enabled: checkbox($, "#brandingQrLogoEnabled")?.checked === true,
     primary_color: normalizeHexColor(field($, "#brandingPrimaryColor").value),
     accent_color: normalizeHexColor(field($, "#brandingAccentColor").value),
     neutral_theme: neutralTheme,
@@ -93,6 +93,8 @@ export function fillBrandingForm($, branding = {}) {
   field($, "#brandingMode").value = next.branding_mode;
   field($, "#brandingProgramName").value = next.customer_program_name || "";
   field($, "#brandingLogoUrl").value = next.customer_logo_url || "";
+  const qrCheckbox = /** @type {HTMLInputElement | null} */ ($("#brandingQrLogoEnabled"));
+  if (qrCheckbox) qrCheckbox.checked = next.qr_logo_enabled === true;
   field($, "#brandingPrimaryColor").value = next.primary_color || "";
   field($, "#brandingAccentColor").value = next.accent_color || "";
   field($, "#brandingNeutralTheme").value = next.neutral_theme || DEFAULT_BRANDING.neutral_theme;
@@ -103,11 +105,19 @@ export function fillBrandingForm($, branding = {}) {
 
 /**
  * @param {QueryFn} $
+ * @param {{ state?: { planInfo?: { plan?: string } }, requiredPlanLabel?: (feature: string) => string } | null} [app]
  */
-export function updateBrandingSummary($) {
+export function updateBrandingSummary($, app = null) {
   const payload = buildBrandingPayload($);
   const hint = /** @type {HTMLElement | null} */ ($("#brandingModeHint"));
   const summary = /** @type {HTMLElement | null} */ ($("#brandingSummary"));
+  const planNotice = /** @type {HTMLElement | null} */ ($("#brandingPlanNotice"));
+  const qrHint = /** @type {HTMLElement | null} */ ($("#brandingQrLogoHint"));
+  const qrCheckbox = /** @type {HTMLInputElement | null} */ ($("#brandingQrLogoEnabled"));
+  const premiumPlan = app?.requiredPlanLabel?.("rbac_matrix") || "NEGOCIO";
+  const activePlan = String(app?.state?.planInfo?.plan || "").toUpperCase();
+  const canUsePremiumBranding = activePlan === "NEGOCIO" || activePlan === "EMPRESA";
+  const canUseQrLogo = activePlan === "EMPRESA";
 
   const modeCopy = payload.branding_mode === "platform_led"
     ? "PuntosFieles lidera la experiencia y el negocio aparece como programa participante."
@@ -116,6 +126,20 @@ export function updateBrandingSummary($) {
       : "La experiencia mostrará el negocio y mantendrá a PuntosFieles como respaldo visible.";
 
   if (hint) hint.textContent = modeCopy;
+  if (planNotice) {
+    planNotice.textContent = canUsePremiumBranding
+      ? "Tu plan ya permite branding premium en superficies de cliente."
+      : `El branding premium en superficies de cliente se habilita desde ${premiumPlan}.`;
+  }
+  if (qrCheckbox) {
+    qrCheckbox.disabled = !canUseQrLogo;
+    if (!canUseQrLogo) qrCheckbox.checked = false;
+  }
+  if (qrHint) {
+    qrHint.textContent = canUseQrLogo
+      ? "Tu plan permite QR premium con logo, siempre con fallback seguro."
+      : "El logo dentro del QR se reserva para EMPRESA.";
+  }
   if (!summary) return;
 
   const pieces = [

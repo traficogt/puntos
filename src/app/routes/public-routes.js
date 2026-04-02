@@ -49,6 +49,7 @@ const StaffTokenConfirmSchema = z.object({
 
 const ContactSchema = z.object({
   name: z.string().min(1).max(100).trim(),
+  business: z.string().min(1).max(160).trim(),
   contact: z.string().min(1).max(200).trim(),
   message: z.string().min(10).max(2000).trim(),
   turnstileToken: z.string().min(1)
@@ -163,7 +164,7 @@ publicRoutes.post("/public/business/:slug/join/verify", moderateRateLimit, rateL
     referralCode: v.data.referralCode ?? null // Pass referral code if provided
   });
 
-  res.cookie(config.CUSTOMER_COOKIE_NAME, token, { ...cookieOpts(), maxAge: browserCookieMaxAge("CUSTOMER") });
+  res.cookie(config.CUSTOMER_COOKIE_NAME, token, { ...cookieOpts(req), maxAge: browserCookieMaxAge("CUSTOMER") });
   res.json({ ok: true, customer: { id: customer.id, points: customer.points, name: customer.name, phone: customer.phone } });
 }));
 

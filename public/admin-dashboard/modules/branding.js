@@ -18,6 +18,7 @@ export function registerBrandingModule(app) {
       "#brandingMode",
       "#brandingProgramName",
       "#brandingLogoUrl",
+      "#brandingQrLogoEnabled",
       "#brandingPrimaryColor",
       "#brandingAccentColor",
       "#brandingNeutralTheme",
@@ -26,10 +27,10 @@ export function registerBrandingModule(app) {
     ];
 
     selectors.forEach((selector) => {
-      app.$(selector)?.addEventListener("input", () => updateBrandingSummary(app.$));
-      app.$(selector)?.addEventListener("change", () => updateBrandingSummary(app.$));
+      app.$(selector)?.addEventListener("input", () => updateBrandingSummary(app.$, app));
+      app.$(selector)?.addEventListener("change", () => updateBrandingSummary(app.$, app));
     });
-    app.$("#brandingPoweredByVisible")?.addEventListener("change", () => updateBrandingSummary(app.$));
+    app.$("#brandingPoweredByVisible")?.addEventListener("change", () => updateBrandingSummary(app.$, app));
     app.$("#btnSaveBranding")?.addEventListener("click", () => {
       actions.saveBranding().catch(() => {});
     });
