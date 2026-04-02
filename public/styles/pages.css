@@ -1730,7 +1730,7 @@ body.page-customer .lc-qr-btn:hover {
 }
 
 .cus-section-account {
-    grid-column: 2;
+    grid-column: 1 / -1;
     background: linear-gradient(180deg, color-mix(in srgb, var(--paper-strong) 90%, transparent), color-mix(in srgb, var(--paper) 84%, transparent));
 }
 
@@ -1751,8 +1751,7 @@ body.page-customer .lc-qr-btn:hover {
 }
 
 .cus-section-referrals,
-.cus-section-achievements,
-.cus-section-account {
+.cus-section-achievements {
     grid-column: 2;
 }
 

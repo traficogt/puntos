@@ -169,8 +169,11 @@ export function applyWalletBranding($, business) {
   setLogo("#customerBrandLogo", branding.logoUrl);
   setText("#customerBrandKicker", branding.navKicker);
   setText("#customerBrandTitle", branding.navTitle);
-  setText("#customerEntryTitle", `Tu tarjeta de ${branding.businessName} vive aqui.`);
-  setText("#customerEntrySubtitle", `Ingresa con el codigo de ${branding.businessName} o abre el enlace que te compartieron.`);
+  setText("#customerEntryTitle", "Tu programa activo vive aquí.");
+  setText(
+    "#customerEntrySubtitle",
+    `Entra con el enlace que te compartió ${branding.businessName}. Después, este navegador queda listo para volver a tu programa activo sin buscar nada más.`,
+  );
   setText("#bizName", branding.walletHeadline);
 
   const poweredBy = /** @type {HTMLElement | null} */ ($("#customerPoweredBy"));
