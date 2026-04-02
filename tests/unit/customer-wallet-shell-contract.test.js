@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 function readCustomerShellHtml() {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   return readFileSync(new URL("../../public/customer.html", import.meta.url), "utf8");
 }
 
@@ -25,7 +26,7 @@ test("customer wallet exposes a dominant hero and progress band near the top", (
   assert.match(walletShell, /id="nextReward"/, "expected nextReward inside the top wallet shell");
   assert.match(
     html,
-    /<div class="customer-sections">\s*<div class="cus-section" id="tierSection">/,
+    /<div class="customer-sections">\s*<div class="[^"]*\bcus-section\b[^"]*\bcus-section-tier\b[^"]*" id="tierSection">/,
     "expected tierSection to be the first lower section immediately after the wallet card",
   );
 });
