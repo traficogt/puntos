@@ -71,7 +71,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     const slug = (safeEl($, "#slug")?.value || "").trim();
     if (!slug) return toast("Escribe el slug");
     localStorage.setItem("pf_customer_slug", slug);
-    location.href = `/join/${encodeURIComponent(slug)}`;
+    location.href = `/registro/${encodeURIComponent(slug)}`;
   });
 
   safeEl($, "#btnSendLoginCode")?.addEventListener("click", async () => {
@@ -86,7 +86,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
       });
       localStorage.setItem("pf_phone", phone);
       localStorage.setItem("pf_customer_slug", slug);
-      toast("Codigo enviado.");
+      toast("Código enviado.");
     }, (e) => {
       toast(e.message);
     });
@@ -105,7 +105,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
       });
       localStorage.setItem("pf_phone", phone);
       localStorage.setItem("pf_customer_slug", slug);
-      toast("Sesion iniciada.");
+      toast("Sesión iniciada.");
       await loadAll({ api, $, toast });
     }, (e) => {
       toast(e.message);
@@ -126,7 +126,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
       const out = await api("/api/customer/export");
       const exportOut = safeEl($, "#exportOut");
       if (exportOut) exportOut.textContent = JSON.stringify(out, null, 2);
-      toast("Export listo");
+      toast("Exportación lista.");
     }, (e) => {
       toast(e.message);
     });
