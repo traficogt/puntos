@@ -43,16 +43,30 @@ export function createAnalyticsDashboardController(app, deps) {
     try {
       const query = app.branchQueryString();
       const branchId = app.selectedBranchId();
-      const [dashboard, globalDashboard, roiReport, alertsCenter] = await Promise.all([
+      const [dashboard, globalDashboard] = await Promise.all([
         api(`/api/admin/analytics/dashboard${query ? `?${query}` : ""}`),
-        branchId ? api("/api/admin/analytics/dashboard") : Promise.resolve(null),
+        branchId ? api("/api/admin/analytics/dashboard") : Promise.resolve(null)
+      ]);
+      const [roiPrefetch, alertsPrefetch] = await Promise.allSettled([
         api("/api/admin/roi?days=30"),
         api("/api/admin/alerts?limit=60")
       ]);
       renderSummaryTiles({ $, summary: dashboard.summary || {}, app });
       renderRfmDistribution({ $, dashboard, app });
       const activityRows = renderRevenueTrend({ $, dashboard, app });
-      const churnData = await api(`/api/admin/analytics/churn-risk?limit=10${query ? `&${query}` : ""}`);
+      const churnDataPromise = api(`/api/admin/analytics/churn-risk?limit=10${query ? `&${query}` : ""}`);
+      const perfRows = renderBranchPerformance({ $, dashboard, app });
+      renderBranchCompareTable($, perfRows);
+      await loadCohortSummary({ $, api });
+      const benchmarkBranchRows = branchId ? activityRows : [];
+      const benchmarkGlobalRows = branchId ? (globalDashboard?.recent_activity || []) : activityRows;
+      renderBranchBenchmark($, { branchRows: benchmarkBranchRows, globalRows: benchmarkGlobalRows, branchLabel: app.selectedBranchLabel() });
+      await loadOpsSummary();
+      const roiReport = await loadRoiReport(roiPrefetch.status === "fulfilled" ? roiPrefetch.value : undefined);
+      await loadJobsStatus();
+      await loadPaymentPending();
+      const alertsCenter = await loadAlertsCenter(alertsPrefetch.status === "fulfilled" ? alertsPrefetch.value : undefined);
+      const churnData = await churnDataPromise;
       renderExecutiveSummary({
         $,
         summary: dashboard.summary || {},
@@ -64,17 +78,6 @@ export function createAnalyticsDashboardController(app, deps) {
         branchId
       });
       renderChurnList({ $, churnCustomers: churnData.customers || [], app });
-      const perfRows = renderBranchPerformance({ $, dashboard, app });
-      renderBranchCompareTable($, perfRows);
-      await loadCohortSummary({ $, api });
-      const benchmarkBranchRows = branchId ? activityRows : [];
-      const benchmarkGlobalRows = branchId ? (globalDashboard?.recent_activity || []) : activityRows;
-      renderBranchBenchmark($, { branchRows: benchmarkBranchRows, globalRows: benchmarkGlobalRows, branchLabel: app.selectedBranchLabel() });
-      await loadOpsSummary();
-      await loadRoiReport(roiReport);
-      await loadJobsStatus();
-      await loadPaymentPending();
-      await loadAlertsCenter(alertsCenter);
       const anomalies = await api("/api/admin/analytics/anomalies");
       renderValueAnomalies($, anomalies);
       const ledger = await api("/api/admin/analytics/ledger-reconciliation");
@@ -120,6 +123,8 @@ export function createAnalyticsDashboardController(app, deps) {
     ensureLedgerCertificationDates($);
     $("#btnRecalcAnalytics")?.addEventListener("click", () => recalcAnalytics().catch(() => {}));
     $("#btnRefreshLedgerReconciliation")?.addEventListener("click", () => loadAnalytics().catch(() => {}));
+    $("#btnRefreshRoi")?.addEventListener("click", () => loadAnalytics().catch(() => {}));
+    $("#btnRefreshAlerts")?.addEventListener("click", () => loadAnalytics().catch(() => {}));
     $("#btnRefreshLedgerCertification")?.addEventListener("click", () => loadLedgerCertification({ $, api }).catch((error) => { toast(`Error cargando certificación: ${error.message}`); }));
     $("#btnRefreshLedgerCertificationArchive")?.addEventListener("click", () => loadLedgerCertificationArchive({ $, api }).catch((error) => { toast(`Error cargando archivo de certificación: ${error.message}`); }));
     $("#btnExportLedgerCertificationCsv")?.addEventListener("click", () => exportLedgerCertificationCsv($));

@@ -170,9 +170,10 @@ export function createAnalyticsOperationsController(app) {
 
   async function loadRoiReport(prefetched) {
     const box = element("#roiReport");
-    await run(async () => {
+    return await run(async () => {
       const out = prefetched || await api("/api/admin/roi?days=30");
       renderRoiReportBox(box, out);
+      return out;
     }, (error) => {
       box.textContent = "Error cargando ROI: " + error.message;
     });
@@ -282,9 +283,10 @@ export function createAnalyticsOperationsController(app) {
 
   async function loadAlertsCenter(prefetched) {
     const box = element("#alertsCenter");
-    await run(async () => {
+    return await run(async () => {
       const out = prefetched || await api("/api/admin/alerts?limit=60");
       renderAlertsCenterBox(box, out);
+      return out;
     }, (error) => {
       box.textContent = "Error cargando alertas: " + error.message;
     });
@@ -303,10 +305,8 @@ export function createAnalyticsOperationsController(app) {
     initDefaultDates();
     $("#btnExportIvaCsv")?.addEventListener("click", exportIvaCsv);
     $("#btnRefreshOpsSummary")?.addEventListener("click", refresh(loadOpsSummary));
-    $("#btnRefreshRoi")?.addEventListener("click", refresh(loadRoiReport));
     $("#btnRefreshJobs")?.addEventListener("click", refresh(loadJobsStatus));
     $("#btnRefreshPaymentPending")?.addEventListener("click", refresh(loadPaymentPending));
-    $("#btnRefreshAlerts")?.addEventListener("click", refresh(loadAlertsCenter));
   }
 
   return {
