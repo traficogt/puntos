@@ -31,9 +31,23 @@ export function renderBaseEmailTemplate({
   footerText = ""
 }) {
   const brandName = escapeHtml(branding.brandName);
-  const logoHtml = branding.logoUrl
+  const brandMediaHtml = branding.logoUrl
     ? `<img src="${escapeHtml(branding.logoUrl)}" alt="${brandName}" width="40" height="40" style="display:block;border:0;outline:none;text-decoration:none;border-radius:10px;">`
-    : `<div style="font-size:20px;line-height:28px;font-weight:700;color:#111827;">${brandName}</div>`;
+    : "";
+  const wordmarkHtml = branding.wordmarkUrl
+    ? `<img src="${escapeHtml(branding.wordmarkUrl)}" alt="${brandName}" height="28" style="display:block;border:0;outline:none;text-decoration:none;">`
+    : "";
+  const brandTextHtml = `<div style="font-size:20px;line-height:28px;font-weight:700;color:#111827;">${brandName}</div>`;
+  const headerBrandHtml = brandMediaHtml || wordmarkHtml
+    ? `
+      <table role="presentation" cellpadding="0" cellspacing="0">
+        <tr>
+          ${brandMediaHtml ? `<td style="vertical-align:middle;padding-right:14px;">${brandMediaHtml}</td>` : ""}
+          <td style="vertical-align:middle;">${wordmarkHtml || brandTextHtml}</td>
+        </tr>
+      </table>
+    `
+    : brandTextHtml;
   const poweredByHtml = branding.poweredByVisible
     ? `<p style="margin:12px 0 0;font-size:12px;line-height:18px;color:#6B7280;">Powered by PuntosFieles</p>`
     : "";
@@ -51,7 +65,7 @@ export function renderBaseEmailTemplate({
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:24px;overflow:hidden;">
             <tr>
               <td style="padding:28px 28px 18px;border-bottom:1px solid #F1F5F9;">
-                ${logoHtml}
+                ${headerBrandHtml}
                 <p style="margin:14px 0 0;font-size:14px;line-height:20px;color:#6B7280;">${brandName}</p>
               </td>
             </tr>

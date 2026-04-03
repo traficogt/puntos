@@ -12,6 +12,8 @@ test("resolveEmailBranding uses platform defaults without business context", asy
   assert.equal(branding.scope, "platform");
   assert.equal(branding.brandName, "PuntosFieles");
   assert.equal(branding.poweredByVisible, false);
+  assert.match(branding.logoUrl, /icon-192\.png$/);
+  assert.match(branding.wordmarkUrl, /pf-email-wordmark\.png$/);
   assert.match(branding.primaryColor, /^#/);
 });
 
@@ -34,6 +36,7 @@ test("resolveEmailBranding uses tenant branding when business context exists", a
   assert.equal(branding.scope, "tenant");
   assert.equal(branding.brandName, "Recompensas Cafe Bourbon");
   assert.equal(branding.logoUrl, "https://cdn.example.com/logo.png");
+  assert.equal(branding.wordmarkUrl, "");
   assert.equal(branding.primaryColor, "#6D3524");
   assert.equal(branding.accentColor, "#D7A554");
   assert.equal(branding.poweredByVisible, true);
@@ -52,6 +55,7 @@ test("resolveEmailBranding falls back to business name and safe defaults when te
   assert.equal(branding.scope, "tenant");
   assert.equal(branding.brandName, "Cafe Central");
   assert.equal(branding.logoUrl, "");
+  assert.equal(branding.wordmarkUrl, "");
   assert.match(branding.primaryColor, /^#/);
   assert.match(branding.accentColor, /^#/);
 });
