@@ -65,6 +65,9 @@ function computeRetentionRate({ branchId, activeCustomers, totalCustomers, roi }
   if (branchId && Number(totalCustomers) > 0 && Number(activeCustomers) >= 0) {
     return (Number(activeCustomers) / Number(totalCustomers)) * 100;
   }
+  if (branchId) {
+    return null;
+  }
   if (roi?.repeat_rate_pct !== null && roi?.repeat_rate_pct !== undefined) {
     return Number(roi.repeat_rate_pct);
   }
@@ -117,19 +120,22 @@ function executiveMetrics({ summary, roiReport, branchPerformance, branchId }) {
 
 export function adminExecutiveNarrative({ branchLabel, metrics, churnData, alertsCenter, branchId }) {
   const riskCount = Number(churnData?.count ?? churnData?.customers?.length ?? 0);
-  const alertCount = Array.isArray(alertsCenter?.alerts) ? alertsCenter.alerts.length : 0;
+  const hasAlertsReading = Array.isArray(alertsCenter?.alerts);
+  const alertCount = hasAlertsReading ? alertsCenter.alerts.length : null;
   const retentionText = metrics.retentionRate !== null ? formatPercent(metrics.retentionRate) : "sin lectura de retención";
   const growthText = metrics.roiGrowth !== null
     ? `${branchId ? "y una referencia global de ingresos de" : "y un pulso de ingresos de"} ${formatSignedPercent(metrics.roiGrowth)}`
     : "sin lectura de ROI consolidado";
-  const alertsText = branchId ? `${formatCount(alertCount)} alertas operativas globales abiertas` : `${formatCount(alertCount)} alertas operativas abiertas`;
+  const alertsText = hasAlertsReading
+    ? (branchId ? `${formatCount(alertCount)} alertas operativas globales abiertas` : `${formatCount(alertCount)} alertas operativas abiertas`)
+    : "sin lectura de alertas operativas";
   return `${branchLabel || "Todo el negocio"} mantiene ${formatCount(metrics.activeCustomers)} clientes activos, sumó ${formatCount(metrics.newCustomers)} nuevos en 30 días, retiene ${retentionText} ${growthText}; hoy hay ${formatCount(riskCount)} clientes en riesgo alto y ${alertsText}.`;
 }
 
 export function adminSuggestedActions({ metrics, churnData, alertsCenter, branchId }) {
   const riskCount = Number(churnData?.count ?? churnData?.customers?.length ?? 0);
-  const alerts = Array.isArray(alertsCenter?.alerts) ? alertsCenter.alerts : [];
-  const highAlerts = alerts.filter((alert) => String(alert?.severity || "").toUpperCase() === "HIGH").length;
+  const alerts = Array.isArray(alertsCenter?.alerts) ? alertsCenter.alerts : null;
+  const highAlerts = alerts ? alerts.filter((alert) => String(alert?.severity || "").toUpperCase() === "HIGH").length : 0;
   const actions = [];
   const alertsScope = branchId ? " como referencia global" : "";
   const roiScope = branchId ? " como referencia global" : "";
@@ -137,7 +143,9 @@ export function adminSuggestedActions({ metrics, churnData, alertsCenter, branch
   if (riskCount > 0) {
     actions.push(`Activa un win-back para los ${formatCount(riskCount)} clientes con mayor riesgo antes del próximo corte.`);
   }
-  if (highAlerts > 0 || alerts.length >= 6) {
+  if (!alerts) {
+    actions.push(`Confirma la lectura de alertas operativas${alertsScope}; hoy no hay datos suficientes para sugerir limpieza por severidad.`);
+  } else if (highAlerts > 0 || alerts.length >= 6) {
     actions.push(`Prioriza el centro de alertas${alertsScope}: hay ${formatCount(highAlerts || alerts.length)} señales que conviene limpiar hoy.`);
   }
   if (metrics.retentionRate !== null && metrics.retentionRate < 45) {

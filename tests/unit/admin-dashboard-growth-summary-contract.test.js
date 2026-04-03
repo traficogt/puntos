@@ -51,3 +51,11 @@ test("executive summary avoids top-branch fallbacks and qualifies global branch-
   assert.doesNotMatch(summaryJs, /roi\.revenue_current_q \|\| branchRow\?\.revenue_30d/);
   assert.match(summaryJs, /referencia global/);
 });
+
+test("executive summary keeps missing alerts and branch retention in an explicit unknown state", () => {
+  const summaryJs = fs.readFileSync(executiveSummaryPath, "utf8");
+
+  assert.doesNotMatch(summaryJs, /Array\.isArray\(alertsCenter\?\.alerts\) \? alertsCenter\.alerts\.length : 0/);
+  assert.match(summaryJs, /if \(branchId\) \{\s*return null;\s*\}\s*if \(roi\?\.repeat_rate_pct !== null && roi\?\.repeat_rate_pct !== undefined\)/);
+  assert.match(summaryJs, /sin lectura de alertas operativas/);
+});
