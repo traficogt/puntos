@@ -20,6 +20,9 @@ test("staff shell centers the active customer above a shared action rail", () =>
   assert.match(html, /Cliente activo/, "expected the active customer summary to be dominant");
   assert.match(html, /id="customerReadyChip">Esperando cliente<\/div>/, "expected the summary to start in a waiting state");
   assert.doesNotMatch(html, /Cliente listo/, "expected the ready cue to appear only after selection");
+  assert.doesNotMatch(html, /<span>Modo<\/span>/, "expected the redundant note cards to stay removed");
+  assert.doesNotMatch(html, /<span>Ruta<\/span>/, "expected the redundant route note to stay removed");
+  assert.doesNotMatch(html, /<span>Estado<\/span>/, "expected the redundant status note to stay removed");
   assert.match(html, /staff-action-rail/, "expected a shared action rail for register and redeem");
   assert.match(html, /staff-action-block-secondary/, "expected gift cards to remain visually secondary");
   assert.match(html, /Saldo actual/, "expected one summary field to describe the current balance");
