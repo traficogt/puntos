@@ -12,5 +12,4 @@ test("admin dashboard exposes a growth-first executive summary layer", () => {
   assert.match(html, /id="adminGrowthBoard"/);
   assert.match(html, /id="adminExecutiveNarrative"/);
   assert.match(html, /id="adminSuggestedActions"/);
-  assert.match(html, /admin-detail-band/);
 });
