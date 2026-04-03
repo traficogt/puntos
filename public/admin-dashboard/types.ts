@@ -154,6 +154,7 @@ export interface AnalyticsBranchPerformanceRow {
   branch_name: string;
   branch_code?: string | null;
   revenue_30d?: number | string;
+  active_customers_30d?: number;
   tx_30d?: number;
   redemptions_30d?: number;
 }

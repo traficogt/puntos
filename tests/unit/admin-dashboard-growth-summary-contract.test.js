@@ -35,3 +35,11 @@ test("executive summary keeps ROI or cost semantics separate from attributed rev
   assert.doesNotMatch(summaryJs, /setText\(\$, "#adminKpiRoi", formatSignedPercent\(metrics\.roiGrowth\)\)/);
   assert.match(summaryJs, /setText\(\$, "#adminKpiAttributedRevenueDelta", metrics\.roiGrowth !== null/);
 });
+
+test("executive summary avoids top-branch fallbacks and qualifies global branch-mode actions", () => {
+  const summaryJs = fs.readFileSync(executiveSummaryPath, "utf8");
+
+  assert.doesNotMatch(summaryJs, /roi\.customers_active \|\| branchRow\?\.active_customers_30d/);
+  assert.doesNotMatch(summaryJs, /roi\.revenue_current_q \|\| branchRow\?\.revenue_30d/);
+  assert.match(summaryJs, /referencia global/);
+});

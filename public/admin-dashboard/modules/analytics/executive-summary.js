@@ -80,12 +80,16 @@ function executiveMetrics({ summary, roiReport, branchPerformance, branchId }) {
   const totalCustomers = Number(summary?.total_customers || 0);
   const activeCustomers = branchId
     ? Number(branchRow?.active_customers_30d || 0)
-    : Number(roi.customers_active || branchRow?.active_customers_30d || summary?.total_customers || 0);
+    : (roi.customers_active !== null && roi.customers_active !== undefined
+      ? Number(roi.customers_active)
+      : null);
   const newCustomers = Number(summary?.new_customers_30d || 0);
   const purchaseFrequency = Number(summary?.avg_purchase_frequency || 0);
   const attributedRevenue = branchId
     ? Number(branchRow?.revenue_30d || 0)
-    : Number(roi.revenue_current_q || branchRow?.revenue_30d || 0);
+    : (roi.revenue_current_q !== null && roi.revenue_current_q !== undefined
+      ? Number(roi.revenue_current_q)
+      : null);
   const retentionRate = computeRetentionRate({ branchId, activeCustomers, totalCustomers, roi });
   const roiGrowth = roi.revenue_growth_pct !== null && roi.revenue_growth_pct !== undefined
     ? Number(roi.revenue_growth_pct)
@@ -122,22 +126,24 @@ export function adminExecutiveNarrative({ branchLabel, metrics, churnData, alert
   return `${branchLabel || "Todo el negocio"} mantiene ${formatCount(metrics.activeCustomers)} clientes activos, sumó ${formatCount(metrics.newCustomers)} nuevos en 30 días, retiene ${retentionText} ${growthText}; hoy hay ${formatCount(riskCount)} clientes en riesgo alto y ${alertsText}.`;
 }
 
-export function adminSuggestedActions({ metrics, churnData, alertsCenter }) {
+export function adminSuggestedActions({ metrics, churnData, alertsCenter, branchId }) {
   const riskCount = Number(churnData?.count ?? churnData?.customers?.length ?? 0);
   const alerts = Array.isArray(alertsCenter?.alerts) ? alertsCenter.alerts : [];
   const highAlerts = alerts.filter((alert) => String(alert?.severity || "").toUpperCase() === "HIGH").length;
   const actions = [];
+  const alertsScope = branchId ? " como referencia global" : "";
+  const roiScope = branchId ? " como referencia global" : "";
 
   if (riskCount > 0) {
     actions.push(`Activa un win-back para los ${formatCount(riskCount)} clientes con mayor riesgo antes del próximo corte.`);
   }
   if (highAlerts > 0 || alerts.length >= 6) {
-    actions.push(`Prioriza el centro de alertas: hay ${formatCount(highAlerts || alerts.length)} señales que conviene limpiar hoy.`);
+    actions.push(`Prioriza el centro de alertas${alertsScope}: hay ${formatCount(highAlerts || alerts.length)} señales que conviene limpiar hoy.`);
   }
   if (metrics.retentionRate !== null && metrics.retentionRate < 45) {
     actions.push("Refuerza la segunda compra con una recompensa simple y un recordatorio al staff en caja.");
   } else if (metrics.roiGrowth !== null && metrics.roiGrowth < 0) {
-    actions.push("Revisa incentivos y ticket promedio; el ingreso atribuido viene por debajo del periodo previo.");
+    actions.push(`Revisa incentivos y ticket promedio${roiScope}; el ingreso atribuido viene por debajo del periodo previo.`);
   } else {
     actions.push("Mantén la operación actual y monitorea recurrencia y alertas en el siguiente refresco.");
   }
@@ -183,6 +189,7 @@ export function renderExecutiveSummary({
   setList($, "#adminSuggestedActions", adminSuggestedActions({
     metrics,
     churnData,
-    alertsCenter
+    alertsCenter,
+    branchId
   }));
 }
