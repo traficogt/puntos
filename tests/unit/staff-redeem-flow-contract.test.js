@@ -17,7 +17,8 @@ test("staff shell exposes an explicit customer-selection action before register 
 
   assert.match(html, /id="btnSelectCustomer"/, "expected explicit customer selection control");
   assert.match(html, /Seleccionar cliente/, "expected Spanish-first customer-selection copy");
-  assert.match(html, /Cliente seleccionado/, "expected selected-customer summary copy");
+  assert.match(html, /Cliente activo/, "expected selected-customer summary copy");
+  assert.match(html, /Escanea o ingresa el código del cliente para continuar\./, "expected pre-selection guidance copy");
 });
 
 test("staff scanner selects the customer instead of auto-awarding on scan", () => {

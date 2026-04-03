@@ -51,85 +51,120 @@
       </div>
     </section>
 
-    <section class="staff-workstage">
-      <div class="card staff-camera-stage">
-        <h2>Seleccionar cliente</h2>
+    <section class="staff-primary-workspace staff-workstage">
+      <div class="card staff-selection-panel staff-camera-stage">
+        <div class="staff-panel-heading">
+          <p class="section-kicker">Entrada del cliente</p>
+          <h2>Seleccionar cliente</h2>
+        </div>
         <video id="video" autoplay playsinline muted></video>
         <div class="row mt-10">
           <button class="primary" id="btnStart">Seleccionar cliente</button>
           <button id="btnStop">Pausar</button>
           <button id="btnSync">Sincronizar</button>
         </div>
-        <p class="small" id="selectionStatus">Escanea o pega un token válido para seleccionar un cliente.</p>
+        <p class="small" id="selectionStatus">Escanea o ingresa el código del cliente para continuar.</p>
         <p class="small">Consejo: Chrome Android tiene mejor soporte para QR. Si no hay BarcodeDetector, usa entrada manual.</p>
+        <label>Token QR (manual)</label>
+        <textarea id="token" rows="3" placeholder="Pega aquí el token si no puedes escanear"></textarea>
+        <div class="row mt-10">
+          <button id="btnSelectCustomer">Seleccionar cliente</button>
+        </div>
         <p class="small" id="queueMeta">Pendientes: 0 • Fallidos: 0 • Última actividad: —</p>
         <pre id="queueList" class="small pre-wrap">(sin operaciones pendientes)</pre>
       </div>
 
-      <div class="staff-action-stack">
-        <div class="card">
-          <h2>Registrar puntos</h2>
-          <p class="small" id="programInfo">Regla activa: —</p>
-          <label>Token QR (manual)</label>
-          <textarea id="token" rows="3" placeholder="Pega aquí el token si no puedes escanear"></textarea>
-          <div class="row mt-10">
-            <button id="btnSelectCustomer">Seleccionar cliente</button>
+      <div class="staff-customer-column staff-action-stack">
+        <div class="card staff-customer-summary">
+          <div class="staff-panel-heading">
+            <p class="section-kicker">Cliente activo</p>
+            <h2>Cliente activo</h2>
           </div>
-
-          <div class="grid">
-            <div>
-              <label>Monto (Q)</label>
-              <input id="amount" type="number" step="0.01" value="0"/>
+          <div class="staff-ready-chip">Cliente listo</div>
+          <div class="staff-customer-grid">
+            <div class="staff-customer-stat">
+              <span>ID</span>
+              <strong id="lastCustomer">—</strong>
             </div>
-            <div>
-              <label>Visitas</label>
-              <input id="visits" type="number" step="1" value="1"/>
+            <div class="staff-customer-stat">
+              <span>Nombre</span>
+              <strong id="lastCustomerName">—</strong>
             </div>
-            <div>
-              <label>Items</label>
-              <input id="items" type="number" step="1" value="1"/>
+            <div class="staff-customer-stat">
+              <span>Teléfono</span>
+              <strong id="lastCustomerPhone">—</strong>
+            </div>
+            <div class="staff-customer-stat">
+              <span>Puntos</span>
+              <strong id="lastPoints">—</strong>
+            </div>
+            <div class="staff-customer-stat">
+              <span>Saldo</span>
+              <strong id="lastBalance">—</strong>
+            </div>
+            <div class="staff-customer-stat">
+              <span>Recompensa</span>
+              <strong id="customerRewardState">Aún no disponible</strong>
             </div>
           </div>
-
-          <div class="row mt-10">
-            <button class="primary" id="btnAward">Registrar</button>
-            <button class="danger" id="btnLogout">Salir</button>
-          </div>
-          <p class="small" id="awardPreview">Primero selecciona un cliente. Luego registra la compra, visita o items.</p>
-
-          <div class="hr"></div>
-          <div class="row">
-            <span class="badge">Cliente seleccionado: <code id="lastCustomer">—</code></span>
-            <span class="badge">Nombre: <code id="lastCustomerName">—</code></span>
-            <span class="badge">Teléfono: <code id="lastCustomerPhone">—</code></span>
-            <span class="badge">Puntos: <code id="lastPoints">—</code></span>
-            <span class="badge">Saldo: <code id="lastBalance">—</code></span>
-          </div>
+          <p class="small" id="customerActionStatus">Escanea o ingresa el código del cliente para continuar.</p>
         </div>
 
-        <div class="card">
-          <h2>Canjear recompensa</h2>
-          <p class="small">Selecciona al cliente, luego elige la recompensa disponible y canjea.</p>
-          <label>Recompensa</label>
-          <select id="rewardSelect"></select>
-          <p class="small" id="rewardSelectionHint">Selecciona un cliente para ver qué recompensas puede canjear ahora.</p>
-          <div class="row mt-10">
-            <button class="primary" id="btnRedeem">Canjear</button>
-            <span class="badge">Código: <code id="redeemCode">—</code></span>
+        <div class="card staff-action-rail">
+          <div class="staff-panel-heading">
+            <p class="section-kicker">Acciones compartidas</p>
+            <h2>Registrar, canjear o usar gift cards</h2>
           </div>
-        </div>
+          <div class="staff-action-grid">
+            <div class="card staff-action-block">
+              <h3>Registrar puntos</h3>
+              <p class="small" id="programInfo">Regla activa: —</p>
+              <div class="grid">
+                <div>
+                  <label>Monto (Q)</label>
+                  <input id="amount" type="number" step="0.01" value="0"/>
+                </div>
+                <div>
+                  <label>Visitas</label>
+                  <input id="visits" type="number" step="1" value="1"/>
+                </div>
+                <div>
+                  <label>Items</label>
+                  <input id="items" type="number" step="1" value="1"/>
+                </div>
+              </div>
+              <div class="row mt-10">
+                <button class="primary" id="btnAward">Registrar</button>
+                <button class="danger" id="btnLogout">Salir</button>
+              </div>
+              <p class="small" id="awardPreview">Primero selecciona un cliente. Luego registra la compra, visita o items.</p>
+            </div>
 
-        <div class="card">
-          <h2>Gift Cards</h2>
-          <p class="small">Canjea saldo de gift card por monto.</p>
-          <label>Código o token</label>
-          <input id="giftCode" placeholder="GC-XXXX... o gft_xxx"/>
-          <label>Monto a descontar (Q)</label>
-          <input id="giftAmount" type="number" min="0.01" step="0.01" value="10"/>
-          <div class="row mt-10">
-            <button class="primary" id="btnGiftRedeem">Canjear gift card</button>
+            <div class="card staff-action-block">
+              <h3>Canjear recompensa</h3>
+              <p class="small">Selecciona al cliente, luego elige la recompensa disponible y canjea.</p>
+              <label>Recompensa</label>
+              <select id="rewardSelect"></select>
+              <p class="small" id="rewardSelectionHint">Selecciona un cliente para ver qué recompensas puede canjear ahora.</p>
+              <div class="row mt-10">
+                <button class="primary" id="btnRedeem">Canjear</button>
+                <span class="badge">Código: <code id="redeemCode">—</code></span>
+              </div>
+            </div>
+
+            <div class="card staff-action-block staff-action-block-secondary">
+              <h3>Gift Cards</h3>
+              <p class="small">Canjea saldo de gift card por monto.</p>
+              <label>Código o token</label>
+              <input id="giftCode" placeholder="GC-XXXX... o gft_xxx"/>
+              <label>Monto a descontar (Q)</label>
+              <input id="giftAmount" type="number" min="0.01" step="0.01" value="10"/>
+              <div class="row mt-10">
+                <button class="primary" id="btnGiftRedeem">Canjear gift card</button>
+              </div>
+              <p class="small" id="giftStatus">—</p>
+            </div>
           </div>
-          <p class="small" id="giftStatus">—</p>
         </div>
       </div>
     </section>

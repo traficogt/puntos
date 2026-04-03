@@ -684,12 +684,28 @@ body.page-marketing .brand-mark {
     margin-bottom: 18px;
 }
 
+.staff-panel-heading {
+    display: grid;
+    gap: 4px;
+}
+
+.staff-panel-heading .section-kicker {
+    margin-bottom: 0;
+}
+
+.staff-primary-workspace,
 .staff-workstage {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
+    grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
     gap: 18px;
     align-items: start;
     margin-bottom: 18px;
+}
+
+.staff-selection-panel {
+    display: grid;
+    gap: 14px;
+    padding: 22px;
 }
 
 .staff-camera-stage {
@@ -698,6 +714,7 @@ body.page-marketing .brand-mark {
     top: 92px;
 }
 
+.staff-selection-panel video,
 .staff-camera-stage video {
     width: 100%;
     min-height: 360px;
@@ -708,10 +725,101 @@ body.page-marketing .brand-mark {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+.staff-customer-column,
 .staff-action-stack,
 .staff-support-grid {
     display: grid;
     gap: 18px;
+}
+
+.staff-customer-summary,
+.staff-action-rail {
+    display: grid;
+    gap: 16px;
+}
+
+.staff-customer-summary {
+    border-color: rgba(44, 139, 120, 0.18);
+    background:
+        radial-gradient(circle at top right, rgba(58, 186, 149, 0.08), transparent 36%),
+        linear-gradient(180deg, color-mix(in srgb, var(--paper-strong) 94%, transparent), color-mix(in srgb, var(--paper) 86%, transparent));
+}
+
+.staff-ready-chip {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 16%, var(--paper));
+    border: 1px solid color-mix(in srgb, var(--accent-deep) 22%, var(--line));
+    color: var(--text);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.staff-customer-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.staff-customer-stat {
+    display: grid;
+    gap: 6px;
+    padding: 14px;
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--paper) 68%, transparent);
+    border: 1px solid color-mix(in srgb, var(--line) 92%, transparent);
+}
+
+.staff-customer-stat span {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+}
+
+.staff-customer-stat strong {
+    font-size: 18px;
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.staff-action-rail {
+    padding: 22px;
+    border-color: rgba(91, 63, 45, 0.12);
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--paper-strong) 95%, transparent), color-mix(in srgb, var(--paper) 88%, transparent));
+}
+
+.staff-action-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.staff-action-block {
+    margin: 0;
+    display: grid;
+    gap: 12px;
+    background: color-mix(in srgb, var(--paper) 70%, transparent);
+    border-color: color-mix(in srgb, var(--line) 90%, transparent);
+    box-shadow: none;
+}
+
+.staff-action-block h3 {
+    margin-top: 0;
+}
+
+.staff-action-block .grid {
+    gap: 12px;
+}
+
+.staff-action-block-secondary {
+    opacity: 0.92;
 }
 
 .staff-support-grid {
@@ -722,6 +830,18 @@ body.page-marketing .brand-mark {
 .page-staff .card > h2:first-child,
 .page-staff .card > h3:first-child {
     margin-top: 0;
+}
+
+@media (max-width: 860px) {
+    .staff-action-grid,
+    .staff-customer-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .staff-action-rail,
+    .staff-selection-panel {
+        padding: 18px;
+    }
 }
 
 .page-customer #main > h1 {
