@@ -4,6 +4,7 @@ export interface AppConfig {
   WORKER_PORT: number;
 
   APP_ORIGIN: string;
+  PUBLIC_WEB_ORIGIN?: string;
   MARKETING_ORIGIN: string;
   CORS_ORIGINS: string[];
   COOKIE_SAME_SITE: string;

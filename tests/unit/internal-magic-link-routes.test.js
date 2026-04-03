@@ -95,7 +95,6 @@ test("super magic-link generation returns an owner panel link and audits it", as
   };
   AuditRepo.log = async (record) => {
     auditRecords.push(record);
-    return { id: record.id };
   };
 
   try {
@@ -402,6 +401,7 @@ test("staff magic-link route redirects to /staff and sets the staff cookie", asy
     assert.equal(res.cookies[0].name, config.STAFF_COOKIE_NAME);
     assert.equal(res.cookies[0].options.httpOnly, true);
     assert.equal(res.cookies[0].options.sameSite, "strict");
+    assert.equal(consumeCalls, 1);
   } finally {
     InternalMagicLinkRepo.lookupByTokenHash = originalLookup;
     InternalMagicLinkRepo.consumeSingleUse = originalConsume;
