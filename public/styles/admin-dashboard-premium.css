@@ -301,10 +301,13 @@
 @media (max-width: 1100px) {
   .page-admin .admin-command-deck,
   .page-admin .admin-shell-grid,
-  .page-admin .admin-stage-header,
+  .page-admin .admin-stage-header {
+    grid-template-columns: 1fr;
+  }
+
   .page-admin .admin-growth-board,
   .page-admin .admin-executive-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 
   .page-admin .admin-tab-rail {
