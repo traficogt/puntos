@@ -14,6 +14,8 @@ import { renderExecutiveSummary } from "./executive-summary.js";
  *     loadRoiReport: (prefetched?: unknown) => Promise<unknown>,
  *     loadAlertsCenter: (prefetched?: unknown) => Promise<unknown>
  *   },
+ *   roiPrefetchPromise: Promise<unknown>,
+ *   alertsPrefetchPromise: Promise<unknown>,
  *   summary: Record<string, unknown>,
  *   branchLabel: string,
  *   branchPerformance: Array<Record<string, unknown>>,
@@ -26,6 +28,8 @@ export async function hydrateExecutiveSummary({
   $,
   api,
   deps,
+  roiPrefetchPromise,
+  alertsPrefetchPromise,
   summary,
   branchLabel,
   branchPerformance,
@@ -34,8 +38,8 @@ export async function hydrateExecutiveSummary({
 }) {
   const { loadRoiReport, loadAlertsCenter } = deps;
   const [roiPrefetch, alertsPrefetch] = await Promise.allSettled([
-    api("/api/admin/roi?days=30"),
-    api("/api/admin/alerts?limit=60")
+    roiPrefetchPromise,
+    alertsPrefetchPromise
   ]);
 
   const [roiReport, alertsCenter, churnData] = await Promise.all([

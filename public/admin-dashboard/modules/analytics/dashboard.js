@@ -32,10 +32,8 @@ export function createAnalyticsDashboardController(app, deps) {
   const { api, $, toast } = app;
   const {
     loadOpsSummary,
-    loadRoiReport,
     loadJobsStatus,
     loadPaymentPending,
-    loadAlertsCenter,
     loadAuditTimeline
   } = deps;
   async function loadAnalytics() {
@@ -46,6 +44,8 @@ export function createAnalyticsDashboardController(app, deps) {
         api(`/api/admin/analytics/dashboard${query ? `?${query}` : ""}`),
         branchId ? api("/api/admin/analytics/dashboard") : Promise.resolve(null)
       ]);
+      const roiPrefetchPromise = api("/api/admin/roi?days=30");
+      const alertsPrefetchPromise = api("/api/admin/alerts?limit=60");
       renderSummaryTiles({ $, summary: dashboard.summary || {}, app });
       renderRfmDistribution({ $, dashboard, app });
       const activityRows = renderRevenueTrend({ $, dashboard, app });
@@ -63,6 +63,8 @@ export function createAnalyticsDashboardController(app, deps) {
         $,
         api,
         deps,
+        roiPrefetchPromise,
+        alertsPrefetchPromise,
         summary: dashboard.summary || {},
         branchLabel: app.selectedBranchLabel(),
         branchPerformance: dashboard.branch_performance || [],
@@ -134,6 +136,5 @@ export function createAnalyticsDashboardController(app, deps) {
       }
     });
   }
-
   return { init, loadAnalytics };
 }

@@ -26,6 +26,8 @@ test("analytics dashboard delegates executive summary rendering to a dedicated m
 
   assert.match(dashboardJs, /import\s*\{\s*hydrateExecutiveSummary\s*\}\s*from\s*["']\.\/executive-summary-loader\.js["']/);
   assert.match(dashboardJs, /const churnData = await hydrateExecutiveSummary\(/);
+  assert.match(dashboardJs, /const roiPrefetchPromise = api\("\/api\/admin\/roi\?days=30"\)/);
+  assert.match(dashboardJs, /const alertsPrefetchPromise = api\("\/api\/admin\/alerts\?limit=60"\)/);
   assert.doesNotMatch(dashboardJs, /Promise\.allSettled/);
   assert.doesNotMatch(dashboardJs, /const roiReport = await loadRoiReport/);
   assert.doesNotMatch(dashboardJs, /const alertsCenter = await loadAlertsCenter/);
@@ -33,6 +35,8 @@ test("analytics dashboard delegates executive summary rendering to a dedicated m
   assert.match(dashboardJs, /#btnRefreshRoi"\)\?\.addEventListener\("click", \(\) => loadAnalytics\(\)\.catch\(\(\) => \{\}\)\)/);
   assert.match(dashboardJs, /#btnRefreshAlerts"\)\?\.addEventListener\("click", \(\) => loadAnalytics\(\)\.catch\(\(\) => \{\}\)\)/);
   assert.match(loaderJs, /Promise\.allSettled/);
+  assert.match(loaderJs, /roiPrefetchPromise/);
+  assert.match(loaderJs, /alertsPrefetchPromise/);
   assert.match(loaderJs, /loadRoiReport/);
   assert.match(loaderJs, /loadAlertsCenter/);
   assert.match(loaderJs, /renderExecutiveSummary\s*\(/);
