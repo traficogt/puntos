@@ -25,6 +25,17 @@ test("renderEmailMessage wraps legacy body content in a branded email shape", as
   assert.equal(out.html.includes("Tu código es 123456"), true);
 });
 
+test("renderEmailMessage links Powered by PuntosFieles to the landing page", async () => {
+  const out = await renderEmailMessage({
+    channel: "verify",
+    body: "Tu código es 123456",
+    branding: tenantBranding
+  });
+
+  assert.equal(out.html.includes('href="https://puntosfieles.com/"'), true);
+  assert.equal(out.html.includes(">Powered by PuntosFieles</a>"), true);
+});
+
 test("renderEmailMessage renders verification email with code emphasis", async () => {
   const out = await renderEmailMessage({
     channel: "verify",

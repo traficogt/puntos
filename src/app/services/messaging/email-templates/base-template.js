@@ -54,7 +54,7 @@ export function renderBaseEmailTemplate({
     `
     : brandTextHtml;
   const poweredByHtml = branding.poweredByVisible
-    ? `<p style="margin:12px 0 0;font-size:12px;line-height:18px;color:#6B7280;">Powered by PuntosFieles</p>`
+    ? `<p style="margin:12px 0 0;font-size:12px;line-height:18px;color:#6B7280;"><a href="https://puntosfieles.com/" style="color:#6B7280;text-decoration:underline;">Powered by PuntosFieles</a></p>`
     : "";
   const eyebrowHtml = eyebrow
     ? `<p style="margin:0 0 10px;font-size:12px;line-height:18px;letter-spacing:0.12em;text-transform:uppercase;color:${escapeHtml(branding.accentColor)};">${escapeHtml(eyebrow)}</p>`
