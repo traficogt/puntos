@@ -313,6 +313,9 @@ superRoutes.post("/super/magic-links", csrfProtect, requireSuperAdmin, asyncRout
       error: payload.actorType === "customer" ? "Cliente no encontrado" : "Usuario no encontrado"
     });
   }
+  if (payload.actorType === "staff" && actor.active === false) {
+    return res.status(400).json({ error: "Este usuario no está activo" });
+  }
   if (String(actor.business_id) !== String(payload.businessId)) {
     return res.status(400).json({ error: "El actor no pertenece a ese negocio" });
   }

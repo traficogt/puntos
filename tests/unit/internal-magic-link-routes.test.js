@@ -172,6 +172,48 @@ test("super magic-link generation rejects actor and business mismatches", async 
   }
 });
 
+test("super magic-link generation rejects inactive staff users", async () => {
+  const layer = routeLayer(superRoutes, "/super/magic-links", "post");
+  assert.ok(layer, "Expected POST /super/magic-links");
+
+  const staffId = "12345678-1234-4234-8234-123456789012";
+  const businessId = "22222222-2222-4222-8222-222222222222";
+  const createdRecords = [];
+  const originalGetById = StaffRepo.getById;
+  const originalCreate = InternalMagicLinkRepo.create;
+
+  StaffRepo.getById = async () => ({
+    id: staffId,
+    business_id: businessId,
+    role: "CASHIER",
+    active: false
+  });
+  InternalMagicLinkRepo.create = async (record) => {
+    createdRecords.push(record);
+    return { id: record.id };
+  };
+
+  try {
+    const res = await runFinalHandler(layer, {
+      method: "POST",
+      body: {
+        actorType: "staff",
+        actorId: staffId,
+        businessId,
+        target: "staff"
+      },
+      superAdmin: { email: "super@example.com" }
+    });
+
+    assert.equal(res.statusCode, 400);
+    assert.match(String(res.body?.error || ""), /no está activo/i);
+    assert.equal(createdRecords.length, 0);
+  } finally {
+    StaffRepo.getById = originalGetById;
+    InternalMagicLinkRepo.create = originalCreate;
+  }
+});
+
 test("customer magic-link route redirects to /c and sets the customer cookie", async () => {
   const layer = routeLayer(publicRoutes, "/magic/customer/:token", "get");
   assert.ok(layer, "Expected GET /magic/customer/:token");
