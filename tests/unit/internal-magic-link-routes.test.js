@@ -124,7 +124,7 @@ test("super magic-link generation returns an owner panel link and audits it", as
     assert.equal(auditRecords[0].meta.actor_type, "staff");
     assert.equal(auditRecords[0].meta.actor_id, staffId);
     assert.equal(auditRecords[0].meta.business_id, businessId);
-    assert.match(res.body.url, /^http:\/\/app\.test\/magic\/staff\/.+$/);
+    assert.match(res.body.url, /^http:\/\/app\.test\/api\/magic\/staff\/.+$/);
   } finally {
     StaffRepo.getById = originalGetById;
     InternalMagicLinkRepo.create = originalCreate;

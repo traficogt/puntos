@@ -101,7 +101,7 @@ export async function buildInternalMagicLink({ actorType, actor, target, created
   const baseOrigin = String(origin || resolvedDeps.runtimeConfig.APP_ORIGIN || "").replace(/\/+$/, "");
   return {
     id,
-    url: new URL(`/magic/${normalizeTargetRoute(normalizedActorType)}/${rawToken}`, baseOrigin).toString(),
+    url: new URL(`/api/magic/${normalizeTargetRoute(normalizedActorType)}/${rawToken}`, baseOrigin).toString(),
     usageMode,
     expiresAt: expiresAt.toISOString()
   };

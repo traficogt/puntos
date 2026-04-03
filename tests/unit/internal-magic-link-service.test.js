@@ -48,12 +48,12 @@ test("buildInternalMagicLink returns staff and customer magic-link URLs with the
 
   assert.equal(staffResult.id, "link-id");
   assert.equal(staffResult.usageMode, "single_use");
-  assert.match(staffResult.url, /^https:\/\/app\.example\.com\/magic\/staff\/raw-token$/);
+  assert.match(staffResult.url, /^https:\/\/app\.example\.com\/api\/magic\/staff\/raw-token$/);
   assert.match(staffResult.expiresAt, /^2026-04-03T12:15:00\.000Z$/);
 
   assert.equal(customerResult.id, "link-id");
   assert.equal(customerResult.usageMode, "reusable_window");
-  assert.match(customerResult.url, /^https:\/\/app\.example\.com\/magic\/customer\/raw-token$/);
+  assert.match(customerResult.url, /^https:\/\/app\.example\.com\/api\/magic\/customer\/raw-token$/);
   assert.match(customerResult.expiresAt, /^2026-04-03T12:15:00\.000Z$/);
 
   assert.equal(created.length, 2);
