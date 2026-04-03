@@ -1,4 +1,4 @@
-import { renderBaseEmailTemplate } from "./email-templates/base-template.js";
+import { renderBaseEmailTemplate, renderPoweredByText } from "./email-templates/base-template.js";
 import { renderVerifyEmail } from "./email-templates/verify-template.js";
 import { renderSecurityEmail } from "./email-templates/security-template.js";
 import { renderLifecycleEmail } from "./email-templates/lifecycle-template.js";
@@ -38,7 +38,9 @@ export async function renderEmailMessage({ channel, body = "", branding, email =
   const subject = defaultSubject(channel, branding);
   return {
     subject,
-    text: String(body || ""),
+    text: renderPoweredByText()
+      ? `${String(body || "").trim()}\n\n${renderPoweredByText()}`.trim()
+      : String(body || ""),
     html: renderBaseEmailTemplate({
       branding,
       preheader: String(body || "").slice(0, 120),

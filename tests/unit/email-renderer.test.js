@@ -34,6 +34,7 @@ test("renderEmailMessage links Powered by PuntosFieles to the landing page", asy
 
   assert.equal(out.html.includes('href="https://puntosfieles.com/"'), true);
   assert.equal(out.html.includes(">Powered by PuntosFieles</a>"), true);
+  assert.equal(out.text.includes("https://puntosfieles.com/"), true);
 });
 
 test("renderEmailMessage renders verification email with code emphasis", async () => {
@@ -50,6 +51,7 @@ test("renderEmailMessage renders verification email with code emphasis", async (
 
   assert.equal(out.subject.length > 0, true);
   assert.equal(out.text.includes("654321"), true);
+  assert.equal(out.text.includes("https://puntosfieles.com/"), true);
   assert.equal(out.html.includes("654321"), true);
   assert.equal(out.html.includes("Vence en 10 minutos."), true);
 });

@@ -1,4 +1,4 @@
-import { renderBaseEmailTemplate, renderTextParagraphs } from "./base-template.js";
+import { renderBaseEmailTemplate, renderPoweredByText, renderTextParagraphs } from "./base-template.js";
 
 function escapeHtml(value) {
   return String(value || "")
@@ -15,7 +15,9 @@ export function renderVerifyEmail({ branding, businessName = "", code, expiresTe
     branding.brandName,
     "",
     `Tu código es: ${code}`,
-    expiresText
+    expiresText,
+    "",
+    renderPoweredByText()
   ]);
   const html = renderBaseEmailTemplate({
     branding,

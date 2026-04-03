@@ -1,4 +1,4 @@
-import { renderBaseEmailTemplate, renderHtmlParagraphs, renderTextParagraphs } from "./base-template.js";
+import { renderBaseEmailTemplate, renderHtmlParagraphs, renderPoweredByText, renderTextParagraphs } from "./base-template.js";
 
 export function renderSecurityEmail({ branding, subject = "", title = "", lines = [] }) {
   const resolvedSubject = String(subject || `${branding.brandName}: aviso de seguridad`).trim();
@@ -6,7 +6,7 @@ export function renderSecurityEmail({ branding, subject = "", title = "", lines 
   const safeLines = lines.map((line) => String(line || "").trim()).filter(Boolean);
   return {
     subject: resolvedSubject,
-    text: renderTextParagraphs([resolvedTitle, "", ...safeLines]),
+    text: renderTextParagraphs([resolvedTitle, "", ...safeLines, "", renderPoweredByText()]),
     html: renderBaseEmailTemplate({
       branding,
       preheader: safeLines[0] || resolvedTitle,

@@ -1,4 +1,4 @@
-import { renderBaseEmailTemplate, renderHtmlParagraphs, renderTextParagraphs } from "./base-template.js";
+import { renderBaseEmailTemplate, renderHtmlParagraphs, renderPoweredByText, renderTextParagraphs } from "./base-template.js";
 
 export function renderChurnEmail({ branding, subject = "", title = "", intro = "", lines = [] }) {
   const resolvedSubject = String(subject || `${branding.brandName}: te extrañamos`).trim();
@@ -6,7 +6,7 @@ export function renderChurnEmail({ branding, subject = "", title = "", intro = "
   const safeLines = [intro, ...lines].map((line) => String(line || "").trim()).filter(Boolean);
   return {
     subject: resolvedSubject,
-    text: renderTextParagraphs([resolvedTitle, "", ...safeLines]),
+    text: renderTextParagraphs([resolvedTitle, "", ...safeLines, "", renderPoweredByText()]),
     html: renderBaseEmailTemplate({
       branding,
       preheader: safeLines[0] || resolvedTitle,

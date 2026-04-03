@@ -14,6 +14,10 @@ export function renderTextParagraphs(lines = []) {
     .join("\n");
 }
 
+export function renderPoweredByText() {
+  return "Powered by PuntosFieles: https://puntosfieles.com/";
+}
+
 export function renderHtmlParagraphs(lines = []) {
   return lines
     .map((line) => String(line || "").trim())
