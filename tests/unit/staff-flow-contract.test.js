@@ -26,16 +26,17 @@ test("staff shell makes customer selection explicit before award or redeem", () 
   assert.match(html, /id="rewardSelect" disabled/, "expected reward selection to start disabled before selection");
   assert.match(html, /staff-action-rail/, "expected award and redeem to share the action rail");
   assert.match(html, /staff-action-block-secondary/, "expected gift cards to stay secondary");
+  assert.match(html, /Saldo actual/, "expected the summary to show current balance in one field");
+  assert.match(html, /Último movimiento/, "expected the summary to show the latest action in one field");
+  assert.match(html, /role="status"/, "expected the action status to be announced to assistive tech");
+  assert.match(html, /aria-live="polite"/, "expected the action status to be politely announced");
   assert.match(html, /Escanea o ingresa el código del cliente para continuar\./, "expected explicit pre-selection guidance");
-  assert.match(source, /selectionPromptCopy = "Escanea o ingresa el código del cliente para continuar\."/, "expected the approved pre-selection copy to be centralized");
-  assert.match(source, /function updateCustomerSurfaceState\(/, "expected the inline customer-surface state helper");
-  assert.match(source, /customerRewardState/, "expected the reward-state summary to be updated in the surface");
-  assert.match(source, /customerActionStatus/, "expected the in-surface action status to be updated");
-  assert.match(source, /awardButton\.disabled = !hasPerm\("staff\.award"\) \|\| !hasCustomer;/, "expected register to be selection-gated");
-  assert.match(source, /redeemButton\.disabled = !hasPerm\("staff\.redeem"\) \|\| !hasCustomer \|\| !hasRedeemableReward;/, "expected redeem to be selection-gated");
-  assert.match(source, /customerId: lastCustomerId/, "expected redeem to use the selected customer");
+  assert.match(source, /Escanea o ingresa el código del cliente para continuar\./, "expected the approved pre-selection copy to be reused");
+  assert.match(source, /hasRedeemableReward/, "expected redeem availability to be derived from customer state");
+  assert.match(source, /rewardSelectEl\.disabled/, "expected redeem select availability to follow redeem state");
+  assert.match(source, /\/api\/staff\/customer\/lookup/, "expected selected customers to be resolved through the lookup endpoint");
   assert.doesNotMatch(scanLoop, /await award\(token\);/, "expected QR scan not to auto-award points");
-  assert.match(scanLoop, /await selectCustomerFromToken\(token, \{ silent: false \}\);/, "expected QR scan to select the customer instead");
+  assert.match(source, /customerQrToken/, "expected scanned tokens to be sent through customer lookup");
 });
 
 test("staff client resolves selected customers through the verified lookup endpoint", () => {

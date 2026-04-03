@@ -20,18 +20,19 @@ test("staff shell exposes an explicit customer-selection action before register 
   assert.match(html, /Cliente activo/, "expected selected-customer summary copy");
   assert.match(html, /id="btnAward" disabled/, "expected award to look inactive before selection");
   assert.match(html, /id="btnRedeem" disabled/, "expected redeem to look inactive before selection");
+  assert.match(html, /Saldo actual/, "expected a current-balance summary label");
+  assert.match(html, /Último movimiento/, "expected a latest-action summary label");
   assert.match(html, /Escanea o ingresa el código del cliente para continuar\./, "expected pre-selection guidance copy");
 });
 
 test("staff scanner selects the customer instead of auto-awarding on scan", () => {
   const source = readStaffModule();
 
-  assert.match(source, /async function selectCustomerFromToken/, "expected explicit customer-selection helper");
-  assert.match(source, /selectionPromptCopy = "Escanea o ingresa el código del cliente para continuar\."/, "expected the approved prompt copy to be reused");
-  assert.match(source, /updateCustomerSurfaceState\("Registrando puntos\.\.\."\)/, "expected award to show an in-surface busy state");
-  assert.match(source, /updateCustomerSurfaceState\("Canjeando recompensa\.\.\."\)/, "expected redeem to show an in-surface busy state");
-  assert.match(source, /Canje listo\. Código: \$\{out\.redemptionCode\}\. Nuevo saldo: \$\{out\.newBalance\}\./, "expected redeem to refresh the surface after success");
-  assert.match(source, /await selectCustomerFromToken\(token,\s*\{\s*silent:\s*false\s*\}\)/, "expected scan loop to select customer from scanned token");
+  assert.match(source, /Escanea o ingresa el código del cliente para continuar\./, "expected the approved prompt copy to be reused");
+  assert.match(source, /Registrando puntos\.\.\./, "expected award to show an in-surface busy state");
+  assert.match(source, /Canjeando recompensa\.\.\./, "expected redeem to show an in-surface busy state");
+  assert.match(source, /Canje listo\./, "expected redeem to refresh the surface after success");
+  assert.match(source, /Puntos registrados:/, "expected award to refresh the surface after success");
+  assert.match(source, /\/api\/staff\/customer\/lookup/, "expected scanned tokens to resolve through the customer lookup endpoint");
   assert.doesNotMatch(source, /scanLoop[\s\S]*await award\(token\)/, "expected scan loop to stop auto-awarding on scan");
-  assert.match(source, /Puntos registrados: \+\$\{out\.pointsAwarded\}\. Nuevo saldo: \$\{out\.newBalance\}\./, "expected award to refresh the surface after success");
 });

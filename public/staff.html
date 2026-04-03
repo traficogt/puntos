@@ -95,11 +95,11 @@
               <strong id="lastCustomerPhone">—</strong>
             </div>
             <div class="staff-customer-stat">
-              <span>Puntos</span>
-              <strong id="lastPoints">—</strong>
+              <span>Último movimiento</span>
+              <strong id="lastPoints">Sin movimientos recientes</strong>
             </div>
             <div class="staff-customer-stat">
-              <span>Saldo</span>
+              <span>Saldo actual</span>
               <strong id="lastBalance">—</strong>
             </div>
             <div class="staff-customer-stat">
@@ -107,7 +107,7 @@
               <strong id="customerRewardState">Aún no disponible</strong>
             </div>
           </div>
-          <p class="small" id="customerActionStatus">Escanea o ingresa el código del cliente para continuar.</p>
+          <p class="small" id="customerActionStatus" role="status" aria-live="polite" aria-atomic="true">Escanea o ingresa el código del cliente para continuar.</p>
         </div>
 
         <div class="card staff-action-rail" id="staffActionRail" data-customer-state="waiting">

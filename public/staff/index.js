@@ -29,6 +29,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   let rewardOptions = [];
   /** @type {Set<string> | null} */
   let permissionSet = null;
+  let lastCustomerMovement = "Sin movimientos recientes";
   const selectionPromptCopy = "Escanea o ingresa el código del cliente para continuar.";
 
   function isAuthError(error) {
@@ -291,7 +292,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
 
     if (awardButton) awardButton.disabled = !hasPerm("staff.award") || !hasCustomer;
     if (redeemButton) redeemButton.disabled = !hasPerm("staff.redeem") || !hasCustomer || !hasRedeemableReward;
-    rewardSelectEl.disabled = !hasCustomer || !rewardOptions.length;
+    rewardSelectEl.disabled = !hasRedeemableReward;
   }
 
   function updateAwardPreview() {
@@ -354,7 +355,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       sel.appendChild(opt);
     }
 
-    sel.disabled = !lastCustomerId || !rewardOptions.length;
+    sel.disabled = !lastCustomerId || !getEligibleRewardCount();
     if (hint && !lastCustomerId) {
       hint.textContent = selectionPromptCopy;
     }
@@ -369,7 +370,8 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     element("#lastCustomerName").textContent = customer?.name || "—";
     element("#lastCustomerPhone").textContent = customer?.phone || "—";
     element("#lastBalance").textContent = customer ? String(Number(customer.points || 0)) : "—";
-    element("#lastPoints").textContent = customer ? String(Number(customer.points || 0)) : "—";
+    lastCustomerMovement = customer ? "Sin movimientos recientes" : "Sin movimientos recientes";
+    element("#lastPoints").textContent = lastCustomerMovement;
     updateAwardPreview();
     renderRewardOptions();
     updateCustomerSurfaceState();
@@ -471,7 +473,10 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       if (selectionStatus) {
         selectionStatus.textContent = `Cliente seleccionado: ${out.customerId}. Ahora puedes registrar o canjear.`;
       }
-      element("#lastPoints").textContent = String(out.newBalance);
+      lastCustomerMovement = out.status === "PENDING"
+        ? `Puntos pendientes: +${out.pointsAwarded}`
+        : `Puntos: +${out.pointsAwarded}`;
+      element("#lastPoints").textContent = lastCustomerMovement;
       element("#lastBalance").textContent = String(out.newBalance);
       lastCustomerId = out.customerId;
       lastCustomerToken = token;
@@ -698,7 +703,8 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       }));
       element("#redeemCode").textContent = out.redemptionCode;
       element("#lastBalance").textContent = String(out.newBalance);
-      element("#lastPoints").textContent = String(out.newBalance);
+      lastCustomerMovement = `Canje: ${out.redemptionCode}`;
+      element("#lastPoints").textContent = lastCustomerMovement;
       lastCustomerPoints = Number(out.newBalance || 0);
       renderRewardOptions();
       updateCustomerSurfaceState(`Canje listo. Código: ${out.redemptionCode}. Nuevo saldo: ${out.newBalance}.`);
