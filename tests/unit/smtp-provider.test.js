@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { createSmtpProvider } from "../../src/app/services/messaging/providers/smtp-provider.js";
 
 test("smtp provider omits auth when user and pass are empty", async () => {
-  /** @type {{ host: string, port: number, secure: boolean, auth?: { user: string, pass: string } } | null} */
+  /** @type {{ host: string, port: number, secure: boolean, ignoreTLS?: boolean, requireTLS?: boolean, auth?: { user: string, pass: string } } | null} */
   let capturedConfig = null;
   const provider = createSmtpProvider({
     config: {
@@ -35,5 +35,7 @@ test("smtp provider omits auth when user and pass are empty", async () => {
   assert.equal(capturedConfig.host, "10.10.1.20");
   assert.equal(capturedConfig.port, 26);
   assert.equal(capturedConfig.secure, false);
+  assert.equal(capturedConfig.ignoreTLS, true);
+  assert.equal(capturedConfig.requireTLS, false);
   assert.equal("auth" in capturedConfig, false);
 });

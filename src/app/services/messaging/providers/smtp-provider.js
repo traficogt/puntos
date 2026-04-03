@@ -6,6 +6,18 @@ function resolveSecure(config) {
   return Number(config.SMTP_PORT) === 465;
 }
 
+function resolveTransportSecurity(config) {
+  if (config.SMTP_SECURE === "false") {
+    return {
+      // Explicit plaintext SMTP for local relays that advertise STARTTLS with
+      // certificates that do not match their private IPs.
+      ignoreTLS: true,
+      requireTLS: false
+    };
+  }
+  return {};
+}
+
 export function createSmtpProvider({ config, transportFactory = nodemailer.createTransport }) {
   return {
     name: "smtp_email",
@@ -17,6 +29,7 @@ export function createSmtpProvider({ config, transportFactory = nodemailer.creat
         host: config.SMTP_HOST,
         port: config.SMTP_PORT,
         secure: resolveSecure(config),
+        ...resolveTransportSecurity(config),
         ...(config.SMTP_USER || config.SMTP_PASS
           ? { auth: { user: config.SMTP_USER, pass: config.SMTP_PASS } }
           : {})

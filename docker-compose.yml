@@ -40,10 +40,12 @@ services:
       SUPER_ADMIN_PASSWORD_HASH_FILE: ${SUPER_ADMIN_PASSWORD_HASH_FILE:-/app/.secrets/super_admin_password_hash}
 
       MESSAGE_PROVIDER: ${MESSAGE_PROVIDER:-dev}
+      MESSAGE_PROVIDER_ORDER: ${MESSAGE_PROVIDER_ORDER:-}
       WA_PHONE_NUMBER_ID: ${WA_PHONE_NUMBER_ID:-}
       WA_ACCESS_TOKEN: ${WA_ACCESS_TOKEN:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-auto}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-PuntosFieles <no-reply@puntos.gt>}
@@ -110,10 +112,12 @@ services:
       SUPER_ADMIN_PASSWORD_HASH_FILE: ${SUPER_ADMIN_PASSWORD_HASH_FILE:-/app/.secrets/super_admin_password_hash}
 
       MESSAGE_PROVIDER: ${MESSAGE_PROVIDER:-dev}
+      MESSAGE_PROVIDER_ORDER: ${MESSAGE_PROVIDER_ORDER:-}
       WA_PHONE_NUMBER_ID: ${WA_PHONE_NUMBER_ID:-}
       WA_ACCESS_TOKEN: ${WA_ACCESS_TOKEN:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-auto}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-PuntosFieles <no-reply@puntos.gt>}
