@@ -42,6 +42,8 @@ export const InternalMagicLinkRepo = {
               used_ip = COALESCE($2::text, used_ip),
               used_ua = COALESCE($3::text, used_ua)
         WHERE id = $1
+          AND usage_mode = 'single_use'
+          AND expires_at > now()
           AND used_at IS NULL
       RETURNING *`,
       [id, consumedMeta.ip ?? consumedMeta.used_ip ?? null, consumedMeta.ua ?? consumedMeta.used_ua ?? null]
@@ -57,6 +59,8 @@ export const InternalMagicLinkRepo = {
               used_ip = COALESCE($2::text, used_ip),
               used_ua = COALESCE($3::text, used_ua)
         WHERE id = $1
+          AND usage_mode = 'reusable_window'
+          AND expires_at > now()
       RETURNING *`,
       [id, consumedMeta.ip ?? consumedMeta.used_ip ?? null, consumedMeta.ua ?? consumedMeta.used_ua ?? null]
     );

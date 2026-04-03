@@ -59,5 +59,54 @@ test("internal magic link repository looks up rows by token hash", async () => {
   assert.equal(found, row);
   assert.equal(calls.length, 1);
   assert.match(calls[0].sql, /FROM internal_magic_links/i);
+  assert.match(calls[0].sql, /WHERE token_hash = \$1/i);
+  assert.match(calls[0].sql, /AND expires_at > now\(\)/i);
+  assert.match(calls[0].sql, /LIMIT 1/i);
   assert.deepEqual(calls[0].params, ["hashed-token"]);
+});
+
+test("internal magic link repository consumeSingleUse only updates active single-use rows", async () => {
+  const calls = [];
+  const row = { id: "link-1" };
+  const query = async (sql, params) => {
+    calls.push({ sql, params });
+    return { rows: [row], rowCount: 1 };
+  };
+
+  const found = await InternalMagicLinkRepo.consumeSingleUse("link-1", {
+    ip: "127.0.0.1",
+    ua: "test-agent"
+  }, query);
+
+  assert.equal(found, row);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].sql, /UPDATE internal_magic_links/i);
+  assert.match(calls[0].sql, /WHERE id = \$1/i);
+  assert.match(calls[0].sql, /AND usage_mode = 'single_use'/i);
+  assert.match(calls[0].sql, /AND expires_at > now\(\)/i);
+  assert.match(calls[0].sql, /AND used_at IS NULL/i);
+  assert.deepEqual(calls[0].params, ["link-1", "127.0.0.1", "test-agent"]);
+});
+
+test("internal magic link repository touchReusable only updates active reusable rows", async () => {
+  const calls = [];
+  const row = { id: "link-2" };
+  const query = async (sql, params) => {
+    calls.push({ sql, params });
+    return { rows: [row], rowCount: 1 };
+  };
+
+  const found = await InternalMagicLinkRepo.touchReusable("link-2", {
+    used_ip: "10.0.0.2",
+    used_ua: "browser"
+  }, query);
+
+  assert.equal(found, row);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].sql, /UPDATE internal_magic_links/i);
+  assert.match(calls[0].sql, /WHERE id = \$1/i);
+  assert.match(calls[0].sql, /AND usage_mode = 'reusable_window'/i);
+  assert.match(calls[0].sql, /AND expires_at > now\(\)/i);
+  assert.doesNotMatch(calls[0].sql, /AND used_at IS NULL/i);
+  assert.deepEqual(calls[0].params, ["link-2", "10.0.0.2", "browser"]);
 });
