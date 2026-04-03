@@ -74,6 +74,19 @@ test("buildInternalMagicLink rejects invalid customer targets in Spanish", async
   );
 });
 
+test("buildInternalMagicLink rejects incomplete actor records in Spanish", async () => {
+  await assert.rejects(
+    () => buildInternalMagicLink({
+      actorType: "staff",
+      actor: { role: "OWNER", business_id: "biz-1" },
+      target: "staff",
+      createdBy: "super@test.com",
+      origin: "https://app.example.com"
+    }),
+    /usuario no es válido/i
+  );
+});
+
 test("consumeInternalMagicLink rejects invalid tokens in Spanish", async () => {
   await assert.rejects(
     () => consumeInternalMagicLink("bad-token", {}, {
@@ -160,7 +173,8 @@ test("consumeInternalMagicLink returns /staff with the pf_staff cookie name", as
         id: "staff-1",
         business_id: "biz-1",
         branch_id: "branch-1",
-        role: "CASHIER"
+        role: "CASHIER",
+        active: true
       })
     },
     signStaffToken: async (payload) => {
@@ -188,6 +202,34 @@ test("consumeInternalMagicLink returns /staff with the pf_staff cookie name", as
     role: "CASHIER",
     imp: "super@test.com"
   }]);
+});
+
+test("consumeInternalMagicLink rejects inactive staff in Spanish", async () => {
+  await assert.rejects(
+    () => consumeInternalMagicLink("inactive-staff", {}, {
+      InternalMagicLinkRepo: {
+        lookupByTokenHash: async () => ({
+          id: "link-staff",
+          actor_type: "staff",
+          actor_id: "staff-1",
+          business_id: "biz-1",
+          target: "staff",
+          usage_mode: "single_use",
+          used_at: null
+        })
+      },
+      StaffRepo: {
+        getById: async () => ({
+          id: "staff-1",
+          business_id: "biz-1",
+          branch_id: "branch-1",
+          role: "CASHIER",
+          active: false
+        })
+      }
+    }),
+    /no está activo/i
+  );
 });
 
 test("customer consume returns /c with the pf_customer cookie name", async () => {

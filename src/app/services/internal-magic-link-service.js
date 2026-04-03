@@ -57,12 +57,25 @@ function assertValidTargetForActor(actorType, target, actor = null) {
   }
 }
 
+function assertActorShape(actorType, actor) {
+  const actorId = actor?.id ?? actor?.actor_id ?? null;
+  const businessId = actor?.business_id ?? actor?.businessId ?? null;
+  if (!actorId || !businessId) {
+    throw badRequest(
+      actorType === "customer"
+        ? "Este cliente no es válido."
+        : "Este usuario no es válido."
+    );
+  }
+}
+
 export async function buildInternalMagicLink({ actorType, actor, target, createdBy, origin }, deps = {}) {
   const resolvedDeps = resolveDeps(deps);
   const normalizedActorType = normalizeActorType(actorType);
   if (!["staff", "customer"].includes(normalizedActorType)) {
     throw badRequest("Tipo de actor inválido.");
   }
+  assertActorShape(normalizedActorType, actor);
   assertValidTargetForActor(normalizedActorType, target, actor);
 
   const usageMode = normalizedActorType === "customer" ? "reusable_window" : "single_use";
@@ -113,6 +126,9 @@ export async function consumeInternalMagicLink(rawToken, meta = {}, deps = {}) {
     const staff = await resolvedDeps.staffRepo.getById(record.actor_id);
     if (!staff) {
       throw notFound("Este usuario ya no existe.");
+    }
+    if (staff.active === false) {
+      throw badRequest("Este usuario no está activo.");
     }
     if (String(staff.business_id) !== String(record.business_id)) {
       throw badRequest("Este usuario no pertenece a ese negocio.");
