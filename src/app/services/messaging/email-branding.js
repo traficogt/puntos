@@ -1,7 +1,19 @@
 import { config } from "../../../config/index.js";
 
+function isPublicHttpOrigin(value) {
+  const origin = String(value || "").trim();
+  if (!origin.startsWith("http://") && !origin.startsWith("https://")) return false;
+  return !/localhost|127\.0\.0\.1|app\.localhost/i.test(origin);
+}
+
 function baseOrigin() {
-  return String(config.MARKETING_ORIGIN || config.APP_ORIGIN || "").replace(/\/+$/, "");
+  if (isPublicHttpOrigin(config.MARKETING_ORIGIN)) {
+    return String(config.MARKETING_ORIGIN).replace(/\/+$/, "");
+  }
+  if (isPublicHttpOrigin(config.APP_ORIGIN)) {
+    return String(config.APP_ORIGIN).replace(/\/+$/, "");
+  }
+  return "https://puntosfieles.com";
 }
 
 const PLATFORM_EMAIL_BRANDING = {
