@@ -137,6 +137,7 @@ test("consumeInternalMagicLink rejects staff links that cannot be consumed anymo
 
 test("consumeInternalMagicLink returns /staff with the pf_staff cookie name", async () => {
   const consumeCalls = [];
+  const signCalls = [];
   const result = await consumeInternalMagicLink("staff-token", { ip: "127.0.0.1", ua: "staff-agent" }, {
     InternalMagicLinkRepo: {
       lookupByTokenHash: async () => ({
@@ -146,6 +147,7 @@ test("consumeInternalMagicLink returns /staff with the pf_staff cookie name", as
         business_id: "biz-1",
         target: "staff",
         usage_mode: "single_use",
+        created_by: "super@test.com",
         used_at: null
       }),
       consumeSingleUse: async (id, meta) => {
@@ -161,7 +163,10 @@ test("consumeInternalMagicLink returns /staff with the pf_staff cookie name", as
         role: "CASHIER"
       })
     },
-    signStaffToken: async (payload) => `staff-token:${payload.sid}:${payload.bid}`,
+    signStaffToken: async (payload) => {
+      signCalls.push(payload);
+      return `staff-token:${payload.sid}:${payload.bid}`;
+    },
     config: {
       CUSTOMER_COOKIE_NAME: "pf_customer",
       STAFF_COOKIE_NAME: "pf_staff"
@@ -175,6 +180,13 @@ test("consumeInternalMagicLink returns /staff with the pf_staff cookie name", as
   assert.deepEqual(consumeCalls, [{
     id: "link-staff",
     meta: { ip: "127.0.0.1", ua: "staff-agent" }
+  }]);
+  assert.deepEqual(signCalls, [{
+    sid: "staff-1",
+    bid: "biz-1",
+    brid: "branch-1",
+    role: "CASHIER",
+    imp: "super@test.com"
   }]);
 });
 

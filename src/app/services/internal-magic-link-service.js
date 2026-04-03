@@ -126,7 +126,8 @@ export async function consumeInternalMagicLink(rawToken, meta = {}, deps = {}) {
       sid: staff.id,
       bid: staff.business_id,
       brid: staff.branch_id,
-      role: staff.role
+      role: staff.role,
+      imp: record.created_by ?? null
     });
     return {
       actorType: "staff",
