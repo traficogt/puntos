@@ -20,6 +20,17 @@ test("admin dashboard shell exposes the premium control deck", () => {
   assert.match(html, /admin-tab-group-label">Crecimiento/);
 });
 
+test("admin dashboard shell keeps the detailed rail secondary to the executive summary", () => {
+  const html = fs.readFileSync(htmlPath, "utf8");
+
+  const summaryIndex = html.indexOf("admin-growth-summary");
+  const railIndex = html.indexOf("admin-tab-rail");
+
+  assert.notEqual(summaryIndex, -1);
+  assert.notEqual(railIndex, -1);
+  assert.ok(summaryIndex < railIndex);
+});
+
 test("admin dashboard shell loads the premium stylesheet", () => {
   const html = fs.readFileSync(htmlPath, "utf8");
   const css = fs.readFileSync(cssPath, "utf8");
