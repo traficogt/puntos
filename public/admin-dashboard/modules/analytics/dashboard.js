@@ -1,5 +1,5 @@
 import { loadCohortSummary } from "./cohorts.js";
-import { renderExecutiveSummary } from "./executive-summary.js";
+import { hydrateExecutiveSummary } from "./executive-summary-loader.js";
 import {
   applyLedgerCorrection,
   ensureLedgerCertificationDates,
@@ -19,7 +19,6 @@ import {
   renderSummaryTiles,
   renderValueAnomalies
 } from "./render.js";
-
 /** @typedef {import("../../types.js").AdminDashboardApp} AdminDashboardApp */
 /** @typedef {import("../../types.js").AnalyticsDashboardDeps} AnalyticsDashboardDeps */
 /** @typedef {import("../../types.js").AnalyticsLoadController} AnalyticsLoadController */
@@ -47,10 +46,6 @@ export function createAnalyticsDashboardController(app, deps) {
         api(`/api/admin/analytics/dashboard${query ? `?${query}` : ""}`),
         branchId ? api("/api/admin/analytics/dashboard") : Promise.resolve(null)
       ]);
-      const [roiPrefetch, alertsPrefetch] = await Promise.allSettled([
-        api("/api/admin/roi?days=30"),
-        api("/api/admin/alerts?limit=60")
-      ]);
       renderSummaryTiles({ $, summary: dashboard.summary || {}, app });
       renderRfmDistribution({ $, dashboard, app });
       const activityRows = renderRevenueTrend({ $, dashboard, app });
@@ -62,22 +57,19 @@ export function createAnalyticsDashboardController(app, deps) {
       const benchmarkGlobalRows = branchId ? (globalDashboard?.recent_activity || []) : activityRows;
       renderBranchBenchmark($, { branchRows: benchmarkBranchRows, globalRows: benchmarkGlobalRows, branchLabel: app.selectedBranchLabel() });
       await loadOpsSummary();
-      const roiReport = await loadRoiReport(roiPrefetch.status === "fulfilled" ? roiPrefetch.value : undefined);
       await loadJobsStatus();
       await loadPaymentPending();
-      const alertsCenter = await loadAlertsCenter(alertsPrefetch.status === "fulfilled" ? alertsPrefetch.value : undefined);
-      const churnData = await churnDataPromise;
-      renderExecutiveSummary({
+      const churnData = await hydrateExecutiveSummary({
         $,
+        api,
+        deps,
         summary: dashboard.summary || {},
-        roiReport,
-        churnData,
-        alertsCenter,
         branchLabel: app.selectedBranchLabel(),
         branchPerformance: dashboard.branch_performance || [],
-        branchId
+        branchId,
+        churnDataPromise
       });
-      renderChurnList({ $, churnCustomers: churnData.customers || [], app });
+      renderChurnList({ $, churnCustomers: churnData?.customers || [], app });
       const anomalies = await api("/api/admin/analytics/anomalies");
       renderValueAnomalies($, anomalies);
       const ledger = await api("/api/admin/analytics/ledger-reconciliation");

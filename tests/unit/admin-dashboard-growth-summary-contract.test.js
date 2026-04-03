@@ -5,6 +5,7 @@ import path from "node:path";
 
 const htmlPath = path.join(process.cwd(), "public/admin-dashboard.html");
 const analyticsDashboardPath = path.join(process.cwd(), "public/admin-dashboard/modules/analytics/dashboard.js");
+const executiveSummaryLoaderPath = path.join(process.cwd(), "public/admin-dashboard/modules/analytics/executive-summary-loader.js");
 const executiveSummaryPath = path.join(process.cwd(), "public/admin-dashboard/modules/analytics/executive-summary.js");
 const analyticsOperationsPath = path.join(process.cwd(), "public/admin-dashboard/modules/analytics/operations.js");
 
@@ -19,16 +20,22 @@ test("admin dashboard exposes a growth-first executive summary layer", () => {
 
 test("analytics dashboard delegates executive summary rendering to a dedicated module", () => {
   const dashboardJs = fs.readFileSync(analyticsDashboardPath, "utf8");
+  const loaderJs = fs.readFileSync(executiveSummaryLoaderPath, "utf8");
   const summaryJs = fs.readFileSync(executiveSummaryPath, "utf8");
   const operationsJs = fs.readFileSync(analyticsOperationsPath, "utf8");
 
-  assert.match(dashboardJs, /import\s*\{\s*renderExecutiveSummary\s*\}\s*from\s*["']\.\/executive-summary\.js["']/);
-  assert.match(dashboardJs, /renderExecutiveSummary\s*\(/);
-  assert.match(dashboardJs, /Promise\.allSettled/);
-  assert.match(dashboardJs, /const roiReport = await loadRoiReport/);
-  assert.match(dashboardJs, /const alertsCenter = await loadAlertsCenter/);
+  assert.match(dashboardJs, /import\s*\{\s*hydrateExecutiveSummary\s*\}\s*from\s*["']\.\/executive-summary-loader\.js["']/);
+  assert.match(dashboardJs, /const churnData = await hydrateExecutiveSummary\(/);
+  assert.doesNotMatch(dashboardJs, /Promise\.allSettled/);
+  assert.doesNotMatch(dashboardJs, /const roiReport = await loadRoiReport/);
+  assert.doesNotMatch(dashboardJs, /const alertsCenter = await loadAlertsCenter/);
+  assert.doesNotMatch(dashboardJs, /renderExecutiveSummary/);
   assert.match(dashboardJs, /#btnRefreshRoi"\)\?\.addEventListener\("click", \(\) => loadAnalytics\(\)\.catch\(\(\) => \{\}\)\)/);
   assert.match(dashboardJs, /#btnRefreshAlerts"\)\?\.addEventListener\("click", \(\) => loadAnalytics\(\)\.catch\(\(\) => \{\}\)\)/);
+  assert.match(loaderJs, /Promise\.allSettled/);
+  assert.match(loaderJs, /loadRoiReport/);
+  assert.match(loaderJs, /loadAlertsCenter/);
+  assert.match(loaderJs, /renderExecutiveSummary\s*\(/);
   assert.match(operationsJs, /async function loadRoiReport\(prefetched\)/);
   assert.match(operationsJs, /async function loadAlertsCenter\(prefetched\)/);
   assert.match(operationsJs, /return out;/);
