@@ -20,7 +20,8 @@ test("analytics dashboard delegates executive summary rendering to a dedicated m
   const dashboardJs = fs.readFileSync(analyticsDashboardPath, "utf8");
   const summaryJs = fs.readFileSync(executiveSummaryPath, "utf8");
 
-  assert.match(dashboardJs, /renderExecutiveSummary/);
+  assert.match(dashboardJs, /import\s*\{\s*renderExecutiveSummary\s*\}\s*from\s*["']\.\/executive-summary\.js["']/);
+  assert.match(dashboardJs, /renderExecutiveSummary\s*\(/);
   assert.match(summaryJs, /export function renderExecutiveSummary/);
   assert.match(summaryJs, /adminExecutiveNarrative/);
   assert.match(summaryJs, /adminSuggestedActions/);
