@@ -261,7 +261,11 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
 
     if (selectionStatus) {
       selectionStatus.textContent = hasCustomer
-        ? `Cliente seleccionado: ${lastCustomerId}. Ahora puedes registrar o canjear.`
+        ? `Cliente seleccionado: ${lastCustomerId}. ${canRedeem
+          ? (eligibleRewardCount > 0
+            ? "Ahora puedes registrar o canjear."
+            : "Ahora puedes registrar puntos; no hay recompensas canjeables ahora.")
+          : "Ahora puedes registrar puntos."}`
         : selectionPromptCopy;
     }
 
