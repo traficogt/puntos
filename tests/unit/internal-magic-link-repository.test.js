@@ -65,6 +65,14 @@ test("internal magic link repository looks up rows by token hash", async () => {
   assert.deepEqual(calls[0].params, ["hashed-token"]);
 });
 
+test("internal magic link repository returns null when lookup finds no active row", async () => {
+  const query = async () => ({ rows: [], rowCount: 0 });
+
+  const found = await InternalMagicLinkRepo.lookupByTokenHash("missing-token", query);
+
+  assert.equal(found, null);
+});
+
 test("internal magic link repository consumeSingleUse only updates active single-use rows", async () => {
   const calls = [];
   const row = { id: "link-1" };
@@ -88,6 +96,14 @@ test("internal magic link repository consumeSingleUse only updates active single
   assert.deepEqual(calls[0].params, ["link-1", "127.0.0.1", "test-agent"]);
 });
 
+test("internal magic link repository consumeSingleUse returns null when no row is updated", async () => {
+  const query = async () => ({ rows: [], rowCount: 0 });
+
+  const found = await InternalMagicLinkRepo.consumeSingleUse("missing-link", {}, query);
+
+  assert.equal(found, null);
+});
+
 test("internal magic link repository touchReusable only updates active reusable rows", async () => {
   const calls = [];
   const row = { id: "link-2" };
@@ -109,4 +125,12 @@ test("internal magic link repository touchReusable only updates active reusable 
   assert.match(calls[0].sql, /AND expires_at > now\(\)/i);
   assert.doesNotMatch(calls[0].sql, /AND used_at IS NULL/i);
   assert.deepEqual(calls[0].params, ["link-2", "10.0.0.2", "browser"]);
+});
+
+test("internal magic link repository touchReusable returns null when no row is updated", async () => {
+  const query = async () => ({ rows: [], rowCount: 0 });
+
+  const found = await InternalMagicLinkRepo.touchReusable("missing-link", {}, query);
+
+  assert.equal(found, null);
 });
