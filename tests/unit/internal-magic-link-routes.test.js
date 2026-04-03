@@ -40,6 +40,7 @@ function makeRes() {
     },
     redirect(...args) {
       if (args.length === 1) {
+        this.statusCode = 302;
         this.redirectedTo = args[0];
       } else {
         this.statusCode = args[0];
@@ -209,7 +210,7 @@ test("customer magic-link route redirects to /c and sets the customer cookie", a
       ip: "127.0.0.1"
     });
 
-    assert.equal(res.statusCode, 200);
+    assert.equal(res.statusCode, 302);
     assert.equal(res.redirectedTo, "/c");
     assert.equal(res.cookies.length, 1);
     assert.equal(res.cookies[0].name, config.CUSTOMER_COOKIE_NAME);
@@ -231,6 +232,7 @@ test("staff magic-link route redirects to /staff and sets the staff cookie", asy
   const originalLookup = InternalMagicLinkRepo.lookupByTokenHash;
   const originalConsume = InternalMagicLinkRepo.consumeSingleUse;
   const originalGetById = StaffRepo.getById;
+  let consumeCalls = 0;
 
   InternalMagicLinkRepo.lookupByTokenHash = async () => ({
     id: "link-staff",
@@ -242,11 +244,14 @@ test("staff magic-link route redirects to /staff and sets the staff cookie", asy
     used_at: null,
     created_by: "super@example.com"
   });
-  InternalMagicLinkRepo.consumeSingleUse = async (id, meta) => ({
-    id,
-    used_at: "2026-04-03T12:00:00.000Z",
-    meta
-  });
+  InternalMagicLinkRepo.consumeSingleUse = async (id, meta) => {
+    consumeCalls += 1;
+    return {
+      id,
+      used_at: "2026-04-03T12:00:00.000Z",
+      meta
+    };
+  };
   StaffRepo.getById = async () => ({
     id: staffId,
     business_id: businessId,
@@ -263,7 +268,7 @@ test("staff magic-link route redirects to /staff and sets the staff cookie", asy
       ip: "127.0.0.1"
     });
 
-    assert.equal(res.statusCode, 200);
+    assert.equal(res.statusCode, 302);
     assert.equal(res.redirectedTo, "/staff");
     assert.equal(res.cookies.length, 1);
     assert.equal(res.cookies[0].name, config.STAFF_COOKIE_NAME);
@@ -285,6 +290,7 @@ test("magic-link route rejects actor type mismatches safely", async () => {
   const originalLookup = InternalMagicLinkRepo.lookupByTokenHash;
   const originalConsume = InternalMagicLinkRepo.consumeSingleUse;
   const originalGetById = StaffRepo.getById;
+  let consumeCalls = 0;
 
   InternalMagicLinkRepo.lookupByTokenHash = async () => ({
     id: "link-staff",
@@ -295,11 +301,14 @@ test("magic-link route rejects actor type mismatches safely", async () => {
     usage_mode: "single_use",
     used_at: null
   });
-  InternalMagicLinkRepo.consumeSingleUse = async (id, meta) => ({
-    id,
-    used_at: "2026-04-03T12:00:00.000Z",
-    meta
-  });
+  InternalMagicLinkRepo.consumeSingleUse = async (id, meta) => {
+    consumeCalls += 1;
+    return {
+      id,
+      used_at: "2026-04-03T12:00:00.000Z",
+      meta
+    };
+  };
   StaffRepo.getById = async () => ({
     id: staffId,
     business_id: businessId,
@@ -319,6 +328,7 @@ test("magic-link route rejects actor type mismatches safely", async () => {
     assert.match(String(res.body?.error || ""), /no es válido/i);
     assert.equal(res.cookies.length, 0);
     assert.equal(res.redirectedTo, null);
+    assert.equal(consumeCalls, 0);
   } finally {
     InternalMagicLinkRepo.lookupByTokenHash = originalLookup;
     InternalMagicLinkRepo.consumeSingleUse = originalConsume;
