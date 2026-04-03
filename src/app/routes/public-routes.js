@@ -118,6 +118,26 @@ publicRoutes.post("/public/business/:slug/join/request-code", strictRateLimit, r
   res.json(out);
 }));
 
+publicRoutes.post("/public/business/:slug/login/request-code", strictRateLimit, rateLimitByPhone(3, 10 * 60 * 1000), asyncRoute(async (req, res) => {
+  const v = validate(requestJoinCodeSchema, req.body);
+  if (!v.ok) return res.status(400).json({ error: v.error });
+
+	const business = await BusinessRepo.getPublicBySlug(req.params.slug);
+	if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
+	await setTenantForRequest(req, business.id);
+
+	const phone = normalizePhone(v.data.phone);
+	const out = await requestJoinCode({
+    business,
+    phone,
+    email: v.data.email ?? null,
+    name: v.data.name ?? null,
+    requireExisting: true
+  });
+
+  res.json(out);
+}));
+
 publicRoutes.post("/public/staff/password-reset/request", strictRateLimit, asyncRoute(async (req, res) => {
   const v = validate(StaffPasswordResetRequestSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
@@ -167,6 +187,28 @@ publicRoutes.post("/public/business/:slug/join/verify", moderateRateLimit, rateL
     code: v.data.code,
     name: v.data.name ?? null,
     referralCode: v.data.referralCode ?? null // Pass referral code if provided
+  });
+
+  res.cookie(config.CUSTOMER_COOKIE_NAME, token, { ...cookieOpts(req), maxAge: browserCookieMaxAge("CUSTOMER") });
+  res.json({ ok: true, customer: { id: customer.id, points: customer.points, name: customer.name, phone: customer.phone } });
+}));
+
+publicRoutes.post("/public/business/:slug/login/verify", moderateRateLimit, rateLimitByPhone(10, 10 * 60 * 1000), asyncRoute(async (req, res) => {
+  const v = validate(verifyJoinCodeSchema, req.body);
+  if (!v.ok) return res.status(400).json({ error: v.error });
+
+	const business = await BusinessRepo.getPublicBySlug(req.params.slug);
+	if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
+	await setTenantForRequest(req, business.id);
+
+	const phone = normalizePhone(v.data.phone);
+	const { customer, token } = await verifyJoinCode({
+    business,
+    phone,
+    code: v.data.code,
+    name: v.data.name ?? null,
+    referralCode: null,
+    requireExisting: true
   });
 
   res.cookie(config.CUSTOMER_COOKIE_NAME, token, { ...cookieOpts(req), maxAge: browserCookieMaxAge("CUSTOMER") });

@@ -24,9 +24,14 @@ async function ensureRateLimits(businessId, phone) {
   if (hour >= 5) throw tooManyRequests("Too many verification codes requested");
 }
 
-export async function requestJoinCode({ business, phone, email = null, name }) {
+export async function requestJoinCode({ business, phone, email = null, name, requireExisting = false }) {
   if (!business?.id) throw notFound("Negocio no encontrado");
   if (!phone) throw badRequest("Falta el teléfono");
+
+  const existingCustomer = await CustomerRepo.getByBusinessAndPhone(business.id, phone);
+  if (requireExisting && !existingCustomer) {
+    throw notFound("No encontramos una tarjeta con ese teléfono en este negocio.");
+  }
 
   await ensureRateLimits(business.id, phone);
 
@@ -61,9 +66,8 @@ export async function requestJoinCode({ business, phone, email = null, name }) {
 
   // Optionally store the name on an existing customer (best effort)
   if (name) {
-    const existing = await CustomerRepo.getByBusinessAndPhone(business.id, phone);
-    if (existing && !existing.name) {
-      await ignore(CustomerRepo.updateName(existing.id, String(name).slice(0, 120)));
+    if (existingCustomer && !existingCustomer.name) {
+      await ignore(CustomerRepo.updateName(existingCustomer.id, String(name).slice(0, 120)));
     }
   }
 
@@ -71,7 +75,7 @@ export async function requestJoinCode({ business, phone, email = null, name }) {
   return { ok: true, dev_code: dev ? code : undefined };
 }
 
-export async function verifyJoinCode({ business, phone, code, name, referralCode }) {
+export async function verifyJoinCode({ business, phone, code, name, referralCode, requireExisting = false }) {
   if (!business?.id) throw notFound("Negocio no encontrado");
   if (!phone) throw badRequest("Falta el teléfono");
   if (!code) throw badRequest("Falta el código");
@@ -86,6 +90,9 @@ export async function verifyJoinCode({ business, phone, code, name, referralCode
   }
 
   let customer = await CustomerRepo.getByBusinessAndPhone(business.id, phone);
+  if (requireExisting && !customer) {
+    throw notFound("No encontramos una tarjeta con ese teléfono en este negocio.");
+  }
   const isNewCustomer = !customer;
   
   if (!customer) {

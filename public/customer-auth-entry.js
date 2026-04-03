@@ -127,6 +127,12 @@ export async function initCustomerAuthEntry({ mode }) {
 
   const searchParams = new URLSearchParams(location.search);
   const entryReason = (searchParams.get("motivo") || "").trim();
+  const requestPath = mode === "login"
+    ? `/api/public/business/${slug}/login/request-code`
+    : `/api/public/business/${slug}/join/request-code`;
+  const verifyPath = mode === "login"
+    ? `/api/public/business/${slug}/login/verify`
+    : `/api/public/business/${slug}/join/verify`;
   if (mode === "register" && (entryReason === "session-expired" || entryReason === "logged-out")) {
     location.replace(`/ingresar/${encodeURIComponent(slug)}${entryReason ? `?motivo=${encodeURIComponent(entryReason)}` : ""}`);
     return;
@@ -158,7 +164,7 @@ export async function initCustomerAuthEntry({ mode }) {
       setFeedback("#joinRequestFeedback", "Enviando código...");
       localStorage.setItem("pf_phone", phone);
       const name = $("#name").value.trim() || undefined;
-      await api("/api/public/business/" + slug + "/join/request-code", {
+      await api(requestPath, {
         method: "POST",
         body: JSON.stringify({ phone, email, name })
       });
@@ -188,6 +194,7 @@ export async function initCustomerAuthEntry({ mode }) {
       }
       setFeedback("#joinVerifyFeedback", "Verificando código...");
       await api("/api/public/business/" + slug + "/join/verify", {
+      await api(verifyPath, {
         method: "POST",
         body: JSON.stringify({ phone, email, code, name })
       });
