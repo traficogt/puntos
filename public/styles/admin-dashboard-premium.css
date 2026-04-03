@@ -102,7 +102,6 @@
 .page-admin .admin-growth-scope span,
 .page-admin .admin-kpi-card span,
 .page-admin .admin-kpi-card small,
-.page-admin .admin-executive-card,
 .page-admin .admin-executive-card p {
   color: var(--muted);
 }
@@ -316,6 +315,15 @@
 @media (max-width: 720px) {
   .page-admin .admin-growth-summary {
     padding: 1.1rem;
+  }
+
+  .page-admin .admin-growth-summary-head {
+    flex-direction: column;
+  }
+
+  .page-admin .admin-growth-scope {
+    min-width: 0;
+    width: 100%;
   }
 
   .page-admin .admin-growth-board,
