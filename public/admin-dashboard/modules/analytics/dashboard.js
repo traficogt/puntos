@@ -1,4 +1,5 @@
 import { loadCohortSummary } from "./cohorts.js";
+import { renderExecutiveSummary } from "./executive-summary.js";
 import {
   applyLedgerCorrection,
   ensureLedgerCertificationDates,
@@ -42,11 +43,26 @@ export function createAnalyticsDashboardController(app, deps) {
     try {
       const query = app.branchQueryString();
       const branchId = app.selectedBranchId();
-      const [dashboard, globalDashboard] = await Promise.all([api(`/api/admin/analytics/dashboard${query ? `?${query}` : ""}`), branchId ? api("/api/admin/analytics/dashboard") : Promise.resolve(null)]);
+      const [dashboard, globalDashboard, roiReport, alertsCenter] = await Promise.all([
+        api(`/api/admin/analytics/dashboard${query ? `?${query}` : ""}`),
+        branchId ? api("/api/admin/analytics/dashboard") : Promise.resolve(null),
+        api("/api/admin/roi?days=30"),
+        api("/api/admin/alerts?limit=60")
+      ]);
       renderSummaryTiles({ $, summary: dashboard.summary || {}, app });
       renderRfmDistribution({ $, dashboard, app });
       const activityRows = renderRevenueTrend({ $, dashboard, app });
       const churnData = await api(`/api/admin/analytics/churn-risk?limit=10${query ? `&${query}` : ""}`);
+      renderExecutiveSummary({
+        $,
+        summary: dashboard.summary || {},
+        roiReport,
+        churnData,
+        alertsCenter,
+        branchLabel: app.selectedBranchLabel(),
+        branchPerformance: dashboard.branch_performance || [],
+        branchId
+      });
       renderChurnList({ $, churnCustomers: churnData.customers || [], app });
       const perfRows = renderBranchPerformance({ $, dashboard, app });
       renderBranchCompareTable($, perfRows);
