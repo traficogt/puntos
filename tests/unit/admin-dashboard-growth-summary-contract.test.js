@@ -22,7 +22,16 @@ test("analytics dashboard delegates executive summary rendering to a dedicated m
 
   assert.match(dashboardJs, /import\s*\{\s*renderExecutiveSummary\s*\}\s*from\s*["']\.\/executive-summary\.js["']/);
   assert.match(dashboardJs, /renderExecutiveSummary\s*\(/);
+  assert.match(dashboardJs, /loadRoiReport\s*\(\s*roiReport\s*\)/);
+  assert.match(dashboardJs, /loadAlertsCenter\s*\(\s*alertsCenter\s*\)/);
   assert.match(summaryJs, /export function renderExecutiveSummary/);
   assert.match(summaryJs, /adminExecutiveNarrative/);
   assert.match(summaryJs, /adminSuggestedActions/);
+});
+
+test("executive summary keeps ROI or cost semantics separate from attributed revenue growth", () => {
+  const summaryJs = fs.readFileSync(executiveSummaryPath, "utf8");
+
+  assert.doesNotMatch(summaryJs, /setText\(\$, "#adminKpiRoi", formatSignedPercent\(metrics\.roiGrowth\)\)/);
+  assert.match(summaryJs, /setText\(\$, "#adminKpiAttributedRevenueDelta", metrics\.roiGrowth !== null/);
 });

@@ -103,18 +103,18 @@ export interface AnalyticsAuditController extends AnalyticsController {
 
 export interface AnalyticsOperationsController extends AnalyticsController {
   loadOpsSummary(): Promise<void>;
-  loadRoiReport(): Promise<void>;
+  loadRoiReport(prefetched?: { roi?: Record<string, unknown> } | null): Promise<void>;
   loadJobsStatus(): Promise<void>;
   loadPaymentPending(): Promise<void>;
-  loadAlertsCenter(): Promise<void>;
+  loadAlertsCenter(prefetched?: { alerts?: Array<Record<string, unknown>> } | null): Promise<void>;
 }
 
 export interface AnalyticsDashboardDeps {
   loadOpsSummary(): Promise<void>;
-  loadRoiReport(): Promise<void>;
+  loadRoiReport(prefetched?: { roi?: Record<string, unknown> } | null): Promise<void>;
   loadJobsStatus(): Promise<void>;
   loadPaymentPending(): Promise<void>;
-  loadAlertsCenter(): Promise<void>;
+  loadAlertsCenter(prefetched?: { alerts?: Array<Record<string, unknown>> } | null): Promise<void>;
   loadAuditTimeline(): Promise<void>;
 }
 

@@ -49,6 +49,63 @@ export function createAnalyticsOperationsController(app) {
     return /** @type {HTMLElement} */ ($(selector));
   }
 
+  /**
+   * @param {HTMLElement} box
+   * @param {{ roi?: Record<string, unknown> } | null | undefined} out
+   */
+  function renderRoiReportBox(box, out) {
+    const roi = out?.roi || {};
+    box.replaceChildren();
+    const grid = document.createElement("div");
+    grid.className = "analytics-kpi-grid";
+    [
+      { label: "Ingresos 30d", value: `Q${Number(roi.revenue_current_q || 0).toFixed(2)}`, delta: roi.revenue_growth_pct },
+      { label: "Transacciones 30d", value: String(Number(roi.tx_current || 0)), delta: roi.tx_growth_pct },
+      { label: "Tasa repetición", value: `${Number(roi.repeat_rate_pct || 0).toFixed(1)}%` },
+      { label: "Tasa canje", value: `${Number(roi.redemption_rate_pct || 0).toFixed(1)}%` }
+    ].forEach((card) => {
+      const tile = document.createElement("div");
+      tile.className = "metric-tile";
+      const value = document.createElement("div");
+      value.className = "metric-value";
+      value.textContent = card.value;
+      const label = document.createElement("div");
+      label.className = "metric-label";
+      label.textContent = card.label;
+      tile.append(value, label);
+      if (card.delta !== undefined && card.delta !== null) {
+        const delta = Number(card.delta || 0);
+        const deltaNode = document.createElement("div");
+        deltaNode.className = `metric-delta ${delta >= 0 ? "positive" : "negative"}`;
+        deltaNode.textContent = `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}%`;
+        tile.appendChild(deltaNode);
+      }
+      grid.appendChild(tile);
+    });
+    box.appendChild(grid);
+  }
+
+  /**
+   * @param {HTMLElement} box
+   * @param {{ alerts?: Array<Record<string, unknown>> } | null | undefined} out
+   */
+  function renderAlertsCenterBox(box, out) {
+    const rows = out?.alerts || [];
+    box.replaceChildren();
+    if (!rows.length) {
+      box.textContent = "Sin alertas recientes.";
+      return;
+    }
+    rows.forEach((alertRow) => {
+      const line = document.createElement("div");
+      line.className = "mb-8";
+      const when = alertRow.created_at ? new Date(String(alertRow.created_at)).toLocaleString() : "—";
+      const details = alertRow.details && typeof alertRow.details === "object" ? JSON.stringify(alertRow.details) : "";
+      line.textContent = `[${alertRow.severity}] ${when} • ${alertRow.alert_type}${details ? ` • ${details}` : ""}`;
+      box.appendChild(line);
+    });
+  }
+
   function exportIvaCsv() {
     const from = input("#ivaFrom").value;
     const to = input("#ivaTo").value;
@@ -111,39 +168,11 @@ export function createAnalyticsOperationsController(app) {
     });
   }
 
-  async function loadRoiReport() {
+  async function loadRoiReport(prefetched) {
     const box = element("#roiReport");
     await run(async () => {
-      const out = await api("/api/admin/roi?days=30");
-      const roi = out.roi || {};
-      box.replaceChildren();
-      const grid = document.createElement("div");
-      grid.className = "analytics-kpi-grid";
-      [
-        { label: "Ingresos 30d", value: `Q${Number(roi.revenue_current_q || 0).toFixed(2)}`, delta: roi.revenue_growth_pct },
-        { label: "Transacciones 30d", value: String(Number(roi.tx_current || 0)), delta: roi.tx_growth_pct },
-        { label: "Tasa repetición", value: `${Number(roi.repeat_rate_pct || 0).toFixed(1)}%` },
-        { label: "Tasa canje", value: `${Number(roi.redemption_rate_pct || 0).toFixed(1)}%` }
-      ].forEach((card) => {
-        const tile = document.createElement("div");
-        tile.className = "metric-tile";
-        const value = document.createElement("div");
-        value.className = "metric-value";
-        value.textContent = card.value;
-        const label = document.createElement("div");
-        label.className = "metric-label";
-        label.textContent = card.label;
-        tile.append(value, label);
-        if (card.delta !== undefined && card.delta !== null) {
-          const delta = Number(card.delta || 0);
-          const deltaNode = document.createElement("div");
-          deltaNode.className = `metric-delta ${delta >= 0 ? "positive" : "negative"}`;
-          deltaNode.textContent = `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}%`;
-          tile.appendChild(deltaNode);
-        }
-        grid.appendChild(tile);
-      });
-      box.appendChild(grid);
+      const out = prefetched || await api("/api/admin/roi?days=30");
+      renderRoiReportBox(box, out);
     }, (error) => {
       box.textContent = "Error cargando ROI: " + error.message;
     });
@@ -251,24 +280,11 @@ export function createAnalyticsOperationsController(app) {
     });
   }
 
-  async function loadAlertsCenter() {
+  async function loadAlertsCenter(prefetched) {
     const box = element("#alertsCenter");
     await run(async () => {
-      const out = await api("/api/admin/alerts?limit=60");
-      const rows = out.alerts || [];
-      box.replaceChildren();
-      if (!rows.length) {
-        box.textContent = "Sin alertas recientes.";
-        return;
-      }
-      rows.forEach((alertRow) => {
-        const line = document.createElement("div");
-        line.className = "mb-8";
-        const when = alertRow.created_at ? new Date(alertRow.created_at).toLocaleString() : "—";
-        const details = alertRow.details && typeof alertRow.details === "object" ? JSON.stringify(alertRow.details) : "";
-        line.textContent = `[${alertRow.severity}] ${when} • ${alertRow.alert_type}${details ? ` • ${details}` : ""}`;
-        box.appendChild(line);
-      });
+      const out = prefetched || await api("/api/admin/alerts?limit=60");
+      renderAlertsCenterBox(box, out);
     }, (error) => {
       box.textContent = "Error cargando alertas: " + error.message;
     });

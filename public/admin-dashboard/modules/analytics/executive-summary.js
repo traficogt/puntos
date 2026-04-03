@@ -34,6 +34,13 @@ function formatFrequency(value, fallback = "--") {
   return `${num.toFixed(2)}x`;
 }
 
+function formatRatio(value, fallback = "--") {
+  if (value === null || value === undefined || value === "") return fallback;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return String(value);
+  return `${num.toFixed(2)}x`;
+}
+
 function setText($, selector, value) {
   const node = $(selector);
   if (node) node.textContent = value;
@@ -83,6 +90,12 @@ function executiveMetrics({ summary, roiReport, branchPerformance, branchId }) {
   const roiGrowth = roi.revenue_growth_pct !== null && roi.revenue_growth_pct !== undefined
     ? Number(roi.revenue_growth_pct)
     : null;
+  const roiRatio = roi.roi_ratio !== null && roi.roi_ratio !== undefined
+    ? Number(roi.roi_ratio)
+    : null;
+  const costProxyRate = roi.redemption_rate_pct !== null && roi.redemption_rate_pct !== undefined
+    ? Number(roi.redemption_rate_pct)
+    : null;
 
   return {
     totalCustomers,
@@ -91,6 +104,8 @@ function executiveMetrics({ summary, roiReport, branchPerformance, branchId }) {
     purchaseFrequency,
     retentionRate,
     attributedRevenue,
+    roiRatio,
+    costProxyRate,
     roiGrowth,
     txGrowth: roi.tx_growth_pct !== null && roi.tx_growth_pct !== undefined ? Number(roi.tx_growth_pct) : null
   };
@@ -153,8 +168,10 @@ export function renderExecutiveSummary({
   setText($, "#adminKpiRetentionDelta", "Relación entre clientes activos y base medida");
   setText($, "#adminKpiAttributedRevenue", formatCurrency(metrics.attributedRevenue));
   setText($, "#adminKpiAttributedRevenueDelta", metrics.roiGrowth !== null ? `${formatSignedPercent(metrics.roiGrowth)} vs 30d previos${branchId ? " (referencia global)" : ""}` : "Ingresos medidos en 30 días");
-  setText($, "#adminKpiRoi", formatSignedPercent(metrics.roiGrowth));
-  setText($, "#adminKpiRoiDelta", metrics.txGrowth !== null ? `${formatSignedPercent(metrics.txGrowth)} en transacciones${branchId ? " (referencia global)" : ""}` : "Sin costo cargado para ROI neto");
+  setText($, "#adminKpiRoi", metrics.roiRatio !== null ? formatRatio(metrics.roiRatio) : formatPercent(metrics.costProxyRate));
+  setText($, "#adminKpiRoiDelta", metrics.roiRatio !== null
+    ? `Retorno por costo${branchId ? " (referencia global)" : ""}`
+    : `Proxy de costo: tasa de canje${branchId ? " global" : ""}`);
 
   setText($, "#adminExecutiveNarrative", adminExecutiveNarrative({
     branchLabel,

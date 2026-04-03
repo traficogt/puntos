@@ -71,10 +71,10 @@ export function createAnalyticsDashboardController(app, deps) {
       const benchmarkGlobalRows = branchId ? (globalDashboard?.recent_activity || []) : activityRows;
       renderBranchBenchmark($, { branchRows: benchmarkBranchRows, globalRows: benchmarkGlobalRows, branchLabel: app.selectedBranchLabel() });
       await loadOpsSummary();
-      await loadRoiReport();
+      await loadRoiReport(roiReport);
       await loadJobsStatus();
       await loadPaymentPending();
-      await loadAlertsCenter();
+      await loadAlertsCenter(alertsCenter);
       const anomalies = await api("/api/admin/analytics/anomalies");
       renderValueAnomalies($, anomalies);
       const ledger = await api("/api/admin/analytics/ledger-reconciliation");
