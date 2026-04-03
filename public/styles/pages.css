@@ -382,8 +382,7 @@ body.page-marketing .brand-mark {
     align-items: start;
 }
 
-.entry-workspace,
-.entry-note-stack {
+.entry-workspace {
     display: grid;
     gap: 16px;
 }
