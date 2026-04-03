@@ -9,6 +9,7 @@ import { csrfProtect } from "../../middleware/csrf.js";
 import { strictRateLimit } from "../../middleware/rate-limit.js";
 import { dbQuery } from "../database.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
+import { CustomerRepo } from "../repositories/customer-repository.js";
 import { PlanConfigService } from "../services/plan-config-service.js";
 import { StaffRepo } from "../repositories/staff-repository.js";
 import { SecurityEventRepo } from "../repositories/security-event-repository.js";
@@ -33,6 +34,7 @@ import {
 import {
   CreateBusinessSchema,
   CreateBusinessUserSchema,
+  InternalMagicLinkCreateSchema,
   createSuperBusiness,
   createSuperBusinessUser,
   LoginSchema,
@@ -41,6 +43,7 @@ import {
   UpdatePlanFeaturesSchema,
   UpdatePlanSchema
 } from "./super-support.js";
+import { buildInternalMagicLink } from "../services/internal-magic-link-service.js";
 
 /** @typedef {import("zod").infer<typeof LoginSchema>} SuperLoginInput */
 /** @typedef {import("zod").infer<typeof UpdatePlanSchema>} SuperPlanUpdateInput */
@@ -296,6 +299,49 @@ superRoutes.post("/super/businesses/:businessId/users", csrfProtect, requireSupe
     }
   };
   res.status(201).json(response);
+}));
+
+superRoutes.post("/super/magic-links", csrfProtect, requireSuperAdmin, asyncRoute(async (req, res) => {
+  const parsed = InternalMagicLinkCreateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Payload inválido" });
+
+  const payload = parsed.data;
+  const actorRepo = payload.actorType === "customer" ? CustomerRepo : StaffRepo;
+  const actor = await actorRepo.getById(payload.actorId);
+  if (!actor) {
+    return res.status(404).json({
+      error: payload.actorType === "customer" ? "Cliente no encontrado" : "Usuario no encontrado"
+    });
+  }
+  if (String(actor.business_id) !== String(payload.businessId)) {
+    return res.status(400).json({ error: "El actor no pertenece a ese negocio" });
+  }
+
+  const out = await buildInternalMagicLink({
+    actorType: payload.actorType,
+    actor,
+    target: payload.target,
+    createdBy: req.superAdmin?.email || null,
+    origin: config.APP_ORIGIN || config.PUBLIC_WEB_ORIGIN
+  });
+
+  await logSuperAudit({
+    action: "super.magic_link.create",
+    businessId: payload.businessId,
+    req,
+    superAdminEmail: req.superAdmin?.email || null,
+    meta: {
+      actor_type: payload.actorType,
+      actor_id: payload.actorId,
+      business_id: payload.businessId,
+      target: payload.target,
+      magic_link_id: out.id,
+      usage_mode: out.usageMode,
+      expires_at: out.expiresAt
+    }
+  });
+
+  res.json({ ok: true, ...out });
 }));
 
 superRoutes.get("/super/plans", requireSuperAdmin, asyncRoute(async (_req, res) => {

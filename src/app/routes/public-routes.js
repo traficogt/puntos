@@ -8,7 +8,7 @@ import { normalizePhone } from "../../utils/phone.js";
 import { requestJoinCode, verifyJoinCode, issueCustomerQr } from "../services/customer-service.js";
 import { awardFromExternalEventTrusted } from "../services/external-award-service.js";
 import { config } from "../../config/index.js";
-import { browserCookieMaxAge, cookieOpts } from "../../utils/auth-token.js";
+import { browserCookieMaxAge, cookieOpts, customerCookieOptions, staffCookieOptions } from "../../utils/auth-token.js";
 import { requireCustomer } from "../../middleware/auth.js";
 import { csrfProtect } from "../../middleware/csrf.js";
 import { moderateRateLimit, rateLimitByPhone, strictRateLimit } from "../../middleware/rate-limit.js";
@@ -29,6 +29,7 @@ import {
   confirmStaffEmailChange,
   requestStaffPasswordReset
 } from "../services/account-security-service.js";
+import { consumeInternalMagicLink } from "../services/internal-magic-link-service.js";
 import { sendContactEmail, verifyTurnstile } from "../services/contact-service.js";
 import { getRequestIp } from "../../utils/request-ip.js";
 
@@ -170,6 +171,30 @@ publicRoutes.post("/public/staff/email-change/confirm", strictRateLimit, asyncRo
     ua: req.headers["user-agent"] || null
   });
   res.json(out);
+}));
+
+publicRoutes.get("/magic/staff/:token", asyncRoute(async (req, res) => {
+  const out = await consumeInternalMagicLink(req.params.token, {
+    ip: getRequestIp(req),
+    ua: req.headers["user-agent"] || null
+  });
+  if (out.actorType !== "staff") {
+    return res.status(400).json({ error: "Este enlace no es válido." });
+  }
+  res.cookie(config.STAFF_COOKIE_NAME, out.token, staffCookieOptions(req));
+  res.redirect(out.redirectTo);
+}));
+
+publicRoutes.get("/magic/customer/:token", asyncRoute(async (req, res) => {
+  const out = await consumeInternalMagicLink(req.params.token, {
+    ip: getRequestIp(req),
+    ua: req.headers["user-agent"] || null
+  });
+  if (out.actorType !== "customer") {
+    return res.status(400).json({ error: "Este enlace no es válido." });
+  }
+  res.cookie(config.CUSTOMER_COOKIE_NAME, out.token, customerCookieOptions(req));
+  res.redirect(out.redirectTo);
 }));
 
 publicRoutes.post("/public/business/:slug/join/verify", moderateRateLimit, rateLimitByPhone(10, 10 * 60 * 1000), asyncRoute(async (req, res) => {
