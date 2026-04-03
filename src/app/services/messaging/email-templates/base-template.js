@@ -45,7 +45,7 @@ export function renderBaseEmailTemplate({
     ? `<img src="${escapeHtml(branding.wordmarkUrl)}" alt="${brandName}" height="28" style="display:block;border:0;outline:none;text-decoration:none;">`
     : "";
   const brandTextHtml = `<div style="font-size:20px;line-height:28px;font-weight:700;color:#111827;">${brandName}</div>`;
-  const headerBrandHtml = lockupHtml
+  const rawHeaderBrandHtml = lockupHtml
     ? lockupHtml
     : brandMediaHtml || wordmarkHtml
     ? `
@@ -57,6 +57,9 @@ export function renderBaseEmailTemplate({
       </table>
     `
     : brandTextHtml;
+  const headerBrandHtml = branding.scope === "platform"
+    ? `<a href="https://puntosfieles.com/" style="color:inherit;text-decoration:none;">${rawHeaderBrandHtml}</a>`
+    : rawHeaderBrandHtml;
   const poweredByHtml = branding.poweredByVisible
     ? `<p style="margin:12px 0 0;font-size:12px;line-height:18px;color:#6B7280;"><a href="https://puntosfieles.com/" style="color:#6B7280;text-decoration:underline;">Powered by PuntosFieles</a></p>`
     : "";

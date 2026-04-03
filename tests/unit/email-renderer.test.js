@@ -81,6 +81,7 @@ test("renderEmailMessage renders platform branding when no business branding is 
   assert.equal(out.html.includes("PuntosFieles"), true);
   assert.equal(out.html.includes("Actividad detectada"), true);
   assert.equal(out.html.includes("pf-email-lockup.png?v=2"), true);
+  assert.equal(out.html.includes('<a href="https://puntosfieles.com/"'), true);
 });
 
 test("renderEmailMessage renders lifecycle email content", async () => {
