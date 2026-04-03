@@ -232,6 +232,8 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     if (overviewTab) overviewTab.textContent = meta.title;
     const overviewScope = $("#adminOverviewScope");
     if (overviewScope) overviewScope.textContent = selectedScopeLabel();
+    const growthScope = $("#adminGrowthScope");
+    if (growthScope) growthScope.textContent = selectedScopeLabel();
 
     const workspaceTitle = $("#adminWorkspaceTitle");
     if (workspaceTitle) workspaceTitle.textContent = meta.title;

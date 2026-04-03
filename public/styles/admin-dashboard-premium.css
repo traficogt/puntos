@@ -212,8 +212,8 @@
   padding: 1rem;
   border-radius: 22px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(10, 14, 21, 0.86);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
+  background: rgba(10, 14, 21, 0.72);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
 }
 
 .page-admin .admin-tab-group .tabs {
@@ -230,7 +230,7 @@
   padding: 0.85rem 0.95rem;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--text);
+  color: rgba(238, 241, 244, 0.82);
   font-weight: 600;
 }
 
@@ -240,8 +240,8 @@
 }
 
 .page-admin .admin-tab-group .tab.active {
-  border-color: rgba(214, 172, 96, 0.28);
-  background: linear-gradient(180deg, rgba(214, 172, 96, 0.18), rgba(214, 172, 96, 0.08));
+  border-color: rgba(214, 172, 96, 0.22);
+  background: linear-gradient(180deg, rgba(214, 172, 96, 0.13), rgba(214, 172, 96, 0.06));
   color: #fff7eb;
 }
 

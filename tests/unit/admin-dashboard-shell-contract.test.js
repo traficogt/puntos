@@ -45,6 +45,8 @@ test("admin dashboard core updates shell chrome from active tab state", () => {
 
   assert.match(core, /const TAB_PRESENTATION =/);
   assert.match(core, /function updateDashboardChrome/);
+  assert.match(core, /adminGrowthScope/);
+  assert.match(core, /selectedScopeLabel\(\)/);
   assert.match(core, /adminOverviewTab/);
   assert.match(core, /adminStageDesc/);
   assert.match(core, /function focusTab/);
