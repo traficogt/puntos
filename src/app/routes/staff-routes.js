@@ -12,8 +12,10 @@ import { staffLogin, awardPoints, redeemReward, syncAwards, refundAward, lookupC
 import { RewardRepo } from "../repositories/reward-repository.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
 import { getPermissionMatrix, Permission } from "../../utils/permissions.js";
+import { planFeaturesWithOverrides } from "../../utils/plan.js";
 import { awardPointsSchema, redeemRewardSchema, staffLoginSchema, staffLookupCustomerSchema } from "../../utils/schemas.js";
 import { settlePendingPointsForBusiness } from "../services/loyalty-ops-service.js";
+import { PlanConfigService } from "../services/plan-config-service.js";
 import { tenantContext } from "../../middleware/tenant.js";
 import { invalidateBrowserSessionById } from "../services/auth-session-service.js";
 import {
@@ -115,9 +117,12 @@ staffRoutes.post("/staff/logout", requireStaff, csrfProtect, asyncRoute(async (r
   res.json({ ok: true });
 }));
 
-staffRoutes.get("/staff/me", requireStaff, tenantContext, (req, res) => {
-  res.json({ ok: true, staff: req.staff });
-});
+staffRoutes.get("/staff/me", requireStaff, tenantContext, asyncRoute(async (req, res) => {
+  const business = await BusinessRepo.getById(req.tenantId);
+  const overrides = await PlanConfigService.getPlanFeatureOverrides().catch(() => ({}));
+  const features = business ? planFeaturesWithOverrides(business.plan, overrides) : {};
+  res.json({ ok: true, staff: req.staff, features });
+}));
 
 staffRoutes.get("/staff/permissions", requireStaff, tenantContext, (req, res) => {
   res.json({ ok: true, role: req.staff.role, matrix: getPermissionMatrix() });

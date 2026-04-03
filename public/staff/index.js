@@ -29,6 +29,8 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   let rewardOptions = [];
   /** @type {Set<string> | null} */
   let permissionSet = null;
+  /** @type {Record<string, boolean>} */
+  let planFeatures = {};
   let lastCustomerMovement = "Sin movimientos recientes";
   const selectionPromptCopy = "Escanea o ingresa el código del cliente para continuar.";
 
@@ -60,6 +62,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       localStorage.setItem("pf_staff_snapshot", JSON.stringify({
         staff,
         permissions: permissionSet ? [...permissionSet] : [],
+        planFeatures,
         programRule,
         updatedAt: new Date().toISOString()
       }));
@@ -144,6 +147,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     return run(async () => {
       const me = /** @type {StaffMeResponse} */ (await api("/api/staff/me"));
       staff = me.staff;
+      planFeatures = me.features || {};
       if (!permissionSet) await loadPermissions();
       if (!programRule) await loadProgramRule();
       writeOfflineSnapshot();
@@ -154,6 +158,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
         if (snapshot?.staff) {
           staff = snapshot.staff;
           permissionSet = new Set(snapshot.permissions || []);
+          planFeatures = snapshot.planFeatures || {};
           programRule = snapshot.programRule || null;
           renderProgramInfo();
           updateInputsForRule();
@@ -178,16 +183,33 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     return permissionSet ? permissionSet.has(p) : false;
   }
 
+  function hasFeature(feature) {
+    return Object.prototype.hasOwnProperty.call(planFeatures, feature)
+      ? Boolean(planFeatures[feature])
+      : true;
+  }
+
+  function canUseRedeemFlow() {
+    return hasPerm("staff.redeem") && hasFeature("redemptions");
+  }
+
+  function canUseGiftCards() {
+    return hasFeature("gift_cards") && Boolean(staff?.can_manage_gift_cards);
+  }
+
   function applyUiPermissions() {
     if (!staff) return;
     const canAward = hasPerm("staff.award");
-    const canRedeem = hasPerm("staff.redeem");
+    const canRedeem = canUseRedeemFlow();
     const canSync = hasPerm("staff.sync");
+    const canGiftCards = canUseGiftCards();
 
     /** @type {HTMLButtonElement} */ (element("#btnStart")).disabled = !canAward;
     /** @type {HTMLButtonElement} */ (element("#btnAward")).disabled = !canAward;
     /** @type {HTMLButtonElement} */ (element("#btnRedeem")).disabled = !canRedeem;
     /** @type {HTMLButtonElement} */ (element("#btnSync")).disabled = !canSync;
+    /** @type {HTMLButtonElement} */ (element("#btnGiftRedeem")).disabled = !canGiftCards;
+    setHidden(element("#giftCardActionBlock"), !canGiftCards);
 
     // Analytics quick panel remains owner-only because endpoint is owner-only.
     setHidden(element("#ownerAnalyticsCard"), staff.role !== "OWNER");
@@ -236,7 +258,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
 
   function updateCustomerSurfaceState(statusMessage = "") {
     const hasCustomer = Boolean(lastCustomerId);
-    const canRedeem = hasPerm("staff.redeem");
+    const canRedeem = canUseRedeemFlow();
     const customerState = hasCustomer ? "ready" : "waiting";
     const readyChip = element("#customerReadyChip");
     const customerSummary = element("#staffCustomerSummary");
@@ -282,7 +304,9 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     if (customerRewardState) {
       if (!hasCustomer) {
         customerRewardState.textContent = "Aún no disponible";
-      } else if (!canRedeem) {
+      } else if (!hasFeature("redemptions")) {
+        customerRewardState.textContent = "Canjes no disponibles en este plan";
+      } else if (!hasPerm("staff.redeem")) {
         customerRewardState.textContent = "Canje no disponible para tu rol";
       } else if (!rewardOptions.length) {
         customerRewardState.textContent = "Sin recompensas activas";
@@ -296,7 +320,9 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     if (rewardHint) {
       rewardHint.textContent = hasCustomer
         ? (!canRedeem
-          ? "Tu rol no permite canjear recompensas."
+          ? (!hasFeature("redemptions")
+            ? "Los canjes no están disponibles en el plan actual."
+            : "Tu rol no permite canjear recompensas.")
           : (rewardOptions.length
             ? "Las recompensas disponibles aparecen primero. Las que faltan puntos quedan deshabilitadas."
             : "No hay recompensas activas para este programa."))
@@ -368,7 +394,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       sel.appendChild(opt);
     }
 
-    sel.disabled = !hasPerm("staff.redeem") || !lastCustomerId || !getEligibleRewardCount();
+    sel.disabled = !canUseRedeemFlow() || !lastCustomerId || !getEligibleRewardCount();
     if (hint && !lastCustomerId) {
       hint.textContent = selectionPromptCopy;
     }
@@ -414,6 +440,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       return true;
     }, (error) => {
       clearSelectedCustomer();
+      updateCustomerSurfaceState();
       toast(error.message);
       return false;
     });
@@ -512,6 +539,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
         toast("Sin internet: guardado para sincronizar.");
         return true;
       }
+      updateCustomerSurfaceState();
       toast(error.message);
       return false;
     });
@@ -723,6 +751,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       updateCustomerSurfaceState(`Canje listo. Código: ${out.redemptionCode}. Nuevo saldo: ${out.newBalance}.`);
       toast("Canje listo. Código: " + out.redemptionCode);
     }, (error) => {
+      updateCustomerSurfaceState();
       toast(error.message);
     }).finally(() => {
       redeemInFlight = false;

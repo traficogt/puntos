@@ -33,6 +33,8 @@ test("staff scanner selects the customer instead of auto-awarding on scan", () =
   assert.match(source, /Canjeando recompensa\.\.\./, "expected redeem to show an in-surface busy state");
   assert.match(source, /Canje listo\./, "expected redeem to refresh the surface after success");
   assert.match(source, /Puntos registrados:/, "expected award to refresh the surface after success");
+  assert.match(source, /updateCustomerSurfaceState\(\);[\s\S]*toast\(error\.message\);/, "expected failed actions to restore the inline surface state before showing the toast");
+  assert.match(source, /canUseRedeemFlow/, "expected redeem affordances to respect both role and plan availability");
   assert.match(source, /\/api\/staff\/customer\/lookup/, "expected scanned tokens to resolve through the customer lookup endpoint");
   assert.doesNotMatch(source, /scanLoop[\s\S]*await award\(token\)/, "expected scan loop to stop auto-awarding on scan");
 });

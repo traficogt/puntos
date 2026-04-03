@@ -12,9 +12,15 @@ function readStaffClientSource() {
   return fs.readFileSync(new URL("../../public/staff/index.js", import.meta.url), "utf8");
 }
 
+function readStaffRouteSource() {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  return fs.readFileSync(new URL("../../src/app/routes/staff-routes.js", import.meta.url), "utf8");
+}
+
 test("staff shell makes customer selection explicit before award or redeem", () => {
   const html = readStaffShellHtml();
   const source = readStaffClientSource();
+  const routeSource = readStaffRouteSource();
   const scanLoop = source.match(/async function scanLoop\(\)[\s\S]*?requestAnimationFrame\(scanLoop\);\n  \}/)?.[0] || "";
 
   assert.match(html, /staff-primary-workspace/, "expected the customer-dominant workspace wrapper");
@@ -33,7 +39,11 @@ test("staff shell makes customer selection explicit before award or redeem", () 
   assert.match(html, /Escanea o ingresa el código del cliente para continuar\./, "expected explicit pre-selection guidance");
   assert.match(source, /Escanea o ingresa el código del cliente para continuar\./, "expected the approved pre-selection copy to be reused");
   assert.match(source, /Tu rol no permite canjear recompensas\./, "expected the surface to explain when redeem is unavailable by role");
+  assert.match(source, /Los canjes no están disponibles en el plan actual\./, "expected the surface to explain when redeem is unavailable by plan");
   assert.match(source, /Canje no disponible para tu rol/, "expected the active-customer summary to explain role-based redeem limits");
+  assert.match(source, /giftCardActionBlock/, "expected the gift-card panel to be explicitly hideable when unavailable");
+  assert.match(source, /No hay recompensas activas para este programa\./, "expected reward guidance to stay explicit when no rewards are active");
+  assert.match(routeSource, /res\.json\(\{ ok: true, staff: req\.staff, features \}\);/, "expected /staff/me to expose plan features to the staff client");
   assert.match(source, /\/api\/staff\/customer\/lookup/, "expected selected customers to be resolved through the lookup endpoint");
   assert.doesNotMatch(scanLoop, /await award\(token\);/, "expected QR scan not to auto-award points");
   assert.match(source, /customerQrToken/, "expected scanned tokens to be sent through customer lookup");

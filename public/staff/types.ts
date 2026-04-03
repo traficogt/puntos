@@ -1,10 +1,12 @@
 export interface StaffProfile {
   role: string;
+  can_manage_gift_cards?: boolean;
   [key: string]: unknown;
 }
 
 export interface StaffMeResponse {
   staff: StaffProfile;
+  features?: Record<string, boolean>;
 }
 
 export interface StaffPermissionsResponse {
