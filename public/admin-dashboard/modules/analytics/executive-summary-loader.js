@@ -9,7 +9,6 @@ import { renderExecutiveSummary } from "./executive-summary.js";
  *
  * @param {{
  *   $: AdminDashboardApp["$"],
- *   api: AdminDashboardApp["api"],
  *   deps: {
  *     loadRoiReport: (prefetched?: unknown) => Promise<unknown>,
  *     loadAlertsCenter: (prefetched?: unknown) => Promise<unknown>
@@ -26,7 +25,6 @@ import { renderExecutiveSummary } from "./executive-summary.js";
  */
 export async function hydrateExecutiveSummary({
   $,
-  api,
   deps,
   roiPrefetchPromise,
   alertsPrefetchPromise,

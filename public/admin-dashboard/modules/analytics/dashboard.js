@@ -61,7 +61,6 @@ export function createAnalyticsDashboardController(app, deps) {
       await loadPaymentPending();
       const churnData = await hydrateExecutiveSummary({
         $,
-        api,
         deps,
         roiPrefetchPromise,
         alertsPrefetchPromise,

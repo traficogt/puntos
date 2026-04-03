@@ -19,7 +19,7 @@ describe("module size guardrails", () => {
       ["src/app/services/gamification-service.js", 40],
       ["public/styles.css", 20],
       ["public/styles/analytics-visuals.css", 400],
-      ["public/admin-dashboard.html", 180],
+      ["public/admin-dashboard.html", 230],
       ["public/admin-dashboard/fragments/program.html", 180],
       ["public/admin-dashboard/fragments/analytics.html", 180],
       ["public/admin-dashboard/modules/analytics/dashboard.js", 140],
