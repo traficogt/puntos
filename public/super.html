@@ -151,6 +151,26 @@
           <p class="small" id="newUserHint"></p>
         </div>
       </div>
+      <div class="card mt-12" id="magicLinkCard">
+        <h3>Enlaces internos</h3>
+        <p class="small">Uso interno solamente. Genera enlaces de prueba para equipo o cliente sin salir de la consola super.</p>
+        <label>Modo de actor</label>
+        <select id="magicActorType">
+          <option value="staff">Equipo</option>
+          <option value="customer">Cliente</option>
+        </select>
+        <label>Negocio</label>
+        <select id="magicBusiness"></select>
+        <label>Actor</label>
+        <select id="magicActor"></select>
+        <label>Destino</label>
+        <select id="magicTarget"></select>
+        <div class="row mt-10">
+          <button class="primary" id="btnGenerateMagicLink">Generar enlace</button>
+        </div>
+        <p class="small" id="magicLinkCopy">Uso interno</p>
+        <pre id="magicLinkOutput" class="small pre-wrap">(sin enlace generado)</pre>
+      </div>
       <div class="row mb-8">
         <button id="btnReload">Recargar</button>
       </div>

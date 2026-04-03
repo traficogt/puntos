@@ -36,6 +36,30 @@ export interface SuperBusinessRow {
   staff?: number;
 }
 
+export interface SuperStaffRow {
+  id: string;
+  business_id: string;
+  branch_id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role: string;
+  active?: boolean;
+  can_manage_gift_cards?: boolean;
+  created_at?: string;
+}
+
+export interface SuperCustomerRow {
+  id: string;
+  phone?: string | null;
+  name?: string | null;
+  created_at?: string;
+  last_visit_at?: string | null;
+  points?: number;
+  pending_points?: number;
+  lifetime_points?: number;
+}
+
 export interface SuperSecurityEvent {
   created_at?: string;
   event_type: string;
@@ -51,6 +75,22 @@ export interface SuperPlansResponse {
 
 export interface SuperBusinessesResponse {
   businesses?: SuperBusinessRow[];
+}
+
+export interface SuperStaffListResponse {
+  rows?: SuperStaffRow[];
+}
+
+export interface SuperCustomerListResponse {
+  rows?: SuperCustomerRow[];
+}
+
+export interface SuperMagicLinkResponse {
+  ok?: boolean;
+  id?: string;
+  url?: string;
+  expiresAt?: string;
+  usageMode?: string;
 }
 
 export interface SuperSecurityPostureResponse {

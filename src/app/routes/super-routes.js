@@ -251,6 +251,26 @@ superRoutes.get("/super/businesses", requireSuperAdmin, validateQuery(z.object({
   res.json({ ok: true, businesses: rows });
 }));
 
+superRoutes.get("/super/businesses/:businessId/staff", requireSuperAdmin, asyncRoute(async (req, res) => {
+  const businessId = String(req.params.businessId || "");
+  const business = await BusinessRepo.getById(businessId);
+  if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
+  const rows = await StaffRepo.listByBusiness(businessId);
+  const allowedRoles = new Set(["OWNER", "MANAGER", "CASHIER"]);
+  res.json({
+    ok: true,
+    rows: rows.filter((row) => row && row.active !== false && allowedRoles.has(String(row.role || "").toUpperCase()))
+  });
+}));
+
+superRoutes.get("/super/businesses/:businessId/customers", requireSuperAdmin, asyncRoute(async (req, res) => {
+  const businessId = String(req.params.businessId || "");
+  const business = await BusinessRepo.getById(businessId);
+  if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
+  const rows = await CustomerRepo.listByBusiness(businessId, 200);
+  res.json({ ok: true, rows });
+}));
+
 superRoutes.post("/super/businesses", csrfProtect, requireSuperAdmin, asyncRoute(async (req, res) => {
   const parsed = CreateBusinessSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Payload inválido" });

@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 const { config } = await import("../../src/config/index.js");
 const { superRoutes } = await import("../../src/app/routes/super-routes.js");
 const { publicRoutes } = await import("../../src/app/routes/public-routes.js");
+const { BusinessRepo } = await import("../../src/app/repositories/business-repository.js");
 const { StaffRepo } = await import("../../src/app/repositories/staff-repository.js");
 const { CustomerRepo } = await import("../../src/app/repositories/customer-repository.js");
 const { InternalMagicLinkRepo } = await import("../../src/app/repositories/internal-magic-link-repository.js");
@@ -211,6 +212,91 @@ test("super magic-link generation rejects inactive staff users", async () => {
   } finally {
     StaffRepo.getById = originalGetById;
     InternalMagicLinkRepo.create = originalCreate;
+  }
+});
+
+test("super business staff endpoint filters inactive and unsupported roles", async () => {
+  const layer = routeLayer(superRoutes, "/super/businesses/:businessId/staff", "get");
+  assert.ok(layer, "Expected GET /super/businesses/:businessId/staff");
+
+  const businessId = "22222222-2222-4222-8222-222222222222";
+  const originalGetById = BusinessRepo.getById;
+  const originalListByBusiness = StaffRepo.listByBusiness;
+
+  BusinessRepo.getById = async () => ({ id: businessId, name: "Biz" });
+  StaffRepo.listByBusiness = async () => ([
+    { id: "staff-1", business_id: businessId, role: "OWNER", active: true },
+    { id: "staff-2", business_id: businessId, role: "CASHIER", active: true },
+    { id: "staff-3", business_id: businessId, role: "SUPPORT", active: true },
+    { id: "staff-4", business_id: businessId, role: "MANAGER", active: false }
+  ]);
+
+  try {
+    const res = await runFinalHandler(layer, {
+      method: "GET",
+      params: { businessId },
+      superAdmin: { email: "super@example.com" }
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.ok, true);
+    assert.deepEqual(res.body.rows.map((row) => row.id), ["staff-1", "staff-2"]);
+  } finally {
+    BusinessRepo.getById = originalGetById;
+    StaffRepo.listByBusiness = originalListByBusiness;
+  }
+});
+
+test("super business customer endpoint returns a bounded list", async () => {
+  const layer = routeLayer(superRoutes, "/super/businesses/:businessId/customers", "get");
+  assert.ok(layer, "Expected GET /super/businesses/:businessId/customers");
+
+  const businessId = "22222222-2222-4222-8222-222222222222";
+  const originalGetById = BusinessRepo.getById;
+  const originalListByBusiness = CustomerRepo.listByBusiness;
+  const listCalls = [];
+
+  BusinessRepo.getById = async () => ({ id: businessId, name: "Biz" });
+  CustomerRepo.listByBusiness = async (...args) => {
+    listCalls.push(args);
+    return [{ id: "customer-1", business_id: businessId }];
+  };
+
+  try {
+    const res = await runFinalHandler(layer, {
+      method: "GET",
+      params: { businessId },
+      superAdmin: { email: "super@example.com" }
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.ok, true);
+    assert.equal(res.body.rows.length, 1);
+    assert.deepEqual(listCalls, [[businessId, 200]]);
+  } finally {
+    BusinessRepo.getById = originalGetById;
+    CustomerRepo.listByBusiness = originalListByBusiness;
+  }
+});
+
+test("super business staff endpoint returns 404 when the business does not exist", async () => {
+  const layer = routeLayer(superRoutes, "/super/businesses/:businessId/staff", "get");
+  assert.ok(layer, "Expected GET /super/businesses/:businessId/staff");
+
+  const originalGetById = BusinessRepo.getById;
+  BusinessRepo.getById = async () => null;
+
+  try {
+    const res = await runFinalHandler(layer, {
+      method: "GET",
+      params: { businessId: "11111111-1111-4111-8111-111111111111" },
+      superAdmin: { email: "super@example.com" }
+    });
+
+    assert.equal(res.statusCode, 404);
+    assert.match(String(res.body?.error || ""), /Negocio no encontrado/);
+  } finally {
+    BusinessRepo.getById = originalGetById;
   }
 });
 

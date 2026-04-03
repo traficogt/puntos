@@ -2,8 +2,13 @@ import { isStrongPassword, passwordRequirementsText, registerServiceWorker, setH
 
 /** @typedef {import("./types.js").SuperPlanDefinition} SuperPlanDefinition */
 /** @typedef {import("./types.js").SuperBusinessRow} SuperBusinessRow */
+/** @typedef {import("./types.js").SuperStaffRow} SuperStaffRow */
+/** @typedef {import("./types.js").SuperCustomerRow} SuperCustomerRow */
 /** @typedef {import("./types.js").SuperPlansResponse} SuperPlansResponse */
 /** @typedef {import("./types.js").SuperBusinessesResponse} SuperBusinessesResponse */
+/** @typedef {import("./types.js").SuperStaffListResponse} SuperStaffListResponse */
+/** @typedef {import("./types.js").SuperCustomerListResponse} SuperCustomerListResponse */
+/** @typedef {import("./types.js").SuperMagicLinkResponse} SuperMagicLinkResponse */
 /** @typedef {import("./types.js").SuperSecurityPostureResponse} SuperSecurityPostureResponse */
 /** @typedef {import("./types.js").SuperBusinessCreateResponse} SuperBusinessCreateResponse */
 /** @typedef {import("./types.js").SuperBusinessUserCreateResponse} SuperBusinessUserCreateResponse */
@@ -14,6 +19,10 @@ import { isStrongPassword, passwordRequirementsText, registerServiceWorker, setH
 export async function initSuperPage({ api, $, toast }) {
   /** @type {SuperPlanDefinition[]} */
   let planList = [];
+  /** @type {SuperBusinessRow[]} */
+  let businessList = [];
+  /** @type {SuperStaffRow[] | SuperCustomerRow[]} */
+  let magicActorRows = [];
   const FEATURE_LABELS = {
     gift_cards: "Gift Cards",
     rewards: "Recompensas",
@@ -230,6 +239,197 @@ export async function initSuperPage({ api, $, toast }) {
     return sel;
   }
 
+  const MAGIC_TARGET_OPTIONS = {
+    staff: [
+      { value: "staff", label: "Escáner" },
+      { value: "admin-dashboard", label: "Panel" }
+    ],
+    customer: [
+      { value: "customer-wallet", label: "Cartera" }
+    ]
+  };
+
+  function getMagicMode() {
+    return select("#magicActorType").value || "staff";
+  }
+
+  function getMagicBusinessId() {
+    return select("#magicBusiness").value || "";
+  }
+
+  function getMagicActorSelect() {
+    return select("#magicActor");
+  }
+
+  function getMagicTargetSelect() {
+    return select("#magicTarget");
+  }
+
+  function getMagicSelectedActor() {
+    const actorId = getMagicActorSelect().value;
+    return magicActorRows.find((row) => String(row.id) === String(actorId)) || null;
+  }
+
+  function setMagicCopy(actorRow = null) {
+    const box = element("#magicLinkCopy");
+    const mode = getMagicMode();
+    if (mode === "customer") {
+      box.textContent = "Uso interno · Reutilizable hasta vencer";
+      return;
+    }
+    const role = String(actorRow?.role || "").toUpperCase();
+    box.textContent = role === "OWNER"
+      ? "Uso interno · Un solo uso"
+      : "Uso interno · Un solo uso";
+  }
+
+  function setMagicOutput(text) {
+    element("#magicLinkOutput").textContent = text || "(sin enlace generado)";
+  }
+
+  function renderMagicTargetOptions(actorRow = null) {
+    const mode = getMagicMode();
+    const targetSel = getMagicTargetSelect();
+    const allowed = MAGIC_TARGET_OPTIONS[mode] || MAGIC_TARGET_OPTIONS.staff;
+    targetSel.replaceChildren();
+
+    allowed.forEach((target) => {
+      const opt = document.createElement("option");
+      opt.value = target.value;
+      opt.textContent = target.label;
+      if (mode === "staff" && target.value === "admin-dashboard" && String(actorRow?.role || "").toUpperCase() !== "OWNER") {
+        opt.disabled = true;
+      }
+      targetSel.appendChild(opt);
+    });
+
+    const current = targetSel.value;
+    const preferred = mode === "customer" ? "customer-wallet" : (current || "staff");
+    const allowedValues = allowed.map((target) => target.value);
+    const actorRole = String(actorRow?.role || "").toUpperCase();
+    const nextTarget = allowedValues.includes(preferred) && !(preferred === "admin-dashboard" && mode === "staff" && actorRole !== "OWNER")
+      ? preferred
+      : allowedValues[0];
+    targetSel.value = nextTarget;
+    targetSel.disabled = mode === "customer";
+  }
+
+  function renderMagicActorOptions(rows) {
+    const actorSel = getMagicActorSelect();
+    actorSel.replaceChildren();
+
+    if (!rows.length) {
+      actorSel.disabled = true;
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "Sin resultados";
+      actorSel.appendChild(opt);
+      actorSel.value = "";
+      renderMagicTargetOptions(null);
+      setMagicCopy(null);
+      setMagicOutput("(sin enlace generado)");
+      return;
+    }
+
+    actorSel.disabled = false;
+    rows.forEach((row) => {
+      const opt = document.createElement("option");
+      opt.value = row.id;
+      const name = row.name || row.email || row.phone || row.id;
+      const role = row.role ? ` · ${String(row.role).toUpperCase()}` : "";
+      opt.textContent = `${name}${role}`;
+      opt.dataset.role = String(row.role || "");
+      actorSel.appendChild(opt);
+    });
+
+    const current = rows.find((row) => String(row.id) === String(actorSel.value)) || rows[0];
+    actorSel.value = current?.id || "";
+    renderMagicTargetOptions(current);
+    setMagicCopy(current);
+  }
+
+  function renderMagicBusinessOptions() {
+    const businessSel = select("#magicBusiness");
+    const current = businessSel.value;
+    businessSel.replaceChildren();
+    businessList.forEach((business) => {
+      const opt = document.createElement("option");
+      opt.value = business.id;
+      opt.textContent = `${business.name}${business.slug ? ` (${business.slug})` : ""}`;
+      businessSel.appendChild(opt);
+    });
+    if (!businessList.length) {
+      businessSel.disabled = true;
+      businessSel.value = "";
+      return;
+    }
+    businessSel.disabled = false;
+    const selected = businessList.some((business) => business.id === current) ? current : businessList[0].id;
+    businessSel.value = selected;
+  }
+
+  async function loadMagicActors() {
+    const businessId = getMagicBusinessId();
+    const mode = getMagicMode();
+    const business = businessList.find((row) => row.id === businessId) || null;
+    if (!businessId || !business) {
+      magicActorRows = [];
+      renderMagicActorOptions([]);
+      setMagicOutput("(sin enlace generado)");
+      return;
+    }
+
+    await run(async () => {
+      const path = mode === "customer"
+        ? `/api/super/businesses/${encodeURIComponent(businessId)}/customers`
+        : `/api/super/businesses/${encodeURIComponent(businessId)}/staff`;
+      const out = mode === "customer"
+        ? /** @type {SuperCustomerListResponse} */ (await api(path))
+        : /** @type {SuperStaffListResponse} */ (await api(path));
+      magicActorRows = out.rows || [];
+      renderMagicActorOptions(magicActorRows);
+    }, (error) => {
+      magicActorRows = [];
+      renderMagicActorOptions([]);
+      setMagicOutput("No se pudieron cargar actores: " + error.message);
+    });
+  }
+
+  function renderMagicTargetFromSelection() {
+    const actor = getMagicSelectedActor();
+    renderMagicTargetOptions(actor);
+    setMagicCopy(actor);
+  }
+
+  async function generateMagicLink() {
+    await run(async () => {
+      const actorType = getMagicMode();
+      const businessId = getMagicBusinessId();
+      const actor = getMagicSelectedActor();
+      const actorId = getMagicActorSelect().value;
+      const target = getMagicTargetSelect().value;
+      if (!businessId) return toast("Selecciona un negocio.");
+      if (!actorId) return toast("Selecciona un actor.");
+      if (!target) return toast("Selecciona un destino.");
+
+      const out = /** @type {SuperMagicLinkResponse} */ (await api("/api/super/magic-links", {
+        method: "POST",
+        body: JSON.stringify({ actorType, actorId, businessId, target })
+      }));
+      const expiresAt = out.expiresAt ? new Date(out.expiresAt) : null;
+      const copy = actorType === "customer"
+        ? "Uso interno · Reutilizable hasta vencer"
+        : "Uso interno · Un solo uso";
+      const expiryText = expiresAt ? expiresAt.toLocaleString("es-GT") : "sin fecha";
+      setMagicOutput(`URL: ${out.url || "(sin URL)"}\nExpira: ${expiryText}\n${copy}`);
+      setMagicCopy(actor);
+      toast("Enlace interno generado.");
+    }, (error) => {
+      setMagicOutput("No se pudo generar el enlace: " + error.message);
+      toast(error.message);
+    });
+  }
+
   async function loadPlans() {
     const out = /** @type {SuperPlansResponse} */ (await api("/api/super/plans"));
     planList = out.plans || [];
@@ -301,10 +501,13 @@ export async function initSuperPage({ api, $, toast }) {
     await run(async () => {
       const out = /** @type {SuperBusinessesResponse} */ (await api("/api/super/businesses?limit=200"));
       const rows = /** @type {SuperBusinessRow[]} */ (out.businesses || []);
+      businessList = rows;
       const box = element("#businesses");
       box.replaceChildren();
       if (!rows.length) {
         box.textContent = "No hay negocios.";
+        renderMagicBusinessOptions();
+        await loadMagicActors();
         return;
       }
 
@@ -386,6 +589,8 @@ export async function initSuperPage({ api, $, toast }) {
           userBizSel.appendChild(opt);
         });
       }
+      renderMagicBusinessOptions();
+      await loadMagicActors();
     }, (error) => {
       toast("Error cargando negocios: " + error.message);
     });
@@ -601,6 +806,20 @@ export async function initSuperPage({ api, $, toast }) {
   });
   element("#btnCreateBusiness").addEventListener("click", createBusiness);
   element("#btnCreateBusinessUser").addEventListener("click", createBusinessUser);
+  element("#magicActorType").addEventListener("change", async () => {
+    await loadMagicActors();
+    renderMagicTargetFromSelection();
+  });
+  element("#magicBusiness").addEventListener("change", async () => {
+    await loadMagicActors();
+  });
+  element("#magicActor").addEventListener("change", () => {
+    renderMagicTargetFromSelection();
+  });
+  element("#magicTarget").addEventListener("change", () => {
+    setMagicCopy(getMagicSelectedActor());
+  });
+  element("#btnGenerateMagicLink").addEventListener("click", generateMagicLink);
 
   await loadMe();
   registerServiceWorker().catch(() => {});
