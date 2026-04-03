@@ -81,6 +81,22 @@ Fallback behavior:
 - if logo URL is missing or unsafe, render text brand only
 - if colors are missing, use safe platform defaults
 
+Brand ownership must follow message ownership:
+
+- **platform / PuntosFieles context**:
+  - use PuntosFieles branding
+  - examples:
+    - PF-level security or operational notices
+    - PF-level prospect/customer emails not tied to one business
+- **business / tenant context**:
+  - use that business's branding
+  - examples:
+    - verification codes for a specific business
+    - lifecycle and churn emails for a specific business
+    - customer communication sent on behalf of that business
+
+This pass includes tenant-aware email rendering logic from the start. What it does **not** include is a self-serve email-template editor in the dashboard.
+
 Email must not depend on:
 
 - external web fonts
@@ -164,6 +180,11 @@ Responsibilities:
 - apply fallbacks
 - return email-safe brand values
 
+Resolution rule:
+
+- if `businessId` or a business record is present, resolve tenant branding first
+- otherwise resolve platform branding
+
 This should stay separate from the frontend branding helper because:
 
 - email rendering is server-side
@@ -235,6 +256,31 @@ Update current message callers to use richer content where appropriate:
 - lifecycle notifications
 
 This should be done incrementally, without changing message routing semantics.
+
+## Maintainability And Future Changes
+
+Business-branded email changes should be easy after this pass because the system is intentionally layered:
+
+- brand tokens live in one resolver
+- shell layout lives in one base template
+- message-specific copy/layout lives in typed renderers
+
+That means most future changes fall into one of these buckets:
+
+- **change branding values**
+  - easy
+  - update tenant branding data or platform defaults
+- **change the shared email look**
+  - easy to moderate
+  - update the base shell once and all templates inherit it
+- **change one message type**
+  - easy
+  - update the typed renderer for that message only
+- **add a new message type**
+  - moderate
+  - add one renderer and plug it into the same shell/resolver contract
+
+This keeps email branding adaptable without requiring a template editor or a rewrite every time copy or presentation changes.
 
 ## Error Handling
 
