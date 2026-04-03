@@ -9,6 +9,16 @@
   margin: 1.5rem 0 1.75rem;
 }
 
+.page-admin .admin-growth-summary {
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(214, 172, 96, 0.13), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.24);
+}
+
 .page-admin .admin-command-main,
 .page-admin .admin-brief-card,
 .page-admin .admin-stage-header {
@@ -72,6 +82,92 @@
 
 .page-admin .admin-command-actions button {
   min-height: 44px;
+}
+
+.page-admin .admin-growth-summary-head {
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.page-admin .admin-growth-scope {
+  min-width: 220px;
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(8, 11, 16, 0.56);
+}
+
+.page-admin .admin-growth-scope span,
+.page-admin .admin-kpi-card span,
+.page-admin .admin-kpi-card small,
+.page-admin .admin-executive-card,
+.page-admin .admin-executive-card p {
+  color: var(--muted);
+}
+
+.page-admin .admin-growth-scope span {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.page-admin .admin-growth-scope strong {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--headline);
+  font-size: 1.15rem;
+}
+
+.page-admin .admin-growth-board {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 1.25rem;
+}
+
+.page-admin .admin-kpi-card {
+  padding: 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(8, 11, 16, 0.58);
+}
+
+.page-admin .admin-kpi-card strong {
+  display: block;
+  margin-top: 0.45rem;
+  font-family: var(--display-font);
+  font-size: clamp(1.6rem, 2vw, 2.25rem);
+  color: var(--headline);
+}
+
+.page-admin .admin-executive-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.9fr);
+  gap: 18px;
+  margin-top: 1rem;
+}
+
+.page-admin .admin-executive-card {
+  padding: 1rem 1.05rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(8, 11, 16, 0.58);
+}
+
+.page-admin .admin-executive-card p {
+  margin: 0.55rem 0 0;
+}
+
+.page-admin .admin-suggested-actions {
+  margin: 0.55rem 0 0;
+  padding-left: 1rem;
+}
+
+.page-admin .admin-suggested-actions li + li {
+  margin-top: 0.45rem;
 }
 
 .page-admin .admin-brief-card {
@@ -206,7 +302,9 @@
 @media (max-width: 1100px) {
   .page-admin .admin-command-deck,
   .page-admin .admin-shell-grid,
-  .page-admin .admin-stage-header {
+  .page-admin .admin-stage-header,
+  .page-admin .admin-growth-board,
+  .page-admin .admin-executive-grid {
     grid-template-columns: 1fr;
   }
 
@@ -216,6 +314,10 @@
 }
 
 @media (max-width: 720px) {
+  .page-admin .admin-growth-summary {
+    padding: 1.1rem;
+  }
+
   .page-admin .admin-signal-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
