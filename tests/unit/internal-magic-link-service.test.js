@@ -101,6 +101,7 @@ test("consumeInternalMagicLink rejects already-used single-use tokens in Spanish
 });
 
 test("consumeInternalMagicLink rejects staff links that cannot be consumed anymore", async () => {
+  const signCalls = [];
   await assert.rejects(
     () => consumeInternalMagicLink("race-token", {}, {
       InternalMagicLinkRepo: {
@@ -123,10 +124,15 @@ test("consumeInternalMagicLink rejects staff links that cannot be consumed anymo
           role: "CASHIER"
         })
       },
-      signStaffToken: async () => "staff-token"
+      signStaffToken: async () => {
+        signCalls.push(true);
+        return "staff-token";
+      }
     }),
     /ya fue usado/i
   );
+
+  assert.equal(signCalls.length, 0);
 });
 
 test("consumeInternalMagicLink returns /staff with the pf_staff cookie name", async () => {
@@ -232,6 +238,51 @@ test("customer consume rejects invalid customer targets in Spanish", async () =>
           business_id: "biz-1"
         })
       }
+    }),
+    /no puede abrir ese destino/i
+  );
+});
+
+test("customer consume does not mint a session when touchReusable fails", async () => {
+  const signCalls = [];
+  await assert.rejects(
+    () => consumeInternalMagicLink("touch-failed", {}, {
+      InternalMagicLinkRepo: {
+        lookupByTokenHash: async () => ({
+          id: "link-3",
+          actor_type: "customer",
+          actor_id: "customer-1",
+          business_id: "biz-1",
+          target: "customer-wallet",
+          usage_mode: "reusable_window"
+        }),
+        touchReusable: async () => null
+      },
+      CustomerRepo: {
+        getById: async () => ({
+          id: "customer-1",
+          business_id: "biz-1"
+        })
+      },
+      signCustomerToken: async () => {
+        signCalls.push(true);
+        return "customer-token";
+      }
+    }),
+    /no es válido/i
+  );
+
+  assert.equal(signCalls.length, 0);
+});
+
+test("buildInternalMagicLink rejects invalid staff targets in Spanish", async () => {
+  await assert.rejects(
+    () => buildInternalMagicLink({
+      actorType: "staff",
+      actor: { id: "staff-1", role: "OWNER", business_id: "biz-1" },
+      target: "customer-wallet",
+      createdBy: "super@test.com",
+      origin: "https://app.example.com"
     }),
     /no puede abrir ese destino/i
   );
