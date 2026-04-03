@@ -220,18 +220,30 @@ export const config = {
   QR_PRIVATE_KEY_PEM: "",
   QR_PUBLIC_KEY_PEM: "",
 
-  // Messaging provider: dev | whatsapp_cloud | smtp_email | http_sms_gateway
+  // Messaging provider: dev | whatsapp_cloud | smtp_email | http_sms_gateway | waha | baileys | twilio
   MESSAGE_PROVIDER: process.env.MESSAGE_PROVIDER ?? "dev",
+  MESSAGE_PROVIDER_ORDER: parseCsv(envValue("MESSAGE_PROVIDER_ORDER", "")),
 
   // WhatsApp Cloud API (optional)
   WA_PHONE_NUMBER_ID: envValue("WA_PHONE_NUMBER_ID", ""),
   WA_ACCESS_TOKEN: envValue("WA_ACCESS_TOKEN", ""),
+  WA_API_VERSION: envValue("WA_API_VERSION", "v21.0"),
+  WAHA_BASE_URL: envValue("WAHA_BASE_URL", ""),
+  WAHA_API_KEY: envValue("WAHA_API_KEY", ""),
+  WAHA_SESSION: envValue("WAHA_SESSION", "default"),
+  BAILEYS_BASE_URL: envValue("BAILEYS_BASE_URL", ""),
+  BAILEYS_SEND_URL: envValue("BAILEYS_SEND_URL", ""),
+  BAILEYS_API_KEY: envValue("BAILEYS_API_KEY", ""),
+  TWILIO_ACCOUNT_SID: envValue("TWILIO_ACCOUNT_SID", ""),
+  TWILIO_AUTH_TOKEN: envValue("TWILIO_AUTH_TOKEN", ""),
+  TWILIO_WHATSAPP_FROM: envValue("TWILIO_WHATSAPP_FROM", ""),
 
   // SMTP Email (optional)
   SMTP_HOST: envValue("SMTP_HOST", ""),
   SMTP_PORT: Number(process.env.SMTP_PORT ?? 587),
   SMTP_USER: envValue("SMTP_USER", ""),
   SMTP_PASS: envValue("SMTP_PASS", ""),
+  SMTP_SECURE: envValue("SMTP_SECURE", "auto"),
   SMTP_FROM: envValue("SMTP_FROM", "PuntosFieles <no-reply@puntos.gt>"),
 
   // Contact form email

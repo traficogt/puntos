@@ -8,5 +8,6 @@ test("server exposes runtime-config and disables static directory redirects", ()
 
   assert.match(source, /app\.get\("\/runtime-config\.js"/);
   assert.match(source, /app\.get\("\/sitio"/);
+  assert.match(source, /app\.get\("\/ingresar\/:slug"/);
   assert.match(source, /express\.static\(publicDir,\s*\{[^}]*redirect:\s*false/);
 });

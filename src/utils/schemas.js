@@ -133,11 +133,13 @@ export const staffUpdateSchema = z.object({
 
 export const requestJoinCodeSchema = z.object({
   phone: z.string().min(6),
+  email: emailSchema.optional(),
   name: z.string().max(120).optional()
 });
 
 export const verifyJoinCodeSchema = z.object({
   phone: z.string().min(6),
+  email: emailSchema.optional(),
   code: z.string().min(4).max(10),
   name: z.string().max(120).optional(),
   referralCode: z.string().length(6).optional()

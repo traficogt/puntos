@@ -183,6 +183,7 @@ app.get("/admin-dashboard", (req, res) => res.sendFile(path.join(publicDir, "adm
 app.get("/staff/login", (req, res) => res.sendFile(path.join(publicDir, "staff-login.html")));
 app.get("/staff", (req, res) => res.sendFile(path.join(publicDir, "staff.html")));
 app.get("/registro/:slug", (req, res) => res.sendFile(path.join(publicDir, "join.html")));
+app.get("/ingresar/:slug", (req, res) => res.sendFile(path.join(publicDir, "ingresar.html")));
 app.get("/join/:slug", (req, res) => {
   const slug = encodeURIComponent(String(req.params.slug || "").trim());
   return res.redirect(302, `/registro/${slug}`);

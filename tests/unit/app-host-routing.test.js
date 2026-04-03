@@ -17,6 +17,7 @@ test("app route detection covers shared product paths", () => {
   assert.equal(isAppRoutePath("/staff/login"), true);
   assert.equal(isAppRoutePath("/staff"), true);
   assert.equal(isAppRoutePath("/registro/cafe-bourbon"), true);
+  assert.equal(isAppRoutePath("/ingresar/cafe-bourbon"), true);
   assert.equal(isAppRoutePath("/join/cafe-bourbon"), true);
   assert.equal(isAppRoutePath("/c"), true);
   assert.equal(isAppRoutePath("/admin-dashboard"), true);

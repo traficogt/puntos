@@ -47,14 +47,14 @@ export async function loadAll({ api, $, toast, silent = false }) {
     if (isAuthError(error) && navigator.onLine) {
       await clearCustomerCache().catch(() => {});
       if (cachedSlug) {
-        location.href = `/registro/${encodeURIComponent(cachedSlug)}?motivo=sesion-vencida`;
+        location.href = `/ingresar/${encodeURIComponent(cachedSlug)}?motivo=sesion-vencida`;
         return;
       }
       const needLogin = safeEl($, "#needLogin");
       setHidden(needLogin, false);
       const subtitle = safeEl($, "#customerEntrySubtitle");
       if (subtitle) {
-        subtitle.textContent = "No tienes una sesión activa en este navegador. Abre de nuevo el enlace del negocio para entrar.";
+        subtitle.textContent = "No tienes una sesión activa en este navegador. Entra desde el acceso del negocio para abrir tu tarjeta.";
       }
       return;
     }
@@ -72,7 +72,7 @@ export async function loadAll({ api, $, toast, silent = false }) {
     setHidden(needLogin, false);
     const subtitle = safeEl($, "#customerEntrySubtitle");
     if (subtitle) {
-      subtitle.textContent = "No tienes una sesión activa en este navegador. Abre de nuevo el enlace del negocio para entrar.";
+      subtitle.textContent = "No tienes una sesión activa en este navegador. Entra desde el acceso del negocio para abrir tu tarjeta.";
     }
   }
 }

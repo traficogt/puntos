@@ -32,12 +32,24 @@ export interface AppConfig {
   QR_PUBLIC_KEY_PEM: string;
 
   MESSAGE_PROVIDER: string;
+  MESSAGE_PROVIDER_ORDER: string[];
   WA_PHONE_NUMBER_ID: string;
   WA_ACCESS_TOKEN: string;
+  WA_API_VERSION: string;
+  WAHA_BASE_URL: string;
+  WAHA_API_KEY: string;
+  WAHA_SESSION: string;
+  BAILEYS_BASE_URL: string;
+  BAILEYS_SEND_URL: string;
+  BAILEYS_API_KEY: string;
+  TWILIO_ACCOUNT_SID: string;
+  TWILIO_AUTH_TOKEN: string;
+  TWILIO_WHATSAPP_FROM: string;
   SMTP_HOST: string;
   SMTP_PORT: number;
   SMTP_USER: string;
   SMTP_PASS: string;
+  SMTP_SECURE: string;
   SMTP_FROM: string;
   CONTACT_SMTP_HOST: string;
   CONTACT_SMTP_PORT: number;

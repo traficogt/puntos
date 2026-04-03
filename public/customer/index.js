@@ -76,7 +76,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     await clearCustomerCache().catch(() => {});
     setTimeout(() => {
       if (cachedSlug) {
-        location.href = `/registro/${encodeURIComponent(cachedSlug)}?motivo=salida`;
+        location.href = `/ingresar/${encodeURIComponent(cachedSlug)}?motivo=salida`;
         return;
       }
       location.reload();

@@ -24,9 +24,9 @@ async function ensureRateLimits(businessId, phone) {
   if (hour >= 5) throw tooManyRequests("Too many verification codes requested");
 }
 
-export async function requestJoinCode({ business, phone, name }) {
-  if (!business?.id) throw notFound("Business not found");
-  if (!phone) throw badRequest("Phone required");
+export async function requestJoinCode({ business, phone, email = null, name }) {
+  if (!business?.id) throw notFound("Negocio no encontrado");
+  if (!phone) throw badRequest("Falta el teléfono");
 
   await ensureRateLimits(business.id, phone);
 
@@ -48,11 +48,12 @@ export async function requestJoinCode({ business, phone, name }) {
     customerId: null,
     channel: "verify",
     to: phone,
+    destinations: { phone, email },
     body: `Tu código de PuntosFieles: ${code} (expira en 10 minutos)`
   });
   if (!sent?.ok) {
     await ignore(VerifyCodeRepo.deleteById(verifyCodeId));
-    const err = new Error("No se pudo enviar el código. Intenta de nuevo en unos minutos.");
+    const err = new Error("No se pudo enviar el código por los canales disponibles. Intenta de nuevo en unos minutos.");
     // @ts-ignore custom status
     err.statusCode = 503;
     throw err;
@@ -71,17 +72,17 @@ export async function requestJoinCode({ business, phone, name }) {
 }
 
 export async function verifyJoinCode({ business, phone, code, name, referralCode }) {
-  if (!business?.id) throw notFound("Business not found");
-  if (!phone) throw badRequest("Phone required");
-  if (!code) throw badRequest("Code required");
+  if (!business?.id) throw notFound("Negocio no encontrado");
+  if (!phone) throw badRequest("Falta el teléfono");
+  if (!code) throw badRequest("Falta el código");
 
   const vc = await VerifyCodeRepo.latestValid(business.id, phone);
-  if (!vc) throw badRequest("No valid code. Request a new one.");
+  if (!vc) throw badRequest("No hay un código válido. Solicita uno nuevo.");
 
   const ok = await bcrypt.compare(String(code).trim(), vc.code_hash);
   if (!ok) {
     await ignore(VerifyCodeRepo.markFailedAttempt(vc.id));
-    throw unauthorized("Invalid code");
+    throw unauthorized("Código inválido");
   }
 
   let customer = await CustomerRepo.getByBusinessAndPhone(business.id, phone);

@@ -1,23 +1,62 @@
-import nodemailer from "nodemailer";
 import { config } from "../../config/index.js";
 import { logger } from "../../utils/logger.js";
 import { MessageLogRepo } from "../repositories/message-log-repository.js";
 import crypto from "node:crypto";
 import { emitBillingEvent } from "./billing-service.js";
+import { createMessageRouter } from "./messaging/message-router.js";
+import { createDevProvider } from "./messaging/providers/dev-provider.js";
+import { createSmtpProvider } from "./messaging/providers/smtp-provider.js";
+import { createWhatsAppCloudProvider } from "./messaging/providers/whatsapp-cloud-provider.js";
+import { createWahaProvider } from "./messaging/providers/waha-provider.js";
+import { createTwilioProvider } from "./messaging/providers/twilio-provider.js";
+import { createBaileysProvider } from "./messaging/providers/baileys-provider.js";
 
 function id() { return crypto.randomUUID(); }
 
-export async function sendMessage({ businessId, customerId = null, channel, to, body, privilegedLog = false }) {
+function inferDestinations(to, destinations) {
+  const target = String(to || "").trim();
+  const inferredEmail = target.includes("@") ? target : "";
+  const inferredPhone = !inferredEmail ? target : "";
+  return {
+    phone: destinations?.phone || inferredPhone || null,
+    email: destinations?.email || inferredEmail || null
+  };
+}
+
+function buildProviderOrder() {
+  const order = Array.isArray(config.MESSAGE_PROVIDER_ORDER)
+    ? config.MESSAGE_PROVIDER_ORDER.map((value) => String(value || "").trim()).filter(Boolean)
+    : [];
+  return order.length > 0 ? order : [String(config.MESSAGE_PROVIDER || "dev").trim()];
+}
+
+function buildRouter() {
+  return createMessageRouter({
+    order: buildProviderOrder(),
+    providers: {
+      dev: createDevProvider(),
+      smtp_email: createSmtpProvider({ config }),
+      whatsapp_cloud: createWhatsAppCloudProvider({ config }),
+      waha: createWahaProvider({ config }),
+      twilio: createTwilioProvider({ config }),
+      baileys: createBaileysProvider({ config })
+    }
+  });
+}
+
+export async function sendMessage({ businessId, customerId = null, channel, to, body, privilegedLog = false, destinations = null }) {
   const logId = id();
   const safeBody = channel === "verify" ? String(body).replace(/\b\d{6}\b/g, "******") : body;
   const createLog = privilegedLog ? MessageLogRepo.createSecurity.bind(MessageLogRepo) : MessageLogRepo.create.bind(MessageLogRepo);
   const updateLog = privilegedLog ? MessageLogRepo.updateSecurityStatus.bind(MessageLogRepo) : MessageLogRepo.updateStatus.bind(MessageLogRepo);
+  const resolvedDestinations = inferDestinations(to, destinations);
+  const logTarget = String(to || resolvedDestinations.email || resolvedDestinations.phone || "").trim();
   await createLog({
     id: logId,
     business_id: businessId,
     customer_id: customerId,
     channel,
-    to_addr: to,
+    to_addr: logTarget,
     body: safeBody,
     status: "QUEUED",
     provider_id: null,
@@ -26,76 +65,19 @@ export async function sendMessage({ businessId, customerId = null, channel, to, 
 
   let sendOk = false;
   try {
-    const provider = config.MESSAGE_PROVIDER;
-
-    if (provider === "dev") {
-      logger.info({ channel, to, body: safeBody }, "[MESSAGE dev]");
-      await updateLog(logId, { status: "SENT", provider_id: "dev", error: null });
-      sendOk = true;
-      return { ok: true, id: logId };
+    const router = buildRouter();
+    const routed = await router.send({
+      channel,
+      body,
+      destinations: resolvedDestinations
+    });
+    if (!routed?.ok) {
+      const attempts = Array.isArray(routed?.attempts) ? routed.attempts.join(",") : "";
+      throw new Error(attempts ? `NO_DELIVERY_PROVIDER:${attempts}` : "NO_DELIVERY_PROVIDER");
     }
-
-    if (provider === "whatsapp_cloud") {
-      if (!config.WA_PHONE_NUMBER_ID || !config.WA_ACCESS_TOKEN) throw new Error("WhatsApp Cloud env not configured");
-      // Send as text message. You can switch to templates later.
-      const url = `https://graph.facebook.com/v19.0/${config.WA_PHONE_NUMBER_ID}/messages`;
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${config.WA_ACCESS_TOKEN}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to,
-          type: "text",
-          text: { body }
-        })
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(JSON.stringify(data));
-      await updateLog(logId, { status: "SENT", provider_id: data?.messages?.[0]?.id ?? "wa", error: null });
-      sendOk = true;
-      return { ok: true, id: logId };
-    }
-
-    if (provider === "smtp_email") {
-      if (!config.SMTP_HOST || !config.SMTP_USER || !config.SMTP_PASS) throw new Error("SMTP env not configured");
-      const transport = nodemailer.createTransport({
-        host: config.SMTP_HOST,
-        port: config.SMTP_PORT,
-        secure: config.SMTP_PORT === 465,
-        auth: { user: config.SMTP_USER, pass: config.SMTP_PASS }
-      });
-      const info = await transport.sendMail({
-        from: config.SMTP_FROM,
-        to,
-        subject: "PuntosFieles",
-        text: body
-      });
-      await updateLog(logId, { status: "SENT", provider_id: info.messageId, error: null });
-      sendOk = true;
-      return { ok: true, id: logId };
-    }
-
-    if (provider === "http_sms_gateway") {
-      if (!config.SMS_GATEWAY_URL) throw new Error("SMS_GATEWAY_URL missing");
-      const resp = await fetch(config.SMS_GATEWAY_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(config.SMS_GATEWAY_TOKEN ? { "Authorization": `Bearer ${config.SMS_GATEWAY_TOKEN}` } : {})
-        },
-        body: JSON.stringify({ to, body })
-      });
-      const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(JSON.stringify(data));
-      await updateLog(logId, { status: "SENT", provider_id: data.id ?? "sms", error: null });
-      sendOk = true;
-      return { ok: true, id: logId };
-    }
-
-    throw new Error(`Unknown MESSAGE_PROVIDER: ${provider}`);
+    await updateLog(logId, { status: "SENT", provider_id: routed.providerId ?? routed.provider ?? "message", error: null });
+    sendOk = true;
+    return { ok: true, id: logId, provider: routed.provider };
   } catch (e) {
     const msg = e?.message ?? String(e);
     logger.error({ err: msg }, "sendMessage failed");

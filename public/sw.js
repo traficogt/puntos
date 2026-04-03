@@ -1,4 +1,4 @@
-const CACHE = "pf-v32";
+const CACHE = "pf-v33";
 const CORE_ASSETS = [
   "/",
   "/admin",
@@ -11,6 +11,7 @@ const CORE_ASSETS = [
   "/staff-login.html",
   "/staff.html",
   "/join.html",
+  "/ingresar.html",
   "/customer.html",
   "/admin-dashboard.html",
   "/super.html",
@@ -35,6 +36,7 @@ const CORE_ASSETS = [
   "/staff-login.js",
   "/staff.js",
   "/join.js",
+  "/ingresar.js",
   "/customer.js",
   "/admin-dashboard.js",
   "/super.js",
@@ -140,6 +142,9 @@ function fallbackForPath(pathname) {
   }
   if (/^\/join\/[^/]+$/i.test(normalizedPath)) {
     return "/join.html";
+  }
+  if (/^\/ingresar\/[^/]+$/i.test(normalizedPath)) {
+    return "/ingresar.html";
   }
   return "";
 }

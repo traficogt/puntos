@@ -15,20 +15,17 @@ test("customer return page keeps only minimal Spanish re-entry copy after removi
   const joinJs = fs.readFileSync(new URL("../../public/join.js", import.meta.url), "utf8");
 
   assert.match(html, /Tu tarjeta se abre con el enlace del negocio\./);
-  assert.match(html, /Si tu sesión venció, vuelve a abrir el enlace del negocio para entrar de nuevo\./);
+  assert.match(html, /Si tu sesión venció, usa el acceso del negocio para entrar de nuevo\./);
   assert.match(html, /No hay formulario aquí\./);
-  assert.match(joinHtml, /Activa o vuelve a abrir tu tarjeta/);
-  assert.match(joinHtml, /Confirma tu teléfono para activar o recuperar tu tarjeta del negocio\./);
+  assert.match(joinHtml, /Activa tu tarjeta/);
+  assert.match(joinHtml, /Confirma tu teléfono para activar tu tarjeta del negocio por primera vez\./);
+  assert.match(joinHtml, /id="email"/);
   assert.match(joinHtml, /id="joinEntryContext"/);
   assert.doesNotMatch(html, /id="joinFeedback"/);
   assert.doesNotMatch(html, /id="btnGoJoin"/);
   assert.doesNotMatch(html, /id="slug"/);
   assert.doesNotMatch(js, /setEntryFeedback\(\$, "#joinFeedback"/);
   assert.doesNotMatch(js, /btnGoJoin|joinFeedback|slugEl/);
-  assert.match(joinJs, /new URLSearchParams\(location\.search\)/);
-  assert.match(joinJs, /const returningSlugKey = "pf_customer_joined_slug";/);
-  assert.match(joinJs, /Tu sesión anterior de .* ya venció\./);
-  assert.match(joinJs, /Cerraste tu sesión de .* Solicita un nuevo código si quieres volver a entrar desde este navegador\./);
-  assert.match(joinJs, /localStorage\.setItem\(returningSlugKey, slug\);/);
-  assert.match(loadJs, /location\.href = `\/registro\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=sesion-vencida`/);
+  assert.match(joinJs, /mode: "register"/);
+  assert.match(loadJs, /location\.href = `\/ingresar\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=sesion-vencida`/);
 });

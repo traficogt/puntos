@@ -54,13 +54,14 @@ test("customer wallet removes the paywalled account/export block and keeps gated
   assert.match(meModule, /setHidden\(achievementsSection, !features\.gamification\)/, "expected achievements visibility to follow plan features");
 });
 
-test("logged-out wallet shell stays Spanish-first and treats /c as wallet-only entry back to registro", () => {
+test("logged-out wallet shell stays Spanish-first and treats /c as wallet-only entry back to ingresar", () => {
   const html = readCustomerShellHtml();
   const brandingModule = readCustomerBrandingModule();
 
   assert.match(html, /Tu tarjeta se abre con el enlace del negocio\./, "expected wallet-only customer entry copy");
-  assert.match(html, /Si tu sesión venció, vuelve a abrir el enlace del negocio para entrar de nuevo\./);
+  assert.match(html, /Si tu sesión venció, usa el acceso del negocio para entrar de nuevo\./);
   assert.match(html, /No hay formulario aquí\./);
+  assert.match(html, /\/ingresar\/&lt;slug&gt;/);
   assert.match(
     html,
     /<h1\b[^>]*id="customerEntryTitle"[^>]*>\s*Tu tarjeta se abre con el enlace del negocio\.\s*<\/h1>/,

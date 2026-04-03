@@ -1,5 +1,5 @@
 import { initCustomerAuthEntry } from "./customer-auth-entry.js";
 
-initCustomerAuthEntry({ mode: "register" }).catch((error) => {
+initCustomerAuthEntry({ mode: "login" }).catch((error) => {
   console.error(error);
 });

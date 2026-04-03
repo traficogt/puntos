@@ -111,8 +111,10 @@ export function isAppRoutePath(path) {
     || normalized === "/super"
     || normalized === "/super.html"
     || normalized === "/join.html"
+    || normalized === "/ingresar.html"
     || normalized === "/registro.html"
     || /^\/join\/[^/]+$/i.test(normalized)
+    || /^\/ingresar\/[^/]+$/i.test(normalized)
     || /^\/registro\/[^/]+$/i.test(normalized);
 }
 

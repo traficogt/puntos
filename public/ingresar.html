@@ -4,7 +4,7 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="theme-color" content="#0b0f14"/>
-  <title>Registro • PuntosFieles</title>
+  <title>Ingresar • PuntosFieles</title>
   <link rel="icon" href="/icon.svg?v=4" type="image/svg+xml"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
@@ -19,8 +19,8 @@
     <div class="brand brand-lockup">
       <img id="customerBrandLogo" class="customer-brand-logo" alt="" hidden/>
       <div class="brand-copy">
-        <span class="brand-kicker" id="customerBrandKicker">Alta de cliente</span>
-        <span class="brand-title" id="customerBrandTitle">Registro</span>
+        <span class="brand-kicker" id="customerBrandKicker">Acceso de cliente</span>
+        <span class="brand-title" id="customerBrandTitle">Ingresar</span>
       </div>
     </div>
     <div class="row">
@@ -33,28 +33,28 @@
   <div class="container">
     <section class="join-shell">
       <div class="join-intro card">
-        <p class="section-kicker">Activación rápida</p>
-        <h1 id="title">Activa tu tarjeta</h1>
-        <p id="subtitle" class="lede">Confirma tu teléfono para activar tu tarjeta del negocio por primera vez.</p>
+        <p class="section-kicker">Acceso rápido</p>
+        <h1 id="title">Ingresa a tu tarjeta</h1>
+        <p id="subtitle" class="lede">Solicita un código para volver a abrir tu tarjeta.</p>
         <p id="joinEntryContext" class="small cus-entry-feedback is-hidden"></p>
         <p class="small brand-powered-by" id="customerPoweredBy">Powered by PuntosFieles</p>
         <div class="onboarding-steps onboarding-steps-vertical">
           <div class="step-pill active" id="joinStepRequest">1. Solicitar código</div>
           <div class="step-pill" id="joinStepVerify">2. Verificar</div>
-          <div class="step-pill" id="joinStepDone">3. Tarjeta activa</div>
+          <div class="step-pill" id="joinStepDone">3. Tarjeta abierta</div>
         </div>
         <div class="join-note-stack">
           <div class="join-note">
-            <strong>Sin app store</strong>
-            <span>Tu tarjeta se abre directo en el navegador.</span>
+            <strong>Sin contraseña</strong>
+            <span>Vuelves a entrar con un código temporal.</span>
           </div>
           <div class="join-note">
-            <strong>Código temporal</strong>
-            <span>La verificación protege el acceso sin pedir contraseña.</span>
+            <strong>WhatsApp o correo</strong>
+            <span>Te enviamos el código según la configuración del negocio.</span>
           </div>
           <div class="join-note">
-            <strong>Listo para usar</strong>
-            <span>Al terminar entras de una vez a tu tarjeta activa.</span>
+            <strong>Mismo navegador</strong>
+            <span>Después del código, tu tarjeta se abre de nuevo aquí.</span>
           </div>
         </div>
       </div>
@@ -78,25 +78,25 @@
           <h2>2. Verificar</h2>
           <label>Código</label>
           <input id="code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code"/>
-          <button class="primary" id="btnVerify">Verificar y crear tarjeta</button>
+          <button class="primary" id="btnVerify">Verificar y entrar</button>
           <p class="small cus-entry-feedback" id="joinVerifyFeedback"></p>
           <div class="hr"></div>
-          <a class="badge badge-soft" id="entryModeLink" href="#"><span id="entryModeLinkText">Ya tengo tarjeta</span></a>
+          <a class="badge badge-soft" id="entryModeLink" href="#"><span id="entryModeLinkText">Todavía no tengo tarjeta</span></a>
         </div>
       </div>
     </section>
 
-      <div class="card join-done is-hidden" id="done">
-        <p class="section-kicker">Verificación completa</p>
-        <h2 id="doneTitle">Tu tarjeta ya está activa.</h2>
-        <p id="doneSubtitle">En breve abrimos tu vista de cliente para que puedas mostrar tu QR y ver tus puntos.</p>
-        <div class="row">
-          <a class="button-link button-link-primary" href="/c" data-shell-link="customer-wallet">Abrir mi tarjeta</a>
-        </div>
+    <div class="card join-done is-hidden" id="done">
+      <p class="section-kicker">Verificación completa</p>
+      <h2 id="doneTitle">Tarjeta reactivada.</h2>
+      <p id="doneSubtitle">En breve abrimos tu vista de cliente otra vez para que sigas usando tu tarjeta.</p>
+      <div class="row">
+        <a class="button-link button-link-primary" href="/c" data-shell-link="customer-wallet">Abrir mi tarjeta</a>
+      </div>
     </div>
   </div>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="/join.js"></script>
+  <script type="module" src="/ingresar.js"></script>
 </body>
 </html>

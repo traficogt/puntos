@@ -82,7 +82,7 @@ function sanitizeCustomerBrandingForPublic(customerBrandingJson) {
 
 publicRoutes.get("/public/business/:slug", asyncRoute(async (req, res) => {
   const business = await BusinessRepo.getPublicBySlug(req.params.slug);
-  if (!business) return res.status(404).json({ error: "Business not found" });
+  if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
   res.json({
     id: business.id,
     name: business.name,
@@ -104,11 +104,16 @@ publicRoutes.post("/public/business/:slug/join/request-code", strictRateLimit, r
   if (!v.ok) return res.status(400).json({ error: v.error });
 
 	const business = await BusinessRepo.getPublicBySlug(req.params.slug);
-	if (!business) return res.status(404).json({ error: "Business not found" });
+	if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
 	await setTenantForRequest(req, business.id);
 
 	const phone = normalizePhone(v.data.phone);
-	const out = await requestJoinCode({ business, phone, name: v.data.name ?? null });
+	const out = await requestJoinCode({
+    business,
+    phone,
+    email: v.data.email ?? null,
+    name: v.data.name ?? null
+  });
 
   res.json(out);
 }));
@@ -152,7 +157,7 @@ publicRoutes.post("/public/business/:slug/join/verify", moderateRateLimit, rateL
   if (!v.ok) return res.status(400).json({ error: v.error });
 
 	const business = await BusinessRepo.getPublicBySlug(req.params.slug);
-	if (!business) return res.status(404).json({ error: "Business not found" });
+	if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
 	await setTenantForRequest(req, business.id);
 
 	const phone = normalizePhone(v.data.phone);
