@@ -12,7 +12,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const { config } = await import("../../src/config/index.js");
-const { superRoutes } = await import("../../src/app/routes/super-routes.js");
+const { superMagicLinkRoutes } = await import("../../src/app/routes/super-magic-link-routes.js");
 const { publicRoutes } = await import("../../src/app/routes/public-routes.js");
 const { BusinessRepo } = await import("../../src/app/repositories/business-repository.js");
 const { StaffRepo } = await import("../../src/app/repositories/staff-repository.js");
@@ -72,7 +72,7 @@ async function runFinalHandler(layer, req) {
 }
 
 test("super magic-link generation returns an owner panel link and audits it", async () => {
-  const layer = routeLayer(superRoutes, "/super/magic-links", "post");
+  const layer = routeLayer(superMagicLinkRoutes, "/super/magic-links", "post");
   assert.ok(layer, "Expected POST /super/magic-links");
 
   const staffId = "11111111-1111-4111-8111-111111111111";
@@ -133,7 +133,7 @@ test("super magic-link generation returns an owner panel link and audits it", as
 });
 
 test("super magic-link generation rejects actor and business mismatches", async () => {
-  const layer = routeLayer(superRoutes, "/super/magic-links", "post");
+  const layer = routeLayer(superMagicLinkRoutes, "/super/magic-links", "post");
   assert.ok(layer, "Expected POST /super/magic-links");
 
   const customerId = "44444444-4444-4444-8444-444444444444";
@@ -173,7 +173,7 @@ test("super magic-link generation rejects actor and business mismatches", async 
 });
 
 test("super magic-link generation rejects inactive staff users", async () => {
-  const layer = routeLayer(superRoutes, "/super/magic-links", "post");
+  const layer = routeLayer(superMagicLinkRoutes, "/super/magic-links", "post");
   assert.ok(layer, "Expected POST /super/magic-links");
 
   const staffId = "12345678-1234-4234-8234-123456789012";
@@ -215,7 +215,7 @@ test("super magic-link generation rejects inactive staff users", async () => {
 });
 
 test("super business staff endpoint filters inactive and unsupported roles", async () => {
-  const layer = routeLayer(superRoutes, "/super/businesses/:businessId/staff", "get");
+  const layer = routeLayer(superMagicLinkRoutes, "/super/businesses/:businessId/staff", "get");
   assert.ok(layer, "Expected GET /super/businesses/:businessId/staff");
 
   const businessId = "22222222-2222-4222-8222-222222222222";
@@ -247,7 +247,7 @@ test("super business staff endpoint filters inactive and unsupported roles", asy
 });
 
 test("super business customer endpoint returns a bounded list", async () => {
-  const layer = routeLayer(superRoutes, "/super/businesses/:businessId/customers", "get");
+  const layer = routeLayer(superMagicLinkRoutes, "/super/businesses/:businessId/customers", "get");
   assert.ok(layer, "Expected GET /super/businesses/:businessId/customers");
 
   const businessId = "22222222-2222-4222-8222-222222222222";
@@ -279,7 +279,7 @@ test("super business customer endpoint returns a bounded list", async () => {
 });
 
 test("super business staff endpoint returns 404 when the business does not exist", async () => {
-  const layer = routeLayer(superRoutes, "/super/businesses/:businessId/staff", "get");
+  const layer = routeLayer(superMagicLinkRoutes, "/super/businesses/:businessId/staff", "get");
   assert.ok(layer, "Expected GET /super/businesses/:businessId/staff");
 
   const originalGetById = BusinessRepo.getById;

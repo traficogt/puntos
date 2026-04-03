@@ -9,6 +9,7 @@ import referralRoutes from "./referral-routes.js";
 import gamificationRoutes from "./gamification-routes.js";
 import analyticsRoutes from "./analytics-routes.js";
 import { superRoutes } from "./super-routes.js";
+import { superMagicLinkRoutes } from "./super-magic-link-routes.js";
 import { paymentWebhookRoutes } from "./payment-webhook-routes.js";
 import giftCardRoutes from "./gift-card-routes.js";
 import docsRoutes from "./docs-routes.js";
@@ -27,6 +28,7 @@ const mountRoutes = (basePath) => {
   apiRoutes.use(basePath, gamificationRoutes);
   apiRoutes.use(basePath, analyticsRoutes);
   apiRoutes.use(basePath, superRoutes);
+  apiRoutes.use(basePath, superMagicLinkRoutes);
   apiRoutes.use(basePath, paymentWebhookRoutes);
   apiRoutes.use(basePath, giftCardRoutes);
 };
