@@ -745,6 +745,18 @@ body.page-marketing .brand-mark {
         linear-gradient(180deg, color-mix(in srgb, var(--paper-strong) 94%, transparent), color-mix(in srgb, var(--paper) 86%, transparent));
 }
 
+.staff-customer-summary[data-customer-state="waiting"] .staff-ready-chip {
+    background: color-mix(in srgb, var(--paper) 82%, transparent);
+    border-color: color-mix(in srgb, var(--line) 94%, transparent);
+    color: var(--muted);
+}
+
+.staff-customer-summary[data-customer-state="ready"] .staff-ready-chip {
+    background: color-mix(in srgb, var(--accent) 18%, var(--paper));
+    border-color: color-mix(in srgb, var(--accent-deep) 28%, var(--line));
+    color: var(--text);
+}
+
 .staff-ready-chip {
     display: inline-flex;
     align-items: center;
@@ -797,7 +809,7 @@ body.page-marketing .brand-mark {
 
 .staff-action-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
 }
 
@@ -818,8 +830,23 @@ body.page-marketing .brand-mark {
     gap: 12px;
 }
 
+.staff-action-rail[data-customer-state="waiting"] .staff-action-block:not(.staff-action-block-secondary) {
+    opacity: 0.58;
+    filter: saturate(0.76);
+}
+
+.staff-action-rail[data-customer-state="ready"] .staff-action-block:not(.staff-action-block-secondary) {
+    opacity: 1;
+    filter: none;
+}
+
 .staff-action-block-secondary {
-    opacity: 0.92;
+    grid-column: 1 / -1;
+    padding: 18px 18px 16px;
+    border-style: dashed;
+    border-color: color-mix(in srgb, var(--line) 82%, transparent);
+    background: color-mix(in srgb, var(--paper) 64%, transparent);
+    opacity: 0.82;
 }
 
 .staff-support-grid {

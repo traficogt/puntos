@@ -29,6 +29,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   let rewardOptions = [];
   /** @type {Set<string> | null} */
   let permissionSet = null;
+  const selectionPromptCopy = "Escanea o ingresa el código del cliente para continuar.";
 
   function isAuthError(error) {
     const code = String(error?.code || "");
@@ -189,6 +190,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
 
     // Analytics quick panel remains owner-only because endpoint is owner-only.
     setHidden(element("#ownerAnalyticsCard"), staff.role !== "OWNER");
+    updateCustomerSurfaceState();
   }
 
   async function loadPermissions() {
@@ -225,11 +227,78 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     updateAwardPreview();
   }
 
+  function getEligibleRewardCount() {
+    return rewardOptions.reduce((count, reward) => {
+      return count + (lastCustomerPoints >= Number(reward.points_cost || 0) ? 1 : 0);
+    }, 0);
+  }
+
+  function updateCustomerSurfaceState(statusMessage = "") {
+    const hasCustomer = Boolean(lastCustomerId);
+    const customerState = hasCustomer ? "ready" : "waiting";
+    const readyChip = element("#customerReadyChip");
+    const customerSummary = element("#staffCustomerSummary");
+    const actionRail = element("#staffActionRail");
+    const customerActionStatus = element("#customerActionStatus");
+    const customerRewardState = element("#customerRewardState");
+    const rewardHint = element("#rewardSelectionHint");
+    const selectionStatus = element("#selectionStatus");
+    const awardButton = /** @type {HTMLButtonElement} */ (element("#btnAward"));
+    const redeemButton = /** @type {HTMLButtonElement} */ (element("#btnRedeem"));
+    const rewardSelectEl = select("#rewardSelect");
+    const eligibleRewardCount = getEligibleRewardCount();
+    const hasRedeemableReward = hasCustomer && eligibleRewardCount > 0;
+
+    if (readyChip) readyChip.textContent = hasCustomer ? "Cliente listo" : "Esperando cliente";
+    if (customerSummary) customerSummary.dataset.customerState = customerState;
+    if (actionRail) {
+      actionRail.dataset.customerState = customerState;
+      actionRail.classList.toggle("is-customer-ready", hasCustomer);
+      actionRail.classList.toggle("is-customer-waiting", !hasCustomer);
+    }
+
+    if (selectionStatus) {
+      selectionStatus.textContent = hasCustomer
+        ? `Cliente seleccionado: ${lastCustomerId}. Ahora puedes registrar o canjear.`
+        : selectionPromptCopy;
+    }
+
+    if (customerActionStatus) {
+      customerActionStatus.textContent = statusMessage || (hasCustomer
+        ? "Cliente listo. Ahora puedes registrar puntos o canjear una recompensa."
+        : selectionPromptCopy);
+    }
+
+    if (customerRewardState) {
+      if (!hasCustomer) {
+        customerRewardState.textContent = "Aún no disponible";
+      } else if (!rewardOptions.length) {
+        customerRewardState.textContent = "Sin recompensas activas";
+      } else if (eligibleRewardCount === 1) {
+        customerRewardState.textContent = "1 recompensa disponible";
+      } else {
+        customerRewardState.textContent = `${eligibleRewardCount} recompensas disponibles`;
+      }
+    }
+
+    if (rewardHint) {
+      rewardHint.textContent = hasCustomer
+        ? (rewardOptions.length
+          ? "Las recompensas disponibles aparecen primero. Las que faltan puntos quedan deshabilitadas."
+          : "No hay recompensas activas para este programa.")
+        : selectionPromptCopy;
+    }
+
+    if (awardButton) awardButton.disabled = !hasPerm("staff.award") || !hasCustomer;
+    if (redeemButton) redeemButton.disabled = !hasPerm("staff.redeem") || !hasCustomer || !hasRedeemableReward;
+    rewardSelectEl.disabled = !hasCustomer || !rewardOptions.length;
+  }
+
   function updateAwardPreview() {
     const out = element("#awardPreview");
     if (!out || !programRule) return;
     if (!lastCustomerId) {
-      out.textContent = "Primero selecciona un cliente. Luego registra la compra, visita o items.";
+      out.textContent = selectionPromptCopy;
       return;
     }
     const cfg = programRule.program_json || {};
@@ -285,16 +354,11 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       sel.appendChild(opt);
     }
 
-    sel.disabled = !lastCustomerId;
-    const status = element("#selectionStatus");
-    if (hint) {
-      hint.textContent = lastCustomerId
-        ? "Las recompensas disponibles aparecen primero. Las que faltan puntos quedan deshabilitadas."
-        : "Selecciona un cliente para ver qué recompensas puede canjear ahora.";
+    sel.disabled = !lastCustomerId || !rewardOptions.length;
+    if (hint && !lastCustomerId) {
+      hint.textContent = selectionPromptCopy;
     }
-    if (status && !lastCustomerId) {
-      status.textContent = "Escanea o pega un token válido para seleccionar un cliente.";
-    }
+    updateCustomerSurfaceState();
   }
 
   function applySelectedCustomer(customer, token, { silent = true } = {}) {
@@ -305,15 +369,10 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     element("#lastCustomerName").textContent = customer?.name || "—";
     element("#lastCustomerPhone").textContent = customer?.phone || "—";
     element("#lastBalance").textContent = customer ? String(Number(customer.points || 0)) : "—";
-    element("#lastPoints").textContent = "—";
-    const status = element("#selectionStatus");
-    if (status) {
-      status.textContent = lastCustomerId
-        ? `Cliente seleccionado: ${lastCustomerId}. Ahora puedes registrar o canjear.`
-        : "Escanea o pega un token válido para seleccionar un cliente.";
-    }
+    element("#lastPoints").textContent = customer ? String(Number(customer.points || 0)) : "—";
     updateAwardPreview();
     renderRewardOptions();
+    updateCustomerSurfaceState();
     if (!silent && lastCustomerId) {
       toast("Cliente seleccionado.");
     }
@@ -327,7 +386,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   async function selectCustomerFromToken(token, { silent = true } = {}) {
     const trimmed = String(token || "").trim();
     if (!trimmed) {
-      toast("Pega un token o escanea.");
+      toast(selectionPromptCopy);
       return false;
     }
 
@@ -412,12 +471,15 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       if (selectionStatus) {
         selectionStatus.textContent = `Cliente seleccionado: ${out.customerId}. Ahora puedes registrar o canjear.`;
       }
-      element("#lastPoints").textContent = String(out.pointsAwarded);
+      element("#lastPoints").textContent = String(out.newBalance);
       element("#lastBalance").textContent = String(out.newBalance);
       lastCustomerId = out.customerId;
       lastCustomerToken = token;
       lastCustomerPoints = Number(out.newBalance || 0);
       renderRewardOptions();
+      updateCustomerSurfaceState(out.status === "PENDING"
+        ? `Puntos pendientes: +${out.pointsAwarded} (se liberan después).`
+        : `Puntos registrados: +${out.pointsAwarded}. Nuevo saldo: ${out.newBalance}.`);
       if (out.status === "PENDING") {
         toast("Puntos pendientes: +" + out.pointsAwarded + " (se liberan después).");
       } else {
@@ -428,6 +490,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       if (!navigator.onLine || /NetworkError|Failed to fetch|fetch/i.test(error.message)) {
         await addAward({ ...payload, client_ts: new Date().toISOString() });
         await refreshQueue();
+        updateCustomerSurfaceState("Sin internet: guardado para sincronizar.");
         toast("Sin internet: guardado para sincronizar.");
         return true;
       }
@@ -486,6 +549,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     await run(async () => {
       await ensureAuth();
       if (!lastCustomerId || !lastCustomerToken) return toast("Primero selecciona un cliente.");
+      updateCustomerSurfaceState("Registrando puntos...");
       await award(lastCustomerToken);
     });
   });
@@ -616,6 +680,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       const out = /** @type {StaffRewardsResponse} */ (await api("/api/staff/rewards"));
       rewardOptions = out.rewards || [];
       renderRewardOptions();
+      updateCustomerSurfaceState();
     });
   }
 
@@ -626,14 +691,17 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     await run(async () => {
       const rewardId = select("#rewardSelect").value;
       if (!rewardId) return toast("Selecciona una recompensa disponible.");
+      updateCustomerSurfaceState("Canjeando recompensa...");
       const out = /** @type {StaffRedeemResponse} */ (await api("/api/staff/redeem", {
         method: "POST",
         body: JSON.stringify({ customerId: lastCustomerId, rewardId, requestId: uuidv4() })
       }));
       element("#redeemCode").textContent = out.redemptionCode;
       element("#lastBalance").textContent = String(out.newBalance);
+      element("#lastPoints").textContent = String(out.newBalance);
       lastCustomerPoints = Number(out.newBalance || 0);
       renderRewardOptions();
+      updateCustomerSurfaceState(`Canje listo. Código: ${out.redemptionCode}. Nuevo saldo: ${out.newBalance}.`);
       toast("Canje listo. Código: " + out.redemptionCode);
     }, (error) => {
       toast(error.message);

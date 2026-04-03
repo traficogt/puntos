@@ -75,12 +75,12 @@
       </div>
 
       <div class="staff-customer-column staff-action-stack">
-        <div class="card staff-customer-summary">
+        <div class="card staff-customer-summary" id="staffCustomerSummary" data-customer-state="waiting">
           <div class="staff-panel-heading">
             <p class="section-kicker">Cliente activo</p>
             <h2>Cliente activo</h2>
           </div>
-          <div class="staff-ready-chip">Cliente listo</div>
+          <div class="staff-ready-chip" id="customerReadyChip">Esperando cliente</div>
           <div class="staff-customer-grid">
             <div class="staff-customer-stat">
               <span>ID</span>
@@ -110,10 +110,11 @@
           <p class="small" id="customerActionStatus">Escanea o ingresa el código del cliente para continuar.</p>
         </div>
 
-        <div class="card staff-action-rail">
+        <div class="card staff-action-rail" id="staffActionRail" data-customer-state="waiting">
           <div class="staff-panel-heading">
             <p class="section-kicker">Acciones compartidas</p>
-            <h2>Registrar, canjear o usar gift cards</h2>
+            <h2>Registrar y canjear</h2>
+            <p class="small">Gift cards siguen abajo como acción secundaria.</p>
           </div>
           <div class="staff-action-grid">
             <div class="card staff-action-block">
@@ -134,27 +135,27 @@
                 </div>
               </div>
               <div class="row mt-10">
-                <button class="primary" id="btnAward">Registrar</button>
+                <button class="primary" id="btnAward" disabled>Registrar</button>
                 <button class="danger" id="btnLogout">Salir</button>
               </div>
-              <p class="small" id="awardPreview">Primero selecciona un cliente. Luego registra la compra, visita o items.</p>
+              <p class="small" id="awardPreview">Escanea o ingresa el código del cliente para continuar.</p>
             </div>
 
             <div class="card staff-action-block">
               <h3>Canjear recompensa</h3>
               <p class="small">Selecciona al cliente, luego elige la recompensa disponible y canjea.</p>
               <label>Recompensa</label>
-              <select id="rewardSelect"></select>
-              <p class="small" id="rewardSelectionHint">Selecciona un cliente para ver qué recompensas puede canjear ahora.</p>
+              <select id="rewardSelect" disabled></select>
+              <p class="small" id="rewardSelectionHint">Escanea o ingresa el código del cliente para continuar.</p>
               <div class="row mt-10">
-                <button class="primary" id="btnRedeem">Canjear</button>
+                <button class="primary" id="btnRedeem" disabled>Canjear</button>
                 <span class="badge">Código: <code id="redeemCode">—</code></span>
               </div>
             </div>
 
             <div class="card staff-action-block staff-action-block-secondary">
               <h3>Gift Cards</h3>
-              <p class="small">Canjea saldo de gift card por monto.</p>
+              <p class="small">Acción secundaria: canjea saldo de gift card por monto.</p>
               <label>Código o token</label>
               <input id="giftCode" placeholder="GC-XXXX... o gft_xxx"/>
               <label>Monto a descontar (Q)</label>
