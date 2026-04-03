@@ -44,9 +44,10 @@ test("admin dashboard core updates shell chrome from active tab state", () => {
   const core = fs.readFileSync(corePath, "utf8");
 
   assert.match(core, /const TAB_PRESENTATION =/);
-  assert.match(core, /function updateDashboardChrome/);
-  assert.match(core, /adminGrowthScope/);
-  assert.match(core, /selectedScopeLabel\(\)/);
+  assert.match(
+    core,
+    /function updateDashboardChrome\([\s\S]*?const overviewScope = \$\("#adminOverviewScope"\);\n    if \(overviewScope\) overviewScope\.textContent = selectedScopeLabel\(\);\n    const growthScope = \$\("#adminGrowthScope"\);\n    if \(growthScope\) growthScope\.textContent = selectedScopeLabel\(\);/
+  );
   assert.match(core, /adminOverviewTab/);
   assert.match(core, /adminStageDesc/);
   assert.match(core, /function focusTab/);
