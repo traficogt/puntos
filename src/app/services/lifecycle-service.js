@@ -77,7 +77,15 @@ async function processBirthdayBusiness(businessId, cfg) {
       customerId: c.id,
       channel: "lifecycle",
       to: c.phone,
-      body: `Feliz cumpleaños${c.name ? `, ${c.name}` : ""}! ${points > 0 ? `Te regalamos ${points} puntos. ` : ""}Gracias por ser parte de nuestro programa 🎉`
+      body: `Feliz cumpleaños${c.name ? `, ${c.name}` : ""}! ${points > 0 ? `Te regalamos ${points} puntos. ` : ""}Gracias por ser parte de nuestro programa 🎉`,
+      email: {
+        type: "lifecycle",
+        subject: "Feliz cumpleaños",
+        title: "Feliz cumpleaños",
+        intro: c.name ? `${c.name}, hoy celebramos contigo.` : "Hoy celebramos contigo.",
+        lines: [points > 0 ? `Te regalamos ${points} puntos.` : "Gracias por ser parte de nuestro programa."],
+        tone: "celebration"
+      }
     }).catch(() => { });
     sent += 1;
   }
@@ -127,7 +135,15 @@ async function processWinbackBusiness(businessId, cfg) {
       customerId: c.id,
       channel: "lifecycle",
       to: c.phone,
-      body: `${c.name ? `${c.name}, ` : ""}te extrañamos. ${points > 0 ? `Tienes ${points} puntos de regreso para tu próxima visita. ` : ""}¡Vuelve pronto!`
+      body: `${c.name ? `${c.name}, ` : ""}te extrañamos. ${points > 0 ? `Tienes ${points} puntos de regreso para tu próxima visita. ` : ""}¡Vuelve pronto!`,
+      email: {
+        type: "lifecycle",
+        subject: `${cfg?.winback_subject || "Queremos verte de nuevo"}`,
+        title: "Queremos verte de nuevo",
+        intro: c.name ? `${c.name}, te extrañamos.` : "Te extrañamos.",
+        lines: [points > 0 ? `Tienes ${points} puntos de regreso para tu próxima visita.` : "Tu programa sigue activo y listo para tu próxima visita."],
+        tone: "return"
+      }
     }).catch(() => { });
     sent += 1;
   }
@@ -190,7 +206,15 @@ async function processSuspiciousDigestBusiness(business, cfg) {
     customerId: null,
     channel: "alerts",
     to: business.email,
-    body: `PuntosFieles alerta diaria\n\nSe detectaron ${rows.length} transacciones sospechosas en las ultimas 24h.\n\n${lines.join("\n")}`
+    body: `PuntosFieles alerta diaria\n\nSe detectaron ${rows.length} transacciones sospechosas en las ultimas 24h.\n\n${lines.join("\n")}`,
+    email: {
+      type: "lifecycle",
+      subject: "PuntosFieles alerta diaria",
+      title: "Transacciones sospechosas detectadas",
+      intro: `Se detectaron ${rows.length} transacciones sospechosas en las últimas 24 horas.`,
+      lines,
+      tone: "alert"
+    }
   }).catch(() => { });
 
   return { sent: true, count: rows.length };

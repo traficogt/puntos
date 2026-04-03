@@ -29,7 +29,14 @@ export async function runChurnOnce({ businessId, days }) {
         customerId: c.id,
         channel: "CHURN",
         to: c.phone,
-        body
+        body,
+        email: {
+          type: "churn",
+          subject: `${business.name}: te extrañamos`,
+          title: "Te extrañamos",
+          intro: `Tu programa con ${business.name} sigue activo.`,
+          lines: [body]
+        }
       });
       if (res.ok) sent += 1;
     }

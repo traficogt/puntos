@@ -24,7 +24,7 @@ export function createSmtpProvider({ config, transportFactory = nodemailer.creat
     canSend({ destinations }) {
       return Boolean(destinations?.email && config.SMTP_HOST);
     },
-    async send({ destinations, body }) {
+    async send({ destinations, body, subject = "PuntosFieles", text = body, html = "" }) {
       const transport = transportFactory({
         host: config.SMTP_HOST,
         port: config.SMTP_PORT,
@@ -37,8 +37,9 @@ export function createSmtpProvider({ config, transportFactory = nodemailer.creat
       const info = await transport.sendMail({
         from: config.SMTP_FROM,
         to: destinations.email,
-        subject: "PuntosFieles",
-        text: body
+        subject,
+        text: String(text || body || ""),
+        ...(html ? { html } : {})
       });
       return { ok: true, providerId: info?.messageId ?? "smtp" };
     }

@@ -54,7 +54,13 @@ export async function requestJoinCode({ business, phone, email = null, name, req
     channel: "verify",
     to: phone,
     destinations: { phone, email },
-    body: `Tu código de PuntosFieles: ${code} (expira en 10 minutos)`
+    body: `Tu código de PuntosFieles: ${code} (expira en 10 minutos)`,
+    email: {
+      type: "verify",
+      businessName: business.name,
+      code,
+      expiresText: "Vence en 10 minutos."
+    }
   });
   if (!sent?.ok) {
     await ignore(VerifyCodeRepo.deleteById(verifyCodeId));

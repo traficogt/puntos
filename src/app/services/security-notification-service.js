@@ -16,6 +16,13 @@ export async function sendSecurityNotification({
     channel: "security",
     to: target,
     body,
+    subject: String(subject || "PuntosFieles seguridad"),
+    email: {
+      type: "security",
+      subject: String(subject || "PuntosFieles seguridad"),
+      title: String(subject || "PuntosFieles seguridad"),
+      lines
+    },
     privilegedLog: true
   });
   if (!result?.ok) {

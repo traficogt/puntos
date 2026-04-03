@@ -2,6 +2,9 @@
  * @typedef {{
  *   channel: string,
  *   body: string,
+ *   subject?: string | null,
+ *   text?: string | null,
+ *   html?: string | null,
  *   destinations: { phone?: string | null, email?: string | null }
  * }} RoutedMessage
  */

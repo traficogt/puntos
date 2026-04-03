@@ -4,12 +4,15 @@ import { MessageLogRepo } from "../repositories/message-log-repository.js";
 import crypto from "node:crypto";
 import { emitBillingEvent } from "./billing-service.js";
 import { createMessageRouter } from "./messaging/message-router.js";
+import { resolveEmailBranding } from "./messaging/email-branding.js";
+import { renderEmailMessage } from "./messaging/email-renderer.js";
 import { createDevProvider } from "./messaging/providers/dev-provider.js";
 import { createSmtpProvider } from "./messaging/providers/smtp-provider.js";
 import { createWhatsAppCloudProvider } from "./messaging/providers/whatsapp-cloud-provider.js";
 import { createWahaProvider } from "./messaging/providers/waha-provider.js";
 import { createTwilioProvider } from "./messaging/providers/twilio-provider.js";
 import { createBaileysProvider } from "./messaging/providers/baileys-provider.js";
+import { BusinessRepo } from "../repositories/business-repository.js";
 
 function id() { return crypto.randomUUID(); }
 
@@ -44,7 +47,19 @@ function buildRouter() {
   });
 }
 
-export async function sendMessage({ businessId, customerId = null, channel, to, body, privilegedLog = false, destinations = null }) {
+export async function sendMessage({
+  businessId,
+  customerId = null,
+  channel,
+  to,
+  body,
+  subject = null,
+  text = null,
+  html = null,
+  email = null,
+  privilegedLog = false,
+  destinations = null
+}) {
   const logId = id();
   const safeBody = channel === "verify" ? String(body).replace(/\b\d{6}\b/g, "******") : body;
   const createLog = privilegedLog ? MessageLogRepo.createSecurity.bind(MessageLogRepo) : MessageLogRepo.create.bind(MessageLogRepo);
@@ -65,10 +80,32 @@ export async function sendMessage({ businessId, customerId = null, channel, to, 
 
   let sendOk = false;
   try {
+    let resolvedSubject = subject;
+    let resolvedText = text || body;
+    let resolvedHtml = html;
+    if (resolvedDestinations.email) {
+      const branding = await resolveEmailBranding({
+        businessId,
+        getBusinessById: BusinessRepo.getById.bind(BusinessRepo)
+      });
+      const renderedEmail = await renderEmailMessage({
+        channel,
+        body,
+        branding,
+        email: email || (subject ? { subject } : null)
+      });
+      resolvedSubject = resolvedSubject || renderedEmail.subject;
+      resolvedText = resolvedText || renderedEmail.text;
+      resolvedHtml = resolvedHtml || renderedEmail.html;
+    }
+
     const router = buildRouter();
     const routed = await router.send({
       channel,
       body,
+      subject: resolvedSubject,
+      text: resolvedText,
+      html: resolvedHtml,
       destinations: resolvedDestinations
     });
     if (!routed?.ok) {
