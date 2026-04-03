@@ -32,8 +32,8 @@ test("staff shell makes customer selection explicit before award or redeem", () 
   assert.match(html, /aria-live="polite"/, "expected the action status to be politely announced");
   assert.match(html, /Escanea o ingresa el código del cliente para continuar\./, "expected explicit pre-selection guidance");
   assert.match(source, /Escanea o ingresa el código del cliente para continuar\./, "expected the approved pre-selection copy to be reused");
-  assert.match(source, /hasRedeemableReward/, "expected redeem availability to be derived from customer state");
-  assert.match(source, /rewardSelectEl\.disabled/, "expected redeem select availability to follow redeem state");
+  assert.match(source, /Tu rol no permite canjear recompensas\./, "expected the surface to explain when redeem is unavailable by role");
+  assert.match(source, /Canje no disponible para tu rol/, "expected the active-customer summary to explain role-based redeem limits");
   assert.match(source, /\/api\/staff\/customer\/lookup/, "expected selected customers to be resolved through the lookup endpoint");
   assert.doesNotMatch(scanLoop, /await award\(token\);/, "expected QR scan not to auto-award points");
   assert.match(source, /customerQrToken/, "expected scanned tokens to be sent through customer lookup");

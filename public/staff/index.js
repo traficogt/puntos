@@ -236,6 +236,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
 
   function updateCustomerSurfaceState(statusMessage = "") {
     const hasCustomer = Boolean(lastCustomerId);
+    const canRedeem = hasPerm("staff.redeem");
     const customerState = hasCustomer ? "ready" : "waiting";
     const readyChip = element("#customerReadyChip");
     const customerSummary = element("#staffCustomerSummary");
@@ -248,7 +249,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     const redeemButton = /** @type {HTMLButtonElement} */ (element("#btnRedeem"));
     const rewardSelectEl = select("#rewardSelect");
     const eligibleRewardCount = getEligibleRewardCount();
-    const hasRedeemableReward = hasCustomer && eligibleRewardCount > 0;
+    const hasRedeemableReward = canRedeem && hasCustomer && eligibleRewardCount > 0;
 
     if (readyChip) readyChip.textContent = hasCustomer ? "Cliente listo" : "Esperando cliente";
     if (customerSummary) customerSummary.dataset.customerState = customerState;
@@ -266,13 +267,19 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
 
     if (customerActionStatus) {
       customerActionStatus.textContent = statusMessage || (hasCustomer
-        ? "Cliente listo. Ahora puedes registrar puntos o canjear una recompensa."
+        ? (canRedeem
+          ? (eligibleRewardCount > 0
+            ? "Cliente listo. Ahora puedes registrar puntos o canjear una recompensa."
+            : "Cliente listo. Ahora puedes registrar puntos; no hay recompensas canjeables ahora.")
+          : "Cliente listo. Ahora puedes registrar puntos.")
         : selectionPromptCopy);
     }
 
     if (customerRewardState) {
       if (!hasCustomer) {
         customerRewardState.textContent = "Aún no disponible";
+      } else if (!canRedeem) {
+        customerRewardState.textContent = "Canje no disponible para tu rol";
       } else if (!rewardOptions.length) {
         customerRewardState.textContent = "Sin recompensas activas";
       } else if (eligibleRewardCount === 1) {
@@ -284,14 +291,16 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
 
     if (rewardHint) {
       rewardHint.textContent = hasCustomer
-        ? (rewardOptions.length
-          ? "Las recompensas disponibles aparecen primero. Las que faltan puntos quedan deshabilitadas."
-          : "No hay recompensas activas para este programa.")
+        ? (!canRedeem
+          ? "Tu rol no permite canjear recompensas."
+          : (rewardOptions.length
+            ? "Las recompensas disponibles aparecen primero. Las que faltan puntos quedan deshabilitadas."
+            : "No hay recompensas activas para este programa."))
         : selectionPromptCopy;
     }
 
     if (awardButton) awardButton.disabled = !hasPerm("staff.award") || !hasCustomer;
-    if (redeemButton) redeemButton.disabled = !hasPerm("staff.redeem") || !hasCustomer || !hasRedeemableReward;
+    if (redeemButton) redeemButton.disabled = !hasRedeemableReward;
     rewardSelectEl.disabled = !hasRedeemableReward;
   }
 
@@ -355,7 +364,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       sel.appendChild(opt);
     }
 
-    sel.disabled = !lastCustomerId || !getEligibleRewardCount();
+    sel.disabled = !hasPerm("staff.redeem") || !lastCustomerId || !getEligibleRewardCount();
     if (hint && !lastCustomerId) {
       hint.textContent = selectionPromptCopy;
     }
