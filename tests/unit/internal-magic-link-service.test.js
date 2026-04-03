@@ -61,6 +61,19 @@ test("buildInternalMagicLink returns staff and customer magic-link URLs with the
   assert.deepEqual(created.map((record) => record.purpose), ["internal_test_access", "internal_test_access"]);
 });
 
+test("buildInternalMagicLink rejects invalid customer targets in Spanish", async () => {
+  await assert.rejects(
+    () => buildInternalMagicLink({
+      actorType: "customer",
+      actor: { id: "customer-1", business_id: "biz-1" },
+      target: "admin-dashboard",
+      createdBy: "super@test.com",
+      origin: "https://app.example.com"
+    }),
+    /no puede abrir ese destino/i
+  );
+});
+
 test("consumeInternalMagicLink rejects invalid tokens in Spanish", async () => {
   await assert.rejects(
     () => consumeInternalMagicLink("bad-token", {}, {
@@ -85,6 +98,78 @@ test("consumeInternalMagicLink rejects already-used single-use tokens in Spanish
     }),
     /ya fue usado/i
   );
+});
+
+test("consumeInternalMagicLink rejects staff links that cannot be consumed anymore", async () => {
+  await assert.rejects(
+    () => consumeInternalMagicLink("race-token", {}, {
+      InternalMagicLinkRepo: {
+        lookupByTokenHash: async () => ({
+          id: "link-1",
+          actor_type: "staff",
+          actor_id: "staff-1",
+          business_id: "biz-1",
+          target: "staff",
+          usage_mode: "single_use",
+          used_at: null
+        }),
+        consumeSingleUse: async () => null
+      },
+      StaffRepo: {
+        getById: async () => ({
+          id: "staff-1",
+          business_id: "biz-1",
+          branch_id: "branch-1",
+          role: "CASHIER"
+        })
+      },
+      signStaffToken: async () => "staff-token"
+    }),
+    /ya fue usado/i
+  );
+});
+
+test("consumeInternalMagicLink returns /staff with the pf_staff cookie name", async () => {
+  const consumeCalls = [];
+  const result = await consumeInternalMagicLink("staff-token", { ip: "127.0.0.1", ua: "staff-agent" }, {
+    InternalMagicLinkRepo: {
+      lookupByTokenHash: async () => ({
+        id: "link-staff",
+        actor_type: "staff",
+        actor_id: "staff-1",
+        business_id: "biz-1",
+        target: "staff",
+        usage_mode: "single_use",
+        used_at: null
+      }),
+      consumeSingleUse: async (id, meta) => {
+        consumeCalls.push({ id, meta });
+        return { id };
+      }
+    },
+    StaffRepo: {
+      getById: async () => ({
+        id: "staff-1",
+        business_id: "biz-1",
+        branch_id: "branch-1",
+        role: "CASHIER"
+      })
+    },
+    signStaffToken: async (payload) => `staff-token:${payload.sid}:${payload.bid}`,
+    config: {
+      CUSTOMER_COOKIE_NAME: "pf_customer",
+      STAFF_COOKIE_NAME: "pf_staff"
+    }
+  });
+
+  assert.equal(result.actorType, "staff");
+  assert.equal(result.cookieName, "pf_staff");
+  assert.equal(result.redirectTo, "/staff");
+  assert.equal(result.token, "staff-token:staff-1:biz-1");
+  assert.deepEqual(consumeCalls, [{
+    id: "link-staff",
+    meta: { ip: "127.0.0.1", ua: "staff-agent" }
+  }]);
 });
 
 test("customer consume returns /c with the pf_customer cookie name", async () => {
@@ -126,4 +211,28 @@ test("customer consume returns /c with the pf_customer cookie name", async () =>
     id: "link-2",
     meta: { ip: "127.0.0.1", ua: "test-agent" }
   });
+});
+
+test("customer consume rejects invalid customer targets in Spanish", async () => {
+  await assert.rejects(
+    () => consumeInternalMagicLink("wrong-target", {}, {
+      InternalMagicLinkRepo: {
+        lookupByTokenHash: async () => ({
+          id: "link-2",
+          actor_type: "customer",
+          actor_id: "customer-1",
+          business_id: "biz-1",
+          target: "admin-dashboard",
+          usage_mode: "reusable_window"
+        })
+      },
+      CustomerRepo: {
+        getById: async () => ({
+          id: "customer-1",
+          business_id: "biz-1"
+        })
+      }
+    }),
+    /no puede abrir ese destino/i
+  );
 });

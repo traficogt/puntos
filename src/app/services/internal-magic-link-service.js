@@ -41,16 +41,29 @@ function normalizeTargetRoute(actorType) {
   return actorType === "customer" ? "customer" : "staff";
 }
 
+function assertValidTargetForActor(actorType, target, actor = null) {
+  if (actorType === "customer") {
+    if (target !== "customer-wallet") {
+      throw badRequest("Este cliente no puede abrir ese destino.");
+    }
+    return;
+  }
+
+  if (!["staff", "admin-dashboard"].includes(String(target || ""))) {
+    throw badRequest("Este usuario no puede abrir ese destino.");
+  }
+  if (target === "admin-dashboard" && String(actor?.role || "").toUpperCase() !== "OWNER") {
+    throw badRequest("Este usuario no puede abrir ese destino.");
+  }
+}
+
 export async function buildInternalMagicLink({ actorType, actor, target, createdBy, origin }, deps = {}) {
   const resolvedDeps = resolveDeps(deps);
   const normalizedActorType = normalizeActorType(actorType);
   if (!["staff", "customer"].includes(normalizedActorType)) {
     throw badRequest("Tipo de actor inválido.");
   }
-
-  if (normalizedActorType === "staff" && target === "admin-dashboard" && String(actor?.role || "").toUpperCase() !== "OWNER") {
-    throw badRequest("Este usuario no puede abrir ese destino.");
-  }
+  assertValidTargetForActor(normalizedActorType, target, actor);
 
   const usageMode = normalizedActorType === "customer" ? "reusable_window" : "single_use";
   const rawToken = makeRawToken(resolvedDeps.randomBytes);
@@ -104,13 +117,17 @@ export async function consumeInternalMagicLink(rawToken, meta = {}, deps = {}) {
     if (String(staff.business_id) !== String(record.business_id)) {
       throw badRequest("Este usuario no pertenece a ese negocio.");
     }
+    assertValidTargetForActor("staff", record.target, staff);
+    const consumed = await resolvedDeps.repo.consumeSingleUse(record.id, meta);
+    if (!consumed) {
+      throw badRequest("Este enlace ya fue usado.");
+    }
     const tokenValue = await resolvedDeps.signStaff({
       sid: staff.id,
       bid: staff.business_id,
       brid: staff.branch_id,
       role: staff.role
     });
-    await resolvedDeps.repo.consumeSingleUse(record.id, meta);
     return {
       actorType: "staff",
       cookieName: resolvedDeps.runtimeConfig.STAFF_COOKIE_NAME,
@@ -127,11 +144,15 @@ export async function consumeInternalMagicLink(rawToken, meta = {}, deps = {}) {
     if (String(customer.business_id) !== String(record.business_id)) {
       throw badRequest("Este cliente no pertenece a ese negocio.");
     }
+    assertValidTargetForActor("customer", record.target, customer);
+    const touched = await resolvedDeps.repo.touchReusable(record.id, meta);
+    if (!touched) {
+      throw badRequest("Este enlace no es válido.");
+    }
     const tokenValue = await resolvedDeps.signCustomer({
       cid: customer.id,
       bid: customer.business_id
     });
-    await resolvedDeps.repo.touchReusable(record.id, meta);
     return {
       actorType: "customer",
       cookieName: resolvedDeps.runtimeConfig.CUSTOMER_COOKIE_NAME,
