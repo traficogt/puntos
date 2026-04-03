@@ -48,6 +48,13 @@ export const CreateBusinessUserSchema = z.object({
   allow_multi_owner: z.boolean().optional()
 });
 
+export const InternalMagicLinkCreateSchema = z.object({
+  actorType: z.enum(["staff", "customer"]),
+  actorId: z.string().uuid(),
+  businessId: z.string().uuid(),
+  target: z.enum(["staff", "admin-dashboard", "customer-wallet"])
+});
+
 export function getSupportedPlans() {
   return listPlans().map((plan) => plan.plan);
 }

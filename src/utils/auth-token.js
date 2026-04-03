@@ -108,3 +108,11 @@ export function cookieOptsWith(reqOrOverrides = null, maybeOverrides = {}) {
     ...overrides
   };
 }
+
+export function staffCookieOptions(req = null) {
+  return cookieOptsWith(req, { maxAge: browserCookieMaxAge("STAFF") });
+}
+
+export function customerCookieOptions(req = null) {
+  return cookieOptsWith(req, { maxAge: browserCookieMaxAge("CUSTOMER") });
+}
