@@ -49,8 +49,9 @@ test("renderEmailMessage renders platform branding when no business branding is 
     branding: {
       scope: "platform",
       brandName: "PuntosFieles",
-      logoUrl: "https://puntosfieles.com/icon-192.png",
-      wordmarkUrl: "https://puntosfieles.com/pf-email-wordmark.png",
+      logoUrl: "https://puntosfieles.com/icon-192.png?v=2",
+      wordmarkUrl: "https://puntosfieles.com/pf-email-wordmark.png?v=2",
+      lockupUrl: "https://puntosfieles.com/pf-email-lockup.png?v=2",
       primaryColor: "#6D3524",
       accentColor: "#D7A554",
       poweredByVisible: false
@@ -66,7 +67,7 @@ test("renderEmailMessage renders platform branding when no business branding is 
   assert.equal(out.subject, "Prueba de seguridad");
   assert.equal(out.html.includes("PuntosFieles"), true);
   assert.equal(out.html.includes("Actividad detectada"), true);
-  assert.equal(out.html.includes("pf-email-wordmark.png"), true);
+  assert.equal(out.html.includes("pf-email-lockup.png?v=2"), true);
 });
 
 test("renderEmailMessage renders lifecycle email content", async () => {

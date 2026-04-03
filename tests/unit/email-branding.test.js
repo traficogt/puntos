@@ -12,8 +12,9 @@ test("resolveEmailBranding uses platform defaults without business context", asy
   assert.equal(branding.scope, "platform");
   assert.equal(branding.brandName, "PuntosFieles");
   assert.equal(branding.poweredByVisible, false);
-  assert.match(branding.logoUrl, /icon-192\.png$/);
-  assert.match(branding.wordmarkUrl, /pf-email-wordmark\.png$/);
+  assert.match(branding.logoUrl, /icon-192\.png\?v=2$/);
+  assert.match(branding.wordmarkUrl, /pf-email-wordmark\.png\?v=2$/);
+  assert.match(branding.lockupUrl, /pf-email-lockup\.png\?v=2$/);
   assert.match(branding.primaryColor, /^#/);
 });
 
@@ -37,6 +38,7 @@ test("resolveEmailBranding uses tenant branding when business context exists", a
   assert.equal(branding.brandName, "Recompensas Cafe Bourbon");
   assert.equal(branding.logoUrl, "https://cdn.example.com/logo.png");
   assert.equal(branding.wordmarkUrl, "");
+  assert.equal(branding.lockupUrl, "");
   assert.equal(branding.primaryColor, "#6D3524");
   assert.equal(branding.accentColor, "#D7A554");
   assert.equal(branding.poweredByVisible, true);
@@ -56,6 +58,7 @@ test("resolveEmailBranding falls back to business name and safe defaults when te
   assert.equal(branding.brandName, "Cafe Central");
   assert.equal(branding.logoUrl, "");
   assert.equal(branding.wordmarkUrl, "");
+  assert.equal(branding.lockupUrl, "");
   assert.match(branding.primaryColor, /^#/);
   assert.match(branding.accentColor, /^#/);
 });

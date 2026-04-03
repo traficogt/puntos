@@ -19,8 +19,9 @@ function baseOrigin() {
 const PLATFORM_EMAIL_BRANDING = {
   scope: "platform",
   brandName: "PuntosFieles",
-  logoUrl: `${baseOrigin()}/icon-192.png`,
-  wordmarkUrl: `${baseOrigin()}/pf-email-wordmark.png`,
+  logoUrl: `${baseOrigin()}/icon-192.png?v=2`,
+  wordmarkUrl: `${baseOrigin()}/pf-email-wordmark.png?v=2`,
+  lockupUrl: `${baseOrigin()}/pf-email-lockup.png?v=2`,
   primaryColor: "#6D3524",
   accentColor: "#D7A554",
   poweredByVisible: false
@@ -58,6 +59,7 @@ export async function resolveEmailBranding({
     brandName: String(raw.customer_program_name || source.name || PLATFORM_EMAIL_BRANDING.brandName).trim(),
     logoUrl: normalizeLogoUrl(raw.customer_logo_url),
     wordmarkUrl: "",
+    lockupUrl: "",
     primaryColor: normalizeHexColor(raw.primary_color, PLATFORM_EMAIL_BRANDING.primaryColor),
     accentColor: normalizeHexColor(raw.accent_color, PLATFORM_EMAIL_BRANDING.accentColor),
     poweredByVisible: raw.powered_by_visible !== false

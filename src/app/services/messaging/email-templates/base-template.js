@@ -31,6 +31,9 @@ export function renderBaseEmailTemplate({
   footerText = ""
 }) {
   const brandName = escapeHtml(branding.brandName);
+  const lockupHtml = branding.lockupUrl
+    ? `<img src="${escapeHtml(branding.lockupUrl)}" alt="${brandName}" width="318" height="64" style="display:block;border:0;outline:none;text-decoration:none;">`
+    : "";
   const brandMediaHtml = branding.logoUrl
     ? `<img src="${escapeHtml(branding.logoUrl)}" alt="${brandName}" width="40" height="40" style="display:block;border:0;outline:none;text-decoration:none;border-radius:10px;">`
     : "";
@@ -38,7 +41,9 @@ export function renderBaseEmailTemplate({
     ? `<img src="${escapeHtml(branding.wordmarkUrl)}" alt="${brandName}" height="28" style="display:block;border:0;outline:none;text-decoration:none;">`
     : "";
   const brandTextHtml = `<div style="font-size:20px;line-height:28px;font-weight:700;color:#111827;">${brandName}</div>`;
-  const headerBrandHtml = brandMediaHtml || wordmarkHtml
+  const headerBrandHtml = lockupHtml
+    ? lockupHtml
+    : brandMediaHtml || wordmarkHtml
     ? `
       <table role="presentation" cellpadding="0" cellspacing="0">
         <tr>
