@@ -193,7 +193,6 @@ export async function initCustomerAuthEntry({ mode }) {
         return toast("Falta teléfono o código");
       }
       setFeedback("#joinVerifyFeedback", "Verificando código...");
-      await api("/api/public/business/" + slug + "/join/verify", {
       await api(verifyPath, {
         method: "POST",
         body: JSON.stringify({ phone, email, code, name })
