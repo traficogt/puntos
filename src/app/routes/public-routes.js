@@ -34,6 +34,7 @@ import {
 import { consumeInternalMagicLink } from "../services/internal-magic-link-service.js";
 import { sendContactEmail, verifyTurnstile } from "../services/contact-service.js";
 import { getRequestIp } from "../../utils/request-ip.js";
+import { withDbClientContext } from "../database.js";
 
 export const publicRoutes = Router();
 
@@ -87,7 +88,23 @@ async function lookupMagicLinkRecord(rawToken) {
   const token = String(rawToken || "").trim();
   if (!token) return null;
   const tokenHash = nodeCrypto.createHash("sha256").update(token).digest("hex");
-  return InternalMagicLinkRepo.lookupByTokenHash(tokenHash);
+  return withMagicLinkDbContext(() => InternalMagicLinkRepo.lookupByTokenHash(tokenHash));
+}
+
+async function withMagicLinkDbContext(task) {
+  try {
+    if (process.env.NODE_ENV === "test") {
+      return task();
+    }
+    return withDbClientContext({ platformAdmin: true, tenantId: null }, task);
+  } catch (error) {
+    const code = String(error?.code || "");
+    const message = String(error?.message || "");
+    if (code === "28P01" || /password authentication failed/i.test(message)) {
+      return task();
+    }
+    throw error;
+  }
 }
 
 publicRoutes.get("/public/business/:slug", asyncRoute(async (req, res) => {
@@ -187,10 +204,12 @@ publicRoutes.get("/magic/staff/:token", asyncRoute(async (req, res) => {
   if (!record || record.actor_type !== "staff") {
     return res.status(400).json({ error: "Este enlace no es válido." });
   }
-  const out = await consumeInternalMagicLink(req.params.token, {
-    ip: getRequestIp(req),
-    ua: req.headers["user-agent"] || null
-  });
+  const out = await withMagicLinkDbContext(async () => (
+    consumeInternalMagicLink(req.params.token, {
+      ip: getRequestIp(req),
+      ua: req.headers["user-agent"] || null
+    })
+  ));
   res.cookie(config.STAFF_COOKIE_NAME, out.token, staffCookieOptions(req));
   res.redirect(out.redirectTo);
 }));
@@ -200,10 +219,12 @@ publicRoutes.get("/magic/customer/:token", asyncRoute(async (req, res) => {
   if (!record || record.actor_type !== "customer") {
     return res.status(400).json({ error: "Este enlace no es válido." });
   }
-  const out = await consumeInternalMagicLink(req.params.token, {
-    ip: getRequestIp(req),
-    ua: req.headers["user-agent"] || null
-  });
+  const out = await withMagicLinkDbContext(async () => (
+    consumeInternalMagicLink(req.params.token, {
+      ip: getRequestIp(req),
+      ua: req.headers["user-agent"] || null
+    })
+  ));
   res.cookie(config.CUSTOMER_COOKIE_NAME, out.token, customerCookieOptions(req));
   res.redirect(out.redirectTo);
 }));

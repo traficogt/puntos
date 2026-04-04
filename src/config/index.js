@@ -8,6 +8,11 @@ import { isSecureClientOrigin, isValidClientOrigin, normalizeOrigin } from "../u
 
 dotenv.config();
 const IS_PROD = (process.env.NODE_ENV ?? "production") === "production";
+const DEFAULT_PORT = process.env.PORT ?? 3001;
+const DEFAULT_APP_ORIGIN = `http://localhost:${DEFAULT_PORT}`;
+const RESOLVED_APP_ORIGIN = normalizeOrigin(envValue("APP_ORIGIN", DEFAULT_APP_ORIGIN))
+  || envValue("APP_ORIGIN", DEFAULT_APP_ORIGIN);
+const USE_HOST_PREFIXED_COOKIES = IS_PROD || isSecureClientOrigin(RESOLVED_APP_ORIGIN);
 
 /**
  * @param {unknown} v
@@ -178,14 +183,13 @@ function parseSameSite(value, fallback = "strict") {
 /** @type {AppConfig} */
 export const config = {
   NODE_ENV: envValue("NODE_ENV", "production"),
-  PORT: Number(process.env.PORT ?? 3001),
+  PORT: Number(DEFAULT_PORT),
   WORKER_PORT: Number(process.env.WORKER_PORT ?? 3002),
 
-  APP_ORIGIN: normalizeOrigin(envValue("APP_ORIGIN", `http://localhost:${process.env.PORT ?? 3001}`))
-    || envValue("APP_ORIGIN", `http://localhost:${process.env.PORT ?? 3001}`),
-  MARKETING_ORIGIN: normalizeOrigin(envValue("MARKETING_ORIGIN", `http://localhost:${process.env.PORT ?? 3001}`))
-    || envValue("MARKETING_ORIGIN", `http://localhost:${process.env.PORT ?? 3001}`),
-  CORS_ORIGINS: parseOrigins(envValue("CORS_ORIGIN", ""), `http://localhost:${process.env.PORT ?? 3001}`),
+  APP_ORIGIN: RESOLVED_APP_ORIGIN,
+  MARKETING_ORIGIN: normalizeOrigin(envValue("MARKETING_ORIGIN", DEFAULT_APP_ORIGIN))
+    || envValue("MARKETING_ORIGIN", DEFAULT_APP_ORIGIN),
+  CORS_ORIGINS: parseOrigins(envValue("CORS_ORIGIN", ""), DEFAULT_APP_ORIGIN),
   COOKIE_SAME_SITE: parseSameSite(envValue("COOKIE_SAME_SITE", "strict")),
 
   // When behind Caddy/Nginx reverse proxy, set TRUST_PROXY=1
@@ -204,9 +208,9 @@ export const config = {
   JWT_SECRET: requireSecret("JWT_SECRET", "CHANGE_ME_LONG_RANDOM", { minLen: 32 }),
 
   // Cookie names
-  STAFF_COOKIE_NAME: process.env.STAFF_COOKIE_NAME ?? "__Host-pf_staff",
-  CUSTOMER_COOKIE_NAME: process.env.CUSTOMER_COOKIE_NAME ?? "__Host-pf_customer",
-  SUPER_COOKIE_NAME: process.env.SUPER_COOKIE_NAME ?? "__Host-pf_super",
+  STAFF_COOKIE_NAME: process.env.STAFF_COOKIE_NAME ?? (USE_HOST_PREFIXED_COOKIES ? "__Host-pf_staff" : "pf_staff"),
+  CUSTOMER_COOKIE_NAME: process.env.CUSTOMER_COOKIE_NAME ?? (USE_HOST_PREFIXED_COOKIES ? "__Host-pf_customer" : "pf_customer"),
+  SUPER_COOKIE_NAME: process.env.SUPER_COOKIE_NAME ?? (USE_HOST_PREFIXED_COOKIES ? "__Host-pf_super" : "pf_super"),
 
   // Platform super admin (optional)
   SUPER_ADMIN_EMAIL: envValue("SUPER_ADMIN_EMAIL", ""),
