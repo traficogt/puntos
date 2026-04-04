@@ -4,6 +4,7 @@ import { copyFile, mkdir, rename } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { performance } from "node:perf_hooks";
 import { chromium } from "playwright";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -17,22 +18,94 @@ const legacyOutputFilename = "puntosfieles-demo-captioned-en.webm";
 const reviewProfiles = {
   short60: {
     filename: "puntosfieles-demo-60s-captioned-en.webm",
-    timings: {
-      landing: { settle: 1400, scrollDown: 700, scrollUp: 700, endPause: 900 },
-      wallet: { intro: 1500, qr: 1800, rewardsDown: 900, rewardsUp: 700, endPause: 700 },
-      staff: { intro: 1400, tokenEntry: 500, afterSelect: 1200, afterRegister: 1800 },
-      walletRefresh: { intro: 1200, afterRefresh: 1800, scrollDown: 900, endPause: 1000 },
-      dashboard: { intro: 1600, scroll: 900, endPause: 1200 }
+    targetSeconds: 60,
+    scenes: {
+      landing: {
+        caption: "This is the public landing page for the loyalty platform.",
+        budgetMs: 8000,
+        settleMs: 1200,
+        scrollDownMs: 1200,
+        scrollUpMs: 900,
+        endPauseMs: 1600
+      },
+      wallet: {
+        caption: "This is the customer wallet, where members review points, rewards, and their QR code.",
+        budgetMs: 16000,
+        introMs: 1800,
+        qrMs: 2400,
+        rewardsDownMs: 1800,
+        rewardsUpMs: 1200,
+        endPauseMs: 2200
+      },
+      staff: {
+        caption: "This is the staff console for identifying a customer and recording loyalty activity.",
+        budgetMs: 13000,
+        introMs: 1200,
+        tokenEntryMs: 300,
+        afterSelectMs: 1400,
+        afterRegisterMs: 1600
+      },
+      walletRefresh: {
+        caption: "After staff records activity, the customer can refresh the wallet and see the updated balance.",
+        budgetMs: 12000,
+        introMs: 1500,
+        afterRefreshMs: 1800,
+        scrollDownMs: 1200,
+        endPauseMs: 1800
+      },
+      dashboard: {
+        caption: "This is the owner dashboard for monitoring growth, retention, and reward performance.",
+        budgetMs: 11000,
+        introMs: 1800,
+        scrollMs: 1400,
+        endPauseMs: 1800
+      }
     }
   },
   review90: {
     filename: "puntosfieles-demo-90s-captioned-en.webm",
-    timings: {
-      landing: { settle: 2200, scrollDown: 1200, scrollUp: 900, endPause: 1200 },
-      wallet: { intro: 1800, qr: 2400, rewardsDown: 1400, rewardsUp: 1000, endPause: 900 },
-      staff: { intro: 1800, tokenEntry: 500, afterSelect: 1600, afterRegister: 2200 },
-      walletRefresh: { intro: 1500, afterRefresh: 2400, scrollDown: 1200, endPause: 1400 },
-      dashboard: { intro: 2000, scroll: 1400, endPause: 1600 }
+    targetSeconds: 90,
+    scenes: {
+      landing: {
+        caption: "This is the public landing page for the loyalty platform.",
+        budgetMs: 12000,
+        settleMs: 1600,
+        scrollDownMs: 1800,
+        scrollUpMs: 1200,
+        endPauseMs: 2400
+      },
+      wallet: {
+        caption: "This is the customer wallet, where members review points, rewards, and their QR code.",
+        budgetMs: 20000,
+        introMs: 2200,
+        qrMs: 3200,
+        rewardsDownMs: 2600,
+        rewardsUpMs: 1800,
+        endPauseMs: 3200
+      },
+      staff: {
+        caption: "This is the staff console for identifying a customer and recording loyalty activity.",
+        budgetMs: 18000,
+        introMs: 1400,
+        tokenEntryMs: 400,
+        afterSelectMs: 1600,
+        afterRegisterMs: 1800
+      },
+      walletRefresh: {
+        caption: "After staff records activity, the customer can refresh the wallet and see the updated balance.",
+        budgetMs: 18000,
+        introMs: 1800,
+        afterRefreshMs: 2600,
+        scrollDownMs: 1800,
+        endPauseMs: 2600
+      },
+      dashboard: {
+        caption: "This is the owner dashboard for monitoring growth, retention, and reward performance.",
+        budgetMs: 22000,
+        introMs: 2200,
+        scrollMs: 1800,
+        endPauseMs: 2400
+      }
     }
   }
 };
@@ -52,6 +125,23 @@ function resolveProfile(argv) {
 
 function profileConfig(profile) {
   return reviewProfiles[profile];
+}
+
+function validateProfile(profile) {
+  if (!Number.isFinite(profile.targetSeconds) || profile.targetSeconds <= 0) {
+    throw new Error("Invalid profile targetSeconds");
+  }
+  for (const [sceneName, scene] of Object.entries(profile.scenes)) {
+    if (typeof scene.caption !== "string" || !scene.caption.trim()) {
+      throw new Error(`Invalid caption for scene ${sceneName}`);
+    }
+    for (const [key, value] of Object.entries(scene)) {
+      if (key === "caption") continue;
+      if (key.endsWith("Ms") && (!Number.isFinite(value) || value < 0)) {
+        throw new Error(`Invalid timing value for ${sceneName}.${key}`);
+      }
+    }
+  }
 }
 
 function run(command, args, options = {}) {
@@ -209,6 +299,7 @@ async function main() {
   await mkdir(outputDir, { recursive: true });
   const profileName = resolveProfile(process.argv.slice(2));
   const profile = profileConfig(profileName);
+  validateProfile(profile);
 
   const entities = resolveDemoEntities();
   const customerLink = createMagicLink([
@@ -251,64 +342,73 @@ async function main() {
   await context.route("https://privatrack.com/**", (route) => route.abort()).catch(() => {});
 
   try {
+    const recordingStartedAt = performance.now();
+
     await page.goto(marketingOrigin, { waitUntil: "domcontentloaded" });
-    await setCaption(page, "PuntosFieles helps businesses turn loyalty activity into repeat visits, rewards, and measurable growth.");
-    await page.waitForTimeout(profile.timings.landing.settle);
+    await setCaption(page, profile.scenes.landing.caption);
+    await page.waitForTimeout(profile.scenes.landing.settleMs);
     await page.mouse.wheel(0, 640);
-    await page.waitForTimeout(profile.timings.landing.scrollDown);
+    await page.waitForTimeout(profile.scenes.landing.scrollDownMs);
     await page.mouse.wheel(0, -220);
-    await page.waitForTimeout(profile.timings.landing.scrollUp);
-    await page.waitForTimeout(profile.timings.landing.endPause);
+    await page.waitForTimeout(profile.scenes.landing.scrollUpMs);
+    await page.waitForTimeout(profile.scenes.landing.endPauseMs);
 
     await page.goto(customerLink.url, { waitUntil: "domcontentloaded" });
     await waitForCustomerWallet(page);
-    await setCaption(page, "Returning customers can reopen the wallet instantly and see their current balance, available rewards, and live QR.");
-    await page.waitForTimeout(profile.timings.wallet.intro);
+    await setCaption(page, profile.scenes.wallet.caption);
+    await page.waitForTimeout(profile.scenes.wallet.introMs);
     await page.getByRole("button", { name: "Generar QR" }).click();
-    await page.waitForTimeout(profile.timings.wallet.qr);
+    await page.waitForTimeout(profile.scenes.wallet.qrMs);
     await page.mouse.wheel(0, 620);
-    await page.waitForTimeout(profile.timings.wallet.rewardsDown);
+    await page.waitForTimeout(profile.scenes.wallet.rewardsDownMs);
     await page.mouse.wheel(0, -620);
-    await page.waitForTimeout(profile.timings.wallet.rewardsUp);
-    await page.waitForTimeout(profile.timings.wallet.endPause);
+    await page.waitForTimeout(profile.scenes.wallet.rewardsUpMs);
+    await page.waitForTimeout(profile.scenes.wallet.endPauseMs);
 
     await page.goto(staffLink.url, { waitUntil: "domcontentloaded" });
-    await setCaption(page, "Staff use the same app to identify the customer, then register visits, purchases, or reward redemptions.");
+    await setCaption(page, profile.scenes.staff.caption);
     await page.waitForSelector("#staffActionRail");
-    await page.waitForTimeout(profile.timings.staff.intro);
-    await slowFill(page.locator("#token"), qr.token);
-    await page.waitForTimeout(profile.timings.staff.tokenEntry);
+    await page.waitForTimeout(profile.scenes.staff.introMs);
+    await page.locator("#token").fill(qr.token);
+    await page.waitForTimeout(profile.scenes.staff.tokenEntryMs);
     await page.getByRole("button", { name: "Seleccionar cliente" }).nth(1).click();
     await page.waitForFunction(() => {
       const chip = document.querySelector("#customerReadyChip");
       return chip && /Cliente listo/i.test(chip.textContent || "");
     });
-    await page.waitForTimeout(profile.timings.staff.afterSelect);
+    await page.waitForTimeout(profile.scenes.staff.afterSelectMs);
 
     const amount = page.locator("#amount");
     if (await amount.isEnabled()) {
       await amount.fill("100");
     }
     await page.getByRole("button", { name: "Registrar" }).click();
-    await page.waitForTimeout(profile.timings.staff.afterRegister);
+    await page.waitForTimeout(profile.scenes.staff.afterRegisterMs);
 
     await page.goto(`${appOrigin}/c`, { waitUntil: "domcontentloaded" });
     await waitForCustomerWallet(page);
-    await setCaption(page, "Once activity is recorded, the customer can refresh the wallet and immediately see the updated balance and reward status.");
-    await page.waitForTimeout(profile.timings.walletRefresh.intro);
+    await setCaption(page, profile.scenes.walletRefresh.caption);
+    await page.waitForTimeout(profile.scenes.walletRefresh.introMs);
     await page.getByRole("button", { name: "Actualizar tarjeta" }).click();
-    await page.waitForTimeout(profile.timings.walletRefresh.afterRefresh);
+    await page.waitForTimeout(profile.scenes.walletRefresh.afterRefreshMs);
     await page.mouse.wheel(0, 460);
-    await page.waitForTimeout(profile.timings.walletRefresh.scrollDown);
-    await page.waitForTimeout(profile.timings.walletRefresh.endPause);
+    await page.waitForTimeout(profile.scenes.walletRefresh.scrollDownMs);
+    await page.waitForTimeout(profile.scenes.walletRefresh.endPauseMs);
 
     await page.goto(ownerLink.url, { waitUntil: "domcontentloaded" });
-    await setCaption(page, "Business owners log in to a growth dashboard that summarizes loyalty performance, retention, revenue impact, and next actions.");
+    await setCaption(page, profile.scenes.dashboard.caption);
     await page.waitForSelector("#adminGrowthSummary");
-    await page.waitForTimeout(profile.timings.dashboard.intro);
+    await page.waitForTimeout(profile.scenes.dashboard.introMs);
     await page.mouse.wheel(0, 260);
-    await page.waitForTimeout(profile.timings.dashboard.scroll);
-    await page.waitForTimeout(profile.timings.dashboard.endPause);
+    await page.waitForTimeout(profile.scenes.dashboard.scrollMs);
+    await page.waitForTimeout(profile.scenes.dashboard.endPauseMs);
+
+    const targetDurationMs = profile.targetSeconds * 1000;
+    const elapsedRecordingMs = performance.now() - recordingStartedAt;
+    const remainingDurationMs = targetDurationMs - elapsedRecordingMs;
+    if (remainingDurationMs > 0) {
+      await page.waitForTimeout(Math.ceil(remainingDurationMs));
+    }
   } finally {
     const video = page.video();
     await context.close();
