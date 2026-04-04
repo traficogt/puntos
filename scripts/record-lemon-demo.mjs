@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdir, rename } from "node:fs/promises";
+import { copyFile, mkdir, rename } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -11,6 +11,48 @@ const projectRoot = path.resolve(__dirname, "..");
 const outputDir = path.join(projectRoot, "artifacts", "lemon-squeezy-demo");
 const appOrigin = process.env.DEMO_APP_ORIGIN || "http://app.localhost:3001";
 const marketingOrigin = process.env.DEMO_MARKETING_ORIGIN || "http://localhost:3001";
+
+const legacyOutputFilename = "puntosfieles-demo-captioned-en.webm";
+
+const reviewProfiles = {
+  short60: {
+    filename: "puntosfieles-demo-60s-captioned-en.webm",
+    timings: {
+      landing: { settle: 1400, scrollDown: 700, scrollUp: 700, endPause: 900 },
+      wallet: { intro: 1500, qr: 1800, rewardsDown: 900, rewardsUp: 700, endPause: 700 },
+      staff: { intro: 1400, tokenEntry: 500, afterSelect: 1200, afterRegister: 1800 },
+      walletRefresh: { intro: 1200, afterRefresh: 1800, scrollDown: 900, endPause: 1000 },
+      dashboard: { intro: 1600, scroll: 900, endPause: 1200 }
+    }
+  },
+  review90: {
+    filename: "puntosfieles-demo-90s-captioned-en.webm",
+    timings: {
+      landing: { settle: 2200, scrollDown: 1200, scrollUp: 900, endPause: 1200 },
+      wallet: { intro: 1800, qr: 2400, rewardsDown: 1400, rewardsUp: 1000, endPause: 900 },
+      staff: { intro: 1800, tokenEntry: 500, afterSelect: 1600, afterRegister: 2200 },
+      walletRefresh: { intro: 1500, afterRefresh: 2400, scrollDown: 1200, endPause: 1400 },
+      dashboard: { intro: 2000, scroll: 1400, endPause: 1600 }
+    }
+  }
+};
+
+function resolveProfile(argv) {
+  const index = argv.indexOf("--profile");
+  if (index === -1) return "review90";
+  const profile = String(argv[index + 1] || "").trim();
+  if (!profile || profile.startsWith("--")) {
+    throw new Error("Missing value for --profile. Use short60 or review90.");
+  }
+  if (!Object.prototype.hasOwnProperty.call(reviewProfiles, profile)) {
+    throw new Error("Invalid --profile. Use short60 or review90.");
+  }
+  return profile;
+}
+
+function profileConfig(profile) {
+  return reviewProfiles[profile];
+}
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -165,6 +207,8 @@ async function waitForCustomerWallet(page) {
 
 async function main() {
   await mkdir(outputDir, { recursive: true });
+  const profileName = resolveProfile(process.argv.slice(2));
+  const profile = profileConfig(profileName);
 
   const entities = resolveDemoEntities();
   const customerLink = createMagicLink([
@@ -209,67 +253,75 @@ async function main() {
   try {
     await page.goto(marketingOrigin, { waitUntil: "domcontentloaded" });
     await setCaption(page, "PuntosFieles helps businesses turn loyalty activity into repeat visits, rewards, and measurable growth.");
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(profile.timings.landing.settle);
     await page.mouse.wheel(0, 640);
-    await page.waitForTimeout(1400);
+    await page.waitForTimeout(profile.timings.landing.scrollDown);
     await page.mouse.wheel(0, -220);
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(profile.timings.landing.scrollUp);
+    await page.waitForTimeout(profile.timings.landing.endPause);
 
     await page.goto(customerLink.url, { waitUntil: "domcontentloaded" });
     await waitForCustomerWallet(page);
     await setCaption(page, "Returning customers can reopen the wallet instantly and see their current balance, available rewards, and live QR.");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(profile.timings.wallet.intro);
     await page.getByRole("button", { name: "Generar QR" }).click();
-    await page.waitForTimeout(2600);
+    await page.waitForTimeout(profile.timings.wallet.qr);
     await page.mouse.wheel(0, 620);
-    await page.waitForTimeout(1800);
+    await page.waitForTimeout(profile.timings.wallet.rewardsDown);
     await page.mouse.wheel(0, -620);
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(profile.timings.wallet.rewardsUp);
+    await page.waitForTimeout(profile.timings.wallet.endPause);
 
     await page.goto(staffLink.url, { waitUntil: "domcontentloaded" });
     await setCaption(page, "Staff use the same app to identify the customer, then register visits, purchases, or reward redemptions.");
     await page.waitForSelector("#staffActionRail");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(profile.timings.staff.intro);
     await slowFill(page.locator("#token"), qr.token);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(profile.timings.staff.tokenEntry);
     await page.getByRole("button", { name: "Seleccionar cliente" }).nth(1).click();
     await page.waitForFunction(() => {
       const chip = document.querySelector("#customerReadyChip");
       return chip && /Cliente listo/i.test(chip.textContent || "");
     });
-    await page.waitForTimeout(1800);
+    await page.waitForTimeout(profile.timings.staff.afterSelect);
 
     const amount = page.locator("#amount");
     if (await amount.isEnabled()) {
       await amount.fill("100");
     }
     await page.getByRole("button", { name: "Registrar" }).click();
-    await page.waitForTimeout(2600);
+    await page.waitForTimeout(profile.timings.staff.afterRegister);
 
     await page.goto(`${appOrigin}/c`, { waitUntil: "domcontentloaded" });
     await waitForCustomerWallet(page);
     await setCaption(page, "Once activity is recorded, the customer can refresh the wallet and immediately see the updated balance and reward status.");
-    await page.waitForTimeout(1800);
+    await page.waitForTimeout(profile.timings.walletRefresh.intro);
     await page.getByRole("button", { name: "Actualizar tarjeta" }).click();
-    await page.waitForTimeout(2800);
+    await page.waitForTimeout(profile.timings.walletRefresh.afterRefresh);
     await page.mouse.wheel(0, 460);
-    await page.waitForTimeout(2200);
+    await page.waitForTimeout(profile.timings.walletRefresh.scrollDown);
+    await page.waitForTimeout(profile.timings.walletRefresh.endPause);
 
     await page.goto(ownerLink.url, { waitUntil: "domcontentloaded" });
     await setCaption(page, "Business owners log in to a growth dashboard that summarizes loyalty performance, retention, revenue impact, and next actions.");
     await page.waitForSelector("#adminGrowthSummary");
-    await page.waitForTimeout(2200);
+    await page.waitForTimeout(profile.timings.dashboard.intro);
     await page.mouse.wheel(0, 260);
-    await page.waitForTimeout(2200);
+    await page.waitForTimeout(profile.timings.dashboard.scroll);
+    await page.waitForTimeout(profile.timings.dashboard.endPause);
   } finally {
     const video = page.video();
     await context.close();
     await browser.close();
     if (video) {
       const savedPath = await video.path();
-      const finalPath = path.join(outputDir, "puntosfieles-demo-captioned-en.webm");
+      const finalPath = path.join(outputDir, profile.filename);
       await rename(savedPath, finalPath).catch(() => {});
+      if (finalPath !== path.join(outputDir, legacyOutputFilename)) {
+        await copyFile(finalPath, path.join(outputDir, legacyOutputFilename)).catch(() => {});
+      }
       console.log(`video_path: ${finalPath}`);
+      console.log(`profile: ${profileName}`);
       console.log(`business: ${entities.businessName}`);
       console.log(`customer_phone: ${entities.customerPhone}`);
     }
