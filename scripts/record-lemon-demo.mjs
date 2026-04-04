@@ -30,35 +30,35 @@ const reviewProfiles = {
       },
       wallet: {
         caption: "This is the customer wallet, where members review points, rewards, and their QR code.",
-        budgetMs: 16000,
+        budgetMs: 18500,
         introMs: 1800,
         qrMs: 2400,
-        rewardsDownMs: 1800,
-        rewardsUpMs: 1200,
-        endPauseMs: 2200
+        rewardsDownMs: 3200,
+        rewardsUpMs: 1800,
+        endPauseMs: 2600
       },
       staff: {
         caption: "This is the staff console for identifying a customer and recording loyalty activity.",
-        budgetMs: 13000,
+        budgetMs: 15300,
         introMs: 1200,
         tokenEntryMs: 300,
-        afterSelectMs: 1400,
-        afterRegisterMs: 1600
+        afterSelectMs: 1800,
+        afterRegisterMs: 2000
       },
       walletRefresh: {
         caption: "After staff records activity, the customer can refresh the wallet and see the updated balance.",
-        budgetMs: 12000,
+        budgetMs: 9500,
         introMs: 1500,
         afterRefreshMs: 1800,
-        scrollDownMs: 1200,
-        endPauseMs: 1800
+        scrollDownMs: 1500,
+        endPauseMs: 1700
       },
       dashboard: {
         caption: "This is the owner dashboard for monitoring growth, retention, and reward performance.",
-        budgetMs: 11000,
-        introMs: 1800,
-        scrollMs: 1400,
-        endPauseMs: 1800
+        budgetMs: 5500,
+        introMs: 1100,
+        scrollMs: 900,
+        endPauseMs: 1200
       }
     }
   },
@@ -76,35 +76,35 @@ const reviewProfiles = {
       },
       wallet: {
         caption: "This is the customer wallet, where members review points, rewards, and their QR code.",
-        budgetMs: 20000,
+        budgetMs: 30200,
         introMs: 2200,
         qrMs: 3200,
-        rewardsDownMs: 2600,
-        rewardsUpMs: 1800,
-        endPauseMs: 3200
+        rewardsDownMs: 5800,
+        rewardsUpMs: 2800,
+        endPauseMs: 3600
       },
       staff: {
         caption: "This is the staff console for identifying a customer and recording loyalty activity.",
-        budgetMs: 18000,
+        budgetMs: 23400,
         introMs: 1400,
         tokenEntryMs: 400,
-        afterSelectMs: 1600,
-        afterRegisterMs: 1800
+        afterSelectMs: 2800,
+        afterRegisterMs: 2600
       },
       walletRefresh: {
         caption: "After staff records activity, the customer can refresh the wallet and see the updated balance.",
-        budgetMs: 18000,
+        budgetMs: 13600,
         introMs: 1800,
         afterRefreshMs: 2600,
-        scrollDownMs: 1800,
-        endPauseMs: 2600
+        scrollDownMs: 2600,
+        endPauseMs: 2400
       },
       dashboard: {
         caption: "This is the owner dashboard for monitoring growth, retention, and reward performance.",
-        budgetMs: 22000,
-        introMs: 2200,
-        scrollMs: 1800,
-        endPauseMs: 2400
+        budgetMs: 7700,
+        introMs: 1400,
+        scrollMs: 1100,
+        endPauseMs: 1600
       }
     }
   }
@@ -295,6 +295,17 @@ async function waitForCustomerWallet(page) {
   }, null, { timeout: 30000 });
 }
 
+async function runBudgetedScene(page, scene, callback) {
+  const startedAt = performance.now();
+  await setCaption(page, scene.caption);
+  await callback();
+  const elapsedMs = performance.now() - startedAt;
+  const remainingMs = scene.budgetMs - elapsedMs;
+  if (remainingMs > 0) {
+    await page.waitForTimeout(Math.ceil(remainingMs));
+  }
+}
+
 async function main() {
   await mkdir(outputDir, { recursive: true });
   const profileName = resolveProfile(process.argv.slice(2));
@@ -342,73 +353,69 @@ async function main() {
   await context.route("https://privatrack.com/**", (route) => route.abort()).catch(() => {});
 
   try {
-    const recordingStartedAt = performance.now();
-
     await page.goto(marketingOrigin, { waitUntil: "domcontentloaded" });
-    await setCaption(page, profile.scenes.landing.caption);
-    await page.waitForTimeout(profile.scenes.landing.settleMs);
-    await page.mouse.wheel(0, 640);
-    await page.waitForTimeout(profile.scenes.landing.scrollDownMs);
-    await page.mouse.wheel(0, -220);
-    await page.waitForTimeout(profile.scenes.landing.scrollUpMs);
-    await page.waitForTimeout(profile.scenes.landing.endPauseMs);
+    await runBudgetedScene(page, profile.scenes.landing, async () => {
+      await page.waitForTimeout(profile.scenes.landing.settleMs);
+      await page.mouse.wheel(0, 640);
+      await page.waitForTimeout(profile.scenes.landing.scrollDownMs);
+      await page.mouse.wheel(0, -220);
+      await page.waitForTimeout(profile.scenes.landing.scrollUpMs);
+      await page.waitForTimeout(profile.scenes.landing.endPauseMs);
+    });
 
     await page.goto(customerLink.url, { waitUntil: "domcontentloaded" });
     await waitForCustomerWallet(page);
-    await setCaption(page, profile.scenes.wallet.caption);
-    await page.waitForTimeout(profile.scenes.wallet.introMs);
-    await page.getByRole("button", { name: "Generar QR" }).click();
-    await page.waitForTimeout(profile.scenes.wallet.qrMs);
-    await page.mouse.wheel(0, 620);
-    await page.waitForTimeout(profile.scenes.wallet.rewardsDownMs);
-    await page.mouse.wheel(0, -620);
-    await page.waitForTimeout(profile.scenes.wallet.rewardsUpMs);
-    await page.waitForTimeout(profile.scenes.wallet.endPauseMs);
+    await runBudgetedScene(page, profile.scenes.wallet, async () => {
+      await page.waitForTimeout(profile.scenes.wallet.introMs);
+      await page.getByRole("button", { name: "Generar QR" }).click();
+      await page.waitForTimeout(profile.scenes.wallet.qrMs);
+      await page.mouse.wheel(0, 620);
+      await page.waitForTimeout(profile.scenes.wallet.rewardsDownMs);
+      await page.mouse.wheel(0, -620);
+      await page.waitForTimeout(profile.scenes.wallet.rewardsUpMs);
+      await page.waitForTimeout(profile.scenes.wallet.endPauseMs);
+    });
 
     await page.goto(staffLink.url, { waitUntil: "domcontentloaded" });
-    await setCaption(page, profile.scenes.staff.caption);
-    await page.waitForSelector("#staffActionRail");
-    await page.waitForTimeout(profile.scenes.staff.introMs);
-    await page.locator("#token").fill(qr.token);
-    await page.waitForTimeout(profile.scenes.staff.tokenEntryMs);
-    await page.getByRole("button", { name: "Seleccionar cliente" }).nth(1).click();
-    await page.waitForFunction(() => {
-      const chip = document.querySelector("#customerReadyChip");
-      return chip && /Cliente listo/i.test(chip.textContent || "");
-    });
-    await page.waitForTimeout(profile.scenes.staff.afterSelectMs);
+    await runBudgetedScene(page, profile.scenes.staff, async () => {
+      await page.waitForSelector("#staffActionRail");
+      await page.waitForTimeout(profile.scenes.staff.introMs);
+      await page.locator("#token").fill(qr.token);
+      await page.waitForTimeout(profile.scenes.staff.tokenEntryMs);
+      await page.getByRole("button", { name: "Seleccionar cliente" }).nth(1).click();
+      await page.waitForFunction(() => {
+        const chip = document.querySelector("#customerReadyChip");
+        return chip && /Cliente listo/i.test(chip.textContent || "");
+      });
+      await page.waitForTimeout(profile.scenes.staff.afterSelectMs);
 
-    const amount = page.locator("#amount");
-    if (await amount.isEnabled()) {
-      await amount.fill("100");
-    }
-    await page.getByRole("button", { name: "Registrar" }).click();
-    await page.waitForTimeout(profile.scenes.staff.afterRegisterMs);
+      const amount = page.locator("#amount");
+      if (await amount.isEnabled()) {
+        await amount.fill("100");
+      }
+      await page.getByRole("button", { name: "Registrar" }).click();
+      await page.waitForTimeout(profile.scenes.staff.afterRegisterMs);
+    });
 
     await page.goto(`${appOrigin}/c`, { waitUntil: "domcontentloaded" });
     await waitForCustomerWallet(page);
-    await setCaption(page, profile.scenes.walletRefresh.caption);
-    await page.waitForTimeout(profile.scenes.walletRefresh.introMs);
-    await page.getByRole("button", { name: "Actualizar tarjeta" }).click();
-    await page.waitForTimeout(profile.scenes.walletRefresh.afterRefreshMs);
-    await page.mouse.wheel(0, 460);
-    await page.waitForTimeout(profile.scenes.walletRefresh.scrollDownMs);
-    await page.waitForTimeout(profile.scenes.walletRefresh.endPauseMs);
+    await runBudgetedScene(page, profile.scenes.walletRefresh, async () => {
+      await page.waitForTimeout(profile.scenes.walletRefresh.introMs);
+      await page.getByRole("button", { name: "Actualizar tarjeta" }).click();
+      await page.waitForTimeout(profile.scenes.walletRefresh.afterRefreshMs);
+      await page.mouse.wheel(0, 460);
+      await page.waitForTimeout(profile.scenes.walletRefresh.scrollDownMs);
+      await page.waitForTimeout(profile.scenes.walletRefresh.endPauseMs);
+    });
 
     await page.goto(ownerLink.url, { waitUntil: "domcontentloaded" });
-    await setCaption(page, profile.scenes.dashboard.caption);
-    await page.waitForSelector("#adminGrowthSummary");
-    await page.waitForTimeout(profile.scenes.dashboard.introMs);
-    await page.mouse.wheel(0, 260);
-    await page.waitForTimeout(profile.scenes.dashboard.scrollMs);
-    await page.waitForTimeout(profile.scenes.dashboard.endPauseMs);
-
-    const targetDurationMs = profile.targetSeconds * 1000;
-    const elapsedRecordingMs = performance.now() - recordingStartedAt;
-    const remainingDurationMs = targetDurationMs - elapsedRecordingMs;
-    if (remainingDurationMs > 0) {
-      await page.waitForTimeout(Math.ceil(remainingDurationMs));
-    }
+    await runBudgetedScene(page, profile.scenes.dashboard, async () => {
+      await page.waitForSelector("#adminGrowthSummary");
+      await page.waitForTimeout(profile.scenes.dashboard.introMs);
+      await page.mouse.wheel(0, 260);
+      await page.waitForTimeout(profile.scenes.dashboard.scrollMs);
+      await page.waitForTimeout(profile.scenes.dashboard.endPauseMs);
+    });
   } finally {
     const video = page.video();
     await context.close();
