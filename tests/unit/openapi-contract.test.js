@@ -27,7 +27,14 @@ describe("openapi contract", () => {
     assert.deepEqual(logout?.security, [{ customerAuth: [] }]);
 
     const publicOrder = doc.paths["/api/v1/public/orders"]?.post;
-    assert.ok(publicOrder);
+    assert.equal(
+      publicOrder?.requestBody?.content?.["application/json"]?.schema?.$ref,
+      "#/components/schemas/OrderCreateRequest"
+    );
+    assert.equal(
+      publicOrder?.responses?.["200"]?.content?.["application/json"]?.schema?.$ref,
+      "#/components/schemas/OrderCreateResponse"
+    );
   });
 
   it("includes typed response bodies and shared error envelopes for key routes", async () => {

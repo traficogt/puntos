@@ -60,6 +60,7 @@ const {
   ResolveSchema
 } = await import("../app/routes/payment-webhook-routes.js");
 const { ExternalAwardSchema } = await import("../app/routes/public-routes.js");
+const { OrderCreateSchema } = await import("../app/routes/order-routes.js");
 const {
   LoginSchema,
   UpdatePlanSchema,
@@ -250,6 +251,15 @@ const StaffRefundResponseSchema = okEnvelope({
   newPendingBalance: z.number()
 }).passthrough();
 
+const OrderCreateResponseSchema = okEnvelope({
+  orderId: z.string().uuid(),
+  transactionId: z.string().uuid(),
+  customerId: z.string().uuid(),
+  pointsAwarded: z.number(),
+  status: z.string(),
+  replay: z.boolean().optional()
+}).passthrough();
+
 const schemas = {
   StaffLoginRequest: staffLoginSchema,
   AwardPointsRequest: awardPointsSchema,
@@ -318,6 +328,7 @@ const schemas = {
   CampaignRulesRequest: CampaignRulesSchema,
   ExternalAwardsRequest: ExternalAwardsSchema,
   AutomationTemplateRequest: AutomationTemplateSchema,
+  OrderCreateRequest: OrderCreateSchema,
   GiftCardListQuery: GiftCardListQuerySchema,
   AnalyticsSegmentCustomersQuery: SegmentCustomersQuerySchema,
   AnalyticsCohortsQuery: CohortRetentionQuerySchema,
@@ -375,7 +386,8 @@ const schemas = {
     offset: z.number()
   }),
   StaffAwardResponse: StaffAwardResponseSchema,
-  StaffRefundResponse: StaffRefundResponseSchema
+  StaffRefundResponse: StaffRefundResponseSchema,
+  OrderCreateResponse: OrderCreateResponseSchema
 };
 
 function toComponentSchema(schema, name) {
@@ -423,6 +435,12 @@ const routeSchemaBindings = {
   },
   "/api/v1/public/external/award": {
     post: { body: "PublicExternalAwardRequest" }
+  },
+  "/api/v1/public/orders": {
+    post: {
+      body: "OrderCreateRequest",
+      responses: { "200": "OrderCreateResponse" }
+    }
   },
   "/api/v1/super/login": {
     post: { body: "SuperLoginRequest" }
@@ -754,6 +772,29 @@ const curatedPaths = {
           }
         },
         "401": { description: "Not authenticated" }
+      }
+    }
+  },
+  "/api/v1/public/orders": {
+    post: {
+      summary: "Create and process an external order",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: { $ref: "#/components/schemas/OrderCreateRequest" } }
+        }
+      },
+      responses: {
+        "200": {
+          description: "Order processed or replayed",
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/OrderCreateResponse" } }
+          }
+        },
+        "400": { description: "Validation error" },
+        "401": { description: "Invalid signature" },
+        "404": { description: "Business or customer not found" },
+        "409": { description: "externalOrderId already used for different payload" }
       }
     }
   },
