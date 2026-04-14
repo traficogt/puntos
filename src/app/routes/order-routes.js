@@ -25,7 +25,7 @@ export const OrderCreateSchema = z.object({
   externalOrderId: z.string().min(1).max(160),
   customerId: z.string().uuid().optional(),
   customerPhone: z.string().min(6).optional(),
-  status: z.enum(["paid", "completed", "pending", "open", "cancelled", "voided"]),
+  status: z.enum(["paid", "completed"]),
   amount_q: z.number().nonnegative(),
   subtotal_q: z.number().nonnegative().optional(),
   discount_q: z.number().nonnegative().optional(),

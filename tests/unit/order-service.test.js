@@ -8,10 +8,18 @@ test("returns replay success when the same externalOrderId is received with the 
   let lookupParams = null;
   let customerLookupCalled = false;
   let fingerprintCurrency = null;
+  let tenantId = null;
+  const queries = [];
   const deps = {
     withTransaction: async (fn) => fn({
-      query: async () => ({ rows: [], rowCount: 0 })
+      query: async (sql) => {
+        queries.push(sql);
+        return { rows: [], rowCount: 0 };
+      }
     }),
+    setCurrentTenant: async (businessId) => {
+      tenantId = businessId;
+    },
     BusinessRepo: {
       getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
       getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
@@ -60,6 +68,8 @@ test("returns replay success when the same externalOrderId is received with the 
   assert.deepEqual(lookupParams, ["biz-1", "ord-1"]);
   assert.equal(customerLookupCalled, false);
   assert.equal(fingerprintCurrency, "GTQ");
+  assert.equal(tenantId, "biz-1");
+  assert.equal(queries[0].includes("pg_advisory_xact_lock"), true);
   assert.deepEqual(out, {
     ok: true,
     orderId: "order-existing",
@@ -72,15 +82,23 @@ test("returns replay success when the same externalOrderId is received with the 
 });
 
 test("falls back to customerPhone when customerId is absent", async () => {
+  let tenantId = null;
+  const customerPhones = [];
   const deps = {
     withTransaction: async (fn) => fn({ query: async () => ({ rows: [], rowCount: 0 }) }),
+    setCurrentTenant: async (businessId) => {
+      tenantId = businessId;
+    },
     BusinessRepo: {
       getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
-      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
+      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1, pending_points_hold_days: 2 } })
     },
     CustomerRepo: {
       getById: async () => null,
-      getByBusinessAndPhone: async (businessId, phone) => ({ id: "cust-phone", business_id: businessId, phone })
+      getByBusinessAndPhone: async (businessId, phone) => {
+        customerPhones.push(phone);
+        return { id: "cust-phone", business_id: businessId, phone };
+      }
     },
     OrderRepo: {
       findByBusinessAndExternalId: async () => null,
@@ -92,19 +110,23 @@ test("falls back to customerPhone when customerId is absent", async () => {
 
   const out = await processOrderWithDeps(deps, {
     businessSlug: "cafe",
-    customerPhone: "+50255554444",
+    customerPhone: "5555-4444",
     externalOrderId: "ord-phone",
     status: "completed",
     amount_q: 80
   });
 
+  assert.equal(tenantId, "biz-1");
+  assert.deepEqual(customerPhones, ["50255554444"]);
   assert.equal(out.customerId, "cust-phone");
   assert.equal(out.pointsAwarded, 8);
+  assert.equal(out.status, "PENDING");
 });
 
 test("falls back to customerPhone when customerId belongs to a different business", async () => {
   const deps = {
     withTransaction: async (fn) => fn({ query: async () => ({ rows: [], rowCount: 0 }) }),
+    setCurrentTenant: async () => {},
     BusinessRepo: {
       getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
       getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
@@ -137,6 +159,7 @@ test("falls back to customerPhone when customerId belongs to a different busines
 test("rejects unsupported order status", async () => {
   const deps = {
     withTransaction: async (fn) => fn({ query: async () => ({ rows: [], rowCount: 0 }) }),
+    setCurrentTenant: async () => {},
     BusinessRepo: {
       getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
       getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })

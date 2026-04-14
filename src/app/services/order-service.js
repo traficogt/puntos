@@ -1,10 +1,11 @@
 import crypto from "node:crypto";
 
-import { withTransaction } from "../database.js";
+import { setCurrentTenant, withTransaction } from "../database.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
 import { CustomerRepo } from "../repositories/customer-repository.js";
 import { OrderRepo } from "../repositories/order-repository.js";
 import { computePoints } from "./points-service.js";
+import { normalizePhone } from "../../utils/phone.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 
 const PROCESSABLE_STATUSES = new Set(["paid", "completed"]);
@@ -33,8 +34,9 @@ async function resolveCustomer(deps, businessId, customerId, customerPhone) {
     if (customer && String(customer.business_id) === String(businessId)) return customer;
   }
 
-  if (customerPhone) {
-    const customer = await deps.CustomerRepo.getByBusinessAndPhone(businessId, customerPhone);
+  const normalizedPhone = customerPhone ? normalizePhone(customerPhone) : null;
+  if (normalizedPhone) {
+    const customer = await deps.CustomerRepo.getByBusinessAndPhone(businessId, normalizedPhone);
     if (customer) return customer;
   }
 
@@ -65,6 +67,13 @@ async function createOrder(deps, client, input) {
   return deps.OrderRepo.create(client, input);
 }
 
+async function lockOrderRequest(client, businessId, externalOrderId) {
+  await client.query(
+    `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
+    [String(businessId), String(externalOrderId)]
+  );
+}
+
 async function processOrderWithClient(deps, client, input) {
   const externalOrderId = String(input.externalOrderId || "").trim();
   if (!externalOrderId) throw badRequest("externalOrderId required");
@@ -75,10 +84,15 @@ async function processOrderWithClient(deps, client, input) {
   const publicBusiness = await deps.BusinessRepo.getPublicBySlug(String(input.businessSlug || ""));
   if (!publicBusiness) throw notFound("Business not found");
 
+  await deps.setCurrentTenant(String(publicBusiness.id));
   const business = await deps.BusinessRepo.getById(String(publicBusiness.id));
   if (!business) throw notFound("Business not found");
 
+  await lockOrderRequest(client, business.id, externalOrderId);
   const existing = await findExistingOrder(deps, client, business.id, externalOrderId);
+  const holdDays = Math.max(0, Math.floor(Number(business.program_json?.pending_points_hold_days ?? 0)));
+  const transactionStatus = holdDays > 0 ? "PENDING" : "POSTED";
+  const availableAt = holdDays > 0 ? new Date(Date.now() + holdDays * 24 * 60 * 60 * 1000) : null;
 
   if (existing && input.customerId && String(existing.customer_id) === String(input.customerId)) {
     const earlyPayload = buildFingerprintPayload({
@@ -151,14 +165,16 @@ async function processOrderWithClient(deps, client, input) {
 
   await client.query(
     `INSERT INTO transactions
-     (id, business_id, customer_id, amount_q, points, status, source, meta)
-     VALUES ($1,$2,$3,$4,$5,'POSTED','order',$6)`,
+     (id, business_id, customer_id, amount_q, points, status, available_at, source, meta)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,'order',$8)`,
     [
       transactionId,
       business.id,
       customer.id,
       amountQ,
       pointsAwarded,
+      transactionStatus,
+      availableAt,
       {
         external_order_id: externalOrderId,
         order_fingerprint: fingerprint
@@ -168,11 +184,12 @@ async function processOrderWithClient(deps, client, input) {
 
   await client.query(
     `UPDATE customer_balances
-     SET points = points + $2,
-         lifetime_points = lifetime_points + GREATEST($2, 0),
+     SET points = points + CASE WHEN $3 = 'POSTED' THEN $2 ELSE 0 END,
+         pending_points = pending_points + CASE WHEN $3 = 'PENDING' THEN $2 ELSE 0 END,
+         lifetime_points = lifetime_points + CASE WHEN $3 = 'POSTED' THEN GREATEST($2, 0) ELSE 0 END,
          updated_at = now()
      WHERE customer_id = $1`,
-    [customer.id, pointsAwarded]
+    [customer.id, pointsAwarded, transactionStatus]
   );
 
   const order = await createOrder(deps, client, {
@@ -192,7 +209,7 @@ async function processOrderWithClient(deps, client, input) {
     fingerprint,
     transaction_id: transactionId,
     points_awarded: pointsAwarded,
-    transaction_status: "POSTED"
+    transaction_status: transactionStatus
   });
 
   return {
@@ -201,7 +218,7 @@ async function processOrderWithClient(deps, client, input) {
     transactionId,
     customerId: customer.id,
     pointsAwarded,
-    status: "POSTED"
+    status: transactionStatus
   };
 }
 
@@ -215,7 +232,8 @@ export async function processOrderWithDeps(deps, input) {
     OrderRepo: deps.OrderRepo ?? OrderRepo,
     computePoints: deps.computePoints ?? computePoints,
     hashPayload: deps.hashPayload ?? defaultHashPayload,
-    withTransaction: deps.withTransaction
+    withTransaction: deps.withTransaction,
+    setCurrentTenant: deps.setCurrentTenant ?? setCurrentTenant
   };
 
   return resolvedDeps.withTransaction((client) => processOrderWithClient(resolvedDeps, client, input));
@@ -228,6 +246,7 @@ export async function processOrder(input) {
     CustomerRepo,
     OrderRepo,
     computePoints,
-    hashPayload: defaultHashPayload
+    hashPayload: defaultHashPayload,
+    setCurrentTenant
   }, input);
 }

@@ -11,7 +11,7 @@ const runIntegration = process.env.RUN_INTEGRATION === "true";
 const integrationDescribe = runIntegration ? describe : describe.skip;
 const createdBusinessIds = [];
 
-async function createFixture() {
+async function createFixture({ holdDays = 0 } = {}) {
   const suffix = crypto.randomUUID().slice(0, 8);
   const businessId = crypto.randomUUID();
   const customerId = crypto.randomUUID();
@@ -28,7 +28,7 @@ async function createFixture() {
       category: "cafe",
       plan: "NEGOCIO",
       program_type: "SPEND",
-      program_json: { points_per_q: 0.1 }
+      program_json: { points_per_q: 0.1, pending_points_hold_days: holdDays }
     });
     await CustomerRepo.create({
       id: customerId,
@@ -91,5 +91,37 @@ integrationDescribe("Orders API idempotency integration", () => {
     assert.equal(balanceRows.length, 1);
     assert.equal(Number(balanceRows[0].points), Number(first.pointsAwarded));
     assert.equal(Number(balanceRows[0].lifetime_points), Number(first.pointsAwarded));
+  });
+
+  it("stores order points as pending when hold days are configured", async () => {
+    const { customerId, slug } = await createFixture({ holdDays: 2 });
+
+    const first = await processOrder({
+      businessSlug: slug,
+      customerId,
+      externalOrderId: "ord-pending",
+      status: "completed",
+      amount_q: 50
+    });
+
+    const second = await processOrder({
+      businessSlug: slug,
+      customerId,
+      externalOrderId: "ord-pending",
+      status: "completed",
+      amount_q: 50
+    });
+
+    assert.equal(first.status, "PENDING");
+    assert.equal(second.replay, true);
+    assert.equal(second.status, "PENDING");
+
+    const { rows: balanceRows } = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => (
+      dbQuery("SELECT points, pending_points, lifetime_points FROM customer_balances WHERE customer_id = $1", [customerId])
+    ));
+    assert.equal(balanceRows.length, 1);
+    assert.equal(Number(balanceRows[0].points), 0);
+    assert.equal(Number(balanceRows[0].pending_points), Number(first.pointsAwarded));
+    assert.equal(Number(balanceRows[0].lifetime_points), 0);
   });
 });

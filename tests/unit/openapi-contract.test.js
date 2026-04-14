@@ -35,6 +35,10 @@ describe("openapi contract", () => {
       publicOrder?.responses?.["200"]?.content?.["application/json"]?.schema?.$ref,
       "#/components/schemas/OrderCreateResponse"
     );
+    assert.deepEqual(
+      doc.components?.schemas?.OrderCreateRequest?.properties?.status?.enum,
+      ["paid", "completed"]
+    );
   });
 
   it("includes typed response bodies and shared error envelopes for key routes", async () => {
