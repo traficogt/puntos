@@ -25,6 +25,9 @@ describe("openapi contract", () => {
     const logout = doc.paths["/api/v1/public/customer/logout"]?.post;
     assert.equal(logout?.["x-csrf-required"], true);
     assert.deepEqual(logout?.security, [{ customerAuth: [] }]);
+
+    const publicOrder = doc.paths["/api/v1/public/orders"]?.post;
+    assert.ok(publicOrder);
   });
 
   it("includes typed response bodies and shared error envelopes for key routes", async () => {

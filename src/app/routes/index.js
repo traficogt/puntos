@@ -11,6 +11,7 @@ import analyticsRoutes from "./analytics-routes.js";
 import { superRoutes } from "./super-routes.js";
 import { superMagicLinkRoutes } from "./super-magic-link-routes.js";
 import { paymentWebhookRoutes } from "./payment-webhook-routes.js";
+import { orderRoutes } from "./order-routes.js";
 import giftCardRoutes from "./gift-card-routes.js";
 import docsRoutes from "./docs-routes.js";
 import swaggerRoutes from "./swagger-routes.js";
@@ -30,6 +31,7 @@ const mountRoutes = (basePath) => {
   apiRoutes.use(basePath, superRoutes);
   apiRoutes.use(basePath, superMagicLinkRoutes);
   apiRoutes.use(basePath, paymentWebhookRoutes);
+  apiRoutes.use(basePath, orderRoutes);
   apiRoutes.use(basePath, giftCardRoutes);
 };
 
