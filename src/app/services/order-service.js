@@ -50,7 +50,7 @@ function buildFingerprintPayload({ customerId, externalOrderId, status, amount_q
     subtotal_q: subtotal_q === null ? null : Number(subtotal_q || 0),
     discount_q: discount_q === null ? null : Number(discount_q || 0),
     tax_q: tax_q === null ? null : Number(tax_q || 0),
-    currency: String(currency || "GTQ"),
+    currency: String(currency || "GTQ").toUpperCase(),
     occurred_at: occurred_at ?? null,
     line_items_json: Array.isArray(line_items_json) ? line_items_json : [],
     meta: meta && typeof meta === "object" ? meta : {}

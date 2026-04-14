@@ -7,6 +7,7 @@ test("returns replay success when the same externalOrderId is received with the 
   let lookupCalled = false;
   let lookupParams = null;
   let customerLookupCalled = false;
+  let fingerprintCurrency = null;
   const deps = {
     withTransaction: async (fn) => fn({
       query: async () => ({ rows: [], rowCount: 0 })
@@ -40,7 +41,10 @@ test("returns replay success when the same externalOrderId is received with the 
       }
     },
     computePoints: () => 5,
-    hashPayload: () => "fp-1"
+    hashPayload: (payload) => {
+      fingerprintCurrency = payload.currency;
+      return "fp-1";
+    }
   };
 
   const out = await processOrderWithDeps(deps, {
@@ -48,12 +52,14 @@ test("returns replay success when the same externalOrderId is received with the 
     externalOrderId: "ord-1",
     customerId: "cust-1",
     status: "paid",
-    amount_q: 50
+    amount_q: 50,
+    currency: "gtq"
   });
 
   assert.equal(lookupCalled, true);
   assert.deepEqual(lookupParams, ["biz-1", "ord-1"]);
   assert.equal(customerLookupCalled, false);
+  assert.equal(fingerprintCurrency, "GTQ");
   assert.deepEqual(out, {
     ok: true,
     orderId: "order-existing",
