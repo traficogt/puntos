@@ -53,24 +53,72 @@ after(async () => {
 });
 
 integrationDescribe("Orders API idempotency integration", () => {
-  it("deduplicates repeated order ingestion and updates the balance once", async () => {
+  it("deduplicates concurrent order ingestion and updates the balance once", async () => {
     const { businessId, customerId, slug } = await createFixture();
 
-    const first = await processOrder({
+    const firstRequest = {
       businessSlug: slug,
       customerId,
       externalOrderId: "ord-1",
       status: "paid",
-      amount_q: 50
-    });
+      amount_q: 50,
+      line_items_json: [
+        {
+          quantity: 1,
+          name: "Banana",
+          code: "B",
+          category: "fruit"
+        },
+        {
+          category: "fruit",
+          code: "A",
+          name: "Apple",
+          quantity: 2
+        }
+      ],
+      meta: {
+        z: 2,
+        details: {
+          b: 2,
+          a: 1
+        },
+        a: 1
+      }
+    };
+    const secondRequest = {
+      businessSlug: slug,
+      customerId,
+      externalOrderId: "ord-1",
+      status: "paid",
+      amount_q: 50,
+      line_items_json: [
+        {
+          name: "Apple",
+          quantity: 2,
+          category: "fruit",
+          code: "A"
+        },
+        {
+          category: "fruit",
+          quantity: 1,
+          code: "B",
+          name: "Banana"
+        }
+      ],
+      meta: {
+        details: {
+          a: 1,
+          b: 2
+        },
+        a: 1,
+        z: 2
+      }
+    };
 
-    const second = await processOrder({
-      businessSlug: slug,
-      customerId,
-      externalOrderId: "ord-1",
-      status: "paid",
-      amount_q: 50
-    });
+    const [first, second] = await Promise.all([
+      processOrder(firstRequest),
+      processOrder(secondRequest)
+    ]);
 
     assert.equal(first.ok, true);
     assert.equal(second.ok, true);
@@ -95,22 +143,22 @@ integrationDescribe("Orders API idempotency integration", () => {
 
   it("stores order points as pending when hold days are configured", async () => {
     const { customerId, slug } = await createFixture({ holdDays: 2 });
-
-    const first = await processOrder({
-      businessSlug: slug,
-      customerId,
-      externalOrderId: "ord-pending",
-      status: "completed",
-      amount_q: 50
-    });
-
-    const second = await processOrder({
-      businessSlug: slug,
-      customerId,
-      externalOrderId: "ord-pending",
-      status: "completed",
-      amount_q: 50
-    });
+    const [first, second] = await Promise.all([
+      processOrder({
+        businessSlug: slug,
+        customerId,
+        externalOrderId: "ord-pending",
+        status: "completed",
+        amount_q: 50
+      }),
+      processOrder({
+        businessSlug: slug,
+        customerId,
+        externalOrderId: "ord-pending",
+        status: "completed",
+        amount_q: 50
+      })
+    ]);
 
     assert.equal(first.status, "PENDING");
     assert.equal(second.replay, true);

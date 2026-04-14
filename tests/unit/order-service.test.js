@@ -81,6 +81,160 @@ test("returns replay success when the same externalOrderId is received with the 
   });
 });
 
+test("treats reordered meta keys and line items as the same replay payload", async () => {
+  let observedPayload = null;
+  const deps = {
+    withTransaction: async (fn) => fn({
+      query: async () => ({ rows: [], rowCount: 0 })
+    }),
+    setCurrentTenant: async () => {},
+    BusinessRepo: {
+      getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
+      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
+    },
+    CustomerRepo: {
+      getById: async (id) => ({ id, business_id: "biz-1" }),
+      getByBusinessAndPhone: async () => null
+    },
+    OrderRepo: {
+      findByBusinessAndExternalId: async () => ({
+        id: "order-existing",
+        customer_id: "cust-1",
+        transaction_id: "tx-existing",
+        points_awarded: 5,
+        transaction_status: "POSTED",
+        fingerprint: "fp-normalized"
+      })
+    },
+    computePoints: () => 5,
+    hashPayload: (payload) => {
+      observedPayload = payload;
+      const lineItemNames = payload.line_items_json.map((item) => item.name);
+      const metaKeys = Object.keys(payload.meta);
+      const nestedMetaKeys = Object.keys(payload.meta.details || {});
+
+      if (
+        lineItemNames.join(",") === "Apple,Banana" &&
+        metaKeys.join(",") === "a,details,z" &&
+        nestedMetaKeys.join(",") === "a,b"
+      ) {
+        return "fp-normalized";
+      }
+
+      return "fp-raw";
+    }
+  };
+
+  const out = await processOrderWithDeps(deps, {
+    businessSlug: "cafe",
+    externalOrderId: "ord-1",
+    customerId: "cust-1",
+    status: "paid",
+    amount_q: 50,
+    currency: "gtq",
+    line_items_json: [
+      {
+        quantity: 1,
+        name: "Banana",
+        code: "B",
+        category: "fruit"
+      },
+      {
+        category: "fruit",
+        code: "A",
+        name: "Apple",
+        quantity: 2
+      }
+    ],
+    meta: {
+      z: 2,
+      details: {
+        b: 2,
+        a: 1
+      },
+      a: 1
+    }
+  });
+
+  assert.equal(observedPayload.line_items_json[0].name, "Apple");
+  assert.equal(observedPayload.line_items_json[1].name, "Banana");
+  assert.deepEqual(Object.keys(observedPayload.meta), ["a", "details", "z"]);
+  assert.deepEqual(Object.keys(observedPayload.meta.details), ["a", "b"]);
+  assert.deepEqual(out, {
+    ok: true,
+    orderId: "order-existing",
+    transactionId: "tx-existing",
+    customerId: "cust-1",
+    pointsAwarded: 5,
+    status: "POSTED",
+    replay: true
+  });
+});
+
+test("persists normalized line items and meta when creating a new order", async () => {
+  let createInput = null;
+  const deps = {
+    withTransaction: async (fn) => fn({
+      query: async () => ({ rows: [], rowCount: 0 })
+    }),
+    setCurrentTenant: async () => {},
+    BusinessRepo: {
+      getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
+      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
+    },
+    CustomerRepo: {
+      getById: async (id) => ({ id, business_id: "biz-1" }),
+      getByBusinessAndPhone: async () => null
+    },
+    OrderRepo: {
+      findByBusinessAndExternalId: async () => null,
+      create: async (_client, input) => {
+        createInput = input;
+        return { id: "order-created", transaction_id: input.transaction_id };
+      }
+    },
+    computePoints: () => 5,
+    hashPayload: () => "fp-normalized"
+  };
+
+  const out = await processOrderWithDeps(deps, {
+    businessSlug: "cafe",
+    externalOrderId: "ord-2",
+    customerId: "cust-1",
+    status: "paid",
+    amount_q: 50,
+    currency: "gtq",
+    line_items_json: [
+      {
+        quantity: 1,
+        name: "Banana",
+        code: "B",
+        category: "fruit"
+      },
+      {
+        category: "fruit",
+        code: "A",
+        name: "Apple",
+        quantity: 2
+      }
+    ],
+    meta: {
+      z: 2,
+      details: {
+        b: 2,
+        a: 1
+      },
+      a: 1
+    }
+  });
+
+  assert.equal(out.ok, true);
+  assert.deepEqual(createInput.line_items_json.map((item) => item.name), ["Apple", "Banana"]);
+  assert.deepEqual(Object.keys(createInput.meta), ["a", "details", "z"]);
+  assert.deepEqual(Object.keys(createInput.meta.details), ["a", "b"]);
+  assert.equal(createInput.fingerprint, "fp-normalized");
+});
+
 test("falls back to customerPhone when customerId is absent", async () => {
   let tenantId = null;
   const customerPhones = [];

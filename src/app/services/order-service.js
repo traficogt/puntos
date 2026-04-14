@@ -28,6 +28,45 @@ function normalizeNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function isPlainObject(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function normalizeValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeValue(item));
+  }
+
+  if (!isPlainObject(value)) return value;
+
+  return Object.keys(value).sort().reduce((acc, key) => {
+    acc[key] = normalizeValue(value[key]);
+    return acc;
+  }, {});
+}
+
+function normalizeLineItems(lineItemsJson) {
+  const normalizedItems = Array.isArray(lineItemsJson) ? lineItemsJson.map((item) => normalizeValue(item)) : [];
+  return normalizedItems
+    .map((item, index) => ({
+      item,
+      sortKey: JSON.stringify(item),
+      index
+    }))
+    .sort((left, right) => {
+      if (left.sortKey < right.sortKey) return -1;
+      if (left.sortKey > right.sortKey) return 1;
+      return left.index - right.index;
+    })
+    .map(({ item }) => item);
+}
+
+function normalizeMeta(meta) {
+  return normalizeValue(meta && typeof meta === "object" ? meta : {});
+}
+
 async function resolveCustomer(deps, businessId, customerId, customerPhone) {
   if (customerId) {
     const customer = await deps.CustomerRepo.getById(customerId);
@@ -81,6 +120,9 @@ async function processOrderWithClient(deps, client, input) {
   const status = normalizeStatus(input.status);
   if (!PROCESSABLE_STATUSES.has(status)) throw badRequest("Unsupported order status");
 
+  const lineItemsJson = normalizeLineItems(input.line_items_json);
+  const meta = normalizeMeta(input.meta);
+
   const publicBusiness = await deps.BusinessRepo.getPublicBySlug(String(input.businessSlug || ""));
   if (!publicBusiness) throw notFound("Business not found");
 
@@ -105,8 +147,8 @@ async function processOrderWithClient(deps, client, input) {
       tax_q: input.tax_q,
       currency: input.currency,
       occurred_at: input.occurred_at,
-      line_items_json: input.line_items_json,
-      meta: input.meta
+      line_items_json: lineItemsJson,
+      meta
     });
     const earlyFingerprint = deps.hashPayload(earlyPayload);
     if (String(existing.fingerprint || "") !== String(earlyFingerprint || "")) {
@@ -135,8 +177,8 @@ async function processOrderWithClient(deps, client, input) {
     tax_q: input.tax_q,
     currency: input.currency,
     occurred_at: input.occurred_at,
-    line_items_json: input.line_items_json,
-    meta: input.meta
+    line_items_json: lineItemsJson,
+    meta
   });
   const fingerprint = deps.hashPayload(payload);
 
@@ -204,8 +246,8 @@ async function processOrderWithClient(deps, client, input) {
     currency,
     occurred_at: input.occurred_at ?? null,
     source: input.source ?? "api",
-    line_items_json: Array.isArray(input.line_items_json) ? input.line_items_json : [],
-    meta: input.meta && typeof input.meta === "object" ? input.meta : {},
+    line_items_json: lineItemsJson,
+    meta,
     fingerprint,
     transaction_id: transactionId,
     points_awarded: pointsAwarded,

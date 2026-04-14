@@ -13,7 +13,7 @@
     "test:unit": "NODE_ENV=test node --test tests/unit/*.test.js",
     "test:integration": "npm run test:integration:core && npm run test:integration:pwa",
     "test:integration:all": "npm run test:integration",
-    "test:integration:core": "NODE_ENV=test node --test --test-concurrency=1 tests/integration/api-security.test.js tests/integration/customer-flow.test.js tests/integration/external-award-idempotency.test.js tests/integration/gift-card-idempotency.test.js tests/integration/plan-enforcement.test.js tests/integration/recurring-gamification.test.js tests/integration/refund-gamification.test.js tests/integration/staff-ledger-idempotency.test.js tests/integration/super-giftcards.test.js",
+    "test:integration:core": "NODE_ENV=test node --test --test-concurrency=1 tests/integration/api-security.test.js tests/integration/customer-flow.test.js tests/integration/external-award-idempotency.test.js tests/integration/gift-card-idempotency.test.js tests/integration/orders-idempotency.test.js tests/integration/plan-enforcement.test.js tests/integration/recurring-gamification.test.js tests/integration/refund-gamification.test.js tests/integration/staff-ledger-idempotency.test.js tests/integration/super-giftcards.test.js",
     "test:integration:pwa": "node src/scripts/run-pwa-integration.mjs",
     "test:integration:live": "NODE_ENV=test node --test tests/integration/refund-gamification.test.js tests/integration/recurring-gamification.test.js",
     "test:watch": "NODE_ENV=test node --test --watch tests/unit/*.test.js tests/integration/*.test.js",
