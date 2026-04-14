@@ -58,53 +58,11 @@ function buildFingerprintPayload({ customerId, externalOrderId, status, amount_q
 }
 
 async function findExistingOrder(deps, client, businessId, externalOrderId) {
-  if (deps.OrderRepo?.findByBusinessAndExternalId) {
-    return deps.OrderRepo.findByBusinessAndExternalId(client, businessId, externalOrderId);
-  }
-
-  const { rows } = await client.query(
-    `SELECT id, business_id, customer_id, external_order_id, fingerprint, transaction_id, points_awarded, transaction_status
-     FROM orders
-     WHERE business_id = $1 AND external_order_id = $2
-     LIMIT 1`,
-    [businessId, externalOrderId]
-  );
-  return rows[0] ?? null;
+  return deps.OrderRepo.findByBusinessAndExternalId(client, businessId, externalOrderId);
 }
 
 async function createOrder(deps, client, input) {
-  if (deps.OrderRepo?.create) {
-    return deps.OrderRepo.create(client, input);
-  }
-
-  const idValue = input.id ?? id();
-  const { rows } = await client.query(
-    `INSERT INTO orders
-     (id, business_id, customer_id, external_order_id, status, amount_q, subtotal_q, discount_q, tax_q, currency, occurred_at, source, line_items_json, meta, fingerprint, transaction_id, points_awarded, transaction_status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
-     RETURNING *`,
-    [
-      idValue,
-      input.business_id,
-      input.customer_id,
-      input.external_order_id,
-      input.status,
-      input.amount_q,
-      input.subtotal_q,
-      input.discount_q,
-      input.tax_q,
-      input.currency,
-      input.occurred_at,
-      input.source ?? "api",
-      input.line_items_json ?? [],
-      input.meta ?? {},
-      input.fingerprint,
-      input.transaction_id ?? null,
-      input.points_awarded ?? 0,
-      input.transaction_status ?? null
-    ]
-  );
-  return rows[0];
+  return deps.OrderRepo.create(client, input);
 }
 
 async function processOrderWithClient(deps, client, input) {
@@ -119,6 +77,37 @@ async function processOrderWithClient(deps, client, input) {
 
   const business = await deps.BusinessRepo.getById(String(publicBusiness.id));
   if (!business) throw notFound("Business not found");
+
+  const existing = await findExistingOrder(deps, client, business.id, externalOrderId);
+
+  if (existing && input.customerId && String(existing.customer_id) === String(input.customerId)) {
+    const earlyPayload = buildFingerprintPayload({
+      customerId: input.customerId,
+      externalOrderId,
+      status,
+      amount_q: input.amount_q,
+      subtotal_q: input.subtotal_q,
+      discount_q: input.discount_q,
+      tax_q: input.tax_q,
+      currency: input.currency,
+      occurred_at: input.occurred_at,
+      line_items_json: input.line_items_json,
+      meta: input.meta
+    });
+    const earlyFingerprint = deps.hashPayload(earlyPayload);
+    if (String(existing.fingerprint || "") !== String(earlyFingerprint || "")) {
+      throw conflict("externalOrderId already used for a different payload");
+    }
+    return {
+      ok: true,
+      orderId: existing.id,
+      transactionId: existing.transaction_id,
+      customerId: existing.customer_id,
+      pointsAwarded: Number(existing.points_awarded || 0),
+      status: existing.transaction_status,
+      replay: true
+    };
+  }
 
   const customer = await resolveCustomer(deps, business.id, input.customerId, input.customerPhone);
 
@@ -137,7 +126,6 @@ async function processOrderWithClient(deps, client, input) {
   });
   const fingerprint = deps.hashPayload(payload);
 
-  const existing = await findExistingOrder(deps, client, business.id, externalOrderId);
   if (existing) {
     if (String(existing.customer_id) !== String(customer.id) || String(existing.fingerprint || "") !== String(fingerprint || "")) {
       throw conflict("externalOrderId already used for a different payload");
