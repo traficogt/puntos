@@ -5,11 +5,16 @@ const { processOrderWithDeps } = await import("../../src/app/services/order-serv
 
 test("returns replay success when the same externalOrderId is received with the same payload", async () => {
   let lookupCalled = false;
+  let lookupParams = null;
   const deps = {
     withTransaction: async (fn) => fn({
-      query: async (sql) => {
-        if (sql.includes("SELECT id, customer_id, transaction_id")) {
+      query: async (sql, params) => {
+        if (sql === `SELECT id, customer_id, transaction_id, points_awarded, transaction_status, fingerprint
+       FROM orders
+       WHERE business_id = $1 AND external_order_id = $2
+       LIMIT 1`) {
           lookupCalled = true;
+          lookupParams = params;
           return {
             rows: [{
               id: "order-existing",
@@ -46,6 +51,7 @@ test("returns replay success when the same externalOrderId is received with the 
   });
 
   assert.equal(lookupCalled, true);
+  assert.deepEqual(lookupParams, ["biz-1", "ord-1"]);
   assert.deepEqual(out, {
     ok: true,
     orderId: "order-existing",
