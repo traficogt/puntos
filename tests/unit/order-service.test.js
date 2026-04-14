@@ -8,27 +8,7 @@ test("returns replay success when the same externalOrderId is received with the 
   let lookupParams = null;
   const deps = {
     withTransaction: async (fn) => fn({
-      query: async (sql, params) => {
-        if (sql === `SELECT id, customer_id, transaction_id, points_awarded, transaction_status, fingerprint
-       FROM orders
-       WHERE business_id = $1 AND external_order_id = $2
-       LIMIT 1`) {
-          lookupCalled = true;
-          lookupParams = params;
-          return {
-            rows: [{
-              id: "order-existing",
-              customer_id: "cust-1",
-              transaction_id: "tx-existing",
-              points_awarded: 5,
-              transaction_status: "POSTED",
-              fingerprint: "fp-1"
-            }],
-            rowCount: 1
-          };
-        }
-        throw new Error(`Unexpected SQL: ${sql}`);
-      }
+      query: async () => ({ rows: [], rowCount: 0 })
     }),
     BusinessRepo: {
       getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
@@ -37,6 +17,20 @@ test("returns replay success when the same externalOrderId is received with the 
     CustomerRepo: {
       getById: async () => ({ id: "cust-1", business_id: "biz-1" }),
       getByBusinessAndPhone: async () => null
+    },
+    OrderRepo: {
+      findByBusinessAndExternalId: async (_client, businessId, externalOrderId) => {
+        lookupCalled = true;
+        lookupParams = [businessId, externalOrderId];
+        return {
+          id: "order-existing",
+          customer_id: "cust-1",
+          transaction_id: "tx-existing",
+          points_awarded: 5,
+          transaction_status: "POSTED",
+          fingerprint: "fp-1"
+        };
+      }
     },
     computePoints: () => 5,
     hashPayload: () => "fp-1"
@@ -61,4 +55,67 @@ test("returns replay success when the same externalOrderId is received with the 
     status: "POSTED",
     replay: true
   });
+});
+
+test("falls back to customerPhone when customerId is absent", async () => {
+  const deps = {
+    withTransaction: async (fn) => fn({ query: async () => ({ rows: [], rowCount: 0 }) }),
+    BusinessRepo: {
+      getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
+      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
+    },
+    CustomerRepo: {
+      getById: async () => null,
+      getByBusinessAndPhone: async (businessId, phone) => ({ id: "cust-phone", business_id: businessId, phone })
+    },
+    OrderRepo: {
+      findByBusinessAndExternalId: async () => null,
+      create: async (_client, input) => ({ id: "order-created", transaction_id: input.transaction_id })
+    },
+    computePoints: () => 8,
+    hashPayload: () => "fp-2"
+  };
+
+  const out = await processOrderWithDeps(deps, {
+    businessSlug: "cafe",
+    customerPhone: "+50255554444",
+    externalOrderId: "ord-phone",
+    status: "completed",
+    amount_q: 80
+  });
+
+  assert.equal(out.customerId, "cust-phone");
+  assert.equal(out.pointsAwarded, 8);
+});
+
+test("rejects unsupported order status", async () => {
+  const deps = {
+    withTransaction: async (fn) => fn({ query: async () => ({ rows: [], rowCount: 0 }) }),
+    BusinessRepo: {
+      getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
+      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
+    },
+    CustomerRepo: {
+      getById: async () => ({ id: "cust-1", business_id: "biz-1" }),
+      getByBusinessAndPhone: async () => null
+    },
+    OrderRepo: {
+      findByBusinessAndExternalId: async () => {
+        throw new Error("OrderRepo should not be called for unsupported status");
+      }
+    },
+    computePoints: () => 0,
+    hashPayload: () => "fp-3"
+  };
+
+  await assert.rejects(
+    () => processOrderWithDeps(deps, {
+      businessSlug: "cafe",
+      customerId: "cust-1",
+      externalOrderId: "ord-bad-status",
+      status: "pending",
+      amount_q: 10
+    }),
+    /Unsupported order status/
+  );
 });
