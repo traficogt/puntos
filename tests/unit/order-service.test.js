@@ -88,6 +88,38 @@ test("falls back to customerPhone when customerId is absent", async () => {
   assert.equal(out.pointsAwarded, 8);
 });
 
+test("falls back to customerPhone when customerId belongs to a different business", async () => {
+  const deps = {
+    withTransaction: async (fn) => fn({ query: async () => ({ rows: [], rowCount: 0 }) }),
+    BusinessRepo: {
+      getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
+      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
+    },
+    CustomerRepo: {
+      getById: async () => ({ id: "cust-other", business_id: "biz-2" }),
+      getByBusinessAndPhone: async (businessId, phone) => ({ id: "cust-phone", business_id: businessId, phone })
+    },
+    OrderRepo: {
+      findByBusinessAndExternalId: async () => null,
+      create: async (_client, input) => ({ id: "order-created", transaction_id: input.transaction_id })
+    },
+    computePoints: () => 8,
+    hashPayload: () => "fp-4"
+  };
+
+  const out = await processOrderWithDeps(deps, {
+    businessSlug: "cafe",
+    customerId: "cust-other",
+    customerPhone: "+50255554444",
+    externalOrderId: "ord-phone-fallback",
+    status: "paid",
+    amount_q: 80
+  });
+
+  assert.equal(out.customerId, "cust-phone");
+  assert.equal(out.pointsAwarded, 8);
+});
+
 test("rejects unsupported order status", async () => {
   const deps = {
     withTransaction: async (fn) => fn({ query: async () => ({ rows: [], rowCount: 0 }) }),

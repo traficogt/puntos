@@ -31,7 +31,6 @@ async function resolveCustomer(deps, businessId, customerId, customerPhone) {
   if (customerId) {
     const customer = await deps.CustomerRepo.getById(customerId);
     if (customer && String(customer.business_id) === String(businessId)) return customer;
-    if (customer) throw notFound("Customer not found for this business");
   }
 
   if (customerPhone) {
