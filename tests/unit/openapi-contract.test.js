@@ -39,6 +39,11 @@ describe("openapi contract", () => {
       doc.components?.schemas?.OrderCreateRequest?.properties?.status?.enum,
       ["paid", "completed"]
     );
+
+    assert.ok(doc.paths["/api/v1/public/contacts"]?.post);
+    assert.ok(doc.paths["/api/v1/public/contact-identifiers"]?.post);
+    assert.ok(doc.paths["/api/v1/public/contact-identifiers/resolve"]?.post);
+    assert.ok(doc.paths["/api/v1/public/contact-identifiers/unlink"]?.post);
   });
 
   it("includes typed response bodies and shared error envelopes for key routes", async () => {

@@ -62,6 +62,13 @@ const {
 const { ExternalAwardSchema } = await import("../app/routes/public-routes.js");
 const { OrderCreateSchema } = await import("../app/routes/order-routes.js");
 const {
+  PublicContactUpsertSchema,
+  PublicContactLookupQuerySchema,
+  PublicContactIdentifierLinkSchema,
+  PublicContactIdentifierResolveSchema,
+  PublicContactIdentifierUnlinkSchema
+} = await import("../app/routes/contact-sync-routes.js");
+const {
   LoginSchema,
   UpdatePlanSchema,
   UpdatePlanFeaturesSchema,
@@ -260,6 +267,49 @@ const OrderCreateResponseSchema = okEnvelope({
   replay: z.boolean().optional()
 }).passthrough();
 
+const ContactResourceSchema = z.object({
+  id: z.string(),
+  business_id: z.string(),
+  phone: z.string(),
+  name: z.string().nullable().optional(),
+  points: z.union([z.number(), z.string()]).optional(),
+  pending_points: z.union([z.number(), z.string()]).optional(),
+  lifetime_points: z.union([z.number(), z.string()]).optional(),
+  tier: z.string().nullable().optional(),
+  created_at: TimestampSchema.optional(),
+  last_visit_at: TimestampSchema.nullable().optional()
+}).passthrough();
+
+const ContactIdentifierResourceSchema = z.object({
+  id: z.string(),
+  business_id: z.string(),
+  customer_id: z.string(),
+  identifier_type: z.string(),
+  identifier_value: z.string(),
+  label: z.string().nullable().optional(),
+  active: z.boolean(),
+  meta: JsonRecordSchema.optional(),
+  created_at: TimestampSchema.optional(),
+  updated_at: TimestampSchema.optional()
+}).passthrough();
+
+const PublicContactResponseSchema = okEnvelope({
+  contact: ContactResourceSchema,
+  identifiers: z.array(ContactIdentifierResourceSchema)
+}).passthrough();
+
+const PublicContactIdentifierLinkResponseSchema = okEnvelope({
+  identifier: ContactIdentifierResourceSchema
+}).passthrough();
+
+const PublicContactIdentifierResolveResponseSchema = okEnvelope({
+  contact: ContactResourceSchema
+}).passthrough();
+
+const PublicContactIdentifierUnlinkResponseSchema = okEnvelope({
+  identifier: ContactIdentifierResourceSchema
+}).passthrough();
+
 const schemas = {
   StaffLoginRequest: staffLoginSchema,
   AwardPointsRequest: awardPointsSchema,
@@ -329,6 +379,11 @@ const schemas = {
   ExternalAwardsRequest: ExternalAwardsSchema,
   AutomationTemplateRequest: AutomationTemplateSchema,
   OrderCreateRequest: OrderCreateSchema,
+  PublicContactUpsertRequest: PublicContactUpsertSchema,
+  PublicContactLookupQuery: PublicContactLookupQuerySchema,
+  PublicContactIdentifierLinkRequest: PublicContactIdentifierLinkSchema,
+  PublicContactIdentifierResolveRequest: PublicContactIdentifierResolveSchema,
+  PublicContactIdentifierUnlinkRequest: PublicContactIdentifierUnlinkSchema,
   GiftCardListQuery: GiftCardListQuerySchema,
   AnalyticsSegmentCustomersQuery: SegmentCustomersQuerySchema,
   AnalyticsCohortsQuery: CohortRetentionQuerySchema,
@@ -387,7 +442,13 @@ const schemas = {
   }),
   StaffAwardResponse: StaffAwardResponseSchema,
   StaffRefundResponse: StaffRefundResponseSchema,
-  OrderCreateResponse: OrderCreateResponseSchema
+  OrderCreateResponse: OrderCreateResponseSchema,
+  ContactResource: ContactResourceSchema,
+  ContactIdentifierResource: ContactIdentifierResourceSchema,
+  PublicContactResponse: PublicContactResponseSchema,
+  PublicContactIdentifierLinkResponse: PublicContactIdentifierLinkResponseSchema,
+  PublicContactIdentifierResolveResponse: PublicContactIdentifierResolveResponseSchema,
+  PublicContactIdentifierUnlinkResponse: PublicContactIdentifierUnlinkResponseSchema
 };
 
 function toComponentSchema(schema, name) {
@@ -440,6 +501,36 @@ const routeSchemaBindings = {
     post: {
       body: "OrderCreateRequest",
       responses: { "200": "OrderCreateResponse" }
+    }
+  },
+  "/api/v1/public/contacts": {
+    post: {
+      body: "PublicContactUpsertRequest",
+      responses: { "200": "PublicContactResponse" }
+    }
+  },
+  "/api/v1/public/contacts/{customerId}": {
+    get: {
+      query: "PublicContactLookupQuery",
+      responses: { "200": "PublicContactResponse" }
+    }
+  },
+  "/api/v1/public/contact-identifiers": {
+    post: {
+      body: "PublicContactIdentifierLinkRequest",
+      responses: { "200": "PublicContactIdentifierLinkResponse" }
+    }
+  },
+  "/api/v1/public/contact-identifiers/resolve": {
+    post: {
+      body: "PublicContactIdentifierResolveRequest",
+      responses: { "200": "PublicContactIdentifierResolveResponse" }
+    }
+  },
+  "/api/v1/public/contact-identifiers/unlink": {
+    post: {
+      body: "PublicContactIdentifierUnlinkRequest",
+      responses: { "200": "PublicContactIdentifierUnlinkResponse" }
     }
   },
   "/api/v1/super/login": {
@@ -795,6 +886,126 @@ const curatedPaths = {
         "401": { description: "Invalid signature" },
         "404": { description: "Business or customer not found" },
         "409": { description: "externalOrderId already used for different payload" }
+      }
+    }
+  },
+  "/api/v1/public/contacts": {
+    post: {
+      summary: "Create or update a scoped contact via public integration",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: { $ref: "#/components/schemas/PublicContactUpsertRequest" } }
+        }
+      },
+      responses: {
+        "200": {
+          description: "Contact synced successfully",
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/PublicContactResponse" } }
+          }
+        },
+        "400": { description: "Validation error" },
+        "401": { description: "Invalid signature" },
+        "404": { description: "Business or customer not found" },
+        "409": { description: "Contact data conflicts with an existing scoped customer" }
+      }
+    }
+  },
+  "/api/v1/public/contacts/{customerId}": {
+    get: {
+      summary: "Fetch a scoped contact and its identifiers via public integration",
+      parameters: [
+        {
+          in: "path",
+          name: "customerId",
+          required: true,
+          schema: { type: "string", format: "uuid" }
+        },
+        {
+          in: "query",
+          name: "businessSlug",
+          required: true,
+          schema: { type: "string" }
+        }
+      ],
+      responses: {
+        "200": {
+          description: "Scoped contact detail",
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/PublicContactResponse" } }
+          }
+        },
+        "400": { description: "Validation error" },
+        "401": { description: "Invalid signature" },
+        "404": { description: "Business or customer not found" }
+      }
+    }
+  },
+  "/api/v1/public/contact-identifiers": {
+    post: {
+      summary: "Link a contact identifier to a scoped contact via public integration",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: { $ref: "#/components/schemas/PublicContactIdentifierLinkRequest" } }
+        }
+      },
+      responses: {
+        "200": {
+          description: "Identifier linked successfully",
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/PublicContactIdentifierLinkResponse" } }
+          }
+        },
+        "400": { description: "Validation error" },
+        "401": { description: "Invalid signature" },
+        "404": { description: "Business or customer not found" },
+        "409": { description: "Identifier already linked or inactive" }
+      }
+    }
+  },
+  "/api/v1/public/contact-identifiers/resolve": {
+    post: {
+      summary: "Resolve a scoped contact identifier via public integration",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: { $ref: "#/components/schemas/PublicContactIdentifierResolveRequest" } }
+        }
+      },
+      responses: {
+        "200": {
+          description: "Contact resolved successfully",
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/PublicContactIdentifierResolveResponse" } }
+          }
+        },
+        "400": { description: "Validation error" },
+        "401": { description: "Invalid signature" },
+        "404": { description: "Business or identifier not found" }
+      }
+    }
+  },
+  "/api/v1/public/contact-identifiers/unlink": {
+    post: {
+      summary: "Unlink a scoped contact identifier via public integration",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: { $ref: "#/components/schemas/PublicContactIdentifierUnlinkRequest" } }
+        }
+      },
+      responses: {
+        "200": {
+          description: "Identifier unlinked successfully",
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/PublicContactIdentifierUnlinkResponse" } }
+          }
+        },
+        "400": { description: "Validation error" },
+        "401": { description: "Invalid signature" },
+        "404": { description: "Business or identifier not found" }
       }
     }
   },
