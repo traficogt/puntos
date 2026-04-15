@@ -28,13 +28,14 @@ export const PublicContactUpsertSchema = z.object({
   message: "phone or customerId is required"
 });
 
-export const PublicContactLookupQuerySchema = z.object({
-  businessSlug: z.string().min(2).max(120)
+export const PublicContactLookupRequestSchema = z.object({
+  businessSlug: z.string().min(2).max(120),
+  customerId: z.string().uuid()
 });
 
 export const PublicContactIdentifierLinkSchema = z.object({
   businessSlug: z.string().min(2).max(120),
-  customerId: z.string().min(1),
+  customerId: z.string().uuid(),
   identifierType: z.string().min(1).max(120),
   identifierValue: z.string().min(1).max(200),
   label: z.string().min(1).max(120).optional(),
@@ -56,10 +57,10 @@ function normalizeSignature(signature) {
   return raw;
 }
 
-function verifySignature(rawBody, businessSlug, signature) {
+function verifySignature(payload, businessSlug, signature) {
   const secret = businessSlug ? config.PAYMENT_WEBHOOK_HMAC_SECRETS?.[businessSlug] : null;
-  if (!secret || rawBody == null) return false;
-  const expected = crypto.createHmac("sha256", String(secret)).update(String(rawBody)).digest("hex");
+  if (!secret || payload == null) return false;
+  const expected = crypto.createHmac("sha256", String(secret)).update(String(payload)).digest("hex");
   return timingSafeEqualString(normalizeSignature(signature), expected);
 }
 
@@ -123,8 +124,11 @@ export function createContactSyncRoutes(deps = {}) {
   }));
 
   router.get("/public/contacts/:customerId", moderateRateLimit, asyncRoute(async (req, res) => {
-    const parsed = validate(PublicContactLookupQuerySchema, req.query);
+    const parsed = validate(PublicContactLookupRequestSchema, req.body);
     if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+    if (String(req.params.customerId || "") !== parsed.data.customerId) {
+      return res.status(400).json({ error: "customerId must match the path parameter" });
+    }
 
     const signature = String(req.headers["x-signature"] || "");
     if (!verifySignature(req.rawBody ?? "", parsed.data.businessSlug, signature)) {
@@ -139,7 +143,7 @@ export function createContactSyncRoutes(deps = {}) {
         CustomerRepo: customerRepo,
         ContactIdentifierRepo: contactIdentifierRepo
       });
-      const contact = await customerRepo.getByBusinessAndId(business.id, String(req.params.customerId || ""));
+      const contact = await customerRepo.getByBusinessAndId(business.id, parsed.data.customerId);
       if (!contact) return null;
       const identifiers = await listIdentifiers(serviceDeps, {
         businessId: business.id,

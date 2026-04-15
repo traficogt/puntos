@@ -63,7 +63,7 @@ const { ExternalAwardSchema } = await import("../app/routes/public-routes.js");
 const { OrderCreateSchema } = await import("../app/routes/order-routes.js");
 const {
   PublicContactUpsertSchema,
-  PublicContactLookupQuerySchema,
+  PublicContactLookupRequestSchema,
   PublicContactIdentifierLinkSchema,
   PublicContactIdentifierResolveSchema,
   PublicContactIdentifierUnlinkSchema
@@ -380,7 +380,7 @@ const schemas = {
   AutomationTemplateRequest: AutomationTemplateSchema,
   OrderCreateRequest: OrderCreateSchema,
   PublicContactUpsertRequest: PublicContactUpsertSchema,
-  PublicContactLookupQuery: PublicContactLookupQuerySchema,
+  PublicContactLookupRequest: PublicContactLookupRequestSchema,
   PublicContactIdentifierLinkRequest: PublicContactIdentifierLinkSchema,
   PublicContactIdentifierResolveRequest: PublicContactIdentifierResolveSchema,
   PublicContactIdentifierUnlinkRequest: PublicContactIdentifierUnlinkSchema,
@@ -511,7 +511,7 @@ const routeSchemaBindings = {
   },
   "/api/v1/public/contacts/{customerId}": {
     get: {
-      query: "PublicContactLookupQuery",
+      body: "PublicContactLookupRequest",
       responses: { "200": "PublicContactResponse" }
     }
   },
@@ -669,6 +669,14 @@ const routeSchemaBindings = {
       responses: { "200": "LedgerCertificationResponse" }
     }
   }
+};
+
+const publicHmacHeaderParameter = {
+  in: "header",
+  name: "x-signature",
+  required: true,
+  schema: { type: "string" },
+  description: "Hex HMAC-SHA256 signature for the exact raw request body bytes."
 };
 
 const curatedPaths = {
@@ -869,6 +877,8 @@ const curatedPaths = {
   "/api/v1/public/orders": {
     post: {
       summary: "Create and process an external order",
+      parameters: [publicHmacHeaderParameter],
+      "x-hmac-required": true,
       requestBody: {
         required: true,
         content: {
@@ -892,6 +902,8 @@ const curatedPaths = {
   "/api/v1/public/contacts": {
     post: {
       summary: "Create or update a scoped contact via public integration",
+      parameters: [publicHmacHeaderParameter],
+      "x-hmac-required": true,
       requestBody: {
         required: true,
         content: {
@@ -916,19 +928,21 @@ const curatedPaths = {
     get: {
       summary: "Fetch a scoped contact and its identifiers via public integration",
       parameters: [
+        publicHmacHeaderParameter,
         {
           in: "path",
           name: "customerId",
           required: true,
           schema: { type: "string", format: "uuid" }
-        },
-        {
-          in: "query",
-          name: "businessSlug",
-          required: true,
-          schema: { type: "string" }
         }
       ],
+      "x-hmac-required": true,
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: { $ref: "#/components/schemas/PublicContactLookupRequest" } }
+        }
+      },
       responses: {
         "200": {
           description: "Scoped contact detail",
@@ -939,12 +953,15 @@ const curatedPaths = {
         "400": { description: "Validation error" },
         "401": { description: "Invalid signature" },
         "404": { description: "Business or customer not found" }
-      }
+      },
+      description: "The GET request body must contain the same `customerId` as the path plus `businessSlug`, and the `x-signature` HMAC must cover that exact raw JSON body."
     }
   },
   "/api/v1/public/contact-identifiers": {
     post: {
       summary: "Link a contact identifier to a scoped contact via public integration",
+      parameters: [publicHmacHeaderParameter],
+      "x-hmac-required": true,
       requestBody: {
         required: true,
         content: {
@@ -968,6 +985,8 @@ const curatedPaths = {
   "/api/v1/public/contact-identifiers/resolve": {
     post: {
       summary: "Resolve a scoped contact identifier via public integration",
+      parameters: [publicHmacHeaderParameter],
+      "x-hmac-required": true,
       requestBody: {
         required: true,
         content: {
@@ -990,6 +1009,8 @@ const curatedPaths = {
   "/api/v1/public/contact-identifiers/unlink": {
     post: {
       summary: "Unlink a scoped contact identifier via public integration",
+      parameters: [publicHmacHeaderParameter],
+      "x-hmac-required": true,
       requestBody: {
         required: true,
         content: {

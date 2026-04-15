@@ -44,6 +44,18 @@ describe("openapi contract", () => {
     assert.ok(doc.paths["/api/v1/public/contact-identifiers"]?.post);
     assert.ok(doc.paths["/api/v1/public/contact-identifiers/resolve"]?.post);
     assert.ok(doc.paths["/api/v1/public/contact-identifiers/unlink"]?.post);
+
+    const publicContacts = doc.paths["/api/v1/public/contacts"]?.post;
+    assert.equal(publicContacts?.["x-hmac-required"], true);
+    assert.equal(publicContacts?.parameters?.[0]?.name, "x-signature");
+
+    const publicContactLookup = doc.paths["/api/v1/public/contacts/{customerId}"]?.get;
+    assert.equal(publicContactLookup?.["x-hmac-required"], true);
+    assert.equal(
+      publicContactLookup?.requestBody?.content?.["application/json"]?.schema?.$ref,
+      "#/components/schemas/PublicContactLookupRequest"
+    );
+    assert.match(String(publicContactLookup?.description || ""), /raw JSON body/i);
   });
 
   it("includes typed response bodies and shared error envelopes for key routes", async () => {
