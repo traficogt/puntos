@@ -25,6 +25,8 @@ export const OrderCreateSchema = z.object({
   externalOrderId: z.string().min(1).max(160),
   customerId: z.string().uuid().optional(),
   customerPhone: z.string().min(6).optional(),
+  identifierType: z.string().min(1).max(120).optional(),
+  identifierValue: z.string().min(1).max(200).optional(),
   status: z.enum(["paid", "completed"]),
   amount_q: z.number().nonnegative(),
   subtotal_q: z.number().nonnegative().optional(),
@@ -34,9 +36,20 @@ export const OrderCreateSchema = z.object({
   occurred_at: z.string().datetime().optional(),
   items: z.array(OrderLineItemSchema).max(500).optional(),
   meta: z.record(z.any()).optional()
-}).refine((value) => Boolean(value.customerId || value.customerPhone), {
-  message: "customerId or customerPhone is required"
-});
+})
+  .refine((value) => {
+    const hasIdentifierPair = Boolean(value.identifierType && value.identifierValue);
+    return Boolean(value.customerId || value.customerPhone || hasIdentifierPair);
+  }, {
+    message: "customerId, customerPhone, or identifierType and identifierValue are required"
+  })
+  .refine((value) => {
+    const hasIdentifierType = Boolean(value.identifierType);
+    const hasIdentifierValue = Boolean(value.identifierValue);
+    return hasIdentifierType === hasIdentifierValue;
+  }, {
+    message: "identifierType and identifierValue must be provided together"
+  });
 
 function normalizeSignature(signature) {
   const raw = String(signature || "").trim();

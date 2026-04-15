@@ -39,6 +39,14 @@ describe("openapi contract", () => {
       doc.components?.schemas?.OrderCreateRequest?.properties?.status?.enum,
       ["paid", "completed"]
     );
+    assert.equal(
+      doc.components?.schemas?.OrderCreateRequest?.properties?.identifierType?.type,
+      "string"
+    );
+    assert.equal(
+      doc.components?.schemas?.OrderCreateRequest?.properties?.identifierValue?.type,
+      "string"
+    );
 
     assert.ok(doc.paths["/api/v1/public/contacts"]?.post);
     assert.ok(doc.paths["/api/v1/public/contact-identifiers"]?.post);
