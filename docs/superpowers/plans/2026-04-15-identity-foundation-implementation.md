@@ -16,7 +16,7 @@
 
 - `src/app/migrations/2026-04-15-contact-identifiers.sql`
   - Creates `contact_identifiers` and indexes.
-- `src/app/migrations/2026-04-15-contact-identifiers-rls.sql`
+- `src/app/migrations/2026-04-15-contact-identifiers_rls.sql`
   - Enables and enforces tenant RLS on `contact_identifiers`.
 - `src/app/repositories/contact-identifier-repository.js`
   - Encapsulates all `contact_identifiers` queries.
@@ -70,7 +70,7 @@ Every task below must preserve these invariants:
 
 **Files:**
 - Create: `src/app/migrations/2026-04-15-contact-identifiers.sql`
-- Create: `src/app/migrations/2026-04-15-contact-identifiers-rls.sql`
+- Create: `src/app/migrations/2026-04-15-contact-identifiers_rls.sql`
 - Create: `src/app/repositories/contact-identifier-repository.js`
 - Modify: `src/app/migrations/checksums.json`
 - Modify: `src/scripts/create-app-role.mjs`
@@ -125,7 +125,7 @@ CREATE INDEX IF NOT EXISTS idx_contact_identifiers_customer
 
 - [ ] **Step 4: Add the RLS migration**
 
-Create `src/app/migrations/2026-04-15-contact-identifiers-rls.sql`:
+Create `src/app/migrations/2026-04-15-contact-identifiers_rls.sql`:
 
 ```sql
 DO $$
@@ -193,7 +193,7 @@ Migrations lock: OK
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/app/migrations/2026-04-15-contact-identifiers.sql src/app/migrations/2026-04-15-contact-identifiers-rls.sql src/app/repositories/contact-identifier-repository.js src/app/migrations/checksums.json src/scripts/create-app-role.mjs tests/unit/create-app-role.test.js
+git add src/app/migrations/2026-04-15-contact-identifiers.sql src/app/migrations/2026-04-15-contact-identifiers_rls.sql src/app/repositories/contact-identifier-repository.js src/app/migrations/checksums.json src/scripts/create-app-role.mjs tests/unit/create-app-role.test.js
 git commit -m "feat: add contact identifier persistence"
 ```
 
@@ -594,4 +594,3 @@ If verification exposes a real bug, fix it in a focused patch and commit with a 
 - Customer resolution is centralized instead of duplicated: yes
 - Orders reuses the shared resolver so Returns can later reuse it too: yes
 - No product/category logic leaked into this phase: yes
-

@@ -26,7 +26,7 @@ export const ContactIdentifierRepo = {
         identifierValue,
         input.label ?? null,
         input.active ?? true,
-        JSON.stringify(input.meta ?? {})
+        input.meta ?? {}
       ]
     );
     return rows[0];

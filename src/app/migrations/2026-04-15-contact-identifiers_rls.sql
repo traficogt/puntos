@@ -1,5 +1,5 @@
--- Safety-net tenant RLS for contact identifiers.
--- The table migration also enables RLS inline so fresh DBs are safe even if file order changes.
+-- Tenant RLS for contact identifiers. This migration intentionally sorts after
+-- the table migration so fresh databases create the table before applying RLS.
 DO $$
 BEGIN
   IF to_regclass('contact_identifiers') IS NOT NULL THEN
