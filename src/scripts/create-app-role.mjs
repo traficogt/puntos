@@ -32,6 +32,7 @@ export const APP_TABLE_PRIVILEGES = {
   auth_sessions: ["INSERT", "UPDATE"],
   auth_action_tokens: ["SELECT", "INSERT", "UPDATE"],
   customer_balances: ["SELECT", "INSERT", "UPDATE"],
+  contact_identifiers: ["SELECT", "INSERT", "UPDATE"],
   ledger_reconciliation_runs: ["SELECT", "INSERT", "UPDATE"],
   ledger_reconciliation_findings: ["SELECT", "INSERT", "UPDATE"],
   ledger_balance_corrections: ["SELECT", "INSERT", "UPDATE"],
