@@ -94,3 +94,85 @@ test("rejects when phone and customerId point to different customers", async () 
     (err) => err?.statusCode === 409 && /different customers/i.test(err.message)
   );
 });
+
+test("rejects when supplied customerId does not resolve for the business", async () => {
+  await assert.rejects(
+    () => upsertContactWithDeps({
+      CustomerRepo: {
+        getByBusinessAndPhone: async () => null,
+        getByBusinessAndId: async () => null,
+        create: async () => {
+          throw new Error("should not create");
+        },
+        updateName: async () => {
+          throw new Error("should not update");
+        }
+      }
+    }, {
+      businessId: "biz-1",
+      phone: "5555-4444",
+      customerId: "cust-missing",
+      name: "Ana"
+    }),
+    (err) => err?.statusCode === 404 && /customer not found/i.test(err.message)
+  );
+});
+
+test("customerId-only update succeeds", async () => {
+  let updateArgs = null;
+  const out = await upsertContactWithDeps({
+    CustomerRepo: {
+      getByBusinessAndId: async () => ({ id: "cust-1", business_id: "biz-1", phone: "50255554444", name: "Old" }),
+      updateName: async (customerId, name) => {
+        updateArgs = { customerId, name };
+        return { id: customerId, business_id: "biz-1", phone: "50255554444", name };
+      }
+    }
+  }, {
+    businessId: "biz-1",
+    customerId: "cust-1",
+    name: "Ana"
+  });
+
+  assert.deepEqual(updateArgs, { customerId: "cust-1", name: "Ana" });
+  assert.equal(out.name, "Ana");
+});
+
+test("customerId-only rejects when not found", async () => {
+  await assert.rejects(
+    () => upsertContactWithDeps({
+      CustomerRepo: {
+        getByBusinessAndId: async () => null,
+        updateName: async () => {
+          throw new Error("should not update");
+        }
+      }
+    }, {
+      businessId: "biz-1",
+      customerId: "cust-missing",
+      name: "Ana"
+    }),
+    (err) => err?.statusCode === 404 && /customer not found/i.test(err.message)
+  );
+});
+
+test("customerId-only does nothing when name is unchanged", async () => {
+  let updateCalled = false;
+  const existing = { id: "cust-1", business_id: "biz-1", phone: "50255554444", name: "Ana" };
+  const out = await upsertContactWithDeps({
+    CustomerRepo: {
+      getByBusinessAndId: async () => existing,
+      updateName: async () => {
+        updateCalled = true;
+        throw new Error("should not update");
+      }
+    }
+  }, {
+    businessId: "biz-1",
+    customerId: "cust-1",
+    name: "Ana"
+  });
+
+  assert.equal(out, existing);
+  assert.equal(updateCalled, false);
+});

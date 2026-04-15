@@ -30,12 +30,13 @@ export async function upsertContactWithDeps(deps, input) {
   const customerRepo = deps?.CustomerRepo;
   if (!customerRepo) throw badRequest("CustomerRepo is required");
 
-  if (phone) {
-    const [existingByPhone, existingById] = await Promise.all([
-      customerRepo.getByBusinessAndPhone?.(businessId, phone) ?? null,
-      customerId ? customerRepo.getByBusinessAndId?.(businessId, customerId) ?? null : null
-    ]);
+  const existingById = customerId ? await customerRepo.getByBusinessAndId?.(businessId, customerId) ?? null : null;
+  if (customerId && !existingById) {
+    throw notFound("Customer not found for this business");
+  }
 
+  if (phone) {
+    const existingByPhone = await customerRepo.getByBusinessAndPhone?.(businessId, phone) ?? null;
     if (existingByPhone && existingById && existingByPhone.id !== existingById.id) {
       throw conflict("phone and customerId refer to different customers");
     }
@@ -48,7 +49,10 @@ export async function upsertContactWithDeps(deps, input) {
     }
 
     if (existingById) {
-      throw conflict("phone and customerId refer to different customers");
+      if (name && name !== existingById.name) {
+        return customerRepo.updateName(existingById.id, name);
+      }
+      return existingById;
     }
 
     return customerRepo.create({
@@ -59,14 +63,9 @@ export async function upsertContactWithDeps(deps, input) {
     });
   }
 
-  const existing = await customerRepo.getByBusinessAndId?.(businessId, customerId);
-  if (!existing) {
-    throw notFound("Customer not found for this business");
+  if (name && name !== existingById.name) {
+    return customerRepo.updateName(existingById.id, name);
   }
 
-  if (name && name !== existing.name) {
-    return customerRepo.updateName(existing.id, name);
-  }
-
-  return existing;
+  return existingById;
 }
