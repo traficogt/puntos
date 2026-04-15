@@ -2,10 +2,11 @@ import crypto from "node:crypto";
 
 import { setCurrentTenant, withTransaction } from "../database.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
+import { ContactIdentifierRepo } from "../repositories/contact-identifier-repository.js";
 import { CustomerRepo } from "../repositories/customer-repository.js";
 import { OrderRepo } from "../repositories/order-repository.js";
+import { resolveCustomerForIntegrationWithDeps } from "./customer-resolution-service.js";
 import { computePoints } from "./points-service.js";
-import { normalizePhone } from "../../utils/phone.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 
 const PROCESSABLE_STATUSES = new Set(["paid", "completed"]);
@@ -65,21 +66,6 @@ function normalizeLineItems(lineItemsJson) {
 
 function normalizeMeta(meta) {
   return normalizeValue(meta && typeof meta === "object" ? meta : {});
-}
-
-async function resolveCustomer(deps, businessId, customerId, customerPhone) {
-  if (customerId) {
-    const customer = await deps.CustomerRepo.getById(customerId);
-    if (customer && String(customer.business_id) === String(businessId)) return customer;
-  }
-
-  const normalizedPhone = customerPhone ? normalizePhone(customerPhone) : null;
-  if (normalizedPhone) {
-    const customer = await deps.CustomerRepo.getByBusinessAndPhone(businessId, normalizedPhone);
-    if (customer) return customer;
-  }
-
-  throw notFound("Customer not found for this business");
 }
 
 function buildFingerprintPayload({ customerId, externalOrderId, status, amount_q, subtotal_q, discount_q, tax_q, currency, occurred_at, line_items_json, meta }) {
@@ -165,7 +151,14 @@ async function processOrderWithClient(deps, client, input) {
     };
   }
 
-  const customer = await resolveCustomer(deps, business.id, input.customerId, input.customerPhone);
+  const customer = await resolveCustomerForIntegrationWithDeps(deps, {
+    client,
+    businessId: business.id,
+    customerId: input.customerId,
+    identifierType: input.identifierType,
+    identifierValue: input.identifierValue,
+    customerPhone: input.customerPhone
+  });
 
   const payload = buildFingerprintPayload({
     customerId: customer.id,
@@ -270,6 +263,7 @@ export async function processOrderWithDeps(deps, input) {
   }
   const resolvedDeps = {
     BusinessRepo: deps.BusinessRepo ?? BusinessRepo,
+    ContactIdentifierRepo: deps.ContactIdentifierRepo ?? ContactIdentifierRepo,
     CustomerRepo: deps.CustomerRepo ?? CustomerRepo,
     OrderRepo: deps.OrderRepo ?? OrderRepo,
     computePoints: deps.computePoints ?? computePoints,

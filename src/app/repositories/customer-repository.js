@@ -40,6 +40,17 @@ export const CustomerRepo = {
     );
   },
 
+  async getByBusinessAndId(businessId, customerId) {
+    return one(
+      `SELECT c.*, b.points, b.lifetime_points, b.tier
+              , b.pending_points
+       FROM customers c
+       JOIN customer_balances b ON b.customer_id=c.id
+       WHERE c.business_id=$1 AND c.id=$2 AND c.deleted_at IS NULL`,
+      [businessId, customerId]
+    );
+  },
+
   async getByBusinessAndPhone(businessId, phone) {
     return one(
       `SELECT c.*, b.points, b.lifetime_points, b.tier
