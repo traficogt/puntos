@@ -74,7 +74,7 @@ async function loadOriginalTransaction(client, transactionId) {
 }
 
 async function markOriginalTransactionReturned(client, { transactionId, reversalTransactionId = null, reason = null }) {
-  await client.query(
+  const result = await client.query(
     `UPDATE transactions
      SET status = 'REVERSED',
          reversed_transaction_id = $2,
@@ -82,16 +82,22 @@ async function markOriginalTransactionReturned(client, { transactionId, reversal
      WHERE id = $1`,
     [transactionId, reversalTransactionId, reason]
   );
+  if (Number(result?.rowCount ?? 0) !== 1) {
+    throw conflict("Original transaction update failed during order return");
+  }
 }
 
 async function updateOrderStatus(client, { orderId, businessId }) {
-  await client.query(
+  const result = await client.query(
     `UPDATE orders
      SET transaction_status = 'REVERSED'
      WHERE id = $1
        AND business_id = $2`,
     [orderId, businessId]
   );
+  if (Number(result?.rowCount ?? 0) !== 1) {
+    throw conflict("Original order update failed during order return");
+  }
 }
 
 function assertTransactionMatchesOrder({ transaction, order, businessId }) {
@@ -183,9 +189,10 @@ async function processOrderReturnWithClient(deps, client, input) {
   if (originalStatus === "PENDING") {
     const balanceUpdate = await client.query(
       `UPDATE customer_balances
-       SET pending_points = GREATEST(0, pending_points - $2),
+       SET pending_points = pending_points - $2,
            updated_at = now()
-       WHERE customer_id = $1`,
+       WHERE customer_id = $1
+         AND pending_points >= $2`,
       [order.customer_id, Math.abs(points)]
     );
     assertSingleBalanceMutation(balanceUpdate, "pending cancellation");

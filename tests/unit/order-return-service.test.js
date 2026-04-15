@@ -356,6 +356,40 @@ test("rejects pending cancellation when no customer balance row is updated", asy
   assert.equal(ctx.creates.length, 0);
 });
 
+test("rejects pending cancellation when pending points are underfunded", async () => {
+  const client = makeClient({
+    findTransaction: async () => ({
+      rows: [{
+        id: "txn-1",
+        business_id: "biz-1",
+        customer_id: "cust-1",
+        branch_id: "branch-1",
+        points: 12,
+        status: "PENDING"
+      }],
+      rowCount: 1
+    }),
+    updateBalance: async (sql) => {
+      assert.match(sql, /pending_points\s*>=\s*\$2/i);
+      return { rows: [], rowCount: 0 };
+    }
+  });
+  const ctx = makeDeps({ client });
+
+  await assert.rejects(
+    () => processOrderReturnWithDeps(ctx.deps, {
+      businessSlug: "cafe",
+      externalReturnId: "ret-1",
+      externalOrderId: "ord-1"
+    }),
+    (err) => err?.statusCode === 409 && /pending cancellation|balance/i.test(err.message)
+  );
+
+  assert.equal(client.calls.some(({ sql }) => sql.includes("UPDATE transactions")), false);
+  assert.equal(client.calls.some(({ sql }) => sql.includes("UPDATE orders")), false);
+  assert.equal(ctx.creates.length, 0);
+});
+
 test("rejects when the original transaction is already reversed", async () => {
   const client = makeClient({
     findTransaction: async () => ({
@@ -497,6 +531,68 @@ test("rejects posted reversal when no customer balance row is updated", async ()
 
   assert.equal(client.calls.some(({ sql }) => sql.includes("UPDATE transactions")), false);
   assert.equal(client.calls.some(({ sql }) => sql.includes("UPDATE orders")), false);
+  assert.equal(ctx.creates.length, 0);
+});
+
+test("rejects when marking the original transaction returned updates no rows", async () => {
+  const client = makeClient({
+    findTransaction: async () => ({
+      rows: [{
+        id: "txn-1",
+        business_id: "biz-1",
+        customer_id: "cust-1",
+        branch_id: "branch-1",
+        points: 12,
+        status: "PENDING"
+      }],
+      rowCount: 1
+    }),
+    updateBalance: async () => ({ rows: [], rowCount: 1 }),
+    updateTransaction: async () => ({ rows: [], rowCount: 0 })
+  });
+  const ctx = makeDeps({ client });
+
+  await assert.rejects(
+    () => processOrderReturnWithDeps(ctx.deps, {
+      businessSlug: "cafe",
+      externalReturnId: "ret-1",
+      externalOrderId: "ord-1"
+    }),
+    (err) => err?.statusCode === 409 && /transaction/i.test(err.message)
+  );
+
+  assert.equal(client.calls.some(({ sql }) => sql.includes("UPDATE orders")), false);
+  assert.equal(ctx.creates.length, 0);
+});
+
+test("rejects when marking the original order returned updates no rows", async () => {
+  const client = makeClient({
+    findTransaction: async () => ({
+      rows: [{
+        id: "txn-1",
+        business_id: "biz-1",
+        customer_id: "cust-1",
+        branch_id: "branch-1",
+        points: 12,
+        status: "PENDING"
+      }],
+      rowCount: 1
+    }),
+    updateBalance: async () => ({ rows: [], rowCount: 1 }),
+    updateTransaction: async () => ({ rows: [], rowCount: 1 }),
+    updateOrder: async () => ({ rows: [], rowCount: 0 })
+  });
+  const ctx = makeDeps({ client });
+
+  await assert.rejects(
+    () => processOrderReturnWithDeps(ctx.deps, {
+      businessSlug: "cafe",
+      externalReturnId: "ret-1",
+      externalOrderId: "ord-1"
+    }),
+    (err) => err?.statusCode === 409 && /order/i.test(err.message)
+  );
+
   assert.equal(ctx.creates.length, 0);
 });
 
