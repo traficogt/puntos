@@ -118,6 +118,29 @@ test("rejects when supplied customerId does not resolve for the business", async
   );
 });
 
+test("rejects when phone is supplied but does not match an existing customer", async () => {
+  await assert.rejects(
+    () => upsertContactWithDeps({
+      CustomerRepo: {
+        getByBusinessAndPhone: async () => null,
+        getByBusinessAndId: async () => ({ id: "cust-1", business_id: "biz-1", phone: "50255554444", name: "Ana" }),
+        create: async () => {
+          throw new Error("should not create");
+        },
+        updateName: async () => {
+          throw new Error("should not update");
+        }
+      }
+    }, {
+      businessId: "biz-1",
+      phone: "5555-4444",
+      customerId: "cust-1",
+      name: "Ana"
+    }),
+    (err) => err?.statusCode === 409 && /phone/i.test(err.message)
+  );
+});
+
 test("customerId-only update succeeds", async () => {
   let updateArgs = null;
   const out = await upsertContactWithDeps({

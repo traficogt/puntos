@@ -49,10 +49,7 @@ export async function upsertContactWithDeps(deps, input) {
     }
 
     if (existingById) {
-      if (name && name !== existingById.name) {
-        return customerRepo.updateName(existingById.id, name);
-      }
-      return existingById;
+      throw conflict("phone does not match the supplied customerId");
     }
 
     return customerRepo.create({
