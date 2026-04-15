@@ -310,6 +310,52 @@ test("falls back to customerPhone when customerId belongs to a different busines
   assert.equal(out.pointsAwarded, 8);
 });
 
+test("uses the transaction client for identifier-based customer resolution", async () => {
+  const transactionClient = { query: async () => ({ rows: [], rowCount: 0 }) };
+  let identifierLookupClient = null;
+
+  const deps = {
+    withTransaction: async (fn) => fn(transactionClient),
+    setCurrentTenant: async () => {},
+    BusinessRepo: {
+      getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
+      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
+    },
+    CustomerRepo: {
+      getByBusinessAndId: async (businessId, customerId) => ({ id: customerId, business_id: businessId }),
+      getByBusinessAndPhone: async () => null
+    },
+    ContactIdentifierRepo: {
+      getByBusinessTypeAndValue: async (client, businessId, identifierType, identifierValue) => {
+        identifierLookupClient = client;
+        assert.equal(client, transactionClient);
+        assert.equal(businessId, "biz-1");
+        assert.equal(identifierType, "loyalty_card");
+        assert.equal(identifierValue, "ABC123");
+        return { customer_id: "cust-identifier" };
+      }
+    },
+    OrderRepo: {
+      findByBusinessAndExternalId: async () => null,
+      create: async (_client, input) => ({ id: "order-created", transaction_id: input.transaction_id })
+    },
+    computePoints: () => 5,
+    hashPayload: () => "fp-identifier"
+  };
+
+  const out = await processOrderWithDeps(deps, {
+    businessSlug: "cafe",
+    externalOrderId: "ord-identifier",
+    identifierType: "loyalty_card",
+    identifierValue: "ABC123",
+    status: "paid",
+    amount_q: 50
+  });
+
+  assert.equal(identifierLookupClient, transactionClient);
+  assert.equal(out.customerId, "cust-identifier");
+});
+
 test("rejects unsupported order status", async () => {
   const deps = {
     withTransaction: async (fn) => fn({ query: async () => ({ rows: [], rowCount: 0 }) }),

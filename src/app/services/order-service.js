@@ -151,8 +151,12 @@ async function processOrderWithClient(deps, client, input) {
     };
   }
 
-  const customer = await resolveCustomerForIntegrationWithDeps(deps, {
-    client,
+  const resolutionDeps = {
+    ...deps,
+    client
+  };
+
+  const customer = await resolveCustomerForIntegrationWithDeps(resolutionDeps, {
     businessId: business.id,
     customerId: input.customerId,
     identifierType: input.identifierType,
