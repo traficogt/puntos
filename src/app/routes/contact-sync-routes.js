@@ -123,15 +123,12 @@ export function createContactSyncRoutes(deps = {}) {
     return res.json({ ok: true, ...payload });
   }));
 
-  router.get("/public/contacts/:customerId", moderateRateLimit, asyncRoute(async (req, res) => {
+  router.post("/public/contacts/lookup", moderateRateLimit, asyncRoute(async (req, res) => {
     const parsed = validate(PublicContactLookupRequestSchema, req.body);
     if (!parsed.ok) return res.status(400).json({ error: parsed.error });
-    if (String(req.params.customerId || "") !== parsed.data.customerId) {
-      return res.status(400).json({ error: "customerId must match the path parameter" });
-    }
 
     const signature = String(req.headers["x-signature"] || "");
-    if (!verifySignature(req.rawBody ?? "", parsed.data.businessSlug, signature)) {
+    if (!verifySignature(req.rawBody, parsed.data.businessSlug, signature)) {
       return res.status(401).json({ error: "Invalid signature" });
     }
 

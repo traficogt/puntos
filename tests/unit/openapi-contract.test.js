@@ -57,7 +57,7 @@ describe("openapi contract", () => {
     assert.equal(publicContacts?.["x-hmac-required"], true);
     assert.equal(publicContacts?.parameters?.[0]?.name, "x-signature");
 
-    const publicContactLookup = doc.paths["/api/v1/public/contacts/{customerId}"]?.get;
+    const publicContactLookup = doc.paths["/api/v1/public/contacts/lookup"]?.post;
     assert.equal(publicContactLookup?.["x-hmac-required"], true);
     assert.equal(
       publicContactLookup?.requestBody?.content?.["application/json"]?.schema?.$ref,

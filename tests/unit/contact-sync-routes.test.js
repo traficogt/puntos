@@ -81,7 +81,7 @@ test("POST /public/contacts rejects an invalid signature", async () => {
   assert.equal(upsertCalled, false);
 });
 
-test("GET /public/contacts/:customerId returns the scoped contact and identifiers", async () => {
+test("POST /public/contacts/lookup returns the scoped contact and identifiers", async () => {
   const customerId = "11111111-1111-4111-8111-111111111111";
   const router = createContactSyncRoutes({
     BusinessRepo: {
@@ -118,13 +118,12 @@ test("GET /public/contacts/:customerId returns the scoped contact and identifier
     customerId
   });
   const signature = crypto.createHmac("sha256", "topsecret").update(signedPayload).digest("hex");
-  const res = await runRoute(router, "get", "/public/contacts/:customerId", {
-    method: "GET",
-    path: `/public/contacts/${customerId}`,
-    originalUrl: `/public/contacts/${customerId}`,
-    url: `/public/contacts/${customerId}`,
+  const res = await runRoute(router, "post", "/public/contacts/lookup", {
+    method: "POST",
+    path: "/public/contacts/lookup",
+    originalUrl: "/public/contacts/lookup",
+    url: "/public/contacts/lookup",
     ip: "127.0.0.1",
-    params: { customerId },
     headers: { "x-signature": signature },
     body: { businessSlug: "cafe-gt", customerId },
     rawBody: signedPayload
@@ -137,7 +136,7 @@ test("GET /public/contacts/:customerId returns the scoped contact and identifier
   assert.equal(res.body.identifiers[0].identifier_value, "ABC123");
 });
 
-test("GET /public/contacts/:customerId rejects an invalid customerId before repo access", async () => {
+test("POST /public/contacts/lookup rejects an invalid customerId before repo access", async () => {
   let repoCalled = false;
   const router = createContactSyncRoutes({
     BusinessRepo: {
@@ -158,13 +157,12 @@ test("GET /public/contacts/:customerId rejects an invalid customerId before repo
     customerId: "not-a-uuid"
   });
   const signature = crypto.createHmac("sha256", "topsecret").update(signedPayload).digest("hex");
-  const res = await runRoute(router, "get", "/public/contacts/:customerId", {
-    method: "GET",
-    path: "/public/contacts/not-a-uuid",
-    originalUrl: "/public/contacts/not-a-uuid",
-    url: "/public/contacts/not-a-uuid",
+  const res = await runRoute(router, "post", "/public/contacts/lookup", {
+    method: "POST",
+    path: "/public/contacts/lookup",
+    originalUrl: "/public/contacts/lookup",
+    url: "/public/contacts/lookup",
     ip: "127.0.0.1",
-    params: { customerId: "not-a-uuid" },
     headers: { "x-signature": signature },
     body: { businessSlug: "cafe-gt", customerId: "not-a-uuid" },
     rawBody: signedPayload
@@ -174,44 +172,7 @@ test("GET /public/contacts/:customerId rejects an invalid customerId before repo
   assert.equal(repoCalled, false);
 });
 
-test("GET /public/contacts/:customerId rejects when body customerId does not match the path", async () => {
-  let repoCalled = false;
-  const router = createContactSyncRoutes({
-    BusinessRepo: {
-      getPublicBySlug: async (slug) => ({ id: "biz-1", slug })
-    },
-    CustomerRepo: {
-      getByBusinessAndId: async () => {
-        repoCalled = true;
-        return null;
-      }
-    },
-    withDbClientContext: async (_ctx, task) => task({ query: async () => ({ rows: [] }) }),
-    listContactIdentifiersWithDeps: async () => []
-  });
-
-  const signedPayload = JSON.stringify({
-    businessSlug: "cafe-gt",
-    customerId: "11111111-1111-4111-8111-111111111111"
-  });
-  const signature = crypto.createHmac("sha256", "topsecret").update(signedPayload).digest("hex");
-  const res = await runRoute(router, "get", "/public/contacts/:customerId", {
-    method: "GET",
-    path: "/public/contacts/22222222-2222-4222-8222-222222222222",
-    originalUrl: "/public/contacts/22222222-2222-4222-8222-222222222222",
-    url: "/public/contacts/22222222-2222-4222-8222-222222222222",
-    ip: "127.0.0.1",
-    params: { customerId: "22222222-2222-4222-8222-222222222222" },
-    headers: { "x-signature": signature },
-    body: { businessSlug: "cafe-gt", customerId: "11111111-1111-4111-8111-111111111111" },
-    rawBody: signedPayload
-  });
-
-  assert.equal(res.statusCode, 400);
-  assert.equal(repoCalled, false);
-});
-
-test("GET /public/contacts/:customerId rejects an invalid signature", async () => {
+test("POST /public/contacts/lookup rejects an invalid signature", async () => {
   let repoCalled = false;
   const customerId = "11111111-1111-4111-8111-111111111111";
   const router = createContactSyncRoutes({
@@ -228,13 +189,12 @@ test("GET /public/contacts/:customerId rejects an invalid signature", async () =
     listContactIdentifiersWithDeps: async () => []
   });
 
-  const res = await runRoute(router, "get", "/public/contacts/:customerId", {
-    method: "GET",
-    path: `/public/contacts/${customerId}`,
-    originalUrl: `/public/contacts/${customerId}`,
-    url: `/public/contacts/${customerId}`,
+  const res = await runRoute(router, "post", "/public/contacts/lookup", {
+    method: "POST",
+    path: "/public/contacts/lookup",
+    originalUrl: "/public/contacts/lookup",
+    url: "/public/contacts/lookup",
     ip: "127.0.0.1",
-    params: { customerId },
     headers: { "x-signature": "bad-signature" },
     body: { businessSlug: "cafe-gt", customerId },
     rawBody: JSON.stringify({ businessSlug: "cafe-gt", customerId })

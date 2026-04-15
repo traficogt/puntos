@@ -509,8 +509,8 @@ const routeSchemaBindings = {
       responses: { "200": "PublicContactResponse" }
     }
   },
-  "/api/v1/public/contacts/{customerId}": {
-    get: {
+  "/api/v1/public/contacts/lookup": {
+    post: {
       body: "PublicContactLookupRequest",
       responses: { "200": "PublicContactResponse" }
     }
@@ -924,18 +924,10 @@ const curatedPaths = {
       }
     }
   },
-  "/api/v1/public/contacts/{customerId}": {
-    get: {
+  "/api/v1/public/contacts/lookup": {
+    post: {
       summary: "Fetch a scoped contact and its identifiers via public integration",
-      parameters: [
-        publicHmacHeaderParameter,
-        {
-          in: "path",
-          name: "customerId",
-          required: true,
-          schema: { type: "string", format: "uuid" }
-        }
-      ],
+      parameters: [publicHmacHeaderParameter],
       "x-hmac-required": true,
       requestBody: {
         required: true,
@@ -954,7 +946,7 @@ const curatedPaths = {
         "401": { description: "Invalid signature" },
         "404": { description: "Business or customer not found" }
       },
-      description: "The GET request body must contain the same `customerId` as the path plus `businessSlug`, and the `x-signature` HMAC must cover that exact raw JSON body."
+      description: "The `x-signature` HMAC must cover the exact raw JSON body containing `businessSlug` and `customerId`."
     }
   },
   "/api/v1/public/contact-identifiers": {
