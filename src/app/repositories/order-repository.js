@@ -16,6 +16,17 @@ export const OrderRepo = {
     return rows[0] ?? null;
   },
 
+  async findDetailedByBusinessAndExternalId(client, businessId, externalOrderId) {
+    const { rows } = await client.query(
+      `SELECT id, business_id, customer_id, external_order_id, transaction_id, points_awarded, transaction_status
+       FROM orders
+       WHERE business_id = $1 AND external_order_id = $2
+       LIMIT 1`,
+      [businessId, externalOrderId]
+    );
+    return rows[0] ?? null;
+  },
+
   async create(client, input) {
     const id = input.id ?? makeId();
     const { rows } = await client.query(
