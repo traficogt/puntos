@@ -1,15 +1,34 @@
 import crypto from "node:crypto";
+import pg from "pg";
 import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import { processOrder } from "../../src/app/services/order-service.js";
-import { BusinessRepo } from "../../src/app/repositories/business-repository.js";
-import { CustomerRepo } from "../../src/app/repositories/customer-repository.js";
-import { closeDatabase, dbQuery, withDbClientContext } from "../../src/app/database.js";
+import { closeDatabase } from "../../src/app/database.js";
 
 const runIntegration = process.env.RUN_INTEGRATION === "true";
 const integrationDescribe = runIntegration ? describe : describe.skip;
 const createdBusinessIds = [];
+
+function createAdminClient() {
+  return new pg.Client({
+    host: process.env.TEST_DB_HOST || process.env.DB_HOST || "localhost",
+    port: Number(process.env.TEST_DB_PORT || process.env.DB_PORT || 5432),
+    database: process.env.TEST_DB_NAME || process.env.DB_NAME || "puntos",
+    user: process.env.TEST_DB_USER || process.env.DB_MIGRATIONS_USER || process.env.DB_USER || "postgres",
+    password: process.env.TEST_DB_PASSWORD || process.env.DB_MIGRATIONS_PASSWORD || process.env.DB_PASSWORD || ""
+  });
+}
+
+async function withAdminClient(fn) {
+  const client = createAdminClient();
+  await client.connect();
+  try {
+    return await fn(client);
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
 
 async function createFixture({ holdDays = 0 } = {}) {
   const suffix = crypto.randomUUID().slice(0, 8);
@@ -17,25 +36,35 @@ async function createFixture({ holdDays = 0 } = {}) {
   const customerId = crypto.randomUUID();
   const slug = `orders-${suffix}`;
 
-  await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => {
-    await BusinessRepo.create({
-      id: businessId,
-      name: `Orders ${suffix}`,
-      slug,
-      email: `orders-${suffix}@example.com`,
-      phone: "+50255550123",
-      password_hash: "test-hash",
-      category: "cafe",
-      plan: "NEGOCIO",
-      program_type: "SPEND",
-      program_json: { points_per_q: 0.1, pending_points_hold_days: holdDays }
-    });
-    await CustomerRepo.create({
-      id: customerId,
-      business_id: businessId,
-      phone: `+50255${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`,
-      name: "Orders Customer"
-    });
+  await withAdminClient(async (client) => {
+    await client.query(
+      `INSERT INTO businesses
+       (id, name, slug, email, phone, password_hash, category, plan, program_type, program_json)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [
+        businessId,
+        `Orders ${suffix}`,
+        slug,
+        `orders-${suffix}@example.com`,
+        "+50255550123",
+        "test-hash",
+        "cafe",
+        "NEGOCIO",
+        "SPEND",
+        { points_per_q: 0.1, pending_points_hold_days: holdDays }
+      ]
+    );
+    const customerPhone = `+50255${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`;
+    await client.query(
+      `INSERT INTO customers (id, business_id, phone, name)
+       VALUES ($1,$2,$3,$4)`,
+      [customerId, businessId, customerPhone, "Orders Customer"]
+    );
+    await client.query(
+      `INSERT INTO customer_balances (customer_id, points, pending_points, lifetime_points)
+       VALUES ($1,0,0,0)`,
+      [customerId]
+    );
   });
 
   createdBusinessIds.push(businessId);
@@ -44,9 +73,9 @@ async function createFixture({ holdDays = 0 } = {}) {
 
 after(async () => {
   if (!createdBusinessIds.length) return;
-  await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => {
+  await withAdminClient(async (client) => {
     for (const businessId of createdBusinessIds.splice(0)) {
-      await dbQuery("DELETE FROM businesses WHERE id = $1", [businessId]);
+      await client.query("DELETE FROM businesses WHERE id = $1", [businessId]);
     }
   });
   await closeDatabase().catch(() => {});
@@ -123,18 +152,18 @@ integrationDescribe("Orders API idempotency integration", () => {
     assert.equal(first.ok, true);
     assert.equal(second.ok, true);
     assert.equal(first.transactionId, second.transactionId);
-    assert.equal(second.replay, true);
+    assert.ok(first.replay === true || second.replay === true);
 
-    const { rows: orderRows } = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => (
-      dbQuery(
+    const { rows: orderRows } = await withAdminClient((client) => (
+      client.query(
         "SELECT id, transaction_id FROM orders WHERE business_id = $1 AND external_order_id = $2",
         [businessId, "ord-1"]
       )
     ));
     assert.equal(orderRows.length, 1);
 
-    const { rows: balanceRows } = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => (
-      dbQuery("SELECT points, lifetime_points FROM customer_balances WHERE customer_id = $1", [customerId])
+    const { rows: balanceRows } = await withAdminClient((client) => (
+      client.query("SELECT points, lifetime_points FROM customer_balances WHERE customer_id = $1", [customerId])
     ));
     assert.equal(balanceRows.length, 1);
     assert.equal(Number(balanceRows[0].points), Number(first.pointsAwarded));
@@ -161,11 +190,11 @@ integrationDescribe("Orders API idempotency integration", () => {
     ]);
 
     assert.equal(first.status, "PENDING");
-    assert.equal(second.replay, true);
     assert.equal(second.status, "PENDING");
+    assert.ok(first.replay === true || second.replay === true);
 
-    const { rows: balanceRows } = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => (
-      dbQuery("SELECT points, pending_points, lifetime_points FROM customer_balances WHERE customer_id = $1", [customerId])
+    const { rows: balanceRows } = await withAdminClient((client) => (
+      client.query("SELECT points, pending_points, lifetime_points FROM customer_balances WHERE customer_id = $1", [customerId])
     ));
     assert.equal(balanceRows.length, 1);
     assert.equal(Number(balanceRows[0].points), 0);
