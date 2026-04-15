@@ -40,34 +40,58 @@ export const ContactIdentifierRepo = {
          AND identifier_type = $2
          AND identifier_value = $3
          AND active = true
+       ORDER BY created_at DESC, id DESC
        LIMIT 1`,
       [businessId, identifierType, normalizeIdentifierValue(identifierValue)]
     );
     return rows[0] ?? null;
   },
 
-  async listByCustomer(client, customerId) {
+  async getAnyByBusinessTypeAndValue(client, businessId, identifierType, identifierValue) {
     const { rows } = await client.query(
       `SELECT *
        FROM contact_identifiers
-       WHERE customer_id = $1
+       WHERE business_id = $1
+         AND identifier_type = $2
+         AND identifier_value = $3
+       ORDER BY created_at DESC, id DESC
+       LIMIT 1`,
+      [businessId, identifierType, normalizeIdentifierValue(identifierValue)]
+    );
+    return rows[0] ?? null;
+  },
+
+  async listByCustomer(client, businessId, customerId) {
+    const { rows } = await client.query(
+      `SELECT *
+       FROM contact_identifiers
+       WHERE business_id = $1
+         AND customer_id = $2
        ORDER BY created_at DESC`,
-      [customerId]
+      [businessId, customerId]
     );
     return rows;
   },
 
   async deactivate(client, businessId, identifierType, identifierValue) {
     const { rows } = await client.query(
-      `UPDATE contact_identifiers
+      `WITH target AS (
+         SELECT id
+         FROM contact_identifiers
+         WHERE business_id = $1
+           AND identifier_type = $2
+           AND identifier_value = $3
+         ORDER BY created_at DESC, id DESC
+         LIMIT 1
+       )
+       UPDATE contact_identifiers
        SET active = false,
            updated_at = now()
-       WHERE business_id = $1
-         AND identifier_type = $2
-         AND identifier_value = $3
+       WHERE id IN (SELECT id FROM target)
        RETURNING *`,
       [businessId, identifierType, normalizeIdentifierValue(identifierValue)]
     );
     return rows[0] ?? null;
-  }
+  },
+
 };

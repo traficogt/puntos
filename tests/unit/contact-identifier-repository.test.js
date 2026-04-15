@@ -31,6 +31,38 @@ test("contact identifier lookup only returns active rows", async () => {
   assert.equal(calls.length, 1);
   assert.match(calls[0].sql, /FROM contact_identifiers/i);
   assert.match(calls[0].sql, /AND active = true/i);
+  assert.match(calls[0].sql, /ORDER BY created_at DESC, id DESC/i);
+  assert.deepEqual(calls[0].params, ["business-1", "loyalty_card", "ABC123"]);
+});
+
+test("contact identifier lookup can include inactive rows when needed", async () => {
+  const calls = [];
+  const row = {
+    id: "identifier-1",
+    business_id: "business-1",
+    identifier_type: "loyalty_card",
+    identifier_value: "ABC123",
+    active: false
+  };
+  const client = {
+    async query(sql, params) {
+      calls.push({ sql, params });
+      return { rows: [row], rowCount: 1 };
+    }
+  };
+
+  const found = await ContactIdentifierRepo.getAnyByBusinessTypeAndValue(
+    client,
+    "business-1",
+    "loyalty_card",
+    " ABC123 "
+  );
+
+  assert.equal(found, row);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].sql, /FROM contact_identifiers/i);
+  assert.doesNotMatch(calls[0].sql, /AND active = true/i);
+  assert.match(calls[0].sql, /ORDER BY created_at DESC, id DESC/i);
   assert.deepEqual(calls[0].params, ["business-1", "loyalty_card", "ABC123"]);
 });
 
@@ -97,10 +129,41 @@ test("contact identifier deactivation marks rows inactive", async () => {
 
   assert.equal(found, row);
   assert.equal(calls.length, 1);
+  assert.match(calls[0].sql, /WITH target AS/i);
+  assert.match(calls[0].sql, /ORDER BY created_at DESC, id DESC/i);
   assert.match(calls[0].sql, /UPDATE contact_identifiers/i);
   assert.match(calls[0].sql, /SET active = false/i);
   assert.match(calls[0].sql, /updated_at = now\(\)/i);
   assert.deepEqual(calls[0].params, ["business-1", "loyalty_card", "ABC123"]);
+});
+
+test("contact identifier listing stays business scoped", async () => {
+  const calls = [];
+  const rows = [
+    {
+      id: "identifier-1",
+      business_id: "business-1",
+      customer_id: "customer-1"
+    }
+  ];
+  const client = {
+    async query(sql, params) {
+      calls.push({ sql, params });
+      return { rows, rowCount: rows.length };
+    }
+  };
+
+  const found = await ContactIdentifierRepo.listByCustomer(
+    client,
+    "business-1",
+    "customer-1"
+  );
+
+  assert.equal(found, rows);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].sql, /WHERE business_id = \$1/i);
+  assert.match(calls[0].sql, /AND customer_id = \$2/i);
+  assert.deepEqual(calls[0].params, ["business-1", "customer-1"]);
 });
 
 test("contact identifier migrations sort table before dedicated RLS", () => {
