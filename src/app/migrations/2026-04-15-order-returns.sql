@@ -2,6 +2,10 @@ ALTER TABLE orders
   ADD CONSTRAINT orders_id_business_customer_unique
   UNIQUE (id, business_id, customer_id);
 
+ALTER TABLE orders
+  ADD CONSTRAINT orders_id_business_customer_external_unique
+  UNIQUE (id, business_id, customer_id, external_order_id);
+
 CREATE TABLE IF NOT EXISTS order_returns (
   id UUID PRIMARY KEY,
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
@@ -18,8 +22,8 @@ CREATE TABLE IF NOT EXISTS order_returns (
   outcome TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  FOREIGN KEY (order_id, business_id, customer_id)
-    REFERENCES orders (id, business_id, customer_id)
+  FOREIGN KEY (order_id, business_id, customer_id, external_order_id)
+    REFERENCES orders (id, business_id, customer_id, external_order_id)
     ON DELETE CASCADE,
   UNIQUE (business_id, external_return_id),
   UNIQUE (order_id)
