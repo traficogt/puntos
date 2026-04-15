@@ -64,6 +64,17 @@ describe("openapi contract", () => {
       "#/components/schemas/PublicContactLookupRequest"
     );
     assert.match(String(publicContactLookup?.description || ""), /raw JSON body/i);
+
+    const publicOrderReturn = doc.paths["/api/v1/public/order-returns"]?.post;
+    assert.equal(
+      publicOrderReturn?.requestBody?.content?.["application/json"]?.schema?.$ref,
+      "#/components/schemas/OrderReturnCreateRequest"
+    );
+    assert.equal(
+      publicOrderReturn?.responses?.["200"]?.content?.["application/json"]?.schema?.$ref,
+      "#/components/schemas/OrderReturnCreateResponse"
+    );
+    assert.equal(publicOrderReturn?.["x-hmac-required"], true);
   });
 
   it("includes typed response bodies and shared error envelopes for key routes", async () => {

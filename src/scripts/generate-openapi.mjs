@@ -61,6 +61,7 @@ const {
 } = await import("../app/routes/payment-webhook-routes.js");
 const { ExternalAwardSchema } = await import("../app/routes/public-routes.js");
 const { OrderCreateSchema } = await import("../app/routes/order-routes.js");
+const { OrderReturnCreateSchema } = await import("../app/routes/order-return-routes.js");
 const {
   PublicContactUpsertSchema,
   PublicContactLookupRequestSchema,
@@ -267,6 +268,16 @@ const OrderCreateResponseSchema = okEnvelope({
   replay: z.boolean().optional()
 }).passthrough();
 
+const OrderReturnCreateResponseSchema = okEnvelope({
+  orderReturnId: z.string().uuid(),
+  orderId: z.string().uuid(),
+  customerId: z.string().uuid(),
+  outcome: z.enum(["PENDING_CANCELLED", "POSTED_REVERSED"]),
+  pointsEffect: z.number(),
+  reversalTransactionId: z.string().uuid().nullable().optional(),
+  replay: z.boolean().optional()
+}).passthrough();
+
 const ContactResourceSchema = z.object({
   id: z.string(),
   business_id: z.string(),
@@ -379,6 +390,7 @@ const schemas = {
   ExternalAwardsRequest: ExternalAwardsSchema,
   AutomationTemplateRequest: AutomationTemplateSchema,
   OrderCreateRequest: OrderCreateSchema,
+  OrderReturnCreateRequest: OrderReturnCreateSchema,
   PublicContactUpsertRequest: PublicContactUpsertSchema,
   PublicContactLookupRequest: PublicContactLookupRequestSchema,
   PublicContactIdentifierLinkRequest: PublicContactIdentifierLinkSchema,
@@ -443,6 +455,7 @@ const schemas = {
   StaffAwardResponse: StaffAwardResponseSchema,
   StaffRefundResponse: StaffRefundResponseSchema,
   OrderCreateResponse: OrderCreateResponseSchema,
+  OrderReturnCreateResponse: OrderReturnCreateResponseSchema,
   ContactResource: ContactResourceSchema,
   ContactIdentifierResource: ContactIdentifierResourceSchema,
   PublicContactResponse: PublicContactResponseSchema,
@@ -501,6 +514,12 @@ const routeSchemaBindings = {
     post: {
       body: "OrderCreateRequest",
       responses: { "200": "OrderCreateResponse" }
+    }
+  },
+  "/api/v1/public/order-returns": {
+    post: {
+      body: "OrderReturnCreateRequest",
+      responses: { "200": "OrderReturnCreateResponse" }
     }
   },
   "/api/v1/public/contacts": {
@@ -896,6 +915,31 @@ const curatedPaths = {
         "401": { description: "Invalid signature" },
         "404": { description: "Business or customer not found" },
         "409": { description: "externalOrderId already used for different payload" }
+      }
+    }
+  },
+  "/api/v1/public/order-returns": {
+    post: {
+      summary: "Create and process an external order return",
+      parameters: [publicHmacHeaderParameter],
+      "x-hmac-required": true,
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: { $ref: "#/components/schemas/OrderReturnCreateRequest" } }
+        }
+      },
+      responses: {
+        "200": {
+          description: "Order return processed or replayed",
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/OrderReturnCreateResponse" } }
+          }
+        },
+        "400": { description: "Validation error" },
+        "401": { description: "Invalid signature" },
+        "404": { description: "Business or original order not found" },
+        "409": { description: "Return replay conflict, already-returned order, or manual handling required" }
       }
     }
   },

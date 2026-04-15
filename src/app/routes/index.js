@@ -12,6 +12,7 @@ import { superRoutes } from "./super-routes.js";
 import { superMagicLinkRoutes } from "./super-magic-link-routes.js";
 import { paymentWebhookRoutes } from "./payment-webhook-routes.js";
 import { orderRoutes } from "./order-routes.js";
+import { orderReturnRoutes } from "./order-return-routes.js";
 import { contactSyncRoutes } from "./contact-sync-routes.js";
 import giftCardRoutes from "./gift-card-routes.js";
 import docsRoutes from "./docs-routes.js";
@@ -33,6 +34,7 @@ const mountRoutes = (basePath) => {
   apiRoutes.use(basePath, superMagicLinkRoutes);
   apiRoutes.use(basePath, paymentWebhookRoutes);
   apiRoutes.use(basePath, orderRoutes);
+  apiRoutes.use(basePath, orderReturnRoutes);
   apiRoutes.use(basePath, contactSyncRoutes);
   apiRoutes.use(basePath, giftCardRoutes);
 };
