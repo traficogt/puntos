@@ -33,10 +33,11 @@ test("order return lookup finds the latest replay row for the external return id
   assert.deepEqual(calls[0].params, ["business-1", "ret-123"]);
 });
 
-test("order return lookup by order id stays deterministic", async () => {
+test("order return lookup by order id stays business scoped and deterministic", async () => {
   const calls = [];
   const row = {
     id: "return-1",
+    business_id: "business-1",
     order_id: "order-1"
   };
   const client = {
@@ -46,14 +47,15 @@ test("order return lookup by order id stays deterministic", async () => {
     }
   };
 
-  const found = await OrderReturnRepo.findByOrderId(client, "order-1");
+  const found = await OrderReturnRepo.findByOrderId(client, "business-1", "order-1");
 
   assert.equal(found, row);
   assert.equal(calls.length, 1);
   assert.match(calls[0].sql, /FROM order_returns/i);
-  assert.match(calls[0].sql, /WHERE order_id = \$1/i);
+  assert.match(calls[0].sql, /WHERE business_id = \$1/i);
+  assert.match(calls[0].sql, /AND order_id = \$2/i);
   assert.match(calls[0].sql, /ORDER BY created_at DESC, id DESC/i);
-  assert.deepEqual(calls[0].params, ["order-1"]);
+  assert.deepEqual(calls[0].params, ["business-1", "order-1"]);
 });
 
 test("order return create stores meta as json and preserves persistence-only inputs", async () => {
@@ -134,4 +136,23 @@ test("order return RLS lives in the dedicated migration", () => {
   assert.match(rlsSource, /ENABLE ROW LEVEL SECURITY/);
   assert.match(rlsSource, /FORCE ROW LEVEL SECURITY/);
   assert.match(rlsSource, /CREATE POLICY tenant_isolation ON order_returns/i);
+});
+
+test("order return schema enforces order business and customer integrity", () => {
+  const tableSource = fs.readFileSync(
+    new URL("../../src/app/migrations/2026-04-15-order-returns.sql", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    tableSource,
+    /ALTER TABLE orders\s+ADD CONSTRAINT orders_id_business_customer_unique\s+UNIQUE\s*\(id,\s*business_id,\s*customer_id\)/i
+  );
+  assert.match(tableSource, /UNIQUE\s*\(id,\s*business_id,\s*customer_id\)/i);
+  assert.match(tableSource, /UNIQUE\s*\(id,\s*business_id\)/i);
+  assert.match(tableSource, /UNIQUE\s*\(id,\s*customer_id\)/i);
+  assert.match(
+    tableSource,
+    /FOREIGN KEY\s*\(order_id,\s*business_id,\s*customer_id\)\s*REFERENCES orders\s*\(id,\s*business_id,\s*customer_id\)/i
+  );
 });

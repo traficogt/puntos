@@ -18,14 +18,15 @@ export const OrderReturnRepo = {
     return rows[0] ?? null;
   },
 
-  async findByOrderId(client, orderId) {
+  async findByOrderId(client, businessId, orderId) {
     const { rows } = await client.query(
       `SELECT *
        FROM order_returns
-       WHERE order_id = $1
+       WHERE business_id = $1
+         AND order_id = $2
        ORDER BY created_at DESC, id DESC
        LIMIT 1`,
-      [orderId]
+      [businessId, orderId]
     );
     return rows[0] ?? null;
   },
