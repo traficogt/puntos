@@ -9,7 +9,6 @@ CREATE TABLE IF NOT EXISTS contact_identifiers (
   meta JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CHECK (identifier_value = btrim(identifier_value)),
   UNIQUE (business_id, identifier_type, identifier_value)
 );
 

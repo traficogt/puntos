@@ -18,6 +18,8 @@
   - Creates `contact_identifiers` and indexes.
 - `src/app/migrations/2026-04-15-contact-identifiers_rls.sql`
   - Enables and enforces tenant RLS on `contact_identifiers`.
+- `src/app/migrations/2026-04-16-contact-identifiers-trim.sql`
+  - Adds the identifier-value trim check as forward-only hardening.
 - `src/app/repositories/contact-identifier-repository.js`
   - Encapsulates all `contact_identifiers` queries.
 - `src/app/services/customer-resolution-service.js`
@@ -71,6 +73,7 @@ Every task below must preserve these invariants:
 **Files:**
 - Create: `src/app/migrations/2026-04-15-contact-identifiers.sql`
 - Create: `src/app/migrations/2026-04-15-contact-identifiers_rls.sql`
+- Create: `src/app/migrations/2026-04-16-contact-identifiers-trim.sql`
 - Create: `src/app/repositories/contact-identifier-repository.js`
 - Modify: `src/app/migrations/checksums.json`
 - Modify: `src/scripts/create-app-role.mjs`
@@ -141,7 +144,22 @@ BEGIN
 END$$;
 ```
 
-- [ ] **Step 5: Add the repository**
+- [ ] **Step 5: Add the trim hardening migration**
+
+Create `src/app/migrations/2026-04-16-contact-identifiers-trim.sql`:
+
+```sql
+DO $$
+BEGIN
+  IF to_regclass('contact_identifiers') IS NOT NULL THEN
+    ALTER TABLE contact_identifiers
+      ADD CONSTRAINT contact_identifiers_identifier_value_trimmed_chk
+      CHECK (identifier_value = btrim(identifier_value));
+  END IF;
+END$$;
+```
+
+- [ ] **Step 6: Add the repository**
 
 Create `src/app/repositories/contact-identifier-repository.js` with focused methods only:
 
@@ -160,7 +178,7 @@ Implementation rules:
 - `meta` must be stored as JSON, not stringly-typed blobs.
 - No business logic in the repository.
 
-- [ ] **Step 6: Add explicit runtime grants**
+- [ ] **Step 7: Add explicit runtime grants**
 
 Update `src/scripts/create-app-role.mjs`:
 
@@ -174,7 +192,7 @@ Reason:
 - links new identifiers
 - deactivates existing identifiers
 
-- [ ] **Step 7: Refresh checksums and rerun grant verification**
+- [ ] **Step 8: Refresh checksums and rerun grant verification**
 
 Run:
 
@@ -190,10 +208,10 @@ Migrations lock: OK
 ... pass 3
 ```
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add src/app/migrations/2026-04-15-contact-identifiers.sql src/app/migrations/2026-04-15-contact-identifiers_rls.sql src/app/repositories/contact-identifier-repository.js src/app/migrations/checksums.json src/scripts/create-app-role.mjs tests/unit/create-app-role.test.js
+git add src/app/migrations/2026-04-15-contact-identifiers.sql src/app/migrations/2026-04-15-contact-identifiers_rls.sql src/app/migrations/2026-04-16-contact-identifiers-trim.sql src/app/repositories/contact-identifier-repository.js src/app/migrations/checksums.json src/scripts/create-app-role.mjs tests/unit/create-app-role.test.js
 git commit -m "feat: add contact identifier persistence"
 ```
 

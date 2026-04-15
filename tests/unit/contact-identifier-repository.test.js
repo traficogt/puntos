@@ -104,12 +104,15 @@ test("contact identifier deactivation marks rows inactive", async () => {
 });
 
 test("contact identifier migrations sort table before dedicated RLS", () => {
-  const files = [
-    "2026-04-15-contact-identifiers.sql",
-    "2026-04-15-contact-identifiers_rls.sql"
-  ];
+  const files = fs.readdirSync(new URL("../../src/app/migrations", import.meta.url))
+    .filter((file) => file.includes("contact-identifiers"))
+    .sort();
 
-  assert.deepEqual([...files].sort(), files);
+  assert.deepEqual(files, [
+    "2026-04-15-contact-identifiers.sql",
+    "2026-04-15-contact-identifiers_rls.sql",
+    "2026-04-16-contact-identifiers-trim.sql"
+  ]);
 });
 
 test("contact identifier RLS lives in the dedicated migration", () => {
@@ -127,4 +130,14 @@ test("contact identifier RLS lives in the dedicated migration", () => {
   assert.match(rlsSource, /ENABLE ROW LEVEL SECURITY/);
   assert.match(rlsSource, /FORCE ROW LEVEL SECURITY/);
   assert.match(rlsSource, /CREATE POLICY tenant_isolation ON contact_identifiers/i);
+});
+
+test("contact identifier trim hardening lives in a later migration", () => {
+  const trimSource = fs.readFileSync(
+    new URL("../../src/app/migrations/2026-04-16-contact-identifiers-trim.sql", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(trimSource, /ALTER TABLE contact_identifiers/i);
+  assert.match(trimSource, /CHECK \(identifier_value = btrim\(identifier_value\)\)/i);
 });
