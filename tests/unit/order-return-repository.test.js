@@ -146,14 +146,18 @@ test("order return schema enforces order business and customer integrity", () =>
 
   assert.match(
     tableSource,
-    /ALTER TABLE orders\s+ADD CONSTRAINT orders_id_business_customer_unique\s+UNIQUE\s*\(id,\s*business_id,\s*customer_id\)/i
-  );
-  assert.match(
-    tableSource,
     /ALTER TABLE orders\s+ADD CONSTRAINT orders_id_business_customer_external_unique\s+UNIQUE\s*\(id,\s*business_id,\s*customer_id,\s*external_order_id\)/i
   );
   assert.match(
     tableSource,
     /FOREIGN KEY\s*\(order_id,\s*business_id,\s*customer_id,\s*external_order_id\)\s*REFERENCES orders\s*\(id,\s*business_id,\s*customer_id,\s*external_order_id\)/i
+  );
+  assert.doesNotMatch(
+    tableSource,
+    /ALTER TABLE orders\s+ADD CONSTRAINT orders_id_business_customer_unique\s+UNIQUE\s*\(id,\s*business_id,\s*customer_id\)/i
+  );
+  assert.doesNotMatch(
+    tableSource,
+    /CREATE INDEX IF NOT EXISTS idx_order_returns_order_id/i
   );
 });

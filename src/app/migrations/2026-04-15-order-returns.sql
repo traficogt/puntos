@@ -1,8 +1,4 @@
 ALTER TABLE orders
-  ADD CONSTRAINT orders_id_business_customer_unique
-  UNIQUE (id, business_id, customer_id);
-
-ALTER TABLE orders
   ADD CONSTRAINT orders_id_business_customer_external_unique
   UNIQUE (id, business_id, customer_id, external_order_id);
 
@@ -28,6 +24,3 @@ CREATE TABLE IF NOT EXISTS order_returns (
   UNIQUE (business_id, external_return_id),
   UNIQUE (order_id)
 );
-
-CREATE INDEX IF NOT EXISTS idx_order_returns_order_id
-  ON order_returns (order_id);
