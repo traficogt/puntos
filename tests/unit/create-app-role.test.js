@@ -28,7 +28,7 @@ describe("create-app-role grant plan", () => {
     assert.deepEqual(APP_TABLE_PRIVILEGES.ledger_balance_corrections, ["SELECT", "INSERT", "UPDATE"]);
     assert.deepEqual(APP_TABLE_PRIVILEGES.ledger_balance_adjustments, ["SELECT", "INSERT"]);
     assert.deepEqual(APP_TABLE_PRIVILEGES.orders, ["SELECT", "INSERT"]);
-    assert.deepEqual(APP_TABLE_PRIVILEGES.order_returns, ["SELECT", "INSERT", "UPDATE"]);
+    assert.deepEqual(APP_TABLE_PRIVILEGES.order_returns, ["SELECT", "INSERT"]);
     assert.deepEqual(APP_TABLE_PRIVILEGES.contact_identifiers, ["SELECT", "INSERT", "UPDATE"]);
     assert.deepEqual(APP_TABLE_PRIVILEGES.redemptions, ["SELECT", "INSERT"]);
     assert.deepEqual(APP_TABLE_PRIVILEGES.transactions, ["SELECT", "INSERT", "UPDATE"]);
