@@ -11,6 +11,24 @@ BEGIN
           '',
           'g'
         )
-      );
+      ) NOT VALID;
+
+    UPDATE contact_identifiers
+       SET identifier_value = regexp_replace(
+         identifier_value,
+         '^[[:space:]]+|[[:space:]]+$',
+         '',
+         'g'
+       )
+     WHERE identifier_value IS NOT NULL
+       AND identifier_value <> regexp_replace(
+         identifier_value,
+         '^[[:space:]]+|[[:space:]]+$',
+         '',
+         'g'
+       );
+
+    ALTER TABLE contact_identifiers
+      VALIDATE CONSTRAINT contact_identifiers_identifier_value_trimmed_chk;
   END IF;
 END$$;

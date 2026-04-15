@@ -139,6 +139,9 @@ test("contact identifier trim hardening lives in a later migration", () => {
   );
 
   assert.match(trimSource, /ALTER TABLE contact_identifiers/i);
+  assert.match(trimSource, /NOT VALID/i);
+  assert.match(trimSource, /UPDATE contact_identifiers/i);
+  assert.match(trimSource, /VALIDATE CONSTRAINT/i);
   assert.match(trimSource, /regexp_replace\(/i);
   assert.match(trimSource, /\[\[:space:\]\]/i);
   assert.doesNotMatch(trimSource, /btrim/i);
