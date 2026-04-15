@@ -41,6 +41,7 @@ export const APP_TABLE_PRIVILEGES = {
   reward_branches: ["SELECT", "INSERT", "DELETE"],
   transactions: ["SELECT", "INSERT", "UPDATE"],
   orders: ["SELECT", "INSERT"],
+  order_returns: ["SELECT", "INSERT", "UPDATE"],
   redemptions: ["SELECT", "INSERT"],
   verify_codes: ["SELECT", "INSERT", "UPDATE", "DELETE"],
   qr_tokens: ["SELECT", "INSERT"],
