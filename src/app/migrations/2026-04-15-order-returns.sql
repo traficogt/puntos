@@ -18,9 +18,6 @@ CREATE TABLE IF NOT EXISTS order_returns (
   outcome TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (id, business_id, customer_id),
-  UNIQUE (id, business_id),
-  UNIQUE (id, customer_id),
   FOREIGN KEY (order_id, business_id, customer_id)
     REFERENCES orders (id, business_id, customer_id)
     ON DELETE CASCADE,

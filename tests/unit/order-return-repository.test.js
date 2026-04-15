@@ -148,9 +148,6 @@ test("order return schema enforces order business and customer integrity", () =>
     tableSource,
     /ALTER TABLE orders\s+ADD CONSTRAINT orders_id_business_customer_unique\s+UNIQUE\s*\(id,\s*business_id,\s*customer_id\)/i
   );
-  assert.match(tableSource, /UNIQUE\s*\(id,\s*business_id,\s*customer_id\)/i);
-  assert.match(tableSource, /UNIQUE\s*\(id,\s*business_id\)/i);
-  assert.match(tableSource, /UNIQUE\s*\(id,\s*customer_id\)/i);
   assert.match(
     tableSource,
     /FOREIGN KEY\s*\(order_id,\s*business_id,\s*customer_id\)\s*REFERENCES orders\s*\(id,\s*business_id,\s*customer_id\)/i

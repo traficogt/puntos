@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-15T23:01:10.378Z",
+  "generated_at": "2026-04-15T23:03:24.747Z",
   "files": {
     "001_add_transactions_type.sql": "34e119c91fa5c744920b65a77dedeb89276bfd86a1b45e9a7edd59d73e8ffefc",
     "002_reward_branch_scope.sql": "5a076cc3a0b4df04031c5dc6d8ec26f75ebf44e648ca14a234dd8dfea08af401",
@@ -41,7 +41,7 @@
     "2026-04-14-orders.sql": "ca48766287f60f80e3e12adc7ec6a1d76f2666658f71cd460311096ffa09e1fd",
     "2026-04-15-contact-identifiers.sql": "995ea368ff76b4d8dec72c9f2e6e414870788d861a571380af3ed89b04792cf5",
     "2026-04-15-contact-identifiers_rls.sql": "a3119b31ea59d2b1aed7144c8670c7cfd91f3b343fcd24e3a37df19144a391ea",
-    "2026-04-15-order-returns.sql": "41a931fdbe42b8d0197d030f4baa5d51d8126ddc9f73f5ef2b620457c78d1493",
+    "2026-04-15-order-returns.sql": "8103a867083f4150efca494a22b8cd3bba3bb9027c87915c4fcbf928aa11b043",
     "2026-04-15-order-returns_rls.sql": "ba5df85997fde4e81bef51c62e2bf0d2fa3a3a2775226ed8f3c695c8c9a79206",
     "2026-04-15-orders-rls.sql": "76fa6d39893a9c06f70cb2d5d8268ecc77b51faf1a78bc8ffeada918740db8fe",
     "2026-04-16-contact-identifiers-trim.sql": "af73a8bc3a219617cd96fd030d5b5619ff426318fb590a3ac54df3a871da29bb"
