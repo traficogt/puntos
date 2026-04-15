@@ -99,7 +99,11 @@ function makeDeps({
       },
       OrderReturnRepo: {
         findByBusinessAndExternalId: async () => originalReturn,
-        findByOrderId: async () => existingByOrder,
+        findByOrderId: async (...args) => (
+          typeof existingByOrder === "function"
+            ? existingByOrder(...args)
+            : existingByOrder
+        ),
         create: async (_client, input) => {
           creates.push(input);
           if (createReturn) return createReturn(input);
@@ -319,6 +323,99 @@ test("rejects when the original order already has a return", async () => {
     }),
     (err) => err?.statusCode === 409 && /already returned/i.test(err.message)
   );
+});
+
+test("rejects when the original transaction is already reversed", async () => {
+  const client = makeClient({
+    findTransaction: async () => ({
+      rows: [{
+        id: "txn-1",
+        business_id: "biz-1",
+        customer_id: "cust-1",
+        branch_id: "branch-1",
+        points: 12,
+        status: "REVERSED"
+      }],
+      rowCount: 1
+    })
+  });
+  const ctx = makeDeps({ client });
+
+  await assert.rejects(
+    () => processOrderReturnWithDeps(ctx.deps, {
+      businessSlug: "cafe",
+      externalReturnId: "ret-1",
+      externalOrderId: "ord-1"
+    }),
+    (err) => err?.statusCode === 409 && /already reversed|unexpected status/i.test(err.message)
+  );
+});
+
+test("rejects when the original transaction customer does not match the source order", async () => {
+  const client = makeClient({
+    findTransaction: async () => ({
+      rows: [{
+        id: "txn-1",
+        business_id: "biz-1",
+        customer_id: "cust-2",
+        branch_id: "branch-1",
+        points: 12,
+        status: "POSTED"
+      }],
+      rowCount: 1
+    })
+  });
+  const ctx = makeDeps({ client });
+
+  await assert.rejects(
+    () => processOrderReturnWithDeps(ctx.deps, {
+      businessSlug: "cafe",
+      externalReturnId: "ret-1",
+      externalOrderId: "ord-1"
+    }),
+    (err) => err?.statusCode === 409 && /customer mismatch|same business and customer/i.test(err.message)
+  );
+});
+
+test("rechecks same-order conflicts after taking the order-level lock", async () => {
+  let lockCalls = 0;
+  let orderLocked = false;
+  const client = makeClient({
+    lock: async () => {
+      lockCalls += 1;
+      if (lockCalls === 2) orderLocked = true;
+      return { rows: [{ pg_advisory_xact_lock: null }], rowCount: 1 };
+    }
+  });
+  const ctx = makeDeps({
+    client,
+    existingByOrder: async () => (
+      orderLocked
+        ? { id: "return-existing", order_id: "order-1", customer_id: "cust-1" }
+        : null
+    )
+  });
+
+  await assert.rejects(
+    () => processOrderReturnWithDeps(ctx.deps, {
+      businessSlug: "cafe",
+      externalReturnId: "ret-2",
+      externalOrderId: "ord-1"
+    }),
+    (err) => err?.statusCode === 409 && /already returned/i.test(err.message)
+  );
+
+  assert.equal(lockCalls, 2);
+  assert.deepEqual(
+    client.calls
+      .filter(({ sql }) => sql.includes("pg_advisory_xact_lock"))
+      .map(({ params }) => params),
+    [
+      ["biz-1", "ret-2"],
+      ["biz-1", "order-1"]
+    ]
+  );
+  assert.equal(ctx.creates.length, 0);
 });
 
 test("rejects when a posted reversal would require a negative balance and policy forbids it", async () => {

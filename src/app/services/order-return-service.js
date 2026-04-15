@@ -55,6 +55,13 @@ async function lockOrderReturnRequest(client, businessId, externalReturnId) {
   );
 }
 
+async function lockOrderReturnOrder(client, businessId, orderId) {
+  await client.query(
+    `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
+    [String(businessId), String(orderId)]
+  );
+}
+
 async function loadOriginalTransaction(client, transactionId) {
   const { rows } = await client.query(
     `SELECT id, business_id, branch_id, customer_id, points, status
@@ -85,6 +92,22 @@ async function updateOrderStatus(client, { orderId, businessId }) {
        AND business_id = $2`,
     [orderId, businessId]
   );
+}
+
+function assertTransactionMatchesOrder({ transaction, order, businessId }) {
+  if (String(transaction.business_id) !== String(businessId) || String(transaction.business_id) !== String(order.business_id)) {
+    throw conflict("Original order return source must match the same business and customer");
+  }
+  if (String(transaction.customer_id) !== String(order.customer_id)) {
+    throw conflict("Original order return source must match the same business and customer");
+  }
+}
+
+function resolveReturnableStatus(transaction) {
+  const status = String(transaction.status || "");
+  if (status === "PENDING" || status === "POSTED") return status;
+  if (status === "REVERSED") throw conflict("Original transaction already reversed");
+  throw conflict(`Original transaction has unexpected status: ${status || "UNKNOWN"}`);
 }
 
 async function processOrderReturnWithClient(deps, client, input) {
@@ -132,18 +155,26 @@ async function processOrderReturnWithClient(deps, client, input) {
   const order = await deps.OrderRepo.findDetailedByBusinessAndExternalId(client, business.id, externalOrderId);
   if (!order) throw notFound("Original order not found");
 
+  await lockOrderReturnOrder(client, business.id, order.id);
+
   const existingByOrder = await deps.OrderReturnRepo.findByOrderId(client, business.id, order.id);
   if (existingByOrder) throw conflict("Order already returned");
 
   const originalTransaction = await loadOriginalTransaction(client, order.transaction_id);
   if (!originalTransaction) throw notFound("Original transaction not found");
+  assertTransactionMatchesOrder({
+    transaction: originalTransaction,
+    order,
+    businessId: business.id
+  });
+  const originalStatus = resolveReturnableStatus(originalTransaction);
 
   const points = Number(originalTransaction.points ?? order.points_awarded ?? 0);
   const pointsEffect = -Math.abs(points);
   let outcome = null;
   let reversalTransactionId = null;
 
-  if (String(originalTransaction.status) === "PENDING") {
+  if (originalStatus === "PENDING") {
     await client.query(
       `UPDATE customer_balances
        SET pending_points = GREATEST(0, pending_points - $2),
@@ -190,7 +221,7 @@ async function processOrderReturnWithClient(deps, client, input) {
           external_return_id: externalReturnId,
           external_order_id: externalOrderId,
           refund_reason: input.reason ?? "order_return",
-          original_status: originalTransaction.status,
+          original_status: originalStatus,
           original_points: Math.abs(points)
         }
       ]
