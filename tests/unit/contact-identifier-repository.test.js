@@ -142,6 +142,10 @@ test("contact identifier trim hardening lives in a later migration", () => {
   assert.match(trimSource, /NOT VALID/i);
   assert.match(trimSource, /UPDATE contact_identifiers/i);
   assert.match(trimSource, /VALIDATE CONSTRAINT/i);
+  assert.match(trimSource, /RAISE EXCEPTION/i);
+  assert.match(trimSource, /COUNT\(DISTINCT customer_id\)/i);
+  assert.match(trimSource, /row_number\(\) OVER \([\s\S]*PARTITION BY[\s\S]*business_id[\s\S]*identifier_type[\s\S]*customer_id/i);
+  assert.match(trimSource, /DELETE FROM contact_identifiers/i);
   assert.match(trimSource, /regexp_replace\(/i);
   assert.match(trimSource, /\[\[:space:\]\]/i);
   assert.doesNotMatch(trimSource, /btrim/i);
