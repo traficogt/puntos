@@ -110,6 +110,12 @@ function resolveReturnableStatus(transaction) {
   throw conflict(`Original transaction has unexpected status: ${status || "UNKNOWN"}`);
 }
 
+function assertSingleBalanceMutation(result, pathLabel) {
+  if (Number(result?.rowCount ?? 0) !== 1) {
+    throw conflict(`Order return ${pathLabel} requires an existing customer balance row`);
+  }
+}
+
 async function processOrderReturnWithClient(deps, client, input) {
   const externalReturnId = String(input.externalReturnId || "").trim();
   if (!externalReturnId) throw badRequest("externalReturnId required");
@@ -175,13 +181,14 @@ async function processOrderReturnWithClient(deps, client, input) {
   let reversalTransactionId = null;
 
   if (originalStatus === "PENDING") {
-    await client.query(
+    const balanceUpdate = await client.query(
       `UPDATE customer_balances
        SET pending_points = GREATEST(0, pending_points - $2),
            updated_at = now()
        WHERE customer_id = $1`,
       [order.customer_id, Math.abs(points)]
     );
+    assertSingleBalanceMutation(balanceUpdate, "pending cancellation");
     await markOriginalTransactionReturned(client, {
       transactionId: originalTransaction.id,
       reversalTransactionId: null,
@@ -226,7 +233,7 @@ async function processOrderReturnWithClient(deps, client, input) {
         }
       ]
     );
-    await client.query(
+    const balanceUpdate = await client.query(
       `UPDATE customer_balances
        SET points = points + $2,
            lifetime_points = GREATEST(0, lifetime_points + LEAST($2, 0)),
@@ -234,6 +241,7 @@ async function processOrderReturnWithClient(deps, client, input) {
        WHERE customer_id = $1`,
       [order.customer_id, pointsEffect]
     );
+    assertSingleBalanceMutation(balanceUpdate, "posted reversal");
     await markOriginalTransactionReturned(client, {
       transactionId: originalTransaction.id,
       reversalTransactionId,
