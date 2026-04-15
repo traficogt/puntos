@@ -4,6 +4,13 @@ BEGIN
   IF to_regclass('contact_identifiers') IS NOT NULL THEN
     ALTER TABLE contact_identifiers
       ADD CONSTRAINT contact_identifiers_identifier_value_trimmed_chk
-      CHECK (identifier_value = btrim(identifier_value));
+      CHECK (
+        identifier_value = regexp_replace(
+          identifier_value,
+          '^[[:space:]]+|[[:space:]]+$',
+          '',
+          'g'
+        )
+      );
   END IF;
 END$$;

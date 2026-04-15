@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-15T12:56:08.215Z",
+  "generated_at": "2026-04-15T12:58:38.886Z",
   "files": {
     "001_add_transactions_type.sql": "34e119c91fa5c744920b65a77dedeb89276bfd86a1b45e9a7edd59d73e8ffefc",
     "002_reward_branch_scope.sql": "5a076cc3a0b4df04031c5dc6d8ec26f75ebf44e648ca14a234dd8dfea08af401",
@@ -42,6 +42,6 @@
     "2026-04-15-contact-identifiers.sql": "995ea368ff76b4d8dec72c9f2e6e414870788d861a571380af3ed89b04792cf5",
     "2026-04-15-contact-identifiers_rls.sql": "a3119b31ea59d2b1aed7144c8670c7cfd91f3b343fcd24e3a37df19144a391ea",
     "2026-04-15-orders-rls.sql": "76fa6d39893a9c06f70cb2d5d8268ecc77b51faf1a78bc8ffeada918740db8fe",
-    "2026-04-16-contact-identifiers-trim.sql": "d6c35e699c44bfd8089ef8a806bae9ccf4ea9e97aab0a9517de139d604f0a9c7"
+    "2026-04-16-contact-identifiers-trim.sql": "b0e64f237b4c922e0c2667c7440b258e9b15e8263a4a0f5f9c6896c5e1d393c1"
   }
 }
