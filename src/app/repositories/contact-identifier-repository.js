@@ -39,6 +39,7 @@ export const ContactIdentifierRepo = {
        WHERE business_id = $1
          AND identifier_type = $2
          AND identifier_value = $3
+         AND active = true
        LIMIT 1`,
       [businessId, identifierType, normalizeIdentifierValue(identifierValue)]
     );

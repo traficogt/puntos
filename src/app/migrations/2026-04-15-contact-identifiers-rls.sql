@@ -1,4 +1,5 @@
--- Add tenant RLS for contact identifiers to match the orders security baseline.
+-- Safety-net tenant RLS for contact identifiers.
+-- The table migration also enables RLS inline so fresh DBs are safe even if file order changes.
 DO $$
 BEGIN
   IF to_regclass('contact_identifiers') IS NOT NULL THEN
