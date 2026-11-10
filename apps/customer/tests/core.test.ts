@@ -656,3 +656,62 @@ test("optional notification failures preserve a fresh snapshot but still clear i
     assert.equal(!!auth.getState().session, status !== 401);
   }
 });
+
+test("phone-first access uses the PF endpoint without a business or cookies", async () => {
+  const client = new ApiClient("https://app.puntosfieles.com", async (url, options) => {
+    assert.equal(url, "https://app.puntosfieles.com/api/mobile/access/request-code");
+    assert.equal(options?.credentials, "omit");
+    assert.equal(options?.body, JSON.stringify({ phone: "+50255555555" }));
+    assert.equal((options?.headers as Record<string, string>).Authorization, undefined);
+    return new Response(JSON.stringify({ ok: true }));
+  });
+  assert.deepEqual(await client.request("/access/request-code", { method: "POST", body: { phone: "+50255555555" } }), { ok: true });
+  for (const path of ["/access/../admin", "/access?token=x", "/accessory", "/access", "/access/other", "/access/verify/extra", "/admin"])
+    await assert.rejects(client.request(path), /Ruta inválida/);
+});
+
+test("card selection sends its temporary phone proof only in the request body", async () => {
+  const body = { accessToken: "temporary-phone-proof", businessId: "business-b" };
+  const client = new ApiClient("https://app.puntosfieles.com", async (url, options) => {
+    assert.equal(url, "https://app.puntosfieles.com/api/mobile/access/select");
+    assert.equal(options?.credentials, "omit");
+    assert.equal(options?.body, JSON.stringify(body));
+    assert.equal((options?.headers as Record<string, string>).Authorization, undefined);
+    return new Response(JSON.stringify({ status: "signed_in" }));
+  });
+  assert.deepEqual(await client.request("/access/select", { method: "POST", body }), { status: "signed_in" });
+});
+
+test("login-code errors explain retrying the code rather than an expired account session", async () => {
+  const client = new ApiClient("https://app.puntosfieles.com", async () => new Response("{}", { status: 401 }));
+  await assert.rejects(client.request("/access/verify", { method: "POST" }), /código.*válido/i);
+  await assert.rejects(client.request("/business/test-cafe/join/verify", { method: "POST" }), /código.*válido/i);
+  await assert.rejects(client.request("/business/test-cafe/login/verify", { method: "POST" }), /código.*válido/i);
+  await assert.rejects(client.request("/access/select", { method: "POST" }), /verificar tu teléfono/i);
+  await assert.rejects(client.request("/customer"), /sesión terminó/);
+});
+
+test("canceling a pending demo clears the previous account without publishing demo data", async () => {
+  const cleared = deferred(), release = deferred();
+  const secure = storage(), cache = storage();
+  const c = new SessionController({} as any, secure, cache);
+  await c.activate(session);
+  await cache.set("pf.snapshot", "previous-account");
+  const remove = secure.remove;
+  secure.remove = async (key) => {
+    cleared.resolve();
+    await release.promise;
+    await remove(key);
+  };
+  let current = true;
+  const preview = c.preview(snapshot, { isCurrent: () => current });
+  await cleared.promise;
+  assert.equal(c.getState().session, null);
+  current = false;
+  release.resolve();
+  await preview;
+  assert.equal(c.getState().demo, false);
+  assert.equal(c.getState().snapshot, null);
+  assert.equal(secure.m.size, 0);
+  assert.equal(cache.m.size, 0);
+});

@@ -288,9 +288,15 @@ export class SessionController {
   setOffline(offline: boolean) {
     this.set({ offline, fresh: false, ...(offline ? { qr: null } : {}) });
   }
-  async preview(snapshot: Snapshot) {
+  async preview(
+    snapshot: Snapshot,
+    { isCurrent = () => true }: { isCurrent?: () => boolean } = {},
+  ) {
+    if (!isCurrent()) return;
+    const gen = this.generation + 1;
     await this.clear();
-    this.set({ snapshot, demo: true, syncedAt: null });
+    if (gen === this.generation && isCurrent())
+      this.set({ snapshot, demo: true, syncedAt: null });
   }
   async deleteAccount() {
     const token = this.state.session?.token;

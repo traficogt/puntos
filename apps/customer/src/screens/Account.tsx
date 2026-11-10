@@ -1,14 +1,23 @@
 import React, { useState } from "react";
 import { Linking, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useApp } from "../context";
-import { Button, Copy, Divider, Heading, Notice, Screen } from "../components";
+import { Copy, Notice } from "../components";
+import {
+  NativeButton,
+  NativeScreen,
+  SectionTitle,
+  SettingsGroup,
+  SettingsRow,
+} from "../native-components";
 import { fonts } from "../theme";
 import { NotificationSettings } from "../NotificationSettings";
+
 export function Account() {
   const { state, colors, controller, appearance, setAppearance } = useApp();
-  const [confirm, setConfirm] = useState(false),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   async function remove() {
     setBusy(true);
     setError("");
@@ -21,109 +30,182 @@ export function Account() {
     }
   }
   return (
-    <Screen>
-      <Heading>Tu cuenta.</Heading>
-      <Copy style={{ fontFamily: fonts.brand, fontSize: 24, marginTop: 12 }}>
-        {state.snapshot?.customer.name || "Tu tarjeta de cliente"}
+    <NativeScreen>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 14,
+          paddingVertical: 8,
+        }}
+      >
+        <Ionicons name="person-circle-outline" size={46} color={colors.muted} />
+        <View style={{ flex: 1 }}>
+          <Copy
+            accessibilityRole="header"
+            style={{ fontFamily: fonts.brand, fontSize: 23, lineHeight: 29 }}
+          >
+            {state.snapshot?.customer.name || "Tu tarjeta de cliente"}
+          </Copy>
+          {state.snapshot?.customer.phone && (
+            <Copy
+              style={{
+                color: colors.muted,
+                fontSize: 14,
+                lineHeight: 21,
+                marginTop: 4,
+              }}
+            >
+              {state.snapshot.customer.phone}
+            </Copy>
+          )}
+          <Copy
+            style={{
+              color: colors.muted,
+              fontSize: 14,
+              lineHeight: 21,
+              marginTop: 4,
+            }}
+          >
+            {state.snapshot?.business.name}
+          </Copy>
+        </View>
+      </View>
+      <Copy
+        style={{
+          color: colors.muted,
+          fontSize: 13,
+          lineHeight: 20,
+          marginTop: 8,
+        }}
+      >
+        Tus puntos y recompensas corresponden a este negocio.
       </Copy>
-      {state.snapshot?.customer.phone && (
-        <Copy style={{ color: colors.muted, marginTop: 6 }}>
-          {state.snapshot.customer.phone}
-        </Copy>
-      )}
-      <Notice>
-        {state.snapshot?.business.name}. Los puntos y recompensas corresponden a
-        este negocio.
-      </Notice>
-      <Divider />
-      <Copy style={{ fontFamily: fonts.brand, fontSize: 22, marginBottom: 16 }}>
-        A tu manera.
-      </Copy>
-      <View style={{ gap: 10 }}>
+
+      <SectionTitle>Apariencia</SectionTitle>
+      <SettingsGroup>
         {(["system", "light", "dark"] as const).map((value) => (
-          <Button
+          <SettingsRow
             key={value}
-            label={`${appearance === value ? "Seleccionado: " : ""}${{ system: "Usar tema del teléfono", light: "Tema claro", dark: "Tema oscuro" }[value]}`}
-            secondary={appearance !== value}
+            label={
+              {
+                system: "Usar tema del teléfono",
+                light: "Tema claro",
+                dark: "Tema oscuro",
+              }[value]
+            }
+            icon={
+              {
+                system: "phone-portrait-outline",
+                light: "sunny-outline",
+                dark: "moon-outline",
+              }[value] as
+                | "phone-portrait-outline"
+                | "sunny-outline"
+                | "moon-outline"
+            }
+            role="radio"
+            selected={appearance === value}
+            last={value === "dark"}
             onPress={() => setAppearance(value)}
           />
         ))}
-      </View>
+      </SettingsGroup>
       <NotificationSettings />
-      <Divider />
-      <Button
-        label="Ayuda y soporte"
-        secondary
-        icon="help-circle-outline"
-        onPress={() => void Linking.openURL("https://puntosfieles.com/soporte")}
-      />
-      <View style={{ marginTop: 12 }}>
-        <Button
+      <SectionTitle>Ayuda</SectionTitle>
+      <SettingsGroup>
+        <SettingsRow
+          label="Ayuda y soporte"
+          icon="help-circle-outline"
+          external
+          onPress={() =>
+            void Linking.openURL("https://puntosfieles.com/soporte")
+          }
+        />
+        <SettingsRow
           label="Aviso de privacidad"
-          secondary
+          icon="shield-checkmark-outline"
+          external
+          last
           onPress={() =>
             void Linking.openURL("https://puntosfieles.com/privacidad.html")
           }
         />
-      </View>
-      <Divider />
-      <Button
-        label={
-          state.demo
-            ? "Salir del ejemplo"
-            : "Cerrar sesión y cambiar de negocio"
-        }
-        secondary
-        icon="log-out-outline"
-        disabled={busy}
-        onPress={() =>
-          void controller
-            .signOut()
-            .catch(() =>
-              setError(
-                "No se pudo borrar el almacenamiento. Cierra la app e intenta de nuevo.",
-              ),
-            )
-        }
-      />
+      </SettingsGroup>
+      <SectionTitle>Sesión</SectionTitle>
+      <SettingsGroup>
+        <SettingsRow
+          label={
+            state.demo
+              ? "Salir del ejemplo"
+              : "Cerrar sesión y cambiar de negocio"
+          }
+          icon="log-out-outline"
+          last
+          disabled={busy}
+          onPress={() =>
+            void controller
+              .signOut()
+              .catch(() =>
+                setError(
+                  "No se pudo borrar el almacenamiento. Cierra la app e intenta de nuevo.",
+                ),
+              )
+          }
+        />
+      </SettingsGroup>
       <Notice>
         {state.demo
           ? "Este recorrido no creó una cuenta ni cambió puntos."
           : "Al salir se borran los datos guardados de esta cuenta en el dispositivo."}
       </Notice>
       {!state.demo && (
-        <View style={{ marginTop: 20 }}>
+        <View style={{ marginTop: 12 }}>
           {confirm ? (
-            <>
-              <Copy style={{ fontFamily: fonts.bold }}>
+            <View style={{ gap: 10 }}>
+              <Copy
+                accessibilityRole="header"
+                style={{ fontFamily: fonts.bold }}
+              >
                 ¿Eliminar tu cuenta de este negocio?
               </Copy>
-              <Notice>
+              <Copy
+                style={{
+                  color: colors.muted,
+                  fontSize: 14,
+                  lineHeight: 21,
+                  marginBottom: 6,
+                }}
+              >
                 Perderás el acceso a tu tarjeta y a los puntos de este programa.
                 Esta acción no se puede deshacer desde la app.
-              </Notice>
-              <Button
+              </Copy>
+              <NativeButton
                 label="Confirmar eliminación de mi cuenta"
+                icon="trash-outline"
+                destructive
                 loading={busy}
                 disabled={state.offline}
                 onPress={() => void remove()}
               />
-              <View style={{ marginTop: 10 }}>
-                <Button
-                  label="Cancelar"
-                  secondary
-                  disabled={busy}
-                  onPress={() => setConfirm(false)}
-                />
-              </View>
-            </>
+              <NativeButton
+                label="Cancelar"
+                secondary
+                disabled={busy}
+                onPress={() => setConfirm(false)}
+              />
+            </View>
           ) : (
-            <Button
-              label="Eliminar mi cuenta de este negocio"
-              secondary
-              disabled={state.offline}
-              onPress={() => setConfirm(true)}
-            />
+            <SettingsGroup>
+              <SettingsRow
+                label="Eliminar mi cuenta de este negocio"
+                icon="trash-outline"
+                destructive
+                last
+                disabled={state.offline}
+                onPress={() => setConfirm(true)}
+              />
+            </SettingsGroup>
           )}
         </View>
       )}
@@ -131,9 +213,11 @@ export function Account() {
       <Copy
         style={{
           fontFamily: fonts.brand,
-          fontSize: 18,
+          color: colors.muted,
+          fontSize: 16,
+          lineHeight: 23,
           textAlign: "center",
-          marginTop: 40,
+          marginTop: 28,
         }}
       >
         PuntosFieles.
@@ -142,12 +226,13 @@ export function Account() {
         style={{
           color: colors.muted,
           fontSize: 12,
+          lineHeight: 18,
           textAlign: "center",
-          marginTop: 8,
+          marginTop: 4,
         }}
       >
         Versión de desarrollo 0.1.0 · Viasolvia
       </Copy>
-    </Screen>
+    </NativeScreen>
   );
 }

@@ -13,10 +13,31 @@ import { useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useApp } from "../context";
-import { Button, Copy, Heading, Notice, Screen, layout } from "../components";
+import { Copy, Heading, Notice, Screen, layout } from "../components";
+import { NativeButton as Button } from "../native-components";
 import { fonts } from "../theme";
 import { businessSlug, type Business, type Customer } from "../model";
 import { demo } from "../demo";
+import { ApiError } from "../api";
+
+type SignedIn = {
+  token: string;
+  expiresAt: string;
+  customer: Customer;
+  business: Business;
+};
+type CardChoice = {
+  accessToken: string;
+  expiresAt: string;
+  cards: Pick<Business, "id" | "name" | "slug">[];
+};
+type AccessResult =
+  | ({ status: "signed_in" } & SignedIn)
+  | ({ status: "choose_card" } & CardChoice)
+  | { status: "no_cards" };
+const phoneProofExpired =
+  "Vuelve a verificar tu teléfono para abrir tu tarjeta.";
+
 export function Access() {
   const { api, controller, colors, state } = useApp();
   const params = useLocalSearchParams<{ business?: string }>();
@@ -25,11 +46,14 @@ export function Access() {
     [phone, setPhone] = useState("+502"),
     [name, setName] = useState(""),
     [code, setCode] = useState(""),
-    [stage, setStage] = useState<"entry" | "phone" | "code">("entry"),
-    [mode, setMode] = useState<"login" | "join">("login"),
+    [stage, setStage] = useState<
+      "entry" | "phone" | "code" | "cards" | "no_cards"
+    >("phone"),
+    [mode, setMode] = useState<"login" | "join">("join"),
+    [choice, setChoice] = useState<CardChoice | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [deadline, setDeadline] = useState(0),
+    [cooldowns, setCooldowns] = useState<Record<string, number>>({}),
     [now, setNow] = useState(() => Date.now());
   const generation = useRef(0),
     alive = useRef(true),
@@ -52,16 +76,41 @@ export function Access() {
     setBusy(false);
     setError("");
     setCode("");
-    setStage(stage === "code" ? "phone" : "entry");
-  }, [stage, invalidateRequests]);
+    setChoice(null);
+    if (stage === "code") {
+      setStage("phone");
+    } else {
+      setStage(stage === "phone" && business ? "entry" : "phone");
+      setBusiness(null);
+    }
+  }, [stage, business, invalidateRequests]);
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (stage === "entry") return false;
+      if (stage === "phone" && !business && !busyRef.current) return false;
       back();
       return true;
     });
     return () => sub.remove();
-  }, [stage, back]);
+  }, [stage, business, back]);
+  useEffect(() => {
+    if (!choice) return;
+    const id = setTimeout(() => {
+      invalidateRequests();
+      setBusy(false);
+      setChoice(null);
+      setError(phoneProofExpired);
+    }, Math.max(0, Date.parse(choice.expiresAt) - Date.now()));
+    return () => clearTimeout(id);
+  }, [choice, invalidateRequests]);
+  function createCard() {
+    if (busyRef.current) return;
+    invalidateRequests();
+    setBusiness(null);
+    setChoice(null);
+    setCode("");
+    setError("");
+    setStage("entry");
+  }
   const find = useCallback(
     async (input: string) => {
       if (busyRef.current || !alive.current) return;
@@ -74,6 +123,9 @@ export function Access() {
         const found = await api.request<Business>(`/business/${slug}`);
         if (alive.current && gen === generation.current) {
           setBusiness(found);
+          setChoice(null);
+          setCode("");
+          setMode("join");
           setStage("phone");
         }
       } catch (e) {
@@ -102,17 +154,106 @@ export function Access() {
       queueMicrotask(() => void find(business));
     }
   }, [params.business, find]);
+  const normalizedPhone = phone.replace(/[\s()-]/g, "");
+  const requestPath = business
+    ? `/business/${business.slug}/${mode}/request-code`
+    : "/access/request-code";
+  const cooldownKey = `${requestPath}:${normalizedPhone}`;
   async function requestCode() {
-    if (!business || busyRef.current) return;
-    const normalized = phone.replace(/[\s()-]/g, "");
-    if (!/^\+\d{8,15}$/.test(normalized)) {
+    if (!alive.current || busyRef.current) return;
+    if (!/^\+\d{8,15}$/.test(normalizedPhone)) {
       setError(
         "Incluye el código de país y tu número. Por ejemplo: +502 5555 5555.",
       );
       return;
     }
-    if (mode === "join" && name.trim().length < 2) {
+    if (business && mode === "join" && name.trim().length < 2) {
       setError("Escribe tu nombre para crear tu tarjeta.");
+      return;
+    }
+    const requestedAt = Date.now();
+    if ((cooldowns[cooldownKey] || 0) > requestedAt) {
+      if (stage === "phone") {
+        setPhone(normalizedPhone);
+        setError("");
+        setCode("");
+        setStage("code");
+      }
+      return;
+    }
+    const gen = ++generation.current;
+    busyRef.current = true;
+    setBusy(true);
+    setError("");
+    const pendingDeadline = requestedAt + 60000;
+    // Keep each pending request's cooldown even if Back cancels its navigation.
+    setCooldowns((previous) => ({
+      ...previous,
+      [cooldownKey]: pendingDeadline,
+    }));
+    try {
+      await api.request(requestPath, {
+        method: "POST",
+        body: {
+          phone: normalizedPhone,
+          ...(business && mode === "join" ? { name: name.trim() } : {}),
+        },
+      });
+      const confirmedDeadline = Date.now() + 60000;
+      if (alive.current)
+        setCooldowns((previous) =>
+          previous[cooldownKey] === pendingDeadline
+            ? { ...previous, [cooldownKey]: confirmedDeadline }
+            : previous,
+        );
+      if (alive.current && gen === generation.current) {
+        setPhone(normalizedPhone);
+        setChoice(null);
+        setStage("code");
+        setCode("");
+      }
+    } catch (e) {
+      if (alive.current && !(e instanceof ApiError && e.status === 429))
+        setCooldowns((previous) => {
+          if (previous[cooldownKey] !== pendingDeadline) return previous;
+          const next = { ...previous };
+          delete next[cooldownKey];
+          return next;
+        });
+      if (alive.current && gen === generation.current)
+        setError((e as Error).message);
+    } finally {
+      if (alive.current && gen === generation.current) {
+        busyRef.current = false;
+        setBusy(false);
+      }
+    }
+  }
+  const activate = useCallback(async (out: SignedIn, gen: number) => {
+    if (!alive.current || gen !== generation.current) return;
+    await controller.activate(
+      {
+        token: out.token,
+        expiresAt: out.expiresAt,
+        customerId: out.customer.id,
+        businessId: out.business.id,
+        slug: out.business.slug,
+      },
+      { isCurrent: () => alive.current && gen === generation.current },
+    );
+    if (alive.current && gen === generation.current) {
+      setChoice(null);
+      setCode("");
+    }
+    // Publishing the accepted session may already have unmounted this screen.
+    if (controller.getState().session?.token === out.token)
+      void controller.refresh();
+  }, [controller]);
+  const verify = useCallback(async () => {
+    if (!alive.current || busyRef.current) return;
+    const requestedAt = Date.now();
+    if (!/^\d{6}$/.test(code)) {
+      setError("Escribe los 6 dígitos del código.");
       return;
     }
     const gen = ++generation.current;
@@ -120,18 +261,46 @@ export function Access() {
     setBusy(true);
     setError("");
     try {
-      await api.request(`/business/${business.slug}/${mode}/request-code`, {
-        method: "POST",
-        body: {
-          phone: normalized,
-          ...(mode === "join" ? { name: name.trim() } : {}),
-        },
-      });
-      if (alive.current && gen === generation.current) {
-        setPhone(normalized);
-        setStage("code");
-        setDeadline(Date.now() + 60000);
-        setCode("");
+      if (business) {
+        const out = await api.request<SignedIn>(
+          `/business/${business.slug}/${mode}/verify`,
+          {
+            method: "POST",
+            body: {
+              phone,
+              code,
+              ...(mode === "join" ? { name: name.trim() } : {}),
+            },
+          },
+        );
+        await activate(out, gen);
+      } else {
+        const out = await api.request<AccessResult>("/access/verify", {
+          method: "POST",
+          body: { phone, code },
+        });
+        if (!alive.current || gen !== generation.current) return;
+        if (out.status === "signed_in") {
+          await activate(out, gen);
+        } else if (out.status === "choose_card") {
+          const expiresAt = Math.min(
+            Date.parse(out.expiresAt),
+            requestedAt + 5 * 60 * 1000,
+          );
+          setCode("");
+          setStage("cards");
+          if (!Number.isFinite(expiresAt) || expiresAt <= requestedAt) {
+            setChoice(null);
+            setError(phoneProofExpired);
+          } else {
+            // The phone proof stays in component memory and is never a session.
+            setChoice({ ...out, expiresAt: new Date(expiresAt).toISOString() });
+          }
+        } else {
+          setChoice(null);
+          setCode("");
+          setStage("no_cards");
+        }
       }
     } catch (e) {
       if (alive.current && gen === generation.current)
@@ -142,11 +311,12 @@ export function Access() {
         setBusy(false);
       }
     }
-  }
-  async function verify() {
-    if (!business || busyRef.current) return;
-    if (!/^\d{6}$/.test(code)) {
-      setError("Escribe los 6 dígitos del código.");
+  }, [api, activate, business, code, mode, name, phone]);
+  async function selectCard(businessId: string, requestedAt: number) {
+    if (!alive.current || busyRef.current) return;
+    if (!choice || Date.parse(choice.expiresAt) <= requestedAt) {
+      setChoice(null);
+      setError(phoneProofExpired);
       return;
     }
     const gen = ++generation.current;
@@ -154,31 +324,33 @@ export function Access() {
     setBusy(true);
     setError("");
     try {
-      const out = await api.request<{
-        token: string;
-        expiresAt: string;
-        customer: Customer;
-        business: Business;
-      }>(`/business/${business.slug}/${mode}/verify`, {
+      const out = await api.request<SignedIn>("/access/select", {
         method: "POST",
-        body: {
-          phone,
-          code,
-          ...(mode === "join" ? { name: name.trim() } : {}),
-        },
+        body: { accessToken: choice.accessToken, businessId },
       });
-      if (!alive.current || gen !== generation.current) return;
-      await controller.activate(
-        {
-          token: out.token,
-          expiresAt: out.expiresAt,
-          customerId: out.customer.id,
-          businessId: out.business.id,
-          slug: out.business.slug,
-        },
-        { isCurrent: () => alive.current && gen === generation.current },
-      );
-      void controller.refresh();
+      await activate(out, gen);
+    } catch (e) {
+      if (alive.current && gen === generation.current) {
+        if (e instanceof ApiError && e.status === 401) setChoice(null);
+        setError((e as Error).message);
+      }
+    } finally {
+      if (alive.current && gen === generation.current) {
+        busyRef.current = false;
+        setBusy(false);
+      }
+    }
+  }
+  async function preview() {
+    if (!alive.current || busyRef.current) return;
+    const gen = ++generation.current;
+    busyRef.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      await controller.preview(demo, {
+        isCurrent: () => alive.current && gen === generation.current,
+      });
     } catch (e) {
       if (alive.current && gen === generation.current)
         setError((e as Error).message);
@@ -201,7 +373,10 @@ export function Access() {
     color: colors.ink,
     backgroundColor: colors.surface,
   };
-  const remaining = Math.max(0, Math.ceil((deadline - now) / 1000));
+  const remaining = Math.max(
+    0,
+    Math.ceil(((cooldowns[cooldownKey] || 0) - now) / 1000),
+  );
   return (
     <SafeAreaView
       edges={["top", "bottom"]}
@@ -212,7 +387,7 @@ export function Access() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <Screen>
-          <View style={[layout.row, { marginBottom: 48, marginTop: 10 }]}>
+          <View style={[layout.row, { marginBottom: 32, marginTop: 10 }]}>
             <Image
               source={require("../../assets/pf-logo.png")}
               style={{ width: 36, height: 36 }}
@@ -221,7 +396,7 @@ export function Access() {
               PuntosFieles.
             </Copy>
           </View>
-          {stage !== "entry" && (
+          {(stage !== "phone" || business) && (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Volver"
@@ -241,16 +416,14 @@ export function Access() {
           )}
           {stage === "entry" ? (
             <>
-              <Heading>
-                Tus lugares favoritos.{`\n`}Más razones para volver.
-              </Heading>
+              <Heading>Crea tu tarjeta</Heading>
               <Copy
                 style={{ color: colors.muted, marginTop: 8, marginBottom: 36 }}
               >
-                Una tarjeta, tus puntos y la próxima recompensa. Todo a la mano.
+                Encuentra tu negocio para empezar a acumular puntos.
               </Copy>
               <Copy style={{ fontFamily: fonts.medium, marginBottom: 10 }}>
-                Enlace o código de tu negocio
+                Enlace o código del negocio
               </Copy>
               <TextInput
                 editable={!busy}
@@ -274,32 +447,18 @@ export function Access() {
                 disabled={!entry.trim()}
                 onPress={() => void find(entry)}
               />
-              <View style={{ marginTop: 40 }}>
-                <Button
-                  label="Explorar una tarjeta de ejemplo"
-                  secondary
-                  icon="eye-outline"
-                  onPress={() => void controller.preview(demo)}
-                />
-                <Notice>
-                  Recorre la app con datos de muestra, sin crear una cuenta.
-                </Notice>
-              </View>
             </>
           ) : stage === "phone" ? (
             <>
               <Heading>
-                {mode === "join"
-                  ? "Tu próxima recompensa empieza aquí."
-                  : "Qué gusto verte de nuevo."}
+                {business && mode === "join" ? "Crea tu tarjeta" : "Iniciar sesión"}
               </Heading>
               <Copy style={{ color: colors.muted, marginBottom: 28 }}>
-                {business?.name} ·{" "}
-                {mode === "join"
-                  ? "Crea tu tarjeta con tu teléfono."
-                  : "Ingresa con el teléfono de tu tarjeta."}
+                {business
+                  ? `${business.name} · ${mode === "join" ? "Crea tu tarjeta con tu teléfono." : "Ingresa con el teléfono de tu tarjeta."}`
+                  : "Usa el teléfono de tu cuenta para recuperar tus tarjetas y puntos."}
               </Copy>
-              {mode === "join" && (
+              {business && mode === "join" && (
                 <View style={{ marginBottom: 20 }}>
                   <Copy style={{ marginBottom: 8 }}>Tu nombre</Copy>
                   <TextInput
@@ -324,29 +483,38 @@ export function Access() {
                 keyboardType="phone-pad"
                 autoComplete="tel"
                 textContentType="telephoneNumber"
+                autoCapitalize="none"
+                autoCorrect={false}
                 style={inputStyle}
                 maxLength={25}
+                onSubmitEditing={() => void requestCode()}
               />
               <Notice>
                 Te enviaremos un código para confirmar que eres tú.
               </Notice>
               <Button
-                label="Enviarme un código"
+                label={remaining ? "Continuar con mi código" : "Enviarme un código"}
                 loading={busy}
                 onPress={() => void requestCode()}
               />
               <View style={{ marginTop: 16 }}>
                 <Button
                   label={
-                    mode === "login"
-                      ? "Soy nuevo, crear mi tarjeta"
-                      : "Ya tengo una tarjeta"
+                    !business
+                      ? "Crear una tarjeta"
+                      : mode === "login"
+                        ? "Soy nuevo, crear mi tarjeta"
+                        : "Ya tengo una tarjeta"
                   }
                   secondary
                   disabled={busy}
                   onPress={() => {
-                    setMode(mode === "login" ? "join" : "login");
-                    setError("");
+                    if (!business) createCard();
+                    else if (!busyRef.current) {
+                      setMode(mode === "login" ? "join" : "login");
+                      setError("");
+                      setCode("");
+                    }
                   }}
                 />
               </View>
@@ -383,9 +551,9 @@ export function Access() {
                 </Pressable>
               </View>
             </>
-          ) : (
+          ) : stage === "code" ? (
             <>
-              <Heading>Un código y estás dentro.</Heading>
+              <Heading>Confirma tu teléfono</Heading>
               <Copy style={{ color: colors.muted, marginBottom: 28 }}>
                 Escribe el código que enviamos a {phone}.
               </Copy>
@@ -426,9 +594,70 @@ export function Access() {
                 />
               </View>
             </>
+          ) : stage === "cards" ? (
+            <>
+              <Heading>Tus tarjetas</Heading>
+              <Copy style={{ color: colors.muted, marginBottom: 28 }}>
+                {choice
+                  ? "Elige la tarjeta que quieres abrir."
+                  : "Confirma tu teléfono de nuevo para ver tus tarjetas."}
+              </Copy>
+              {choice ? (
+                <>
+                  <View style={layout.stack}>
+                    {choice.cards.map((card) => (
+                      <Button
+                        key={card.id}
+                        label={card.name}
+                        secondary
+                        icon="card-outline"
+                        disabled={busy}
+                        onPress={() => void selectCard(card.id, Date.now())}
+                      />
+                    ))}
+                  </View>
+                  {busy && <Notice>Abriendo tu tarjeta…</Notice>}
+                  <View style={{ marginTop: 24 }}>
+                    <Button
+                      label="Usar otro teléfono"
+                      secondary
+                      onPress={back}
+                    />
+                  </View>
+                </>
+              ) : (
+                <Button label="Volver a verificar mi teléfono" onPress={back} />
+              )}
+            </>
+          ) : (
+            <>
+              <Heading>Aún no tienes tarjetas</Heading>
+              <Copy style={{ color: colors.muted, marginBottom: 28 }}>
+                No encontramos tarjetas con el teléfono {phone}. Crea una en tu
+                negocio favorito o ingresa con otro número.
+              </Copy>
+              <Button label="Crear una tarjeta" onPress={createCard} />
+              <View style={{ marginTop: 16 }}>
+                <Button label="Usar otro teléfono" secondary onPress={back} />
+              </View>
+            </>
           )}
           {(error || state.error) && (
             <Notice error>{error || state.error}</Notice>
+          )}
+          {(stage === "entry" || (stage === "phone" && !business)) && (
+            <View style={{ marginTop: 28 }}>
+              <Button
+                label="Explorar una tarjeta de ejemplo"
+                secondary
+                icon="eye-outline"
+                disabled={busy}
+                onPress={() => void preview()}
+              />
+              <Notice>
+                Recorre la app con datos de muestra, sin crear una cuenta.
+              </Notice>
+            </View>
           )}
           <View style={{ flex: 1, minHeight: 28 }} />
           <Copy

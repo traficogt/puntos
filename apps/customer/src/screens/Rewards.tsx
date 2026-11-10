@@ -1,107 +1,197 @@
 import React from "react";
 import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useRouter } from "expo-router";
 import { useClock } from "../use-clock";
 import { useApp } from "../context";
-import { Copy, Heading, Notice, Screen, layout } from "../components";
+import { Copy, Notice } from "../components";
+import { NativeButton, NativeScreen, SnapshotPending } from "../native-components";
 import { fonts } from "../theme";
 import { rewardState } from "../model";
+
 export function Rewards() {
   const { state, colors } = useApp();
+  const nav = useRouter();
   const data = state.snapshot;
   const now = useClock(30000);
+  const rewards =
+    data?.business.features?.rewards === false ? [] : data?.rewards || [];
+  if (!data) return <NativeScreen refresh><SnapshotPending /></NativeScreen>;
   return (
-    <Screen refresh>
-      <Heading>Volver se disfruta.</Heading>
-      <Copy style={{ color: colors.muted, marginBottom: 30 }}>
-        Elige tu próxima recompensa. Pídela al equipo del negocio mostrando tu
-        tarjeta.
-      </Copy>
-      {!data?.rewards.length ? (
-        <View style={{ paddingVertical: 40 }}>
-          <Ionicons name="gift-outline" color={colors.muted} size={40} />
+    <NativeScreen refresh>
+      {data && (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 8,
+            paddingBottom: 16,
+          }}
+        >
+          <Copy style={{ color: colors.muted, fontSize: 15 }}>Tus puntos</Copy>
           <Copy
-            style={{ fontFamily: fonts.brand, fontSize: 22, marginTop: 20 }}
+            style={{
+              fontFamily: fonts.bold,
+              fontSize: 20,
+              lineHeight: 27,
+              fontVariant: ["tabular-nums"],
+            }}
           >
-            Lo bueno está por venir.
+            {data.customer.points.toLocaleString("es-GT")}
           </Copy>
-          <Notice>
+        </View>
+      )}
+      {!rewards.length ? (
+        <View style={{ paddingVertical: 36, alignItems: "center" }}>
+          <Ionicons name="gift-outline" color={colors.muted} size={36} />
+          <Copy
+            accessibilityRole="header"
+            style={{
+              fontFamily: fonts.brand,
+              fontSize: 22,
+              lineHeight: 28,
+              marginTop: 16,
+              textAlign: "center",
+            }}
+          >
+            Aún no hay recompensas
+          </Copy>
+          <Copy
+            style={{
+              color: colors.muted,
+              marginTop: 10,
+              textAlign: "center",
+              fontSize: 15,
+              lineHeight: 23,
+            }}
+          >
             {data?.business.features?.rewards === false
               ? "Este programa todavía no tiene recompensas habilitadas."
               : "Aquí aparecerán las recompensas de tu negocio."}
-          </Notice>
+          </Copy>
         </View>
       ) : (
-        data.rewards.map((reward, index) => {
-          const availability = rewardState(
-            reward,
-            data.customer.points,
-            state.offline || !state.fresh,
-            now,
-          );
-          return (
-            <View
-              key={reward.id}
-              style={{
-                paddingVertical: 24,
-                borderTopWidth: 1,
-                borderColor: colors.line,
-              }}
-            >
-              <View style={layout.between}>
-                <View style={{ flex: 1 }}>
-                  <Copy
-                    style={{
-                      fontFamily: fonts.brand,
-                      fontSize: 23,
-                      lineHeight: 29,
-                    }}
-                  >
-                    {reward.name}
-                  </Copy>
-                  <Copy
-                    style={{
-                      fontFamily: fonts.bold,
-                      color: colors.primary,
-                      marginTop: 8,
-                    }}
-                  >
-                    {reward.points_cost.toLocaleString("es-GT")} puntos
-                  </Copy>
-                </View>
-                <Ionicons
-                  name={
-                    availability.available
-                      ? "gift-outline"
-                      : "lock-closed-outline"
-                  }
-                  color={availability.available ? colors.primary : colors.muted}
-                  size={25}
-                />
-              </View>
-              {reward.description && (
-                <Copy
-                  style={{ color: colors.muted, marginTop: 12, fontSize: 15 }}
-                >
-                  {reward.description}
-                </Copy>
-              )}
-              <Copy
+        <>
+          <Copy
+            style={{
+              color: colors.muted,
+              fontSize: 14,
+              lineHeight: 21,
+              marginBottom: 20,
+            }}
+          >
+            Pide tu recompensa en caja y muestra tu QR al equipo del negocio.
+          </Copy>
+          {rewards.map((reward) => {
+            const availability = rewardState(
+              reward,
+              data!.customer.points,
+              state.offline || !state.fresh,
+              now,
+            );
+            return (
+              <View
+                key={reward.id}
                 style={{
-                  color: availability.available ? colors.success : colors.muted,
-                  fontFamily: fonts.medium,
-                  fontSize: 13,
-                  marginTop: 14,
+                  paddingVertical: 18,
+                  borderTopWidth: 1,
+                  borderColor: colors.line,
                 }}
               >
-                {availability.label}
-              </Copy>
-              {!!reward.branch_labels?.length && (
-                <Notice>En: {reward.branch_labels.join(", ")}</Notice>
-              )}
-            </View>
-          );
-        })
+                <View
+                  style={{
+                    flexDirection: "row",
+                    gap: 12,
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <Ionicons
+                    name={
+                      availability.available
+                        ? "gift-outline"
+                        : "lock-closed-outline"
+                    }
+                    color={
+                      availability.available ? colors.primary : colors.muted
+                    }
+                    size={23}
+                    style={{ marginTop: 2 }}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Copy
+                      accessibilityRole="header"
+                      style={{
+                        fontFamily: fonts.bold,
+                        fontSize: 17,
+                        lineHeight: 24,
+                      }}
+                    >
+                      {reward.name}
+                    </Copy>
+                    <Copy
+                      style={{
+                        fontFamily: fonts.medium,
+                        color: colors.primary,
+                        marginTop: 4,
+                        fontSize: 14,
+                        lineHeight: 21,
+                      }}
+                    >
+                      {reward.points_cost.toLocaleString("es-GT")} puntos
+                    </Copy>
+                    {reward.description && (
+                      <Copy
+                        style={{
+                          color: colors.muted,
+                          marginTop: 8,
+                          fontSize: 14,
+                          lineHeight: 21,
+                        }}
+                      >
+                        {reward.description}
+                      </Copy>
+                    )}
+                    <Copy
+                      style={{
+                        color: availability.available
+                          ? colors.success
+                          : colors.muted,
+                        fontFamily: fonts.medium,
+                        fontSize: 13,
+                        lineHeight: 20,
+                        marginTop: 10,
+                      }}
+                    >
+                      {availability.label}
+                    </Copy>
+                    {!!reward.branch_labels?.length && (
+                      <Copy
+                        style={{
+                          color: colors.muted,
+                          fontSize: 13,
+                          lineHeight: 20,
+                          marginTop: 6,
+                        }}
+                      >
+                        En: {reward.branch_labels.join(", ")}
+                      </Copy>
+                    )}
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+          <View style={{ marginTop: 12 }}>
+            <NativeButton
+              label={state.demo ? "Conoce tu QR de cliente" : "Mostrar mi QR"}
+              icon="qr-code-outline"
+              disabled={state.offline}
+              onPress={() => nav.push("/qr")}
+            />
+          </View>
+        </>
       )}
       {state.demo && (
         <Notice>
@@ -109,6 +199,6 @@ export function Rewards() {
         </Notice>
       )}
       {state.error && <Notice error>{state.error}</Notice>}
-    </Screen>
+    </NativeScreen>
   );
 }

@@ -25,7 +25,7 @@ export class ApiClient {
     }: { method?: string; token?: string; body?: unknown } = {},
   ): Promise<T> {
     if (
-      !/^\/(?:business|customer)(?:\/|$)/.test(path) ||
+      !/^\/(?:(?:business|customer)(?:\/|$)|access\/(?:request-code|verify|select)$)/.test(path) ||
       path.includes("..") ||
       path.includes("?") ||
       path.includes("#")
@@ -52,7 +52,12 @@ export class ApiClient {
       if (!res.ok) {
         let message = "No se pudo completar la solicitud. Intenta de nuevo.";
         if (res.status === 401)
-          message = "Tu sesión terminó. Vuelve a ingresar.";
+          message =
+            path === "/access/verify" || /^\/business\/[^/]+\/(?:join|login)\/verify$/.test(path)
+              ? "El código no es válido o ya venció. Revisa los 6 dígitos o pide otro código."
+              : path === "/access/select"
+                ? "Vuelve a verificar tu teléfono para abrir tu tarjeta."
+                : "Tu sesión terminó. Vuelve a ingresar.";
         if (res.status === 400)
           message = "Revisa los datos e intenta de nuevo.";
         if (res.status === 404)

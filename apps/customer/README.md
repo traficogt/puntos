@@ -2,7 +2,7 @@
 
 Expo SDK 57 / React Native app for iOS and Android, with a browser preview. It uses the existing PF customer account and business, rather than creating a separate app identity.
 
-The first version includes business enrollment links, phone/code login or signup, points, customer QR, rewards, activity, account deletion, support, and system/light/dark themes. The original PF fonts are bundled. “Explorar una tarjeta de ejemplo” opens a clearly labeled sample without creating an account.
+The app opens directly to phone/code sign-in. After phone verification, an existing card opens automatically or the customer chooses between their business cards. Creating a new card is a separate business enrollment flow. The app includes points, customer QR, rewards, activity, account deletion, support, and system/light/dark themes. The original PF fonts are bundled. “Explorar una tarjeta de ejemplo” opens a clearly labeled sample without creating an account.
 
 ## Development
 
@@ -19,7 +19,7 @@ npm run start
 
 The default API origin is `https://app.puntosfieles.com`. `EXPO_PUBLIC_API_ORIGIN` can select another HTTPS origin at build time. This variable is public; never place server credentials, Wallet signing keys, or messaging API keys in the mobile project.
 
-The server must expose the `/api/mobile` routes: business lookup, login/join request-code and verification, authenticated customer snapshot, QR, logout, account deletion, and Wallet operations. Browser sessions and native bearer sessions are separate; both identify the same existing PF customer. WhatsApp delivery remains dependent on reconnecting the sending phone.
+The server must expose the `/api/mobile` routes: global `/access/request-code`, `/access/verify`, `/access/select`, business lookup, login/join request-code and verification, authenticated customer snapshot, QR, logout, account deletion, and Wallet operations. Browser sessions and native bearer sessions are separate; both identify the same existing PF customer. WhatsApp delivery remains dependent on reconnecting the sending phone.
 
 ## Preview and checks
 
@@ -47,3 +47,5 @@ See [Codemagic setup](docs/CODEMAGIC.md) for hosted Mac builds without renting a
 For Android, `npm run android` requires a configured Android SDK. `eas.json` also supplies development, internal APK preview, and production build profiles; EAS requires its own authenticated Expo project before cloud builds can run.
 
 The native iOS project is intentionally committed for cloud discovery. Expo Doctor's generic “app config not synced” check is disabled for this setup; run prebuild and `check:xcode-cloud` after native configuration changes.
+
+See [App quality checks](docs/APP_QUALITY.md) for the native interface decisions, verification coverage, and remaining device checks.
