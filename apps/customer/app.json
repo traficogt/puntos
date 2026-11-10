@@ -38,6 +38,12 @@
         }
       ],
       "expo-router",
+      [
+        "expo-notifications",
+        {
+          "mode": "production"
+        }
+      ],
       "./plugins/with-xcode-cloud.cjs"
     ],
     "experiments": {

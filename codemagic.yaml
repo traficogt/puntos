@@ -115,3 +115,22 @@ workflows:
         # beta review, which does not apply to this internal-only build.
         submit_to_testflight: false
         submit_to_app_store: false
+
+  pf-ios-resolve-pods:
+    name: PF iOS - resolve native dependency lockfile
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    working_directory: apps/customer
+    environment: *ios_environment
+    scripts:
+      - *install_and_check
+      - name: Resolve added native modules on macOS
+        script: |
+          #!/bin/bash
+          set -euo pipefail
+          cd ios
+          pod install
+          mkdir -p /tmp/pf-ios-artifacts
+          cp Podfile.lock /tmp/pf-ios-artifacts/
+    artifacts:
+      - /tmp/pf-ios-artifacts/Podfile.lock

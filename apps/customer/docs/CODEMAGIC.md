@@ -42,3 +42,7 @@ The first successful upload's optional Codemagic post-processing step attempted 
 APNs key `9FDM3HC9ZW` is stored only in PF's protected server credential storage, with Team ID `PPSXDC8227` and topic `com.puntosfieles.customer` recorded in its separate push manifest. Local EC P-256 and ES256 checks passed. Apple's push capability is enabled, and active App Store profile `LNXMZJ2353` includes the production APNs entitlement and PF's existing distribution certificate. The signing manifest points to this replacement profile; no certificate was revoked.
 
 This account preparation does not add notifications to build 0.1.0 (1). App permission handling, authenticated device registration, server delivery, a new native build, and an actual APNs delivery check remain outstanding. Keep the APNs private key on the sending server; it does not belong in Codemagic artifacts or the app bundle. Apple Wallet update delivery retains its separate existing configuration.
+
+## Firebase project reference
+
+The owner supplied [PF's Firebase project console](https://console.firebase.google.com/u/1/project/ardent-kite-485612-v1/overview) on November 10, 2026. Project ID: `ardent-kite-485612-v1` (also used by the existing Google Wallet service account). Retain this project for potential Android Firebase Cloud Messaging setup. The console URL identifies the project; it does not itself grant API access or prove an Android Firebase app/FCM configuration exists. This iPhone release sends through APNs directly and does not embed Firebase credentials.

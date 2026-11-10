@@ -29,6 +29,8 @@ for (const entry of Object.values(project.pbxXCBuildConfigurationSection())) {
   checkedConfigurations++;
 }
 assert.equal(checkedConfigurations, 2);
+const entitlements = fs.readFileSync(path.join(root, 'ios/PuntosFieles/PuntosFieles.entitlements'), 'utf8');
+assert.match(entitlements, /<key>aps-environment<\/key>\s*<string>production<\/string>/);
 const workspace = fs.readFileSync(path.join(root, 'ios/PuntosFieles.xcworkspace/contents.xcworkspacedata'), 'utf8');
 assert.match(workspace, /group:PuntosFieles.xcodeproj/);
 assert.match(workspace, /group:Pods\/Pods.xcodeproj/);

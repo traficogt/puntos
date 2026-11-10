@@ -3,6 +3,7 @@ import { Linking, View } from "react-native";
 import { useApp } from "../context";
 import { Button, Copy, Divider, Heading, Notice, Screen } from "../components";
 import { fonts } from "../theme";
+import { NotificationSettings } from "../NotificationSettings";
 export function Account() {
   const { state, colors, controller, appearance, setAppearance } = useApp();
   const [confirm, setConfirm] = useState(false),
@@ -48,6 +49,7 @@ export function Account() {
           />
         ))}
       </View>
+      <NotificationSettings />
       <Divider />
       <Button
         label="Ayuda y soporte"

@@ -186,6 +186,9 @@ export class SessionController {
   async authenticated<T>(
     path: string,
     options: { method?: string; body?: unknown } = {},
+    {
+      invalidateSnapshotOnFailure = true,
+    }: { invalidateSnapshotOnFailure?: boolean } = {},
   ): Promise<T> {
     const session = this.state.session;
     const gen = this.generation;
@@ -211,7 +214,7 @@ export class SessionController {
       return result;
     } catch (error) {
       if (!this.isSessionCurrent(gen, token)) throw error;
-      this.set({ fresh: false });
+      if (invalidateSnapshotOnFailure) this.set({ fresh: false });
       if (
         error instanceof ApiError &&
         (error.status === 401 ||

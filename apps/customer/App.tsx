@@ -12,7 +12,7 @@ import {
   DefaultTheme,
   DarkTheme,
 } from "expo-router/react-navigation";
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
@@ -23,11 +23,26 @@ import { SessionController } from "./src/session";
 import { secureStorage, snapshotStorage } from "./src/storage";
 import { AppContext, type Appearance } from "./src/context";
 import { palette, fonts } from "./src/theme";
+import { PushController, notificationRoute } from "./src/push";
+import { pushNative, listenForPush } from "./src/push-platform";
 
 const api = new ApiClient(
   process.env.EXPO_PUBLIC_API_ORIGIN || "https://app.puntosfieles.com",
 );
 const controller = new SessionController(api, secureStorage, snapshotStorage);
+const push = new PushController({
+  native: pushNative,
+  storage: secureStorage,
+  request: (path, options) => {
+    if (path === "/customer/push-device/revoke")
+      return api.request(path, options);
+    if (options?.token !== controller.getState().session?.token)
+      throw new Error("Account changed");
+    return controller.authenticated(path, options, {
+      invalidateSnapshotOnFailure: false,
+    });
+  },
+});
 
 export default function App() {
   const state = useSyncExternalStore(
@@ -50,7 +65,26 @@ export default function App() {
     state.snapshot?.business.customer_branding?.primary_color,
   );
   useEffect(() => {
-    void controller.restore().finally(() => setRestored(true));
+    let ready = false;
+    let previous = "";
+    const syncPush = () => {
+      if (!ready) return;
+      const current = controller.getState();
+      const fingerprint = JSON.stringify([
+        current.session?.token,
+        current.offline,
+        current.demo,
+      ]);
+      if (fingerprint === previous) return;
+      previous = fingerprint;
+      void push.sync(current.demo ? null : current.session, current.offline);
+    };
+    const unsubscribePush = controller.subscribe(syncPush);
+    void controller.restore().finally(() => {
+      ready = true;
+      syncPush();
+      setRestored(true);
+    });
     void AsyncStorage.getItem("pf.appearance")
       .then((value) => {
         if (["system", "light", "dark"].includes(value || ""))
@@ -64,13 +98,40 @@ export default function App() {
       if (!offline) void controller.refresh();
     });
     const active = AppState.addEventListener("change", (next) => {
-      if (next === "active") void controller.refresh();
+      if (next === "active") {
+        void controller.refresh();
+        if (ready) void push.reconcile();
+      }
     });
     return () => {
+      unsubscribePush();
       net();
       active.remove();
     };
   }, []);
+  useEffect(() => {
+    if (!restored || !loaded) return;
+    const routeFor = (data: unknown) => {
+      const current = controller.getState();
+      return current.demo ? null : notificationRoute(data, current.session);
+    };
+    return listenForPush({
+      matches: (data) => !!routeFor(data) && push.getState().enabled,
+      token: (token) => {
+        void push.tokenChanged(token);
+      },
+      received: (data) => {
+        if (routeFor(data)) void controller.refresh();
+      },
+      opened: (data) => {
+        const route = routeFor(data);
+        if (route) {
+          router.navigate(route);
+          void controller.refresh();
+        }
+      },
+    });
+  }, [restored, loaded]);
   const setAppearance = (value: Appearance) => {
     setAppearanceState(value);
     void AsyncStorage.setItem("pf.appearance", value).catch(() => {});
@@ -121,7 +182,15 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AppContext.Provider
-        value={{ api, controller, state, colors, appearance, setAppearance }}
+        value={{
+          api,
+          controller,
+          push,
+          state,
+          colors,
+          appearance,
+          setAppearance,
+        }}
       >
         <StatusBar style={colors.dark ? "light" : "dark"} />
         <ThemeProvider value={theme}>

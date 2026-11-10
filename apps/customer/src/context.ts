@@ -2,9 +2,11 @@ import { createContext, useContext } from "react";
 import type { ApiClient } from "./api";
 import type { SessionController, State } from "./session";
 import type { Palette } from "./theme";
+import type { PushController } from "./push";
 export type Appearance = "system" | "light" | "dark";
 export const AppContext = createContext<{
   api: ApiClient;
+  push: PushController;
   controller: SessionController;
   state: State;
   colors: Palette;

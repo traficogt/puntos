@@ -112,13 +112,12 @@ test("Google handoff accepts only the actual Google Wallet save endpoint", () =>
 });
 test("API calls browser fetch without an incompatible object receiver", async () => {
   let receiver: unknown;
-  const client = new ApiClient(
-    "https://app.puntosfieles.com",
-    async function (this: unknown) {
-      receiver = this;
-      return new Response(JSON.stringify({ ok: true }));
-    },
-  );
+  const client = new ApiClient("https://app.puntosfieles.com", async function (
+    this: unknown,
+  ) {
+    receiver = this;
+    return new Response(JSON.stringify({ ok: true }));
+  });
   await client.request("/business/test-cafe");
   assert.equal(receiver, undefined);
 });
@@ -606,9 +605,18 @@ test("cancellation between secure write completion and activation publication re
   assert.equal(secure.m.size, 0);
 });
 
-test('reconnecting during demo updates connectivity for the next live session', async () => {
+test("reconnecting during demo updates connectivity for the next live session", async () => {
   let requests = 0;
-  const c = new SessionController({ request: async () => { requests++; return snapshot; } } as any, storage(), storage());
+  const c = new SessionController(
+    {
+      request: async () => {
+        requests++;
+        return snapshot;
+      },
+    } as any,
+    storage(),
+    storage(),
+  );
   c.setOffline(true);
   await c.preview(snapshot);
   c.setOffline(false);
@@ -622,4 +630,29 @@ test('reconnecting during demo updates connectivity for the next live session', 
   assert.equal(c.getState().offline, false);
   assert.equal(c.getState().fresh, true);
   assert.equal(c.getState().snapshot?.customer.points, 340);
+});
+test("optional notification failures preserve a fresh snapshot but still clear invalid sessions", async () => {
+  for (const status of [409, 503, 401]) {
+    const api = new ApiClient(
+      "https://app.puntosfieles.com",
+      async (url) =>
+        new Response(
+          JSON.stringify(String(url).endsWith("/customer") ? snapshot : {}),
+          { status: String(url).endsWith("/customer") ? 200 : status },
+        ),
+    );
+    const auth = new SessionController(api, storage(), storage());
+    await auth.activate(session);
+    await auth.refresh();
+    assert.equal(auth.getState().fresh, true);
+    await assert.rejects(
+      auth.authenticated(
+        "/customer/push-device/test",
+        { method: "POST" },
+        { invalidateSnapshotOnFailure: false },
+      ),
+    );
+    assert.equal(auth.getState().fresh, status !== 401);
+    assert.equal(!!auth.getState().session, status !== 401);
+  }
 });
