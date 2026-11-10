@@ -1,4 +1,6 @@
 PODS:
+  - EXApplication (57.0.3):
+    - ExpoModulesCore
   - EXConstants (57.0.23):
     - ExpoModulesCore
   - EXJSONUtils (57.0.2)
@@ -180,6 +182,10 @@ PODS:
     - Yoga
   - ExpoAsset (57.0.21):
     - ExpoModulesCore
+  - ExpoCrypto (57.0.4):
+    - ExpoModulesCore
+  - ExpoDevice (57.0.2):
+    - ExpoModulesCore
   - ExpoDomWebView (57.0.1):
     - ExpoModulesCore
   - ExpoFileSystem (57.0.7):
@@ -229,6 +235,8 @@ PODS:
     - ExpoModulesJSI
     - ExpoModulesWorklets
     - RNWorklets
+  - ExpoNotifications (57.0.25):
+    - ExpoModulesCore
   - ExpoRouter (57.0.30):
     - ExpoModulesCore
     - RNScreens
@@ -2491,6 +2499,7 @@ PODS:
   - Yoga (0.0.0)
 
 DEPENDENCIES:
+  - EXApplication (from `../node_modules/expo-application/ios`)
   - EXConstants (from `../node_modules/expo-constants/ios`)
   - EXJSONUtils (from `../node_modules/expo-json-utils/ios`)
   - EXManifests (from `../node_modules/expo-manifests/ios`)
@@ -2500,6 +2509,8 @@ DEPENDENCIES:
   - expo-dev-menu (from `../node_modules/expo-dev-menu`)
   - expo-dev-menu-interface (from `../node_modules/expo-dev-menu-interface/ios`)
   - ExpoAsset (from `../node_modules/expo/node_modules/expo-asset/ios`)
+  - ExpoCrypto (from `../node_modules/expo-crypto/ios`)
+  - ExpoDevice (from `../node_modules/expo-device/ios`)
   - "ExpoDomWebView (from `../node_modules/@expo/dom-webview/ios`)"
   - ExpoFileSystem (from `../node_modules/expo/node_modules/expo-file-system/ios/ExpoFileSystem.podspec`)
   - ExpoFont (from `../node_modules/expo-font/ios/ExpoFont.podspec`)
@@ -2511,6 +2522,7 @@ DEPENDENCIES:
   - ExpoModulesJSI (from `../node_modules/expo-modules-jsi/apple`)
   - ExpoModulesWorklets (from `../node_modules/expo-modules-core/ExpoModulesWorklets.podspec`)
   - ExpoModulesWorkletsAdapter (from `../node_modules/expo-modules-core`)
+  - ExpoNotifications (from `../node_modules/expo-notifications/ios`)
   - ExpoRouter (from `../node_modules/expo-router/ios`)
   - ExpoSecureStore (from `../node_modules/expo-secure-store/ios`)
   - ExpoSymbols (from `../node_modules/expo-symbols/ios`)
@@ -2604,6 +2616,8 @@ DEPENDENCIES:
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 EXTERNAL SOURCES:
+  EXApplication:
+    :path: "../node_modules/expo-application/ios"
   EXConstants:
     :path: "../node_modules/expo-constants/ios"
   EXJSONUtils:
@@ -2622,6 +2636,10 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-dev-menu-interface/ios"
   ExpoAsset:
     :path: "../node_modules/expo/node_modules/expo-asset/ios"
+  ExpoCrypto:
+    :path: "../node_modules/expo-crypto/ios"
+  ExpoDevice:
+    :path: "../node_modules/expo-device/ios"
   ExpoDomWebView:
     :path: "../node_modules/@expo/dom-webview/ios"
   ExpoFileSystem:
@@ -2644,6 +2662,8 @@ EXTERNAL SOURCES:
     :podspec: "../node_modules/expo-modules-core/ExpoModulesWorklets.podspec"
   ExpoModulesWorkletsAdapter:
     :path: "../node_modules/expo-modules-core"
+  ExpoNotifications:
+    :path: "../node_modules/expo-notifications/ios"
   ExpoRouter:
     :path: "../node_modules/expo-router/ios"
   ExpoSecureStore:
@@ -2827,6 +2847,7 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
+  EXApplication: a727f05eb8592f0bc764f6ab8d51eacc158652ec
   EXConstants: 6dae4529b5d2acfb7e81f4f2e1110e4cdd0c4df3
   EXJSONUtils: a49e3ef80dff762108e5690c7b2f360675dcf7f6
   EXManifests: 4c53b2602e03ccf44d0b4ff9c5d655b2c5acba3f
@@ -2836,6 +2857,8 @@ SPEC CHECKSUMS:
   expo-dev-menu: 7a4e3f4f0dfb788c88cae1ff0e87cd7011e4c6d6
   expo-dev-menu-interface: 7a59e803916fbfd1b96c75ff91ea8dddac7e722f
   ExpoAsset: a936cb6daa7a1c1f03c9ecc90e2e8feec2c745eb
+  ExpoCrypto: 20c5dfad9f2c0b7831591fb75397d0c248cf7f8b
+  ExpoDevice: 5c638e530304a51992263ab5c1cab726f992b9dc
   ExpoDomWebView: beaec034e51bd028428b98bb1f2633ab79c6d095
   ExpoFileSystem: 28778f942725170102f7c6cf4dee05a526ddacd0
   ExpoFont: f8198a952ba2ff53c9b393b5269ea435f232cfc3
@@ -2847,6 +2870,7 @@ SPEC CHECKSUMS:
   ExpoModulesJSI: ded9f4c72f35fc9400ad85506a94acdd87b2b23b
   ExpoModulesWorklets: 8f4fc5a9ad92641e1fded703d491dce1ea77bbe2
   ExpoModulesWorkletsAdapter: fc4bce2ace721d85baf536de0b4d289915573a46
+  ExpoNotifications: f71076ad9c92d18814d432acc1e16eef27a91467
   ExpoRouter: 615cd5f24c84b1f133575fb3223cf6813016d286
   ExpoSecureStore: ff1fd5e073957417ba8f9dec0bebcbd55a60e747
   ExpoSymbols: 37a3a6e5847edb08b83a5ee04d3b46525e205f00
