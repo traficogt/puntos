@@ -29,13 +29,15 @@ publishing, or generated iOS changes are part of this work.
 ## Codemagic configuration
 
 Start `pf-android-release` manually from a reviewed branch. This workflow has no
-push trigger or publishing section. It needs a Codemagic account with Linux build
-access; `linux_x2` requires billing enabled. Its toolchain is Node 22.22.2, Java
-17, Android platform/build tools 36, NDK 27.1.12297006 and CMake 3.22.1. It uses
+push trigger or publishing section. It uses the existing `mac_mini_m2` builder with the Xcode 26.6 image, already
+available to this PF Codemagic account. The initially selected `linux_x2` builder
+was rejected by the account billing plan before compilation, so no Linux upgrade
+is required. Its toolchain is Node 22.22.2, Java 17, Android platform/build tools
+36, NDK 27.1.12297006 and CMake 3.22.1. It uses
 the generated Gradle wrapper (currently 9.3.1), not the system Gradle. SDK tools
 and Maven/npm downloads need network access. See the
 [Codemagic Android guide](https://docs.codemagic.io/yaml-quick-start/building-a-native-android-app/)
-and [machine configuration](https://docs.codemagic.io/specs-linux/ubuntu-24.04/).
+and [machine configuration](https://docs.codemagic.io/specs-macos/xcode-26-6/).
 
 Create the encrypted environment group `pf_android_signing` and grant this
 Codemagic application access. Never put these values in source control:

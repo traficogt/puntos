@@ -32,7 +32,7 @@ PF_BUNDLETOOL_JAR="$PF_ANDROID_SIGNING_DIRECTORY/bundletool-all-1.18.3.jar"
 curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
   'https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar' \
   --output "$PF_BUNDLETOOL_JAR"
-printf '%s  %s\n' 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29' "$PF_BUNDLETOOL_JAR" | sha256sum --check --status
+printf '%s  %s\n' 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29' "$PF_BUNDLETOOL_JAR" | shasum -a 256 --check --status
 
 sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
 npx --no-install expo prebuild --platform android --no-install --clean
