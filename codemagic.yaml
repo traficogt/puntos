@@ -70,15 +70,10 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 90
     working_directory: apps/customer
-    integrations:
-      app_store_connect: PuntosFieles
     environment:
       <<: *ios_environment
       groups:
         - pf_app_store
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.puntosfieles.customer
     scripts:
       - *install_and_check
       - *install_pods
@@ -88,6 +83,9 @@ workflows:
           set -euo pipefail
           : "${APP_STORE_APPLE_ID:?Set the numeric PF App Store app ID in the pf_app_store variable group.}"
           [[ "$APP_STORE_APPLE_ID" =~ ^[0-9]+$ ]]
+          keychain initialize
+          app-store-connect fetch-signing-files com.puntosfieles.customer --type IOS_APP_STORE --create
+          keychain add-certificates
           xcode-project use-profiles --project ios/PuntosFieles.xcodeproj --custom-export-options='{"testFlightInternalTestingOnly":true}'
           PF_LATEST_BUILD=$(app-store-connect get-latest-build-number "$APP_STORE_APPLE_ID")
           PF_LATEST_BUILD=${PF_LATEST_BUILD:-0}
@@ -110,6 +108,8 @@ workflows:
       - /tmp/xcodebuild_logs/*.log
     publishing:
       app_store_connect:
-        auth: integration
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
         submit_to_app_store: false

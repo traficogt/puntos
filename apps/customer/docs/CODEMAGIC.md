@@ -14,11 +14,11 @@ The workflow selects an M2 Mac, Node 22.22.2, and Xcode 26.6, matching the curre
 
 Before starting **PF iOS - signed internal TestFlight** (`pf-ios-testflight`):
 
-1. Add the PF App Store Connect API integration in Codemagic **Team settings → Team integrations → Developer Portal**, named exactly **PuntosFieles**. Upload the existing protected Apple `.p8` key there with its key and issuer IDs. Do not commit the key.
-2. Register `com.puntosfieles.customer` and its app record in the PF Apple team. In Codemagic code-signing identities, provide or generate an Apple Distribution certificate and an App Store provisioning profile matching that bundle ID. The Apple Wallet pass certificate is not an app-signing certificate.
-3. Add a variable group named **pf_app_store**, containing **APP_STORE_APPLE_ID** with the numeric App Store Connect app ID. This is not the bundle ID, team ID, or API-key ID.
+1. The app-scoped **pf_app_store** variable group contains encrypted `APP_STORE_CONNECT_PRIVATE_KEY`, `APP_STORE_CONNECT_KEY_IDENTIFIER`, `APP_STORE_CONNECT_ISSUER_ID`, and `CERTIFICATE_PRIVATE_KEY`. These have been configured through Codemagic's API using the PF Apple key. Do not commit or print their values. A separate Developer Portal UI integration is not required by this workflow.
+2. The PF bundle ID `com.puntosfieles.customer` is registered. Create its initial app record in [App Store Connect](https://appstoreconnect.apple.com/apps); Apple does not expose app-record creation through its API. The signed workflow obtains or creates the matching app distribution certificate/profile using Codemagic's supported automatic signing CLI. The Apple Wallet pass certificate is separate.
+3. Add **APP_STORE_APPLE_ID** to **pf_app_store**, using the numeric App Store Connect app ID. This is not the bundle ID, team ID, or API-key ID.
 4. Run the signed workflow after the simulator workflow succeeds. It uploads an internal-only TestFlight build and explicitly disables public App Store submission. Native device acceptance remains necessary.
 
 The Codemagic API token is separate from both the Apple API key and GitHub push credentials. It can start and monitor builds, but the source branch and root YAML must first be accessible in GitHub. The API does not list YAML workflow IDs before cloning; the IDs are the keys in this YAML file.
 
-References: [Codemagic React Native guide](https://docs.codemagic.io/yaml-quick-start/building-a-react-native-app/), [unsigned simulator builds](https://docs.codemagic.io/yaml-code-signing/ios-simulator-builds/), [iOS signing](https://docs.codemagic.io/yaml-code-signing/signing-ios/), [build API](https://docs.codemagic.io/rest-api/builds/).
+References: [Codemagic React Native guide](https://docs.codemagic.io/yaml-quick-start/building-a-react-native-app/), [unsigned simulator builds](https://docs.codemagic.io/yaml-code-signing/ios-simulator-builds/), [automatic signing through CLI](https://docs.codemagic.io/yaml-code-signing/alternative-code-signing-methods/), [build API](https://docs.codemagic.io/rest-api/builds/).
