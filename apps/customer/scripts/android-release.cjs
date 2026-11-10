@@ -38,12 +38,40 @@ function validateApkMetadata(badging, expectedVersionCode) {
   if (!Number.isInteger(targetSdk) || targetSdk < 36) throw new Error('Release target SDK must be at least 36');
   if (/^application-debuggable/m.test(badging)) throw new Error('Debuggable APK cannot be released');
   const permissions = [...badging.matchAll(/^uses-permission(?:-sdk-\d+)?: name='([^']+)'/gm)].map((match) => match[1]);
+  validateReleasePermissions(permissions);
+  return { package: identity[1], versionCode: Number(identity[2]), targetSdk, permissions };
+}
+
+function validateReleasePermissions(permissions) {
   const allowed = new Set(['android.permission.INTERNET', 'android.permission.ACCESS_NETWORK_STATE', 'android.permission.ACCESS_WIFI_STATE', 'com.puntosfieles.customer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION']);
   if (!permissions.includes('android.permission.INTERNET')) throw new Error('Release network permission is missing');
   for (const permission of permissions) {
     if (!allowed.has(permission)) throw new Error(`Unexpected release permission: ${permission}`);
   }
-  return { package: identity[1], versionCode: Number(identity[2]), targetSdk, permissions };
+}
+
+function validateMergedReleaseManifest(document, expectedVersionCode) {
+  const manifest = document?.manifest;
+  const identity = manifest?.$;
+  if (identity?.package !== 'com.puntosfieles.customer' || Number(identity['android:versionCode']) !== expectedVersionCode) throw new Error('Unexpected release package or version code in merged manifest');
+  const targetSdk = Number(manifest['uses-sdk']?.[0]?.$?.['android:targetSdkVersion']);
+  if (!Number.isInteger(targetSdk) || targetSdk < 36) throw new Error('Merged release target SDK must be at least 36');
+  if (!manifest.application?.length || manifest.application.some((application) => application.$?.['android:debuggable'] === 'true')) throw new Error('Missing application or debuggable merged release manifest');
+  const permissions = Object.entries(manifest)
+    .filter(([name]) => /^uses-permission(?:-sdk-\d+)?$/.test(name))
+    .flatMap(([, entries]) => entries.map((entry) => entry.$?.['android:name']));
+  validateReleasePermissions(permissions);
+  return { package: identity.package, versionCode: Number(identity['android:versionCode']), targetSdk, permissions };
+}
+
+function findMergedReleaseManifest(intermediates) {
+  // AGP 8.12's processReleaseMainManifest output. Never select debug, library,
+  // or packaged-manifest outputs merely because their filenames match.
+  const candidates = ['merged_manifest', 'merged_manifests']
+    .map((directory) => path.join(intermediates, directory, 'release/processReleaseMainManifest/AndroidManifest.xml'))
+    .filter((filename) => fs.existsSync(filename) && fs.statSync(filename).isFile());
+  if (candidates.length !== 1) throw new Error('Expected exactly one processReleaseMainManifest output under app/build/intermediates');
+  return candidates[0];
 }
 
 function validateElfAlignment(bytes) {
@@ -88,7 +116,7 @@ function validateBundleConfig(contents) {
   return libraries.alignment;
 }
 
-module.exports = { readReleaseEnvironment, prepareSigning, validateApkMetadata, validateElfAlignment, validateBundleConfig };
+module.exports = { readReleaseEnvironment, prepareSigning, validateApkMetadata, validateMergedReleaseManifest, findMergedReleaseManifest, validateElfAlignment, validateBundleConfig };
 
 if (require.main === module) {
   try {

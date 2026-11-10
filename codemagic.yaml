@@ -166,8 +166,10 @@ workflows:
             --test-reporter=junit --test-reporter-destination="$PF_ANDROID_ARTIFACTS_DIR/tests.xml" \
             tests/*.test.ts
         test_report: /tmp/pf-android-artifacts/tests.xml
-      - name: Generate and build signed Android release
-        script: bash scripts/build-android-release.sh
+      - name: Prepare Android release and validate merged permissions
+        script: bash scripts/build-android-release.sh prepare
+      - name: Compile and verify signed Android AAB and APK
+        script: bash scripts/build-android-release.sh build
     artifacts:
       - /tmp/pf-android-artifacts/*.aab
       - /tmp/pf-android-artifacts/*.apk

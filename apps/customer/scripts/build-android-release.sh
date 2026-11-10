@@ -4,6 +4,11 @@ set +x
 umask 077
 export LC_ALL=C
 
+PF_ANDROID_BUILD_PHASE="${1:-all}"
+case "$PF_ANDROID_BUILD_PHASE" in
+  all|prepare|build) ;;
+  *) echo 'Expected Android build phase: prepare, build, or all.' >&2; exit 1 ;;
+esac
 : "${ANDROID_SDK_ROOT:?Codemagic must provide ANDROID_SDK_ROOT}"
 PF_SDK_MANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
 test -x "$PF_SDK_MANAGER" || { echo "Android SDK Manager missing from $PF_SDK_MANAGER" >&2; exit 1; }
@@ -28,6 +33,23 @@ if openssl x509 -in "$PF_ANDROID_SIGNING_DIRECTORY/upload.pem" -noout -subject |
 fi
 PF_EXPECTED_CERTIFICATE=$(openssl x509 -in "$PF_ANDROID_SIGNING_DIRECTORY/upload.pem" -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':' | tr '[:upper:]' '[:lower:]')
 
+if [[ "$PF_ANDROID_BUILD_PHASE" != build ]]; then
+  "$PF_SDK_MANAGER" --sdk_root="$ANDROID_SDK_ROOT" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+  npx --no-install expo prebuild --platform android --no-install --clean
+  node scripts/check-android-project.mjs
+  (
+    cd android
+    ./gradlew --no-daemon :app:processReleaseMainManifest
+  )
+fi
+# Shared strict permission checks run before expensive native compilation and
+# again on the final APK. Build-only mode requires a valid prepared manifest.
+node scripts/check-android-merged-manifest.mjs
+if [[ "$PF_ANDROID_BUILD_PHASE" == prepare ]]; then
+  echo "Android release version $PF_ANDROID_VERSION_CODE passed manifest preflight."
+  exit 0
+fi
+
 # Official bundletool release, pinned to the SHA-256 published by Google's
 # GitHub release API. Do not execute a downloaded jar before this check passes.
 PF_BUNDLETOOL_JAR="$PF_ANDROID_SIGNING_DIRECTORY/bundletool-all-1.18.3.jar"
@@ -36,9 +58,6 @@ curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
   --output "$PF_BUNDLETOOL_JAR"
 printf '%s  %s\n' 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29' "$PF_BUNDLETOOL_JAR" | shasum -a 256 --check --status
 
-"$PF_SDK_MANAGER" --sdk_root="$ANDROID_SDK_ROOT" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
-npx --no-install expo prebuild --platform android --no-install --clean
-node scripts/check-android-project.mjs
 (
   cd android
   # Avoid persisting a Gradle daemon that inherited the signing environment.

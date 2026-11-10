@@ -41,6 +41,23 @@ Mac image's default command path. See the
 [Codemagic Android guide](https://docs.codemagic.io/yaml-quick-start/building-a-native-android-app/)
 and [machine configuration](https://docs.codemagic.io/specs-macos/xcode-26-6/).
 
+After JavaScript validation, CI runs two separate actions. `prepare` installs
+the SDK components, runs Expo prebuild and `:app:processReleaseMainManifest`,
+then validates the merged release XML before native compilation. `build`
+rechecks that manifest and compiles/signs the AAB and APK before final binary
+validation. Each action recreates the same upload key in its own temporary
+directory and deletes it on exit; no signing files or passwords cross steps
+through artifacts. Both actions derive the same version from the build counter.
+
+The preflight accepts exactly one `AndroidManifest.xml` under
+`android/app/build/intermediates/merged_manifest/release/processReleaseMainManifest`
+(or the corresponding `merged_manifests` directory). Missing or ambiguous
+outputs fail rather than selecting a debug or unrelated manifest. The Expo XML
+parser checks package, version code, target SDK, debug status, and the same
+permission allowlist used for the final APK. The merged manifest is saved as
+`merged-manifest-report.xml`, including when permission validation fails, so
+unexpected transitive permissions can be diagnosed without another full build.
+
 Create the encrypted environment group `pf_android_signing` and grant this
 Codemagic application access. Never put these values in source control:
 
@@ -104,8 +121,8 @@ Local `expo prebuild --platform android --no-install --clean` and
   RN/Hermes, Expo Modules Core, Reanimated and Worklets builds set
   `ANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON` for the selected NDK.
 - The source manifest explicitly removes storage, overlay, microphone,
-  notifications, boot, vibration, wakelock, biometric/fingerprint and FCM
-  receive permissions. The compiled APK must contain only Internet, NetInfo's
+  notifications, boot, vibration, wakelock, biometric/fingerprint, FCM receive
+  and install-referrer permissions. The merged manifest and compiled APK must contain only Internet, NetInfo's
   network/Wi-Fi state, and AndroidX's app-scoped non-exported-receiver permission; anything
   else fails for review.
 - `firebase_messaging_auto_init_enabled=false` and
@@ -113,6 +130,18 @@ Local `expo prebuild --platform android --no-install --clean` and
   `expo-notifications` remains linked for iOS APNs; Android push is unsupported
   by the existing application UI/platform logic. Neither Firebase credentials
   nor `google-services.json` is needed for this build.
+
+Permission audit: the installed packages' main/release source manifests request
+Internet, network/Wi-Fi state, notifications, boot completion, and external
+storage. The unused permissions are blocked. Expo Application also depends on
+`com.android.installreferrer:installreferrer:2.2`, whose published AAR requests
+`com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE`. Its
+native connection starts only when `getInstallReferrerAsync` is called; PF and
+the other installed JavaScript modules do not call this optional API. Removing
+that unused permission preserves application identity/version APIs. The early
+merged-manifest check covers Maven/AAR permissions that source-only scans cannot
+fully enumerate. See [Expo Application](https://docs.expo.dev/versions/v57.0.0/sdk/application/)
+and [Android manifest merging](https://developer.android.com/build/manage-manifests).
 
 Google Play requires new apps and updates to target API 36 or newer from
 August 31, 2026. See the [current Android target policy](https://developer.android.com/google/play/requirements/target-sdk?hl=en).
@@ -138,10 +167,11 @@ launching the app on a 16 KB emulator or device. The resulting AAB must also pas
 Play Console's bundle checks before distribution. See
 [Android's 16 KB guidance](https://developer.android.com/guide/practices/page-sizes).
 
-The local environment has no JDK or Android SDK; prebuild/config validation and
-JavaScript tests do not prove that native compilation, signing or device runtime
-succeeded. Those are verified by the first successful Codemagic build and device
-testing. After downloading the APK, test login/logout, QR/card display, reward
+The local environment has no JDK or Android SDK. Native compilation and signing
+have succeeded in Codemagic, but the first binaries were withheld because the
+final permission check found the now-blocked install-referrer permission. A
+subsequent cloud build must pass all manifest and binary checks before artifacts
+are released; device runtime remains unverified. After downloading the APK, test login/logout, QR/card display, reward
 redemption, refresh/offline states, text scaling, back navigation and a cold
 launch on an Android device; Android notifications should remain unavailable.
 

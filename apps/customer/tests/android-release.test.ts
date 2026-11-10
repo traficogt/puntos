@@ -179,3 +179,80 @@ test('AAB config requires explicit 16 KB uncompressed native-library alignment',
     assert.throws(() => validateBundleConfig(bad), /bundle|alignment/i);
   }
 });
+
+const mergedManifestXml = `<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  package="com.puntosfieles.customer" android:versionCode="18">
+  <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="36" />
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <application android:name=".MainApplication" android:allowBackup="false" />
+</manifest>`;
+
+test('merged release manifest is parsed with Expo and enforces identity before compilation', async () => {
+  const { validateMergedReleaseManifest } = require(helperPath.pathname);
+  assert.equal(typeof validateMergedReleaseManifest, 'function');
+  const { AndroidConfig } = require('expo/config-plugins');
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-merged-manifest-'));
+  const filename = path.join(temporary, 'AndroidManifest.xml');
+  try {
+    fs.writeFileSync(filename, mergedManifestXml);
+    const parsed = await AndroidConfig.Manifest.readAndroidManifestAsync(filename);
+    assert.equal(validateMergedReleaseManifest(parsed, 18).targetSdk, 36);
+    for (const mutated of [
+      mergedManifestXml.replace('com.puntosfieles.customer', 'com.example.other'),
+      mergedManifestXml.replace('versionCode="18"', 'versionCode="17"'),
+      mergedManifestXml.replace('targetSdkVersion="36"', 'targetSdkVersion="35"'),
+      mergedManifestXml.replace('<application ', '<application android:debuggable="true" '),
+    ]) {
+      fs.writeFileSync(filename, mutated);
+      const invalid = await AndroidConfig.Manifest.readAndroidManifestAsync(filename);
+      assert.throws(() => validateMergedReleaseManifest(invalid, 18));
+    }
+  } finally {
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+});
+
+test('merged manifest rejects transitive install referrer and SDK-qualified permissions', () => {
+  const { validateMergedReleaseManifest } = require(helperPath.pathname);
+  assert.equal(typeof validateMergedReleaseManifest, 'function');
+  const manifest = {
+    $: { package: 'com.puntosfieles.customer', 'android:versionCode': '18' },
+    'uses-sdk': [{ $: { 'android:targetSdkVersion': '36' } }],
+    'uses-permission': [{ $: { 'android:name': 'android.permission.INTERNET' } }],
+    application: [{ $: { 'android:allowBackup': 'false' } }],
+  };
+  for (const tag of ['uses-permission', 'uses-permission-sdk-23']) {
+    const invalid: any = structuredClone(manifest);
+    invalid[tag] = [...(invalid[tag] ?? []), { $: { 'android:name': 'com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE' } }];
+    assert.throws(() => validateMergedReleaseManifest({ manifest: invalid }, 18), /Unexpected release permission/);
+  }
+});
+
+test('merged manifest discovery accepts only the requested release merge task and fails on ambiguity', () => {
+  const { findMergedReleaseManifest } = require(helperPath.pathname);
+  assert.equal(typeof findMergedReleaseManifest, 'function');
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-merged-discovery-'));
+  const candidate = path.join(temporary, 'merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml');
+  const other = path.join(temporary, 'merged_manifests/release/processReleaseMainManifest/AndroidManifest.xml');
+  const debug = path.join(temporary, 'merged_manifest/debug/processDebugMainManifest/AndroidManifest.xml');
+  try {
+    fs.mkdirSync(path.dirname(debug), { recursive: true });
+    fs.writeFileSync(debug, mergedManifestXml);
+    assert.throws(() => findMergedReleaseManifest(temporary), /exactly one/i);
+    fs.mkdirSync(path.dirname(candidate), { recursive: true });
+    fs.writeFileSync(candidate, mergedManifestXml);
+    assert.equal(findMergedReleaseManifest(temporary), candidate);
+    fs.mkdirSync(path.dirname(other), { recursive: true });
+    fs.writeFileSync(other, mergedManifestXml);
+    assert.throws(() => findMergedReleaseManifest(temporary), /exactly one/i);
+  } finally {
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+});
+
+test('app configuration removes the unused install-referrer permission', () => {
+  const config = JSON.parse(fs.readFileSync(new URL('../app.json', import.meta.url), 'utf8'));
+  assert.ok(config.expo.android.blockedPermissions.includes('com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE'));
+});
