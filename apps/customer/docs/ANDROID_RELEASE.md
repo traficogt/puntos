@@ -185,28 +185,68 @@ are released; device runtime remains unverified. After downloading the APK, test
 redemption, refresh/offline states, text scaling, back navigation and a cold
 launch on an Android device; Android notifications should remain unavailable.
 
-## First Google Play upload
+## Google Play upload and release
 
-The Google Play developer account and Google Wallet publishing approval are
-separate from a Play app record, upload signing and Android Publisher API access.
-Wallet publishing approval does not submit this app to Play.
+PF's app record and publisher access are configured. The initialized Play record
+accepted version **13** through the Android Publisher API; its first validated
+AAB is saved as an **internal-testing draft**. It has not been rolled out to
+testers or published to production. See the verified checkpoint below.
 
-1. Create the PuntosFieles app record in Play Console, if missing, and set up
-   Google Play App Signing for package `com.puntosfieles.customer`.
-2. Build and download the validated AAB, then upload the first version manually
-   to the intended testing track in Play Console. Codemagic documents the first
-   upload as a manual prerequisite for later API publishing.
-3. Complete the store listing, privacy policy, Data safety, app access/test
-   credentials, content rating, target audience and any account-specific
-   testing/review requirements. Begin with testing; production publication is
-   a separate reviewed action.
-4. Only if later automated publishing is authorized, enable the Google Play
-   Android Developer API, create/invite the service account in Play Console and
-   grant the required application/release permissions. Keep its JSON key in a
-   separate encrypted group. A developer account or a Wallet service account
-   alone does not grant Android Publisher access.
+For later releases, build a new validated AAB with a version code greater than
+all previously uploaded versions. Use the existing PF publisher credentials for
+an explicitly requested upload. Keep release edits limited to the intended
+track and check existing drafts before replacing them. This Codemagic workflow
+produces artifacts only; it does not automatically upload or roll out a release.
 
-No Play service-account credential is required to produce these signed binaries.
-This workflow never uploads them to any track. See
-[Codemagic first release and API access](https://docs.codemagic.io/yaml-publishing/google-play/)
+Before distributing through Play, complete the required app setup and testing
+configuration: store listing, privacy policy, Data safety, app access, content
+rating, target audience, testers, and any account-specific review requirements.
+Real customer authentication still needs the configured verification-code
+channel to be online. Production publication is a separate reviewed action.
+
+References: [Codemagic Play publishing](https://docs.codemagic.io/yaml-publishing/google-play/)
 and [Google Play API setup](https://developers.google.com/android-publisher/getting_started).
+
+## PF account configuration checkpoint
+
+Google Play API access was verified for `com.puntosfieles.customer` on November 10,
+2026 using `pf-play-publisher@ardent-kite-485612-v1.iam.gserviceaccount.com`.
+The app record uses Spanish (Latin America), and the service account can access
+its internal, alpha, beta and production track records. A temporary edit was
+deleted after this access check; it did not publish a release.
+
+Codemagic's app-scoped `pf_android_signing` group already contains the encrypted
+upload keystore, alias and passwords. `pf_google_play` separately contains
+`GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS` for authorized future uploads. The
+current build workflow imports only the signing group and does not publish.
+Protected server credential storage retains the original upload key and service
+account key; reuse them instead of creating replacements for each build.
+
+
+## Verified Android release checkpoint
+
+[Codemagic build 6af2e7b5f2358ea18bf1d518](https://codemagic.io/app/6af28aff56afb2c38c819342/build/6af2e7b5f2358ea18bf1d518)
+succeeded from publication commit `38c4102` on November 10, 2026. It produced
+**PuntosFieles 0.1.0 (13)** for package `com.puntosfieles.customer`, minimum
+Android API 24 and target API 36.
+
+All **77 app tests**, lint, TypeScript, merged-manifest checks, native compilation,
+APK/AAB signing verification, APK ZIP alignment, bundle alignment configuration,
+and 96 native-library LOAD/RELRO checks passed. The merged manifest and final
+APK request exactly the four approved permissions. Physical-device behavior,
+including 16 KB runtime testing, remains separate acceptance work.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `PuntosFieles-13.aab` | 74,636,132 | `608f3e45483973a2a4b887193dc55a0369f21f957fc8c7a85c24cfe348e60715` |
+| `PuntosFieles-13.apk` | 106,993,683 | `3cc99f2fbb0d17b51be9d4b01dd941b5ea1260dcf6bc1b61b97a0b0073f3fb6d` |
+
+The AAB's Google-returned SHA-256 matched the downloaded artifact. The internal
+release edit validated and committed successfully as a draft. Use the AAB for
+Google Play and the APK for direct device testing. Keep the upload signing key
+for subsequent updates. Native Android push notifications are not implemented
+in this release.
+
+Build logs, signatures, manifest reports, downloaded artifacts and the Play edit
+result are retained under `/var/lib/puntos/releases/mobile-access-20261110` on the
+PF VM.

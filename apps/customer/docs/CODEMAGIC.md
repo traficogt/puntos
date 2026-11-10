@@ -1,6 +1,6 @@
 # Build PF with Codemagic
 
-`codemagic.yaml` lives at the **repository root**, while both workflows run inside `apps/customer`. This path is intentional for the PF monorepo.
+`codemagic.yaml` lives at the **repository root**, while the workflows run inside `apps/customer`. This path is intentional for the PF monorepo.
 
 ## First build
 
@@ -8,7 +8,7 @@ After the branch is pushed, select `feat/xcode-cloud-20261110` in the PF Codemag
 
 Download `PuntosFieles-simulator.app.zip`, the Xcode build log, and `Podfile.lock` from the build artifacts. A simulator `.app` cannot be installed on an ordinary iPhone. The first successful macOS build has supplied the committed lockfile, so later builds install native dependencies with `--deployment`.
 
-The workflow selects an M2 Mac, Node 22.22.2, and Xcode 26.6, matching the current Expo SDK 57 reference image. Both workflows start manually; pushing this file does not itself start builds.
+The workflow selects an M2 Mac, Node 22.22.2, and Xcode 26.6, matching the current Expo SDK 57 reference image. All workflows start manually; pushing this file does not itself start builds.
 
 ## Signed iPhone / TestFlight build
 

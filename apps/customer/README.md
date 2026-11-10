@@ -44,7 +44,7 @@ Google Wallet opens the server-issued Google save link; public availability depe
 
 See [Codemagic setup](docs/CODEMAGIC.md) for hosted Mac builds without renting a separate Mac. See [Xcode Cloud setup](docs/XCODE_CLOUD.md) for the checked-in iOS project and first build. `npm run export` checks JavaScript/Hermes exports for iOS, Android, and web; it does **not** compile an `.ipa` or Android package.
 
-For Android, `npm run android` requires a configured Android SDK. `eas.json` also supplies development, internal APK preview, and production build profiles; EAS requires its own authenticated Expo project before cloud builds can run.
+For Android, start the manual Codemagic workflow `pf-android-release`. It prepares the native project, checks merged permissions, and compiles and verifies signed AAB/APK artifacts. See [Android release setup and status](docs/ANDROID_RELEASE.md). Local `npm run android` still requires an Android SDK. The alternative EAS profiles require a separately authenticated Expo project.
 
 The native iOS project is intentionally committed for cloud discovery. Expo Doctor's generic “app config not synced” check is disabled for this setup; run prebuild and `check:xcode-cloud` after native configuration changes.
 

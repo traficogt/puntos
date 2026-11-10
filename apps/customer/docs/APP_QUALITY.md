@@ -23,6 +23,6 @@ Customer sessions remain business-scoped. Native credentials use SecureStore; ca
 
 ## Device and distribution checks still required
 
-Browser captures do not establish native keyboard, VoiceOver/TalkBack, Dynamic Type, gesture, real device performance or push-delivery behavior. Check those on an iPhone and Android device before public release. iOS signing/build acceptance is recorded separately in CODEMAGIC.md. No Android package or Google Play publication is claimed by this UI change. Store privacy disclosures and review approval remain separate release requirements.
+Browser captures do not establish native keyboard, VoiceOver/TalkBack, Dynamic Type, gesture, real device performance or push-delivery behavior. Check those on an iPhone and Android device before public release. iOS signing/build acceptance is recorded separately in CODEMAGIC.md. Android package validation and Google Play status are recorded separately in [ANDROID_RELEASE.md](ANDROID_RELEASE.md). Store privacy disclosures and review approval remain separate release requirements.
 
 Verification-code delivery requires the configured messaging phone to be connected. Server-side fixture delivery is not a successful real WhatsApp test.
