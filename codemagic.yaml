@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://codemagic.io/codemagic-schema.json
-# Start with pf-ios-simulator. Both workflows are manual; no push triggers.
+# Start with pf-ios-simulator. Workflows are manual; no push triggers.
 workflows:
   pf-ios-simulator:
     name: PF iOS - first simulator build
@@ -134,3 +134,40 @@ workflows:
           cp Podfile.lock /tmp/pf-ios-artifacts/
     artifacts:
       - /tmp/pf-ios-artifacts/Podfile.lock
+
+  pf-android-release:
+    name: PF Android - signed AAB and APK
+    instance_type: linux_x2
+    max_build_duration: 90
+    working_directory: apps/customer
+    environment:
+      node: 22.22.2
+      java: 17
+      groups:
+        - pf_android_signing
+      vars:
+        EXPO_PUBLIC_API_ORIGIN: https://app.puntosfieles.com
+        EXPO_NO_TELEMETRY: "1"
+        CI: "true"
+    scripts:
+      - name: Install and validate PF Android app
+        script: |
+          #!/bin/bash
+          set -euo pipefail
+          test "$(node --version)" = "v$(tr -d '[:space:]' < .nvmrc)"
+          npm ci --include=dev --no-audit --no-fund
+          npm run lint
+          npm run typecheck
+          mkdir -p build/android-release
+          node --experimental-strip-types --test \
+            --test-reporter=spec --test-reporter-destination=stdout \
+            --test-reporter=junit --test-reporter-destination=build/android-release/tests.xml \
+            tests/*.test.ts
+        test_report: apps/customer/build/android-release/tests.xml
+      - name: Generate and build signed Android release
+        script: bash scripts/build-android-release.sh
+    artifacts:
+      - apps/customer/build/android-release/*.aab
+      - apps/customer/build/android-release/*.apk
+      - apps/customer/build/android-release/*report.*
+      - apps/customer/build/android-release/tests.xml
