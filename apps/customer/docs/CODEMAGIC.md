@@ -63,3 +63,16 @@ The backend release is deployed with its additive migration, protected APNs key,
 ## Firebase project reference
 
 The owner supplied [PF's Firebase project console](https://console.firebase.google.com/u/1/project/ardent-kite-485612-v1/overview) on November 10, 2026. Project ID: `ardent-kite-485612-v1` (also used by the existing Google Wallet service account). Retain this project for potential Android Firebase Cloud Messaging setup. The console URL identifies the project; it does not itself grant API access or prove an Android Firebase app/FCM configuration exists. This iPhone release sends through APNs directly and does not embed Firebase credentials.
+
+
+## Phone-first native app release checkpoint
+
+The [signed customer app build](https://codemagic.io/app/6af28aff56afb2c38c819342/build/6af2d0acd5f158b321ce51fd) compiled and uploaded successfully from publication commit `b4f9fb038bbe81530929cc910bb1c60ba7fb7226`. Version **0.1.0 (3)** is **VALID / IN_BETA_TESTING** and assigned to the existing **PF Internal** group. Apple delivery/build ID: `0bb08c00-865e-4818-b9bd-341661cd45cb`.
+
+Existing customers now start with **Iniciar sesión** and verify their phone without first entering a business. Customers with multiple cards choose a business after verification; new enrollment remains under **Crear una tarjeta**. Native layouts now emphasize the card and QR, with stable Mi tarjeta, Premios, Actividad and Cuenta navigation, accessible controls, and recoverable offline/loading states. The existing fonts and brand remain.
+
+The downloaded IPA is 18,058,366 bytes, SHA-256 `f2896f141158a5297ccd4ddbfc43db28305181052ea72e821f2c30a74ebec27c`. The signed Mach-O and embedded profile retain production APNs, disable debug access, and require iOS 16.4 or later. The profile CMS signature was verified.
+
+App lint, TypeScript, all 60 app tests, nine access browser scenarios and five navigation/offline browser scenarios passed. The matching backend passed 843 unit tests and 16 isolated PostgreSQL tests before its additive migration and API/worker deployment. Live health, auth validation and existing push routes passed smoke checks. Release evidence and rollback are in `/var/lib/puntos/releases/mobile-access-20261110` on the PF VM.
+
+Physical-device acceptance remains: phone-code delivery depends on reconnecting the messaging phone; then check real sign-in, keyboard, VoiceOver/Dynamic Type, Wallet handoff and APNs display. Browser fixtures and Apple's processing acceptance do not establish those device results. Android push is not implemented in this release.
