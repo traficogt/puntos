@@ -27,6 +27,7 @@ The server must expose the `/api/mobile` routes: global `/access/request-code`, 
 npm run export:web
 # Requires the repository's Express/Playwright development dependencies and Chromium:
 PLAYWRIGHT_BROWSERS_PATH=0 node ../../tests/e2e/customer-app-preview.mjs
+PLAYWRIGHT_BROWSERS_PATH=0 node ../../tests/e2e/mobile-access-preview.mjs
 ```
 
 The browser fixtures intercept network calls; they do not send verification codes or change production accounts. The export is served under `/app-preview/`. Browser testing does not verify iOS signing, native keyboard/safe-area behavior, SecureStore on a device, or native performance.
