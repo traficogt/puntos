@@ -56,10 +56,14 @@ workflows:
           ditto -c -k --sequesterRsrc --keepParent \
             build/ios-simulator/Build/Products/Release-iphonesimulator/PuntosFieles.app \
             build/PuntosFieles-simulator.app.zip
+          mkdir -p /tmp/pf-ios-artifacts
+          cp build/PuntosFieles-simulator.app.zip build/xcodebuild-simulator.log ios/Podfile.lock /tmp/pf-ios-artifacts/
+          test -s /tmp/pf-ios-artifacts/PuntosFieles-simulator.app.zip
+          ls -lh /tmp/pf-ios-artifacts
     artifacts:
-      - apps/customer/build/PuntosFieles-simulator.app.zip
-      - apps/customer/build/xcodebuild-simulator.log
-      - apps/customer/ios/Podfile.lock
+      - /tmp/pf-ios-artifacts/PuntosFieles-simulator.app.zip
+      - /tmp/pf-ios-artifacts/xcodebuild-simulator.log
+      - /tmp/pf-ios-artifacts/Podfile.lock
 
   pf-ios-testflight:
     name: PF iOS - signed internal TestFlight
@@ -84,7 +88,7 @@ workflows:
           set -euo pipefail
           : "${APP_STORE_APPLE_ID:?Set the numeric PF App Store app ID in the pf_app_store variable group.}"
           [[ "$APP_STORE_APPLE_ID" =~ ^[0-9]+$ ]]
-          xcode-project use-profiles --custom-export-options='{"testFlightInternalTestingOnly":true}'
+          xcode-project use-profiles --project ios/PuntosFieles.xcodeproj --custom-export-options='{"testFlightInternalTestingOnly":true}'
           PF_LATEST_BUILD=$(app-store-connect get-latest-build-number "$APP_STORE_APPLE_ID")
           PF_LATEST_BUILD=${PF_LATEST_BUILD:-0}
           [[ "$PF_LATEST_BUILD" =~ ^[0-9]+$ ]] || { echo 'Could not read a numeric latest build number.' >&2; exit 1; }
@@ -97,9 +101,12 @@ workflows:
           xcode-project build-ipa \
             --workspace ios/PuntosFieles.xcworkspace \
             --scheme PuntosFieles
+          mkdir -p /tmp/pf-ios-artifacts
+          cp build/ios/ipa/*.ipa ios/Podfile.lock /tmp/pf-ios-artifacts/
+          ls -lh /tmp/pf-ios-artifacts
     artifacts:
-      - apps/customer/build/ios/ipa/*.ipa
-      - apps/customer/ios/Podfile.lock
+      - /tmp/pf-ios-artifacts/*.ipa
+      - /tmp/pf-ios-artifacts/Podfile.lock
       - /tmp/xcodebuild_logs/*.log
     publishing:
       app_store_connect:
