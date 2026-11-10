@@ -41,7 +41,24 @@ The first successful upload's optional Codemagic post-processing step attempted 
 
 APNs key `9FDM3HC9ZW` is stored only in PF's protected server credential storage, with Team ID `PPSXDC8227` and topic `com.puntosfieles.customer` recorded in its separate push manifest. Local EC P-256 and ES256 checks passed. Apple's push capability is enabled, and active App Store profile `LNXMZJ2353` includes the production APNs entitlement and PF's existing distribution certificate. The signing manifest points to this replacement profile; no certificate was revoked.
 
-This account preparation does not add notifications to build 0.1.0 (1). App permission handling, authenticated device registration, server delivery, a new native build, and an actual APNs delivery check remain outstanding. Keep the APNs private key on the sending server; it does not belong in Codemagic artifacts or the app bundle. Apple Wallet update delivery retains its separate existing configuration.
+Build 0.1.0 (1) does not contain native app notifications. The notification implementation adds explicit opt-in under **Cuenta → Notificaciones**, permission recovery, a user-requested test, safe card/reward navigation, and durable revocation when signing out or changing accounts. It supports physical iPhones running a production-signed build. Demo, browser preview, Android, simulator, and development builds do not register for production APNs.
+
+The app stores the installation ID, revocation secret, and consent binding in native SecureStore. The server stores the token encrypted and the revocation secret hashed. Device consent lasts up to 30 days and refreshes when the app reconnects. Explicit session invalidation, account deletion, opt-out, or consent expiry stops delivery; ordinary browser idle expiry alone does not. An offline opt-out remains pending until the device reconnects, so a generic alert may still arrive in the meantime. Alerts omit balances and contact details. APNs acceptance is not proof of display on the phone.
+
+Keep the APNs private key on the sending server; it does not belong in Codemagic artifacts or the app bundle. Runtime variables are `MOBILE_PUSH_ENABLED`, `MOBILE_PUSH_APNS_TEAM_ID`, `MOBILE_PUSH_APNS_KEY_ID`, `MOBILE_PUSH_APNS_KEY_FILE`, and `MOBILE_PUSH_APNS_TOPIC`. The production APNs host is fixed in the provider. Apple Wallet update delivery retains its separate existing configuration.
+
+The manual `pf-ios-resolve-pods` workflow resolves new native dependencies on macOS and exports `Podfile.lock`; review and commit that artifact before running the signed workflow, which retains `pod install --deployment`. The [notification dependency build](https://codemagic.io/app/6af28aff56afb2c38c819342/build/6af2b50828a297c70385a85e) succeeded and added Expo Notifications, Crypto, Device, and the transitive Application pod without changing existing pod versions. The signed notification build and physical-device acceptance are tracked below.
+
+
+## Notification release checkpoint
+
+The [signed notification build](https://codemagic.io/app/6af28aff56afb2c38c819342/build/6af2b63531027302ea2909f8) passed validation, native dependency installation, signing, compilation, and upload. Version **0.1.0 (2)** is **VALID** in Apple and assigned to the existing **PF Internal** group. The requested tester remains installed; no new public or external testing group was created.
+
+The downloaded IPA is 18,049,566 bytes, SHA-256 `0c39bc7755f3d224d42919fd2f5809289ea8b18ee402661be95d813e6314da73`. Its actual signed Mach-O entitlement and embedded provisioning profile both specify production APNs for `PPSXDC8227.com.puntosfieles.customer`; debug access is disabled. The profile's CMS signature was checked. Apple delivery/build ID: `d3cb0160-15c9-4861-a39b-7fc68cbc5f59`.
+
+The backend release is deployed with its additive migration, protected APNs key, healthy API/worker, and verified APNs TLS/HTTP2 connectivity. Validation passed: 56 app tests, 828 backend unit tests, 22 isolated PostgreSQL tests, 28 checks inside the release image, five existing browser scenarios, and seven notification UI states. App lint, TypeScript, Expo doctor, and the Xcode configuration checks passed. The server release evidence and rollback are retained under `/var/lib/puntos/releases/mobile-push-20261110` on the PF VM.
+
+**Device acceptance remains:** update PF in TestFlight, sign in to a real PF account, open **Cuenta → Notificaciones → Activar notificaciones**, allow iOS permission, then choose **Enviar notificación de prueba**. Confirm the alert arrives and opens the matching card. Real customer sign-in still depends on the configured OTP delivery channel; the demo cannot register for push. No artificial points change or authentication bypass was used, and no live APNs delivery has been claimed.
 
 ## Firebase project reference
 
