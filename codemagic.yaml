@@ -150,6 +150,7 @@ workflows:
         EXPO_PUBLIC_API_ORIGIN: https://app.puntosfieles.com
         EXPO_NO_TELEMETRY: "1"
         CI: "true"
+        PF_ANDROID_ARTIFACTS_DIR: /tmp/pf-android-artifacts
     scripts:
       - name: Install and validate PF Android app
         script: |
@@ -159,16 +160,16 @@ workflows:
           npm ci --include=dev --no-audit --no-fund
           npm run lint
           npm run typecheck
-          mkdir -p build/android-release
+          mkdir -p "$PF_ANDROID_ARTIFACTS_DIR"
           node --experimental-strip-types --test \
             --test-reporter=spec --test-reporter-destination=stdout \
-            --test-reporter=junit --test-reporter-destination=build/android-release/tests.xml \
+            --test-reporter=junit --test-reporter-destination="$PF_ANDROID_ARTIFACTS_DIR/tests.xml" \
             tests/*.test.ts
-        test_report: apps/customer/build/android-release/tests.xml
+        test_report: /tmp/pf-android-artifacts/tests.xml
       - name: Generate and build signed Android release
         script: bash scripts/build-android-release.sh
     artifacts:
-      - apps/customer/build/android-release/*.aab
-      - apps/customer/build/android-release/*.apk
-      - apps/customer/build/android-release/*report.*
-      - apps/customer/build/android-release/tests.xml
+      - /tmp/pf-android-artifacts/*.aab
+      - /tmp/pf-android-artifacts/*.apk
+      - /tmp/pf-android-artifacts/*report.*
+      - /tmp/pf-android-artifacts/tests.xml

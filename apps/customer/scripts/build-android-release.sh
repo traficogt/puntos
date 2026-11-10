@@ -5,6 +5,8 @@ umask 077
 export LC_ALL=C
 
 : "${ANDROID_SDK_ROOT:?Codemagic must provide ANDROID_SDK_ROOT}"
+PF_SDK_MANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+test -x "$PF_SDK_MANAGER" || { echo "Android SDK Manager missing from $PF_SDK_MANAGER" >&2; exit 1; }
 PF_ANDROID_SIGNING_DIRECTORY=$(mktemp -d "${TMPDIR:-/tmp}/pf-android-signing.XXXXXXXX")
 trap 'rm -rf "$PF_ANDROID_SIGNING_DIRECTORY"' EXIT
 export PF_ANDROID_KEYSTORE_PATH="$PF_ANDROID_SIGNING_DIRECTORY/upload.keystore"
@@ -34,7 +36,7 @@ curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
   --output "$PF_BUNDLETOOL_JAR"
 printf '%s  %s\n' 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29' "$PF_BUNDLETOOL_JAR" | shasum -a 256 --check --status
 
-sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+"$PF_SDK_MANAGER" --sdk_root="$ANDROID_SDK_ROOT" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
 npx --no-install expo prebuild --platform android --no-install --clean
 node scripts/check-android-project.mjs
 (
@@ -45,7 +47,7 @@ node scripts/check-android-project.mjs
 
 PF_APK=android/app/build/outputs/apk/release/app-release.apk
 PF_AAB=android/app/build/outputs/bundle/release/app-release.aab
-PF_REPORTS=build/android-release
+PF_REPORTS="${PF_ANDROID_ARTIFACTS_DIR:-build/android-release}"
 mkdir -p "$PF_REPORTS"
 test -s "$PF_APK"
 test -s "$PF_AAB"

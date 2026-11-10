@@ -35,7 +35,9 @@ was rejected by the account billing plan before compilation, so no Linux upgrade
 is required. Its toolchain is Node 22.22.2, Java 17, Android platform/build tools
 36, NDK 27.1.12297006 and CMake 3.22.1. It uses
 the generated Gradle wrapper (currently 9.3.1), not the system Gradle. SDK tools
-and Maven/npm downloads need network access. See the
+and Maven/npm downloads need network access. The build invokes SDK Manager at
+`$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager`, because it is not on the
+Mac image's default command path. See the
 [Codemagic Android guide](https://docs.codemagic.io/yaml-quick-start/building-a-native-android-app/)
 and [machine configuration](https://docs.codemagic.io/specs-macos/xcode-26-6/).
 
@@ -70,6 +72,8 @@ the code above the counter, set an explicit higher code for subsequent builds.
 Missing, empty and invalid counters fail the build. See
 [Codemagic counters](https://docs.codemagic.io/yaml-basic-configuration/environment-variables/).
 
+CI collects outputs from the explicit `/tmp/pf-android-artifacts` directory
+(`PF_ANDROID_ARTIFACTS_DIR`), avoiding monorepo working-directory ambiguity.
 Outputs are `PuntosFieles-<versionCode>.aab`, `PuntosFieles-<versionCode>.apk`, a
 JUnit test report and validation reports. The AAB is for Google Play. The APK
 can be installed directly for device testing; after Play App Signing uses its
