@@ -6,7 +6,7 @@
 
 After the branch is pushed, select `feat/xcode-cloud-20261110` in the PF Codemagic application and click **Check for configuration file**. Start **PF iOS - first simulator build** (`pf-ios-simulator`). It needs no Apple signing credentials and does not upload to an app store. The Mac builder installs dependencies, checks the app, and performs a real native iOS simulator compilation.
 
-Download `PuntosFieles-simulator.app.zip`, the Xcode build log, and `Podfile.lock` from the build artifacts. A simulator `.app` cannot be installed on an ordinary iPhone. Commit the generated lockfile after the first successful macOS build to lock native dependencies for later builds.
+Download `PuntosFieles-simulator.app.zip`, the Xcode build log, and `Podfile.lock` from the build artifacts. A simulator `.app` cannot be installed on an ordinary iPhone. The first successful macOS build has supplied the committed lockfile, so later builds install native dependencies with `--deployment`.
 
 The workflow selects an M2 Mac, Node 22.22.2, and Xcode 26.6, matching the current Expo SDK 57 reference image. Both workflows start manually; pushing this file does not itself start builds.
 
@@ -22,3 +22,7 @@ Before starting **PF iOS - signed internal TestFlight** (`pf-ios-testflight`):
 The Codemagic API token is separate from both the Apple API key and GitHub push credentials. It can start and monitor builds, but the source branch and root YAML must first be accessible in GitHub. The API does not list YAML workflow IDs before cloning; the IDs are the keys in this YAML file.
 
 References: [Codemagic React Native guide](https://docs.codemagic.io/yaml-quick-start/building-a-react-native-app/), [unsigned simulator builds](https://docs.codemagic.io/yaml-code-signing/ios-simulator-builds/), [automatic signing through CLI](https://docs.codemagic.io/yaml-code-signing/alternative-code-signing-methods/), [build API](https://docs.codemagic.io/rest-api/builds/).
+
+## Verified build checkpoint
+
+The simulator build `6af290d868cf3c59a27a88e1` succeeded on Codemagic, produced the simulator app ZIP and build-log archive, and resolved 181 native pods with CocoaPods 1.16.2. The native app icon is opaque RGB at 1024×1024. PF's App Store app ID is `6832824995`; signing secrets and this ID are configured in the app-scoped variable group. Signed device distribution remains a separate build and physical-device acceptance gate.
