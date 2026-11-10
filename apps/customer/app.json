@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "PuntosFieles",
+    "slug": "puntosfieles",
+    "version": "0.1.0",
+    "scheme": "puntosfieles",
+    "icon": "./assets/pf-logo.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "appleTeamId": "PPSXDC8227",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.puntosfieles.customer",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.puntosfieles.customer",
+      "allowBackup": false,
+      "predictiveBackGestureEnabled": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/pf-logo.png",
+        "backgroundColor": "#F7F5EF"
+      }
+    },
+    "web": {
+      "favicon": "./assets/pf-logo.png",
+      "name": "PuntosFieles \u00b7 Vista previa",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true
+        }
+      ],
+      "expo-router",
+      "./plugins/with-xcode-cloud.cjs"
+    ],
+    "experiments": {
+      "baseUrl": "/app-preview"
+    }
+  }
+}
