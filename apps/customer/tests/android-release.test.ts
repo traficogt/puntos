@@ -256,3 +256,42 @@ test('app configuration removes the unused install-referrer permission', () => {
   const config = JSON.parse(fs.readFileSync(new URL('../app.json', import.meta.url), 'utf8'));
   assert.ok(config.expo.android.blockedPermissions.includes('com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE'));
 });
+
+const approvedMergedPermissions = [
+  'android.permission.INTERNET',
+  'android.permission.ACCESS_NETWORK_STATE',
+  'android.permission.ACCESS_WIFI_STATE',
+  'com.puntosfieles.customer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION',
+];
+
+test('blocked permission projection removes every unused permission from the actual cloud manifest', async () => {
+  const { AndroidConfig } = require('expo/config-plugins');
+  const { validateMergedReleaseManifest } = require(helperPath.pathname);
+  const fixture = await AndroidConfig.Manifest.readAndroidManifestAsync(new URL('./fixtures/android-merged-permissions-20261110.xml', import.meta.url).pathname);
+  const config = JSON.parse(fs.readFileSync(new URL('../app.json', import.meta.url), 'utf8'));
+  const blocked = new Set(config.expo.android.blockedPermissions);
+  const entries = fixture.manifest['uses-permission'];
+  assert.equal(entries.length, 20);
+  const remaining = entries.filter((entry: any) => !blocked.has(entry.$['android:name']));
+  assert.deepEqual(remaining.map((entry: any) => entry.$['android:name']), approvedMergedPermissions);
+  const manifest = {
+    $: { package: 'com.puntosfieles.customer', 'android:versionCode': '1' },
+    'uses-sdk': [{ $: { 'android:targetSdkVersion': '36' } }],
+    'uses-permission': remaining,
+    application: [{ $: { 'android:allowBackup': 'false' } }],
+  };
+  assert.equal(validateMergedReleaseManifest({ manifest }, 1).permissions.length, 4);
+});
+
+test('each badge permission seen in the cloud manifest remains forbidden by the final APK validator', async () => {
+  const { AndroidConfig } = require('expo/config-plugins');
+  const { validateApkMetadata } = require(helperPath.pathname);
+  const fixture = await AndroidConfig.Manifest.readAndroidManifestAsync(new URL('./fixtures/android-merged-permissions-20261110.xml', import.meta.url).pathname);
+  const extras = fixture.manifest['uses-permission'].map((entry: any) => entry.$['android:name'])
+    .filter((permission: string) => !approvedMergedPermissions.includes(permission));
+  assert.equal(extras.length, 16);
+  const badging = "package: name='com.puntosfieles.customer' versionCode='1'\ntargetSdkVersion:'36'\nuses-permission: name='android.permission.INTERNET'\n";
+  for (const permission of extras) {
+    assert.throws(() => validateApkMetadata(`${badging}uses-permission: name='${permission}'\n`, 1), /Unexpected release permission/);
+  }
+});

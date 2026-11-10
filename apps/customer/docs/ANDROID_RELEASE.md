@@ -121,8 +121,9 @@ Local `expo prebuild --platform android --no-install --clean` and
   RN/Hermes, Expo Modules Core, Reanimated and Worklets builds set
   `ANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON` for the selected NDK.
 - The source manifest explicitly removes storage, overlay, microphone,
-  notifications, boot, vibration, wakelock, biometric/fingerprint, FCM receive
-  and install-referrer permissions. The merged manifest and compiled APK must contain only Internet, NetInfo's
+  notifications, boot, vibration, wakelock, biometric/fingerprint, FCM receive,
+  install-referrer and OEM launcher badge permissions. The merged manifest and
+  compiled APK must contain only Internet, NetInfo's
   network/Wi-Fi state, and AndroidX's app-scoped non-exported-receiver permission; anything
   else fails for review.
 - `firebase_messaging_auto_init_enabled=false` and
@@ -142,6 +143,15 @@ that unused permission preserves application identity/version APIs. The early
 merged-manifest check covers Maven/AAR permissions that source-only scans cannot
 fully enumerate. See [Expo Application](https://docs.expo.dev/versions/v57.0.0/sdk/application/)
 and [Android manifest merging](https://developer.android.com/build/manage-manifests).
+
+The actual merged manifest from build `6af2e432546991aef033c9a1` also exposed
+16 OEM launcher badge permissions from Expo Notifications' ShortcutBadger
+dependency. PF never calls the badge-count APIs and its native push support is
+iOS-only, so all 16 are blocked. The permission-only fixture in
+`tests/fixtures/android-merged-permissions-20261110.xml` preserves that build's
+20 requested permissions and provenance. Regression tests confirm that applying
+the configured blocks leaves exactly the four approved permissions and that
+every badge permission remains rejected by the final APK validator.
 
 Google Play requires new apps and updates to target API 36 or newer from
 August 31, 2026. See the [current Android target policy](https://developer.android.com/google/play/requirements/target-sdk?hl=en).
