@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import pg from "pg";
 
 import { awardFromExternalEventWithDeps } from "../../src/app/services/external-award-service.js";
 import { BusinessRepo } from "../../src/app/repositories/business-repository.js";
@@ -50,12 +51,24 @@ async function createFixture() {
 
 after(async () => {
   if (!createdBusinessIds.length) return;
-  await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => {
-    for (const businessId of createdBusinessIds.splice(0)) {
-      await dbQuery("DELETE FROM businesses WHERE id = $1", [businessId]);
-    }
+  // Fixture deletion requires the test administrator; the application role
+  // deliberately cannot delete businesses. Keep the award itself restricted.
+  const client = new pg.Client({
+    host: process.env.TEST_DB_HOST || process.env.DB_HOST || "localhost",
+    port: Number(process.env.TEST_DB_PORT || process.env.DB_PORT || 5432),
+    database: process.env.TEST_DB_NAME || process.env.DB_NAME || "puntos",
+    user: process.env.TEST_DB_USER || process.env.DB_MIGRATIONS_USER || process.env.DB_USER || "postgres",
+    password: process.env.TEST_DB_PASSWORD || process.env.DB_MIGRATIONS_PASSWORD || process.env.DB_PASSWORD || ""
   });
-  await closeDatabase().catch(() => {});
+  try {
+    await client.connect();
+    for (const businessId of createdBusinessIds.splice(0)) {
+      await client.query("DELETE FROM businesses WHERE id = $1", [businessId]);
+    }
+  } finally {
+    await client.end().catch(() => {});
+    await closeDatabase().catch(() => {});
+  }
 });
 
 integrationDescribe("External award idempotency integration", () => {
