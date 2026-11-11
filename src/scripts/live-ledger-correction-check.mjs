@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { copyStaffSessionCookies } from "./live-session-cookies.mjs";
 import crypto from "node:crypto";
 
 function arg(name, fallback = "") {
@@ -90,9 +91,7 @@ async function createBusinessAndOwnerSession(superJar, ownerJar, suffix) {
     body: "{}"
   });
   assert(impersonate.status === 200, `impersonate failed: ${impersonate.status}`);
-  for (const [key, value] of superJar.entries()) {
-    if (key.startsWith("__Host-pf_staff") || key.startsWith("pf_csrf")) ownerJar.set(key, value);
-  }
+  copyStaffSessionCookies(superJar, ownerJar);
 
   return { businessId, businessSlug, ownerPassword: password };
 }

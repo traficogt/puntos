@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 COMPOSE_ARGS=(-f docker-compose.e2e.standalone.yml -p "${E2E_COMPOSE_PROJECT:-puntos-live-integration}")
 INTERNAL_BASE_URL="${TEST_API_URL:-http://api:3001}"
+# In-network smoke checks must use the same host as the configured browser shells.
+export E2E_APP_ORIGIN="${E2E_APP_ORIGIN:-$INTERNAL_BASE_URL}"
+export E2E_MARKETING_ORIGIN="${E2E_MARKETING_ORIGIN:-$INTERNAL_BASE_URL}"
 random_secret() {
   node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))"
 }

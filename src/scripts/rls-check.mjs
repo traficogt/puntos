@@ -42,6 +42,8 @@ async function main() {
           CREATE ROLE rls_smoke;
           GRANT USAGE ON SCHEMA public TO rls_smoke;
           GRANT INSERT, SELECT ON ALL TABLES IN SCHEMA public TO rls_smoke;
+          -- Balance fixture inserts invoke notification and Wallet update triggers.
+          GRANT UPDATE ON public.mobile_push_devices, public.native_wallet_passes TO rls_smoke;
         END IF;
       END$$;
     `);

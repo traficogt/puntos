@@ -165,7 +165,8 @@ test("super can use MFA controls through UI when credentials are configured", as
     resp.request().method() === "POST" && resp.url().includes("/api/super/login")
   );
   await page.click("#btnLogin");
-  expect((await loginResp).ok()).toBeTruthy();
+  const response = await loginResp;
+  expect(response.ok(), `super login returned HTTP ${response.status()}`).toBeTruthy();
 
   await expect(page.getByRole("heading", { name: "Postura de seguridad (24h)", exact: true })).toBeVisible();
   await expect(page.locator("#btnSuperReauth")).toBeVisible();

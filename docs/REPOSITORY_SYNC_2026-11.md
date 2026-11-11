@@ -36,7 +36,7 @@ merchant tests, migration-checksum/release checks, secret scans, and isolated
 database/API integration tests. Check the pull request for the actual outcome of
 each gate; a published branch does not itself establish production readiness.
 
-The final local checks passed: 1,274 server unit tests, 125 merchant tests,
+The initial reconciliation checks passed: 1,274 server unit tests, 125 merchant tests,
 20 real database/API integration tests, two PWA tests and the Spanish
 staff/customer offline browser fixture. Lint/typecheck, migration integrity,
 fresh-database migration and restricted-role setup also passed. Secret scanning
@@ -47,6 +47,15 @@ The fresh-checkout checks exposed an offline staff initialization failure.
 The focused repair adds ten missing static dependencies, advances the web cache
 to `pf-v47`, and tests transitive script coverage. API/data caching policies
 remain unchanged.
+
+Fresh GitHub runs also exposed stale verification setup: missing Chromium for
+PWA tests, isolated-stack credentials/origins/session cookies, test-role grants
+needed by balance triggers, and browser fixtures sharing one authentication quota. The repairs
+keep runtime authentication limits and tenant policies intact. Smoke and MFA
+browser checks run without retries. The pattern scanner now checks maintained
+merchant JSX instead of compiled React runtime internals; the staff service-case
+form uses DOM construction and retains its existing browser/accessibility checks.
+Consult the PR's latest check results for the current full-suite outcome.
 
 GitHub push/PR workflows run Linux server, browser and container checks. Native
 workflows remain manual. The publication tip and PR title use `[skip render]`

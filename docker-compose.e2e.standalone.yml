@@ -32,8 +32,8 @@ services:
       SUPER_ADMIN_PASSWORD: ${E2E_SUPER_ADMIN_PASSWORD:?set E2E_SUPER_ADMIN_PASSWORD}
       # Allow both host-run Playwright (localhost:<E2E_PORT>) and in-network Playwright (api:3001).
       CORS_ORIGIN: "http://localhost:${E2E_PORT:-3101},http://api:3001"
-      APP_ORIGIN: "http://localhost:${E2E_PORT:-3101}"
-      MARKETING_ORIGIN: "http://localhost:${E2E_PORT:-3101}"
+      APP_ORIGIN: "${E2E_APP_ORIGIN:-http://localhost:${E2E_PORT:-3101}}"
+      MARKETING_ORIGIN: "${E2E_MARKETING_ORIGIN:-http://localhost:${E2E_PORT:-3101}}"
       IN_PROCESS_WORKERS: "false"
 
   worker:

@@ -1,10 +1,26 @@
 const labels={original_fulfilled:'Se entregó el beneficio original',alternative_accepted:'El cliente aceptó una alternativa',closed_with_reason:'Cerrar con motivo',points_restored:'Restituir los puntos del canje'};
 const requiresAttestation=value=>['original_fulfilled','alternative_accepted'].includes(value);
 function node(tag,text){const element=document.createElement(tag);if(text!==undefined)element.textContent=text;return element;}
+function mountCaseForm(container){
+ const shell=node('details'),help=node('p','Reporta un beneficio no disponible o revisa una resolución. Requiere conexión; estas acciones no se guardan en la cola sin internet.');help.className='small';
+ const status=node('p');status.dataset.status='';status.setAttribute('role','status');
+ const form=node('form');form.dataset.report='';
+ const redemptionLabel=node('label','Canje relacionado');redemptionLabel.htmlFor='serviceRedemption';
+ const redemption=node('select');redemption.id='serviceRedemption';redemption.append(new Option('Sin canje completado',''));
+ const reasonLabel=node('label','Qué ocurrió');reasonLabel.htmlFor='serviceReason';
+ const reason=node('textarea');reason.id='serviceReason';reason.required=true;reason.minLength=3;reason.maxLength=500;reason.rows=3;
+ const privacy=node('p','No incluyas teléfonos, documentos ni datos sensibles.');privacy.className='small';
+ const submit=node('button','Registrar incidencia');submit.type='submit';
+ form.append(redemptionLabel,redemption,reasonLabel,reason,privacy,submit);
+ const actions=node('div');actions.className='row mt-10';
+ const refresh=node('button','Actualizar casos');refresh.type='button';refresh.dataset.refresh='';actions.append(refresh);
+ const cases=node('div'),detail=node('div');cases.dataset.cases='';detail.dataset.detail='';
+ shell.append(node('summary','Resolver una incidencia'),help,status,form,actions,cases,detail);
+ container.replaceChildren(shell);
+}
 export function mountServiceCases({container,api,getContext}){
  if(!container)return {contextChanged(){},showCase(){},destroy(){}};
- // Template is static; all server/customer text is assigned with textContent.
- container.innerHTML='<details><summary>Resolver una incidencia</summary><p class="small">Reporta un beneficio no disponible o revisa una resolución. Requiere conexión; estas acciones no se guardan en la cola sin internet.</p><p data-status role="status"></p><form data-report><label for="serviceRedemption">Canje relacionado</label><select id="serviceRedemption"><option value="">Sin canje completado</option></select><label for="serviceReason">Qué ocurrió</label><textarea id="serviceReason" required minlength="3" maxlength="500" rows="3"></textarea><p class="small">No incluyas teléfonos, documentos ni datos sensibles.</p><button type="submit">Registrar incidencia</button></form><div class="row mt-10"><button type="button" data-refresh>Actualizar casos</button></div><div data-cases></div><div data-detail></div></details>';
+ mountCaseForm(container);
  const details=container.querySelector('details'),status=container.querySelector('[data-status]'),form=container.querySelector('[data-report]'),redemption=/** @type {HTMLSelectElement} */(container.querySelector('#serviceRedemption')),reason=/** @type {HTMLTextAreaElement} */(container.querySelector('#serviceReason')),reportButton=/** @type {HTMLButtonElement} */(form.querySelector('button')),list=container.querySelector('[data-cases]'),detail=container.querySelector('[data-detail]');
  let destroyed=false,busy=false,selection=null,reportPending=null,redemptions=[],detailRow=null,resolvePending=null,refreshSequence=0,detailSequence=0,updateResolutionControls=null;
  const online=()=>navigator.onLine&&getContext().online;
