@@ -57,7 +57,8 @@ async function loginStaffViaUi(page, { email, password, mfaCode = "" }) {
   if (!resp.ok()) {
     throw new Error(`staff login failed: ${resp.status()}`);
   }
-  await page.waitForURL(/\/(?:admin-dashboard|staff)(?:\.html)?$/);
+  const loginOrigin = new URL(resp.url()).origin;
+  await page.waitForURL((url) => url.origin === loginOrigin && url.pathname === "/negocio/");
   return resp;
 }
 
@@ -166,7 +167,7 @@ test("super can use MFA controls through UI when credentials are configured", as
   await page.click("#btnLogin");
   expect((await loginResp).ok()).toBeTruthy();
 
-  await expect(page.locator("#securityCard")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Postura de seguridad (24h)", exact: true })).toBeVisible();
   await expect(page.locator("#btnSuperReauth")).toBeVisible();
   await expect(page.locator("#btnSuperMfaEnroll")).toBeVisible();
   await expect(page.locator("#btnSuperMfaDisable")).toBeVisible();

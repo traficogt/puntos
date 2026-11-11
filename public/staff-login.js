@@ -63,6 +63,9 @@ element("#btnLogin").addEventListener("click", async () => {
     const destination = staffLoginDestination(role, new URLSearchParams(location.search).get("return_to"));
     toast(role === "OWNER" ? "Listo. Abriendo panel..." : role === "MANAGER" ? "Listo. Abriendo administración..." : "Listo. Abriendo escáner...");
     setTimeout(() => {
+      // staffLoginDestination allows only /negocio/ with a validated fragment or fixed local role paths.
+      // Covered by tests/unit/staff-login-redirect.test.js.
+      // nosemgrep: javascript.browser.security.open-redirect.js-open-redirect
       location.href = destination;
     }, 400);
   } catch (e) {
