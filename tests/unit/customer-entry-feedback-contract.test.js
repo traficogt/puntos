@@ -16,7 +16,7 @@ test("customer return page keeps only minimal Spanish re-entry copy after removi
 
   assert.match(html, /Tu tarjeta se abre con el enlace del negocio\./);
   assert.match(html, /Si tu sesión venció, usa el acceso del negocio para entrar de nuevo\./);
-  assert.match(html, /No hay formulario aquí\./);
+  assert.match(html, /Pide al negocio su enlace de acceso o escanea el código de registro en caja\./);
   assert.match(joinHtml, /Activa tu tarjeta/);
   assert.match(joinHtml, /Confirma tu teléfono para activar tu tarjeta del negocio por primera vez\./);
   assert.match(joinHtml, /id="email"/);

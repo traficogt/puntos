@@ -10,11 +10,16 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "types": ["node"],
-    "baseUrl": ".",
+    "types": [
+      "node"
+    ],
     "paths": {
-      "/idb.js": ["src/types/public-idb.d.ts"],
-      "/lib.js": ["src/types/public-lib.d.ts"]
+      "/idb.js": [
+        "./src/types/public-idb.d.ts"
+      ],
+      "/lib.js": [
+        "./src/types/public-lib.d.ts"
+      ]
     },
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true
@@ -48,5 +53,7 @@
     "public/super/types.ts",
     "public/types.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

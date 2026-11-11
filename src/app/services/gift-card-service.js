@@ -1,3 +1,4 @@
+import {assertRegionAmount,businessRegion} from "./regional-settings.js";
 import crypto from "node:crypto";
 import { GiftCardRepo } from "../repositories/gift-card-repository.js";
 import { StaffRepo } from "../repositories/staff-repository.js";
@@ -30,7 +31,16 @@ async function assertGiftCardAccess(staff, { create = false } = {}) {
 function validateMoney(v) {
   const n = Number(v);
   if (!Number.isFinite(n) || n <= 0) throw badRequest("Monto inválido");
-  return Number(n.toFixed(2));
+  return n;
+}
+
+async function validateRegionalMoney(client, businessId, amount) {
+  const {rows} = await client.query('SELECT program_json FROM businesses WHERE id=$1 FOR SHARE', [businessId]);
+  const business=rows[0];
+  if(!business)throw badRequest('Negocio no encontrado');
+  const region=businessRegion(business);
+  assertRegionAmount(amount,region.currency,business);
+  return region;
 }
 
 async function findExistingGiftCardTx(client, businessId, requestId) {
@@ -63,6 +73,7 @@ async function lockGiftCardRequest(client, businessId, requestId) {
 function hydrateGiftCardSnapshot(existing) {
   const meta = existing?.meta && typeof existing.meta === "object" ? existing.meta : {};
   return {
+    currency: meta.currency || "GTQ",
     id: existing.id,
     business_id: existing.business_id,
     branch_id: existing.branch_id,
@@ -88,6 +99,7 @@ export async function createGiftCardWithDeps(deps, {
   expires_at,
   requestId = null
 }) {
+  const auditRepo=deps.AuditRepo??AuditRepo;
   const actor = await deps.assertGiftCardAccess(staff, { create: true });
   const amount = validateMoney(amount_q);
 
@@ -95,7 +107,7 @@ export async function createGiftCardWithDeps(deps, {
     await lockGiftCardRequest(client, actor.business_id, requestId);
     const existing = await findExistingGiftCardTx(client, actor.business_id, requestId);
     if (existing) {
-      await AuditRepo.log({
+      await auditRepo.log({
         id: crypto.randomUUID(),
         business_id: actor.business_id,
         actor_type: "STAFF",
@@ -112,6 +124,7 @@ export async function createGiftCardWithDeps(deps, {
       return hydrateGiftCardSnapshot(existing);
     }
 
+    const region = await validateRegionalMoney(client, actor.business_id, amount);
     let card = null;
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const id = crypto.randomUUID();
@@ -145,7 +158,7 @@ export async function createGiftCardWithDeps(deps, {
         if (String(err?.code) === "23505" && requestId) {
           const replay = await findExistingGiftCardTx(client, actor.business_id, requestId);
           if (replay) {
-            await AuditRepo.log({
+            await auditRepo.log({
               id: crypto.randomUUID(),
               business_id: actor.business_id,
               actor_type: "STAFF",
@@ -183,6 +196,7 @@ export async function createGiftCardWithDeps(deps, {
         amount,
         amount,
         {
+          currency: region.currency,
           issued_to_name: card.issued_to_name,
           issued_to_phone: card.issued_to_phone,
           initial_amount_q: Number(card.initial_amount_q || amount),
@@ -193,7 +207,7 @@ export async function createGiftCardWithDeps(deps, {
       ]
     );
 
-    await AuditRepo.log({
+    await auditRepo.log({
       id: crypto.randomUUID(),
       business_id: actor.business_id,
       actor_type: "STAFF",
@@ -206,11 +220,12 @@ export async function createGiftCardWithDeps(deps, {
         gift_card_tx_id: txId,
         request_id: requestId ?? null,
         amount_q: amount,
+        currency: region.currency,
         code: card.code
       }, actor)
     }).catch(() => {});
 
-    return card;
+    return {...card,currency:region.currency};
   });
 }
 
@@ -221,6 +236,7 @@ export async function redeemGiftCardWithDeps(deps, {
   note,
   requestId = null
 }) {
+  const auditRepo=deps.AuditRepo??AuditRepo;
   const actor = await deps.assertGiftCardAccess(staff, { create: false });
   const amount = validateMoney(amount_q);
 
@@ -228,7 +244,7 @@ export async function redeemGiftCardWithDeps(deps, {
     await lockGiftCardRequest(client, actor.business_id, requestId);
     const existing = await findExistingGiftCardTx(client, actor.business_id, requestId);
     if (existing) {
-      await AuditRepo.log({
+      await auditRepo.log({
         id: crypto.randomUUID(),
         business_id: actor.business_id,
         actor_type: "STAFF",
@@ -245,6 +261,7 @@ export async function redeemGiftCardWithDeps(deps, {
       return hydrateGiftCardSnapshot(existing);
     }
 
+    const region = await validateRegionalMoney(client, actor.business_id, amount);
     const lock = await client.query(
       `SELECT * FROM gift_cards WHERE business_id = $1 AND (code = $2 OR qr_token = $2) FOR UPDATE`,
       [actor.business_id, code_or_token]
@@ -278,6 +295,7 @@ export async function redeemGiftCardWithDeps(deps, {
         amount,
         nextBalance,
         {
+          currency: region.currency,
           note: note ?? null,
           balance_after_q: nextBalance,
           status_after: nextStatus,
@@ -291,7 +309,7 @@ export async function redeemGiftCardWithDeps(deps, {
       ]
     );
 
-    await AuditRepo.log({
+    await auditRepo.log({
       id: crypto.randomUUID(),
       business_id: actor.business_id,
       actor_type: "STAFF",
@@ -304,10 +322,11 @@ export async function redeemGiftCardWithDeps(deps, {
         gift_card_tx_id: txId,
         request_id: requestId ?? null,
         amount_q: amount,
+        currency: region.currency,
         code: card.code
       }, actor)
     }).catch(() => {});
-    return { ...card, balance_q: nextBalance, status: nextStatus };
+    return { ...card, balance_q: nextBalance, status: nextStatus, currency:region.currency };
   });
 }
 

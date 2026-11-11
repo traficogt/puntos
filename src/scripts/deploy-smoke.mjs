@@ -27,6 +27,7 @@ const baseUrl = arg("--base-url", process.env.SMOKE_BASE_URL || "http://localhos
 const timeoutMs = Number(arg("--timeout-ms", process.env.SMOKE_TIMEOUT_MS || "5000"));
 const superEmail = arg("--super-email", process.env.SMOKE_SUPER_EMAIL || process.env.SUPER_ADMIN_EMAIL || "");
 const superPassword = arg("--super-password", process.env.SMOKE_SUPER_PASSWORD || process.env.SUPER_ADMIN_PASSWORD || "");
+const superCookieName = arg("--super-cookie-name", process.env.SMOKE_SUPER_COOKIE_NAME || "__Host-pf_super");
 const requireSuperLogin = hasFlag("--require-super-login");
 
 /**
@@ -155,7 +156,8 @@ async function checkSuperSession() {
   assert(loginResponse.ok, `/api/super/login returned HTTP ${loginResponse.status}`);
 
   const cookie = cookieHeader(loginResponse);
-  assert(cookie.includes("__Host-pf_super="), "Super login did not issue the __Host-pf_super cookie");
+  assert(cookie.split(";").some((part) => part.trim().startsWith(`${superCookieName}=`)),
+    `Super login did not issue the ${superCookieName} cookie`);
 
   const meResponse = await request("/api/super/me", {
     headers: { cookie }
@@ -201,11 +203,20 @@ async function main() {
   );
 
   await expectHtml("/");
-  await expectHtml("/admin.html");
-  await expectHtml("/c");
-  await expectHtml("/admin-dashboard.html");
-  await expectHtml("/staff-login.html");
-  await expectHtml("/super.html");
+  // Browser routes have permanent Spanish URLs; legacy links remain redirects.
+  for (const [legacy, canonical] of [
+    ["/admin.html", "/crear-negocio/"],
+    ["/c", "/mi-tarjeta/"],
+    ["/admin-dashboard.html", "/administracion/"],
+    ["/staff-login.html", "/equipo/ingresar/"],
+    ["/super.html", "/plataforma/"]
+  ]) {
+    const response = await request(legacy);
+    assert(response.status === 308, `${legacy} did not permanently redirect`);
+    assert(response.headers.get("location") === canonical, `${legacy} redirected to an unexpected route`);
+    await expectHtml(canonical);
+  }
+  await expectHtml("/negocio/");
 
   await expectStaticAsset("/customer.js", { origin, mustContain: ["initCustomerPage"] });
   await expectStaticAsset("/admin-dashboard.js", { origin, mustContain: ["initAdminDashboard"] });

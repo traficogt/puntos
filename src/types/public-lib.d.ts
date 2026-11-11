@@ -18,3 +18,8 @@ export function modalPrompt(message: string, opts?: Record<string, unknown>): Pr
 export function mountIosInstallHint(): void;
 export function isNativeShell(): boolean;
 export function uuidv4(): string;
+
+export interface BrowserRegion {currency:string;locale:string;timezone:string;minorUnits:number;}
+export function setBrowserRegion(region?: Partial<BrowserRegion>): void;
+export function currentBrowserRegion(): BrowserRegion;
+export function regionalMoney(value: unknown): string;

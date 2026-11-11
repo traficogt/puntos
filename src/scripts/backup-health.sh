@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DIR="backups"
+DIR="${BACKUP_DIR:-backups}"
 MAX_AGE_HOURS=24
 WARN_ONLY=0
 
@@ -27,8 +27,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-mkdir -p "$DIR"
-
 LATEST_FILE="$(ls -1t "$DIR"/puntos_*.sql.gz 2>/dev/null | head -n 1 || true)"
 if [[ -z "$LATEST_FILE" ]]; then
   echo "BACKUP_HEALTH=FAIL message='No backup files found' dir='${DIR}'"
@@ -49,6 +47,13 @@ if [[ "$AGE_HOURS" -gt "$MAX_AGE_HOURS" ]]; then
     exit 0
   fi
   exit 3
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if ! node "$SCRIPT_DIR/verify-backup.mjs" --file "$LATEST_FILE" --require-metadata >/dev/null 2>&1; then
+  echo "BACKUP_HEALTH=FAIL message='Backup content or verification metadata is invalid' file='${LATEST_FILE}'"
+  if [[ "$WARN_ONLY" -eq 1 ]]; then exit 0; fi
+  exit 4
 fi
 
 if command -v stat >/dev/null 2>&1; then

@@ -99,7 +99,7 @@ async function runHandlers(handlers, req, res) {
   return new Promise((resolve, reject) => {
     const run = (idx) => {
       const handler = handlers[idx];
-      if (!handler) return resolve();
+      if (!handler) return resolve(undefined);
       const next = (err) => {
         if (err) return reject(err);
         run(idx + 1);
@@ -108,10 +108,10 @@ async function runHandlers(handlers, req, res) {
         const maybe = handler(req, res, next);
         if (maybe && typeof maybe.then === "function") {
           maybe.then(() => {
-            if (idx === handlers.length - 1) resolve();
+            if (idx === handlers.length - 1) resolve(undefined);
           }).catch(reject);
         } else if (idx === handlers.length - 1) {
-          resolve();
+          resolve(undefined);
         }
       } catch (e) {
         reject(e);

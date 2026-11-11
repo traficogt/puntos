@@ -36,6 +36,7 @@ export const DEFAULT_PLAN_FEATURES = {
     multi_branch: false,
     webhooks: false,
     external_awards: false,
+    branded_qr: false,
     campaign_rules: false
   },
   NEGOCIO: {
@@ -55,6 +56,7 @@ export const DEFAULT_PLAN_FEATURES = {
     multi_branch: true,
     webhooks: true,
     external_awards: false,
+    branded_qr: true,
     campaign_rules: true
   },
   EMPRESA: {
@@ -74,6 +76,7 @@ export const DEFAULT_PLAN_FEATURES = {
     multi_branch: true,
     webhooks: true,
     external_awards: true,
+    branded_qr: true,
     campaign_rules: true
   }
 };

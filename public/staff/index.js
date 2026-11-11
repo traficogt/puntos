@@ -1,5 +1,10 @@
-import { getAwardQueueStats, requeueSyncingAwards, updateAward, listAwards as listStoredAwards } from "/idb.js";
+import { mountRewardEntitlements } from "./reward-entitlements.js";
+import { mountPosRecording } from "./pos-recording.js";
+import { addAward as storeAward, deleteAward as removeAward, getAwardQueueStats, requeueSyncingAwards, updateAward, listAwards as listStoredAwards } from "/idb.js";
 import { registerServiceWorker, setHidden } from "/lib.js";
+import { createAwardQueue } from "./award-queue.js";
+import { mountServiceCases } from "./service-cases.js";
+import { mountServiceBriefing } from "./service-briefing.js";
 
 /** @typedef {import("./types.js").StaffAwardResponse} StaffAwardResponse */
 /** @typedef {import("./types.js").StaffGiftRedeemResponse} StaffGiftRedeemResponse */
@@ -11,9 +16,15 @@ import { registerServiceWorker, setHidden } from "/lib.js";
 /** @typedef {import("./types.js").StaffRewardsResponse} StaffRewardsResponse */
 /** @typedef {import("./types.js").StaffSyncResponse} StaffSyncResponse */
 
-export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAwards, deleteAward }) {
+/** @param {{ api: any, $: any, toast: any, uuidv4: any, addAward?: Function, listAwards?: Function, deleteAward?: Function }} options */
+export async function initStaffPage({ api, $, toast, uuidv4 }) {
   /** @type {import("./types.js").StaffProfile | null} */
   let staff = null;
+  let serviceCases = null;
+  let rewardEntitlements = null;
+  let posRecording = null;
+  let protectedCycle = null;
+  let serviceBriefing = null;
   let scanning = false;
   let lastCustomerId = null;
   let lastCustomerToken = "";
@@ -23,6 +34,15 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   let lastScannedAt = 0;
   let redeemInFlight = false;
   let giftRedeemInFlight = false;
+  let awardInFlight = false;
+  let unverifiedSelection = false;
+  let storageFailed = false;
+  let sessionEnded = false;
+  let authFlight = null;
+  let offlineGrant = null;
+  let sessionOnline = false;
+  let logoutPending = false;
+  let logoutFlight = null;
   /** @type {StaffProgramRule | null} */
   let programRule = null;
   /** @type {StaffRewardsResponse["rewards"]} */
@@ -33,17 +53,41 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   let planFeatures = {};
   let lastCustomerMovement = "Sin movimientos recientes";
   const selectionPromptCopy = "Escanea o ingresa el código del cliente para continuar.";
+  const queue = createAwardQueue({
+    store: { addAward: storeAward, listAwards: listStoredAwards, updateAward, deleteAward: removeAward },
+    api,
+    canSend: () => sessionOnline && !sessionEnded,
+    authenticate: async (permission) => {
+      if (!await ensureAuth() || !hasPerm(permission)) return null;
+      if (!navigator.onLine && !hasOfflineGrant()) return null;
+      if (permission === "staff.sync" && !sessionOnline) return null;
+      return currentScope();
+    },
+    onChange: refreshQueue,
+    withLock: (scope, fn) => navigator.locks?.request
+      ? navigator.locks.request(`pf-awards:${scope.businessId}:${scope.staffId}`, fn)
+      : fn()
+  });
+
+  function currentScope() {
+    return staff?.id && staff?.business_id ? { businessId: staff.business_id, staffId: staff.id } : null;
+  }
+
+  function hasOfflineGrant() {
+    return !sessionEnded && typeof offlineGrant?.grant === "string" && Date.parse(offlineGrant.expiresAt) > Date.now();
+  }
 
   function isAuthError(error) {
     const code = String(error?.code || "");
     const message = String(error?.message || "");
-    return code === "AUTH_REQUIRED"
+    return error?.status === 401 || error?.status === 403 || code === "AUTH_REQUIRED"
       || code === "AUTH_INVALID_TOKEN"
       || code === "FORBIDDEN"
       || /No autenticado|Token invalido|No autorizado|no auth/i.test(message);
   }
 
   function isNetworkFailure(error) {
+    if (error?.status || error?.code) return false;
     const message = String(error?.message || "");
     return !navigator.onLine || /NetworkError|Failed to fetch|fetch|abort/i.test(message);
   }
@@ -51,7 +95,8 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   function readOfflineSnapshot() {
     try {
       const raw = localStorage.getItem("pf_staff_snapshot");
-      return raw ? JSON.parse(raw) : null;
+      const snapshot = raw ? JSON.parse(raw) : null;
+      return snapshot?.staff?.id && snapshot?.staff?.business_id && Date.now() - Date.parse(snapshot.updatedAt) < 86400000 ? snapshot : null;
     } catch {
       return null;
     }
@@ -64,6 +109,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
         permissions: permissionSet ? [...permissionSet] : [],
         planFeatures,
         programRule,
+        offlineGrant,
         updatedAt: new Date().toISOString()
       }));
     } catch {}
@@ -75,10 +121,45 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     } catch {}
   }
 
+  function hasPendingLogout() {
+    try { return logoutPending || localStorage.getItem("pf_staff_logout_pending") === "1"; }
+    catch { return logoutPending; }
+  }
+
+  function blockLocalSession() {
+    serviceCases?.destroy();
+    rewardEntitlements?.destroy();
+    posRecording?.destroy();
+    serviceBriefing?.destroy();
+    sessionEnded = true;
+    sessionOnline = false;
+    permissionSet = new Set();
+    offlineGrant = null;
+    staff = null;
+    scanning = false;
+    stopCamera();
+    clearSelectedCustomer();
+    applyUiPermissions();
+  }
+
+  async function completePendingLogout() {
+    if (logoutFlight) return logoutFlight;
+    const pendingMessage = "Sesión bloqueada en este dispositivo. El cierre en el servidor está pendiente de conexión; tus ventas siguen guardadas para su cuenta original.";
+    if (!navigator.onLine) { toast(pendingMessage); return false; }
+    logoutFlight = run(async () => {
+      await api("/api/staff/logout", { method: "POST", body: "{}", signal: AbortSignal.timeout(10000) });
+      logoutPending = false;
+      try { localStorage.removeItem("pf_staff_logout_pending"); } catch {}
+      redirectToLogin("Sesión cerrada. Las ventas pendientes siguen guardadas para su cuenta original.");
+      return true;
+    }, () => { toast(pendingMessage); return false; }).finally(() => { logoutFlight = null; });
+    return logoutFlight;
+  }
+
   /**
    * @template T
    * @param {() => Promise<T>} task
-   * @param {(error: Error) => T | null | Promise<T | null>} [onError]
+   * @param {(error: Error & {code?: string, status?: number, recoveryCaseId?: string}) => T | null | Promise<T | null>} [onError]
    * @returns {Promise<T | null>}
    */
   async function run(task, onError) {
@@ -126,15 +207,16 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
 
   function redirectToLogin(message = "Necesitas iniciar sesión.") {
     toast(message);
-    setTimeout(() => location.href = "/staff/login", 600);
+    setTimeout(() => location.href = "/equipo/ingresar/", 600);
     return null;
   }
 
   async function refreshQueue() {
-    const q = await listAwards();
-    const stats = await getAwardQueueStats();
+    const scope = currentScope();
+    const q = await listStoredAwards(scope || {});
+    const stats = await getAwardQueueStats(scope || undefined);
     element("#queueBadge").textContent = `Cola: ${stats.total}`;
-    element("#queueMeta").textContent = `Pendientes: ${stats.queued} • Fallidos: ${stats.failed} • Última actividad: ${stats.lastQueuedAt ? new Date(stats.lastQueuedAt).toLocaleTimeString() : "—"}`;
+    element("#queueMeta").textContent = `Pendientes: ${stats.queued} • Fallidos: ${stats.failed} • Última actividad: ${stats.lastQueuedAt ? new Date(stats.lastQueuedAt).toLocaleTimeString() : "—"}${stats.quarantined ? ` • ${stats.quarantined} operaciones antiguas sin identidad: requieren revisión; no se enviarán.` : ""}${hasOfflineGrant() ? " • Captura sin conexión disponible por 24 h desde la validación." : " • Conéctate para habilitar la captura sin conexión."}`;
     element("#queueList").textContent = q.length
       ? q.slice(-5).reverse().map((award) => {
         const base = `${new Date(award.updated_at || award.created_at || Date.now()).toLocaleTimeString()} • ${award.status || "queued"} • tx ${award.txId}`;
@@ -144,22 +226,50 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   }
 
   async function ensureAuth() {
-    return run(async () => {
+    if (hasPendingLogout()) { blockLocalSession(); await completePendingLogout(); return false; }
+    if (sessionEnded) return false;
+    if (authFlight) return authFlight;
+    authFlight = run(async () => {
       const me = /** @type {StaffMeResponse} */ (await api("/api/staff/me"));
+      if (sessionEnded) return false;
+      if (!me.staff?.id || !me.staff?.business_id) throw new Error("La sesión no identifica el negocio. Vuelve a iniciar sesión.");
+      if (staff && (staff.id !== me.staff.id || staff.business_id !== me.staff.business_id)) {
+        permissionSet = null; programRule = null; offlineGrant = null;
+        clearSelectedCustomer(); clearOfflineSnapshot();
+      }
       staff = me.staff;
       planFeatures = me.features || {};
-      if (!permissionSet) await loadPermissions();
-      if (!programRule) await loadProgramRule();
+      await loadPermissions();
+      await loadProgramRule();
+      if (hasPerm("staff.award") && (!hasOfflineGrant() || Date.parse(offlineGrant.expiresAt) < Date.now() + 300000)) {
+        try {
+          const grant = await api("/api/staff/offline-grant");
+          if (typeof grant?.grant === "string" && Date.parse(grant.expiresAt) > Date.now()) offlineGrant = { grant: grant.grant, expiresAt: grant.expiresAt };
+        } catch (error) {
+          if (isAuthError(error)) throw error;
+        }
+      }
+      if (sessionEnded) return false;
+      sessionOnline = true;
       writeOfflineSnapshot();
+      applyUiPermissions();
       return true;
     }, async (error) => {
+      sessionOnline = false;
+      if (isAuthError(error)) {
+        clearOfflineSnapshot();
+        staff = null; permissionSet = new Set(); offlineGrant = null;
+        clearSelectedCustomer();
+        return redirectToLogin();
+      }
       if (isNetworkFailure(error)) {
         const snapshot = readOfflineSnapshot();
-        if (snapshot?.staff) {
+        if (snapshot?.staff && (!staff || (staff.id === snapshot.staff.id && staff.business_id === snapshot.staff.business_id))) {
           staff = snapshot.staff;
           permissionSet = new Set(snapshot.permissions || []);
           planFeatures = snapshot.planFeatures || {};
           programRule = snapshot.programRule || null;
+          offlineGrant = snapshot.offlineGrant || null;
           renderProgramInfo();
           updateInputsForRule();
           applyUiPermissions();
@@ -169,18 +279,14 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
         return redirectToLogin("Sin conexión y sin sesión guardada.");
       }
 
-      if (isAuthError(error)) {
-        clearOfflineSnapshot();
-        return redirectToLogin();
-      }
-
       toast(error?.message || "No se pudo validar la sesión.");
       return null;
-    });
+    }).finally(() => { authFlight = null; });
+    return authFlight;
   }
 
   function hasPerm(p) {
-    return permissionSet ? permissionSet.has(p) : false;
+    return !sessionEnded && permissionSet ? permissionSet.has(p) : false;
   }
 
   function hasFeature(feature) {
@@ -190,7 +296,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   }
 
   function canUseRedeemFlow() {
-    return hasPerm("staff.redeem") && hasFeature("redemptions");
+    return navigator.onLine && sessionOnline && hasPerm("staff.redeem") && hasFeature("redemptions");
   }
 
   function canUseGiftCards() {
@@ -198,7 +304,6 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   }
 
   function applyUiPermissions() {
-    if (!staff) return;
     const canAward = hasPerm("staff.award");
     const canRedeem = canUseRedeemFlow();
     const canSync = hasPerm("staff.sync");
@@ -208,42 +313,45 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     /** @type {HTMLButtonElement} */ (element("#btnAward")).disabled = !canAward;
     /** @type {HTMLButtonElement} */ (element("#btnRedeem")).disabled = !canRedeem;
     /** @type {HTMLButtonElement} */ (element("#btnSync")).disabled = !canSync;
-    /** @type {HTMLButtonElement} */ (element("#btnGiftRedeem")).disabled = !canGiftCards;
+    /** @type {HTMLButtonElement} */ (element("#btnGiftRedeem")).disabled = !canGiftCards || !navigator.onLine || !sessionOnline;
     setHidden(element("#giftCardActionBlock"), !canGiftCards);
 
     // Analytics quick panel remains owner-only because endpoint is owner-only.
-    setHidden(element("#ownerAnalyticsCard"), staff.role !== "OWNER");
+    setHidden(element("#ownerAnalyticsCard"), staff?.role !== "OWNER");
     updateCustomerSurfaceState();
   }
 
   async function loadPermissions() {
-    await run(async () => {
       const out = /** @type {StaffPermissionsResponse} */ (await api("/api/staff/permissions"));
       const matrix = out.matrix || {};
       const perms = Array.isArray(matrix[staff.role]) ? matrix[staff.role] : [];
       permissionSet = new Set(perms);
-    }, () => {
-      permissionSet = new Set();
-    });
     applyUiPermissions();
   }
 
   function renderProgramInfo() {
     const el = element("#programInfo");
     if (!el || !programRule) return;
-    const cfg = programRule.program_json || {};
-    if (programRule.program_type === "SPEND") {
-      el.textContent = `Regla activa: Por gasto (Q). Tasa ${Number(cfg.points_per_q ?? 0.1)} pts/Q (${cfg.round || "ceil"}).`;
-    } else if (programRule.program_type === "VISIT") {
-      el.textContent = `Regla activa: Por visita (${Number(cfg.points_per_visit ?? 10)} pts por visita).`;
+    const effective = protectedCycle ? { ...programRule, program_type: protectedCycle.program_type, program_json: protectedCycle.earning_terms } : programRule;
+    const cfg = effective.program_json || {};
+    if (effective.program_type === "SPEND") {
+      el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Por gasto (${programRule.region?.currency || "GTQ"}). Tasa ${Number(cfg.points_per_q ?? 0.1)} pts/${programRule.region?.currency || "GTQ"} (${cfg.round || "ceil"}).`;
+    } else if (effective.program_type === "VISIT") {
+      el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Por visita (${Number(cfg.points_per_visit ?? 10)} pts por visita).`;
     } else {
-      el.textContent = `Regla activa: Por item (${Number(cfg.points_per_item ?? 1)} pts por item).`;
+      el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Por item (${Number(cfg.points_per_item ?? 1)} pts por item).`;
     }
   }
 
   function updateInputsForRule() {
     if (!programRule) return;
-    const t = programRule.program_type;
+    const t = protectedCycle?.program_type || programRule.program_type;
+    const currency = programRule.region?.currency || "GTQ";
+    element("#staffAmountLabel").textContent = `Monto (${currency})`;
+    element("#staffGiftAmountLabel").textContent = `Monto a descontar (${currency})`;
+    input("#amount").step = programRule.region?.minorUnits === 0 ? "1" : "0.01";
+    input("#giftAmount").step = programRule.region?.minorUnits === 0 ? "1" : "0.01";
+    input("#giftAmount").min = programRule.region?.minorUnits === 0 ? "1" : "0.01";
     input("#amount").disabled = t !== "SPEND";
     input("#visits").disabled = t !== "VISIT";
     input("#items").disabled = t !== "ITEM";
@@ -257,7 +365,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   }
 
   function updateCustomerSurfaceState(statusMessage = "") {
-    const hasCustomer = Boolean(lastCustomerId);
+    const hasCustomer = Boolean(lastCustomerId || unverifiedSelection);
     const canRedeem = canUseRedeemFlow();
     const customerState = hasCustomer ? "ready" : "waiting";
     const readyChip = element("#customerReadyChip");
@@ -302,7 +410,9 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     }
 
     if (customerRewardState) {
-      if (!hasCustomer) {
+      if (!navigator.onLine || !sessionOnline) {
+        customerRewardState.textContent = "Los canjes requieren conexión y sesión validada";
+      } else if (!hasCustomer) {
         customerRewardState.textContent = "Aún no disponible";
       } else if (!hasFeature("redemptions")) {
         customerRewardState.textContent = "Canjes no disponibles en este plan";
@@ -329,9 +439,13 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
         : selectionPromptCopy;
     }
 
-    if (awardButton) awardButton.disabled = !hasPerm("staff.award") || !hasCustomer;
+    if (unverifiedSelection && customerActionStatus && !statusMessage) customerActionStatus.textContent = "Código capturado sin conexión. El cliente y sus puntos se verificarán en el servidor al sincronizar.";
+    if (awardButton) awardButton.disabled = awardInFlight || storageFailed || !hasPerm("staff.award") || !hasCustomer || (!navigator.onLine && !hasOfflineGrant());
     if (redeemButton) redeemButton.disabled = !hasRedeemableReward;
     rewardSelectEl.disabled = !hasRedeemableReward;
+    serviceCases?.contextChanged();
+    rewardEntitlements?.contextChanged();
+    posRecording?.contextChanged();
   }
 
   function updateAwardPreview() {
@@ -341,15 +455,16 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       out.textContent = selectionPromptCopy;
       return;
     }
-    const cfg = programRule.program_json || {};
+    const effective = protectedCycle ? { ...programRule, program_type: protectedCycle.program_type, program_json: protectedCycle.earning_terms } : programRule;
+    const cfg = effective.program_json || {};
     const amount = Number(input("#amount").value || 0);
     const visits = Math.floor(Number(input("#visits").value || 0));
     const items = Math.floor(Number(input("#items").value || 0));
     let preview = 0;
 
-    if (programRule.program_type === "VISIT") {
+    if (effective.program_type === "VISIT") {
       preview = Math.max(0, (visits || 1) * Number(cfg.points_per_visit ?? 10));
-    } else if (programRule.program_type === "ITEM") {
+    } else if (effective.program_type === "ITEM") {
       preview = Math.max(0, (items || 1) * Number(cfg.points_per_item ?? 1));
     } else {
       const rate = Number(cfg.points_per_q ?? 0.1);
@@ -402,6 +517,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   }
 
   function applySelectedCustomer(customer, token, { silent = true } = {}) {
+    unverifiedSelection = false;
     lastCustomerId = customer?.id || null;
     lastCustomerToken = token || "";
     lastCustomerPoints = Number(customer?.points || 0);
@@ -429,6 +545,16 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     if (!trimmed) {
       toast(selectionPromptCopy);
       return false;
+    }
+
+    if (!navigator.onLine || !sessionOnline) {
+      if (!hasOfflineGrant()) { toast("Conéctate y valida tu sesión antes de capturar ventas sin conexión."); return false; }
+      clearSelectedCustomer();
+      lastCustomerToken = trimmed;
+      unverifiedSelection = true;
+      element("#lastCustomer").textContent = "Pendiente de verificación";
+      updateCustomerSurfaceState();
+      return true;
     }
 
     return run(async () => {
@@ -496,18 +622,37 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     video.srcObject = null;
   }
 
-  async function award(token) {
+  async function award(token, scope) {
     const payload = {
       customerQrToken: token,
       amount_q: Number(input("#amount").value || 0),
       visits: Number(input("#visits").value || 1),
       items: Number(input("#items").value || 1),
       txId: uuidv4(),
-      meta: { ui: "staff" }
+      meta: { ui: "staff" },
+      client_ts: new Date().toISOString(),
+      ...(hasOfflineGrant() ? { offlineGrant: offlineGrant.grant } : {})
     };
+    if (!Number.isFinite(payload.amount_q) || payload.amount_q < 0 || payload.amount_q > 1000000
+      || Math.abs(payload.amount_q * 100 - Math.round(payload.amount_q * 100)) > 0.00001
+      || !Number.isSafeInteger(payload.visits) || payload.visits < 1 || payload.visits > 1000
+      || !Number.isSafeInteger(payload.items) || payload.items < 1 || payload.items > 10000) {
+      const message = `Revisa el monto (0 a 1,000,000 ${programRule?.region?.currency || "GTQ"}) y las cantidades enteras de visitas y artículos.`;
+      updateCustomerSurfaceState(message);
+      toast(message);
+      return false;
+    }
+    navigator.storage?.persist?.().catch(() => {});
 
     return run(async () => {
-      const out = /** @type {StaffAwardResponse} */ (await api("/api/staff/award", { method: "POST", body: JSON.stringify(payload) }));
+      const sent = await queue.submit(payload, scope);
+      if (sent.queued) {
+        updateCustomerSurfaceState("Guardado sin conexión. Pendiente de verificar y sumar puntos al sincronizar.");
+        toast("Venta guardada en este dispositivo; los puntos aún no se han confirmado.");
+        return true;
+      }
+      const out = /** @type {StaffAwardResponse} */ (sent.response);
+      unverifiedSelection = false;
       element("#lastCustomer").textContent = out.customerId;
       const selectionStatus = element("#selectionStatus");
       if (selectionStatus) {
@@ -532,11 +677,15 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       }
       return true;
     }, async (error) => {
-      if (!navigator.onLine || /NetworkError|Failed to fetch|fetch/i.test(error.message)) {
-        await addAward({ ...payload, client_ts: new Date().toISOString() });
-        await refreshQueue();
-        updateCustomerSurfaceState("Sin internet: guardado para sincronizar.");
-        toast("Sin internet: guardado para sincronizar.");
+      if (error.code === "OFFLINE_STORAGE_ERROR") {
+        storageFailed = true;
+        updateCustomerSurfaceState(error.message);
+        toast(error.message);
+        return false;
+      }
+      if (isNetworkFailure(error)) {
+        updateCustomerSurfaceState("Guardado y pendiente de confirmación. Se reintentará automáticamente; no registres esta venta otra vez.");
+        toast("Venta pendiente de confirmación. No la registres otra vez.");
         return true;
       }
       updateCustomerSurfaceState();
@@ -546,7 +695,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   }
 
   async function scanLoop() {
-    if (!scanning || !detector) return;
+    if (sessionEnded || !scanning || !detector) return;
     const video = /** @type {HTMLVideoElement} */ ($("#video"));
     await run(async () => {
       const codes = await detector.detect(video);
@@ -575,7 +724,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
 
   element("#btnStart").addEventListener("click", async () => {
     await run(async () => {
-      await ensureAuth();
+      if (!await ensureAuth() || !hasPerm("staff.award")) return;
       await startCamera();
       scanning = true;
       requestAnimationFrame(scanLoop);
@@ -592,69 +741,55 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   });
 
   element("#btnAward").addEventListener("click", async () => {
+    if (awardInFlight || storageFailed) return;
+    if ((!lastCustomerId && !unverifiedSelection) || !lastCustomerToken) return toast("Primero selecciona un cliente.");
+    awardInFlight = true;
     await run(async () => {
-      await ensureAuth();
-      if (!lastCustomerId || !lastCustomerToken) return toast("Primero selecciona un cliente.");
       updateCustomerSurfaceState("Registrando puntos...");
-      await award(lastCustomerToken);
+      await award(lastCustomerToken, currentScope());
+    }).finally(() => {
+      awardInFlight = false;
+      const button = /** @type {HTMLButtonElement} */ (element("#btnAward"));
+      button.disabled = storageFailed || !hasPerm("staff.award") || (!lastCustomerId && !unverifiedSelection) || (!navigator.onLine && !hasOfflineGrant());
     });
   });
 
   element("#btnSelectCustomer").addEventListener("click", async () => {
     await run(async () => {
-      await ensureAuth();
+      if (!await ensureAuth() || !hasPerm("staff.award")) return;
       const token = input("#token").value.trim();
       await selectCustomerFromToken(token, { silent: false });
     });
   });
 
-  element("#btnSync").addEventListener("click", async () => {
+  async function requestSync(manual = false) {
+    if (sessionEnded) return;
     await run(async () => {
-      await ensureAuth();
-      const queued = await listStoredAwards({ statuses: ["queued", "failed", "syncing"] });
-      if (!queued.length) return toast("Nada que sincronizar.");
-      await Promise.all(queued.map((award) => updateAward(award.txId, { status: "syncing", last_error: "" })));
+      const result = await queue.sync();
       await refreshQueue();
-      const out = /** @type {StaffSyncResponse} */ (await api("/api/staff/sync", { method: "POST", body: JSON.stringify({ awards: queued }) }));
-      let ok = 0;
-      for (const r of out.results) {
-        if (r.ok) {
-          ok++;
-          await deleteAward(r.txId);
-        } else {
-          const current = queued.find((award) => award.txId === r.txId);
-          await updateAward(r.txId, {
-            status: "failed",
-            last_error: String(r.error || "Error de sincronización"),
-            retry_count: Number(current?.retry_count || 0) + 1
-          });
-        }
-      }
-      await refreshQueue();
-      toast("Sincronizados: " + ok + "/" + queued.length);
+      if (manual) toast(result.attempted ? `Sincronizados: ${result.synced}/${result.attempted}` : navigator.onLine ? "Nada que sincronizar para esta cuenta." : "La sincronización requiere conexión.");
     }, (error) => {
-      listStoredAwards({ statuses: ["syncing"] })
-        .then((syncing) => Promise.all(syncing.map((award) => updateAward(award.txId, {
-          status: "failed",
-          last_error: error.message,
-          retry_count: Number(award.retry_count || 0) + 1
-        }))))
-        .then(refreshQueue)
-        .catch(() => {});
-      toast(error.message);
+      if (error.code === "OFFLINE_STORAGE_ERROR") storageFailed = true;
+      if (manual || storageFailed) toast(error.message);
+      updateCustomerSurfaceState(storageFailed ? error.message : "Las ventas siguen guardadas. Se reintentará la sincronización.");
     });
-  });
+  }
+  element("#btnSync").addEventListener("click", () => requestSync(true));
 
   element("#btnLogout").addEventListener("click", async () => {
-    await api("/api/staff/logout", { method: "POST", body: "{}" }).catch(() => {});
+    logoutPending = true;
+    try {
+      localStorage.setItem("pf_staff_logout_pending", "1");
+      localStorage.setItem("pf_staff_epoch", uuidv4());
+    } catch {}
     clearOfflineSnapshot();
-    toast("Sesión cerrada.");
-    setTimeout(() => location.href = "/staff/login", 600);
+    blockLocalSession();
+    await completePendingLogout();
   });
 
   element("#btnStaffReauth").addEventListener("click", async () => {
     await run(async () => {
-      await ensureAuth();
+      if (!await ensureAuth() || !sessionOnline) return;
       const password = input("#staffReauthPassword").value;
       if (!password) return toast("Escribe tu contraseña actual.");
       await api("/api/staff/security/reauth", {
@@ -672,7 +807,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
 
   element("#btnStaffMfaEnroll").addEventListener("click", async () => {
     await run(async () => {
-      await ensureAuth();
+      if (!await ensureAuth() || !sessionOnline) return;
       const out = await api("/api/staff/security/mfa/enroll", { method: "POST", body: "{}" });
       setPendingStaffMfa(out.secret, out.otpauth_uri || "");
       toast("Se generó un secreto MFA. Confirma con el código.");
@@ -683,7 +818,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
 
   element("#btnStaffMfaConfirm").addEventListener("click", async () => {
     await run(async () => {
-      await ensureAuth();
+      if (!await ensureAuth() || !sessionOnline) return;
       const code = input("#staffMfaConfirmCode").value.trim();
       if (!code) return toast("Escribe el código MFA.");
       await api("/api/staff/security/mfa/confirm", {
@@ -700,7 +835,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
 
   element("#btnStaffMfaDisable").addEventListener("click", async () => {
     await run(async () => {
-      await ensureAuth();
+      if (!await ensureAuth() || !sessionOnline) return;
       await api("/api/staff/security/mfa/disable", { method: "POST", body: "{}" });
       setPendingStaffMfa("");
       toast("MFA desactivado.");
@@ -711,11 +846,11 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
 
   element("#btnStaffLockdown").addEventListener("click", async () => {
     await run(async () => {
-      await ensureAuth();
+      if (!await ensureAuth() || !sessionOnline) return;
       await api("/api/staff/security/lockdown", { method: "POST", body: "{}" });
       clearOfflineSnapshot();
       toast("Sesiones revocadas por seguridad.");
-      setTimeout(() => location.href = "/staff/login", 600);
+      setTimeout(() => location.href = "/equipo/ingresar/", 600);
     }, (error) => {
       toast(error.message);
     });
@@ -731,10 +866,16 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   }
 
   element("#btnRedeem").addEventListener("click", async () => {
+    if (!navigator.onLine || !sessionOnline) return toast("Los canjes requieren conexión. No se pueden guardar sin internet.");
     if (!lastCustomerId) return toast("Primero selecciona un cliente.");
     if (redeemInFlight) return;
+    const customerAtRequest = lastCustomerId;
+    const scopeAtRequest = JSON.stringify([currentScope(), staff?.branch_id ?? null]);
+    const redemptionContextIsCurrent = () => !sessionEnded && lastCustomerId === customerAtRequest && scopeAtRequest === JSON.stringify([currentScope(), staff?.branch_id ?? null]);
     redeemInFlight = true;
     await run(async () => {
+      if (!await ensureAuth() || !canUseRedeemFlow()) return;
+      if (!redemptionContextIsCurrent()) return;
       const rewardId = select("#rewardSelect").value;
       if (!rewardId) return toast("Selecciona una recompensa disponible.");
       updateCustomerSurfaceState("Canjeando recompensa...");
@@ -742,6 +883,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
         method: "POST",
         body: JSON.stringify({ customerId: lastCustomerId, rewardId, requestId: uuidv4() })
       }));
+      if (!redemptionContextIsCurrent()) return;
       element("#redeemCode").textContent = out.redemptionCode;
       element("#lastBalance").textContent = String(out.newBalance);
       lastCustomerMovement = `Canje: ${out.redemptionCode}`;
@@ -750,9 +892,12 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
       renderRewardOptions();
       updateCustomerSurfaceState(`Canje listo. Código: ${out.redemptionCode}. Nuevo saldo: ${out.newBalance}.`);
       toast("Canje listo. Código: " + out.redemptionCode);
+      posRecording?.showRedemption({ ...out, customerId: customerAtRequest });
     }, (error) => {
+      if (!redemptionContextIsCurrent()) return;
       updateCustomerSurfaceState();
       toast(error.message);
+      if (error.recoveryCaseId) serviceCases?.showCase(error.recoveryCaseId);
     }).finally(() => {
       redeemInFlight = false;
     });
@@ -768,10 +913,11 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
   });
 
   element("#btnGiftRedeem").addEventListener("click", async () => {
+    if (!navigator.onLine || !sessionOnline) return toast("El uso de gift cards requiere conexión.");
     if (giftRedeemInFlight) return;
     giftRedeemInFlight = true;
     await run(async () => {
-      await ensureAuth();
+      if (!await ensureAuth() || !sessionOnline || !canUseGiftCards()) return;
       const code_or_token = input("#giftCode").value.trim();
       const amount_q = Number(input("#giftAmount").value || 0);
       if (!code_or_token) return toast("Escribe el código/token de gift card.");
@@ -781,7 +927,7 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
         body: JSON.stringify({ code_or_token, amount_q, requestId: uuidv4() })
       }));
       const g = out.gift_card;
-      element("#giftStatus").textContent = `OK. Saldo restante: Q${Number(g.balance_q || 0).toFixed(2)} (${g.status || "ACTIVE"})`;
+      element("#giftStatus").textContent = `OK. Saldo restante: ${new Intl.NumberFormat(programRule?.region?.locale, { style: "currency", currency: programRule?.region?.currency || "GTQ" }).format(Number(g.balance_q || 0))} (${g.status || "ACTIVE"})`;
       toast("Gift card canjeada.");
     }, (error) => {
       toast(error.message);
@@ -790,7 +936,29 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     });
   });
 
-  window.addEventListener("online", refreshQueue);
+  window.addEventListener("online", () => {
+    if (hasPendingLogout()) { completePendingLogout(); return; }
+    applyUiPermissions(); requestSync();
+  });
+  window.addEventListener("offline", () => { sessionOnline = false; applyUiPermissions(); refreshQueue().catch(() => {}); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && navigator.onLine) { if (hasPendingLogout()) completePendingLogout(); else requestSync(); } });
+  const syncTimer = setInterval(() => { if (!document.hidden && navigator.onLine) { if (hasPendingLogout()) completePendingLogout(); else requestSync(); } }, 30000);
+  window.addEventListener("pagehide", () => { clearInterval(syncTimer); stopCamera(); });
+  window.addEventListener("storage", (event) => {
+    if (event.key === "pf_staff_logout_pending" && !event.newValue && sessionEnded) {
+      redirectToLogin("La sesión se cerró o cambió en otra pestaña.");
+      return;
+    }
+    let changed = event.key === null || event.key === "pf_staff_epoch" || (event.key === "pf_staff_logout_pending" && event.newValue === "1");
+    if (event.key === "pf_staff_snapshot") {
+      const snapshot = readOfflineSnapshot();
+      changed ||= !snapshot || Boolean(staff && (snapshot.staff.id !== staff.id || snapshot.staff.business_id !== staff.business_id));
+    }
+    if (!changed) return;
+    blockLocalSession();
+    if (hasPendingLogout()) completePendingLogout();
+    else redirectToLogin("La sesión cambió en otra pestaña. Vuelve a iniciar sesión.");
+  });
   input("#amount").addEventListener("input", updateAwardPreview);
   input("#visits").addEventListener("input", updateAwardPreview);
   input("#items").addEventListener("input", updateAwardPreview);
@@ -800,13 +968,23 @@ export async function initStaffPage({ api, $, toast, uuidv4, addAward, listAward
     }
   });
 
-  await requeueSyncingAwards().catch(() => {});
-  await ensureAuth();
-  await refreshQueue();
+  if (!await ensureAuth()) return;
+  try {
+    await requeueSyncingAwards(currentScope());
+    await refreshQueue();
+  } catch {
+    storageFailed = true;
+    toast("El almacenamiento no está disponible. No registres ventas hasta recuperar la cola.");
+  }
   clearSelectedCustomer();
   if (navigator.onLine) {
     await loadRewards();
+    await requestSync();
   }
 
+  posRecording = mountPosRecording({ container: element("#staffPosRecording"), api, getContext: () => ({ customerId: lastCustomerId, staffId: staff?.id, businessId: staff?.business_id, branchId: staff?.branch_id, online: canUseRedeemFlow() && !sessionEnded }) });
+  rewardEntitlements = mountRewardEntitlements({ container: element("#staffRewardEntitlements"), api, getContext: () => ({ customerId: lastCustomerId, online: sessionOnline && !sessionEnded }), onCycle: cycle => { protectedCycle = cycle; renderProgramInfo(); updateInputsForRule(); }, onBalance: balance => { lastCustomerPoints = Number(balance); renderRewardOptions(); updateCustomerSurfaceState(); }, onRedeemed: result => posRecording?.showRedemption(result) });
+  serviceCases = mountServiceCases({ container: element("#staffServiceCases"), api, getContext: () => ({ customerId: lastCustomerId, rewardId: select("#rewardSelect").value, online: sessionOnline && !sessionEnded }) });
+  serviceBriefing = mountServiceBriefing({ container: element("#staffServiceBriefing"), api, program: programRule, rewards: rewardOptions });
   registerServiceWorker().catch(() => {});
 }

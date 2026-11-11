@@ -1,13 +1,16 @@
-import { one, many, exec } from "./base.js";
+import { one, many } from "./base.js";
 import { withTransaction } from "../database.js";
 
 export const RewardRepo = {
   async create({ id, business_id, name, description, points_cost, active, stock, valid_until, branch_ids }) {
     await withTransaction(async (client) => {
+      await client.query('SELECT id FROM businesses WHERE id=$1 FOR UPDATE', [business_id]);
+      // Publish only after branch eligibility is complete. An active intermediate
+      // row would incorrectly appear to promise redemption at every branch.
       await client.query(
         `INSERT INTO rewards (id, business_id, name, description, points_cost, active, stock, valid_until)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [id, business_id, name, description ?? null, points_cost, active ?? true, stock ?? null, valid_until ?? null]
+        [id, business_id, name, description ?? null, points_cost, false, stock ?? null, valid_until ?? null]
       );
       if (Array.isArray(branch_ids) && branch_ids.length) {
         for (const branchId of branch_ids) {
@@ -16,6 +19,9 @@ export const RewardRepo = {
             [id, branchId]
           );
         }
+      }
+      if (active ?? true) {
+        await client.query(`UPDATE rewards SET active = true WHERE id=$1 AND business_id=$2`, [id, business_id]);
       }
     });
     return this.getById(id, business_id);
@@ -79,12 +85,17 @@ export const RewardRepo = {
     }
     if (!fields.length) return this.getById(id);
     vals.push(id);
-    await exec(`UPDATE rewards SET ${fields.join(", ")} WHERE id=$${i}`, vals);
+    await withTransaction(async client => {
+      await client.query('SELECT b.id FROM businesses b JOIN rewards r ON r.business_id=b.id WHERE r.id=$1 FOR UPDATE OF b', [id]);
+      await client.query(`UPDATE rewards SET ${fields.join(", ")} WHERE id=$${i}`, vals);
+    });
     return this.getById(id);
   },
 
   async setBranches(rewardId, branchIds = []) {
     await withTransaction(async (client) => {
+      await client.query('SELECT b.id FROM businesses b JOIN rewards r ON r.business_id=b.id WHERE r.id=$1 FOR UPDATE OF b', [rewardId]);
+      await client.query('SELECT id FROM rewards WHERE id=$1 FOR UPDATE', [rewardId]);
       await client.query(`DELETE FROM reward_branches WHERE reward_id = $1`, [rewardId]);
       for (const branchId of branchIds) {
         await client.query(

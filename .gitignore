@@ -21,5 +21,34 @@ test-results/
 .idea/
 .vscode/
 .claude/
+.worktrees/
 *.swp
 *.swo
+
+# Private local research, operational records and design-review evidence.
+.impeccable/
+docs/research/
+docs/WALLET_ACCOUNT_SETUP.md
+docs/PILOT_READINESS.md
+docs/wallet/
+
+# Signing material and platform binaries stay outside source control.
+*.p8
+*.p12
+*.pfx
+*.key
+*.pem
+*.cer
+*.csr
+*.certSigningRequest
+*.mobileprovision
+*.jks
+*.keystore
+*.apk
+*.aab
+*.ipa
+
+# This reproducible, credential-free addon is served by the public API.
+!integrations/odoo/dist/
+integrations/odoo/dist/*
+!integrations/odoo/dist/pf_pos_connector-18.0.3.0.0.zip

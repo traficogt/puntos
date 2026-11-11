@@ -1,3 +1,8 @@
+import { getDbClient } from '../database.js';
+import { withPublicRewardAvailability } from '../services/reward-inventory-public.js';
+import { getCustomerRewardProgress } from '../services/customer-reward-progress.js';
+import { getCustomerStatement } from '../services/customer-statement-service.js';
+import { businessRegion } from "../services/regional-settings.js";
 import { Router } from "express";
 import { asyncRoute } from "../../middleware/common.js";
 import { requireCustomer } from "../../middleware/auth.js";
@@ -24,7 +29,7 @@ function rejectMissingCustomer(req, res) {
     void invalidateBrowserSessionById(req.authSession.id, "customer_missing").catch(() => {});
   }
   res.clearCookie(config.CUSTOMER_COOKIE_NAME, { path: "/" });
-  res.status(404).json({ error: "Customer not found" });
+  res.status(404).json({ error: "Customer not found", code: "CUSTOMER_NOT_FOUND" });
 }
 
 customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(async (req, res) => {
@@ -52,6 +57,7 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
       slug: business.slug,
       plan: business.plan,
       features,
+      region: businessRegion(business),
       customer_branding: business.customer_branding_json ?? null
     },
     customer: {
@@ -76,12 +82,28 @@ customerRoutes.get("/customer/history", requireCustomer, tenantContext, asyncRou
   res.json({ ok: true, transactions: tx, redemptions: red });
 }));
 
+customerRoutes.get("/customer/statement", requireCustomer, tenantContext, asyncRoute(async (req, res) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  if (Object.keys(req.query).length) return res.status(400).json({ error: "El resumen muestra los últimos 30 días.", code: "VALIDATION_ERROR" });
+  const auth = req.customerAuth;
+  if (!req.tenantId || req.tenantId !== auth.business_id) return rejectMissingCustomer(req, res);
+  const statement = await getCustomerStatement(getDbClient(), { businessId: auth.business_id, customerId: auth.id });
+  if (!statement) return rejectMissingCustomer(req, res);
+  return res.json({ ok: true, statement });
+}));
+
 customerRoutes.get("/customer/rewards", requireCustomer, tenantContext, requirePlanFeature("rewards"), asyncRoute(async (req, res) => {
   const auth = req.customerAuth;
   const customer = await CustomerRepo.getById(auth.id);
   if (!customer || customer.business_id !== auth.business_id) return rejectMissingCustomer(req, res);
   const rewards = await RewardRepo.listByBusiness(auth.business_id);
-  res.json({ ok: true, rewards: rewards.filter(r => r.active) });
+  const business = req._resolvedBusiness?.id === auth.business_id ? req._resolvedBusiness : await BusinessRepo.getById(auth.business_id);
+  if (!business || business.id !== auth.business_id) return rejectMissingCustomer(req, res);
+  const visible = await withPublicRewardAvailability(getDbClient(), { business, rewards: rewards.filter(r => r.active) });
+  const progress = await getCustomerRewardProgress(getDbClient(), { businessId: auth.business_id, customerId: auth.id });
+  if (!progress) return rejectMissingCustomer(req, res);
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ ok: true, rewards: visible, progress });
 }));
 
 customerRoutes.get("/customer/export", requireCustomer, tenantContext, asyncRoute(async (req, res) => {

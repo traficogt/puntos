@@ -3,7 +3,7 @@
 Self-hosted loyalty platform for Guatemala with QR-based customer cards, staff scanning, rewards, analytics, and offline-capable web clients.
 
 ## Stack
-- Node.js 20
+- Node.js 24.22.3 for server/web development (`.nvmrc`); the customer app has its own Node 22.23.5 pin.
 - Express
 - PostgreSQL 16
 - Vanilla HTML/CSS/JS
@@ -72,6 +72,7 @@ npm run ops:restore:drill -- backups/<file>.sql.gz
 - [SECURITY.md](/opt/puntos/SECURITY.md)
 - [docs/OBSERVABILITY.md](/opt/puntos/docs/OBSERVABILITY.md)
 - [docs/INCIDENT_RUNBOOK.md](/opt/puntos/docs/INCIDENT_RUNBOOK.md)
+- [docs/ORDERS_API_INTEGRATION.md](/opt/puntos/docs/ORDERS_API_INTEGRATION.md)
 - [docs/ROLLBACK_RUNBOOK.md](/opt/puntos/docs/ROLLBACK_RUNBOOK.md)
 - [docs/TENANT_RLS.md](/opt/puntos/docs/TENANT_RLS.md)
 - [docs/PRODUCTION_HARDENING_STATUS.md](/opt/puntos/docs/PRODUCTION_HARDENING_STATUS.md)

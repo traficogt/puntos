@@ -1,10 +1,13 @@
+import { assertRegionAmount, regionCurrency } from "./regional-settings.js";
 import crypto from "node:crypto";
 
 import { BusinessRepo } from "../repositories/business-repository.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
 import { SecurityEventRepo } from "../repositories/security-event-repository.js";
-import { verifyQrToken } from "../../utils/qr-token.js";
-import { computePoints } from "./points-service.js";
+import { verifyQrToken, verifyQrSignature } from "../../utils/qr-token.js";
+import { verifyCapturedQr } from "./staff-offline-service.js";
+import { computePoints, computePointsWithEvidence } from "./points-service.js";
+import { completeAwardEvidence } from "./transaction-rule-evidence.js";
 import { enqueueWebhookEvent } from "./webhook-service.js";
 import { planLimits } from "../../utils/plan.js";
 import { withTransaction } from "../database.js";
@@ -13,8 +16,13 @@ import { settlePendingPointsForCustomer, expirePointsForCustomer } from "./loyal
 import { logger } from "../../utils/logger.js";
 import { config } from "../../config/index.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
+import { PlanConfigService } from "./plan-config-service.js";
+import { claimTargetedOffer } from "./targeted-offer-service.js";
 import { runPostAwardHooks } from "./staff-award-hooks.js";
 import { refreshCustomerDerivedState } from "./customer-derived-state.js";
+import { isLedgerInteger, isLedgerAmount } from "../../utils/ledger-limits.js";
+import { protectedEarningBusiness } from "./reward-promise-service.js";
+import { isNativeWalletCode, verifyNativeWalletAward } from "./native-wallet/membership.js";
 
 function id() {
   return crypto.randomUUID();
@@ -50,7 +58,7 @@ async function settleCustomerPoints(customerId, businessId) {
   });
 }
 
-async function enforceAwardGuards({ businessId, customerId, staff, guardCfg, amountQ, visits, items, points }) {
+async function enforceAwardGuards({ businessId, customerId, staff, guardCfg, amountQ, visits, items, points, currency="GTQ" }) {
   const maxAmountQ = Number(guardCfg.max_amount_q ?? 0);
   const maxVisits = Number(guardCfg.max_visits ?? 0);
   const maxItems = Number(guardCfg.max_items ?? 0);
@@ -63,7 +71,7 @@ async function enforceAwardGuards({ businessId, customerId, staff, guardCfg, amo
       action: "award.denied.max_amount_q",
       meta: { amount_q: amountQ, max_amount_q: maxAmountQ, customer_id: customerId }
     });
-    throw forbidden(`Amount exceeds max allowed (Q${maxAmountQ})`);
+    throw forbidden(`El monto supera el máximo permitido (${maxAmountQ} ${currency})`);
   }
 
   if (maxVisits > 0 && visits > maxVisits) {
@@ -99,8 +107,15 @@ async function enforceAwardGuards({ businessId, customerId, staff, guardCfg, amo
 
 const defaultDeps = {
   verifyQrToken,
+  verifyQrSignature,
+  verifyCapturedQr,
+  verifyNativeWalletAward,
   BusinessRepo,
   computePoints,
+  computePointsWithEvidence,
+  claimTargetedOffer,
+  protectedEarningBusiness,
+  getPlanFeatureOverrides: () => PlanConfigService.getPlanFeatureOverrides(),
   planLimits,
   withTransaction,
   enqueueWebhookEvent,
@@ -111,24 +126,59 @@ const defaultDeps = {
 
 export async function awardPointsWithDeps(
   deps,
-  { staff, customerQrToken, amount_q = 0, visits = 0, items = 0, source = "online", meta = {}, txId = null }
+  { staff, customerQrToken, amount_q = 0, visits = 0, items = 0, source = "online", meta = /** @type {Record<string, any>} */ ({}), txId = null, offlineGrant = null }
 ) {
   const typedDeps = deps;
   const normalizedVisits = Number.isFinite(Number(visits)) ? Math.max(0, Math.floor(Number(visits))) : 0;
   const normalizedItems = Number.isFinite(Number(items)) ? Math.max(0, Math.floor(Number(items))) : 0;
   const normalizedAmountQ = Number(amount_q ?? 0);
+  if (!isLedgerAmount(normalizedAmountQ) || !isLedgerInteger(normalizedVisits) || !isLedgerInteger(normalizedItems)) throw badRequest("El monto o las cantidades no son válidos.");
 
   let decoded;
+  let authorizationError = null;
+  const nativeWallet = isNativeWalletCode(customerQrToken);
+  if (nativeWallet && typeof txId === "string") txId = txId.toLowerCase();
+  const membershipArgs = { token: customerQrToken, staff, txId, source, grant: offlineGrant, capturedAt: meta.client_ts };
   try {
-    decoded = await typedDeps.verifyQrToken(customerQrToken);
+    decoded = nativeWallet
+      ? await (typedDeps.verifyNativeWalletAward ?? verifyNativeWalletAward)(membershipArgs)
+      : source === "offline" && offlineGrant
+        ? await (typedDeps.verifyCapturedQr ?? verifyCapturedQr)({ token: customerQrToken, grant: offlineGrant, staff, capturedAt: meta.client_ts })
+        : await typedDeps.verifyQrToken(customerQrToken);
   } catch (e) {
-    throw badRequest(e?.message ?? "Invalid QR token");
+    authorizationError = e?.statusCode ? e : badRequest(e?.message ?? "Invalid QR token");
+    if (!txId) throw authorizationError;
+    try {
+      decoded = nativeWallet
+        ? await (typedDeps.verifyNativeWalletAward ?? verifyNativeWalletAward)({ ...membershipArgs, allowRevoked: true })
+        : await (typedDeps.verifyQrSignature ?? verifyQrSignature)(customerQrToken);
+    }
+    catch { throw authorizationError; }
   }
 
   const { bid, cid, jti, exp } = decoded;
   if (bid !== staff.business_id) throw forbidden("QR token is for a different business");
 
-  const business = await typedDeps.BusinessRepo.getById(bid);
+  const requestFingerprint = crypto.createHash("sha256")
+    .update(JSON.stringify([bid, cid, staff.id, jti, normalizedAmountQ, normalizedVisits, normalizedItems])).digest("hex");
+  async function existingAward(client) {
+    const found = await client.query(`SELECT id, business_id, customer_id, staff_user_id, amount_q, visits, items, points, status, available_at, meta FROM transactions WHERE id=$1 AND business_id=$2`, [txId, bid]);
+    const t = found.rows[0];
+    if (!t) return null;
+    const fingerprint = t.meta?.staff_request_fingerprint;
+    if (t.business_id !== bid || t.customer_id !== cid || t.staff_user_id !== staff.id || Number(t.amount_q) !== normalizedAmountQ || Number(t.visits) !== normalizedVisits || Number(t.items) !== normalizedItems || ((nativeWallet || fingerprint) && fingerprint !== requestFingerprint)) throw conflict("txId already used for a different transaction payload");
+    const bal = await client.query(`SELECT points, pending_points FROM customer_balances WHERE customer_id=$1`, [cid]);
+    return { pointsAwarded: Number(t.points), newBalance: Number(bal.rows[0]?.points ?? 0), newPendingBalance: Number(bal.rows[0]?.pending_points ?? 0), customerId: cid, transactionId: t.id, status: t.status, availableAt: t.available_at, replay: true };
+  }
+  // A committed transaction remains acknowledgeable after QR/grant expiry or
+  // membership revocation. Receipt-only authorization can never create a row.
+  if (txId) {
+    const existing = await typedDeps.withTransaction(existingAward);
+    if (existing) return existing;
+  }
+  if (authorizationError) throw authorizationError;
+
+  let business = await typedDeps.BusinessRepo.getById(bid);
   if (!business) throw notFound("Business not found");
 
   await settleCustomerPoints(cid, bid);
@@ -137,14 +187,17 @@ export async function awardPointsWithDeps(
   const activeCount = await typedDeps.BusinessRepo.activeCustomerCount(bid);
   if (activeCount > limits.activeCustomers) throw forbidden("Plan limit: active customers exceeded");
 
-  const points = typedDeps.computePoints(business, { amount_q, visits, items });
+  let evaluated = typeof typedDeps.computePointsWithEvidence === "function"
+    ? typedDeps.computePointsWithEvidence(business, { amount_q, visits, items }) : null;
+  let points = evaluated ? evaluated.points : typedDeps.computePoints(business, { amount_q, visits, items });
+  if (!isLedgerInteger(points)) throw badRequest("Los puntos calculados exceden el límite permitido. Revisa la configuración del programa.");
   const guardCfg = business.program_json?.award_guard ?? {};
 
   await enforceAwardGuards({
     businessId: bid,
     customerId: cid,
     staff,
-    guardCfg,
+    guardCfg, currency: regionCurrency(business),
     amountQ: normalizedAmountQ,
     visits: normalizedVisits,
     items: normalizedItems,
@@ -157,9 +210,10 @@ export async function awardPointsWithDeps(
   if (suspiciousPointsThreshold > 0 && points >= suspiciousPointsThreshold) suspiciousReasons.push("points_threshold");
   if (suspiciousAmountThreshold > 0 && normalizedAmountQ >= suspiciousAmountThreshold) suspiciousReasons.push("amount_threshold");
 
-  const metaForInsert = suspiciousReasons.length
+  const storedMeta = { ...meta, staff_request_fingerprint: requestFingerprint };
+  const metaForInsert = /** @type {Record<string, any>} */ (suspiciousReasons.length
     ? {
-        ...(meta ?? {}),
+        ...storedMeta,
         guard: {
           suspicious: true,
           reasons: suspiciousReasons,
@@ -168,61 +222,37 @@ export async function awardPointsWithDeps(
           flagged_at: new Date().toISOString()
         }
       }
-    : (meta ?? {});
+    : storedMeta);
 
   const holdDays = Math.max(0, Math.floor(Number(business.program_json?.pending_points_hold_days ?? 0)));
   const awardStatus = holdDays > 0 ? "PENDING" : "POSTED";
   const availableAt = holdDays > 0 ? new Date(Date.now() + holdDays * 24 * 60 * 60 * 1000) : null;
   const transactionId = txId ?? id();
 
+  const planFeatureOverrides = business.program_json?.targeted_offers_enabled === true && typeof typedDeps.getPlanFeatureOverrides === "function"
+    ? await typedDeps.getPlanFeatureOverrides() : undefined;
   const result = await typedDeps.withTransaction(async (client) => {
     await lockAwardRequest(client, bid, transactionId);
-    const existingTx = await client.query(
-      `SELECT id, business_id, customer_id, points
-       FROM transactions
-       WHERE id=$1`,
-      [transactionId]
-    );
-
-    if (existingTx.rows.length) {
-      const t = existingTx.rows[0];
-      if (t.business_id !== bid || t.customer_id !== cid) throw conflict("txId already used for a different transaction");
-      const bal = await client.query(`SELECT points FROM customer_balances WHERE customer_id=$1`, [cid]);
-      await AuditRepo.log({
-        id: id(),
-        business_id: bid,
-        actor_type: "STAFF",
-        actor_id: staff.id,
-        action: "award.replay",
-        ip: null,
-        ua: null,
-        meta: withImpersonationMeta({
-          transaction_id: transactionId,
-          customer_id: cid,
-          tx_id: transactionId
-        }, staff)
-      }).catch(() => {});
-      logger.info({
-        transactionId,
-        businessId: bid,
-        customerId: cid,
-        staffId: staff.id,
-        replay: true
-      }, "Staff award replay returned existing transaction");
-      return {
-        pointsAwarded: t.points,
-        newBalance: bal.rows?.[0]?.points,
-        customerId: cid,
-        transactionId,
-        replay: true
-      };
-    }
+    const existing = txId ? await existingAward(client) : null;
+    if (existing) return existing;
 
     const cust = await client.query(
       `SELECT id FROM customers WHERE id=$1 AND business_id=$2 AND deleted_at IS NULL`,
       [cid, bid]
     );
     if (!cust.rows.length) throw notFound("Customer not found");
+
+    if (typeof typedDeps.protectedEarningBusiness === "function") {
+      business = await typedDeps.protectedEarningBusiness(client, { business, customerId: cid });
+      assertRegionAmount(normalizedAmountQ, regionCurrency(business), business);
+      evaluated = typeof typedDeps.computePointsWithEvidence === "function"
+        ? typedDeps.computePointsWithEvidence(business, { amount_q, visits, items }) : null;
+      points = evaluated ? evaluated.points : typedDeps.computePoints(business, { amount_q, visits, items });
+      if (!isLedgerInteger(points)) throw badRequest("Los puntos calculados exceden el límite permitido.");
+      await enforceAwardGuards({ businessId: bid, customerId: cid, staff, guardCfg, currency: regionCurrency(business),
+        amountQ: normalizedAmountQ, visits: normalizedVisits, items: normalizedItems, points });
+      if (business.reward_promise_cycle_id) metaForInsert.reward_promise_cycle_id = business.reward_promise_cycle_id;
+    }
 
     const insQr = await client.query(
       `INSERT INTO qr_tokens (jti, business_id, customer_id, expires_at)
@@ -245,6 +275,26 @@ export async function awardPointsWithDeps(
       throw conflict("QR token already used (replay protection)");
     }
 
+    const bonus = typeof typedDeps.claimTargetedOffer === "function"
+      ? await typedDeps.claimTargetedOffer({ client, business, customerId: cid, transactionId, source,
+        amountQ: normalizedAmountQ, visits: normalizedVisits, items: normalizedItems, basePoints: points, planFeatureOverrides })
+      : { bonusPoints: 0 };
+    const awardedPoints = points + bonus.bonusPoints;
+    if (!isLedgerInteger(awardedPoints)) throw badRequest("Los puntos calculados exceden el límite permitido.");
+    if (bonus.bonusPoints) {
+      await enforceAwardGuards({ businessId: bid, customerId: cid, staff, guardCfg, currency: regionCurrency(business),
+        amountQ: normalizedAmountQ, visits: normalizedVisits, items: normalizedItems, points: awardedPoints });
+      if (suspiciousPointsThreshold > 0 && awardedPoints >= suspiciousPointsThreshold && !suspiciousReasons.includes("points_threshold")) {
+        suspiciousReasons.push("points_threshold");
+      }
+      if (suspiciousReasons.length) metaForInsert.guard = { suspicious: true, reasons: suspiciousReasons,
+        points: awardedPoints, amount_q: normalizedAmountQ, flagged_at: new Date().toISOString() };
+    }
+
+    metaForInsert.award_evidence = completeAwardEvidence(evaluated?.evidence, {
+      bonus, holdDays, status: awardStatus, availableAt, source, capturedAt: meta.client_ts
+    });
+
     await client.query(
       `INSERT INTO transactions (id, business_id, branch_id, customer_id, staff_user_id, amount_q, visits, items, points, status, available_at, source, meta)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
@@ -257,7 +307,7 @@ export async function awardPointsWithDeps(
         normalizedAmountQ,
         normalizedVisits,
         normalizedItems,
-        points,
+        awardedPoints,
         awardStatus,
         availableAt,
         source,
@@ -273,15 +323,28 @@ export async function awardPointsWithDeps(
            updated_at=now()
        WHERE customer_id=$1
        RETURNING points, pending_points`,
-      [cid, points, awardStatus]
+      [cid, awardedPoints, awardStatus]
     );
     if (balUpd.rowCount !== 1) throw notFound("Customer balance not found");
+
+    if (nativeWallet) {
+      // Balance triggers lock passes too. Follow their balance-then-pass order
+      // to avoid a lock upgrade deadlock between concurrent purchases. A revoked
+      // membership rolls back this entire transaction, including the balance.
+      const membership = await client.query(
+        `SELECT id FROM native_wallet_passes
+         WHERE id=$1 AND business_id=$2 AND customer_id=$3 AND revoked_at IS NULL
+         FOR SHARE`,
+        [decoded.passId, bid, cid]
+      );
+      if (!membership.rows.length) throw forbidden("La membresía fue revocada o ya no está disponible.");
+    }
 
     await client.query(`UPDATE customers SET last_visit_at=now() WHERE id=$1`, [cid]);
     await refreshCustomerDerivedState(client, cid);
 
     return {
-      pointsAwarded: points,
+      pointsAwarded: awardedPoints,
       newBalance: balUpd.rows[0].points,
       newPendingBalance: balUpd.rows[0].pending_points,
       customerId: cid,
@@ -292,7 +355,7 @@ export async function awardPointsWithDeps(
   });
 
   if (!result.replay) {
-    typedDeps.enqueueWebhookEvent(bid, "points.awarded", {
+    await typedDeps.enqueueWebhookEvent(bid, "points.awarded", {
       transaction_id: result.transactionId,
       customer_id: cid,
       points: result.pointsAwarded,
@@ -316,7 +379,9 @@ export async function awardPointsWithDeps(
       }, staff)
     }).catch(() => {});
 
-    void runPostAwardHooks({
+    // Complete dependent ledger work before the HTTP request releases its
+    // tenant-scoped database client. Detached work could use a released client.
+    await runPostAwardHooks({
       deps: typedDeps,
       customerId: cid,
       businessId: bid,

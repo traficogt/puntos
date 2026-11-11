@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+  <t t-name="pf_pos_connector.CheckoutDialog">
+    <Dialog title="'Puntos Fieles'" size="'md'">
+      <div class="pf-checkout d-flex flex-column gap-3" t-att-aria-busy="state.busy ? 'true' : 'false'">
+        <div t-if="state.error" class="alert alert-danger mb-0" role="alert" t-esc="state.error"/>
+        <div t-if="state.notice" class="alert alert-info mb-0" role="status" t-esc="state.notice"/>
+        <t t-if="intent">
+          <strong t-esc="intent.rewardName"/>
+          <p t-if="intent.state === 'authorized'" class="mb-0">Reward authorized. Complete this order to confirm delivery.</p>
+          <p t-elif="intent.state === 'recorded'" class="mb-0">Reward recorded on the completed receipt.</p>
+          <p t-else="" class="mb-0">Confirmation pending. Keep this order and retry; no automatic refund is made.</p>
+          <button t-if="['pending', 'cancel_pending'].includes(intent.state)" class="btn btn-primary" t-on-click="retry" t-att-disabled="state.busy">Retry confirmation</button>
+          <t t-if="['pending', 'authorized'].includes(intent.state)">
+            <label for="pf-cancel-reason">Reason for cancelling the unpaid reward</label>
+            <input id="pf-cancel-reason" class="form-control" t-model="state.reason" maxlength="500" t-att-disabled="state.busy"/>
+            <button class="btn btn-outline-danger" t-on-click="cancelReward" t-att-disabled="state.busy || state.reason.trim().length &lt; 3">Cancel PF reward and restore points</button>
+          </t>
+        </t>
+        <t t-else="">
+          <form class="d-flex flex-column gap-2" t-on-submit.prevent="lookup">
+            <label for="pf-customer-qr">Scan or paste the customer’s PF QR card</label>
+            <input id="pf-customer-qr" t-ref="qrInput" class="form-control form-control-lg" type="password" autocomplete="off" t-model="state.token" t-att-disabled="state.busy" autofocus="autofocus"/>
+            <button class="btn btn-primary" type="submit" t-att-disabled="state.busy || !state.token.trim()">Find rewards</button>
+          </form>
+          <t t-if="state.customer">
+            <p class="mb-0"><strong t-esc="state.customer.name || 'PF customer'"/> · <t t-esc="state.customer.points"/> points</p>
+            <p t-if="!state.rewards.length" class="mb-0">No rewards are available for this card at this checkout.</p>
+            <div t-foreach="state.rewards" t-as="reward" t-key="reward.rewardId" class="border rounded p-3 d-flex align-items-center gap-3">
+              <div class="flex-grow-1"><strong t-esc="reward.rewardName"/><div><t t-esc="reward.pointsCost"/> points · <t t-esc="availabilityLabel(reward)"/></div></div>
+              <button class="btn btn-primary" t-on-click="() => this.redeem(reward)" t-att-disabled="state.busy || !canRedeem(reward)">Redeem</button>
+            </div>
+          </t>
+        </t>
+      </div>
+      <t t-set-slot="footer"><button class="btn btn-secondary" t-on-click="props.close" t-att-disabled="state.busy">Close</button></t>
+    </Dialog>
+  </t>
+</templates>

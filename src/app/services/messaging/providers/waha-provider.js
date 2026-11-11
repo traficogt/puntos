@@ -1,30 +1,25 @@
-function toChatId(phone) {
-  return `${String(phone || "").replace(/\D+/g, "")}@c.us`;
-}
+import { internationalPhoneDigits, MessageProviderError, providerReceipt, providerUrl, sendProviderJson } from './http-provider.js';
 
 export function createWahaProvider({ config, fetchImpl = fetch }) {
+  const url = providerUrl(config.WAHA_BASE_URL, 'api/sendText');
+  const ready = Boolean(url && config.WAHA_API_KEY?.trim());
   return {
-    name: "waha",
+    name: 'waha',
     canSend({ destinations }) {
-      return Boolean(destinations?.phone && config.WAHA_BASE_URL);
+      return Boolean(ready && internationalPhoneDigits(destinations?.phone));
     },
     async send({ destinations, body }) {
-      const url = new URL("/api/sendText", config.WAHA_BASE_URL).toString();
-      const resp = await fetchImpl(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(config.WAHA_API_KEY ? { Authorization: `Bearer ${config.WAHA_API_KEY}` } : {})
-        },
-        body: JSON.stringify({
-          session: config.WAHA_SESSION || "default",
-          chatId: toChatId(destinations.phone),
-          text: body
-        })
+      const phone = internationalPhoneDigits(destinations?.phone);
+      if (!ready || !phone) throw new MessageProviderError('MESSAGE_PROVIDER_NOT_READY');
+      const data = await sendProviderJson({
+        url,
+        headers: { 'X-Api-Key': config.WAHA_API_KEY },
+        payload: { session: config.WAHA_SESSION || 'default', chatId: `${phone}@c.us`, text: body },
+        timeoutMs: config.MESSAGE_PROVIDER_TIMEOUT_MS,
+        fetchImpl
       });
-      const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(JSON.stringify(data));
-      return { ok: true, providerId: data?.id ?? data?.messageId ?? "waha" };
+      const messageId = typeof data?.id === 'string' ? data.id : data?.id?._serialized ?? data?.id?.id ?? data?.messageId;
+      return { ok: true, providerId: providerReceipt('waha', messageId) };
     }
   };
 }

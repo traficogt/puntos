@@ -13,7 +13,7 @@ export const CreateSegmentSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(500).optional(),
   segment_type: z.enum(["rfm", "behavioral", "custom"]),
-  criteria: z.record(z.any()).default({}),
+  criteria: z.record(z.string(), z.any()).default({}),
   auto_update: z.boolean().optional(),
   color: z.string().max(20).optional()
 });

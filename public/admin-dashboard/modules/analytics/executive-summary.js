@@ -1,3 +1,4 @@
+import { regionalMoney } from "/lib.js";
 function formatCount(value, fallback = "--") {
   if (value === null || value === undefined || value === "") return fallback;
   const num = Number(value);
@@ -9,7 +10,7 @@ function formatCurrency(value, fallback = "--") {
   if (value === null || value === undefined || value === "") return fallback;
   const num = Number(value);
   if (!Number.isFinite(num)) return String(value);
-  return `Q${new Intl.NumberFormat("es-GT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)}`;
+  return regionalMoney(num);
 }
 
 function formatPercent(value, fallback = "--") {

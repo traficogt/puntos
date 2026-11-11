@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 COMPOSE_ARGS=(-f docker-compose.e2e.standalone.yml -p "${E2E_COMPOSE_PROJECT:-puntos-live-integration}")
 INTERNAL_BASE_URL="${TEST_API_URL:-http://api:3001}"
+# In-network smoke checks must use the same host as the configured browser shells.
+export E2E_APP_ORIGIN="${E2E_APP_ORIGIN:-$INTERNAL_BASE_URL}"
+export E2E_MARKETING_ORIGIN="${E2E_MARKETING_ORIGIN:-$INTERNAL_BASE_URL}"
 random_secret() {
   node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))"
 }
@@ -64,12 +67,11 @@ echo "[live] Running super-admin smoke gate under the restricted role..."
 docker compose "${COMPOSE_ARGS[@]}" run --rm \
   -e TEST_API_URL="$INTERNAL_BASE_URL" \
   api \
-  node src/scripts/deploy-smoke.mjs --base-url "$INTERNAL_BASE_URL" --require-super-login
+  node src/scripts/deploy-smoke.mjs --base-url "$INTERNAL_BASE_URL" --require-super-login --super-cookie-name pf_super
 
 echo "[live] Running owner-authenticated ledger certification smoke..."
 docker compose "${COMPOSE_ARGS[@]}" run --rm \
   -e TEST_API_URL="$INTERNAL_BASE_URL" \
-  -e SUPER_ADMIN_EMAIL="superadmin@example.com" \
   -e SUPER_ADMIN_PASSWORD="$E2E_SUPER_ADMIN_PASSWORD" \
   api \
   node src/scripts/live-ledger-certification-check.mjs
@@ -77,7 +79,6 @@ docker compose "${COMPOSE_ARGS[@]}" run --rm \
 echo "[live] Running owner-authenticated ledger correction smoke..."
 docker compose "${COMPOSE_ARGS[@]}" run --rm \
   -e TEST_API_URL="$INTERNAL_BASE_URL" \
-  -e SUPER_ADMIN_EMAIL="superadmin@example.com" \
   -e SUPER_ADMIN_PASSWORD="$E2E_SUPER_ADMIN_PASSWORD" \
   api \
   node src/scripts/live-ledger-correction-check.mjs
@@ -98,7 +99,6 @@ docker compose "${COMPOSE_ARGS[@]}" run --rm \
 echo "[live] Running duplicate redeem/refund ledger check..."
 docker compose "${COMPOSE_ARGS[@]}" run --rm \
   -e TEST_API_URL="$INTERNAL_BASE_URL" \
-  -e SUPER_ADMIN_EMAIL="superadmin@example.com" \
   -e SUPER_ADMIN_PASSWORD="$E2E_SUPER_ADMIN_PASSWORD" \
   api \
   node src/scripts/live-staff-ledger-check.mjs

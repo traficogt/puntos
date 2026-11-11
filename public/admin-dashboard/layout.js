@@ -1,4 +1,5 @@
 const PROGRAM_FRAGMENT_PATH = "/admin-dashboard/fragments/program.html";
+const POS_FRAGMENT_PATH = "/admin-dashboard/fragments/pos-integration.html";
 const TAB_FRAGMENT_PATHS = [
   "/admin-dashboard/fragments/branding.html",
   "/admin-dashboard/fragments/rewards.html",
@@ -35,8 +36,9 @@ export async function ensureAdminDashboardLayout() {
   if (!programHost || !tabHost) return;
   if (programHost.dataset.loaded === "true" && tabHost.dataset.loaded === "true") return;
 
-  const [programHtml, ...tabFragments] = await Promise.all([
+  const [programHtml, posHtml, ...tabFragments] = await Promise.all([
     loadFragment(PROGRAM_FRAGMENT_PATH),
+    loadFragment(POS_FRAGMENT_PATH),
     ...TAB_FRAGMENT_PATHS.map((path) => loadFragment(path))
   ]);
 
@@ -46,7 +48,14 @@ export async function ensureAdminDashboardLayout() {
   });
 
   programHost.replaceChildren(parseFragment(programHtml.trim()));
+  programHost.querySelector("#posIntegrationHost")?.replaceChildren(parseFragment(posHtml.trim()));
   tabHost.replaceChildren(tabContent);
+  const params = new URLSearchParams(location.search);
+  const setup = params.get("configurar") || params.get("setup");
+  if (["program", "pos", "puntos", "punto-de-venta"].includes(setup || "")) {
+    const disclosure = programHost.closest("details");
+    if (disclosure) disclosure.open = true;
+  }
   programHost.dataset.loaded = "true";
   tabHost.dataset.loaded = "true";
 }

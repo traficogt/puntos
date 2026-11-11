@@ -1,7 +1,9 @@
+import {runWithDbContext} from '../../src/app/database.js';
+import {BusinessRepo} from '../../src/app/repositories/business-repository.js';
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { normalizePaymentWebhook } from "../../src/app/services/payment-webhook-normalizer.js";
-import { processPaymentWebhook } from "../../src/app/services/payment-webhook-service.js";
+import { processPaymentWebhook, resolvePaymentWebhookEventForBusiness } from "../../src/app/services/payment-webhook-service.js";
 import { config } from "../../src/config/index.js";
 
 describe("payment-webhook-service", () => {
@@ -81,4 +83,19 @@ describe("payment-webhook-service", () => {
       config.PAYMENT_WEBHOOK_HMAC_SECRETS = previousHmacSecrets;
     }
   });
+});
+
+it('hands off normalized and stored payment currency without changing replay metadata',async t=>{
+  const previous=config.PAYMENT_WEBHOOK_REQUIRE_AUTH;config.PAYMENT_WEBHOOK_REQUIRE_AUTH=false;
+  t.mock.method(BusinessRepo,'getPublicBySlug',async()=>({id:'business-fixture'}));
+  let event={id:'event-fixture',status:'RECEIVED',business_slug:'fixture',business_id:'business-fixture',provider:'cubo',provider_event_id:'fixture-event',currency:'USD',amount_q:10};
+  const client={query:async(sql)=>({rows:sql.includes('payment_webhook_events')&&!sql.trim().startsWith('UPDATE')?[event]:[],rowCount:1})};
+  const awards=[];const dependencies={award:async input=>{awards.push(input);return{ok:true,transactionId:'transaction-fixture',customerId:'customer-fixture',pointsAwarded:10,status:'POSTED',availableAt:null,replay:false};}};
+  try{
+    await runWithDbContext({client,tenantId:null,platformAdmin:false},()=>processPaymentWebhook({provider:'cubo',payload:{transaction_id:'fixture-event',status:'PAID',amount:10,currency:'USD',metadata:{businessSlug:'fixture',customerId:'customer-fixture'}},secretHeader:undefined},dependencies));
+    assert.equal(awards[0].expectedCurrency,'USD');assert.equal(awards[0].meta.currency,'USD');
+    event={...event,status:'PENDING_MAPPING'};
+    await runWithDbContext({client,tenantId:'business-fixture',platformAdmin:false},()=>resolvePaymentWebhookEventForBusiness({businessId:'business-fixture',eventId:'event-fixture',customerId:'customer-fixture',customerPhone:undefined},dependencies));
+    assert.equal(awards[1].expectedCurrency,'USD');assert.deepEqual(awards[1].meta,{provider:'cubo',payment_event_id:'fixture-event',resolved_manually:true});
+  }finally{config.PAYMENT_WEBHOOK_REQUIRE_AUTH=previous;}
 });

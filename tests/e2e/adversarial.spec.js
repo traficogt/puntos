@@ -17,7 +17,7 @@ async function createBusinessViaUi(page) {
   const businessName = `Cafe ADV ${token}`;
   const email = `owner-adv-${token}@example.com`;
   const password = "OrchardLanternMarble2026!";
-  await page.goto("/admin");
+  await page.goto("/admin", { waitUntil: "domcontentloaded" });
   await page.fill("#businessName", businessName);
   await page.fill("#email", email);
   await page.fill("#password", password);
@@ -38,7 +38,7 @@ test("adversarial: same QR token cannot be replayed", async ({ page }) => {
   const out = await createBusinessViaUi(page);
   const phone = `5555${Math.floor(1000 + Math.random() * 8999)}`;
 
-  await page.goto(`/join/${out.slug}`);
+  await page.goto(`/join/${out.slug}`, { waitUntil: "domcontentloaded" });
   await page.fill("#phone", phone);
   await page.fill("#name", "Cliente Replay");
   const reqCodeRespPromise = page.waitForResponse((resp) =>
@@ -54,7 +54,7 @@ test("adversarial: same QR token cannot be replayed", async ({ page }) => {
   await page.click("#btnVerify");
   await page.waitForURL(/\/c$/);
 
-  await page.goto("/staff/login");
+  await page.goto("/staff/login", { waitUntil: "domcontentloaded" });
   await page.fill("#email", out.email);
   await page.fill("#password", out.password);
   const loginRespPromise = page.waitForResponse((resp) =>
@@ -63,8 +63,9 @@ test("adversarial: same QR token cannot be replayed", async ({ page }) => {
   await page.click("#btnLogin");
   const loginResp = await loginRespPromise;
   expect(loginResp.ok(), "staff login should succeed").toBeTruthy();
-  await page.goto("/staff");
-  await page.goto("/c");
+  await page.waitForURL(/\/admin-dashboard(?:\.html)?$/);
+  await page.goto("/staff", { waitUntil: "domcontentloaded" });
+  await page.goto("/c", { waitUntil: "domcontentloaded" });
 
   const qr = await apiPost(page, "/api/public/customer/qr", {}, { csrf: true });
   expectOk(qr, "qr token should be issued");
@@ -78,6 +79,12 @@ test("adversarial: same QR token cannot be replayed", async ({ page }) => {
   const second = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 12, txId }, { csrf: true });
   expectOk(second, "duplicate award with same txId should replay cleanly");
   expect(second.body?.transactionId).toBe(first.body?.transactionId);
+
+  const differentId = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 12, txId: globalThis.crypto.randomUUID() }, { csrf: true });
+  expect(differentId.status, "a consumed QR cannot create another transaction UUID").toBe(409);
+
+  const changedAmount = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 13, txId }, { csrf: true });
+  expect(changedAmount.status, "a repeated UUID cannot change the original award amount").toBe(409);
 });
 
 test("adversarial: csrf is required for staff logout", async ({ page }) => {

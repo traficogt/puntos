@@ -20,6 +20,15 @@ import {
 import { businessRegisterSchema } from "../../src/utils/schemas.js";
 
 describe("password security", () => {
+  it("verifies fixed password hashes created before the dependency upgrade", async () => {
+    // Synthetic fixtures created with bcryptjs 2.4.3 and argon2 0.44.0.
+    const password = "Dependency migration legacy fixture";
+    for (const hash of ["$2a$04$XGrJ1nL0DzzwysIb7ngSke5TVIKdCRQ104oAZqcuOwwy2OsCAzCM.", "$argon2id$v=19$m=19456,t=2,p=1$dimD8DtrvoyeZ3i0S98Fww$PVK/nNQ+8n4h1I7uN3BfpkV1woWU4mJJ3XHMc5VmENo"]) {
+      assert.equal(await verifyPassword(password, hash), true);
+      assert.equal(await verifyPassword("incorrect fixture password", hash), false);
+    }
+  });
+
   it("hashes new passwords with argon2id and verifies them", async () => {
     const password = "Correct horse battery staple 2026";
     const hash = await hashPassword(password);

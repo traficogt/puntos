@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { describe, it } from "node:test";
+import { beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { config } from "../../src/config/index.js";
+import { resolveJoinCode } from "./_support/dev-join-code.js";
 
 const runIntegration = process.env.RUN_INTEGRATION === "true";
 const integrationDescribe = runIntegration ? describe : describe.skip;
@@ -34,42 +35,16 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function runHelperScript(scriptName, args) {
-  let output = "";
-  try {
-    output = execFileSync("docker", [
-      "compose",
-      "exec",
-      "-T",
-      "api",
-      "node",
-      `src/scripts/${scriptName}`,
-      ...args
-    ], {
-      cwd: process.cwd(),
-      env: process.env,
-      encoding: "utf8"
-    });
-  } catch {
-    output = execFileSync("node", [
-      `src/scripts/${scriptName}`,
-      ...args
-    ], {
-      cwd: process.cwd(),
-      env: process.env,
-      encoding: "utf8"
-    });
-  }
-  return JSON.parse(String(output || "{}"));
-}
-
 integrationDescribe("Staff ledger idempotency integration", () => {
   const baseUrl = process.env.TEST_API_URL || "http://localhost:3001";
   const browserOrigin = new URL(baseUrl).origin;
   const superEmail = process.env.SUPER_ADMIN_EMAIL;
   const superPassword = process.env.SUPER_ADMIN_PASSWORD;
-  const forwardedFor = process.env.TEST_CLIENT_IP
-    || `198.51.100.${Math.max(10, Math.floor(Math.random() * 200))}`;
+  let forwardedFor;
+  beforeEach(() => {
+    forwardedFor = process.env.TEST_CLIENT_IP
+      || `198.19.${crypto.randomInt(1, 255)}.${crypto.randomInt(1, 255)}`;
+  });
 
   async function request(jar, path, options = {}) {
     const headers = {
@@ -144,7 +119,7 @@ integrationDescribe("Staff ledger idempotency integration", () => {
     });
     assert.equal(impersonate.status, 200);
     for (const [key, value] of superJar.entries()) {
-      if (key.startsWith("__Host-pf_staff") || key.startsWith("pf_csrf")) ownerJar.set(key, value);
+      if (key === config.STAFF_COOKIE_NAME || key.startsWith("pf_csrf")) ownerJar.set(key, value);
     }
 
     return { businessId, businessSlug };
@@ -152,16 +127,17 @@ integrationDescribe("Staff ledger idempotency integration", () => {
 
   async function createCustomerAndQr(customerJar, businessSlug) {
     const customerPhone = `+50255${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`;
-    const session = runHelperScript("dev-create-customer-session.mjs", [
-      "--slug",
-      businessSlug,
-      "--phone",
-      String(customerPhone),
-      "--name",
-      "Ledger Test Customer"
-    ]);
-    assert.ok(session?.customer_id && session?.token);
-    customerJar.set("__Host-pf_customer", session.token);
+    const joinPath = `/api/public/business/${encodeURIComponent(businessSlug)}/join`;
+    const requested = await request(customerJar, `${joinPath}/request-code`, {
+      method: "POST", body: JSON.stringify({ phone: customerPhone, name: "Ledger Test Customer" })
+    });
+    assert.equal(requested.status, 200);
+    const code = resolveJoinCode({ requestCodeData: requested.data, businessSlug, phone: customerPhone });
+    const verified = await request(customerJar, `${joinPath}/verify`, {
+      method: "POST", body: JSON.stringify({ phone: customerPhone, code, name: "Ledger Test Customer" })
+    });
+    assert.equal(verified.status, 200);
+    assert.ok(customerJar.get(config.CUSTOMER_COOKIE_NAME));
 
     const me = await request(customerJar, "/api/customer/me");
     assert.equal(me.status, 200);
@@ -174,7 +150,7 @@ integrationDescribe("Staff ledger idempotency integration", () => {
     assert.equal(qr.status, 200);
     assert.ok(qr.data?.token);
 
-    return { customerId: session.customer_id, qrToken: qr.data.token };
+    return { customerId: verified.data.customer.id, qrToken: qr.data.token };
   }
 
   it("deduplicates concurrent reward redeem requests by requestId", async () => {

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 function cliArg(name, fallback = "") {
   const index = process.argv.indexOf(name);

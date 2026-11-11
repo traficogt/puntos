@@ -1,3 +1,4 @@
+import { dateTimeSchema } from '../../../utils/date-time-schema.js';
 import { Router } from "express";
 import { z } from "zod";
 import { asyncRoute } from "../../../middleware/common.js";
@@ -17,11 +18,11 @@ const auditQuerySchema = z.object({
   ),
   from: z.preprocess(
     (v) => (v === "" || v === null ? undefined : v),
-    z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.string().datetime()]).optional()
+    z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), dateTimeSchema()]).optional()
   ),
   to: z.preprocess(
     (v) => (v === "" || v === null ? undefined : v),
-    z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.string().datetime()]).optional()
+    z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), dateTimeSchema()]).optional()
   )
 });
 

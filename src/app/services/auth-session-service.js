@@ -129,7 +129,7 @@ export async function createBrowserSession({
   reauthVerified = false,
   mfaVerified = false,
   meta = {}
-}) {
+}, transactionQuery = null) {
   const token = randomSessionToken();
   const tokenHash = hashSessionToken(token);
   const createdAt = now();
@@ -156,7 +156,10 @@ export async function createBrowserSession({
     meta: meta && typeof meta === "object" ? meta : {}
   };
 
-  if (sessionMode() === "memory") {
+  // An explicit executor keeps credential consumption and issuance in one transaction.
+  if (transactionQuery) {
+    await AuthSessionRepo.create(record, transactionQuery);
+  } else if (sessionMode() === "memory") {
     memoryCreate(record);
   } else {
     await withTransaction(async (client) => {

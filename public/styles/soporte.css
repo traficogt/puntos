@@ -1,0 +1,59 @@
+/* Support extends the existing marketing typography and palette. */
+.support-nav { display: flex; align-items: center; gap: 28px; font-size: 13px; font-weight: 500; }
+.support-nav a { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; }
+.support-nav a:hover { color: var(--accent); text-decoration: underline; }
+.support-nav svg { width: 18px; height: 18px; }
+.support-intro { display: grid; grid-template-columns: 1.15fr 1fr; gap: clamp(36px, 6vw, 88px); align-items: start; padding-block: 76px 80px; }
+.support-welcome { padding-block: 18px; }
+.support-welcome h1 { font-size: clamp(48px, 5.2vw, 74px); line-height: 1.08; }
+.support-welcome > p { max-width: 43ch; margin-top: 28px; font-size: 17px; color: var(--muted); }
+.support-welcome .text-link { margin-top: 24px; }
+.support-contact { background: var(--gold); padding: clamp(24px, 3vw, 40px); border-radius: 12px; }
+.support-contact h2 { font-size: clamp(28px, 3vw, 36px); line-height: 1.15; letter-spacing: -.025em; }
+.support-contact > p { margin-top: 16px; font-size: 14px; }
+.support-email { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px; min-height: 48px; font: 600 clamp(19px, 2vw, 25px)/1.4 var(--brand-font); letter-spacing: -.02em; text-decoration: underline; overflow-wrap: anywhere; }
+.support-email:hover { color: var(--accent-hover); }
+.support-contact .support-mail-note { font-size: 12px; margin-top: 0; color: #645132; }
+.support-message-guide { border-top: 1px solid #c9b77e; margin-top: 24px; padding-top: 22px; }
+.support-message-guide h3 { font-size: 17px; }
+.support-message-guide ul { margin: 12px 0 0; padding-left: 19px; font-size: 14px; line-height: 1.7; }
+.support-message-guide li + li { margin-top: 5px; }
+.support-message-guide p { font-size: 12px; color: #645132; margin-top: 16px; }
+.support-answers { display: grid; grid-template-columns: .8fr 1.5fr; gap: clamp(36px, 6vw, 88px); padding-block: 72px 88px; border-top: 1px solid var(--line); }
+.support-section-intro h2 { font-size: clamp(38px, 4vw, 52px); line-height: 1.12; }
+.support-section-intro p { max-width: 28ch; color: var(--muted); font-size: 15px; margin-top: 22px; }
+.support-faq summary { font-size: 18px; line-height: 1.5; gap: 24px; padding-block: 22px; }
+.support-faq .support-answer { padding-bottom: 24px; }
+.support-faq .support-answer p { padding: 0; max-width: 68ch; font-size: 15px; }
+.support-faq .support-answer p + p { margin-top: 14px; }
+.support-answer a { color: var(--accent); text-decoration: underline; overflow-wrap: anywhere; }
+.support-business { padding-block: 48px; background: #e4eadc; }
+.support-business-inner { display: flex; align-items: center; justify-content: space-between; gap: 48px; }
+.support-business h2 { font-size: clamp(30px, 3.2vw, 42px); line-height: 1.15; }
+.support-business p { max-width: 65ch; margin-top: 16px; font-size: 15px; color: #4f5945; }
+.support-business .button { flex-shrink: 0; }
+.support-footer .footer-bottom nav { flex-wrap: wrap; }
+@media (max-width: 900px) {
+  .support-intro { grid-template-columns: 1fr; padding-block: 44px 56px; gap: 28px; }
+  .support-welcome { padding: 0; }
+  .support-welcome h1 { font-size: clamp(45px, 8vw, 64px); }
+  .support-welcome > p { max-width: 60ch; }
+  .support-contact { max-width: 660px; width: 100%; }
+  .support-nav a:first-child { display: none; }
+  .support-answers { grid-template-columns: 1fr; gap: 30px; padding-block: 48px 56px; }
+  .support-section-intro h2 br { display: none; }
+  .support-section-intro p { max-width: 55ch; margin-top: 16px; }
+  .support-business-inner { flex-direction: column; align-items: flex-start; gap: 24px; }
+}
+@media (max-width: 520px) {
+  .page-support .header-inner { flex-wrap: wrap; gap: 4px 20px; padding-block: 14px; }
+  .support-nav { font-size: 12px; }
+  .support-nav a { min-height: 36px; }
+  .support-welcome > p { margin-top: 22px; font-size: 16px; }
+  .support-faq summary { font-size: 17px; }
+  .support-contact { padding: 24px; }
+  .support-email { font-size: clamp(17px, 5vw, 20px); gap: 8px; }
+  .support-email svg { width: 18px; height: 18px; }
+  .support-business { padding-block: 36px; }
+  .support-footer .footer-bottom { flex-wrap: wrap; gap: 16px; }
+}

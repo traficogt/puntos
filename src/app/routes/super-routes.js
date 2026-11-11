@@ -160,7 +160,7 @@ superRoutes.post("/public/super/email-change/confirm", strictRateLimit, asyncRou
 
 superRoutes.post("/super/logout", requireSuperAdmin, csrfProtect, asyncRoute(async (req, res) => {
   if (req.authSession?.id) {
-    await invalidateBrowserSessionById(req.authSession.id, "logout").catch(() => {});
+    await invalidateBrowserSessionById(req.authSession.id, "logout");
   }
   res.clearCookie(config.SUPER_COOKIE_NAME, { path: "/" });
   res.json({ ok: true });

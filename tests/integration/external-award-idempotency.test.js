@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import pg from "pg";
 
 import { awardFromExternalEventWithDeps } from "../../src/app/services/external-award-service.js";
 import { BusinessRepo } from "../../src/app/repositories/business-repository.js";
@@ -50,12 +51,24 @@ async function createFixture() {
 
 after(async () => {
   if (!createdBusinessIds.length) return;
-  await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => {
-    for (const businessId of createdBusinessIds.splice(0)) {
-      await dbQuery("DELETE FROM businesses WHERE id = $1", [businessId]);
-    }
+  // Fixture deletion requires the test administrator; the application role
+  // deliberately cannot delete businesses. Keep the award itself restricted.
+  const client = new pg.Client({
+    host: process.env.TEST_DB_HOST || process.env.DB_HOST || "localhost",
+    port: Number(process.env.TEST_DB_PORT || process.env.DB_PORT || 5432),
+    database: process.env.TEST_DB_NAME || process.env.DB_NAME || "puntos",
+    user: process.env.TEST_DB_USER || process.env.DB_MIGRATIONS_USER || process.env.DB_USER || "postgres",
+    password: process.env.TEST_DB_PASSWORD || process.env.DB_MIGRATIONS_PASSWORD || process.env.DB_PASSWORD || ""
   });
-  await closeDatabase().catch(() => {});
+  try {
+    await client.connect();
+    for (const businessId of createdBusinessIds.splice(0)) {
+      await client.query("DELETE FROM businesses WHERE id = $1", [businessId]);
+    }
+  } finally {
+    await client.end().catch(() => {});
+    await closeDatabase().catch(() => {});
+  }
 });
 
 integrationDescribe("External award idempotency integration", () => {
@@ -63,6 +76,7 @@ integrationDescribe("External award idempotency integration", () => {
     const { businessId, customerId, slug, pointsAwarded } = await createFixture();
     const externalEventId = `evt-${crypto.randomUUID()}`;
 
+    let holdDays = 0;
     const deps = {
       withTransaction,
       setCurrentTenant,
@@ -71,6 +85,7 @@ integrationDescribe("External award idempotency integration", () => {
         getById: async (id) => (id === businessId ? {
           id: businessId,
           program_json: {
+            pending_points_hold_days: holdDays,
             external_awards: {
               enabled: true,
               api_key: "test-secret"
@@ -86,7 +101,7 @@ integrationDescribe("External award idempotency integration", () => {
       timingSafeEqualString: (a, b) => a === b
     };
 
-    const invoke = (metaSource) => runWithDbContext({ tenantId: null, platformAdmin: false, webhookIngest: false }, () => (
+    const invoke = (meta) => runWithDbContext({ tenantId: null, platformAdmin: false, webhookIngest: false }, () => (
       awardFromExternalEventWithDeps(deps, {
         businessSlug: slug,
         apiKey: undefined,
@@ -96,21 +111,25 @@ integrationDescribe("External award idempotency integration", () => {
         amount_q: 50,
         visits: 1,
         items: 2,
-        meta: { source: metaSource },
+        meta,
         skipApiKeyCheck: true
       })
     ));
 
-    const [first, second] = await Promise.all([
-      invoke("integration-a"),
-      invoke("integration-b")
-    ]);
+    const meta = { source: "integration", receipt: { amount: 50, currency: "GTQ" } };
+    const [first, second] = await Promise.all([invoke(meta), invoke(meta)]);
 
     assert.equal(first.ok, true);
     assert.equal(second.ok, true);
     assert.equal(first.transactionId, second.transactionId);
     assert.equal(Number(first.pointsAwarded), Number(second.pointsAwarded));
     assert.ok(first.replay === true || second.replay === true);
+    holdDays = 3;
+    const replay = await invoke({ receipt: { currency: "GTQ", amount: 50 }, source: "integration" });
+    assert.equal(replay.transactionId, first.transactionId);
+    assert.equal(replay.status, "POSTED");
+    assert.equal(replay.replay, true);
+    await assert.rejects(invoke({ ...meta, source: "changed-payload" }), { statusCode: 409, message: /different payload/ });
 
     const { rows: txRows } = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => (
       dbQuery(

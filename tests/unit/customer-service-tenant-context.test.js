@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 const { verifyJoinCode } = await import("../../src/app/services/customer-service.js");
 const {
   pool,
+  transactionPool,
   getDbTenantId,
   getDbPlatformAdmin
 } = await import("../../src/app/database.js");
@@ -23,8 +24,9 @@ describe("customer service tenant context", () => {
     const codeHash = await bcrypt.hash(code, 4);
 
     const originalConnect = pool.connect;
+    const originalTransactionConnect = transactionPool.connect;
     const originalLatestValid = VerifyCodeRepo.latestValid;
-    const originalDeleteById = VerifyCodeRepo.deleteById;
+    const originalConsume = VerifyCodeRepo.consume;
     const originalGetByBusinessAndPhone = CustomerRepo.getByBusinessAndPhone;
     const originalUpdateName = CustomerRepo.updateName;
 
@@ -35,15 +37,17 @@ describe("customer service tenant context", () => {
       query: async () => ({ rows: [] }),
       release() {}
     });
+    transactionPool.connect = pool.connect;
 
     VerifyCodeRepo.latestValid = async () => {
       seenTenants.push(getDbTenantId());
       seenPlatforms.push(getDbPlatformAdmin());
       return { id: "vc-test", code_hash: codeHash };
     };
-    VerifyCodeRepo.deleteById = async () => {
+    VerifyCodeRepo.consume = async () => {
       seenTenants.push(getDbTenantId());
       seenPlatforms.push(getDbPlatformAdmin());
+      return { id: "vc-test" };
     };
     CustomerRepo.getByBusinessAndPhone = async () => {
       seenTenants.push(getDbTenantId());
@@ -76,8 +80,9 @@ describe("customer service tenant context", () => {
       assert.deepEqual(seenPlatforms, [false, false, false, false]);
     } finally {
       pool.connect = originalConnect;
+      transactionPool.connect = originalTransactionConnect;
       VerifyCodeRepo.latestValid = originalLatestValid;
-      VerifyCodeRepo.deleteById = originalDeleteById;
+      VerifyCodeRepo.consume = originalConsume;
       CustomerRepo.getByBusinessAndPhone = originalGetByBusinessAndPhone;
       CustomerRepo.updateName = originalUpdateName;
     }

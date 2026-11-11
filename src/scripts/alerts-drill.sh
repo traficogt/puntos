@@ -12,6 +12,15 @@ WORKER_BASE_URL="${ALERTS_WORKER_BASE_URL:-http://localhost:${ALERTS_WORKER_PORT
 ALERTS_TOKEN="${ALERTS_TOKEN:-test-metrics-token}"
 COMPOSE_ARGS=(-f docker-compose.e2e.standalone.yml -p "$PROJECT")
 
+random_secret() {
+  node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))"
+}
+
+E2E_APP_DB_PASSWORD="${E2E_APP_DB_PASSWORD:-$(random_secret)}"
+E2E_DB_ADMIN_PASSWORD="${E2E_DB_ADMIN_PASSWORD:-$(random_secret)}"
+E2E_SUPER_ADMIN_PASSWORD="${E2E_SUPER_ADMIN_PASSWORD:-$(random_secret)}"
+export E2E_APP_DB_PASSWORD E2E_DB_ADMIN_PASSWORD E2E_SUPER_ADMIN_PASSWORD
+
 cleanup() {
   docker compose "${COMPOSE_ARGS[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
 }

@@ -14,29 +14,29 @@
           <h2>Nuevo Logro</h2>
           <div class="grid">
             <div>
-              <label>Nombre</label>
+              <label for="achName">Nombre</label>
               <input id="achName" placeholder="Ej: Comprador frecuente"/>
               
-              <label>Descripción</label>
+              <label for="achDesc">Descripción</label>
               <textarea id="achDesc" rows="2" placeholder="Realiza 20 compras"></textarea>
               
-              <label>Icono (emoji)</label>
+              <label for="achIcon">Icono (emoji)</label>
               <input id="achIcon" placeholder="🏆"/>
             </div>
             <div>
-              <label>Tipo de requisito</label>
+              <label for="achReqType">Tipo de requisito</label>
               <select id="achReqType">
                 <option value="visits">Visitas</option>
-                <option value="spend">Gasto total (Q)</option>
+                <option value="spend">Gasto total (moneda del negocio)</option>
                 <option value="points">Puntos acumulados</option>
                 <option value="referrals">Referidos</option>
                 <option value="streak">Racha de días</option>
               </select>
               
-              <label>Valor requerido</label>
+              <label for="achReqValue">Valor requerido</label>
               <input id="achReqValue" type="number" min="1" placeholder="20"/>
               
-              <label>Puntos de recompensa</label>
+              <label for="achReward">Puntos de recompensa</label>
               <input id="achReward" type="number" min="0" value="50"/>
             </div>
           </div>

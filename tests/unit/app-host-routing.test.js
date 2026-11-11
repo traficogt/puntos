@@ -21,6 +21,9 @@ test("app route detection covers shared product paths", () => {
   assert.equal(isAppRoutePath("/join/cafe-bourbon"), true);
   assert.equal(isAppRoutePath("/c"), true);
   assert.equal(isAppRoutePath("/admin-dashboard"), true);
+  assert.equal(isAppRoutePath("/merchant/"), true);
+  assert.equal(isAppRoutePath("/merchant/index.html"), true);
+  assert.equal(isAppRoutePath("/merchant/assets/index.js"), false);
   assert.equal(isAppRoutePath("/"), false);
 });
 
@@ -58,7 +61,7 @@ test("app host sends root traffic into the app shell", () => {
     marketingOrigin: "http://localhost:3001"
   });
 
-  assert.equal(redirect, "http://app.localhost:3001/staff/login");
+  assert.equal(redirect, "http://app.localhost:3001/equipo/ingresar/");
 });
 
 test("live app host infers its own shell when configured origins are still local defaults", () => {
@@ -71,7 +74,7 @@ test("live app host infers its own shell when configured origins are still local
     marketingOrigin: "http://localhost:3001"
   });
 
-  assert.equal(redirect, "https://app.puntosfieles.com/staff/login");
+  assert.equal(redirect, "https://app.puntosfieles.com/equipo/ingresar/");
 });
 
 test("runtime config points app pages at the app origin and marketing pages at marketing origin", () => {
@@ -122,4 +125,25 @@ test("runtime config infers live app and marketing origins from the incoming hos
       shell: "web-app"
     }
   );
+});
+
+test('shared host installations serve both shells without redirect loops', () => {
+  for (const path of ['/', '/admin', '/staff/login', '/c']) assert.equal(resolveHostSplitRedirect({ host: 'localhost:3111', path, originalUrl: path, appOrigin: 'http://localhost:3111', marketingOrigin: 'http://localhost:3001' }), '');
+});
+
+
+test("Spanish browser routes move to the app host without moving resources or APIs", () => {
+  const origins = {
+    host: "puntosfieles.com",
+    appOrigin: "https://app.puntosfieles.com",
+    marketingOrigin: "https://puntosfieles.com"
+  };
+  for (const path of ["/negocio/", "/demostracion/", "/administracion/", "/crear-negocio/", "/equipo/ingresar/", "/equipo/escaner/", "/mi-tarjeta/", "/plataforma/", "/vista-previa-app/", "/registro/", "/ingresar/"]) {
+    assert.equal(isAppRoutePath(path), true, path);
+    assert.equal(resolveHostSplitRedirect({ ...origins, path, originalUrl: `${path}?token=a%2Bb` }), `https://app.puntosfieles.com${path}?token=a%2Bb`);
+  }
+  for (const path of ["/api/admin", "/negocio/recursos/index.js", "/merchant/assets/index.js", "/staff.js", "/privacidad", "/unrelated"]) {
+    assert.equal(isAppRoutePath(path), false, path);
+    assert.equal(resolveHostSplitRedirect({ ...origins, path, originalUrl: path }), "");
+  }
 });

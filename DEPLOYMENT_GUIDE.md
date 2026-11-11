@@ -3,7 +3,7 @@
 This guide describes the current production model.
 
 ## Requirements
-- Node.js 20+
+- Node.js 24.22.3 for local server tooling (`.nvmrc`); supported server range is `>=24.22.2 <25`. The reviewed Docker image pins 24.22.2 separately.
 - PostgreSQL 16+
 - A TLS-terminating reverse proxy such as Caddy or Nginx
 - An external secrets directory that is not inside the repo checkout

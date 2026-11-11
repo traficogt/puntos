@@ -5,17 +5,17 @@
           <div class="grid">
             <div class="card">
               <h3>Nueva recompensa</h3>
-              <label>Nombre</label>
+              <label for="rewardName">Nombre</label>
               <input id="rewardName" placeholder="Ej: Café gratis"/>
-              <label>Descripción</label>
+              <label for="rewardDescription">Descripción</label>
               <textarea id="rewardDescription" rows="2" placeholder="Canjeable en cualquier sucursal"></textarea>
-              <label>Costo en puntos</label>
+              <label for="rewardPointsCost">Costo en puntos</label>
               <input id="rewardPointsCost" type="number" min="1" step="1" value="100"/>
-              <label>Stock (opcional, vacío = ilimitado)</label>
+              <label for="rewardStock">Límite de canjes disponibles (vacío = ilimitado)</label>
               <input id="rewardStock" type="number" min="0" step="1" placeholder="50"/>
-              <label>Válido hasta (opcional)</label>
+              <label for="rewardValidUntil">Válido hasta (opcional)</label>
               <input id="rewardValidUntil" type="datetime-local"/>
-              <label>Sucursales permitidas (opcional)</label>
+              <label for="rewardBranchIds">Sucursales permitidas (opcional)</label>
               <select id="rewardBranchIds" multiple size="4"></select>
               <p class="small">Si no seleccionas ninguna, la recompensa aplica en todas las sucursales.</p>
               <div class="row mt-10">

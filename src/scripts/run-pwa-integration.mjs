@@ -28,7 +28,7 @@ try {
     child.on("error", reject);
     child.on("exit", (code, signal) => {
       if (code === 0) {
-        resolve();
+        resolve(undefined);
         return;
       }
       if (signal) {

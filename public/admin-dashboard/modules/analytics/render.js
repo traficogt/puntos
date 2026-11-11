@@ -1,3 +1,4 @@
+import { regionalMoney } from "/lib.js";
 import { apiUrl } from "/lib.js";
 
 /** @typedef {import("../../types.js").AdminDashboardApp} AdminDashboardApp */
@@ -22,7 +23,7 @@ export function renderAnalyticsStory($, summary) {
     `Clientes totales: ${Number(summary?.total_customers || 0)}`,
     `Nuevos 30d: ${Number(summary?.new_customers_30d || 0)}`,
     `En riesgo: ${Number(summary?.high_churn_risk_count || 0)}`,
-    `Gasto promedio: Q${Number(summary?.avg_customer_spend || 0).toFixed(2)}`
+    `Gasto promedio: ${regionalMoney(summary?.avg_customer_spend || 0)}`
   ].forEach((text) => {
     const div = document.createElement("div");
     div.className = "badge";
@@ -69,7 +70,7 @@ export function renderBranchCompareTable($, perfRows) {
   perfRows.forEach((rowData) => {
     const line = document.createElement("div");
     const label = rowData.branch_code ? `${rowData.branch_name} (${rowData.branch_code})` : rowData.branch_name;
-    line.textContent = `${label}: Q${Number(rowData.revenue_30d || 0).toFixed(2)} • Tx ${Number(rowData.tx_30d || 0)} • Canjes ${Number(rowData.redemptions_30d || 0)}`;
+    line.textContent = `${label}: ${regionalMoney(rowData.revenue_30d || 0)} • Tx ${Number(rowData.tx_30d || 0)} • Canjes ${Number(rowData.redemptions_30d || 0)}`;
     box.appendChild(line);
   });
 }
@@ -155,7 +156,7 @@ export function renderLedgerCertification($, payload) {
     `Estado: ${status}`,
     `Emitidos: ${Number(s.points_issued || 0)} pts • Canjeados: ${Number(s.points_redeemed || 0)} pts • Reversados: ${Number(s.points_reversed || 0)} pts • Expirados: ${Number(s.points_expired || 0)} pts`,
     `Ajustes manuales: ${Number(s.adjustment_points || 0)} pts`,
-    `Gift cards emitidas: Q${Number(s.gift_cards_issued_q || 0).toFixed(2)} • redimidas: Q${Number(s.gift_cards_redeemed_q || 0).toFixed(2)}`,
+    `Gift cards emitidas: ${regionalMoney(s.gift_cards_issued_q || 0)} • redimidas: ${regionalMoney(s.gift_cards_redeemed_q || 0)}`,
     `Riesgos abiertos: correcciones pendientes ${Number(s.pending_corrections_count || 0)} • balances negativos ${Number(s.negative_balance_count || 0)} • descuadres última conciliación ${Number(s.latest_reconciliation_mismatches || 0)}`,
     `Última conciliación completada: ${s.latest_reconciliation_completed_at ? new Date(String(s.latest_reconciliation_completed_at)).toLocaleString() : "sin registro"}`
   ].join("\n");
@@ -168,7 +169,7 @@ export function renderLedgerCertification($, payload) {
   rowsBox.textContent = dailyRows
     .slice(0, 31)
     .map((row) => (
-      `${String(row.date)} • emitidos ${Number(row.points_issued || 0)} • canjeados ${Number(row.points_redeemed || 0)} • reversados ${Number(row.points_reversed || 0)} • expirados ${Number(row.points_expired || 0)} • ajustes ${Number(row.adjustment_points || 0)} • GC emitidas Q${Number(row.gift_cards_issued_q || 0).toFixed(2)} • GC redimidas Q${Number(row.gift_cards_redeemed_q || 0).toFixed(2)} • replays ${Number(row.replay_events || 0)}`
+      `${String(row.date)} • emitidos ${Number(row.points_issued || 0)} • canjeados ${Number(row.points_redeemed || 0)} • reversados ${Number(row.points_reversed || 0)} • expirados ${Number(row.points_expired || 0)} • ajustes ${Number(row.adjustment_points || 0)} • GC emitidas ${regionalMoney(row.gift_cards_issued_q || 0)} • GC redimidas ${regionalMoney(row.gift_cards_redeemed_q || 0)} • replays ${Number(row.replay_events || 0)}`
     ))
     .join("\n");
 }
@@ -373,9 +374,9 @@ export function renderBranchBenchmark($, { branchRows, globalRows, branchLabel }
     const dateNode = document.createElement("span");
     dateNode.textContent = new Date(date).toLocaleDateString();
     const branchNode = document.createElement("span");
-    branchNode.textContent = `${branchLabel}: Q${branchRevenue.toFixed(0)}`;
+    branchNode.textContent = `${branchLabel}: ${regionalMoney(branchRevenue)}`;
     const globalNode = document.createElement("span");
-    globalNode.textContent = `Global: Q${globalRevenue.toFixed(0)}`;
+    globalNode.textContent = `Global: ${regionalMoney(globalRevenue)}`;
     const shareNode = document.createElement("strong");
     shareNode.textContent = `${share}%`;
     line.append(dateNode, branchNode, globalNode, shareNode);
@@ -402,7 +403,7 @@ export function renderSummaryTiles({ $, summary, app }) {
     card.className = "metric-tile";
     const key = document.createElement("div");
     key.className = "metric-value";
-    key.textContent = money ? `Q${value}` : String(value);
+    key.textContent = money ? regionalMoney(value) : String(value);
     const text = document.createElement("div");
     text.className = "metric-label";
     text.textContent = String(label);
@@ -479,10 +480,10 @@ export function renderRevenueTrend({ $, dashboard, app }) {
     bar.className = "trend-progress";
     bar.max = 100;
     bar.value = Math.max(4, Math.round((revenue / max) * 100));
-    bar.title = `${new Date(row.date).toLocaleDateString()} • Q${revenue.toFixed(2)}`;
+    bar.title = `${new Date(row.date).toLocaleDateString()} • ${regionalMoney(revenue)}`;
     const value = document.createElement("span");
     value.className = "small";
-    value.textContent = `Q${revenue.toFixed(2)}`;
+    value.textContent = `${regionalMoney(revenue)}`;
     line.append(label, bar, value);
     bars.appendChild(line);
   });
@@ -523,7 +524,7 @@ export function renderChurnList({ $, churnCustomers, app }) {
     risk.textContent = `Riesgo: ${(customer.churn_risk_score * 100).toFixed(0)}%`;
     const spend = document.createElement("span");
     spend.className = "badge";
-    spend.textContent = `Q${Number(customer.total_spend || 0).toFixed(2)} gastado`;
+    spend.textContent = `${regionalMoney(customer.total_spend || 0)} gastado`;
     right.append(risk, spend);
     row.append(left, right);
     div.appendChild(row);
@@ -560,7 +561,7 @@ export function renderBranchPerformance({ $, dashboard, app }) {
     track.value = Math.max(4, (Number(rowData.revenue_30d || 0) / maxRevenue) * 100);
     const value = document.createElement("span");
     value.className = "small";
-    value.textContent = `Q${Number(rowData.revenue_30d || 0).toFixed(2)} • Tx ${Number(rowData.tx_30d || 0)}`;
+    value.textContent = `${regionalMoney(rowData.revenue_30d || 0)} • Tx ${Number(rowData.tx_30d || 0)}`;
     row.append(name, track, value);
     perfContainer.appendChild(row);
   });

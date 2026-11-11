@@ -6,7 +6,7 @@ import { isSecureClientOrigin, isValidClientOrigin, normalizeOrigin } from "../u
 
 /** @typedef {import("../types/config.js").AppConfig} AppConfig */
 
-dotenv.config();
+dotenv.config({ quiet: true });
 const IS_PROD = (process.env.NODE_ENV ?? "production") === "production";
 const DEFAULT_PORT = process.env.PORT ?? 3001;
 const DEFAULT_APP_ORIGIN = `http://localhost:${DEFAULT_PORT}`;
@@ -224,9 +224,10 @@ export const config = {
   QR_PRIVATE_KEY_PEM: "",
   QR_PUBLIC_KEY_PEM: "",
 
-  // Messaging provider: dev | whatsapp_cloud | smtp_email | http_sms_gateway | waha | baileys | twilio
+  // Messaging provider: dev | whatsapp_cloud | smtp_email | http_sms_gateway | waha | evolution | baileys | twilio
   MESSAGE_PROVIDER: process.env.MESSAGE_PROVIDER ?? "dev",
   MESSAGE_PROVIDER_ORDER: parseCsv(envValue("MESSAGE_PROVIDER_ORDER", "")),
+  MESSAGE_PROVIDER_TIMEOUT_MS: Number(envValue("MESSAGE_PROVIDER_TIMEOUT_MS", "10000")),
 
   // WhatsApp Cloud API (optional)
   WA_PHONE_NUMBER_ID: envValue("WA_PHONE_NUMBER_ID", ""),
@@ -235,6 +236,9 @@ export const config = {
   WAHA_BASE_URL: envValue("WAHA_BASE_URL", ""),
   WAHA_API_KEY: envValue("WAHA_API_KEY", ""),
   WAHA_SESSION: envValue("WAHA_SESSION", "default"),
+  EVOLUTION_BASE_URL: envValue("EVOLUTION_BASE_URL", ""),
+  EVOLUTION_API_KEY: envValue("EVOLUTION_API_KEY", ""),
+  EVOLUTION_INSTANCE: envValue("EVOLUTION_INSTANCE", ""),
   BAILEYS_BASE_URL: envValue("BAILEYS_BASE_URL", ""),
   BAILEYS_SEND_URL: envValue("BAILEYS_SEND_URL", ""),
   BAILEYS_API_KEY: envValue("BAILEYS_API_KEY", ""),

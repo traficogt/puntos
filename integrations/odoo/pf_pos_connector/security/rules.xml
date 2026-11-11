@@ -1,0 +1,15 @@
+<odoo>
+  <record id="rule_connector_company" model="ir.rule">
+    <field name="name">PF connection company isolation</field><field name="model_id" ref="model_pf_pos_connector"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+  <record id="rule_outbox_company" model="ir.rule">
+    <field name="name">PF receipt company isolation</field><field name="model_id" ref="model_pf_pos_outbox"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+
+  <record id="rule_reward_mapping_company" model="ir.rule"><field name="name">PF reward_mapping company isolation</field><field name="model_id" ref="model_pf_pos_reward_mapping"/><field name="domain_force">[('company_id', 'in', company_ids)]</field></record>
+  <record id="rule_reward_fulfillment_company" model="ir.rule"><field name="name">PF reward_fulfillment company isolation</field><field name="model_id" ref="model_pf_pos_reward_fulfillment"/><field name="domain_force">[('company_id', 'in', company_ids)]</field></record>
+  <record id="rule_reward_event_company" model="ir.rule"><field name="name">PF reward_event company isolation</field><field name="model_id" ref="model_pf_pos_reward_event"/><field name="domain_force">[('company_id', 'in', company_ids)]</field></record>
+  <record id="rule_checkout_company" model="ir.rule"><field name="name">PF checkout company isolation</field><field name="model_id" ref="model_pf_pos_checkout_intent"/><field name="domain_force">[('company_id', 'in', company_ids)]</field></record>
+</odoo>

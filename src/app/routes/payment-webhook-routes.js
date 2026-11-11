@@ -14,6 +14,7 @@ import {
 import { SecurityEventRepo } from "../repositories/security-event-repository.js";
 import { tenantContext } from "../../middleware/tenant.js";
 import { getRequestIp } from "../../utils/request-ip.js";
+import { safeLogUrl } from "../../utils/logger.js";
 
 export const paymentWebhookRoutes = Router();
 
@@ -41,7 +42,7 @@ paymentWebhookRoutes.post("/public/payments/webhook/:provider", moderateRateLimi
       await SecurityEventRepo.log({
         event_type: "webhook_auth_failed",
         severity: "HIGH",
-        route: req.originalUrl || req.url,
+        route: safeLogUrl(req.originalUrl || req.url),
         method: "POST",
         ip: getRequestIp(req),
         actor_type: "ANON",
@@ -71,7 +72,7 @@ paymentWebhookRoutes.get(
 }));
 
 export const ResolveSchema = z.object({
-  customerId: z.string().uuid().optional(),
+  customerId: z.guid().optional(),
   customerPhone: z.string().min(6).optional()
 }).refine((v) => Boolean(v.customerId || v.customerPhone), {
   message: "customerId or customerPhone is required"

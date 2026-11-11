@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { copyStaffSessionCookies } from "./live-session-cookies.mjs";
 
 function arg(name, fallback = "") {
   const index = process.argv.indexOf(name);
@@ -154,25 +155,27 @@ async function createBusinessAndOwnerSession(superJar, ownerJar, suffix) {
     body: "{}"
   });
   assert(impersonate.status === 200, `impersonate failed: ${impersonate.status}`);
-  for (const [key, value] of superJar.entries()) {
-    if (key.startsWith("__Host-pf_staff") || key.startsWith("pf_csrf")) ownerJar.set(key, value);
-  }
+  copyStaffSessionCookies(superJar, ownerJar);
 
   return { businessSlug };
 }
 
 async function createCustomerAndQr(customerJar, businessSlug) {
-  const customerPhone = `+50255${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`;
-  const session = runHelperScript("dev-create-customer-session.mjs", [
+  // The direct verification-code fixture uses the same canonical digits as enrollment.
+  const customerPhone = `50255${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`;
+  const verification = runHelperScript("dev-issue-join-code.mjs", [
     "--slug",
     String(businessSlug),
     "--phone",
-    String(customerPhone),
-    "--name",
-    "Ledger Test Customer"
+    String(customerPhone)
   ]);
-  assert(session?.customer_id && session?.token, "failed to bootstrap customer session");
-  customerJar.set("__Host-pf_customer", session.token);
+  assert(verification?.code, "failed to prepare customer verification");
+  // The API must issue the session: test-mode sessions are local to its process.
+  const joined = await request(customerJar, `/api/public/business/${encodeURIComponent(businessSlug)}/join/verify`, {
+    method: "POST",
+    body: JSON.stringify({ phone: customerPhone, code: verification.code, name: "Ledger Test Customer" })
+  });
+  assert(joined.status === 200 && joined.data?.customer?.id, `customer verification failed: ${joined.status}`);
 
   const me = await request(customerJar, "/api/customer/me");
   assert(me.status === 200, `customer bootstrap failed: ${me.status}`);
@@ -185,7 +188,7 @@ async function createCustomerAndQr(customerJar, businessSlug) {
   assert(qr.status === 200, `customer qr failed: ${qr.status}`);
   assert(qr.data?.token, "missing qr token");
 
-  return { customerId: session.customer_id, qrToken: qr.data.token };
+  return { customerId: joined.data.customer.id, qrToken: qr.data.token };
 }
 
 async function main() {

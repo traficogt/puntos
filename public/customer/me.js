@@ -2,6 +2,9 @@ import { putCustomerCache } from "/idb.js";
 import { setHidden } from "/lib.js";
 import { applyWalletBranding } from "../customer-branding.js";
 import { fmtDT } from "./format.js";
+import { isCustomerAuthError } from "./session.js";
+import { renderNativeWallet } from "./native-wallet.js";
+import { renderStatement } from "./statement.js";
 import {
   renderAchievements,
   renderHistory,
@@ -27,21 +30,6 @@ import {
  */
 function safeEl($, id) {
   return /** @type {HTMLElement | HTMLInputElement | null} */ ($(id));
-}
-
-/**
- * @template T
- * @param {() => Promise<T>} load
- * @param {(error: Error) => void} [onError]
- * @returns {Promise<T | null>}
- */
-async function quietly(load, onError = () => {}) {
-  try {
-    return await load();
-  } catch (error) {
-    onError(error);
-    return null;
-  }
 }
 
 function updateSyncBadge($, isLive, updatedAt) {
@@ -75,15 +63,14 @@ function renderOfflineSections($, snapshot) {
   const hasHistory = Boolean(sections.history);
   const hasRewards = Boolean(sections.rewards?.rewards);
 
-  if (!hasHistory && !hasRewards) {
-    renderOfflineStub($);
-  }
+  renderOfflineStub($);
+  renderStatement($, sections.statement?.statement, { isLive: false, region: sections.me?.business?.region });
 
   if (hasRewards) {
-    renderRewards($, Number(me?.points ?? 0), sections.rewards.rewards);
+    renderRewards($, Number(me?.points ?? 0), sections.rewards.rewards, { progress: sections.rewards.progress, isLive: false, region: sections.me?.business?.region });
   }
   if (hasHistory) {
-    renderHistory($, sections.history.transactions, sections.history.redemptions);
+    renderHistory($, sections.history.transactions, sections.history.redemptions, sections.me?.business?.region);
   }
   if (sections.tier) {
     renderTier($, sections.tier.tier);
@@ -103,12 +90,18 @@ function renderOfflineSections($, snapshot) {
 }
 
 /**
- * @param {{ api: (path: string, opts?: RequestInit) => Promise<any>; $: (selector: string) => Element | null; toast: (message: string) => void }} deps
+ * @param {{ api: (path: string, opts?: RequestInit) => Promise<any>; $: (selector: string) => Element | null; toast: (message: string) => void; isCurrent?: () => boolean; identity?: {businessId: string, customerId: string} }} deps
  * @param {CustomerMeResponse} me
  * @param {boolean} isLive
  * @param {{ sections?: Record<string, any>, latestUpdatedAt?: string } | null} [snapshot]
  */
-export async function renderFromMe({ api, $, toast }, me, isLive, snapshot = null) {
+export async function renderFromMe({ api, $, toast, isCurrent = () => true, identity = null }, me, isLive, snapshot = null) {
+  identity ||= { businessId: me.business.id, customerId: me.customer.id };
+  if (!isCurrent()) return { status: "superseded" };
+  safeEl($, "#customerStatement")?.replaceChildren();
+  if (isLive && safeEl($, "#customerStatement")) safeEl($, "#customerStatement").textContent = "Cargando tu resumen…";
+  for (const selector of ["#rewards", "#nextReward", "#nextRewardBalance", "#nextRewardConditions", "#nextRewardEarning", "#achievements", "#referralStats", "#tierPerks", "#tx", "#red"]) safeEl($, selector)?.replaceChildren();
+  renderReferralCode($, null);
   const needLogin = safeEl($, "#needLogin");
   const main = safeEl($, "#main");
   const logout = safeEl($, "#btnLogout");
@@ -132,78 +125,82 @@ export async function renderFromMe({ api, $, toast }, me, isLive, snapshot = nul
   if (points) points.textContent = String(c?.points ?? 0);
   if (pendingPoints) pendingPoints.textContent = String(c?.pending_points ?? 0);
   if (lifetime) lifetime.textContent = String(c?.lifetime_points ?? 0);
-  if (lastVisit) lastVisit.textContent = c?.last_visit_at ? fmtDT(c.last_visit_at) : "—";
+  if (lastVisit) lastVisit.textContent = c?.last_visit_at ? fmtDT(c.last_visit_at, me.business?.region) : "—";
 
   const qrWrap = /** @type {HTMLElement | null} */ (safeEl($, "#qrWrap"));
   if (qrWrap) {
+    const owner = `${identity.businessId}:${identity.customerId}`;
+    if (qrWrap.dataset.owner && qrWrap.dataset.owner !== owner) {
+      qrWrap.replaceChildren();
+      for (const selector of ["#qrExp", "#qrHint"]) safeEl($, selector)?.replaceChildren();
+    }
+    qrWrap.dataset.owner = owner;
     qrWrap.dataset.plan = String(biz?.plan || "");
     qrWrap.dataset.logoUrl = String(biz?.customer_branding?.customer_logo_url || "");
     qrWrap.dataset.qrLogoEnabled = String(biz?.customer_branding?.qr_logo_enabled === true);
   }
 
   document.title = `Mi tarjeta • ${branding.programName}`;
+  await renderNativeWallet({ api, $, identity, isCurrent }, isLive);
+  if (!isCurrent()) return { status: "superseded" };
 
   if (isLive) {
-    await quietly(async () => {
-      const rewards = /** @type {CustomerRewardsResponse} */ (await api("/api/customer/rewards"));
-      await putCustomerCache("rewards", rewards);
-      renderRewards($, Number(c?.points ?? 0), rewards.rewards);
+    let partial = false;
+    async function loadSection(key, path, render, unavailable) {
+      if (!isCurrent()) return;
+      try {
+        const data = await api(path);
+        if (!isCurrent()) return;
+        await Promise.resolve(putCustomerCache(key, data, identity)).catch(() => {});
+        if (isCurrent()) render(data, true);
+      } catch (error) {
+        if (!isCurrent()) return;
+        if (isCustomerAuthError(error)) throw error;
+        partial = true;
+        const cached = snapshot?.sections?.[key];
+        if (cached) render(cached, false);
+        else unavailable?.();
+      }
+    }
+    await loadSection("rewards", "/api/customer/rewards", (data, fresh) => {
+      if (fresh && data.progress) {
+        if (points) points.textContent = String(data.progress.available_points);
+        if (pendingPoints) pendingPoints.textContent = String(data.progress.pending_points);
+      }
+      renderRewards($, Number(c?.points ?? 0), data.rewards, { progress: data.progress, isLive: fresh, isCurrent, region: biz?.region });
     }, () => {
-      if (snapshot?.sections?.rewards) renderRewards($, Number(c?.points ?? 0), snapshot.sections.rewards.rewards);
+      const rewards = safeEl($, "#rewards");
+      if (rewards) rewards.textContent = "No se pudieron cargar las recompensas. Intenta actualizar de nuevo.";
+      const next = safeEl($, "#nextReward");
+      if (next) next.textContent = "Recompensas pendientes de actualizar";
     });
-
-    await quietly(async () => {
-      const h = /** @type {CustomerHistoryResponse} */ (await api("/api/customer/history"));
-      await putCustomerCache("history", h);
-      renderHistory($, h.transactions, h.redemptions);
-    }, () => {
-      if (snapshot?.sections?.history) renderHistory($, snapshot.sections.history.transactions, snapshot.sections.history.redemptions);
-    });
-
-    await quietly(async () => {
-      const tierData = /** @type {CustomerTierResponse} */ (await api("/api/customer/tier"));
-      await putCustomerCache("tier", tierData);
-      renderTier($, tierData.tier);
-    }, () => {
-      if (snapshot?.sections?.tier) {
-        renderTier($, snapshot.sections.tier.tier);
-      } else {
-        const tierSection = safeEl($, "#tierSection");
-        setHidden(tierSection, true);
+    await loadSection("history", "/api/customer/history", data => renderHistory($, data.transactions, data.redemptions, me?.business?.region), () => {
+      for (const selector of ["#tx", "#red"]) {
+        const element = safeEl($, selector);
+        if (element) element.textContent = "No se pudo cargar la actividad. Intenta actualizar de nuevo.";
       }
     });
-
+    await loadSection("statement", "/api/customer/statement", (data, fresh) => renderStatement($, data.statement, { isLive: fresh, region: biz?.region }), () => renderStatement($, null, { isLive: true }));
+    if (biz?.features?.tiers) {
+      await loadSection("tier", "/api/customer/tier", data => renderTier($, data.tier), () => setHidden(safeEl($, "#tierSection"), true));
+    } else setHidden(safeEl($, "#tierSection"), true);
     if (biz?.features?.gamification) {
-      await quietly(async () => {
-        const achData = /** @type {CustomerAchievementsResponse} */ (await api("/api/customer/achievements"));
-        await putCustomerCache("achievements", achData);
-        renderAchievements($, achData);
-      }, () => {
-        if (snapshot?.sections?.achievements) renderAchievements($, snapshot.sections.achievements);
-      });
+      await loadSection("achievements", "/api/customer/achievements", data => renderAchievements($, data));
     }
-
     if (biz?.features?.referrals) {
-      await quietly(async () => {
-        const refData = /** @type {CustomerReferralCodeResponse} */ (await api("/api/customer/referral-code"));
-        await putCustomerCache("referralCode", refData);
-        renderReferralCode($, refData.referral_code);
-      }, () => {
-        if (snapshot?.sections?.referralCode) renderReferralCode($, snapshot.sections.referralCode.referral_code);
-      });
-
-      await quietly(async () => {
-        const refStats = /** @type {CustomerReferralStats} */ (await api("/api/customer/referrals"));
-        await putCustomerCache("referralStats", refStats);
-        renderReferralStats($, refStats);
-      }, () => {
-        if (snapshot?.sections?.referralStats) renderReferralStats($, snapshot.sections.referralStats);
-      });
+      await loadSection("referralCode", "/api/customer/referral-code", data => renderReferralCode($, data.referral_code));
+      await loadSection("referralStats", "/api/customer/referrals", data => renderReferralStats($, data));
     }
-    updateSyncBadge($, true, new Date().toISOString());
-  } else {
-    renderOfflineSections($, snapshot);
-    toast("Modo sin conexión: mostrando datos guardados.");
-    updateSyncBadge($, false, snapshot?.latestUpdatedAt || "");
+    if (!isCurrent()) return { status: "superseded" };
+    updateSyncBadge($, !partial, partial ? snapshot?.latestUpdatedAt : new Date().toISOString());
+    if (partial) {
+      const badge = safeEl($, "#syncBadge");
+      if (badge) badge.textContent = "Actualización incompleta";
+    }
+    return { status: partial ? "partial" : "live" };
   }
+  renderOfflineSections($, snapshot);
+  toast("Modo sin conexión: mostrando datos guardados.");
+  updateSyncBadge($, false, snapshot?.latestUpdatedAt || "");
+  return { status: "offline" };
 }

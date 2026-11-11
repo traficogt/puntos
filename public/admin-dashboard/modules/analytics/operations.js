@@ -1,3 +1,4 @@
+import { regionalMoney } from "/lib.js";
 /** @typedef {import("../../types.js").AdminDashboardApp} AdminDashboardApp */
 /** @typedef {import("../../types.js").AnalyticsOperationsController} AnalyticsOperationsController */
 
@@ -59,7 +60,7 @@ export function createAnalyticsOperationsController(app) {
     const grid = document.createElement("div");
     grid.className = "analytics-kpi-grid";
     [
-      { label: "Ingresos 30d", value: `Q${Number(roi.revenue_current_q || 0).toFixed(2)}`, delta: roi.revenue_growth_pct },
+      { label: "Ingresos 30d", value: `${regionalMoney(roi.revenue_current_q || 0)}`, delta: roi.revenue_growth_pct },
       { label: "Transacciones 30d", value: String(Number(roi.tx_current || 0)), delta: roi.tx_growth_pct },
       { label: "Tasa repetición", value: `${Number(roi.repeat_rate_pct || 0).toFixed(1)}%` },
       { label: "Tasa canje", value: `${Number(roi.redemption_rate_pct || 0).toFixed(1)}%` }
@@ -243,7 +244,7 @@ export function createAnalyticsOperationsController(app) {
         top.className = "small";
         const when = event.created_at ? new Date(event.created_at).toLocaleString() : "—";
         const amount = Number(event.amount_q || 0).toFixed(2);
-        top.textContent = `${when} • ${event.provider || "—"} • Ref: ${event.provider_event_id || event.id} • Q${amount}`;
+        top.textContent = `${when} • ${event.provider || "—"} • Ref: ${event.provider_event_id || event.id} • ${regionalMoney(amount)}`;
         card.appendChild(top);
 
         const row = document.createElement("div");

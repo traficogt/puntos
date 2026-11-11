@@ -42,6 +42,7 @@ Thumbs.db
 
 # Node
 node_modules/
+**/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -62,3 +63,10 @@ logs/
 tmp/
 temp/
 *.tmp
+
+# Server images use the compiled browser assets in public/.
+# Native projects, browser build sources and local worktrees are separate tools.
+apps/
+web/
+.worktrees/
+.impeccable/

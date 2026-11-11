@@ -1,5 +1,7 @@
-const CACHE = "pf-v33";
+const CACHE = "pf-v47";
 const CORE_ASSETS = [
+  "/crear-negocio/", "/equipo/ingresar/", "/equipo/escaner/",
+  "/mi-tarjeta/", "/administracion/", "/plataforma/", "/registro/", "/ingresar/",
   "/",
   "/admin",
   "/staff/login",
@@ -22,7 +24,13 @@ const CORE_ASSETS = [
   "/styles/admin-panels.css",
   "/styles/analytics-visuals.css",
   "/styles/responsive.css",
+  "/styles/marketing.css?v=4",
+  "/styles/customer-modern.css?v=1",
+  "/styles/operations-modern.css?v=1",
+  "/styles/pos-integration.css?v=1",
+  "/images/coffee-gathering.webp",
   "/lib.js",
+  "/theme.js",
   "/idb.js",
   "/manifest.webmanifest",
   "/icon.svg",
@@ -32,36 +40,65 @@ const CORE_ASSETS = [
   "/icon-512.png",
   "/apple-touch-icon.png",
   "/index.js",
+  "/index.js?v=6",
   "/admin.js",
   "/staff-login.js",
+  "/staff-return-path.js",
   "/staff.js",
   "/join.js",
   "/ingresar.js",
   "/customer.js",
+  "/customer-auth-entry.js",
+  "/acquisition-entry.js",
+  "/customer-branding.js",
   "/admin-dashboard.js",
   "/super.js",
   "/customer/format.js",
   "/customer/index.js",
   "/customer/load.js",
+  "/customer/growth-offers.js",
+  "/customer/reward-entitlements.js",
   "/customer/me.js",
+  "/customer/statement.js",
+  "/customer/session.js",
+  "/customer/native-wallet.js",
+  "/styles/native-wallet.css",
+  "/styles/customer-enrollment.css",
+  "/admin-dashboard/modules/customer-enrollment.js",
+  "/images/wallet/apple-wallet-es-mx.svg",
+  "/styles/wallet-enrollment.css",
+  "/images/wallet/google-wallet-es-419.svg",
+  "/customer/rewards.js",
   "/customer/network.js",
   "/customer/qr.js",
   "/customer/render.js",
   "/staff/index.js",
+  "/staff/pos-recording.js",
+  "/staff/award-queue.js",
+  "/staff/service-cases.js",
+  "/staff/reward-entitlements.js",
+  "/staff/service-cases.css",
+  "/staff/service-briefing.js",
+  "/staff/service-briefing.css",
   "/super/index.js",
   "/admin-dashboard/index.js",
   "/admin-dashboard/core.js",
   "/admin-dashboard/layout.js",
   "/admin-dashboard/session-controller.js",
+  "/admin-dashboard/logout-controller.js",
   "/admin-dashboard/tab-controller.js",
   "/admin-dashboard/view-state.js",
   "/admin-dashboard/branch-filter.js",
   "/admin-dashboard/modules/branches.js",
+  "/admin-dashboard/modules/branding.js",
+  "/admin-dashboard/modules/branding-actions.js",
+  "/admin-dashboard/modules/branding-form.js",
   "/admin-dashboard/modules/analytics.js",
   "/admin-dashboard/modules/gamification.js",
   "/admin-dashboard/modules/giftcards.js",
   "/admin-dashboard/modules/ops.js",
   "/admin-dashboard/modules/program.js",
+  "/admin-dashboard/modules/pos-integration.js",
   "/admin-dashboard/modules/program-actions.js",
   "/admin-dashboard/modules/program-form.js",
   "/admin-dashboard/modules/program-listeners.js",
@@ -72,6 +109,8 @@ const CORE_ASSETS = [
   "/admin-dashboard/modules/analytics/audit.js",
   "/admin-dashboard/modules/analytics/cohorts.js",
   "/admin-dashboard/modules/analytics/dashboard.js",
+  "/admin-dashboard/modules/analytics/executive-summary-loader.js",
+  "/admin-dashboard/modules/analytics/executive-summary.js",
   "/admin-dashboard/modules/analytics/operations.js",
   "/admin-dashboard/modules/analytics/render.js",
   "/admin-dashboard/fragments/achievements.html",
@@ -81,6 +120,7 @@ const CORE_ASSETS = [
   "/admin-dashboard/fragments/giftcards.html",
   "/admin-dashboard/fragments/operations.html",
   "/admin-dashboard/fragments/program.html",
+  "/admin-dashboard/fragments/pos-integration.html",
   "/admin-dashboard/fragments/referrals.html",
   "/admin-dashboard/fragments/rewards.html",
   "/admin-dashboard/fragments/staff.html",
@@ -88,6 +128,10 @@ const CORE_ASSETS = [
 ];
 const NETWORK_FIRST_DESTINATIONS = new Set(["document", "script", "style", "worker", "font"]);
 const NAVIGATION_FALLBACKS = new Map([
+  ["/crear-negocio", "/crear-negocio/"], ["/equipo/ingresar", "/equipo/ingresar/"],
+  ["/equipo/escaner", "/equipo/escaner/"], ["/mi-tarjeta", "/mi-tarjeta/"],
+  ["/administracion", "/administracion/"], ["/plataforma", "/plataforma/"],
+  ["/registro", "/registro/"], ["/ingresar", "/ingresar/"],
   ["/", "/index.html"],
   ["/admin", "/admin.html"],
   ["/staff/login", "/staff-login.html"],
@@ -140,7 +184,7 @@ function fallbackForPath(pathname) {
   if (NAVIGATION_FALLBACKS.has(normalizedPath)) {
     return NAVIGATION_FALLBACKS.get(normalizedPath) || "";
   }
-  if (/^\/join\/[^/]+$/i.test(normalizedPath)) {
+  if (/^\/(?:join|registro)\/[^/]+$/i.test(normalizedPath)) {
     return "/join.html";
   }
   if (/^\/ingresar\/[^/]+$/i.test(normalizedPath)) {
@@ -193,6 +237,9 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;
+  if (["/preferencias-de-mensajes", "/preferencias-de-mensajes/", "/marketing-preferences.html"].includes(url.pathname)) return;
+  // Merchant reports are online-only; keep per-response style nonces out of caches.
+  if (["/merchant", "/merchant/", "/merchant/index.html", "/negocio", "/negocio/", "/demostracion", "/demostracion/", "/negocio/index.html", "/demostracion/index.html"].includes(url.pathname)) return;
 
   const isNetworkFirst = event.request.mode === "navigate"
     || NETWORK_FIRST_DESTINATIONS.has(event.request.destination)

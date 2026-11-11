@@ -2,8 +2,8 @@ import { one, exec } from "./base.js";
 
 export const VerifyCodeRepo = {
   async create({ id, business_id, phone, code_hash, expires_at }) {
-    // Keep only one live code per phone/business to simplify lockout checks.
-    await exec(`DELETE FROM verify_codes WHERE business_id=$1 AND phone=$2`, [business_id, phone]);
+    // Keep request history for rate limits while invalidating superseded codes.
+    await exec(`UPDATE verify_codes SET expires_at=LEAST(expires_at, clock_timestamp()) WHERE business_id=$1 AND phone=$2`, [business_id, phone]);
     await exec(
       `INSERT INTO verify_codes (id, business_id, phone, code_hash, expires_at) VALUES ($1,$2,$3,$4,$5)`,
       [id, business_id, phone, code_hash, expires_at]
@@ -15,10 +15,10 @@ export const VerifyCodeRepo = {
       `SELECT * FROM verify_codes
        WHERE business_id=$1
          AND phone=$2
-         AND expires_at > now()
+         AND expires_at > clock_timestamp()
          AND failed_attempts < 5
          AND (blocked_until IS NULL OR blocked_until <= now())
-       ORDER BY created_at DESC LIMIT 1`,
+       ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
       [businessId, phone]
     );
   },
@@ -35,6 +35,19 @@ export const VerifyCodeRepo = {
 
   async deleteById(id) {
     await exec(`DELETE FROM verify_codes WHERE id=$1`, [id]);
+  },
+
+  async invalidateById(id) {
+    await exec(`UPDATE verify_codes SET expires_at=LEAST(expires_at, clock_timestamp()) WHERE id=$1`, [id]);
+  },
+
+  async consume(id) {
+    return one(
+      `UPDATE verify_codes SET expires_at=clock_timestamp()
+       WHERE id=$1 AND expires_at > clock_timestamp() AND failed_attempts < 5
+       AND (blocked_until IS NULL OR blocked_until <= clock_timestamp()) RETURNING id`,
+      [id]
+    );
   },
 
   async markFailedAttempt(id) {

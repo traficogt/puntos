@@ -1,0 +1,21 @@
+<odoo noupdate="1">
+  <record id="cron_send_outbox" model="ir.cron">
+    <field name="name">Puntos Fieles: deliver paid POS receipts</field>
+    <field name="model_id" ref="model_pf_pos_outbox"/><field name="state">code</field>
+    <field name="code">model._cron_send()</field><field name="user_id" ref="base.user_root"/>
+    <field name="interval_number">1</field><field name="interval_type">minutes</field>
+    <field name="active" eval="False"/>
+  </record>
+  <record id="cron_send_reward_events" model="ir.cron">
+    <field name="name">Puntos Fieles: deliver redemption evidence</field>
+    <field name="model_id" ref="model_pf_pos_reward_event"/><field name="state">code</field>
+    <field name="code">model._cron_send()</field><field name="user_id" ref="base.user_root"/>
+    <field name="interval_number">1</field><field name="interval_type">minutes</field><field name="active" eval="False"/>
+  </record>
+  <record id="cron_publish_catalog" model="ir.cron">
+    <field name="name">Puntos Fieles: publish opted-in catalog and stock</field>
+    <field name="model_id" ref="model_pf_pos_connector"/><field name="state">code</field>
+    <field name="code">model._cron_publish_catalog()</field><field name="user_id" ref="base.user_root"/>
+    <field name="interval_number">2</field><field name="interval_type">minutes</field><field name="active" eval="False"/>
+  </record>
+</odoo>

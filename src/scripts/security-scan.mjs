@@ -3,15 +3,21 @@ import path from "node:path";
 /* eslint security/detect-non-literal-fs-filename: off */
 
 const ROOT = process.cwd();
-const TARGET_DIRS = ["src/app", "public", "src/middleware", "src/utils", "src/scripts"];
+const TARGET_DIRS = ["src/app", "public", "src/middleware", "src/utils", "src/scripts", "web/merchant/src"];
 const SKIP_FILES = new Set([path.join(ROOT, "src", "scripts", "security-scan.mjs")]);
 const SKIP_DIRS = new Set(["node_modules", ".git", "playwright-report", "test-results"]);
-const JS_EXT = new Set([".js", ".mjs", ".cjs"]);
+// React's compiled runtime contains DOM primitives. Check the maintained JSX
+// above; dependency/container scanners continue to cover bundled libraries.
+const GENERATED_DIRS = new Set([
+  path.join(ROOT, "public", "merchant", "assets"),
+  path.join(ROOT, "public", "merchant", "recursos")
+]);
+const JS_EXT = new Set([".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx"]);
 
 const RULES = [
   {
     name: "dangerous-dom-sink",
-    re: /\b(innerHTML|outerHTML|insertAdjacentHTML)\b/,
+    re: /\b(innerHTML|outerHTML|insertAdjacentHTML|dangerouslySetInnerHTML)\b/,
     message: "Potential XSS sink found. Prefer DOM nodes + textContent."
   },
   {
@@ -25,7 +31,7 @@ function walk(dir, acc) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (SKIP_DIRS.has(entry.name)) continue;
+      if (SKIP_DIRS.has(entry.name) || GENERATED_DIRS.has(full)) continue;
       walk(full, acc);
       continue;
     }

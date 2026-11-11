@@ -1,3 +1,4 @@
+import {currentBrowserRegion,regionalMoney} from "/lib.js";
 /** @typedef {import("../types.js").ExternalAwardsConfig} ExternalAwardsConfig */
 /** @typedef {import("../types.js").LifecycleConfig} LifecycleConfig */
 /** @typedef {import("../types.js").ProgramPayload} ProgramPayload */
@@ -71,7 +72,7 @@ export function updateProgramSummary($) {
     const rate = Number(field($, "#programPointsPerQ").value || 0);
     const round = field($, "#programRound").value;
     const fn = round === "floor" ? "floor" : round === "round" ? "round" : "ceil";
-    text = `Ejemplo: Q100 -> ${Math[fn](100 * rate)} puntos.`;
+    text = `Ejemplo: ${regionalMoney(100)} -> ${Math[fn](100 * rate)} puntos.`;
   } else if (type === "VISIT") {
     const points = Number(field($, "#programPointsPerVisit").value || 0);
     text = `Cada visita suma ${points} puntos.`;
@@ -91,8 +92,8 @@ export function updateProgramSummary($) {
   const allowNegativeRefund = checkbox($, "#refundAllowNegativeBalance").checked;
 
   element($, "#programSummary").textContent =
-    `${text}\nLímites: max puntos/tx=${maxPts || "sin límite"}, max monto=Q${maxAmt || "sin límite"}.\n` +
-    `Alertas: puntos>=${susPts || "off"}, monto>=Q${susAmt || "off"}.\n` +
+    `${text}\nLímites: max puntos/tx=${maxPts || "sin límite"}, max monto=${maxAmt ? regionalMoney(maxAmt) : "sin límite"}.\n` +
+    `Alertas: puntos>=${susPts || "off"}, monto>=${susAmt ? regionalMoney(susAmt) : "off"}.\n` +
     `Vencimiento: ${expDays > 0 ? `${expDays} días` : "desactivado"}.\n` +
     `Canjes: día=${redeemDay || "sin límite"}, mismo premio/día=${redeemRewardDay || "sin límite"}, enfriamiento=${redeemCooldown || 0}h.\n` +
     `Refunds: saldo negativo ${allowNegativeRefund ? "permitido" : "bloqueado"}.`;
@@ -109,7 +110,7 @@ export function fillLifecycleFields($, lifecycle = {}) {
   field($, "#lifecycleWinbackDays").value = String(Number(lifecycle.winback_days ?? DEFAULTS.winbackDays));
   field($, "#lifecycleWinbackPoints").value = String(Number(lifecycle.winback_points ?? 0));
   field($, "#lifecycleSchedulerHour").value = String(Number(lifecycle.scheduler_hour_local ?? DEFAULTS.schedulerHour));
-  field($, "#lifecycleSchedulerTz").value = String(lifecycle.scheduler_tz || DEFAULTS.timezone);
+  field($, "#lifecycleSchedulerTz").value = String(lifecycle.scheduler_tz || currentBrowserRegion().timezone || DEFAULTS.timezone);
 }
 
 /**

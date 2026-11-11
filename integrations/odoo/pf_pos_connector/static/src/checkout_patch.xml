@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+  <t t-name="pf_pos_connector.ControlButtons" t-inherit="point_of_sale.ControlButtons" t-inherit-mode="extension">
+    <xpath expr="//SelectPartnerButton" position="after">
+      <button class="btn btn-light btn-lg" aria-label="Puntos Fieles" t-on-click="openPfCheckout"><i class="fa fa-star me-1" aria-hidden="true"/>Puntos Fieles</button>
+    </xpath>
+  </t>
+  <t t-name="pf_pos_connector.PaymentScreenButtons" t-inherit="point_of_sale.PaymentScreenButtons" t-inherit-mode="extension">
+    <xpath expr="//div[hasclass('payment-buttons')]" position="inside">
+      <button class="btn btn-light btn-lg" aria-label="Puntos Fieles" t-on-click="openPfCheckout"><i class="fa fa-star me-1" aria-hidden="true"/>Puntos Fieles</button>
+      <button t-if="currentOrder.state !== 'draft' &amp;&amp; currentOrder.pf_checkout_summary?.length" class="btn btn-primary btn-lg" t-on-click="confirmPfReceipt">Confirm PF receipt</button>
+    </xpath>
+  </t>
+</templates>

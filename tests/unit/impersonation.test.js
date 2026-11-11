@@ -47,7 +47,7 @@ describe("impersonation provenance", () => {
 
     try {
       await new Promise((resolve, reject) => {
-        requireStaff(req, res, (err) => (err ? reject(err) : resolve()));
+        requireStaff(req, res, (err) => (err ? reject(err) : resolve(undefined)));
       });
 
       assert.deepEqual(req.staff, {

@@ -14,11 +14,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script type="module" src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css"/>
+  <link rel="stylesheet" href="/styles/customer-modern.css?v=1"/>
   <link rel="stylesheet" href="/styles/customer-wallet-refresh.css"/>
+  <link rel="stylesheet" href="/styles/native-wallet.css"/>
   <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
-<body class="app-shell page-customer">
-  <div class="nav app-topbar">
+<body class="app-shell customer-modern page-customer">
+  <header class="nav app-topbar">
     <div class="brand brand-lockup">
       <img id="customerBrandLogo" class="customer-brand-logo" alt="" hidden/>
       <div class="brand-copy">
@@ -27,13 +29,13 @@
       </div>
     </div>
     <div class="row">
-      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><span class="theme-toggle-glyph" aria-hidden="true">◐</span></button>
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><span class="theme-toggle-glyph" aria-hidden="true">◐</span><svg class="theme-toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" stroke="none"/></svg></button>
       <a class="ghost-link" href="/sitio" data-shell-link="marketing-home">Sitio</a>
       <button id="btnLogout" class="is-hidden">Salir</button>
     </div>
-  </div>
+  </header>
 
-  <div class="cus-page">
+  <main class="cus-page" id="pageContent">
 
     <!-- ── Not logged in ── -->
     <div class="is-hidden" id="needLogin">
@@ -43,7 +45,7 @@
         <p class="small brand-powered-by" id="customerPoweredBy">Powered by PuntosFieles</p>
       </div>
       <div class="cus-entry-note">
-        No hay formulario aquí. La tarjeta se abre desde <code>/ingresar/&lt;slug&gt;</code>. Si esta pantalla apareció sola, vuelve a entrar desde el acceso del negocio.
+        Pide al negocio su enlace de acceso o escanea el código de registro en caja. Así podrás volver a abrir tu tarjeta con un código temporal.
       </div>
     </div>
 
@@ -55,8 +57,7 @@
         <div class="lc-hero">
           <div class="lc-head">
             <div class="lc-brand">
-              <p class="lc-meta">Programa activo</p>
-              <h1 class="lc-name" id="bizName">—</h1>
+                <h1 class="lc-name" id="bizName">—</h1>
               <p class="lc-holder" id="who">—</p>
             </div>
             <span class="lc-badge" id="netBadge">En línea</span>
@@ -70,7 +71,7 @@
 
             <div class="lc-qr-area">
               <div class="lc-qr-stage" id="qrWrap">
-                <div class="lc-qr-placeholder">Genera tu QR cuando vayas a pagar o canjear.</div>
+                <div class="lc-qr-placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><path d="M15 15h3v3h3m-6 3v-3m6-6v3"/></svg><span>Genera tu QR cuando vayas a pagar o canjear.</span></div>
               </div>
               <button class="lc-qr-btn" id="btnQr">Generar QR</button>
               <p class="lc-qr-hint" id="qrHint"></p>
@@ -82,11 +83,15 @@
           <div class="lc-focus-copy">
             <p class="lc-focus-label">Siguiente recompensa</p>
             <p class="cus-next-reward" id="nextReward">—</p>
+            <p class="lc-reward-detail" id="nextRewardBalance"></p>
+            <p class="lc-reward-detail" id="nextRewardConditions"></p>
+            <p class="lc-reward-detail" id="nextRewardEarning"></p>
+            <p class="lc-reward-detail">Los puntos pendientes aún no cuentan para canjear.</p>
           </div>
           <div class="lc-focus-meta">
             <div class="lc-foot-stat">
               <strong id="lifetime">—</strong>
-              <span>histórico</span>
+              <span>ganados en total</span>
             </div>
             <div class="lc-foot-stat">
               <strong id="pendingPoints">0</strong>
@@ -110,31 +115,67 @@
         </div>
       </div>
 
+      <section class="native-wallet is-hidden" id="billeteras" aria-labelledby="nativeWalletTitle" hidden>
+        <h2 id="nativeWalletTitle">Lleva tu tarjeta contigo</h2>
+        <p id="nativeWalletDescription">Guárdala en tu teléfono para mostrarla en caja. El saldo se actualiza con conexión.</p>
+        <div class="native-wallet-actions" id="nativeWalletActions">
+          <button type="button" class="native-wallet-apple" id="btnAppleWallet" hidden><img src="/images/wallet/apple-wallet-es-mx.svg" width="173" height="55" alt="Agregar a Apple Wallet"/></button>
+          <button type="button" class="native-wallet-google" id="btnGoogleWallet" hidden>
+            <img src="/images/wallet/google-wallet-es-419.svg" width="239" height="55" alt="Agregar a la Billetera de Google"/>
+          </button>
+        </div>
+        <p id="nativeWalletStatus" role="status" aria-live="polite"></p>
+        <button type="button" class="native-wallet-revoke" id="btnRevokeWallet" hidden>Desactivar tarjetas guardadas</button>
+        <div class="native-wallet-confirm is-hidden" id="nativeWalletConfirm" hidden>
+          <p>Se desactivarán todas tus tarjetas guardadas en Apple Wallet y Google Wallet. Tu cuenta y tus puntos se conservan; podrás guardar una tarjeta nueva.</p>
+          <div class="native-wallet-confirm-actions">
+            <button type="button" id="btnConfirmRevokeWallet">Sí, desactivar</button>
+            <button type="button" id="btnCancelRevokeWallet">Cancelar</button>
+          </div>
+        </div>
+      </section>
+
       <!-- Sections below the card -->
       <div class="customer-sections">
         <div class="cus-section cus-section-tier" id="tierSection">
-          <p class="cus-section-label">Tu nivel</p>
+          <h2 class="cus-section-label">Tu nivel</h2>
           <div class="cus-tier-row">
-            <div class="cus-tier-icon" id="tierIcon">🥉</div>
+            <div class="cus-tier-icon" id="tierIcon" aria-hidden="true">🥉</div>
             <div class="cus-tier-info">
               <div class="row align-center gap-8">
                 <h3 id="tierName" class="m-0">Bronce</h3>
                 <span class="badge" id="tierMultiplier">1.0x</span>
               </div>
               <p class="small my-4" id="tierProgress">—</p>
-              <progress id="tierProgressBar" class="progress-inline" max="100" value="0"></progress>
+              <progress id="tierProgressBar" aria-label="Progreso hacia tu siguiente nivel" class="progress-inline" max="100" value="0"></progress>
             </div>
           </div>
           <div id="tierPerks" class="small mt-8"></div>
         </div>
 
+        <section class="cus-section" id="rewardEntitlementsSection" hidden>
+          <h2>Tus beneficios protegidos</h2>
+          <div id="rewardEntitlements"></div>
+        </section>
+
+        <section class="cus-section" id="growthOffersSection" hidden>
+          <h2 class="cus-section-label">Ofertas para ti</h2>
+          <div id="growthOffers"></div>
+        </section>
+        <div class="cus-section">
+          <a href="/preferencias-de-mensajes/">Elegir si quiero recibir promociones</a>
+        </div>
+
         <div class="cus-section cus-section-rewards">
-          <p class="cus-section-label">Recompensas</p>
+          <h2 class="cus-section-label">Recompensas</h2>
           <div id="rewards" class="cus-rewards-list"></div>
         </div>
 
         <div class="cus-section cus-section-activity">
-          <p class="cus-section-label">Actividad reciente</p>
+          <h2 class="cus-section-label">Actividad reciente</h2>
+          <section id="customerStatement" class="cus-statement" aria-label="Resumen de beneficios">
+            <p class="small">Cargando tu resumen…</p>
+          </section>
           <div class="cus-activity-pair">
             <div class="cus-activity-pane">
               <p class="cus-activity-label">Transacciones</p>
@@ -148,26 +189,26 @@
         </div>
 
         <div class="cus-section cus-section-referrals" id="referralsSection">
-          <p class="cus-section-label">Invita amigos</p>
+          <h2 class="cus-section-label">Invita amigos</h2>
           <p class="small">Comparte tu código — ambos ganan puntos.</p>
           <div class="row gap-8 mt-12 mb-12">
-            <input id="referralCode" class="flex-1 input-emphasis" readonly value="---"/>
+            <input aria-label="Tu código de invitación" id="referralCode" class="flex-1 input-emphasis" readonly value="---"/>
             <button id="btnCopyCode" class="primary">Copiar</button>
           </div>
           <div id="referralStats" class="small"></div>
         </div>
 
         <div class="cus-section cus-section-achievements" id="achievementsSection">
-          <p class="cus-section-label">Logros</p>
+          <h2 class="cus-section-label">Logros</h2>
           <div id="achievements" class="small"></div>
           <button id="btnViewAllAchievements" class="mt-12">Ver todos los logros</button>
         </div>
 
       </div>
     </div>
-  </div>
+  </main>
 
-  <div id="toast" class="toast"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="/customer.js"></script>
 </body>
 </html>

@@ -20,7 +20,8 @@ test("app-facing shells expose host-aware navigation markers and role-based entr
     assert.match(html, /<script src="\/runtime-config\.js"><\/script>/);
   }
 
-  assert.match(staffLoginHtml, /según tu rol/i);
+  assert.match(staffLoginHtml, /Para propietarios/i);
+  assert.match(staffLoginHtml, /Para el equipo de caja/i);
   assert.match(staffLoginHtml, /Escáner|panel/i);
   assert.match(adminHtml, /Centro de control/i);
   assert.match(adminHtml, /data-shell-link="app-login"/);

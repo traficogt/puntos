@@ -4,7 +4,7 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["node_modules/**", "playwright-report/**", "test-results/**", "backups/**"]
+    ignores: ["node_modules/**", "web/**/node_modules/**", "public/merchant/assets/**", "public/merchant/recursos/**", "playwright-report/**", "test-results/**", "backups/**"]
   },
   {
     ...js.configs.recommended,

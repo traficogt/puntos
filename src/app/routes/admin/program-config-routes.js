@@ -7,6 +7,7 @@ import { validate } from "../../../utils/validation.js";
 import { planFeaturesWithOverrides } from "../../../utils/plan.js";
 import { Permission, hasPermission } from "../../../utils/permissions.js";
 import { withImpersonationMeta } from "../../../utils/impersonation.js";
+import { sanitizeProgramForClient } from "../../../utils/program-secrets.js";
 import { AuditRepo } from "../../repositories/audit-repository.js";
 import { BusinessRepo } from "../../repositories/business-repository.js";
 import { PlanConfigService } from "../../services/plan-config-service.js";
@@ -32,7 +33,7 @@ export function registerProgramConfigRoutes(router) {
       return res.json({
         ok: true,
         program_type: business.program_type,
-        program_json: business.program_json
+        program_json: sanitizeProgramForClient(business.program_json)
       });
     })
   );
@@ -56,23 +57,24 @@ export function registerProgramConfigRoutes(router) {
       const hasAdvanced = hasPermission(req.staff.role, Permission.ADMIN_PROGRAM_UPDATE_ADVANCED);
 
       const nextProgram = { ...(v.data.program_json || {}) };
+      delete nextProgram.pos_integration;
+      delete nextProgram.external_awards;
       if (!hasAdvanced) {
         delete nextProgram.campaign_rules;
-        delete nextProgram.external_awards;
         delete nextProgram.tier_policy;
         delete nextProgram.lifecycle;
       }
 
       if (!features.campaign_rules) delete nextProgram.campaign_rules;
-      if (!features.external_awards) delete nextProgram.external_awards;
       if (!features.tiers) delete nextProgram.tier_policy;
       if (!features.lifecycle_automation) delete nextProgram.lifecycle;
 
       const business = await BusinessRepo.updateProgram(req.tenantId, {
         program_type: v.data.program_type,
-        program_json: nextProgram
+        program_json: nextProgram,
+        preserveIntegrations: true
       });
-      return res.json({ ok: true, business });
+      return res.json({ ok: true, business: { ...business, program_json: sanitizeProgramForClient(business?.program_json) } });
     })
   );
 
@@ -106,17 +108,7 @@ export function registerProgramConfigRoutes(router) {
       const business = await getBusinessOr404(res, req.tenantId);
       if (!business) return;
 
-      const nextLifecycle = {
-        ...(business.program_json?.lifecycle ?? {}),
-        ...automationTemplateMap[v.data.template]
-      };
-      const updated = await BusinessRepo.updateProgram(req.tenantId, {
-        program_type: business.program_type,
-        program_json: {
-          ...(business.program_json ?? {}),
-          lifecycle: nextLifecycle
-        }
-      });
+      const updated = await BusinessRepo.updateLifecycle(req.tenantId, automationTemplateMap[v.data.template]);
       await AuditRepo.log({
         id: makeId(),
         business_id: req.tenantId,

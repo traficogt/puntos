@@ -1,11 +1,34 @@
       <div class="tab-content" id="branding-content">
+        <section class="customer-enrollment" id="customerEnrollment" aria-labelledby="customerEnrollmentTitle" aria-busy="false">
+          <div class="customer-enrollment-copy">
+            <h2 id="customerEnrollmentTitle">Invitar clientes</h2>
+            <p>Comparte este enlace o coloca el QR en tu negocio. Tus clientes se registran, verifican su teléfono y acceden a su tarjeta, con la opción de guardarla en Wallet cuando esté disponible.</p>
+            <label for="customerEnrollmentUrl">Enlace de registro de tu negocio</label>
+            <div class="customer-enrollment-link">
+              <input id="customerEnrollmentUrl" type="url" readonly aria-describedby="customerEnrollmentFeedback" spellcheck="false"/>
+              <button id="customerEnrollmentCopy" type="button" disabled>Copiar enlace</button>
+            </div>
+            <p class="customer-enrollment-note">Este QR es para registrar clientes. Para sumar o canjear puntos en caja, cada cliente muestra el QR de su tarjeta personal.</p>
+            <p class="customer-enrollment-feedback" id="customerEnrollmentFeedback" role="status" aria-live="polite"></p>
+            <button id="customerEnrollmentRetry" type="button" hidden>Volver a intentar</button>
+          </div>
+          <figure class="customer-enrollment-qr">
+            <div class="customer-enrollment-preview">
+              <img id="customerEnrollmentQr" alt="QR para registrar clientes en tu negocio" width="240" height="240" hidden/>
+            </div>
+            <figcaption>
+              <a id="customerEnrollmentDownload" class="customer-enrollment-download" download="qr-registro.svg" aria-disabled="true" tabindex="-1">Descargar QR (SVG)</a>
+              <span>Para imprimir y colocar en tu negocio.</span>
+            </figcaption>
+          </figure>
+        </section>
         <div class="card">
           <h2>Branding de clientes</h2>
           <p class="small">Define cómo se verá el programa para clientes en la página de registro y en su wallet. La estructura se mantiene igual; aquí solo cambias intensidad de marca y contenido visible.</p>
           <p class="small" id="brandingPlanNotice">Branding premium disponible en planes superiores. Requiere NEGOCIO o EMPRESA.</p>
           <div class="grid">
             <div class="card">
-              <label>Modo de marca</label>
+              <label for="brandingMode">Modo de marca</label>
               <select id="brandingMode">
                 <option value="platform_led">PuntosFieles visible</option>
                 <option value="endorsed_brand">Negocio + Powered by</option>
@@ -13,10 +36,10 @@
               </select>
               <p class="small" id="brandingModeHint">La experiencia mostrará el negocio y mantendrá a PuntosFieles como respaldo visible.</p>
 
-              <label>Nombre del programa</label>
+              <label for="brandingProgramName">Nombre del programa</label>
               <input id="brandingProgramName" placeholder="Ej: Recompensas Café Bourbon"/>
 
-              <label>Logo del negocio (URL)</label>
+              <label for="brandingLogoUrl">Logo del negocio (URL)</label>
               <input id="brandingLogoUrl" placeholder="https://cdn.tunegocio.com/logo.png"/>
               <label class="row-inline-flex">
                 <input id="brandingQrLogoEnabled" type="checkbox"/>
@@ -24,13 +47,13 @@
               </label>
               <p class="small" id="brandingQrLogoHint">Disponible únicamente en EMPRESA. Si el logo no es válido, el QR seguirá normal.</p>
 
-              <label>Color principal</label>
+              <label for="brandingPrimaryColor">Color principal</label>
               <input id="brandingPrimaryColor" placeholder="#6D3524"/>
 
-              <label>Color acento</label>
+              <label for="brandingAccentColor">Color acento</label>
               <input id="brandingAccentColor" placeholder="#D7A554"/>
 
-              <label>Tema neutral</label>
+              <label for="brandingNeutralTheme">Tema neutral</label>
               <select id="brandingNeutralTheme">
                 <option value="warm">Cálido</option>
                 <option value="neutral">Neutral</option>
@@ -42,10 +65,10 @@
                 Mostrar “Powered by PuntosFieles”
               </label>
 
-              <label>Titular del wallet</label>
+              <label for="brandingWalletHeadline">Titular del wallet</label>
               <input id="brandingWalletHeadline" placeholder="Tus puntos en un solo lugar"/>
 
-              <label>Titular de registro</label>
+              <label for="brandingJoinHeadline">Titular de registro</label>
               <input id="brandingJoinHeadline" placeholder="Únete y gana beneficios"/>
 
               <div class="row mt-10">

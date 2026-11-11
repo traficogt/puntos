@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 /**
  * @param {string[]} argv

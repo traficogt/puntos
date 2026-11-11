@@ -53,6 +53,8 @@ export function waitForQrLogoAsset(logoUrl, { ImageCtor = Image, timeoutMs = 150
 export function createQrController({ $, toast }) {
   let qrTimer = null;
   let lastExp = null;
+  let generation = 0;
+  let inFlight = false;
 
   function clearTimer() {
     if (qrTimer) clearInterval(qrTimer);
@@ -68,13 +70,20 @@ export function createQrController({ $, toast }) {
   }
 
   async function generateQR() {
+    if (inFlight) return;
+    inFlight = true;
+    const version = generation;
+    const epoch = getCustomerEpoch();
+    const isCurrent = () => version === generation && epoch === getCustomerEpoch();
     try {
       const resp = await fetch("/api/public/customer/qr.svg", { credentials: "include" });
+      if (!isCurrent()) return;
       if (!resp.ok) {
         const t = await resp.text();
         throw new Error(t || `HTTP ${resp.status}`);
       }
       const svg = await resp.text();
+      if (!isCurrent()) return;
 
       const parser = new DOMParser();
       const doc = parser.parseFromString(svg, "image/svg+xml");
@@ -115,6 +124,8 @@ export function createQrController({ $, toast }) {
         }
       }
 
+      if (!isCurrent()) return;
+
       if (qrWrap) {
         qrWrap.replaceChildren();
         qrWrap.appendChild(svgElement.cloneNode(true));
@@ -130,19 +141,30 @@ export function createQrController({ $, toast }) {
 
       clearTimer();
       qrTimer = setInterval(() => {
+        if (!isCurrent()) { dispose(); return; }
         if (!lastExp) return;
         const ms = lastExp.getTime() - Date.now();
+        if (ms <= 0) {
+          el("#qrWrap")?.replaceChildren();
+          const hint = el("#qrHint");
+          if (hint) hint.textContent = "Tu QR venció. Conéctate para generar uno nuevo.";
+        }
+        if (!navigator.onLine) return;
         if (ms < 12_000) generateQR().catch(() => {});
       }, 3_000);
     } catch (e) {
-      toast(e.message || "No se pudo generar QR");
+      if (isCurrent()) toast(e.message || "No se pudo generar QR");
+    } finally {
+      inFlight = false;
     }
   }
 
   function dispose() {
+    generation += 1;
     clearTimer();
     lastExp = null;
   }
 
   return { generateQR, dispose };
 }
+import { getCustomerEpoch } from "./session.js";

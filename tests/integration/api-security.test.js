@@ -119,7 +119,7 @@ async function runHandlers(handlers, req, res) {
   return new Promise((resolve, reject) => {
     const run = (index) => {
       const handler = handlers[index];
-      if (!handler || res.sent) return resolve();
+      if (!handler || res.sent) return resolve(undefined);
       try {
         const maybe = handler(req, res, (err) => {
           if (err) return reject(err);
@@ -127,10 +127,10 @@ async function runHandlers(handlers, req, res) {
         });
         if (maybe && typeof maybe.then === "function") {
           maybe.then(() => {
-            if (res.sent || index === handlers.length - 1) resolve();
+            if (res.sent || index === handlers.length - 1) resolve(undefined);
           }).catch(reject);
         } else if (res.sent || index === handlers.length - 1) {
-          resolve();
+          resolve(undefined);
         }
       } catch (err2) {
         reject(err2);
@@ -158,8 +158,8 @@ async function invokeRoute(router, routePath, { method = "GET", headers = {}, bo
 async function runMiddleware(middleware, req, res) {
   return new Promise((resolve, reject) => {
     try {
-      middleware(req, res, (err) => (err ? reject(err) : resolve()));
-      if (res.sent) resolve();
+      middleware(req, res, (err) => (err ? reject(err) : resolve(undefined)));
+      if (res.sent) resolve(undefined);
     } catch (err) {
       reject(err);
     }

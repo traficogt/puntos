@@ -1,6 +1,7 @@
 import { toggleProgramBoxes, updateProgramSummary } from "./program-form.js";
 import { createProgramActions } from "./program-actions.js";
 import { initProgramListeners } from "./program-listeners.js";
+import { registerPosIntegration } from "./pos-integration.js";
 
 /** @typedef {import("../types.js").AdminDashboardApp} AdminDashboardApp */
 
@@ -22,8 +23,9 @@ export function registerProgramModule(app) {
 
     if (app.hasFeature("fraud_monitoring")) await actions.loadSuspiciousAwards();
     if (app.hasFeature("campaign_rules")) await actions.loadCampaignRules();
-    if (app.hasFeature("external_awards")) await actions.loadExternalAwards();
   });
+
+  registerPosIntegration(app);
 
   app.onBranchFilterChanged(() => {
     if (!app.hasFeature("fraud_monitoring")) return;

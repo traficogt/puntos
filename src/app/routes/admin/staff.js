@@ -23,7 +23,7 @@ export const StaffCreateSchema = z.object({
   phone: z.string().optional(),
   password: passwordSchema,
   role: z.enum(["CASHIER", "MANAGER"]).optional(),
-  branch_id: z.string().uuid().optional(),
+  branch_id: z.guid().optional(),
   can_manage_gift_cards: z.boolean().optional()
 });
 
@@ -31,7 +31,7 @@ export const StaffUpdateSchema = z.object({
   active: z.boolean().optional(),
   password: passwordSchema.optional(),
   role: z.enum(["CASHIER", "MANAGER"]).optional(),
-  branch_id: z.string().uuid().nullable().optional(),
+  branch_id: z.guid().nullable().optional(),
   can_manage_gift_cards: z.boolean().optional()
 });
 

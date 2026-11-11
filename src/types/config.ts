@@ -34,12 +34,16 @@ export interface AppConfig {
 
   MESSAGE_PROVIDER: string;
   MESSAGE_PROVIDER_ORDER: string[];
+  MESSAGE_PROVIDER_TIMEOUT_MS: number;
   WA_PHONE_NUMBER_ID: string;
   WA_ACCESS_TOKEN: string;
   WA_API_VERSION: string;
   WAHA_BASE_URL: string;
   WAHA_API_KEY: string;
   WAHA_SESSION: string;
+  EVOLUTION_BASE_URL: string;
+  EVOLUTION_API_KEY: string;
+  EVOLUTION_INSTANCE: string;
   BAILEYS_BASE_URL: string;
   BAILEYS_SEND_URL: string;
   BAILEYS_API_KEY: string;

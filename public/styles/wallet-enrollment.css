@@ -1,0 +1,37 @@
+.wallet-enrollment .join-shell { gap: clamp(32px, 7vw, 88px); }
+.wallet-enrollment .join-intro h1 { max-width: 12ch; text-wrap: balance; }
+.wallet-enrollment .join-wallet-note { max-width: 38ch; margin: 28px 0 12px; font-size: 17px; line-height: 1.6; }
+.wallet-enrollment .join-account-note { max-width: 45ch; color: var(--muted); line-height: 1.7; }
+.wallet-enrollment .join-stage label { display: block; margin-top: 20px; }
+.wallet-enrollment .join-stage { background: transparent; }
+.wallet-enrollment #phoneHelp { margin: 8px 0 0; line-height: 1.6; }
+.wallet-enrollment .join-stage :is(input, button[type="submit"]) { width: 100%; }
+.wallet-enrollment .join-stage button[type="submit"] { min-height: 48px; margin-top: 24px; }
+.wallet-enrollment input[readonly] { color: var(--muted); }
+.wallet-enrollment #entryModeLink { display: inline-block; margin: 16px 0; background: transparent; padding: 0; text-underline-offset: 4px; text-decoration: underline; }
+.customer-modern.wallet-enrollment .join-done { padding: 28px 0 0; margin: 0; border-radius: 0; background: transparent; border-top: 1px solid var(--line-strong); }
+.wallet-enrollment #doneTitle { margin: 0 0 12px; font: 400 clamp(28px, 3vw, 40px)/1.15 var(--font-display); text-wrap: balance; }
+.wallet-enrollment #doneSubtitle { margin: 0; color: var(--muted); line-height: 1.7; }
+/* This heading is a screen-reader focus destination, not an interactive control. */
+.wallet-enrollment #doneTitle:focus { outline: none; }
+.wallet-enrollment-done :is(#joinEntryContext, .join-wallet-note) { display: none; }
+.wallet-enrollment .native-wallet { padding-top: 28px; }
+.wallet-enrollment .native-wallet-actions { padding: 16px 0; }
+.wallet-enrollment .join-web-card { border-top: 1px solid var(--line); margin-top: 28px; padding-top: 24px; }
+.wallet-enrollment .join-web-card a { padding: 12px 0; min-height: 44px; border: 0; background: transparent; text-decoration: underline; text-underline-offset: 5px; color: var(--text); }
+.wallet-enrollment .join-web-card p { max-width: 48ch; margin: 8px 0; color: var(--muted); line-height: 1.7; }
+.customer-modern.wallet-enrollment .join-text-action { display: inline-block; padding: 12px 0; border: 0; min-height: 44px; background: transparent; color: var(--text); text-decoration: underline; text-underline-offset: 4px; }
+.wallet-enrollment .join-wallet-help { max-width: 54ch; margin-top: 24px; color: var(--muted); line-height: 1.7; }
+.wallet-enrollment #walletEnrollmentFeedback:empty { display: none; }
+.wallet-enrollment #btnChangePhone { margin-left: 20px; }
+.wallet-enrollment [hidden], .wallet-enrollment .is-hidden { display: none !important; }
+@media (max-width: 700px) {
+  .customer-modern.wallet-enrollment .container { padding-top: 28px; }
+  .wallet-enrollment .join-shell { gap: 16px; }
+  .wallet-enrollment .join-intro h1 { max-width: 18ch; }
+  .wallet-enrollment .join-wallet-note { display: none; }
+  .wallet-enrollment-done .join-intro > :not(.onboarding-steps) { display: none; }
+  .wallet-enrollment .join-account-note { display: none; }
+  .wallet-enrollment .brand-powered-by { margin: 12px 0; }
+  .wallet-enrollment .onboarding-steps { margin: 20px 0 0; }
+}

@@ -1,3 +1,4 @@
+import { regionalMoney } from "/lib.js";
 import {
   applyAutomationTemplateForm,
   buildProgramPayload,
@@ -114,7 +115,7 @@ export function createProgramActions(app) {
         const cust = r.customer_name || r.customer_phone || r.customer_id;
         const reasons = (r.guard?.reasons || []).join(",");
         const branch = r.branch_name || (r.branch_id ? `sucursal:${r.branch_id}` : "sin sucursal");
-        return `${when} | ${branch} | ${who} -> ${cust} | +${r.points} pts | Q${Number(r.amount_q || 0).toFixed(2)} | ${reasons}`;
+        return `${when} | ${branch} | ${who} -> ${cust} | +${r.points} pts | ${regionalMoney(r.amount_q || 0)} | ${reasons}`;
       });
       box.textContent = lines.join("\n");
     }, (error) => {

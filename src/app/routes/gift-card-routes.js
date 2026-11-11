@@ -1,3 +1,4 @@
+import { dateTimeSchema } from '../../utils/date-time-schema.js';
 import { Router } from "express";
 import { z } from "zod";
 import { asyncRoute } from "../../middleware/common.js";
@@ -15,8 +16,8 @@ export const CreateGiftCardSchema = z.object({
   amount_q: z.number().positive(),
   issued_to_name: z.string().max(120).optional(),
   issued_to_phone: z.string().min(6).max(30).optional(),
-  expires_at: z.string().datetime().optional(),
-  requestId: z.string().uuid()
+  expires_at: dateTimeSchema().optional(),
+  requestId: z.guid()
 });
 
 export const GiftCardListQuerySchema = z.object({
@@ -40,7 +41,7 @@ export const RedeemGiftCardSchema = z.object({
   code_or_token: z.string().min(4).max(200),
   amount_q: z.number().positive(),
   note: z.string().max(200).optional(),
-  requestId: z.string().uuid()
+  requestId: z.guid()
 });
 
 router.post("/staff/gift-cards/redeem", csrfProtect, requireStaff, tenantContext, requirePlanFeature("gift_cards"), asyncRoute(async (req, res) => {

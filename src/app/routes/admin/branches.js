@@ -11,6 +11,7 @@ import { BranchRepo } from "../../repositories/branch-repository.js";
 import { BusinessRepo } from "../../repositories/business-repository.js";
 import { planLimits } from "../../../utils/plan.js";
 import { makeId } from "./_util.js";
+import { WalletLocationService, WalletLocationSchema } from "../../services/native-wallet/locations.js";
 
 export const adminBranchRoutes = Router();
 
@@ -59,3 +60,14 @@ adminBranchRoutes.post(
     return res.json({ ok: true, branch });
   })
 );
+
+// Configuring an existing branch is also available to a single-branch owner.
+adminBranchRoutes.get("/admin/branches/wallet-locations", requireStaff, requireOwner, tenantContext,
+  asyncRoute(async (req, res) => res.json(await WalletLocationService.list({ businessId: req.tenantId }))));
+adminBranchRoutes.put("/admin/branches/:id/wallet-location", requireStaff, requireOwner, tenantContext, csrfProtect,
+  asyncRoute(async (req, res) => {
+    const id = z.guid().safeParse(req.params.id);
+    const location = WalletLocationSchema.safeParse(req.body);
+    if (!id.success || !location.success) return res.status(400).json({ error: "Revisa la sucursal y ambas coordenadas de la ubicación." });
+    return res.json(await WalletLocationService.save({ businessId: req.tenantId, branchId: id.data, staff: req.staff, location: location.data }));
+  }));

@@ -14,8 +14,8 @@ test("marketing landing exposes a Spanish-first demo request form", () => {
   assert.match(html, /data-sitekey="0x4AAAAAACxpjwCi9p0pY8BF"/);
   assert.match(html, /data-language="es"/);
   assert.match(html, /Solicitar demo/);
-  assert.match(html, /Activamos cada programa contigo/i);
-  assert.match(html, /Para cafés, restaurantes y otros negocios/i);
+  assert.match(html, /Activamos el programa contigo/i);
+  assert.match(html, /<li>Cafés<\/li><li>Restaurantes<\/li><li>Tu negocio<\/li>/i);
   assert.doesNotMatch(html, /salones de belleza/i);
   assert.doesNotMatch(html, /Pensado para Guatemala/i);
   assert.doesNotMatch(html, /Respondemos en español/i);
@@ -50,7 +50,7 @@ test("marketing landing hides pricing until commercial packaging is finalized", 
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const html = fs.readFileSync(new URL("../../public/index.html", import.meta.url), "utf8");
 
-  assert.doesNotMatch(html, /Precios/i);
+  assert.match(html, /href="\/precios"/);
   assert.doesNotMatch(html, /EMPRENDEDOR/);
   assert.doesNotMatch(html, /NEGOCIO/);
   assert.doesNotMatch(html, /EMPRESA/);

@@ -1,4 +1,6 @@
 export interface StaffProfile {
+  id: string;
+  business_id: string;
   role: string;
   can_manage_gift_cards?: boolean;
   [key: string]: unknown;
@@ -14,6 +16,7 @@ export interface StaffPermissionsResponse {
 }
 
 export interface StaffProgramRule {
+  region?: { currency: string; locale: string; timezone: string; minorUnits: number };
   program_type: "SPEND" | "VISIT" | "ITEM";
   program_json?: {
     points_per_q?: number;
@@ -63,6 +66,7 @@ export interface StaffRewardsResponse {
 }
 
 export interface StaffRedeemResponse {
+  redemptionId?: string;
   redemptionCode: string;
   newBalance: number;
 }
@@ -82,6 +86,9 @@ export interface StaffLoginPayload {
 }
 
 export interface QueuedStaffAward {
+  businessId?: string;
+  staffId?: string;
+  offlineGrant?: string;
   customerQrToken: string;
   amount_q: number;
   visits: number;
@@ -93,7 +100,7 @@ export interface QueuedStaffAward {
   client_ts?: string;
   created_at?: string;
   updated_at?: string;
-  status?: "queued" | "syncing" | "failed";
+  status?: "queued" | "syncing" | "failed" | "quarantined";
   retry_count?: number;
   last_error?: string;
 }

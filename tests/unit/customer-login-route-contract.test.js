@@ -13,7 +13,7 @@ test("customer login has its own ingresar page and script", () => {
   const routes = fs.readFileSync(new URL("../../src/app/routes/public-routes.js", import.meta.url), "utf8");
 
   assert.match(html, /Ingresa a tu tarjeta/);
-  assert.match(html, /WhatsApp o correo/);
+  assert.match(html, /WhatsApp o SMS/);
   assert.match(html, /id="email"/);
   assert.match(js, /mode: "login"/);
   assert.match(shared, /\/login\/request-code/);

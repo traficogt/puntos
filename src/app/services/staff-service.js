@@ -1,3 +1,4 @@
+import { regionTimezone } from "./regional-settings.js";
 import crypto from "node:crypto";
 
 import { StaffRepo } from "../repositories/staff-repository.js";
@@ -17,6 +18,12 @@ import { withImpersonationMeta } from "../../utils/impersonation.js";
 import { hashPassword, needsPasswordRehash, verifyPassword } from "../../utils/password-hash.js";
 import { verifyQrToken } from "../../utils/qr-token.js";
 import { verifyStaffMfaForLogin } from "./account-security-service.js";
+import { isNativeWalletCode, resolveNativeWalletMembership } from "./native-wallet/membership.js";
+import { recordFailedRedemption } from "./service-recovery-service.js";
+import { protectedRedemptionReward, completeLegacyProtectedRedemption, lockProtectedRedemptionBusiness, protectedRedemptionName } from "./reward-promise-service.js";
+import { snapshotCompletedRedemption } from "./reward-economics-service.js";
+import { assertNoPendingCheckout } from "./pos-checkout-guard.js";
+import { assertRewardInventory } from "./reward-inventory-service.js";
 
 function id() {
   return crypto.randomUUID();
@@ -28,8 +35,11 @@ export async function lookupCustomerByQrTokenWithDeps(
 ) {
   let decoded;
   try {
-    decoded = await deps.verifyQrToken(customerQrToken);
+    decoded = isNativeWalletCode(customerQrToken)
+      ? await (deps.resolveNativeWalletMembership ?? resolveNativeWalletMembership)({ token: customerQrToken, staff })
+      : await deps.verifyQrToken(customerQrToken);
   } catch (error) {
+    if (isNativeWalletCode(customerQrToken) && error?.statusCode) throw error;
     throw badRequest(error?.message ?? "Invalid QR token");
   }
 
@@ -37,7 +47,7 @@ export async function lookupCustomerByQrTokenWithDeps(
   if (bid !== staff.business_id) throw forbidden("QR token is for a different business");
 
   const customer = await deps.CustomerRepo.getById(cid);
-  if (!customer || customer.business_id !== staff.business_id) throw notFound("Customer not found");
+  if (!customer || customer.business_id !== staff.business_id || customer.deleted_at) throw notFound("Customer not found");
 
   return {
     customer: {
@@ -145,6 +155,7 @@ export async function staffLogin({ email, password, mfaCode = undefined }) {
 
 const customerLookupDeps = {
   verifyQrToken,
+  resolveNativeWalletMembership,
   CustomerRepo
 };
 
@@ -158,8 +169,28 @@ const redeemDeps = {
   withTransaction,
   settlePendingPointsForCustomer,
   expirePointsForCustomer,
-  enqueueWebhookEvent
+  enqueueWebhookEvent,
+  protectedRedemptionReward,
+  lockProtectedRedemptionBusiness,
+  protectedRedemptionName,
+  completeLegacyProtectedRedemption
 };
+
+// Checkout owns the transaction and completes the earned terms on paid receipt.
+export async function redeemCheckoutWithinTransaction(client, payload, captureCompletion) {
+  // Settlement can lock the balance; retain business → reward → balance order.
+  await client.query("SELECT id FROM businesses WHERE id=$1 FOR SHARE", [payload.staff.business_id]);
+  await client.query("SELECT id FROM rewards WHERE business_id=$1 AND id=$2 FOR UPDATE", [payload.staff.business_id, payload.rewardId]);
+  return redeemRewardWithDeps({
+    ...redeemDeps,
+    withTransaction: fn => fn(client),
+    settlePendingPointsForCustomer: (customerId, businessId) => settlePendingPointsForCustomer(customerId, businessId, fn => fn(client)),
+    expirePointsForCustomer: (customerId, businessId) => expirePointsForCustomer(customerId, businessId, fn => fn(client)),
+    enqueueWebhookEvent: async () => {},
+    deferVisit: true,
+    completeLegacyProtectedRedemption: captureCompletion
+  }, payload);
+}
 
 export async function redeemRewardWithDeps(
   deps,
@@ -180,6 +211,7 @@ export async function redeemRewardWithDeps(
     await lockRedemptionRequest(client, staff.business_id, requestId);
     const replay = await findExistingRedemptionByRequestId(client, staff.business_id, requestId);
     if (replay) {
+      if (typeof deps.protectedRedemptionName === "function") replay.reward_name = await deps.protectedRedemptionName(client, replay.id) ?? replay.reward_name;
       if (replay.customer_id !== customerId || replay.reward_id !== rewardId) {
         throw conflict("requestId already used for a different redemption");
       }
@@ -218,18 +250,25 @@ export async function redeemRewardWithDeps(
       };
     }
 
+    const lockedBusiness = typeof deps.lockProtectedRedemptionBusiness === "function"
+      ? await deps.lockProtectedRedemptionBusiness(client, staff.business_id) : business;
+    const redemptionTimezone = regionTimezone(lockedBusiness ?? business);
     const rewardResult = await client.query(
       `SELECT * FROM rewards WHERE id=$1 FOR UPDATE`,
       [rewardId]
     );
-    const reward = rewardResult.rows[0];
+    let reward = rewardResult.rows[0];
+    if (reward && reward.business_id === staff.business_id && typeof deps.protectedRedemptionReward === "function") {
+      reward = await deps.protectedRedemptionReward(client, { businessId: staff.business_id, customerId, reward });
+    }
+    await assertNoPendingCheckout(client, { business: lockedBusiness ?? business, customerId });
     if (!reward || !reward.active) throw notFound("Reward not available");
     if (reward.business_id !== staff.business_id) throw forbidden("Reward belongs to different business");
     if (reward.valid_until && new Date(reward.valid_until) < new Date()) {
       throw badRequest("Reward expired");
     }
 
-    const scopedBranches = await deps.RewardRepo.listBranchIds(rewardId);
+    const scopedBranches = reward.protected_branch_ids ?? await deps.RewardRepo.listBranchIds(rewardId);
     if (scopedBranches.length > 0) {
       if (!staff.branch_id || !scopedBranches.includes(String(staff.branch_id))) {
         throw forbidden("Reward not available at this branch");
@@ -240,19 +279,23 @@ export async function redeemRewardWithDeps(
       `SELECT id
        FROM customers
        WHERE id=$1 AND business_id=$2 AND deleted_at IS NULL
-       FOR UPDATE`,
+       FOR SHARE`,
       [customerId, staff.business_id]
     );
     if (!customerResult.rows.length) throw notFound("Customer not found");
+    if ((lockedBusiness ?? business).program_json?.pos_inventory_checks === true) {
+      await assertRewardInventory(client, { businessId: staff.business_id, rewardId, branchId: staff.branch_id ?? null });
+    }
 
     if (maxRedemptionsPerDay > 0) {
       const daily = await client.query(
         `SELECT COUNT(*)::int AS c
          FROM redemptions
          WHERE business_id = $1
+           AND status <> 'CANCELLED'
            AND customer_id = $2
-           AND created_at >= date_trunc('day', now())`,
-        [staff.business_id, customerId]
+           AND created_at >= (date_trunc('day', now() AT TIME ZONE $3) AT TIME ZONE $3)`,
+        [staff.business_id, customerId, redemptionTimezone]
       );
       if (Number(daily.rows?.[0]?.c ?? 0) >= maxRedemptionsPerDay) {
         throw conflict(`Daily redemption limit reached (${maxRedemptionsPerDay}/day)`);
@@ -262,12 +305,14 @@ export async function redeemRewardWithDeps(
     if (maxRewardRedemptionsPerDay > 0) {
       const daily = await client.query(
         `SELECT COUNT(*)::int AS c
-         FROM redemptions
-         WHERE business_id = $1
-           AND customer_id = $2
-           AND reward_id = $3
-           AND created_at >= date_trunc('day', now())`,
-        [staff.business_id, customerId, rewardId]
+         FROM redemptions r
+         LEFT JOIN reward_entitlement_fulfillments f ON f.redemption_id = r.id
+         WHERE r.business_id = $1
+           AND r.status <> 'CANCELLED'
+           AND r.customer_id = $2
+           AND COALESCE(f.original_reward_id, r.reward_id) = $3
+           AND r.created_at >= (date_trunc('day', now() AT TIME ZONE $4) AT TIME ZONE $4)`,
+        [staff.business_id, customerId, rewardId, redemptionTimezone]
       );
       if (Number(daily.rows?.[0]?.c ?? 0) >= maxRewardRedemptionsPerDay) {
         throw conflict(`Daily limit reached for this reward (${maxRewardRedemptionsPerDay}/day)`);
@@ -276,12 +321,14 @@ export async function redeemRewardWithDeps(
 
     if (rewardCooldownHours > 0) {
       const latest = await client.query(
-        `SELECT created_at
-         FROM redemptions
-         WHERE business_id = $1
-           AND customer_id = $2
-           AND reward_id = $3
-         ORDER BY created_at DESC
+        `SELECT r.created_at
+         FROM redemptions r
+         LEFT JOIN reward_entitlement_fulfillments f ON f.redemption_id = r.id
+         WHERE r.business_id = $1
+           AND r.status <> 'CANCELLED'
+           AND r.customer_id = $2
+           AND COALESCE(f.original_reward_id, r.reward_id) = $3
+         ORDER BY r.created_at DESC
          LIMIT 1`,
         [staff.business_id, customerId, rewardId]
       );
@@ -361,6 +408,13 @@ export async function redeemRewardWithDeps(
       }
     }
 
+    // Capture cost only for this newly completed redemption, in the same
+    // transaction as the balance/stock changes. Replays return above unchanged.
+    await snapshotCompletedRedemption(client, { businessId: staff.business_id, redemptionId });
+    if (typeof deps.completeLegacyProtectedRedemption === "function") {
+      await deps.completeLegacyProtectedRedemption(client, { businessId: staff.business_id, staff, customerId, redemptionId, reward, pointsCost: cost, requestId });
+    }
+
     await client.query(
       `INSERT INTO transactions (id, business_id, branch_id, customer_id, staff_user_id, amount_q, points, source, meta)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
@@ -377,7 +431,7 @@ export async function redeemRewardWithDeps(
       ]
     );
 
-    await client.query(`UPDATE customers SET last_visit_at=now() WHERE id=$1`, [customerId]);
+    if (!deps.deferVisit) await client.query(`UPDATE customers SET last_visit_at=now() WHERE id=$1`, [customerId]);
 
     return {
       redemptionCode: code,
@@ -418,6 +472,7 @@ export async function redeemRewardWithDeps(
 
   return {
     redemptionCode: out.redemptionCode,
+    redemptionId: out.redemptionId,
     rewardName: out.rewardName,
     newBalance: out.newBalance
   };
@@ -425,6 +480,19 @@ export async function redeemRewardWithDeps(
 
 export async function redeemReward(args) {
   return redeemRewardWithDeps(redeemDeps, args);
+}
+
+// Called by the browser route after the redemption transaction has rolled back.
+export async function redeemRewardWithRecovery(args, injected = {}) {
+  const redeem = injected.redeem ?? redeemReward;
+  const record = injected.record ?? recordFailedRedemption;
+  try { return await redeem(args); } catch (error) {
+    try {
+      const recoveryCaseId = await record({ ...args, error });
+      if (recoveryCaseId) error.recoveryCaseId = recoveryCaseId;
+    } catch { /* Recording must never replace the original redemption error. */ }
+    throw error;
+  }
 }
 
 export async function syncAwards({ staff, awards }) {
@@ -438,6 +506,7 @@ export async function syncAwards({ staff, awards }) {
         visits: award.visits,
         items: award.items,
         source: "offline",
+        offlineGrant: award.offlineGrant,
         meta: { ...(award.meta ?? {}), client_ts: award.client_ts ?? null },
         txId: award.txId
       });

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="referrer" content="no-referrer"/>
+  <meta name="robots" content="noindex,nofollow"/>
+  <title>Preferencias de mensajes · PuntosFieles</title>
+  <link rel="icon" href="/icon.svg?v=4" type="image/svg+xml"/>
+  <link rel="stylesheet" href="/styles/fonts.css"/>
+  <link rel="stylesheet" href="/styles.css"/>
+  <link rel="stylesheet" href="/marketing-preferences.css"/>
+  <script type="module" src="/theme.js"></script>
+  <script type="module" src="/marketing-preferences.js"></script>
+</head>
+<body>
+  <header class="preferences-header"><a href="/mi-tarjeta/" class="preferences-brand">PuntosFieles</a></header>
+  <main class="preferences-main">
+    <h1>Elige qué mensajes recibes.</h1>
+    <p class="preferences-intro">Las promociones son opcionales. Tu tarjeta y tus puntos siguen disponibles aunque no recibas estos mensajes.</p>
+    <p id="preferencesStatus" role="status" aria-live="polite">Consultando tus preferencias…</p>
+    <section id="preferencesContent" hidden aria-labelledby="preferencesBusiness">
+      <h2 id="preferencesBusiness"></h2>
+      <p id="preferencesCurrent"></p>
+      <form id="preferencesForm" hidden>
+        <label class="preferences-choice"><input type="checkbox" id="marketingOptIn"/><span>Quiero recibir promociones y recordatorios de este negocio.</span></label>
+        <p class="preferences-note" id="preferencesHelp">Puedes cambiar tu elección en cualquier momento. Los mensajes de acceso y seguridad se envían por separado.</p>
+        <button type="submit" id="preferencesSave" aria-describedby="preferencesHelp">Guardar preferencia</button>
+      </form>
+      <div id="unsubscribeConfirm" hidden>
+        <p>Confirma para dejar de recibir promociones de este negocio.</p>
+        <button type="button" id="unsubscribeButton">Dejar de recibir promociones</button>
+      </div>
+    </section>
+    <div class="preferences-links">
+      <button type="button" id="preferencesRetry" hidden>Volver a intentar</button>
+      <a href="/ingresar/" id="preferencesSignin" hidden>Ingresar para elegir mis mensajes</a>
+      <a href="/mi-tarjeta/">Volver a mi tarjeta</a>
+    </div>
+    <noscript><p>Activa JavaScript para consultar y cambiar tus preferencias. Abrir este enlace no cambia tu elección.</p></noscript>
+  </main>
+</body>
+</html>

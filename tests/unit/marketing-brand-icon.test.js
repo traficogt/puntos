@@ -27,9 +27,10 @@ test("marketing header and entry points reference the canonical PF icon", () => 
   const adminDashboardHtml = read("public/admin-dashboard.html");
 
   assert.match(indexHtml, /rel="icon" href="\/icon\.svg\?v=4" type="image\/svg\+xml"/);
-  assert.match(indexHtml, /<a href="\/" class="brand brand-lockup">/);
-  assert.match(indexHtml, /<img src="\/icon\.svg\?v=4" alt="PuntosFieles" class="brand-mark"\/>/);
-  assert.match(indexHtml, /Bricolage\+Grotesque/);
+  assert.match(indexHtml, /<a href="\/" class="brand" aria-label="PuntosFieles, inicio">/);
+  assert.match(indexHtml, /<img src="\/icon\.svg\?v=4" alt="" width="36" height="36"\/>/);
+  assert.match(indexHtml, /href="\/styles\/fonts\.css\?v=1"/);
+  assert.match(read("public/styles/fonts.css"), /font-family: 'Bricolage Grotesque'/);
   assert.match(customerHtml, /rel="icon" href="\/icon\.svg\?v=4" type="image\/svg\+xml"/);
   assert.match(joinHtml, /rel="icon" href="\/icon\.svg\?v=4" type="image\/svg\+xml"/);
   assert.match(adminDashboardHtml, /rel="icon" href="\/icon\.svg\?v=4" type="image\/svg\+xml"/);

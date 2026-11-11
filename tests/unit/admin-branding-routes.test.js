@@ -25,9 +25,9 @@ async function runFinalHandler(layer, req) {
   const handler = layer.route.stack[layer.route.stack.length - 1].handle;
   await new Promise((resolve, reject) => {
     try {
-      const maybe = handler(req, res, (err) => (err ? reject(err) : resolve()));
+      const maybe = handler(req, res, (err) => (err ? reject(err) : resolve(undefined)));
       if (maybe && typeof maybe.then === "function") maybe.then(resolve).catch(reject);
-      else resolve();
+      else resolve(undefined);
     } catch (error) {
       reject(error);
     }

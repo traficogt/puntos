@@ -1,13 +1,14 @@
 import { logger } from "../../../../utils/logger.js";
 
-export function createDevProvider() {
+export function createDevProvider({ environment = process.env.NODE_ENV || "production" } = {}) {
   return {
     name: "dev",
     canSend() {
-      return true;
+      return environment !== "production";
     },
     async send(message) {
-      logger.info({ message }, "[MESSAGE dev]");
+      if (environment === "production") throw new Error("Development messaging is disabled in production");
+      logger.info({ channel: message.channel }, "[MESSAGE dev] simulated delivery");
       return { ok: true, providerId: "dev" };
     }
   };

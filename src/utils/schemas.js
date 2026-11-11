@@ -1,9 +1,12 @@
+import { dateTimeSchema } from './date-time-schema.js';
 import { z } from "zod";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "./password-policy.js";
 
 // Common schemas
 
-export const uuidSchema = z.string().uuid();
+// Preserve the original 8-4-4-4-12 hex contract for stored and client IDs;
+// Zod 4's UUID validator additionally restricts RFC version/variant bits.
+export const uuidSchema = z.guid();
 export const emailSchema = z.string().email().max(255);
 export const phoneSchema = z.string().regex(/^\+502\d{8}$/, "Phone must be +502 followed by 8 digits");
 export const slugSchema = z.string().min(2).max(50).regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens");
@@ -26,7 +29,7 @@ export const itemProgramSchema = z.object({
 });
 
 // Meta field validation (max 10KB JSON)
-export const metaSchema = z.record(z.any()).refine(
+export const metaSchema = z.record(z.string(), z.any()).refine(
   (data) => JSON.stringify(data).length < 10000,
   "Meta field must be less than 10KB"
 );
@@ -142,7 +145,9 @@ export const verifyJoinCodeSchema = z.object({
   email: emailSchema.optional(),
   code: z.string().min(4).max(10),
   name: z.string().max(120).optional(),
-  referralCode: z.string().length(6).optional()
+  referralCode: z.string().length(6).optional(),
+  // Optional source capability never makes an otherwise valid enrollment fail.
+  visitToken: z.unknown().optional().transform(value => typeof value === "string" && /^[A-Za-z0-9_-]{43}$/.test(value) ? value : undefined)
 });
 
 export const customerUpdateSchema = z.object({
@@ -161,7 +166,7 @@ export const awardPointsSchema = z.object({
   amount_q: z.number().min(0).max(1000000).optional(),
   visits: z.number().int().positive().max(1000).optional(),
   items: z.number().int().positive().max(10000).optional(),
-  meta: z.record(z.any()).optional(),
+  meta: z.record(z.string(), z.any()).optional(),
   txId: uuidSchema
 });
 
@@ -175,7 +180,7 @@ export const syncAwardsSchema = z.object({
     amount_q: z.number().min(0).max(1000000).optional(),
     visits: z.number().int().min(0).max(1000).optional(),
     items: z.number().int().min(0).max(10000).optional(),
-    meta: z.record(z.any()).optional(),
+    meta: z.record(z.string(), z.any()).optional(),
     txId: uuidSchema,
     client_ts: z.string().optional()
   })).max(200)
@@ -188,7 +193,7 @@ export const rewardCreateSchema = z.object({
   description: z.string().max(500).optional(),
   points_cost: z.number().int().min(1).max(1000000),
   stock: z.number().int().min(0).optional(),
-  valid_until: z.string().datetime().optional(),
+  valid_until: dateTimeSchema().optional(),
   active: z.boolean().default(true),
   branch_ids: z.array(uuidSchema).max(200).optional()
 });
@@ -198,7 +203,7 @@ export const rewardUpdateSchema = z.object({
   description: z.string().max(500).optional(),
   points_cost: z.number().int().min(1).max(1000000).optional(),
   stock: z.number().int().min(0).optional(),
-  valid_until: z.string().datetime().optional(),
+  valid_until: dateTimeSchema().optional(),
   active: z.boolean().optional(),
   branch_ids: z.array(uuidSchema).max(200).optional()
 });
@@ -255,7 +260,7 @@ export const optionalUuidSchema = z.preprocess(
     if (normalized === "" || normalized === null || normalized === undefined) return undefined;
     return normalized;
   },
-  z.string().uuid().optional()
+  z.guid().optional()
 );
 
 export const branchFilterQuerySchema = z.object({
@@ -273,7 +278,7 @@ export function validateRequest(schema) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           error: "Validation failed",
-          details: error.errors.map(e => ({
+          details: error.issues.map(e => ({
             field: e.path.join("."),
             message: e.message
           }))
@@ -293,7 +298,7 @@ export function validateQuery(schema) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           error: "Invalid query parameters",
-          details: error.errors.map(e => ({
+          details: error.issues.map(e => ({
             field: e.path.join("."),
             message: e.message
           }))

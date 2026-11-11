@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="theme-color" content="#0b0f14"/>
+  <meta name="theme-color" content="#f7f5ef"/>
   <title>Escáner de personal • PuntosFieles</title>
   <link rel="icon" href="/icon.svg?v=4" type="image/svg+xml"/>
   <script src="/runtime-config.js"></script>
@@ -12,58 +12,60 @@
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script type="module" src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css"/>
+  <link rel="stylesheet" href="/styles/operations-modern.css?v=1"/>
+  <link rel="stylesheet" href="/staff/service-cases.css"/>
+  <link rel="stylesheet" href="/staff/service-briefing.css"/>
   <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
-<body class="app-shell page-staff">
-  <div class="nav app-topbar">
+<body class="operations-shell app-shell page-staff">
+  <a class="operations-skip" href="#contenido">Saltar al contenido</a>
+  <nav class="nav app-topbar" aria-label="Navegación principal">
     <div class="brand brand-stack">
-      <span class="brand-kicker">Operación en caja</span>
-      <span class="brand-title">Escáner de personal</span>
+      <img class="operations-brand-mark" src="/icon.svg?v=4" alt="" width="32" height="32"/>
+      <span class="brand-title">Caja</span>
     </div>
     <div class="row">
-      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><span class="theme-toggle-glyph" aria-hidden="true">◐</span></button>
-      <a class="badge" href="/admin-dashboard" data-shell-link="app-dashboard">Panel</a>
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" stroke="none"/></svg></button>
+      <a class="badge" href="/administracion/" data-shell-link="app-dashboard">Panel</a>
       <a class="ghost-link" href="/sitio" data-shell-link="marketing-home">Sitio</a>
       <span class="badge" id="queueBadge">Sin conexión: 0</span>
+      <button id="btnLogout">Salir</button>
     </div>
-  </div>
+  </nav>
 
-  <div class="container">
+  <main class="container" id="contenido" tabindex="-1">
     <section class="admin-header-band staff-header-band">
       <div class="app-stage-copy">
-        <p class="section-kicker">Validación operativa</p>
-        <h1>Selecciona al cliente, luego registra o canjea.</h1>
-        <p class="lede admin-lede">Una vista enfocada para caja: la cámara selecciona al cliente, después eliges la acción. Registrar suma puntos; canjear usa el cliente ya seleccionado.</p>
+        <h1>Cada visita cuenta.</h1>
+        <p class="lede admin-lede">Selecciona al cliente para registrar puntos o canjear su recompensa.</p>
       </div>
     </section>
 
     <section class="staff-primary-workspace staff-workstage">
       <div class="card staff-selection-panel staff-camera-stage">
         <div class="staff-panel-heading">
-          <p class="section-kicker">Entrada del cliente</p>
           <h2>Seleccionar cliente</h2>
         </div>
-        <video id="video" autoplay playsinline muted></video>
+        <video id="video" autoplay playsinline muted aria-label="Vista de la cámara para escanear el código QR"></video>
         <div class="row mt-10">
           <button class="primary" id="btnStart">Seleccionar cliente</button>
           <button id="btnStop">Pausar</button>
           <button id="btnSync">Sincronizar</button>
         </div>
         <p class="small" id="selectionStatus">Escanea o ingresa el código del cliente para continuar.</p>
-        <p class="small">Consejo: Chrome Android tiene mejor soporte para QR. Si no hay BarcodeDetector, usa entrada manual.</p>
-        <label>Token QR (manual)</label>
+        <p class="small">Si la cámara no está disponible, ingresa el código manualmente.</p>
+        <label for="token">Token QR (manual)</label>
         <textarea id="token" rows="3" placeholder="Pega aquí el token si no puedes escanear"></textarea>
         <div class="row mt-10">
           <button id="btnSelectCustomer">Seleccionar cliente</button>
         </div>
         <p class="small" id="queueMeta">Pendientes: 0 • Fallidos: 0 • Última actividad: —</p>
-        <pre id="queueList" class="small pre-wrap">(sin operaciones pendientes)</pre>
+        <details class="operations-disclosure"><summary>Cola de sincronización</summary><pre id="queueList" class="small pre-wrap">(sin operaciones pendientes)</pre></details>
       </div>
 
       <div class="staff-customer-column staff-action-stack">
         <div class="card staff-customer-summary" id="staffCustomerSummary" data-customer-state="waiting">
           <div class="staff-panel-heading">
-            <p class="section-kicker">Cliente activo</p>
             <h2>Cliente activo</h2>
           </div>
           <div class="staff-ready-chip" id="customerReadyChip">Esperando cliente</div>
@@ -98,9 +100,8 @@
 
         <div class="card staff-action-rail" id="staffActionRail" data-customer-state="waiting">
           <div class="staff-panel-heading">
-            <p class="section-kicker">Acciones compartidas</p>
             <h2>Registrar y canjear</h2>
-            <p class="small">Gift cards siguen abajo como acción secundaria.</p>
+
           </div>
           <div class="staff-action-grid">
             <div class="card staff-action-block">
@@ -108,21 +109,21 @@
               <p class="small" id="programInfo">Regla activa: —</p>
               <div class="grid">
                 <div>
-                  <label>Monto (Q)</label>
+                  <label for="amount" id="staffAmountLabel">Monto</label>
                   <input id="amount" type="number" step="0.01" value="0"/>
                 </div>
                 <div>
-                  <label>Visitas</label>
+                  <label for="visits">Visitas</label>
                   <input id="visits" type="number" step="1" value="1"/>
                 </div>
                 <div>
-                  <label>Items</label>
+                  <label for="items">Items</label>
                   <input id="items" type="number" step="1" value="1"/>
                 </div>
               </div>
               <div class="row mt-10">
                 <button class="primary" id="btnAward" disabled>Registrar</button>
-                <button class="danger" id="btnLogout">Salir</button>
+
               </div>
               <p class="small" id="awardPreview">Escanea o ingresa el código del cliente para continuar.</p>
             </div>
@@ -130,7 +131,7 @@
             <div class="card staff-action-block">
               <h3>Canjear recompensa</h3>
               <p class="small">Selecciona al cliente, luego elige la recompensa disponible y canjea.</p>
-              <label>Recompensa</label>
+              <label for="rewardSelect">Recompensa</label>
               <select id="rewardSelect" disabled></select>
               <p class="small" id="rewardSelectionHint">Escanea o ingresa el código del cliente para continuar.</p>
               <div class="row mt-10">
@@ -141,10 +142,10 @@
 
             <div class="card staff-action-block staff-action-block-secondary" id="giftCardActionBlock">
               <h3>Gift Cards</h3>
-              <p class="small">Acción secundaria: canjea saldo de gift card por monto.</p>
-              <label>Código o token</label>
+              <p class="small">Descuenta un monto del saldo disponible.</p>
+              <label for="giftCode">Código o token</label>
               <input id="giftCode" placeholder="GC-XXXX... o gft_xxx"/>
-              <label>Monto a descontar (Q)</label>
+              <label for="giftAmount" id="staffGiftAmountLabel">Monto a descontar</label>
               <input id="giftAmount" type="number" min="0.01" step="0.01" value="10"/>
               <div class="row mt-10">
                 <button class="primary" id="btnGiftRedeem">Canjear gift card</button>
@@ -156,12 +157,17 @@
       </div>
     </section>
 
+    <section id="staffPosRecording" class="staff-service-cases" aria-label="Comprobar registro en caja" hidden></section>
+    <section id="staffRewardEntitlements" class="staff-service-cases" aria-label="Beneficios protegidos y cortesías"></section>
+    <section id="staffServiceCases" class="staff-service-cases" aria-label="Incidencias de servicio"></section>
+    <section id="staffServiceBriefing" aria-label="Preparar el turno"></section>
+
     <section class="staff-support-grid">
       <div class="card" id="ownerAnalyticsCard">
-        <h2>Si eres dueño</h2>
+        <h2>Resumen del negocio</h2>
         <div class="row">
           <button id="btnSummary">Ver resumen</button>
-          <a class="badge" href="/admin-dashboard" data-shell-link="app-dashboard">Panel</a>
+          <a class="badge" href="/administracion/" data-shell-link="app-dashboard">Panel</a>
         </div>
         <pre id="summary" class="small pre-wrap"></pre>
       </div>
@@ -171,9 +177,9 @@
         <div class="grid">
           <div class="card compact-card">
             <h3>Revalidar sesión</h3>
-            <label>Contraseña actual</label>
+            <label for="staffReauthPassword">Contraseña actual</label>
             <input id="staffReauthPassword" type="password" placeholder="Contraseña actual"/>
-            <label>Código MFA (si aplica)</label>
+            <label for="staffReauthMfaCode">Código MFA (si aplica)</label>
             <input id="staffReauthMfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
             <div class="row mt-8">
               <button id="btnStaffReauth">Revalidar</button>
@@ -185,7 +191,7 @@
               <button id="btnStaffMfaEnroll">Generar MFA</button>
               <button id="btnStaffMfaDisable">Desactivar MFA</button>
             </div>
-            <label>Código para confirmar MFA</label>
+            <label for="staffMfaConfirmCode">Código para confirmar MFA</label>
             <input id="staffMfaConfirmCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
             <div class="row mt-8">
               <button id="btnStaffMfaConfirm">Confirmar MFA</button>
@@ -202,7 +208,7 @@
         </div>
       </div>
     </section>
-  </div>
+  </main>
 
   <div id="toast" class="toast"></div>
   <script type="module" src="/staff.js"></script>

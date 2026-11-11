@@ -43,7 +43,7 @@ export async function startPwaStaticServer() {
             reject(error);
             return;
           }
-          resolve();
+          resolve(undefined);
         });
       });
     }

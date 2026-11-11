@@ -20,7 +20,7 @@ const SignupSchema = z.object({
   password: passwordSchema,
   category: z.string().optional(),
   program_type: z.enum(["SPEND", "VISIT", "ITEM"]).optional(),
-  program_json: z.record(z.any()).optional(),
+  program_json: z.record(z.string(), z.any()).optional(),
   captcha_token: z.string().max(500).optional()
 });
 

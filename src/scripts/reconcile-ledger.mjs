@@ -3,7 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 function arg(name, fallback = "") {
   const index = process.argv.indexOf(name);

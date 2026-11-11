@@ -14,39 +14,39 @@
           <h2>Nuevo Reto</h2>
           <div class="grid">
             <div>
-              <label>Nombre</label>
+              <label for="chalName">Nombre</label>
               <input id="chalName" placeholder="Ej: Fin de semana activo"/>
               
-              <label>Descripción</label>
+              <label for="chalDesc">Descripción</label>
               <textarea id="chalDesc" rows="2" placeholder="Visítanos 3 veces este fin de semana"></textarea>
               
-              <label>Tipo</label>
+              <label for="chalType">Tipo</label>
               <select id="chalType">
                 <option value="limited_time">Tiempo limitado</option>
                 <option value="recurring">Recurrente</option>
               </select>
 
-              <label>Requisito</label>
+              <label for="chalReqType">Requisito</label>
               <select id="chalReqType">
                 <option value="visits">Visitas</option>
-                <option value="spend">Gasto (Q)</option>
+                <option value="spend">Gasto (moneda del negocio)</option>
                 <option value="items">Items comprados</option>
               </select>
             </div>
             <div>
-              <label>Cantidad requerida</label>
+              <label for="chalReqValue">Cantidad requerida</label>
               <input id="chalReqValue" type="number" min="1" value="3"/>
               
-              <label>Puntos de recompensa</label>
+              <label for="chalReward">Puntos de recompensa</label>
               <input id="chalReward" type="number" min="1" value="100"/>
               
-              <label>Fecha inicio</label>
+              <label for="chalStartDate">Fecha inicio</label>
               <input id="chalStartDate" type="datetime-local"/>
               
-              <label>Fecha fin (opcional)</label>
+              <label for="chalEndDate">Fecha fin (opcional)</label>
               <input id="chalEndDate" type="datetime-local"/>
               
-              <label>Recurrencia (para recurrentes)</label>
+              <label for="chalRecurrence">Recurrencia (para recurrentes)</label>
               <select id="chalRecurrence">
                 <option value="">No recurrente</option>
                 <option value="daily">Diario</option>

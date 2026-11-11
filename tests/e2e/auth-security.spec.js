@@ -44,33 +44,33 @@ async function createBusinessForAuthFlow(page, clientIp) {
 }
 
 async function loginStaffViaUi(page, { email, password, mfaCode = "" }) {
-  await page.goto("/staff/login?sw=off", { waitUntil: "networkidle" });
+  await page.goto("/staff/login?sw=off", { waitUntil: "domcontentloaded" });
   await expect(page.locator("#btnLogin")).toBeVisible();
   await page.fill("#email", email);
   await page.fill("#password", password);
   await page.fill("#mfaCode", mfaCode);
-  const loginReq = page.waitForRequest((req) =>
-    req.method() === "POST" && req.url().includes("/api/staff/login")
-  );
   const loginResp = page.waitForResponse((resp) =>
     resp.request().method() === "POST" && resp.url().includes("/api/staff/login")
   );
   await page.click("#btnLogin");
-  const req = await loginReq;
   const resp = await loginResp;
   if (!resp.ok()) {
-    throw new Error(`staff login failed: ${resp.status()} payload=${req.postData() || ""} body=${await resp.text()}`);
+    throw new Error(`staff login failed: ${resp.status()}`);
   }
+  const loginOrigin = new URL(resp.url()).origin;
+  await page.waitForURL((url) => url.origin === loginOrigin && url.pathname === "/negocio/");
   return resp;
 }
 
 test("staff login page exposes recovery and MFA controls", async ({ page }) => {
   await useRandomClientIp(page);
-  await page.goto("/staff/login?sw=off");
+  await page.goto("/staff/login?sw=off", { waitUntil: "domcontentloaded" });
 
   await expect(page.locator("#mfaCode")).toBeVisible();
+  await page.getByText("¿Olvidaste tu contraseña?", { exact: true }).click();
   await expect(page.locator("#btnRequestReset")).toBeVisible();
   await expect(page.locator("#btnConfirmReset")).toBeVisible();
+  await page.getByText("Confirmar un cambio de correo", { exact: true }).click();
   await expect(page.locator("#btnConfirmEmailChange")).toBeVisible();
 });
 
@@ -79,7 +79,7 @@ test("staff can enable MFA through UI and use it on next login", async ({ page }
   const out = await createBusinessForAuthFlow(page, clientIp);
 
   await loginStaffViaUi(page, out);
-  await page.goto("/staff?sw=off");
+  await page.goto("/staff?sw=off", { waitUntil: "domcontentloaded" });
   await expect(page.locator("#btnStaffReauth")).toBeVisible();
 
   await page.fill("#staffReauthPassword", out.password);
@@ -113,7 +113,7 @@ test("staff can enable MFA through UI and use it on next login", async ({ page }
   await page.click("#btnLogout");
   expect((await logoutResp).ok()).toBeTruthy();
 
-  await page.goto("/staff/login?sw=off");
+  await page.goto("/staff/login?sw=off", { waitUntil: "domcontentloaded" });
   await page.fill("#email", out.email);
   await page.fill("#password", out.password);
   const failedLogin = page.waitForResponse((resp) =>
@@ -124,7 +124,7 @@ test("staff can enable MFA through UI and use it on next login", async ({ page }
 
   await loginStaffViaUi(page, { ...out, mfaCode: totp(secret) });
 
-  await page.goto("/staff?sw=off");
+  await page.goto("/staff?sw=off", { waitUntil: "domcontentloaded" });
   await page.fill("#staffReauthPassword", out.password);
   await page.fill("#staffReauthMfaCode", totp(secret));
   const reauthWithMfaResp = page.waitForResponse((resp) =>
@@ -142,9 +142,10 @@ test("staff can enable MFA through UI and use it on next login", async ({ page }
 
 test("super page exposes recovery controls and security actions", async ({ page }) => {
   await useRandomClientIp(page);
-  await page.goto("/super?sw=off");
+  await page.goto("/super?sw=off", { waitUntil: "domcontentloaded" });
 
   await expect(page.locator("#loginMfaCode")).toBeVisible();
+  await page.locator(".super-recovery > summary").click();
   await expect(page.locator("#btnRequestSuperReset")).toBeVisible();
   await expect(page.locator("#btnConfirmSuperReset")).toBeVisible();
   await expect(page.locator("#btnConfirmSuperEmail")).toBeVisible();
@@ -156,7 +157,7 @@ test("super can use MFA controls through UI when credentials are configured", as
   test.skip(!email || !password, "SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD are required for super UI auth test");
 
   await useRandomClientIp(page);
-  await page.goto("/super?sw=off");
+  await page.goto("/super?sw=off", { waitUntil: "domcontentloaded" });
   await page.fill("#email", email);
   await page.fill("#password", password);
 
@@ -164,9 +165,10 @@ test("super can use MFA controls through UI when credentials are configured", as
     resp.request().method() === "POST" && resp.url().includes("/api/super/login")
   );
   await page.click("#btnLogin");
-  expect((await loginResp).ok()).toBeTruthy();
+  const response = await loginResp;
+  expect(response.ok(), `super login returned HTTP ${response.status()}`).toBeTruthy();
 
-  await expect(page.locator("#securityCard")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Postura de seguridad (24h)", exact: true })).toBeVisible();
   await expect(page.locator("#btnSuperReauth")).toBeVisible();
   await expect(page.locator("#btnSuperMfaEnroll")).toBeVisible();
   await expect(page.locator("#btnSuperMfaDisable")).toBeVisible();

@@ -1,13 +1,17 @@
+import {runSecondVisitAutomationsOnce} from './services/second-visit-service.js';
+import {processWeeklyOwnerBriefsOnce} from './services/weekly-owner-brief-service.js';
 import express from "express";
+import { processNativeWalletUpdates } from "./services/native-wallet/runtime.js";
 import cron from "node-cron";
+import { processMobilePushUpdates, closeMobilePush } from "./services/mobile-push/runtime.js";
 
 import { logger } from "../utils/logger.js";
 import { config } from "../config/index.js";
 import { initDatabase, closeDatabase, withDbClientContext } from "./database.js";
 import { deliverPendingOnce } from "./services/webhook-service.js";
+import { syncConfiguredPosOnce } from "./services/pos-integration-service.js";
 import { processPendingJobsOnce } from "./services/job-service.js";
-import { runChurnOnce } from "./services/churn-service.js";
-import { runLifecycleOnce } from "./services/lifecycle-service.js";
+import { runLifecycleOnce, createMarketingTick } from "./services/lifecycle-service.js";
 import { runLedgerReconciliation } from "./services/ledger-reconciliation-service.js";
 import { resolveCertificationPeriod, writeLedgerCertificationArtifacts } from "./services/ledger-certification-service.js";
 import { BusinessRepo } from "./repositories/business-repository.js";
@@ -16,6 +20,13 @@ import observabilityRoutes from "./routes/observability.js";
 
 let webhookInterval;
 let jobInterval;
+let campaignMessageInterval;
+let guidedGrowthInterval;
+let guidedGrowthRunning = false;
+const marketingTick = createMarketingTick();
+let posInterval;
+let nativeWalletInterval;
+let mobilePushInterval;
 let cronTask;
 let server;
 
@@ -42,6 +53,9 @@ async function startWorkers() {
     logger.warn({ err: e?.message }, "Worker: secret encryption maintenance failed");
   }
 
+  nativeWalletInterval = setInterval(processNativeWalletUpdates, 60_000);
+  mobilePushInterval = setInterval(processMobilePushUpdates, 30_000);
+
   logger.info("Worker: starting webhook delivery loop (60s)");
   webhookInterval = setInterval(() => {
     deliverPendingOnce().catch((e) => logger.warn({ err: e?.message }, "Worker: deliverPendingOnce failed"));
@@ -53,15 +67,28 @@ async function startWorkers() {
       .catch((e) => logger.warn({ err: e?.message }, "Worker: processPendingJobsOnce failed"));
   }, config.JOB_WORKER_INTERVAL_MS);
 
-  logger.info("Worker: scheduling churn + lifecycle job");
+  campaignMessageInterval = setInterval(marketingTick, 60_000);
+  guidedGrowthInterval = setInterval(async () => {
+    if (guidedGrowthRunning) return;
+    guidedGrowthRunning = true;
+    try {
+      try { await runSecondVisitAutomationsOnce(); }
+      catch { logger.warn('Worker: second-visit preparation did not complete'); }
+      try { await processWeeklyOwnerBriefsOnce(); }
+      catch { logger.warn('Worker: owner brief processing did not complete'); }
+    } finally { guidedGrowthRunning = false; }
+  }, 60_000);
+
+  logger.info("Worker: scheduling daily lifecycle maintenance");
+  posInterval = setInterval(() => {
+    syncConfiguredPosOnce().catch(() => logger.warn("Worker: POS polling did not complete"));
+  }, 300_000);
   const hour = String(config.CHURN_SEND_HOUR_LOCAL).padStart(2, "0");
   cronTask = cron.schedule(`0 ${hour} * * *`, async () => {
+    try { await runLifecycleOnce(); }
+    catch { logger.warn("Worker: daily lifecycle maintenance did not complete"); }
     try {
       const ids = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => BusinessRepo.listAllIds());
-      for (const bid of ids) {
-        await runChurnOnce({ businessId: bid, days: config.CHURN_DAYS });
-      }
-      await runLifecycleOnce();
       const reconciliation = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => (
         runLedgerReconciliation({
           limit: config.LEDGER_RECONCILE_LIMIT,
@@ -100,7 +127,7 @@ async function startWorkers() {
         businesses: certificationArtifacts.length
       }, "Worker: wrote daily ledger certification artifacts");
     } catch (e) {
-      logger.warn({ err: e?.message }, "Worker: churn job failed");
+      logger.warn({ err: e?.message }, "Worker: daily ledger maintenance failed");
     }
   }, { timezone: config.CRON_TZ });
 
@@ -123,6 +150,12 @@ function shutdown(signal) {
   logger.info({ signal }, "Worker shutting down gracefully");
   if (webhookInterval) clearInterval(webhookInterval);
   if (jobInterval) clearInterval(jobInterval);
+  if (campaignMessageInterval) clearInterval(campaignMessageInterval);
+  if (guidedGrowthInterval) clearInterval(guidedGrowthInterval);
+  if (posInterval) clearInterval(posInterval);
+  if (nativeWalletInterval) clearInterval(nativeWalletInterval);
+  if (mobilePushInterval) clearInterval(mobilePushInterval);
+  closeMobilePush();
   if (cronTask) cronTask.stop();
   server?.close?.(() => logger.info("Worker observability server closed"));
   closeDatabase()

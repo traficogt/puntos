@@ -1,4 +1,4 @@
-import { importPKCS8, importSPKI, SignJWT, jwtVerify } from "jose";
+import { importPKCS8, importSPKI, SignJWT, jwtVerify, compactVerify } from "jose";
 import { nanoid } from "nanoid";
 import { config } from "../config/index.js";
 
@@ -20,11 +20,25 @@ export async function signQrToken(businessId, customerId, ttlSeconds = 60) {
   return { token, jti, exp };
 }
 
-export async function verifyQrToken(token) {
+export async function verifyQrToken(token, { currentDate = new Date() } = {}) {
   if (!config.QR_PUBLIC_KEY_PEM) throw new Error("QR_PUBLIC_KEY_PEM not configured");
   const pub = await importSPKI(config.QR_PUBLIC_KEY_PEM, "EdDSA");
 
-  const { payload } = await jwtVerify(token, pub, { algorithms: ["EdDSA"] });
+  const { payload } = await jwtVerify(token, pub, { algorithms: ["EdDSA"], currentDate });
+
+  return qrClaims(payload);
+}
+
+// Only for acknowledging a matching transaction already stored in the ledger.
+// This verifies identity/signature, but cannot authorize a new award.
+export async function verifyQrSignature(token) {
+  if (!config.QR_PUBLIC_KEY_PEM) throw new Error("QR_PUBLIC_KEY_PEM not configured");
+  const pub = await importSPKI(config.QR_PUBLIC_KEY_PEM, "EdDSA");
+  const { payload } = await compactVerify(token, pub, { algorithms: ["EdDSA"] });
+  return qrClaims(JSON.parse(new TextDecoder().decode(payload)));
+}
+
+function qrClaims(payload) {
 
   const bid = String(payload.bid ?? "");
   const cid = String(payload.cid ?? "");
@@ -32,5 +46,5 @@ export async function verifyQrToken(token) {
   const exp = Number(payload.exp ?? 0);
 
   if (!bid || !cid || !jti || !exp) throw new Error("Invalid QR token");
-  return { bid, cid, jti, exp };
+  return { bid, cid, jti, exp, iat: Number(payload.iat ?? 0) };
 }

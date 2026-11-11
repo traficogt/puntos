@@ -65,3 +65,8 @@ test("message router skips providers that cannot send the available destination 
   assert.equal(out.provider, "whatsapp_cloud");
   assert.deepEqual(out.attempts, ["whatsapp_cloud"]);
 });
+
+test('message router treats an explicit provider failure as failed delivery', async () => {
+  const router = createMessageRouter({ order: ['failed'], providers: { failed: { name: 'failed', canSend: () => true, send: async () => ({ ok: false }) } } });
+  assert.equal((await router.send({ channel: 'verify', body: 'test', destinations: { phone: '+50255555555' } })).ok, false);
+});

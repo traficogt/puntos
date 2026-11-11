@@ -1,3 +1,6 @@
+import { runCampaignPreparationJob } from './campaign-preparation-service.js';
+import { runCustomerImportJob } from './customer-import-job-service.js';
+import { RETRYABLE_JOB_TYPES, recoverJobLeases, heartbeatJob, completeClaimedJob, failClaimedJob } from './job-recovery.js';
 import crypto from "node:crypto";
 import { withDbClientContext } from "../database.js";
 import { JobRepo } from "../repositories/job-repository.js";
@@ -21,6 +24,8 @@ function jobLogContext(job, extras = {}) {
 }
 
 const HANDLERS = {
+  "growth.campaign.prepare": runCampaignPreparationJob,
+  "customer.import": runCustomerImportJob,
   "analytics.calculate": async ({ businessId }) => {
     if (!businessId) throw new Error("Missing businessId");
     await withDbClientContext({ tenantId: businessId, platformAdmin: false }, async () => {
@@ -42,7 +47,7 @@ const REDIS_FORCE_DB = (process.env.JOB_QUEUE_FORCE_DB ?? "false") === "true";
 
 let redis = null;
 if (!REDIS_FORCE_DB && config.JOB_QUEUE_DRIVER === "redis" && config.REDIS_URL) {
-  redis = createClient({ url: config.REDIS_URL });
+  redis = createClient({ url: config.REDIS_URL, RESP: 2 });
   redis.connect().catch((err) => {
     logger.warn({ err: err?.message }, "Job queue: failed to connect to Redis, falling back to DB");
     redis = null;
@@ -195,6 +200,7 @@ async function claimNextJob() {
 }
 
 export async function processPendingJobsOnce({ limit = 10 } = {}) {
+  await withDbClientContext({ platformAdmin: true, tenantId: null }, recoverJobLeases);
   let processed = 0;
   for (let i = 0; i < limit; i += 1) {
     const job = await claimNextJob();
@@ -223,20 +229,18 @@ export async function processPendingJobsOnce({ limit = 10 } = {}) {
       continue;
     }
 
+    const recoverable = trackedJob && RETRYABLE_JOB_TYPES.includes(resolvedJobType);
+    const heartbeat = recoverable ? setInterval(() => {
+      withDbClientContext({platformAdmin:true,tenantId:null}, client => heartbeatJob(client,job)).catch(() => logger.warn({jobId:job.id}, 'Job heartbeat failed'));
+    }, 30000) : null;
+    heartbeat?.unref();
     try {
       const businessId = job.business_id ?? job.payload?.businessId ?? null;
       logger.info(jobLogContext(job, { businessId }), "Processing background job");
       const result = await handler({ ...(job.payload ?? {}), businessId });
       if (trackedJob) {
         await withDbClientContext({ platformAdmin: true, tenantId: null }, async (client) => {
-          await client.query(
-            `UPDATE background_jobs
-             SET status='DONE',
-                 result=$2,
-                 completed_at=now()
-             WHERE id=$1`,
-            [job.id, result ?? {}]
-          );
+          await completeClaimedJob(client,job,result);
         });
         logger.info(jobLogContext(job, { businessId }), "Background job completed");
       } else {
@@ -246,20 +250,14 @@ export async function processPendingJobsOnce({ limit = 10 } = {}) {
       const message = e?.message ?? String(e);
       if (trackedJob) {
         await withDbClientContext({ platformAdmin: true, tenantId: null }, async (client) => {
-          await client.query(
-            `UPDATE background_jobs
-             SET status='FAILED',
-                 error=$2,
-                 completed_at=now()
-             WHERE id=$1`,
-            [job.id, message]
-          );
+          if (recoverable) await failClaimedJob(client,job);
+          else await client.query("UPDATE background_jobs SET status='FAILED',error=$2,completed_at=now() WHERE id=$1 AND status='RUNNING' AND attempts=$3",[job.id,message,job.attempts]);
         });
         logger.warn(jobLogContext(job, { err: message }), "Background job failed");
       } else {
         logger.warn({ jobType: resolvedJobType, err: message }, "Job failed (Redis queue)");
       }
-    }
+    } finally { if (heartbeat) clearInterval(heartbeat); }
 
     processed += 1;
   }

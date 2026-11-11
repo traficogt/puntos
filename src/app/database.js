@@ -1,4 +1,4 @@
-export { pool, closeDatabase } from "./db/pools.js";
+export { pool, transactionPool, closeDatabase } from "./db/pools.js";
 export {
   runWithDbContext,
   getDbContext,

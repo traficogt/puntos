@@ -1,0 +1,1 @@
+import{A as e,L as t,z as n}from"./index-BhegoLjy.js";import{i as r}from"./ComboboxChevron-CbtU6mXf.js";var i=n(),a=e(e=>{let n=t([`Input`,`InputWrapper`,`TextInput`],null,e);return(0,i.jsx)(r,{component:`input`,...n,__staticSelector:`TextInput`})});a.classes=r.classes,a.displayName=`@mantine/core/TextInput`;export{a as t};

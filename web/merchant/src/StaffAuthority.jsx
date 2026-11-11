@@ -1,0 +1,65 @@
+import {merchantRegion} from './region.js';
+import { useRef, useState } from 'react';
+import { Alert, Badge, Button, Group, NativeSelect, NumberInput, Stack, Table, Text, Textarea, TextInput, Title } from '@mantine/core';
+import { api, isDemo, useResource } from './api.js';
+import { BusinessLink, Failure, Loading, number } from './ui.jsx';
+const durations=[{value:'4',label:'4 horas'},{value:'8',label:'8 horas'},{value:'24',label:'1 día'},{value:'72',label:'3 días'},{value:'168',label:'7 días'}];
+const date=value=>new Intl.DateTimeFormat(merchantRegion().locale,{dateStyle:'medium',timeStyle:'short',timeZone:merchantRegion().timezone}).format(new Date(value));
+const state=grant=>grant.revoked_at?['Revocada','gray']:new Date(grant.ends_at)<=new Date(grant.server_now||Date.now())?['Vencida','gray']:grant.remaining_points===0?['Sin puntos disponibles','gray']:new Date(grant.starts_at)>new Date(grant.server_now||Date.now())?['Programada','blue']:['Vigente','green'];
+export default function StaffAuthority(){
+ const pendingGrant=useRef(null);
+ const [version,setVersion]=useState(0),[offset,setOffset]=useState(0),authority=useResource(`/api/admin/staff-authority?offset=${offset}`,version),briefing=useResource('/api/admin/shift-notices',version);
+ const [grantOpen,setGrantOpen]=useState(false),[noticeOpen,setNoticeOpen]=useState(false),[busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState('');
+ const [person,setPerson]=useState(''),[branch,setBranch]=useState(''),[perAction,setPerAction]=useState(50),[total,setTotal]=useState(200),[hours,setHours]=useState('8');
+ const [noticeId,setNoticeId]=useState(null),[noticeVersion,setNoticeVersion]=useState(1),[title,setTitle]=useState(''),[body,setBody]=useState(''),[noticeBranch,setNoticeBranch]=useState(''),[noticeHours,setNoticeHours]=useState('24');
+ const refresh=()=>setVersion(value=>value+1),data=authority.data,staff=data?.staff||[],branches=data?.branches||[];
+ async function mutate(key,fn,success){if(busy)return;setBusy(key);setError('');setMessage('');try{await fn();setMessage(success);refresh();}catch(failure){setError(failure.message||'No pudimos guardar. Revisa tu conexión y vuelve a intentar.');}finally{setBusy('');}}
+ function grantSubmit(event){
+  event.preventDefault();
+  const terms={staff_id:person,branch_id:branch||null,action:'restore_redemption',per_action_points:perAction,total_points:total};
+  const fingerprint=JSON.stringify({...terms,hours});
+  // Retain the exact UUID and time window when the response may have been lost.
+  if(pendingGrant.current?.fingerprint!==fingerprint){
+   const now=Date.now();pendingGrant.current={fingerprint,body:JSON.stringify({...terms,request_id:crypto.randomUUID(),starts_at:new Date(now).toISOString(),ends_at:new Date(now+Number(hours)*3600000).toISOString()})};
+  }
+  const body=pendingGrant.current.body;
+  return mutate('grant',async()=>{await api('/api/admin/staff-authority',{method:'POST',body});pendingGrant.current=null;setGrantOpen(false);},'Autorización guardada. El equipo verá sus límites vigentes.');
+ }
+
+ function noticeSubmit(event){event.preventDefault();return mutate('notice',async()=>{await api(`/api/admin/shift-notices${noticeId?`/${noticeId}`:''}`,{method:noticeId?'PUT':'POST',body:JSON.stringify({title,body,branch_id:noticeBranch||null,expires_at:new Date(Date.now()+Number(noticeHours)*3600000).toISOString(),...(noticeId?{expected_version:noticeVersion}:{})})});setNoticeOpen(false);},'Aviso publicado. Cada persona deberá confirmar esta versión.');}
+ function editNotice(notice=null){setNoticeId(notice?.id??null);setNoticeVersion(notice?.version??1);setTitle(notice?.title??'');setBody(notice?.body??'');setNoticeBranch(notice?.branch_id??'');setNoticeHours('24');setNoticeOpen(true);setError('');}
+ return <Stack gap="xl">
+  <div><Title order={1}>Equipo y turnos</Title><Text c="dimmed" mt="sm" maw={740}>Dale al equipo un margen claro para resolver un canje y comparte solo lo que cambió en el turno.</Text></div>
+  {isDemo&&<Alert title="Demostración con personas ficticias" color="blue">Los cambios se quedan en esta sesión de demostración.</Alert>}
+  {error&&<Alert color="red" title="No pudimos guardar" role="alert">{error}</Alert>}{message&&<Text role="status">{message}</Text>}
+  <section className="operation-section" aria-labelledby="authority-heading">
+   <Group justify="space-between" align="start"><div><Title order={2} id="authority-heading">Autorizaciones para resolver canjes</Title><Text mt="sm" maw={740}>Permite restaurar los puntos de un canje con incidencia. Cada uso respeta un límite por acción, un total y un vencimiento. El dueño conserva su acceso.</Text></div><Button onClick={()=>{setGrantOpen(true);setPerson(staff[0]?.id||'');}} disabled={!!busy||!staff.length||grantOpen}>Autorizar persona</Button></Group>
+   {authority.loading?<Loading label="Cargando autorizaciones…"/>:authority.error?<Failure error={authority.error} retry={refresh}/>:<>
+    {staff.length===0&&<Text mt="md">Agrega una persona activa desde <BusinessLink href="/administracion/?seccion=equipo">Administrar equipo</BusinessLink> para delegar esta acción.</Text>}
+    {grantOpen&&<form onSubmit={grantSubmit}><Stack gap="md" mt="xl" maw={650}>
+     <Title order={3}>Nueva autorización</Title>
+     <NativeSelect label="Persona del equipo" required value={person} onChange={event=>{setPerson(event.currentTarget.value);setBranch('');}} data={[{value:'',label:'Selecciona una persona'},...staff.map(row=>({value:row.id,label:row.name}))]} disabled={!!busy}/>
+     <NativeSelect label="Alcance" description="Una sucursal específica debe coincidir con la asignada a la persona." value={branch} onChange={event=>setBranch(event.currentTarget.value)} data={[{value:'',label:'Cualquier sucursal asignada a esta persona'},...branches.filter(row=>row.id===staff.find(value=>value.id===person)?.branch_id).map(row=>({value:row.id,label:row.name}))]} disabled={!!busy}/>
+     <Group grow align="start"><NumberInput label="Máximo por acción (puntos)" required min={1} max={100000} allowDecimal={false} value={perAction} onChange={setPerAction} disabled={!!busy}/><NumberInput label="Total autorizado (puntos)" required min={1} max={1000000} allowDecimal={false} value={total} onChange={setTotal} disabled={!!busy}/></Group>
+     <NativeSelect label="Vence a partir de ahora" data={durations} value={hours} onChange={event=>setHours(event.currentTarget.value)} disabled={!!busy}/>
+     <Text size="sm">Podrá restaurar hasta {number(perAction)} puntos por canje, con un total de {number(total)} puntos durante {durations.find(row=>row.value===hours)?.label}. Puedes revocarlo antes.</Text>
+     <Group><Button type="submit" loading={busy==='grant'} disabled={!!busy||!person||!Number.isInteger(perAction)||!Number.isInteger(total)||total<perAction}>Guardar autorización</Button><Button variant="default" onClick={()=>setGrantOpen(false)} disabled={!!busy}>Cancelar</Button></Group>
+    </Stack></form>}
+    {!data?.grants.length?<Text mt="xl">Todavía no hay autorizaciones. Los casos que necesitan restaurar puntos quedan a cargo del dueño.</Text>:<Stack gap="md" mt="xl">{data.grants.map(grant=>{const [label]=state(grant);return <div key={grant.id}><Group justify="space-between" align="start"><div><Group gap="sm"><Text fw={650}>{grant.staff_name}</Text><Badge color="var(--pf-muted)" variant="outline">{label}</Badge></Group><Text size="sm" mt="xs">{grant.branch_name||'Cualquier sucursal asignada'} · {number(grant.per_action_points)} puntos por acción · {number(grant.remaining_points)} de {number(grant.total_points)} disponibles</Text><Text size="sm" c="dimmed">Del {date(grant.starts_at)} al {date(grant.ends_at)} (Guatemala)</Text></div>{!grant.revoked_at&&new Date(grant.ends_at)>new Date()&&<Button variant="outline" color="var(--pf-ink)" disabled={!!busy} loading={busy===grant.id} aria-label={`Revocar autorización de ${grant.staff_name}`} onClick={()=>mutate(grant.id,()=>api(`/api/admin/staff-authority/${grant.id}/revoke`,{method:'POST',body:'{}'}),'Autorización revocada. Los usos anteriores permanecen en el historial.')}>Revocar</Button>}</Group></div>;})}</Stack>}
+    {(offset>0||data?.pagination.has_more)&&<Group mt="lg"><Button variant="default" disabled={offset===0||!!busy} onClick={()=>setOffset(Math.max(0,offset-50))}>Anteriores</Button><Button variant="default" disabled={!data?.pagination.has_more||!!busy} onClick={()=>setOffset(offset+50)}>Siguientes</Button></Group>}
+   </>}
+  </section>
+  <section className="operation-section" aria-labelledby="briefing-heading">
+   <Group justify="space-between" align="start"><div><Title order={2} id="briefing-heading">Avisos del turno</Title><Text mt="sm" maw={740}>El equipo verá únicamente avisos nuevos o actualizados. Una confirmación corresponde a la versión que leyó cada persona.</Text></div><Button variant="outline" onClick={()=>editNotice()} disabled={!!busy||noticeOpen}>Publicar aviso</Button></Group>
+   {noticeOpen&&<form onSubmit={noticeSubmit}><Stack gap="md" mt="xl" maw={650}>
+    <Title order={3}>{noticeId?'Actualizar aviso':'Nuevo aviso'}</Title><TextInput label="Título" required maxLength={100} value={title} onChange={event=>setTitle(event.currentTarget.value)} disabled={!!busy}/><Textarea label="Qué debe saber el equipo" description="Solo instrucciones del turno. No incluyas nombres de clientes, teléfonos, correos ni otros datos personales." required maxLength={600} minRows={3} autosize value={body} onChange={event=>setBody(event.currentTarget.value)} disabled={!!busy}/>
+    <NativeSelect label="Quién verá el aviso" value={noticeBranch} onChange={event=>setNoticeBranch(event.currentTarget.value)} data={[{value:'',label:'Todo el equipo'},...branches.map(row=>({value:row.id,label:row.name}))]} disabled={!!busy}/><NativeSelect label="Vigencia desde la publicación" data={durations} value={noticeHours} onChange={event=>setNoticeHours(event.currentTarget.value)} disabled={!!busy}/>
+    {noticeId&&<Text size="sm">Publicar una nueva versión reinicia las confirmaciones de lectura de este aviso.</Text>}<Group><Button type="submit" loading={busy==='notice'} disabled={!!busy||!title.trim()||!body.trim()}>{noticeId?'Publicar nueva versión':'Guardar aviso'}</Button><Button variant="default" onClick={()=>setNoticeOpen(false)} disabled={!!busy}>Cancelar</Button></Group>
+   </Stack></form>}
+   {briefing.loading?<Loading label="Cargando avisos…"/>:briefing.error?<Failure error={briefing.error} retry={refresh}/>:!briefing.data?.notices.length?<Text mt="xl">Sin avisos publicados. Comparte una instrucción cuando cambie algo que el equipo necesite saber.</Text>:<Stack gap="lg" mt="xl">{briefing.data.notices.map(notice=><div key={notice.id}><Group justify="space-between"><Title order={3}>{notice.title}</Title><Button variant="subtle" disabled={!!busy||noticeOpen} onClick={()=>editNotice(notice)} aria-label={`Editar aviso ${notice.title}`}>Editar</Button></Group><Text mt="xs" maw={740}>{notice.body}</Text><Text size="sm" c="dimmed" mt="xs">Versión {notice.version} · {number(notice.acknowledgements)} {notice.acknowledgements===1?'confirmación':'confirmaciones'} · {notice.branch_name||'Todo el equipo'} · {new Date(notice.expires_at)<=new Date()?'Venció':'Vence'} {date(notice.expires_at)}</Text></div>)}</Stack>}
+  </section>
+  <section className="operation-section" aria-labelledby="authority-history"><Title order={2} id="authority-history">Usos registrados</Title><Text size="sm" c="dimmed" mt="sm">Últimos 50 usos. Revocar una autorización no borra su historial.</Text>
+   {authority.loading?<Loading label="Cargando historial…"/>:authority.error?<Failure error={authority.error} retry={refresh}/>:!data?.usage.length?<Text mt="lg">Aún no se ha usado una autorización.</Text>:<Table.ScrollContainer minWidth={590} mt="lg" type="native" tabIndex={0} role="region" aria-label="Historial de autorizaciones"><Table><Table.Thead><Table.Tr><Table.Th scope="col">Persona</Table.Th><Table.Th scope="col">Acción</Table.Th><Table.Th scope="col" ta="right">Puntos</Table.Th><Table.Th scope="col">Fecha (Guatemala)</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{data.usage.map(row=><Table.Tr key={row.id}><Table.Td>{row.staff_name}{row.owner_bypass?' · dueño':''}</Table.Td><Table.Td>Restaurar puntos de un canje</Table.Td><Table.Td ta="right">{number(row.points)}</Table.Td><Table.Td>{date(row.created_at)}</Table.Td></Table.Tr>)}</Table.Tbody></Table></Table.ScrollContainer>}
+  </section>
+ </Stack>;
+}

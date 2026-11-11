@@ -61,9 +61,9 @@ async function runFinalHandler(layer, req) {
   const handler = layer.route.stack[layer.route.stack.length - 1].handle;
   await new Promise((resolve, reject) => {
     try {
-      const maybe = handler(req, res, (err) => (err ? reject(err) : resolve()));
+      const maybe = handler(req, res, (err) => (err ? reject(err) : resolve(undefined)));
       if (maybe && typeof maybe.then === "function") maybe.then(resolve).catch(reject);
-      else resolve();
+      else resolve(undefined);
     } catch (error) {
       reject(error);
     }
@@ -338,7 +338,7 @@ test("customer magic-link route redirects to /c and sets the customer cookie", a
     });
 
     assert.equal(res.statusCode, 302);
-    assert.equal(res.redirectedTo, "/c");
+    assert.equal(res.redirectedTo, "/mi-tarjeta/?sesion=nueva");
     assert.equal(res.cookies.length, 1);
     assert.equal(res.cookies[0].name, config.CUSTOMER_COOKIE_NAME);
     assert.equal(res.cookies[0].options.httpOnly, true);
@@ -396,7 +396,7 @@ test("staff magic-link route redirects to /staff and sets the staff cookie", asy
     });
 
     assert.equal(res.statusCode, 302);
-    assert.equal(res.redirectedTo, "/staff");
+    assert.equal(res.redirectedTo, "/equipo/escaner/");
     assert.equal(res.cookies.length, 1);
     assert.equal(res.cookies[0].name, config.STAFF_COOKIE_NAME);
     assert.equal(res.cookies[0].options.httpOnly, true);

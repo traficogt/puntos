@@ -1,4 +1,8 @@
 import crypto from "node:crypto";
+import { runAutomationRule, runGuidedAutomationsOnce } from "./automation-controls-service.js";
+import { processAutomationMessagesOnce } from "./automation-message-service.js";
+import { processCampaignMessagesOnce } from "./campaign-message-service.js";
+import { logger } from "../../utils/logger.js";
 import { dbQuery, withTransaction, withDbClientContext } from "../database.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
 import { sendMessage } from "./messaging-service.js";
@@ -18,136 +22,12 @@ async function recordLifecycleEvent(client, { businessId, customerId, eventType,
   return out.rowCount === 1;
 }
 
-async function awardLifecyclePoints(client, { businessId, customerId, points, eventType, meta = {} }) {
-  if (!points || points <= 0) return;
-  await client.query(
-    `INSERT INTO transactions
-     (id, business_id, customer_id, amount_q, visits, items, points, status, source, meta)
-     VALUES ($1,$2,$3,0,0,0,$4,'POSTED','lifecycle',$5)`,
-    [id(), businessId, customerId, points, { event_type: eventType, ...meta }]
-  );
-  await client.query(
-    `UPDATE customer_balances
-     SET points = points + $2,
-         lifetime_points = lifetime_points + GREATEST($2,0),
-         updated_at = now()
-     WHERE customer_id = $1`,
-    [customerId, points]
-  );
+// Legacy job entry points now use the same durable, budgeted rules as the owner screen.
+export async function processBirthdayBusiness(businessId) {
+  return runAutomationRule({businessId,rule:'birthday'});
 }
-
-async function processBirthdayBusiness(businessId, cfg) {
-  if (!cfg?.birthday_enabled) return { sent: 0, awarded: 0 };
-  const points = Math.max(0, Number(cfg.birthday_points ?? 0));
-  const today = new Date().toISOString().slice(0, 10);
-  const { rows } = await dbQuery(
-    `SELECT id, name, phone
-     FROM customers
-     WHERE business_id = $1
-       AND deleted_at IS NULL
-       AND birthday IS NOT NULL
-       AND to_char(birthday, 'MM-DD') = to_char(current_date, 'MM-DD')`,
-    [businessId]
-  );
-
-  let sent = 0;
-  let awarded = 0;
-  for (const c of rows) {
-    const inserted = await withTransaction(async (client) => {
-      const ok = await recordLifecycleEvent(client, {
-        businessId,
-        customerId: c.id,
-        eventType: "birthday",
-        eventDate: today,
-        meta: { birthday_points: points }
-      });
-      if (!ok) return false;
-      await awardLifecyclePoints(client, {
-        businessId,
-        customerId: c.id,
-        points,
-        eventType: "birthday_bonus"
-      });
-      return true;
-    });
-    if (!inserted) continue;
-    awarded += points > 0 ? 1 : 0;
-    await sendMessage({
-      businessId,
-      customerId: c.id,
-      channel: "lifecycle",
-      to: c.phone,
-      body: `Feliz cumpleaños${c.name ? `, ${c.name}` : ""}! ${points > 0 ? `Te regalamos ${points} puntos. ` : ""}Gracias por ser parte de nuestro programa 🎉`,
-      email: {
-        type: "lifecycle",
-        subject: "Feliz cumpleaños",
-        title: "Feliz cumpleaños",
-        intro: c.name ? `${c.name}, hoy celebramos contigo.` : "Hoy celebramos contigo.",
-        lines: [points > 0 ? `Te regalamos ${points} puntos.` : "Gracias por ser parte de nuestro programa."],
-        tone: "celebration"
-      }
-    }).catch(() => { });
-    sent += 1;
-  }
-  return { sent, awarded };
-}
-
-async function processWinbackBusiness(businessId, cfg) {
-  if (!cfg?.winback_enabled) return { sent: 0, awarded: 0 };
-  const days = Math.max(7, Number(cfg.winback_days ?? 30));
-  const points = Math.max(0, Number(cfg.winback_points ?? 0));
-  const today = new Date().toISOString().slice(0, 10);
-
-  const { rows } = await dbQuery(
-    `SELECT id, name, phone
-     FROM customers
-     WHERE business_id = $1
-       AND deleted_at IS NULL
-       AND last_visit_at IS NOT NULL
-       AND last_visit_at::date = current_date - ($2 || ' days')::interval`,
-    [businessId, String(days)]
-  );
-
-  let sent = 0;
-  let awarded = 0;
-  for (const c of rows) {
-    const inserted = await withTransaction(async (client) => {
-      const ok = await recordLifecycleEvent(client, {
-        businessId,
-        customerId: c.id,
-        eventType: "winback",
-        eventDate: today,
-        meta: { winback_days: days, winback_points: points }
-      });
-      if (!ok) return false;
-      await awardLifecyclePoints(client, {
-        businessId,
-        customerId: c.id,
-        points,
-        eventType: "winback_bonus"
-      });
-      return true;
-    });
-    if (!inserted) continue;
-    awarded += points > 0 ? 1 : 0;
-    await sendMessage({
-      businessId,
-      customerId: c.id,
-      channel: "lifecycle",
-      to: c.phone,
-      body: `${c.name ? `${c.name}, ` : ""}te extrañamos. ${points > 0 ? `Tienes ${points} puntos de regreso para tu próxima visita. ` : ""}¡Vuelve pronto!`,
-      email: {
-        type: "lifecycle",
-        subject: `${cfg?.winback_subject || "Queremos verte de nuevo"}`,
-        title: "Queremos verte de nuevo",
-        intro: c.name ? `${c.name}, te extrañamos.` : "Te extrañamos.",
-        lines: [points > 0 ? `Tienes ${points} puntos de regreso para tu próxima visita.` : "Tu programa sigue activo y listo para tu próxima visita."],
-        tone: "return"
-      }
-    }).catch(() => { });
-    sent += 1;
-  }
-  return { sent, awarded };
+export async function processWinbackBusiness(businessId) {
+  return runAutomationRule({businessId,rule:'winback'});
 }
 
 async function processSuspiciousDigestBusiness(business, cfg) {
@@ -201,7 +81,7 @@ async function processSuspiciousDigestBusiness(business, cfg) {
     return `${when} | ${who} | +${Number(r.points || 0)} pts | Q${Number(r.amount_q || 0).toFixed(2)} | ${r.customer_phone || "-"}`;
   });
 
-  await sendMessage({
+  const result = await sendMessage({
     businessId: business.id,
     customerId: null,
     channel: "alerts",
@@ -215,51 +95,90 @@ async function processSuspiciousDigestBusiness(business, cfg) {
       lines,
       tone: "alert"
     }
-  }).catch(() => { });
+  }).catch(() => null);
 
-  return { sent: true, count: rows.length };
+  return { sent: Boolean(result?.ok && result?.accepted), count: rows.length };
 }
 
-export async function runLifecycleOnce({ businessId = null } = {}) {
+const maintenanceDefaults = {
+  context: withDbClientContext,
+  listBusinessIds: () => BusinessRepo.listAllIds(),
+  getBusiness: businessId => BusinessRepo.getById(businessId),
+  birthday: processBirthdayBusiness,
+  winback: processWinbackBusiness,
+  digest: processSuspiciousDigestBusiness,
+  retention: (businessId, policy) => TierService.runTierRetentionSweep(businessId, policy),
+  expiration: expirePointsForBusiness,
+  log: logger
+};
+
+export async function runLifecycleOnce({ businessId = null } = {}, injected = {}) {
+  const deps = { ...maintenanceDefaults, ...injected };
   const businessIds = businessId
     ? [businessId]
-    : await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => BusinessRepo.listAllIds());
+    : await deps.context({ platformAdmin: true, tenantId: null }, deps.listBusinessIds);
   const out = [];
+  async function step(stage, fn) {
+    try { return await fn(); }
+    catch {
+      // Provider/SQL exception text may contain customer data. Keep logs and
+      // persisted job results bounded to the maintenance stage that failed.
+      deps.log.warn({ stage }, 'Lifecycle maintenance step did not complete');
+      return { error: 'LIFECYCLE_STEP_FAILED' };
+    }
+  }
   for (const bid of businessIds) {
-    const entry = await withDbClientContext({ tenantId: bid, platformAdmin: false }, async () => {
-      const business = await BusinessRepo.getById(bid);
-      if (!business) return null;
-
-      const lifecycleCfg = business.program_json?.lifecycle ?? {};
-      const schedulerHour = Number(lifecycleCfg.scheduler_hour_local);
-      let schedulerTz = String(lifecycleCfg.scheduler_tz || "America/Guatemala");
-      try {
-        Intl.DateTimeFormat("en-US", { timeZone: schedulerTz }).format(new Date());
-      } catch {
-        schedulerTz = "America/Guatemala";
-      }
-      const nowHour = Number(new Date().toLocaleString("en-US", {
-        timeZone: schedulerTz,
-        hour: "2-digit",
-        hour12: false
-      }));
-      if (Number.isFinite(schedulerHour) && schedulerHour >= 0 && schedulerHour <= 23 && schedulerHour !== nowHour) {
-        return { businessId: bid, skipped: true, reason: "outside_scheduled_hour", scheduler_hour_local: schedulerHour, current_hour_local: nowHour, scheduler_tz: schedulerTz };
-      }
-
-      const tierPolicy = business.program_json?.tier_policy ?? {};
-      const birthday = await processBirthdayBusiness(bid, lifecycleCfg);
-      const winback = await processWinbackBusiness(bid, lifecycleCfg);
-      const suspiciousDigest = await processSuspiciousDigestBusiness(business, lifecycleCfg);
-      const tierRetention = await TierService.runTierRetentionSweep(bid, tierPolicy).catch((e) => ({
-        error: e?.message ?? String(e)
-      }));
-      const expiration = await expirePointsForBusiness(bid).catch((e) => ({
-        error: e?.message ?? String(e)
-      }));
-      return { businessId: bid, birthday, winback, suspiciousDigest, tierRetention, expiration };
-    });
-    if (entry) out.push(entry);
+    try {
+      const entry = await deps.context({ tenantId: bid, platformAdmin: false }, async () => {
+        const business = await deps.getBusiness(bid);
+        if (!business) return null;
+        const lifecycleCfg = business.program_json?.lifecycle ?? {};
+        const tierPolicy = business.program_json?.tier_policy ?? {};
+        // Each incentive checks its own saved schedule. Daily maintenance must
+        // also run when the owner chooses another incentive preparation hour.
+        const birthday = await step('birthday', () => deps.birthday(bid));
+        const winback = await step('winback', () => deps.winback(bid));
+        const suspiciousDigest = await step('suspicious_digest', () => deps.digest(business, lifecycleCfg));
+        const tierRetention = await step('tier_retention', () => deps.retention(bid, tierPolicy));
+        const expiration = await step('points_expiration', () => deps.expiration(bid));
+        return { businessId: bid, birthday, winback, suspiciousDigest, tierRetention, expiration };
+      });
+      if (entry) out.push(entry);
+    } catch {
+      deps.log.warn({ stage: 'business_context' }, 'Lifecycle business maintenance did not complete');
+      out.push({ businessId: bid, error: 'LIFECYCLE_BUSINESS_FAILED' });
+    }
   }
   return out;
+}
+
+// Both API-hosted workers and the standalone worker use this same tick. A
+// failed stage cannot strand already queued messages in either outbox. Durable
+// event/claim keys handle duplication across processes; this guard also avoids
+// overlapping timer callbacks within one process.
+/**
+ * @param {{generate?: () => Promise<unknown>, dispatchAutomations?: () => Promise<unknown>, dispatchCampaigns?: () => Promise<unknown>, log?: {warn: (...args: any[]) => unknown}}} [dependencies]
+ */
+export function createMarketingTick({
+  generate = runGuidedAutomationsOnce,
+  dispatchAutomations = processAutomationMessagesOnce,
+  dispatchCampaigns = processCampaignMessagesOnce,
+  log = logger
+} = {}) {
+  let running = false;
+  return async function marketingTick() {
+    if (running) return { skipped: true };
+    running = true;
+    try {
+      for (const {stage, run} of [
+        {stage: 'generation', run: generate},
+        {stage: 'automation_dispatch', run: dispatchAutomations},
+        {stage: 'campaign_dispatch', run: dispatchCampaigns}
+      ]) {
+        try { await run(); }
+        catch { log.warn({ stage }, 'Marketing worker stage did not complete'); }
+      }
+      return { skipped: false };
+    } finally { running = false; }
+  };
 }

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Permission-only extraction from Codemagic build 6af2e432546991aef033c9a1,
+     published commit fc1e1ae, merged-manifest-report.xml (2026-11-10).
+     Original SHA-256: 2b26022a65b94408d67cc8c57fec68adf24396f2e5e096c9e8079c0ba40a8899.
+     Preserves all 20 uses-permission entries. App metadata and version removed. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+  <uses-permission android:name="com.puntosfieles.customer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+  <uses-permission android:name="com.sec.android.provider.badge.permission.READ" />
+  <uses-permission android:name="com.sec.android.provider.badge.permission.WRITE" />
+  <uses-permission android:name="com.htc.launcher.permission.READ_SETTINGS" />
+  <uses-permission android:name="com.htc.launcher.permission.UPDATE_SHORTCUT" />
+  <uses-permission android:name="com.sonyericsson.home.permission.BROADCAST_BADGE" />
+  <uses-permission android:name="com.sonymobile.home.permission.PROVIDER_INSERT_BADGE" />
+  <uses-permission android:name="com.anddoes.launcher.permission.UPDATE_COUNT" />
+  <uses-permission android:name="com.majeur.launcher.permission.UPDATE_BADGE" />
+  <uses-permission android:name="com.huawei.android.launcher.permission.CHANGE_BADGE" />
+  <uses-permission android:name="com.huawei.android.launcher.permission.READ_SETTINGS" />
+  <uses-permission android:name="com.huawei.android.launcher.permission.WRITE_SETTINGS" />
+  <uses-permission android:name="android.permission.READ_APP_BADGE" />
+  <uses-permission android:name="com.oppo.launcher.permission.READ_SETTINGS" />
+  <uses-permission android:name="com.oppo.launcher.permission.WRITE_SETTINGS" />
+  <uses-permission android:name="me.everything.badger.permission.BADGE_COUNT_READ" />
+  <uses-permission android:name="me.everything.badger.permission.BADGE_COUNT_WRITE" />
+</manifest>

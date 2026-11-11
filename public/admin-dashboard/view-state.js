@@ -1,3 +1,7 @@
+const sectionNames = new Map(Object.entries({ rewards: "recompensas", branding: "marca", tiers: "niveles", branches: "sucursales", staff: "equipo", giftcards: "tarjetas-regalo", achievements: "logros", challenges: "retos", referrals: "referidos", operations: "operaciones", analytics: "analisis" }));
+function readSection(value) {
+  return Array.from(sectionNames).find(([, spanish]) => spanish === value)?.[0] || value;
+}
 /** @typedef {import("./types.js").ActivateTab} ActivateTab */
 /** @typedef {import("./types.js").QueryFn} QueryFn */
 /** @typedef {import("./types.js").RestoredDashboardView} RestoredDashboardView */
@@ -6,8 +10,8 @@
 export function readDashboardViewFromUrl() {
   const params = new URLSearchParams(window.location.search);
   return {
-    tab: params.get("tab") || "",
-    branchId: params.get("branch_id") || ""
+    tab: readSection(params.get("seccion") || params.get("tab") || ""),
+    branchId: params.get("sucursal") || params.get("branch_id") || ""
   };
 }
 
@@ -21,11 +25,13 @@ export function currentActiveTabName() {
 export function syncDashboardViewToUrl({ activeTab = "", branchId = "" }) {
   const params = new URLSearchParams(window.location.search);
 
-  if (activeTab) params.set("tab", activeTab);
-  else params.delete("tab");
+  params.delete("tab");
+  params.delete("branch_id");
+  if (activeTab) params.set("seccion", sectionNames.get(activeTab) || activeTab);
+  else params.delete("seccion");
 
-  if (branchId) params.set("branch_id", branchId);
-  else params.delete("branch_id");
+  if (branchId) params.set("sucursal", branchId);
+  else params.delete("sucursal");
 
   const query = params.toString();
   const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash || ""}`;

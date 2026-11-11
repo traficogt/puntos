@@ -11,11 +11,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script type="module" src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css"/>
+  <link rel="stylesheet" href="/styles/customer-modern.css?v=1"/>
+  <link rel="stylesheet" href="/styles/native-wallet.css"/>
+  <link rel="stylesheet" href="/styles/wallet-enrollment.css"/>
   <script src="/runtime-config.js"></script>
   <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
-<body class="app-shell page-join">
-  <div class="nav app-topbar">
+<body class="app-shell customer-modern page-join wallet-enrollment">
+  <header class="nav app-topbar">
     <div class="brand brand-lockup">
       <img id="customerBrandLogo" class="customer-brand-logo" alt="" hidden/>
       <div class="brand-copy">
@@ -24,16 +27,15 @@
       </div>
     </div>
     <div class="row">
-      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><span class="theme-toggle-glyph" aria-hidden="true">◐</span></button>
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><span class="theme-toggle-glyph" aria-hidden="true">◐</span><svg class="theme-toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" stroke="none"/></svg></button>
       <a class="ghost-link" href="/sitio" data-shell-link="marketing-home">Sitio</a>
-      <a class="badge badge-soft" href="/c" data-shell-link="customer-wallet">Mi tarjeta</a>
+      <a class="badge badge-soft" href="/mi-tarjeta/" data-shell-link="customer-wallet">Mi tarjeta</a>
     </div>
-  </div>
+  </header>
 
-  <div class="container">
+  <main class="container" id="pageContent">
     <section class="join-shell">
       <div class="join-intro card">
-        <p class="section-kicker">Acceso rápido</p>
         <h1 id="title">Ingresa a tu tarjeta</h1>
         <p id="subtitle" class="lede">Solicita un código para volver a abrir tu tarjeta.</p>
         <p id="joinEntryContext" class="small cus-entry-feedback is-hidden"></p>
@@ -41,62 +43,79 @@
         <div class="onboarding-steps onboarding-steps-vertical">
           <div class="step-pill active" id="joinStepRequest">1. Solicitar código</div>
           <div class="step-pill" id="joinStepVerify">2. Verificar</div>
-          <div class="step-pill" id="joinStepDone">3. Tarjeta abierta</div>
+          <div class="step-pill" id="joinStepDone">3. Guardar tarjeta</div>
         </div>
-        <div class="join-note-stack">
-          <div class="join-note">
-            <strong>Sin contraseña</strong>
-            <span>Vuelves a entrar con un código temporal.</span>
-          </div>
-          <div class="join-note">
-            <strong>WhatsApp o correo</strong>
-            <span>Te enviamos el código según la configuración del negocio.</span>
-          </div>
-          <div class="join-note">
-            <strong>Mismo navegador</strong>
-            <span>Después del código, tu tarjeta se abre de nuevo aquí.</span>
-          </div>
-        </div>
+        <p class="join-wallet-note">Tu tarjeta, siempre a mano. Al terminar puedes guardarla en Wallet o abrirla en el navegador.</p>
+        <p class="small join-account-note">Tu teléfono identifica tu cuenta de PuntosFieles. Úsalo también para volver a entrar y consultar tus puntos.</p>
       </div>
 
       <div class="join-workspace">
-        <div class="card join-stage">
-          <h2>1. Solicitar código</h2>
-          <label>Teléfono</label>
-          <input id="phone" placeholder="55551234"/>
-          <label>Correo (opcional)</label>
-          <input id="email" placeholder="correo@ejemplo.com" type="email" autocomplete="email"/>
-          <label>Nombre (opcional)</label>
-          <input id="name" placeholder="María"/>
-          <button class="primary" id="btnCode">Enviar código</button>
-          <p class="small" id="codeInfo"></p>
-          <p class="small" id="codeCooldownInfo"></p>
-          <p class="small cus-entry-feedback" id="joinRequestFeedback"></p>
-        </div>
+        <div id="joinForms">
+        <form class="join-stage" id="joinRequestForm">
+          <h2>Vuelve a tu tarjeta</h2>
+          <label for="phone">Teléfono</label>
+          <input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="5555 1234" required aria-describedby="phoneHelp"/>
+          <p class="small" id="phoneHelp">Te enviaremos un código por WhatsApp o SMS. Para otro país, incluye el prefijo internacional.</p>
+          <label for="email" hidden>Correo (opcional)</label>
+          <input id="email" hidden disabled placeholder="correo@ejemplo.com" type="email" autocomplete="email"/>
+          <label for="name" hidden>Nombre (opcional)</label>
+          <input id="name" hidden disabled autocomplete="name" placeholder="María"/>
+          <button type="submit" class="primary" id="btnCode" disabled>Enviar código</button>
+        </form>
 
-        <div class="card join-stage join-stage-verify">
-          <h2>2. Verificar</h2>
-          <label>Código</label>
-          <input id="code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code"/>
-          <button class="primary" id="btnVerify">Verificar y entrar</button>
-          <p class="small cus-entry-feedback" id="joinVerifyFeedback"></p>
-          <div class="hr"></div>
+        <section class="join-stage join-stage-verify is-hidden" id="joinVerifyStage" hidden>
+          <form id="joinVerifyForm">
+          <h2>Revisa tu teléfono</h2>
+          <p id="verificationPhone"></p>
+          <p class="small" id="codeInfo" role="status"></p>
+          <label for="code">Código</label>
+          <input id="code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code" aria-describedby="joinVerifyFeedback" pattern="[0-9]{6}" maxlength="6" required/>
+          <button type="submit" class="primary" id="btnVerify">Verificar y entrar</button>
+          <p class="small cus-entry-feedback" role="status" aria-live="polite" id="joinVerifyFeedback"></p>
+          </form>
+          <p class="small" id="codeCooldownInfo"></p>
+          <button type="button" class="join-text-action" id="btnResendCode">Reenviar código</button>
+          <button type="button" class="join-text-action" id="btnChangePhone">Cambiar teléfono</button>
+        </section>
+          <p class="small cus-entry-feedback" role="status" aria-live="polite" id="joinRequestFeedback"></p>
           <a class="badge badge-soft" id="entryModeLink" href="#"><span id="entryModeLinkText">Todavía no tengo tarjeta</span></a>
         </div>
+        <section class="join-done is-hidden" id="done" aria-labelledby="doneTitle" hidden>
+          <h2 id="doneTitle" tabindex="-1">Tu tarjeta está lista.</h2>
+          <p id="doneSubtitle">Elige cómo llevar tu tarjeta contigo.</p>
+          <section class="native-wallet is-hidden" id="billeteras" aria-labelledby="nativeWalletTitle" hidden>
+        <h2 id="nativeWalletTitle">Lleva tu tarjeta contigo</h2>
+        <p id="nativeWalletDescription">Guárdala en tu teléfono para mostrarla en caja. El saldo se actualiza con conexión.</p>
+        <div class="native-wallet-actions" id="nativeWalletActions">
+          <button type="button" class="native-wallet-apple" id="btnAppleWallet" hidden><img src="/images/wallet/apple-wallet-es-mx.svg" width="173" height="55" alt="Agregar a Apple Wallet"/></button>
+          <button type="button" class="native-wallet-google" id="btnGoogleWallet" hidden>
+            <img src="/images/wallet/google-wallet-es-419.svg" width="239" height="55" alt="Agregar a la Billetera de Google"/>
+          </button>
+        </div>
+        <p id="nativeWalletStatus" role="status" aria-live="polite"></p>
+        <button type="button" class="native-wallet-revoke" id="btnRevokeWallet" hidden>Desactivar tarjetas guardadas</button>
+        <div class="native-wallet-confirm is-hidden" id="nativeWalletConfirm" hidden>
+          <p>Se desactivarán todas tus tarjetas guardadas en Apple Wallet y Google Wallet. Tu cuenta y tus puntos se conservan; podrás guardar una tarjeta nueva.</p>
+          <div class="native-wallet-confirm-actions">
+            <button type="button" id="btnConfirmRevokeWallet">Sí, desactivar</button>
+            <button type="button" id="btnCancelRevokeWallet">Cancelar</button>
+          </div>
+        </div>
+          </section>
+          <p id="walletEnrollmentFeedback" class="small" role="status" aria-live="polite"></p>
+          <button type="button" id="btnRetryWallet" class="join-text-action" hidden>Volver a buscar opciones de Wallet</button>
+          <div class="join-web-card">
+            <a class="button-link" href="/mi-tarjeta/" data-shell-link="customer-wallet">Ver mi tarjeta y mis puntos</a>
+            <p class="small">Tus puntos, premios e historial también están en PuntosFieles. No necesitas descargar una app.</p>
+          </div>
+          <p class="small join-wallet-help">En iPhone, abre este enlace en Safari para guardar la tarjeta. La tarjeta guardada se puede mostrar sin conexión; el saldo se actualiza cuando hay internet.</p>
+        </section>
       </div>
     </section>
+    <noscript><p>Activa JavaScript para verificar tu teléfono y abrir tu tarjeta. Si necesitas ayuda, escribe a <a href="mailto:soporte@puntosfieles.com">soporte@puntosfieles.com</a>.</p></noscript>
+  </main>
 
-    <div class="card join-done is-hidden" id="done">
-      <p class="section-kicker">Verificación completa</p>
-      <h2 id="doneTitle">Tarjeta reactivada.</h2>
-      <p id="doneSubtitle">En breve abrimos tu vista de cliente otra vez para que sigas usando tu tarjeta.</p>
-      <div class="row">
-        <a class="button-link button-link-primary" href="/c" data-shell-link="customer-wallet">Abrir mi tarjeta</a>
-      </div>
-    </div>
-  </div>
-
-  <div id="toast" class="toast"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="/ingresar.js"></script>
 </body>
 </html>

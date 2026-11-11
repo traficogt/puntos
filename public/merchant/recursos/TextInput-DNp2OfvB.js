@@ -1,0 +1,1 @@
+import{I as e,R as t,k as n}from"./index-DwaWMXzu.js";import{i as r}from"./ComboboxChevron-D8nAoKj2.js";var i=t(),a=n(t=>{let n=e([`Input`,`InputWrapper`,`TextInput`],null,t);return(0,i.jsx)(r,{component:`input`,...n,__staticSelector:`TextInput`})});a.classes=r.classes,a.displayName=`@mantine/core/TextInput`;export{a as t};

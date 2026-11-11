@@ -10,16 +10,37 @@ function parseAmount(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+const SUCCESS_STATUSES = new Set(["APPROVED", "PAID", "SUCCESS", "SUCCEEDED", "COMPLETED"]);
+const SUCCESS_EVENTS = new Set([
+  ...SUCCESS_STATUSES,
+  "PAYMENT.APPROVED", "PAYMENT.PAID", "PAYMENT.SUCCESS", "PAYMENT.SUCCEEDED", "PAYMENT.COMPLETED"
+]);
+const UPDATE_EVENTS = new Set(["PAYMENT.UPDATED"]);
+
+function eventTokens(payload, keys) {
+  return keys
+    .filter((key) => payload[key] !== undefined)
+    .map((key) => typeof payload[key] === "string" ? payload[key].trim().toUpperCase() : "");
+}
+
+function isApprovedPayment(payload) {
+  const statuses = eventTokens(payload, ["status", "payment_status"]);
+  const events = eventTokens(payload, ["event", "event_name", "type"]);
+
+  // Treat unknown, conflicting, or refund states as non-awarding. Substring
+  // matching would incorrectly accept UNPAID, NOT_APPROVED, and refund.success.
+  if (statuses.length) {
+    return statuses.every((status) => SUCCESS_STATUSES.has(status))
+      && events.every((event) => SUCCESS_EVENTS.has(event) || UPDATE_EVENTS.has(event));
+  }
+  return events.length > 0 && events.every((event) => SUCCESS_EVENTS.has(event));
+}
+
 export function normalizePaymentWebhook(provider, payload) {
   const p = payload ?? {};
   const meta = p.metadata ?? p.meta ?? p.additionalData ?? {};
 
-  const statusRaw = String(
-    pick(p, ["status", "event", "event_name", "type", "payment_status"], "")
-  ).toUpperCase();
-  const approved = statusRaw.includes("APPROV") || statusRaw.includes("PAID") || statusRaw.includes("SUCCESS");
-
-  const eventType = approved ? "payment.approved" : "payment.other";
+  const eventType = isApprovedPayment(p) ? "payment.approved" : "payment.other";
   const providerEventId = String(
     pick(p, ["externalEventId", "transaction_id", "transactionId", "tx_id", "id", "reference"], "")
   );

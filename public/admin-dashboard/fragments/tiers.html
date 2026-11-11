@@ -14,28 +14,28 @@
           <h2 id="tierModalTitle">Nuevo Nivel</h2>
           <div class="grid">
             <div>
-              <label>Nombre</label>
+              <label for="tierName">Nombre</label>
               <input id="tierName" placeholder="Ej: Platino"/>
               
-              <label>Nivel (orden)</label>
+              <label for="tierLevel">Nivel (orden)</label>
               <input id="tierLevel" type="number" min="1" value="4" placeholder="4"/>
               
-              <label>Puntos mínimos</label>
+              <label for="tierMinPoints">Puntos mínimos</label>
               <input id="tierMinPoints" type="number" min="0" value="5000"/>
             </div>
             <div>
-              <label>Multiplicador de puntos</label>
+              <label for="tierMultiplier">Multiplicador de puntos</label>
               <input id="tierMultiplier" type="number" step="0.25" min="1" value="2.0"/>
               
-              <label>Color (hex)</label>
+              <label for="tierColor">Color (hex)</label>
               <input id="tierColor" placeholder="#E5E4E2"/>
               
-              <label>Icono (emoji o URL)</label>
+              <label for="tierIcon">Icono (emoji o URL)</label>
               <input id="tierIcon" placeholder="💎"/>
             </div>
           </div>
           
-          <label>Beneficios (uno por línea)</label>
+          <label for="tierPerks">Beneficios (uno por línea)</label>
           <textarea id="tierPerks" rows="4" placeholder="Doble puntos&#10;Envío gratis&#10;Descuentos exclusivos"></textarea>
           
           <div class="row mt-16">

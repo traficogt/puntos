@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { config } from "../../src/config/index.js";
 import crypto from "node:crypto";
 
 const runIntegration = process.env.RUN_INTEGRATION === "true";
@@ -28,12 +29,14 @@ function csrfTokenFromJar(jar) {
 integrationDescribe("Super + Gift Cards Integration", () => {
   const baseUrl = process.env.TEST_API_URL || "http://localhost:3001";
   const browserOrigin = new URL(baseUrl).origin;
+  const forwardedFor = process.env.TEST_CLIENT_IP || `198.19.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
   const superEmail = process.env.SUPER_ADMIN_EMAIL;
   const superPassword = process.env.SUPER_ADMIN_PASSWORD;
 
   async function request(jar, path, options = {}) {
     const headers = {
       "Content-Type": "application/json",
+      "X-Forwarded-For": forwardedFor,
       ...(options.headers || {})
     };
     const cookie = cookieHeader(jar);
@@ -69,7 +72,7 @@ integrationDescribe("Super + Gift Cards Integration", () => {
       body: JSON.stringify({ email: superEmail, password: superPassword })
     });
     assert.equal(login.status, 200);
-    assert.ok(superJar.get("__Host-pf_super"), "expected super auth cookie");
+    assert.ok(superJar.get(config.SUPER_COOKIE_NAME), "expected super auth cookie");
 
     const plans = await request(superJar, "/api/super/plans");
     assert.equal(plans.status, 200);
@@ -110,7 +113,7 @@ integrationDescribe("Super + Gift Cards Integration", () => {
       body: "{}"
     });
     assert.equal(impersonate.status, 200);
-    assert.ok(superJar.get("__Host-pf_staff"), "expected owner staff cookie after impersonation");
+    assert.ok(superJar.get(config.STAFF_COOKIE_NAME), "expected owner staff cookie after impersonation");
 
     const planInfo = await request(superJar, "/api/admin/plan");
     assert.equal(planInfo.status, 200);
@@ -147,7 +150,7 @@ integrationDescribe("Super + Gift Cards Integration", () => {
       body: JSON.stringify({ email: managerEmail, password: defaultPassword })
     });
     assert.equal(managerLogin.status, 200);
-    assert.ok(managerJar.get("__Host-pf_staff"), "expected manager cookie");
+    assert.ok(managerJar.get(config.STAFF_COOKIE_NAME), "expected manager cookie");
 
     const managerCreateGiftCard = await request(managerJar, "/api/admin/gift-cards", {
       method: "POST",
@@ -166,7 +169,7 @@ integrationDescribe("Super + Gift Cards Integration", () => {
       body: JSON.stringify({ email: cashierEmail, password: defaultPassword })
     });
     assert.equal(cashierLogin.status, 200);
-    assert.ok(cashierJar.get("__Host-pf_staff"), "expected cashier cookie");
+    assert.ok(cashierJar.get(config.STAFF_COOKIE_NAME), "expected cashier cookie");
 
     const cashierCreateGiftCard = await request(cashierJar, "/api/admin/gift-cards", {
       method: "POST",
