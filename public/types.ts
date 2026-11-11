@@ -31,6 +31,7 @@ export interface CustomerAchievementsResponse {
 }
 
 export interface CustomerCardBusiness {
+  region?: { country: string; currency: string; timezone: string; locale: string; minorUnits: number };
   id?: string;
   name?: string;
   slug?: string;
@@ -70,15 +71,49 @@ export interface CustomerMeResponse {
   customer?: CustomerCardProfile;
 }
 
+export interface CustomerRewardInventoryBranch {
+  branchId: string | null;
+  branchName?: string | null;
+  state: string;
+  observedAt?: string | null;
+  freshUntil?: string | null;
+}
+
+export interface CustomerRewardInventory {
+  state: string;
+  required: boolean;
+  branches: CustomerRewardInventoryBranch[];
+}
+
 export interface CustomerReward {
   id?: string;
   name?: string;
   description?: string;
   points_cost: number;
+  available?: boolean;
+  active?: boolean;
+  protected?: boolean;
+  stock?: number | null;
+  valid_until?: string | null;
+  branch_ids?: string[];
+  branch_labels?: string[];
+  inventory?: CustomerRewardInventory;
+}
+
+export interface CustomerRewardProgress {
+  available_points: number;
+  pending_points: number;
+  as_of: string;
+  reward: { id: string; name: string; points_cost: number; remaining_points: number; status: string; protected: boolean; branch_ids: string[]; valid_until: string | null } | null;
+  choices: CustomerReward[];
+  earning: string | null;
+  conditions: string | null;
+  next_refresh_at: string | null;
 }
 
 export interface CustomerRewardsResponse {
   rewards?: CustomerReward[];
+  progress?: CustomerRewardProgress;
 }
 
 export interface CustomerTransaction {

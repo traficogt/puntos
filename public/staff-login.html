@@ -14,11 +14,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script type="module" src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css"/>
+  <link rel="stylesheet" href="/styles/customer-modern.css?v=1"/>
   <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
-<body class="app-shell page-staff-login">
-  <div class="nav app-topbar">
-    <a href="/staff/login" data-shell-link="app-login" class="brand brand-lockup">
+<body class="app-shell customer-modern page-staff-login">
+  <header class="nav app-topbar">
+    <a href="/equipo/ingresar/" data-shell-link="app-login" class="brand brand-lockup">
       <img src="/icon.svg?v=4" alt="PuntosFieles" class="brand-mark"/>
       <span class="brand-copy">
         <span class="brand-kicker">Acceso operativo</span>
@@ -26,92 +27,80 @@
       </span>
     </a>
     <div class="row">
-      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><span class="theme-toggle-glyph" aria-hidden="true">◐</span></button>
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><span class="theme-toggle-glyph" aria-hidden="true">◐</span><svg class="theme-toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" stroke="none"/></svg></button>
       <a class="ghost-link" href="/sitio" data-shell-link="marketing-home">Sitio</a>
     </div>
-  </div>
+  </header>
 
-  <div class="container">
+  <main class="container" id="pageContent">
     <section class="entry-shell">
       <aside class="card entry-stage entry-stage-intro">
-        <p class="section-kicker">Dueños y cajeros</p>
-        <h1>Una sola entrada para caja y dueño.</h1>
-        <p class="lede">Inicia sesión, recupera tu cuenta o confirma cambios sensibles desde una sola vista. Según tu rol, te llevamos al escáner o al panel sin cambiar de entorno.</p>
+        <h1>Bienvenido a tu negocio.</h1>
+        <p class="lede">Los puntos de tus clientes, las recompensas y cada nueva visita. Todo empieza aquí.</p>
         <div class="onboarding-steps-vertical">
           <div class="join-note">
-            <strong>Acceso principal</strong>
-            <span>Correo, contraseña y MFA cuando aplique.</span>
+            <strong>Para propietarios</strong>
+            <span>Accede al panel de tu negocio y administra tu programa.</span>
           </div>
           <div class="join-note">
-            <strong>Recuperación</strong>
-            <span>Solicita token y restablece la contraseña sin salir de la página.</span>
-          </div>
-          <div class="join-note">
-            <strong>Destino automático</strong>
-            <span>Si eres cajero vas al escáner; si eres dueño, al panel de control.</span>
+            <strong>Para el equipo de caja</strong>
+            <span>Abre el escáner para sumar puntos y canjear recompensas.</span>
           </div>
         </div>
       </aside>
 
       <div class="entry-workspace">
         <article class="card entry-stage entry-stage-form">
-          <p class="section-kicker">Ingreso</p>
-          <h2>Entrar al sistema</h2>
-          <p>Ingresa como propietario o cajero. El sistema te envía a la vista correcta según tu acceso.</p>
+          <h2>Ingresa a tu cuenta</h2>
+          <p>Usa el correo y la contraseña de tu equipo.</p>
           <div class="entry-form-grid entry-form-grid-single">
             <div class="card entry-inner-card">
-              <label>Email</label>
-              <input id="email" type="email" placeholder="owner@negocio.com"/>
-              <label>Contraseña</label>
-              <input id="password" type="password" placeholder="******"/>
-              <label>Código MFA (si aplica)</label>
+              <label for="email">Correo electrónico</label>
+              <input id="email" type="email" autocomplete="email" placeholder="nombre@negocio.com"/>
+              <label for="password">Contraseña</label>
+              <input id="password" type="password" autocomplete="current-password" placeholder="Tu contraseña"/>
+              <label for="mfaCode">Código MFA (si aplica)</label>
               <input id="mfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"/>
               <div class="hr"></div>
               <div class="row">
                 <button class="primary" id="btnLogin">Entrar al equipo</button>
                 <button id="btnLogout">Salir</button>
-                <a class="ghost-link ghost-link-strong" href="/staff" data-shell-link="app-scanner">Abrir escáner</a>
+                <a class="ghost-link ghost-link-strong" href="/equipo/escaner/" data-shell-link="app-scanner">Abrir escáner</a>
               </div>
               <p class="small">Si ya tienes sesión activa, puedes entrar directo a la vista operativa correspondiente.</p>
             </div>
           </div>
         </article>
 
-        <article class="card entry-stage entry-stage-form">
-          <p class="section-kicker">Soporte de cuenta</p>
-          <h2>Recuperación y confirmación</h2>
-          <div class="entry-form-grid">
-            <div class="card entry-inner-card">
-              <h3>Recuperar contraseña</h3>
-              <label>Email</label>
-              <input id="resetEmail" type="email" placeholder="owner@negocio.com"/>
-              <div class="row mt-8">
-                <button id="btnRequestReset">Enviar token de reset</button>
-              </div>
-              <label>Token de reset</label>
-              <input id="resetToken" placeholder="Token recibido"/>
-              <label>Nueva contraseña</label>
-              <input id="resetPassword" type="password" placeholder="8+ caracteres"/>
-              <div class="row mt-8">
-                <button id="btnConfirmReset">Cambiar contraseña</button>
-              </div>
+        <div class="account-support">
+          <details class="account-disclosure">
+            <summary>¿Olvidaste tu contraseña?</summary>
+            <div class="account-disclosure-content">
+              <p class="small">Solicita un código de recuperación y úsalo para elegir una nueva contraseña.</p>
+              <label for="resetEmail">Correo electrónico</label>
+              <input id="resetEmail" type="email" autocomplete="email" placeholder="nombre@negocio.com"/>
+              <button id="btnRequestReset">Enviar código de recuperación</button>
+              <label for="resetToken">Código de recuperación</label>
+              <input id="resetToken" autocomplete="one-time-code" placeholder="Código recibido"/>
+              <label for="resetPassword">Nueva contraseña</label>
+              <input id="resetPassword" type="password" autocomplete="new-password" placeholder="8+ caracteres"/>
+              <button id="btnConfirmReset">Cambiar contraseña</button>
             </div>
-
-            <div class="card entry-inner-card">
-              <h3>Confirmar cambio de correo</h3>
-              <label>Token recibido</label>
-              <input id="emailChangeToken" placeholder="Token recibido por correo"/>
-              <div class="row mt-8">
-                <button id="btnConfirmEmailChange">Confirmar correo</button>
-              </div>
+          </details>
+          <details class="account-disclosure">
+            <summary>Confirmar un cambio de correo</summary>
+            <div class="account-disclosure-content">
+              <label for="emailChangeToken">Código recibido por correo</label>
+              <input id="emailChangeToken" autocomplete="one-time-code" placeholder="Código recibido"/>
+              <button id="btnConfirmEmailChange">Confirmar correo</button>
             </div>
-          </div>
-        </article>
+          </details>
+        </div>
       </div>
     </section>
-  </div>
+  </main>
 
-  <div id="toast" class="toast"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="/staff-login.js"></script>
 </body>
 </html>

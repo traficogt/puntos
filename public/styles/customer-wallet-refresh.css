@@ -6,9 +6,65 @@
   flex-wrap: wrap;
 }
 
+.page-customer .cus-statement {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.page-customer .cus-statement h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.page-customer .cus-statement p {
+  max-width: 70ch;
+  margin: 0.6rem 0;
+  overflow-wrap: anywhere;
+}
+
+.page-customer .cus-statement-totals {
+  margin: 1.25rem 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.page-customer .cus-statement-totals > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding: 0.5rem 0;
+}
+
+.page-customer .cus-statement-totals dd {
+  margin: 0 0 0 auto;
+  font-weight: 600;
+}
+
+.page-customer .cus-statement-saved {
+  font-weight: 600;
+}
+
 .page-customer .lc-foot-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.page-customer .lc-reward-detail {
+  margin: 0.5rem 0 0;
+  max-width: 65ch;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.page-customer #nextRewardBalance {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.page-customer .lc-reward-detail:empty {
+  display: none;
 }
 
 .page-customer #btnRefreshWallet {

@@ -63,6 +63,7 @@ integrationDescribe("External award idempotency integration", () => {
     const { businessId, customerId, slug, pointsAwarded } = await createFixture();
     const externalEventId = `evt-${crypto.randomUUID()}`;
 
+    let holdDays = 0;
     const deps = {
       withTransaction,
       setCurrentTenant,
@@ -71,6 +72,7 @@ integrationDescribe("External award idempotency integration", () => {
         getById: async (id) => (id === businessId ? {
           id: businessId,
           program_json: {
+            pending_points_hold_days: holdDays,
             external_awards: {
               enabled: true,
               api_key: "test-secret"
@@ -86,7 +88,7 @@ integrationDescribe("External award idempotency integration", () => {
       timingSafeEqualString: (a, b) => a === b
     };
 
-    const invoke = (metaSource) => runWithDbContext({ tenantId: null, platformAdmin: false, webhookIngest: false }, () => (
+    const invoke = (meta) => runWithDbContext({ tenantId: null, platformAdmin: false, webhookIngest: false }, () => (
       awardFromExternalEventWithDeps(deps, {
         businessSlug: slug,
         apiKey: undefined,
@@ -96,21 +98,25 @@ integrationDescribe("External award idempotency integration", () => {
         amount_q: 50,
         visits: 1,
         items: 2,
-        meta: { source: metaSource },
+        meta,
         skipApiKeyCheck: true
       })
     ));
 
-    const [first, second] = await Promise.all([
-      invoke("integration-a"),
-      invoke("integration-b")
-    ]);
+    const meta = { source: "integration", receipt: { amount: 50, currency: "GTQ" } };
+    const [first, second] = await Promise.all([invoke(meta), invoke(meta)]);
 
     assert.equal(first.ok, true);
     assert.equal(second.ok, true);
     assert.equal(first.transactionId, second.transactionId);
     assert.equal(Number(first.pointsAwarded), Number(second.pointsAwarded));
     assert.ok(first.replay === true || second.replay === true);
+    holdDays = 3;
+    const replay = await invoke({ receipt: { currency: "GTQ", amount: 50 }, source: "integration" });
+    assert.equal(replay.transactionId, first.transactionId);
+    assert.equal(replay.status, "POSTED");
+    assert.equal(replay.replay, true);
+    await assert.rejects(invoke({ ...meta, source: "changed-payload" }), { statusCode: 409, message: /different payload/ });
 
     const { rows: txRows } = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => (
       dbQuery(

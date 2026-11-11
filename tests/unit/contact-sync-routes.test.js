@@ -40,9 +40,9 @@ async function runRoute(router, method, routePath, req) {
   for (const handler of handlers) {
     await new Promise((resolve, reject) => {
       try {
-        const maybe = handler(req, res, (err) => (err ? reject(err) : resolve()));
+        const maybe = handler(req, res, (err) => (err ? reject(err) : resolve(undefined)));
         if (maybe && typeof maybe.then === "function") maybe.then(resolve).catch(reject);
-        else if (handler.length < 3) resolve();
+        else if (handler.length < 3) resolve(undefined);
       } catch (error) {
         reject(error);
       }

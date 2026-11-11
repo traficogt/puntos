@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { shouldEmbedQrLogo, waitForQrLogoAsset } from "../../public/customer/qr.js";
+import { createQrController, shouldEmbedQrLogo, waitForQrLogoAsset } from "../../public/customer/qr.js";
 
 describe("customer qr premium gating", () => {
   it("rejects embedding below EMPRESA", () => {
@@ -112,4 +112,29 @@ describe("customer qr premium gating", () => {
       true
     );
   });
+});
+
+it("disposed QR controllers ignore a response that finishes after logout", async t => {
+  const messages = [];
+  let finish = /** @type {(value: Response) => void} */ (() => {});
+  t.mock.method(globalThis, "fetch", () => new Promise(resolve => { finish = resolve; }));
+  const controller = createQrController({ $: () => null, toast: message => messages.push(message) });
+  const pending = controller.generateQR();
+  controller.dispose();
+  finish(new Response("<svg />"));
+  await pending;
+  assert.deepEqual(messages, []);
+});
+
+it("QR renewal never starts overlapping requests", async t => {
+  let calls = 0;
+  let finish = /** @type {(value: Response) => void} */ (() => {});
+  t.mock.method(globalThis, "fetch", () => { calls += 1; return new Promise(resolve => { finish = resolve; }); });
+  const controller = createQrController({ $: () => null, toast() {} });
+  const pending = controller.generateQR();
+  const duplicate = controller.generateQR();
+  assert.equal(calls, 1);
+  finish(new Response("Expired", { status: 401 }));
+  await Promise.all([pending, duplicate]);
+  controller.dispose();
 });

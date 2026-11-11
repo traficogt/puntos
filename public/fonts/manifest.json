@@ -1,0 +1,207 @@
+{
+  "downloadedAt": "2026-11-10",
+  "cssSource": "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600;700&display=swap",
+  "cssSha256": "4543dc14d417a68d8056c451b6e52d8f0bdb02b4feb3282d4672647b13d32bb1",
+  "fonts": [
+    {
+      "source": "https://fonts.gstatic.com/s/bricolagegrotesque/v9/3y9H6as8bTXq_nANBjzKo3IeZx8z6up5BeSl5jBNz_19PpbpMXuECpwUxJBOm_OJWiawDFXphjhQYrcK.woff2",
+      "family": "Bricolage Grotesque",
+      "subset": "vietnamese",
+      "weights": [
+        500,
+        600,
+        700
+      ],
+      "sha256": "ea16948d4a91b77221f119ad27d4ac7a7581c98cf990712047f89a531a49ef28",
+      "bytes": 8652,
+      "filename": "bricolage-grotesque-v9-vietnamese-ea16948d4a91.woff2"
+    },
+    {
+      "source": "https://fonts.gstatic.com/s/bricolagegrotesque/v9/3y9H6as8bTXq_nANBjzKo3IeZx8z6up5BeSl5jBNz_19PpbpMXuECpwUxJBOm_OJWiawDVXphjhQYrcK.woff2",
+      "family": "Bricolage Grotesque",
+      "subset": "latin-ext",
+      "weights": [
+        500,
+        600,
+        700
+      ],
+      "sha256": "a22c997a894377f36d81c904163e0c05fbbcd32f0ca2e7beedb86b39be1296a1",
+      "bytes": 18740,
+      "filename": "bricolage-grotesque-v9-latin-ext-a22c997a8943.woff2"
+    },
+    {
+      "source": "https://fonts.gstatic.com/s/bricolagegrotesque/v9/3y9H6as8bTXq_nANBjzKo3IeZx8z6up5BeSl5jBNz_19PpbpMXuECpwUxJBOm_OJWiawA1XphjhQYg.woff2",
+      "family": "Bricolage Grotesque",
+      "subset": "latin",
+      "weights": [
+        500,
+        600,
+        700
+      ],
+      "sha256": "4fd48b2c1ab27220e71f15f990550261b35245c3bdfd8d8025b4bdac0459ee2d",
+      "bytes": 41236,
+      "filename": "bricolage-grotesque-v9-latin-4fd48b2c1ab2.woff2"
+    },
+    {
+      "source": "https://fonts.gstatic.com/s/fraunces/v38/6NU78FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0KxCBTeP2Xz5fU8w.woff2",
+      "family": "Fraunces",
+      "subset": "vietnamese",
+      "weights": [
+        300,
+        400,
+        500
+      ],
+      "sha256": "7e3c04662669cd2b8ee672e4e5d63146d21f6aa36654b211718af5fe0bb3bd51",
+      "bytes": 19748,
+      "filename": "fraunces-v38-vietnamese-7e3c04662669.woff2"
+    },
+    {
+      "source": "https://fonts.gstatic.com/s/fraunces/v38/6NU78FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0KxCFTeP2Xz5fU8w.woff2",
+      "family": "Fraunces",
+      "subset": "latin-ext",
+      "weights": [
+        300,
+        400,
+        500
+      ],
+      "sha256": "f120089b9440f3e35a980a2137347b1851ad46ee4b8ad5c63b6c07e053fa40e2",
+      "bytes": 59540,
+      "filename": "fraunces-v38-latin-ext-f120089b9440.woff2"
+    },
+    {
+      "source": "https://fonts.gstatic.com/s/fraunces/v38/6NU78FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0KxC9TeP2Xz5c.woff2",
+      "family": "Fraunces",
+      "subset": "latin",
+      "weights": [
+        300,
+        400,
+        500
+      ],
+      "sha256": "48282a415ec22e31beaf0a0666e6fae0c8cbddcd0b1f6e729f27c3ade8a64e43",
+      "bytes": 67388,
+      "filename": "fraunces-v38-latin-48282a415ec2.woff2"
+    },
+    {
+      "source": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7W0Q5n-wU.woff2",
+      "family": "Inter",
+      "subset": "cyrillic-ext",
+      "weights": [
+        400,
+        500,
+        600,
+        700
+      ],
+      "sha256": "fccca918fea40089dacadc7045861314d1a6bc91f1f323cc1eeb22ebcdb321b5",
+      "bytes": 25844,
+      "filename": "inter-v20-cyrillic-ext-fccca918fea4.woff2"
+    },
+    {
+      "source": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa0ZL7W0Q5n-wU.woff2",
+      "family": "Inter",
+      "subset": "cyrillic",
+      "weights": [
+        400,
+        500,
+        600,
+        700
+      ],
+      "sha256": "aebf2ab4a4ce6810d73c1ac7be7cafb4e5ec4cee2d6db5fb3e09691747ec4bd6",
+      "bytes": 18744,
+      "filename": "inter-v20-cyrillic-aebf2ab4a4ce.woff2"
+    },
+    {
+      "source": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2ZL7W0Q5n-wU.woff2",
+      "family": "Inter",
+      "subset": "greek-ext",
+      "weights": [
+        400,
+        500,
+        600,
+        700
+      ],
+      "sha256": "a2e2c783ca6f9c20486e81e72a279203e86730bbf8f01ff6a5ee9dbd09e1c271",
+      "bytes": 11272,
+      "filename": "inter-v20-greek-ext-a2e2c783ca6f.woff2"
+    },
+    {
+      "source": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1pL7W0Q5n-wU.woff2",
+      "family": "Inter",
+      "subset": "greek",
+      "weights": [
+        400,
+        500,
+        600,
+        700
+      ],
+      "sha256": "46dd4cdca58c26ae87cc6927657bf83b2e8abfc39ffd0ab176e301a8d28d22bf",
+      "bytes": 19044,
+      "filename": "inter-v20-greek-46dd4cdca58c.woff2"
+    },
+    {
+      "source": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2pL7W0Q5n-wU.woff2",
+      "family": "Inter",
+      "subset": "vietnamese",
+      "weights": [
+        400,
+        500,
+        600,
+        700
+      ],
+      "sha256": "8db00ff46c67b22cda8bed865acf7077651cac8d2841d5b40980556b48961931",
+      "bytes": 10280,
+      "filename": "inter-v20-vietnamese-8db00ff46c67.woff2"
+    },
+    {
+      "source": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7W0Q5n-wU.woff2",
+      "family": "Inter",
+      "subset": "latin-ext",
+      "weights": [
+        400,
+        500,
+        600,
+        700
+      ],
+      "sha256": "a28eb6d3ccb534ae0c94ca999371df024aab60b08c3c8a5720ee9e32fa0faaa2",
+      "bytes": 85272,
+      "filename": "inter-v20-latin-ext-a28eb6d3ccb5.woff2"
+    },
+    {
+      "source": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7W0Q5nw.woff2",
+      "family": "Inter",
+      "subset": "latin",
+      "weights": [
+        400,
+        500,
+        600,
+        700
+      ],
+      "sha256": "c940764593d0fe5d596be327ca7558855e018039fb78509aa21921fd3644c3e4",
+      "bytes": 48432,
+      "filename": "inter-v20-latin-c940764593d0.woff2"
+    }
+  ],
+  "licenses": [
+    {
+      "family": "Bricolage Grotesque",
+      "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/bricolagegrotesque/OFL.txt",
+      "filename": "bricolage-grotesque-OFL.txt",
+      "sha256": "4b5a7d8f37f5602621c8a8d7358a6a2e71317e6c231c661e15aef0275d3e07ba",
+      "bytes": 4403
+    },
+    {
+      "family": "Fraunces",
+      "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/fraunces/OFL.txt",
+      "filename": "fraunces-OFL.txt",
+      "sha256": "bdf4c22802eaf804f998195871c6b8938aac2ac14b2d78a8bd66a6f1eced833b",
+      "bytes": 4391
+    },
+    {
+      "family": "Inter",
+      "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/OFL.txt",
+      "filename": "inter-OFL.txt",
+      "sha256": "5b9321a4298cfeb6b34354164a1c3afc3db114569984c502b9b35d988fd58c57",
+      "bytes": 4377
+    }
+  ],
+  "cssUserAgent": "Mozilla/5.0 (Linux; Android 11; moto g power (2022)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Mobile Safari/537.36"
+}

@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:16.15-alpine@sha256:aa6cb33cf4c19c765cefcf48d96176258800870a9a1e930ad126200f9d825139
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ci-postgres-${{ github.run_id }}-${{ github.run_attempt }}
@@ -37,13 +37,15 @@ jobs:
       APP_ORIGIN: http://localhost:3001
       JWT_SECRET: ci-jwt-${{ github.run_id }}-${{ github.run_attempt }}-build-test
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
+          node-version: '24.22.3'
           cache: npm
       - name: Install deps (locked, no scripts)
         run: npm ci --ignore-scripts
+      - name: Odoo distribution matches source
+        run: python3 integrations/odoo/build_package.py --check
       - name: Migrations lock (immutability guard)
         run: npm run ops:migrate:lock-check
       - name: Typecheck
@@ -74,7 +76,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high --ignore-scripts
       - name: Upload build-test API log on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: build-test-api-log
           path: /tmp/puntos-build-test-api.log
@@ -84,10 +86,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -96,16 +98,16 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build container image
         run: docker build -t puntos-ci:${{ github.sha }} .
       - name: Pull Trivy image
-        run: docker pull aquasec/trivy:0.56.1
+        run: docker pull aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb
       - name: Scan container image (high/critical)
         run: >
           docker run --rm
           -v /var/run/docker.sock:/var/run/docker.sock
-          aquasec/trivy:0.56.1
+          aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb
           image
           --scanners vuln
           --exit-code 1
@@ -119,7 +121,7 @@ jobs:
     timeout-minutes: 25
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:16.15-alpine@sha256:aa6cb33cf4c19c765cefcf48d96176258800870a9a1e930ad126200f9d825139
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ci-postgres-${{ github.run_id }}-${{ github.run_attempt }}
@@ -145,10 +147,10 @@ jobs:
       SUPER_ADMIN_PASSWORD: ci-super-${{ github.run_id }}-${{ github.run_attempt }}-smoke
       JWT_SECRET: ci-jwt-${{ github.run_id }}-${{ github.run_attempt }}-smoke
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
+          node-version: '24.22.3'
           cache: npm
       - name: Install deps
         run: npm ci
@@ -171,14 +173,14 @@ jobs:
           node src/app/server.js > /tmp/puntos-api.log 2>&1 &
           TIMEOUT=80 bash src/scripts/wait-for-api.sh http://localhost:3001/api/health
       - name: Run HTTP smoke gate
-        run: npm run ops:smoke -- --base-url http://localhost:3001 --require-super-login
+        run: npm run ops:smoke -- --base-url http://localhost:3001 --require-super-login --super-cookie-name pf_super
       - name: Run smoke E2E
         run: npx playwright test tests/e2e/smoke.spec.js --project=chromium
       - name: Run auth security E2E
         run: npx playwright test tests/e2e/auth-security.spec.js --project=chromium
       - name: Upload API log on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: smoke-e2e-api-log
           path: /tmp/puntos-api.log
@@ -189,7 +191,7 @@ jobs:
     needs:
       - build-test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run isolated restricted-role refund + rollover integration
         run: bash src/scripts/run-live-integration-isolated.sh
 
@@ -199,7 +201,7 @@ jobs:
     needs:
       - build-test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run migration smoke
         run: npm run ops:migrate:smoke
 
@@ -207,10 +209,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
+          node-version: '24.22.3'
           cache: npm
       - name: Install deps
         run: npm ci
@@ -220,7 +222,10 @@ jobs:
   semgrep:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: returntocorp/semgrep-action@v1
-        with:
-          config: p/ci
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Scan with Semgrep CE
+        run: >-
+          docker run --rm
+          --volume "$PWD:/src:ro" --workdir /src
+          semgrep/semgrep:1.185.0@sha256:67518c174185a2043fdbed16c70631b79209499b3671178e7194379b48295a0d
+          semgrep scan --config p/ci --error --metrics=off .

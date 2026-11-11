@@ -21,7 +21,7 @@ import {
 
 export const PublicContactUpsertSchema = z.object({
   businessSlug: z.string().min(2).max(120),
-  customerId: z.string().uuid().optional(),
+  customerId: z.guid().optional(),
   phone: z.string().min(6).optional(),
   name: z.string().min(1).max(120).optional()
 }).refine((value) => Boolean(value.customerId || value.phone), {
@@ -30,16 +30,16 @@ export const PublicContactUpsertSchema = z.object({
 
 export const PublicContactLookupRequestSchema = z.object({
   businessSlug: z.string().min(2).max(120),
-  customerId: z.string().uuid()
+  customerId: z.guid()
 });
 
 export const PublicContactIdentifierLinkSchema = z.object({
   businessSlug: z.string().min(2).max(120),
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   identifierType: z.string().min(1).max(120),
   identifierValue: z.string().min(1).max(200),
   label: z.string().min(1).max(120).optional(),
-  meta: z.record(z.any()).optional()
+  meta: z.record(z.string(), z.any()).optional()
 });
 
 export const PublicContactIdentifierResolveSchema = z.object({

@@ -1,0 +1,25 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { demoApi } from "../src/demo-api.js";
+const base="/api/admin/analytics/recovery";
+test("recovery demo creates, retries and records authorized contact only in memory",async()=>{
+ const audience=await demoApi(`${base}/audience?inactive_days=90`);
+ assert.ok(audience.customers.length>0 && audience.customers.length<5);
+ const current=await demoApi(`${base}/audience?inactive_days=30`);
+ assert.equal(current.customers.some(c=>c.id==="demo-person-0"),false);
+ const body=JSON.stringify({request_id:crypto.randomUUID(),name:"Prueba local",notes:"",limit:2,inactive_days:30});
+ const created=await demoApi(`${base}/runs`,{method:"POST",body});
+ const retried=await demoApi(`${base}/runs`,{method:"POST",body});
+ assert.equal(created.run.id,retried.run.id);
+ const path=`${base}/runs/${created.run.id}`;
+ const detail=await demoApi(path);
+ assert.equal(detail.members.length,2);
+ const memberPath=`${path}/members/${detail.members[0].customer_id}`;
+ await assert.rejects(demoApi(memberPath,{method:"PATCH",body:JSON.stringify({status:"contacted"})}),/Confirma/);
+ const first=await demoApi(memberPath,{method:"PATCH",body:JSON.stringify({status:"contacted",contact_confirmed:true})});
+ const repeat=await demoApi(memberPath,{method:"PATCH",body:JSON.stringify({status:"contacted",contact_confirmed:true})});
+ assert.equal(first.member.contacted_at,repeat.member.contacted_at);
+ assert.equal((await demoApi(path)).run.contacted_count,1);
+ assert.equal((await demoApi(path)).run.returned_count,0);
+ await assert.rejects(demoApi(memberPath,{method:"PATCH",body:JSON.stringify({status:"skipped"})}),/cambió/);
+});

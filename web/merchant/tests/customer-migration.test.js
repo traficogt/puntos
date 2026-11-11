@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as model from '../src/migration-model.js';
+import * as demo from '../src/demo-migration.js';
+test('column suggestions recognize Spanish headings without reusing one column', () => {
+  assert.equal(typeof model.suggestMigrationColumns, 'function');
+  assert.deepEqual(model.suggestMigrationColumns(['Teléfono', 'Nombre', 'Saldo']), { phone: 'Teléfono', name: 'Nombre', points: 'Saldo' });
+  assert.deepEqual(model.suggestMigrationColumns(['Contact', 'Balance']), { phone: '', name: '', points: 'Balance' });
+});
+test('migration payload requires a mapped phone, explicit confirmation and bounded label', () => {
+  assert.equal(typeof model.migrationPayload, 'function');
+  const state = { csv: 'Teléfono\n55550001', columns: { phone: 'Teléfono', name: '', points: '' }, existingPolicy: 'skip', label: ' Antes ' };
+  assert.deepEqual(model.migrationPayload(state), { csv: state.csv, columns: { phone: 'Teléfono' }, existing_policy: 'skip' });
+  assert.throws(() => model.migrationPayload({ ...state, columns: {} }), /teléfono/);
+  assert.throws(() => model.migrationPayload({ ...state, confirmed: false }, 'request'), /confirma/i);
+  assert.equal(model.migrationPayload({ ...state, confirmed: true }, 'request').label, 'Antes');
+});
+test('demo is isolated, previews real CSV errors and keeps batch retries and existing balances safe', () => {
+  assert.equal(typeof demo.demoMigration, 'function');
+  const invoke = (suffix, body) => demo.demoMigration(new URL(`https://demo.test/api/admin/customer-migrations${suffix}`), body ? { method: 'POST', body: JSON.stringify(body) } : {});
+  const payload = { csv: 'Teléfono,Nombre,Saldo\n55550001,Ana,100\n55550002,Beto,0', columns: { phone: 'Teléfono', name: 'Nombre', points: 'Saldo' }, existing_policy: 'skip' };
+  assert.equal(invoke('/preview', payload).summary.new_customers, 2);
+  const body = { ...payload, request_id: 'same-request', label: 'Anterior', confirmed: true };
+  assert.throws(() => invoke('/commit', { ...body, confirmed: false }));
+  const first = invoke('/commit', body);
+  assert.equal(first.batch.imported_count, 2);
+  assert.equal(first.batch.opening_points, 100);
+  assert.deepEqual(invoke('/commit', body), first);
+  assert.throws(() => invoke('/commit', { ...body, label: 'Changed' }));
+  const preview = invoke('/preview', payload);
+  assert.equal(preview.summary.existing_customers, 2);
+  assert.equal(preview.summary.opening_points, 0);
+  assert.equal(invoke('/preview', { ...payload, existing_policy: 'reject' }).can_commit, false);
+  const skipped = invoke('/commit', { ...body, request_id: 'new-request' });
+  assert.equal(skipped.batch.skipped_count, 2);
+  assert.equal(skipped.batch.opening_points, 0);
+  assert.equal(invoke('').batches.length, 2);
+  assert.throws(() => invoke('/commit', { ...body, request_id: 'invalid', csv: payload.csv + '\n55550003,Invalid,-1' }));
+  assert.throws(() => invoke('/unknown'));
+});

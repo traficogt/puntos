@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { config } from "../config/index.js";
 import { SecurityEventRepo } from "../app/repositories/security-event-repository.js";
 import { getRequestIp } from "../utils/request-ip.js";
+import { safeLogUrl } from "../utils/logger.js";
 
 const CSRF_COOKIE_NAME = "pf_csrf";
 const CSRF_HEADER_NAME = "x-csrf-token";
@@ -33,7 +34,7 @@ function logDenied(req, method, reason) {
   return SecurityEventRepo.log({
     event_type: "csrf_denied",
     severity: "MEDIUM",
-    route: req.originalUrl || req.url,
+    route: safeLogUrl(req.originalUrl || req.url),
     method,
     ip: getRequestIp(req),
     actor_type: actor.actor_type,
@@ -105,6 +106,8 @@ function verifyRequestOrigin(req) {
 }
 
 export function csrfInit(req, res, next) {
+  // Native endpoints require explicit bearer credentials and never use cookies.
+  if (/^\/api(?:\/v1)?\/mobile(?:\/|$)/.test(req.path || "")) return next();
   if (!req.cookies[CSRF_COOKIE_NAME]) {
     const token = generateToken();
     setCsrfCookies(res, token);

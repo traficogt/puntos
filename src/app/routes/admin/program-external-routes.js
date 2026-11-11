@@ -44,15 +44,9 @@ export function registerProgramExternalRoutes(router) {
         return res.status(400).json({ error: "api_key es requerida cuando la integración está habilitada" });
       }
 
-      const updated = await BusinessRepo.updateProgram(req.tenantId, {
-        program_type: business.program_type,
-        program_json: {
-          ...(business.program_json ?? {}),
-          external_awards: {
-            enabled: v.data.enabled,
-            api_key: nextApiKey
-          }
-        }
+      const updated = await BusinessRepo.updateExternalAwards(req.tenantId, {
+        enabled: v.data.enabled,
+        ...(v.data.api_key === undefined ? {} : { api_key: nextApiKey })
       });
       return res.json({ ok: true, external_awards: formatExternalAwards(updated.program_json) });
     })

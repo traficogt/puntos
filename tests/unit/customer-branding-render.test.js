@@ -74,6 +74,6 @@ test("customer shell keeps branding anchors while using the premium app shell", 
   const source = fs.readFileSync(new URL("../../public/customer.html", import.meta.url), "utf8");
 
   assert.match(source, /id="customerBrandTitle"/);
-  assert.match(source, /<body class="app-shell page-customer">/);
+  assert.match(source, /<body class="[^"]*\bapp-shell\b[^"]*\bpage-customer\b[^"]*">/);
   assert.match(source, /id="themeToggle"/);
 });

@@ -1,4 +1,4 @@
-import { pool } from "./pools.js";
+import { transactionPool } from "./pools.js";
 import { getDbContext, runWithDbContext } from "./context.js";
 
 export async function withTransaction(fn) {
@@ -6,7 +6,7 @@ export async function withTransaction(fn) {
   const tenantId = parent.tenantId ?? null;
   const platformAdmin = parent.platformAdmin === true;
   const webhookIngest = parent.webhookIngest === true;
-  const client = await pool.connect();
+  const client = await transactionPool.connect();
 
   try {
     return await runWithDbContext({ ...parent, client }, async () => {

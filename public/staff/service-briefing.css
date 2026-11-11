@@ -1,0 +1,19 @@
+.service-briefing { margin-block: 24px; padding-block: 24px; border-top: 1px solid var(--line); color: var(--text); }
+.service-briefing h2 { margin-block: 0 12px; }
+.service-briefing h3 { margin-block: 0 8px; font-size: 17px; }
+.service-briefing p { max-width: 72ch; margin-block: 8px; overflow-wrap: anywhere; }
+.service-briefing-notice { padding-block: 16px; border-bottom: 1px solid var(--line); }
+.service-briefing-muted { color: var(--muted); font-size: 13px; }
+.service-briefing-authority { margin-block: 24px; }
+.service-briefing-practice { padding-block: 16px; border-top: 1px solid var(--line); }
+.service-briefing-practice > summary { cursor: pointer; min-height: 44px; font-size: 17px; font-weight: 600; color: var(--text); padding-block: 10px; }
+.service-briefing-emphasis { font-weight: 600; }
+.service-briefing-balance { font-variant-numeric: tabular-nums; font-weight: 600; }
+.service-briefing-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px 16px; max-width: 680px; margin-block: 20px; }
+.service-briefing-form > label { grid-column: 1 / -1; }
+.service-briefing-form :is(input,select) { min-width: 0; width: 100%; }
+.service-briefing-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-block: 16px; }
+.service-briefing button { min-height: 44px; white-space: normal; }
+.service-briefing :is(input,select) { min-height: 44px; }
+.service-briefing :is(button,input,select,summary):focus-visible { outline: 2px solid var(--focus-border); outline-offset: 3px; }
+@media (max-width: 600px) { .service-briefing-form { grid-template-columns: minmax(0, 1fr); } .service-briefing-form > button { justify-self: start; } }

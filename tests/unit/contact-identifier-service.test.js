@@ -34,7 +34,7 @@ test("rejects linking an identifier already assigned to another customer", async
       identifierType: "loyalty_card",
       identifierValue: " ABC123 "
     }),
-    (err) => err?.statusCode === 409 && /another customer/i.test(err.message)
+    { statusCode: 409, message: /another customer/i }
   );
 
   assert.deepEqual(lookupArgs, {
@@ -45,6 +45,7 @@ test("rejects linking an identifier already assigned to another customer", async
 });
 
 test("links a new identifier for the scoped customer with trimmed value and metadata", async () => {
+  /** @type {{client: unknown, input: {business_id: string, customer_id: string, identifier_type: string, identifier_value: string, label: string, meta: Record<string, unknown>, active: boolean}} | null} */
   let createArgs = null;
   const out = await linkContactIdentifierWithDeps({
     client: { query: async () => ({ rows: [], rowCount: 0 }) },
@@ -72,6 +73,7 @@ test("links a new identifier for the scoped customer with trimmed value and meta
   });
 
   assert.equal(out.id, "identifier-1");
+  assert.ok(createArgs, "The identifier must be persisted");
   assert.equal(createArgs.input.business_id, "business-1");
   assert.equal(createArgs.input.customer_id, "customer-1");
   assert.equal(createArgs.input.identifier_type, "loyalty_card");
@@ -202,7 +204,7 @@ test("rejects relinking an inactive identifier for the same scoped customer", as
       identifierType: "loyalty_card",
       identifierValue: " ABC123 "
     }),
-    (err) => err?.statusCode === 409 && /inactive/i.test(err.message)
+    { statusCode: 409, message: /inactive/i }
   );
 });
 

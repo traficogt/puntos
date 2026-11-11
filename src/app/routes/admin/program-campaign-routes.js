@@ -1,3 +1,4 @@
+import { config } from "../../../config/index.js";
 import { asyncRoute } from "../../../middleware/common.js";
 import { csrfProtect } from "../../../middleware/csrf.js";
 import { requireOwner, requireStaff } from "../../../middleware/auth.js";
@@ -17,7 +18,7 @@ export function registerProgramCampaignRoutes(router) {
     asyncRoute(async (req, res) => {
       const business = await getBusinessOr404(res, req.tenantId);
       if (!business) return;
-      return res.json({ ok: true, rules: business.program_json?.campaign_rules ?? [] });
+      return res.json({ ok: true, timezone: config.CRON_TZ || "UTC", rules: business.program_json?.campaign_rules ?? [] });
     })
   );
 
@@ -34,13 +35,9 @@ export function registerProgramCampaignRoutes(router) {
       const business = await getBusinessOr404(res, req.tenantId);
       if (!business) return;
 
-      const updated = await BusinessRepo.updateProgram(req.tenantId, {
-        program_type: business.program_type,
-        program_json: {
-          ...(business.program_json ?? {}),
-          campaign_rules: v.data.rules.map((rule) => ({ ...rule, active: rule.active !== false }))
-        }
-      });
+      const updated = await BusinessRepo.updateCampaignRules(
+        req.tenantId, v.data.rules.map((rule) => ({ ...rule, active: rule.active !== false }))
+      );
       return res.json({ ok: true, rules: updated.program_json?.campaign_rules ?? [] });
     })
   );

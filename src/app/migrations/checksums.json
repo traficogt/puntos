@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-15T23:10:19.642Z",
+  "generated_at": "2026-11-11T12:49:03.582Z",
   "files": {
     "001_add_transactions_type.sql": "34e119c91fa5c744920b65a77dedeb89276bfd86a1b45e9a7edd59d73e8ffefc",
     "002_reward_branch_scope.sql": "5a076cc3a0b4df04031c5dc6d8ec26f75ebf44e648ca14a234dd8dfea08af401",
@@ -44,6 +44,35 @@
     "2026-04-15-order-returns.sql": "eb08d199ac7eb7a3d5271e7461551e1690d65bc53d95153e63b2efedeaaa4991",
     "2026-04-15-order-returns_rls.sql": "ba5df85997fde4e81bef51c62e2bf0d2fa3a3a2775226ed8f3c695c8c9a79206",
     "2026-04-15-orders-rls.sql": "76fa6d39893a9c06f70cb2d5d8268ecc77b51faf1a78bc8ffeada918740db8fe",
-    "2026-04-16-contact-identifiers-trim.sql": "af73a8bc3a219617cd96fd030d5b5619ff426318fb590a3ac54df3a871da29bb"
+    "2026-04-16-contact-identifiers-trim.sql": "af73a8bc3a219617cd96fd030d5b5619ff426318fb590a3ac54df3a871da29bb",
+    "2026-11-09-native-wallet.sql": "745e5cd468acde69e3dafe881f37594331ae548a23436614f4d4f2c086010f80",
+    "2026-11-10-acquisition.sql": "d281ddcba6d3bb90850815a7c3f00a4a6ecf6a8d573bee420e341776a68f329f",
+    "2026-11-10-automation-controls.sql": "2a132dd14193059c87322b7ff3dea9a52240bcc040394fb1efab29716a5d8d56",
+    "2026-11-10-customer-migration.sql": "f14f337222c37585ab5e908c763326e9f5736755262d25cdd0a21b31fec24e15",
+    "2026-11-10-customer-recovery.sql": "48f67c276ab44b4c2716ce2462e2f29e9f82e7afca312a367ad0020ea94d6f9b",
+    "2026-11-10-growth-campaigns.sql": "0773787cc9e7f91e9a9fc3ddaf2b5a8b0d87baa1975f2acbd727c417cbaa4bcc",
+    "2026-11-10-growth-limits.sql": "aefc4fe1d227783d2ddf1fb10425a7b050f69999b45ac5101cbceb90cb0852fe",
+    "2026-11-10-growth-messaging.sql": "c860044c44683ea263bb41c39d5e96c05fa10eaf9e9c7bceb8213b3876e8b2c8",
+    "2026-11-10-merchant-pilots.sql": "3989938d72580f30b4faa4128380a9a00ac1b2ed7f7f79fa6c6e11378fd9eef5",
+    "2026-11-10-mobile-access.sql": "af762d885a3edce5fed4ac31e645e4eb959e0d228c579fbe3e64ddf8519a1e1d",
+    "2026-11-10-mobile-push.sql": "35d04d891b2197fb9e3d5e4ae8074fc306acbc63b438e5e0b95fe592be815875",
+    "2026-11-10-pos-refunds.sql": "c05344c6efe4744e06c92a05c5dc0fe2049734ce8fa1cbcb123106f3fa62988e",
+    "2026-11-10-reusable-audiences.sql": "ba8d61893ff29ae8f9180e84a17786f5a153fe1749698927b621234dfd9d0ca2",
+    "2026-11-10-reward-economics.sql": "f94d3ad96c39ce40126dcb482c49431d84285e792021f77d15c8838e3e4e6c83",
+    "2026-11-11-campaign-expansion.sql": "508f31702b77c768085c6bb052ddaaf0a6b5f9a5e26495270b149f5c0ff9355e",
+    "2026-11-11-customer-import-jobs.sql": "26d6689ec3b3a9c1d26d2b9bd555e393c2ff30f93f1cca474987d6bb8d6b766c",
+    "2026-11-11-guided-owner-growth.sql": "45f37502ed420c77f75df75ae02ac8f7e4eba684c868df411d2f008ad12a99bb",
+    "2026-11-11-merchant-decisions.sql": "dcdcbf2a7fc22cda6cc0ce9a0bf1d2b8f2a48de4c1203d20a72d4318a8a6caa4",
+    "2026-11-11-owner-email-brief.sql": "8edeae76b0e76738750f818de91944ba82c4f2138a217d3663f074d5117ecf89",
+    "2026-11-11-pilot-evidence.sql": "e5545e052548a5ecf8203f018c87e238749193ecb2174a9585645274c0d2c55d",
+    "2026-11-11-regional-settings.sql": "edf0a4ad05659ef76e190ce177c68f75cd725a88b610738ea59fe9f8e060e1f5",
+    "2026-11-11-regional-settings2.sql": "8241df3a2e4d3d009956f23b43ce7269a3c8ff9e633b8adce82d82806ff83e85",
+    "2026-11-11-reward-promises-hospitality.sql": "c7f0e3447583f71b75f7aec8c8aa6a12b18bd69670ed918d7ba8f7482e50eebe",
+    "2026-11-11-service-recovery.sql": "4cb412afe5f1991dad4b8053f860425d5b21c28198f293418043fd066dc3253f",
+    "2026-11-11-staff-delegation.sql": "3af63d3794342acfe1cae3e6c6898d4c4d908018820432d85e09f348e9af47ab",
+    "2026-11-11-wallet-engagement.sql": "3bf3bd9c41c00dbd185962997bcb21a84dd09adbf2a2e8e7ed42f8ed42632810",
+    "2026-11-11-z-pos-fulfillment.sql": "3b4059b12094d00ebb456a3578f4f43894c2b05ddea4404b5b1252beceabb7d5",
+    "2026-11-11-z-reward-catalog.sql": "3a72ded5a3141a41e267c56cf54845d8e3f1e255ab9cd8c6c62ecd25b8407487",
+    "2026-11-11-zz-pos-checkout.sql": "d2f1b92bfe1961c3091aa05ff8154efac10bec7d2e311e2ab7bb6e846d039060"
   }
 }

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 
 const __filename = fileURLToPath(import.meta.url);
-dotenv.config();
+dotenv.config({ quiet: true });
 
 function cliArg(name, fallback = "") {
   const index = process.argv.indexOf(name);

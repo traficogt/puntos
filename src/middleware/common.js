@@ -1,8 +1,15 @@
 import { config } from "../config/index.js";
 import { randomUUID } from "node:crypto";
+import { safeLogUrl } from "../utils/logger.js";
 
 export function asyncRoute(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+}
+
+export function defaultRequestBody(req, _res, next) {
+  // Express 4 supplied an empty object when the JSON parser skipped a body.
+  if (req.body === undefined) req.body = {};
+  next();
 }
 
 export function notFound(req, res) {
@@ -41,7 +48,7 @@ export function errorHandler(err, req, res, next) { // eslint-disable-line
             code,
             requestId,
             method: req.method,
-            url: req.originalUrl || req.url
+            url: safeLogUrl(req.originalUrl || req.url)
           },
           "Handled client error"
         );
@@ -49,7 +56,8 @@ export function errorHandler(err, req, res, next) { // eslint-disable-line
     }
   }
   res.setHeader("X-Request-Id", requestId);
-  res.status(status).json({ error: msg, code, request_id: requestId });
+  const recoveryCaseId = typeof err?.recoveryCaseId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(err.recoveryCaseId) ? err.recoveryCaseId : null;
+  res.status(status).json({ error: msg, code, request_id: requestId, ...(recoveryCaseId ? { recoveryCaseId } : {}) });
 }
 
 function inferErrorCode(err, status) {

@@ -8,7 +8,7 @@ test("marketing entrypoint avoids service-worker registration and uses versioned
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const js = fs.readFileSync(new URL("../../public/index.js", import.meta.url), "utf8");
 
-  assert.match(html, /href="\/styles\.css\?v=\d+"/);
+  assert.match(html, /href="\/styles\/marketing\.css\?v=\d+"/);
   assert.match(html, /src="\/index\.js\?v=\d+"/);
   assert.doesNotMatch(js, /registerServiceWorker\(/);
 });

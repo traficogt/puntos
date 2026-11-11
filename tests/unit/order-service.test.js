@@ -82,6 +82,7 @@ test("returns replay success when the same externalOrderId is received with the 
 });
 
 test("treats reordered meta keys and line items as the same replay payload", async () => {
+  /** @type {{line_items_json: Array<{name: string}>, meta: {details: Record<string, unknown>}} | null} */
   let observedPayload = null;
   const deps = {
     withTransaction: async (fn) => fn({
@@ -156,6 +157,7 @@ test("treats reordered meta keys and line items as the same replay payload", asy
     }
   });
 
+  assert.ok(observedPayload, "The normalized payload must be fingerprinted");
   assert.equal(observedPayload.line_items_json[0].name, "Apple");
   assert.equal(observedPayload.line_items_json[1].name, "Banana");
   assert.deepEqual(Object.keys(observedPayload.meta), ["a", "details", "z"]);
@@ -172,6 +174,7 @@ test("treats reordered meta keys and line items as the same replay payload", asy
 });
 
 test("persists normalized line items and meta when creating a new order", async () => {
+  /** @type {{line_items_json: Array<{name: string}>, meta: {details: Record<string, unknown>}, fingerprint: string} | null} */
   let createInput = null;
   const deps = {
     withTransaction: async (fn) => fn({
@@ -229,6 +232,7 @@ test("persists normalized line items and meta when creating a new order", async 
   });
 
   assert.equal(out.ok, true);
+  assert.ok(createInput, "The normalized order must be persisted");
   assert.deepEqual(createInput.line_items_json.map((item) => item.name), ["Apple", "Banana"]);
   assert.deepEqual(Object.keys(createInput.meta), ["a", "details", "z"]);
   assert.deepEqual(Object.keys(createInput.meta.details), ["a", "b"]);

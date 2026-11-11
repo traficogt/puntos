@@ -167,6 +167,8 @@ test("contact identifier listing stays business scoped", async () => {
 });
 
 test("contact identifier migrations sort table before dedicated RLS", () => {
+  // Fixed repository migration paths; no user-controlled filesystem input.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const files = fs.readdirSync(new URL("../../src/app/migrations", import.meta.url))
     .filter((file) => file.includes("contact-identifiers"))
     .sort();
@@ -179,10 +181,14 @@ test("contact identifier migrations sort table before dedicated RLS", () => {
 });
 
 test("contact identifier RLS lives in the dedicated migration", () => {
+  // Fixed repository migration paths; no user-controlled filesystem input.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const tableSource = fs.readFileSync(
     new URL("../../src/app/migrations/2026-04-15-contact-identifiers.sql", import.meta.url),
     "utf8"
   );
+  // Fixed repository migration paths; no user-controlled filesystem input.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const rlsSource = fs.readFileSync(
     new URL("../../src/app/migrations/2026-04-15-contact-identifiers_rls.sql", import.meta.url),
     "utf8"
@@ -196,6 +202,8 @@ test("contact identifier RLS lives in the dedicated migration", () => {
 });
 
 test("contact identifier trim hardening lives in a later migration", () => {
+  // Fixed repository migration paths; no user-controlled filesystem input.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const trimSource = fs.readFileSync(
     new URL("../../src/app/migrations/2026-04-16-contact-identifiers-trim.sql", import.meta.url),
     "utf8"

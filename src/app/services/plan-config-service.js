@@ -5,7 +5,7 @@ const PLAN_FEATURES_KEY = "plan_features";
 
 export const PlanConfigService = {
   async getPlanFeatureOverrides() {
-    return PlatformSettingsRepo.getJson(PLAN_FEATURES_KEY, {});
+    return PlatformSettingsRepo.getPlanFeatures();
   },
 
   async setPlanFeatureOverrides(overrides) {

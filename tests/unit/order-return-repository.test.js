@@ -111,6 +111,8 @@ test("order return create stores meta as json and preserves persistence-only inp
 });
 
 test("order return migrations sort table before dedicated RLS", () => {
+  // Fixed repository migration paths; no user-controlled filesystem input.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const files = fs.readdirSync(new URL("../../src/app/migrations", import.meta.url))
     .filter((file) => file.includes("order-returns"))
     .sort();
@@ -122,10 +124,14 @@ test("order return migrations sort table before dedicated RLS", () => {
 });
 
 test("order return RLS lives in the dedicated migration", () => {
+  // Fixed repository migration paths; no user-controlled filesystem input.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const tableSource = fs.readFileSync(
     new URL("../../src/app/migrations/2026-04-15-order-returns.sql", import.meta.url),
     "utf8"
   );
+  // Fixed repository migration paths; no user-controlled filesystem input.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const rlsSource = fs.readFileSync(
     new URL("../../src/app/migrations/2026-04-15-order-returns_rls.sql", import.meta.url),
     "utf8"
@@ -139,6 +145,8 @@ test("order return RLS lives in the dedicated migration", () => {
 });
 
 test("order return schema enforces order business and customer integrity", () => {
+  // Fixed repository migration paths; no user-controlled filesystem input.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   const tableSource = fs.readFileSync(
     new URL("../../src/app/migrations/2026-04-15-order-returns.sql", import.meta.url),
     "utf8"

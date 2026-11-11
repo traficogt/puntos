@@ -12,15 +12,6 @@ async function useRandomClientIp(page) {
   await page.setExtraHTTPHeaders({ "x-forwarded-for": ip });
 }
 
-async function disableMotion(page) {
-  await page.addStyleTag({
-    content: `
-      *, *::before, *::after { animation: none !important; transition: none !important; }
-      html { scroll-behavior: auto !important; }
-    `
-  });
-}
-
 async function gotoStable(page, url, readySelector) {
   await page.goto(url, { waitUntil: "domcontentloaded" });
   await page.waitForSelector(readySelector, { state: "visible", timeout: 20_000 });
@@ -28,13 +19,13 @@ async function gotoStable(page, url, readySelector) {
 
 async function createBusinessAndOpenDashboard(page) {
   const t = token();
-  await page.goto("/admin");
+  await page.goto("/admin", { waitUntil: "domcontentloaded" });
   await page.fill("#businessName", `Cafe Visual ${t}`);
   await page.fill("#email", `owner-visual-${t}@example.com`);
   await page.fill("#password", "OrchardLanternMarble2026!");
   await page.click("#btnCreate");
   await expect(page.locator("#result")).toBeVisible();
-  await page.goto("/admin-dashboard.html");
+  await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
   await expect(page.locator("#main")).toBeVisible();
 }
 
@@ -42,16 +33,14 @@ test("visual: super login shell", async ({ page }) => {
   await useRandomClientIp(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoStable(page, "/super", "#loginCard");
-  await disableMotion(page);
-  await expect(page.locator("#loginCard")).toHaveScreenshot("super-login-desktop.png");
+  await expect(page.locator("#loginCard")).toHaveScreenshot("super-login-desktop.png", { animations: "disabled" });
 });
 
 test("visual: super login mobile", async ({ page }) => {
   await useRandomClientIp(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoStable(page, "/super", "#loginCard");
-  await disableMotion(page);
-  await expect(page.locator("#loginCard")).toHaveScreenshot("super-login-mobile.png");
+  await expect(page.locator("#loginCard")).toHaveScreenshot("super-login-mobile.png", { animations: "disabled" });
 });
 
 test("visual: super dashboard logged-in", async ({ page }, _testInfo) => {
@@ -67,16 +56,17 @@ test("visual: super dashboard logged-in", async ({ page }, _testInfo) => {
   await page.click("#btnLogin");
   await expect(page.locator("#mainCard")).toBeVisible();
   await expect(page.locator("#businessCard")).toBeVisible();
-  await disableMotion(page);
-  await expect(page.locator("#mainCard")).toHaveScreenshot("super-dashboard-maincard-desktop.png");
+  await expect(page.locator("#toast")).toBeHidden();
+  await expect(page.locator("#mainCard")).toHaveScreenshot("super-dashboard-maincard-desktop.png", { animations: "disabled" });
 });
 
 test("visual: admin dashboard shell desktop", async ({ page }) => {
   await useRandomClientIp(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await createBusinessAndOpenDashboard(page);
-  await disableMotion(page);
+  await page.locator(".admin-program-disclosure > summary").click();
   await expect(page.locator("#ownerConfigCard")).toHaveScreenshot("admin-dashboard-desktop.png", {
+    animations: "disabled",
     mask: [page.locator("#businessName")]
   });
 });
@@ -85,8 +75,9 @@ test("visual: admin dashboard shell mobile", async ({ page }) => {
   await useRandomClientIp(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await createBusinessAndOpenDashboard(page);
-  await disableMotion(page);
+  await page.locator(".admin-program-disclosure > summary").click();
   await expect(page.locator("#ownerConfigCard")).toHaveScreenshot("admin-dashboard-mobile.png", {
+    animations: "disabled",
     mask: [page.locator("#businessName")]
   });
 });

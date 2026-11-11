@@ -1,0 +1,80 @@
+title = "PuntosFieles narrowly reviewed false positives"
+
+# Keep the complete built-in rule set. Only generic-api-key findings on the
+# exact reviewed lines in the exact repository paths below may be suppressed.
+# AND prevents either a path or familiar text alone from hiding a finding.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Compatibility prose; no credential material"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)docs/dependencies/2026\-11\-11\-dependency\-inventory\.json$''']
+regexes = ['''^\s*\Q"Preserve stored password hashes, identifiers, keys, ledger/idempotency semantics and database schema compatibility.",\E\s*$''']
+
+[[rules.allowlists]]
+description = "Release image tag in deployment prose"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)docs/superpowers/plans/2026\-11\-10\-spanish\-growth\.md$''']
+regexes = ['''^\s*\QDeployed `puntos-api:spanish-growth-20261110`; public preview is `/demostracion/`, owner workspace `/negocio/`. Browser URLs and shareable navigation are Spanish with legacy redirects. Recovery persists manual follow-up lists and observed 30-day results. Referrals adds editable existing incentives and an accurately defined recommendation/purchase funnel. POS adds guided setup and receipt preflight without awards or external requests.\E\s*$''']
+
+[[rules.allowlists]]
+description = "Base64 encoding of synthetic fixture keystore bytes"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)apps/customer/tests/android\-toolchain\.test\.ts$''']
+regexes = ['''^\s*\Qscript(path.join(work,'scripts/build-android-release.sh'),`test "$PF_ANDROID_STORE_PASSWORD" = 'fixture-password'\ntest "$PF_ANDROID_KEY_PASSWORD" = 'fixture-password'\ntest "$PF_ANDROID_KEYSTORE_BASE64" = 'Zml4dHVyZS1rZXk='\ntest "$PF_ANDROID_VERSION_CODE" = 13\ntest "$PF_ANDROID_KEY_ALIAS" = pf-upload\nprintf 'release %s\\n' "$*" >> "$PF_TEST_LOG"\n`);\E\s*$''']
+
+[[rules.allowlists]]
+description = "Release image tag in deployment prose"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)docs/superpowers/plans/2026\-11\-09\-marketing\-redesign\.md$''']
+regexes = ['''^\s*\Q- Deployed 30 reviewed frontend files as image `puntos-api:impeccable-20261109`, layered onto the previously running API image. The checkout contains unrelated backend changes, so this release preserves the running backend, dependencies, configuration, database, and worker. All modified frontend files matched the running release before the redesign diff.\E\s*$''']
+
+[[rules.allowlists]]
+description = "Rollback image tag in deployment prose"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)docs/superpowers/plans/2026\-11\-09\-marketing\-redesign\.md$''']
+regexes = ['''^\s*\Q- Release manifest, before/after snapshots, verification reports, test logs, packaged frontend sources, and rollback script are retained in `/var/lib/puntos/releases/impeccable-20261109/`. The prior API image is preserved as `puntos-api:before-impeccable-20261109`.\E\s*$''']
+
+[[rules.allowlists]]
+description = "JWT fixture for isolated test database and NODE_ENV=test"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)tests/integration/campaign\-point\-budgets\.test\.js$''']
+regexes = ['''^\s*\QObject.assign(process.env,{NODE_ENV:'test',DB_HOST:parsed.hostname,DB_PORT:parsed.port,DB_NAME:'campaign_limits_test',DB_USER:decodeURIComponent(parsed.username),DB_PASSWORD:decodeURIComponent(parsed.password),DB_PASSWORD_FILE:'',DB_MIGRATIONS_PASSWORD_FILE:'',JWT_SECRET_FILE:'',JWT_SECRET:'fixture-campaign-limits-secret-12345678'});\E\s*$''']
+
+[[rules.allowlists]]
+description = "Migration SHA-256 verified against SQL file bytes"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)src/app/migrations/checksums\.json$''']
+regexes = ['''^\s*\Q"2026-03-19-auth-sessions.sql": "c189d68075307b165b5a4238d62e1c45f65453f02b439b0ab5d8943e5c2ffb01",\E\s*$''']
+
+[[rules.allowlists]]
+description = "Migration SHA-256 verified against SQL file bytes"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)src/app/migrations/checksums\.json$''']
+regexes = ['''^\s*\Q"2026-11-10-mobile-access.sql": "af762d885a3edce5fed4ac31e645e4eb959e0d228c579fbe3e64ddf8519a1e1d",\E\s*$''']
+
+[[rules.allowlists]]
+description = "Sequential hexadecimal schema-validation input"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)tests/unit/schemas\.test\.js$''']
+regexes = ['''^\s*\Qregistration_token: "1234567890abcdef"\E\s*$''']
+
+[[rules.allowlists]]
+description = "Sequential hexadecimal schema-validation input"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)tests/unit/schemas\.test\.js$''']
+regexes = ['''^\s*\Qsecret: "1234567890abcdef"\E\s*$''']

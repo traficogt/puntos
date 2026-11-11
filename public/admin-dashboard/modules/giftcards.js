@@ -1,3 +1,4 @@
+import { regionalMoney } from "/lib.js";
 export function registerGiftCardsModule(app) {
   const { api, $, toast } = app;
   let createInFlight = false;
@@ -17,16 +18,16 @@ export function registerGiftCardsModule(app) {
 
     const lines = [
       `Código: ${card.code}`,
-      `Saldo guardado: Q${Number(ledger.stored_balance_q || 0).toFixed(2)}`,
-      `Saldo esperado: Q${Number(ledger.expected_balance_q || 0).toFixed(2)}`,
-      `Emitido: Q${Number(ledger.issue_total_q || 0).toFixed(2)} | Redimido: Q${Number(ledger.redeem_total_q || 0).toFixed(2)}`,
-      `Delta: Q${Number(ledger.delta_q || 0).toFixed(2)}${ledger.mismatch ? "  <- revisar" : ""}`,
+      `Saldo guardado: ${regionalMoney(ledger.stored_balance_q || 0)}`,
+      `Saldo esperado: ${regionalMoney(ledger.expected_balance_q || 0)}`,
+      `Emitido: ${regionalMoney(ledger.issue_total_q || 0)} | Redimido: ${regionalMoney(ledger.redeem_total_q || 0)}`,
+      `Delta: ${regionalMoney(ledger.delta_q || 0)}${ledger.mismatch ? "  <- revisar" : ""}`,
       "",
       "Movimientos recientes:"
     ];
 
     transactions.slice(0, 10).forEach((tx) => {
-      lines.push(`${new Date(tx.created_at).toLocaleString()} • ${tx.tx_type} • Q${Number(tx.amount_q || 0).toFixed(2)} • saldo Q${Number(tx.balance_after_q || 0).toFixed(2)}`);
+      lines.push(`${new Date(tx.created_at).toLocaleString()} • ${tx.tx_type} • ${regionalMoney(tx.amount_q || 0)} • saldo ${regionalMoney(tx.balance_after_q || 0)}`);
     });
 
     box.textContent = lines.join("\n");
@@ -56,7 +57,7 @@ export function registerGiftCardsModule(app) {
         line.className = "row justify-between align-center gap-8";
         const status = g.status || "ACTIVE";
         const text = document.createElement("div");
-        text.textContent = `${new Date(g.created_at).toLocaleString()} • ${g.code} • saldo Q${Number(g.balance_q || 0).toFixed(2)} / inicial Q${Number(g.initial_amount_q || 0).toFixed(2)} • ${status}`;
+        text.textContent = `${new Date(g.created_at).toLocaleString()} • ${g.code} • saldo ${regionalMoney(g.balance_q || 0)} / inicial ${regionalMoney(g.initial_amount_q || 0)} • ${status}`;
         const button = document.createElement("button");
         button.textContent = "Ver ledger";
         button.addEventListener("click", () => inspectGiftCard(g.code).catch(() => {}));
@@ -82,7 +83,7 @@ export function registerGiftCardsModule(app) {
       const out = await api("/api/admin/gift-cards", { method: "POST", body: JSON.stringify(payload) });
       const g = out.gift_card;
       $("#gcLastCreated").textContent =
-        `Código: ${g.code}\nToken QR: ${g.qr_token}\nSaldo inicial: Q${Number(g.initial_amount_q).toFixed(2)}\nSaldo actual: Q${Number(g.balance_q).toFixed(2)}`;
+        `Código: ${g.code}\nToken QR: ${g.qr_token}\nSaldo inicial: ${regionalMoney(g.initial_amount_q)}\nSaldo actual: ${regionalMoney(g.balance_q)}`;
       toast("Gift card creada.");
       await loadGiftCards();
       await inspectGiftCard(g.code);

@@ -75,9 +75,11 @@ describe("awardPoints", () => {
     assert.ok(Array.isArray(capturedInsertParams), "transaction insert params captured");
     assert.equal(capturedInsertParams.length, 13, "transaction insert param count");
     assert.deepEqual(
-      capturedInsertParams,
-      ["tx-1", "b1", null, "c1", "s1", 100, 2, 3, 42, "POSTED", null, "online", { note: "test" }]
+      capturedInsertParams.slice(0, 12),
+      ["tx-1", "b1", null, "c1", "s1", 100, 2, 3, 42, "POSTED", null, "online"]
     );
+    assert.equal(capturedInsertParams[12].note, "test");
+    assert.match(capturedInsertParams[12].staff_request_fingerprint, /^[a-f0-9]{64}$/);
 
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
@@ -174,11 +176,11 @@ describe("awardPoints", () => {
         }
         if (sql.includes("FROM transactions")) {
           return {
-            rows: [{ id: "tx-replay", business_id: "b1", customer_id: "c1", points: 11 }],
+            rows: [{ id: "tx-replay", business_id: "b1", customer_id: "c1", staff_user_id: "s1", amount_q: 10, visits: 0, items: 0, points: 11 }],
             rowCount: 1
           };
         }
-        if (sql.includes("SELECT points FROM customer_balances")) {
+        if (sql.includes("FROM customer_balances")) {
           return { rows: [{ points: 88 }], rowCount: 1 };
         }
         throw new Error(`Unexpected query in replay test: ${sql}`);
@@ -319,6 +321,7 @@ describe("redeemReward", () => {
 
     assert.deepEqual(out, {
       redemptionCode: "ABC12345",
+      redemptionId: "red-1",
       rewardName: "Cafe",
       newBalance: 75
     });

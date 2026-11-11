@@ -1,3 +1,4 @@
+import { dateTimeSchema } from '../../utils/date-time-schema.js';
 import { z } from "zod";
 
 export const AchievementCreateSchema = z.object({
@@ -7,7 +8,7 @@ export const AchievementCreateSchema = z.object({
   badge_image_url: z.string().max(300).optional(),
   requirement_type: z.enum(["visits", "spend", "points", "items", "referrals", "streak"]),
   requirement_value: z.number().int().min(1).max(1000000),
-  requirement_config: z.record(z.any()).optional(),
+  requirement_config: z.record(z.string(), z.any()).optional(),
   points_reward: z.number().int().min(0).max(1000000).optional(),
   tier_boost: z.number().min(0).max(10).optional(),
   active: z.boolean().optional()
@@ -30,8 +31,8 @@ export const ChallengeCreateSchema = z.object({
   requirement_type: z.enum(["visits", "spend", "points", "items", "referrals", "streak"]),
   requirement_value: z.number().int().min(1).max(1000000),
   reward_points: z.number().int().min(0).max(1000000),
-  start_date: z.string().datetime(),
-  end_date: z.string().datetime().optional().nullable(),
+  start_date: dateTimeSchema(),
+  end_date: dateTimeSchema().optional().nullable(),
   recurrence: z.string().max(60).optional().nullable(),
   max_completions: z.number().int().min(1).max(1000).optional(),
   active: z.boolean().optional()
@@ -41,7 +42,7 @@ export const ChallengeUpdateSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   description: z.string().max(500).optional(),
   reward_points: z.number().int().min(0).max(1000000).optional(),
-  end_date: z.string().datetime().nullable().optional(),
+  end_date: dateTimeSchema().nullable().optional(),
   active: z.boolean().optional()
 });
 

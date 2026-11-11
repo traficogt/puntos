@@ -21,7 +21,7 @@ analyticsDashboardRoutes.get(
       const { rows } = await dbQuery(
         `SELECT
            COUNT(DISTINCT c.id) AS total_customers,
-           COUNT(DISTINCT c.id) FILTER (WHERE c.created_at > now() - interval '30 days') AS new_customers_30d,
+           COUNT(DISTINCT c.id) FILTER (WHERE c.imported_at IS NULL AND c.created_at > now() - interval '30 days') AS new_customers_30d,
            COALESCE(SUM(cb.points), 0) AS total_points_issued,
            COALESCE(AVG(cb.points), 0) AS avg_points_per_customer,
            COUNT(DISTINCT c.id) FILTER (WHERE cl.churn_risk_score >= 0.7) AS high_churn_risk_count,
@@ -63,6 +63,7 @@ analyticsDashboardRoutes.get(
          FROM transactions t
          JOIN customers c ON c.id = t.customer_id
          WHERE c.business_id = $1
+           AND t.source <> 'migration' AND COALESCE(t.type,'PURCHASE') <> 'OPENING_BALANCE'
            AND t.created_at > now() - interval '30 days'
          GROUP BY DATE(t.created_at)
          ORDER BY DATE(t.created_at) DESC`,
@@ -91,6 +92,7 @@ analyticsDashboardRoutes.get(
              COUNT(DISTINCT customer_id) AS active_customers_30d
            FROM transactions
            WHERE branch_id = b.id
+             AND source <> 'migration' AND COALESCE(type,'PURCHASE') <> 'OPENING_BALANCE'
              AND created_at > now() - interval '30 days'
          ) tx ON true
          LEFT JOIN LATERAL (
@@ -111,13 +113,14 @@ analyticsDashboardRoutes.get(
            FROM transactions
            WHERE business_id = $1
              AND branch_id = $2
+             AND source <> 'migration' AND COALESCE(type,'PURCHASE') <> 'OPENING_BALANCE'
          )
          SELECT
            (SELECT COUNT(*) FROM branch_customers) AS total_customers,
            (SELECT COUNT(*)
             FROM customers c
             JOIN branch_customers bc ON bc.customer_id = c.id
-            WHERE c.created_at > now() - interval '30 days') AS new_customers_30d,
+            WHERE c.imported_at IS NULL AND c.created_at > now() - interval '30 days') AS new_customers_30d,
            (SELECT COALESCE(SUM(points), 0)
             FROM transactions t
             WHERE t.business_id = $1
@@ -146,6 +149,7 @@ analyticsDashboardRoutes.get(
            FROM transactions
            WHERE business_id = $1
              AND branch_id = $2
+             AND source <> 'migration' AND COALESCE(type,'PURCHASE') <> 'OPENING_BALANCE'
          )
          SELECT
            CASE
@@ -171,6 +175,7 @@ analyticsDashboardRoutes.get(
          FROM transactions t
          WHERE t.business_id = $1
            AND t.branch_id = $2
+           AND t.source <> 'migration' AND COALESCE(t.type,'PURCHASE') <> 'OPENING_BALANCE'
            AND t.created_at > now() - interval '30 days'
          GROUP BY DATE(t.created_at)
          ORDER BY DATE(t.created_at) DESC`,
@@ -199,6 +204,7 @@ analyticsDashboardRoutes.get(
              COUNT(DISTINCT customer_id) AS active_customers_30d
            FROM transactions
            WHERE branch_id = b.id
+             AND source <> 'migration' AND COALESCE(type,'PURCHASE') <> 'OPENING_BALANCE'
              AND created_at > now() - interval '30 days'
          ) tx ON true
          LEFT JOIN LATERAL (

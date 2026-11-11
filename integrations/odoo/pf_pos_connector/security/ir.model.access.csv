@@ -1,0 +1,10 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_pf_connector_admin,PF connection administrator,model_pf_pos_connector,base.group_system,1,1,1,1
+access_pf_outbox_admin,PF queue administrator,model_pf_pos_outbox,base.group_system,1,0,0,0
+access_pf_mapping_admin,PF mapping cache administrator,model_pf_pos_reward_mapping,base.group_system,1,0,0,0
+access_pf_fulfillment_manager,PF redemption evidence manager,model_pf_pos_reward_fulfillment,point_of_sale.group_pos_manager,1,0,0,0
+access_pf_fulfillment_admin,PF redemption evidence administrator,model_pf_pos_reward_fulfillment,base.group_system,1,0,0,0
+access_pf_event_manager,PF evidence queue manager,model_pf_pos_reward_event,point_of_sale.group_pos_manager,1,0,0,0
+access_pf_event_admin,PF evidence queue administrator,model_pf_pos_reward_event,base.group_system,1,0,0,0
+access_pf_link_manager,PF redemption linking wizard,model_pf_pos_link_wizard,point_of_sale.group_pos_manager,1,1,1,1
+access_pf_checkout_manager,PF checkout review,model_pf_pos_checkout_intent,point_of_sale.group_pos_manager,1,0,0,0

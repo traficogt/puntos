@@ -1,3 +1,5 @@
+import { isSpanishWebRoutePath } from "./spanish-web-routes.js";
+
 function normalizePath(path) {
   const raw = String(path || "").trim() || "/";
   if (raw.length > 1 && raw.endsWith("/")) return raw.slice(0, -1);
@@ -98,21 +100,7 @@ function effectiveOriginsForRequest({ host, forwardedProto, protocol, appOrigin,
 
 export function isAppRoutePath(path) {
   const normalized = normalizePath(path);
-  return normalized === "/admin"
-    || normalized === "/admin.html"
-    || normalized === "/admin-dashboard"
-    || normalized === "/admin-dashboard.html"
-    || normalized === "/staff/login"
-    || normalized === "/staff-login.html"
-    || normalized === "/staff"
-    || normalized === "/staff.html"
-    || normalized === "/c"
-    || normalized === "/customer.html"
-    || normalized === "/super"
-    || normalized === "/super.html"
-    || normalized === "/join.html"
-    || normalized === "/ingresar.html"
-    || normalized === "/registro.html"
+  return isSpanishWebRoutePath(normalized)
     || /^\/join\/[^/]+$/i.test(normalized)
     || /^\/ingresar\/[^/]+$/i.test(normalized)
     || /^\/registro\/[^/]+$/i.test(normalized);
@@ -130,9 +118,12 @@ export function resolveHostSplitRedirect({ host, path, originalUrl, forwardedPro
   const requestedUrl = String(originalUrl || normalizedPath || "/");
 
   if (!normalizedHost || !appHost || !marketingHost) return "";
+  // A shared hostname hosts both shells (including local test installations).
+  // Redirecting its app paths back to that same hostname creates a loop.
+  if (appHost === marketingHost) return "";
 
   if (normalizedHost === appHost && (normalizedPath === "/" || normalizedPath === "/index.html")) {
-    return new URL("/staff/login", effectiveOrigins.appOrigin).toString();
+    return new URL("/equipo/ingresar/", effectiveOrigins.appOrigin).toString();
   }
 
   if (normalizedHost === marketingHost && isAppRoutePath(normalizedPath)) {

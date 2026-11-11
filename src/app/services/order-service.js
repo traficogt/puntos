@@ -6,6 +6,9 @@ import { ContactIdentifierRepo } from "../repositories/contact-identifier-reposi
 import { CustomerRepo } from "../repositories/customer-repository.js";
 import { OrderRepo } from "../repositories/order-repository.js";
 import { resolveCustomerForIntegrationWithDeps } from "./customer-resolution-service.js";
+import { PlanConfigService } from "./plan-config-service.js";
+import { claimTargetedOffer } from "./targeted-offer-service.js";
+import { isLedgerInteger } from "../../utils/ledger-limits.js";
 import { computePoints } from "./points-service.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 
@@ -199,8 +202,14 @@ async function processOrderWithClient(deps, client, input) {
   const discountQ = normalizeNumber(input.discount_q);
   const taxQ = normalizeNumber(input.tax_q);
   const currency = String(input.currency || "GTQ").toUpperCase();
-  const pointsAwarded = Number(deps.computePoints(business, { amount_q: amountQ }) || 0);
+  const basePoints = Number(deps.computePoints(business, { amount_q: amountQ }) || 0);
   const transactionId = id();
+  const bonus = typeof deps.claimTargetedOffer === "function"
+    ? await deps.claimTargetedOffer({ client, business, customerId: customer.id, transactionId,
+      source: "order", amountQ, basePoints, planFeatureOverrides: deps.planFeatureOverrides })
+    : { bonusPoints: 0 };
+  const pointsAwarded = basePoints + bonus.bonusPoints;
+  if (!isLedgerInteger(pointsAwarded)) throw badRequest("Computed points must be a non-negative ledger integer");
 
   await client.query(
     `INSERT INTO transactions
@@ -265,12 +274,16 @@ export async function processOrderWithDeps(deps, input) {
   if (!deps || typeof deps.withTransaction !== "function") {
     throw badRequest("withTransaction dependency required");
   }
+  const planFeatureOverrides = typeof deps.getPlanFeatureOverrides === "function" && typeof deps.claimTargetedOffer === "function"
+    ? await deps.getPlanFeatureOverrides() : undefined;
   const resolvedDeps = {
+    planFeatureOverrides,
     BusinessRepo: deps.BusinessRepo ?? BusinessRepo,
     ContactIdentifierRepo: deps.ContactIdentifierRepo ?? ContactIdentifierRepo,
     CustomerRepo: deps.CustomerRepo ?? CustomerRepo,
     OrderRepo: deps.OrderRepo ?? OrderRepo,
     computePoints: deps.computePoints ?? computePoints,
+    claimTargetedOffer: deps.claimTargetedOffer,
     hashPayload: deps.hashPayload ?? defaultHashPayload,
     withTransaction: deps.withTransaction,
     setCurrentTenant: deps.setCurrentTenant ?? setCurrentTenant
@@ -286,6 +299,8 @@ export async function processOrder(input) {
     CustomerRepo,
     OrderRepo,
     computePoints,
+    claimTargetedOffer,
+    getPlanFeatureOverrides: () => PlanConfigService.getPlanFeatureOverrides(),
     hashPayload: defaultHashPayload,
     setCurrentTenant
   }, input);

@@ -17,6 +17,7 @@ test("service worker core assets are explicit and exist on disk", () => {
   const fallbackEntries = Array.from(fallbackMatch[1].matchAll(/\[\s*"([^"]+)",\s*"([^"]+)"\s*\]/g))
     .map((entry) => /** @type {[string, string]} */ ([entry[1], entry[2]]));
   const fallbackMap = new Map(fallbackEntries);
+  const canonicalFiles = new Map(Object.entries({ "/crear-negocio/": "/admin.html", "/equipo/ingresar/": "/staff-login.html", "/equipo/escaner/": "/staff.html", "/mi-tarjeta/": "/customer.html", "/administracion/": "/admin-dashboard.html", "/plataforma/": "/super.html", "/registro/": "/join.html", "/ingresar/": "/ingresar.html" }));
   assert.ok(assets.length > 0, "CORE_ASSETS should not be empty");
 
   for (const asset of assets) {
@@ -26,7 +27,7 @@ test("service worker core assets are explicit and exist on disk", () => {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     if (fs.existsSync(filePath)) continue;
 
-    const fallbackPath = fallbackMap.get(asset);
+    const fallbackPath = canonicalFiles.get(asset) || fallbackMap.get(asset);
     assert.ok(fallbackPath, `Missing service-worker asset mapping: ${asset}`);
     const fallbackRelativePath = fallbackPath.startsWith("/") ? fallbackPath.slice(1) : fallbackPath;
     const fallbackFilePath = new URL(`../../public/${fallbackRelativePath}`, import.meta.url);

@@ -4,7 +4,7 @@ import { maskSecret } from "./_util.js";
 
 export const ProgramSchema = z.object({
   program_type: z.enum(["SPEND", "VISIT", "ITEM"]),
-  program_json: z.record(z.any())
+  program_json: z.record(z.string(), z.any())
 });
 
 export const AUTOMATION_TEMPLATES = [

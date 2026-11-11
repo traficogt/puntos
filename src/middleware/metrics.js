@@ -1,4 +1,4 @@
-import { Histogram, Counter, collectDefaultMetrics, Registry } from "prom-client";
+import { Histogram, Counter, collectDefaultMetrics, Registry } from "@prometheus-io/client";
 
 const registry = new Registry();
 collectDefaultMetrics({ register: registry });
@@ -33,12 +33,9 @@ export function metricsMiddleware(req, res, next) {
 }
 
 function normalizePath(req) {
-  const url = req.originalUrl || req.url || "";
-  // collapse IDs and UUIDs to :id
-  return url
-    .replace(/\\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\b/gi, ":uuid")
-    .replace(/\\b\\d{6,}\\b/g, ":id")
-    .split("?")[0];
+  if (typeof req.route?.path === "string") return `${req.baseUrl || ""}${req.route.path}`;
+  // Unknown paths must not create unbounded labels or retain URL credentials.
+  return String(req.originalUrl || req.url || "").startsWith("/api/") ? "/api/unmatched" : "/static";
 }
 
 export function getRegistry() {

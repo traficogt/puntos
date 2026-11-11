@@ -94,7 +94,7 @@ export function registerRewardsModule(app) {
         title.textContent = r.name;
         const meta = document.createElement("div");
         meta.className = "small";
-        const stockText = r.stock === null || r.stock === undefined ? "Stock: ilimitado" : `Stock: ${r.stock}`;
+        const stockText = r.stock === null || r.stock === undefined ? "Canjes: sin límite" : `Canjes disponibles: ${r.stock}`;
         const expText = r.valid_until ? `Vence: ${new Date(r.valid_until).toLocaleString()}` : "Sin vencimiento";
         const scopeLabels = Array.isArray(r.branch_labels) ? r.branch_labels : [];
         const scopeText = scopeLabels.length ? `Sucursales: ${scopeLabels.join(", ")}` : "Todas las sucursales";

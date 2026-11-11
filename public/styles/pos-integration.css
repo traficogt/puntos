@@ -1,0 +1,47 @@
+/* Owner connection settings use the operational surface's fonts and colors. */
+.operations-shell .pos-integration { min-width: 0; }
+.operations-shell .pos-integration [hidden] { display: none !important; }
+.operations-shell .pos-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.operations-shell .pos-fields > label:first-of-type { margin-top: 20px; }
+.operations-shell .pos-integration h3 { margin-bottom: 8px; }
+.operations-shell .pos-integration h4 { font: 600 14px/1.5 var(--font-ui); margin: 0 0 8px; color: var(--text); }
+.operations-shell .pos-integration p { margin: 8px 0 12px; overflow-wrap: anywhere; }
+.operations-shell .pos-integration :is(input, select, button) { max-width: 100%; min-width: 0; }
+.operations-shell .pos-integration :is(input:not([type="checkbox"]), select) { width: 100%; }
+.operations-shell .pos-integration input[type="file"] { font-size: 12px; padding: 8px; }
+.operations-shell .pos-integration input[type="file"]::file-selector-button { font: inherit; color: var(--text); background: var(--bg-soft); border: 1px solid var(--line-strong); border-radius: 4px; padding: 6px; margin-right: 8px; cursor: pointer; }
+.operations-shell .pos-integration label.pos-check { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 10px 0; margin: 8px 0 0; cursor: pointer; }
+.operations-shell .pos-check input { margin: 1px 0 0; }
+.operations-shell .pos-check span { flex: 1; }
+.operations-shell .pos-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.operations-shell .pos-actions button { white-space: normal; overflow-wrap: anywhere; }
+.operations-shell .pos-method { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+.operations-shell .pos-feedback { min-height: 20px; }
+.operations-shell .pos-integration .is-error { color: var(--danger); }
+.operations-shell .pos-mapping-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.operations-shell .pos-mapping-grid > div { min-width: 0; }
+.operations-shell .pos-mapping-grid select { font-size: 12px; }
+.operations-shell .pos-preview { margin-top: 20px; min-width: 0; }
+.operations-shell .pos-table-scroll { overflow: auto; max-width: 100%; border-block: 1px solid var(--line); }
+.operations-shell .pos-table-scroll:focus-visible { outline: 2px solid var(--focus-border); outline-offset: 3px; }
+.operations-shell .pos-integration table { border-collapse: collapse; width: 100%; min-width: 490px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.operations-shell .pos-integration caption { text-align: left; padding: 12px 8px; color: var(--muted); }
+.operations-shell .pos-integration :is(th, td) { text-align: left; vertical-align: top; border: 0; border-bottom: 1px solid var(--line); padding: 10px 8px; line-height: 1.5; overflow-wrap: anywhere; max-width: 200px; }
+.operations-shell .pos-integration th { background: var(--bg-soft); font-weight: 600; color: var(--text); white-space: nowrap; text-transform: none; letter-spacing: 0; }
+.operations-shell .pos-integration td:nth-child(4), .operations-shell .pos-integration td:nth-child(5) { white-space: nowrap; }
+.operations-shell .pos-result { margin-top: 16px; font-size: 12px; border-top: 1px solid var(--line); padding-top: 8px; overflow-wrap: anywhere; }
+.operations-shell .pos-result ul { padding-left: 20px; max-height: 240px; overflow-y: auto; }
+.operations-shell .pos-result li + li { margin-top: 8px; }
+.operations-shell .pos-sync-issues { padding-left: 20px; max-height: 200px; overflow: auto; overflow-wrap: anywhere; }
+.operations-shell .pos-key-reveal { margin-top: 16px; padding: 16px; background: var(--bg-soft); border-radius: 8px; }
+.operations-shell .pos-key-reveal label { margin-top: 0; }
+.operations-shell .pos-api-instructions { margin-top: 24px; }
+.operations-shell .pos-api-instructions summary { min-height: 44px; padding: 12px 0; cursor: pointer; font-weight: 500; }
+.operations-shell .pos-api-instructions code { overflow-wrap: anywhere; }
+.operations-shell .pos-api-instructions pre { overflow: auto; max-width: 100%; background: var(--bg-soft); color: var(--text); padding: 12px; font-size: 12px; line-height: 1.6; border-radius: 6px; }
+.pos-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (max-width: 600px) {
+  .operations-shell .pos-mapping-grid { grid-template-columns: minmax(0, 1fr); }
+  .operations-shell .pos-actions > button { flex: 1 1 auto; }
+  .operations-shell .pos-key-reveal { padding: 12px; }
+}

@@ -3,6 +3,7 @@ import { config } from "../config/index.js";
 import { tooManyRequests } from "../utils/http-error.js";
 import { logger } from "../utils/logger.js";
 import { getRequestIp } from "../utils/request-ip.js";
+import { checkRedisRateLimit } from "../utils/redis-rate-limit.js";
 
 const userLimitStore = new Map();
 const phoneLimitStore = new Map();
@@ -12,7 +13,7 @@ let redisClient = null;
 let redisReady = false;
 
 if (config.RATE_LIMIT_DRIVER === "redis" && String(config.REDIS_URL || "").trim()) {
-  redisClient = createClient({ url: config.REDIS_URL });
+  redisClient = createClient({ url: config.REDIS_URL, RESP: 2 });
   redisClient.on("error", (err) => {
     redisReady = false;
     logger.warn({ err: err?.message }, "Redis rate-limit client error; using memory store");
@@ -68,16 +69,7 @@ function checkLimitMemory(store, key, maxRequests, windowMs) {
 }
 
 async function checkLimitRedis(key, maxRequests, windowMs) {
-  const count = await redisClient.incr(key);
-  if (count === 1) {
-    await redisClient.pexpire(key, windowMs);
-  }
-  const ttl = await redisClient.pttl(key);
-  const resetIn = Math.ceil(Math.max(0, ttl) / 1000);
-  if (count > maxRequests) {
-    return { allowed: false, remaining: 0, resetIn };
-  }
-  return { allowed: true, remaining: maxRequests - count, resetIn };
+  return checkRedisRateLimit(redisClient, key, maxRequests, windowMs);
 }
 
 function getIp(req) {
@@ -132,14 +124,15 @@ export function rateLimitByUser(max = 100, windowMs = 60_000) {
   };
 }
 
-export function rateLimitByPhone(max = 3, windowMs = 60_000) {
+export function rateLimitByPhone(max = 3, windowMs = 60_000, opts = {}) {
+  const keyPrefix = String(opts.keyPrefix || "phone:");
   return async (req, res, next) => {
     try {
       const phone = req.body?.phone || req.query?.phone;
       if (!phone) return next();
 
       const normalizedPhone = String(phone).replace(/\D/g, "");
-      const key = `phone:${normalizedPhone}`;
+      const key = `${keyPrefix}${normalizedPhone}`;
       const result = redisReady
         ? await checkLimitRedis(key, max, windowMs).catch(() => checkLimitMemory(phoneLimitStore, key, max, windowMs))
         : checkLimitMemory(phoneLimitStore, key, max, windowMs);

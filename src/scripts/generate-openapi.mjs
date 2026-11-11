@@ -4,7 +4,6 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 
 import {
   awardPointsSchema,
@@ -79,11 +78,8 @@ const {
 const { RedeemSchema, RefundSchema, SyncSchema } = await import("../app/routes/staff-routes.js");
 const { TierCreateSchema, TierUpdateSchema } = await import("../app/routes/tier-routes.js");
 
-/** @type {(schema: import("zod").ZodTypeAny, name?: string) => any} */
-const toJsonSchema = /** @type {any} */ (zodToJsonSchema);
-
 const TimestampSchema = z.string();
-const JsonRecordSchema = z.record(z.any());
+const JsonRecordSchema = z.record(z.string(), z.any());
 
 function okEnvelope(dataShape = {}) {
   return z.object({
@@ -98,8 +94,8 @@ const ErrorResponseSchema = z.object({
 });
 
 const BranchResourceSchema = z.object({
-  id: z.string().uuid(),
-  business_id: z.string().uuid().optional(),
+  id: z.guid(),
+  business_id: z.guid().optional(),
   name: z.string(),
   address: z.string().nullable().optional(),
   code: z.string(),
@@ -107,20 +103,20 @@ const BranchResourceSchema = z.object({
 }).passthrough();
 
 const StaffResourceSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   name: z.string(),
   email: z.string().email().nullable().optional(),
   phone: z.string().nullable().optional(),
   role: z.string(),
-  branch_id: z.string().uuid().nullable().optional(),
+  branch_id: z.guid().nullable().optional(),
   active: z.boolean().optional(),
   can_manage_gift_cards: z.boolean().optional(),
   created_at: TimestampSchema.optional()
 }).passthrough();
 
 const WebhookEndpointResourceSchema = z.object({
-  id: z.string().uuid(),
-  business_id: z.string().uuid().optional(),
+  id: z.guid(),
+  business_id: z.guid().optional(),
   url: z.string().url(),
   events: z.array(z.string()),
   active: z.boolean(),
@@ -130,9 +126,9 @@ const WebhookEndpointResourceSchema = z.object({
 }).passthrough();
 
 const GiftCardResourceSchema = z.object({
-  id: z.string().uuid(),
-  business_id: z.string().uuid(),
-  branch_id: z.string().uuid().nullable().optional(),
+  id: z.guid(),
+  business_id: z.guid(),
+  branch_id: z.guid().nullable().optional(),
   code: z.string(),
   qr_token: z.string().optional(),
   issued_to_name: z.string().nullable().optional(),
@@ -141,16 +137,16 @@ const GiftCardResourceSchema = z.object({
   balance_q: z.union([z.number(), z.string()]),
   status: z.string(),
   expires_at: TimestampSchema.nullable().optional(),
-  created_by: z.string().uuid().nullable().optional(),
+  created_by: z.guid().nullable().optional(),
   created_at: TimestampSchema.optional(),
   updated_at: TimestampSchema.optional()
 }).passthrough();
 
 const GiftCardTransactionResourceSchema = z.object({
-  id: z.string().uuid(),
-  gift_card_id: z.string().uuid(),
-  business_id: z.string().uuid(),
-  staff_user_id: z.string().uuid().nullable().optional(),
+  id: z.guid(),
+  gift_card_id: z.guid(),
+  business_id: z.guid(),
+  staff_user_id: z.guid().nullable().optional(),
   tx_type: z.string(),
   amount_q: z.union([z.number(), z.string()]),
   balance_after_q: z.union([z.number(), z.string()]),
@@ -159,8 +155,8 @@ const GiftCardTransactionResourceSchema = z.object({
 }).passthrough();
 
 const RewardResourceSchema = z.object({
-  id: z.string().uuid(),
-  business_id: z.string().uuid(),
+  id: z.guid(),
+  business_id: z.guid(),
   name: z.string(),
   description: z.string().nullable().optional(),
   points_cost: z.number(),
@@ -168,24 +164,24 @@ const RewardResourceSchema = z.object({
   stock: z.number().nullable().optional(),
   valid_until: TimestampSchema.nullable().optional(),
   created_at: TimestampSchema.optional(),
-  branch_ids: z.array(z.string().uuid()).optional()
+  branch_ids: z.array(z.guid()).optional()
 }).passthrough();
 
 const PaymentWebhookEventResourceSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   provider: z.string(),
   provider_event_id: z.string(),
   event_type: z.string().nullable().optional(),
   business_slug: z.string().nullable().optional(),
-  business_id: z.string().uuid().nullable().optional(),
-  customer_id: z.string().uuid().nullable().optional(),
+  business_id: z.guid().nullable().optional(),
+  customer_id: z.guid().nullable().optional(),
   customer_phone: z.string().nullable().optional(),
   amount_q: z.union([z.number(), z.string()]),
   currency: z.string().nullable().optional(),
   status: z.string(),
   reason: z.string().nullable().optional(),
   error: z.string().nullable().optional(),
-  linked_transaction_id: z.string().uuid().nullable().optional(),
+  linked_transaction_id: z.guid().nullable().optional(),
   created_at: TimestampSchema.optional(),
   updated_at: TimestampSchema.optional()
 }).passthrough();
@@ -209,7 +205,7 @@ const LedgerCertificationDailyRowSchema = z.object({
 
 const LedgerCertificationResponseSchema = okEnvelope({
   business: z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     name: z.string(),
     slug: z.string()
   }),
@@ -240,16 +236,16 @@ const StaffAwardResponseSchema = okEnvelope({
   pointsAwarded: z.number(),
   newBalance: z.number(),
   newPendingBalance: z.number().optional(),
-  customerId: z.string().uuid(),
-  transactionId: z.string().uuid(),
+  customerId: z.guid(),
+  transactionId: z.guid(),
   status: z.string().optional(),
   availableAt: TimestampSchema.nullable().optional()
 }).passthrough();
 
 const StaffRefundResponseSchema = okEnvelope({
-  transactionId: z.string().uuid(),
-  reversalTransactionId: z.string().uuid(),
-  customerId: z.string().uuid(),
+  transactionId: z.guid(),
+  reversalTransactionId: z.guid(),
+  customerId: z.guid(),
   pointsEffect: z.number(),
   gamificationReconciliation: z.object({
     achievementsRevoked: z.number(),
@@ -260,21 +256,21 @@ const StaffRefundResponseSchema = okEnvelope({
 }).passthrough();
 
 const OrderCreateResponseSchema = okEnvelope({
-  orderId: z.string().uuid(),
-  transactionId: z.string().uuid(),
-  customerId: z.string().uuid(),
+  orderId: z.guid(),
+  transactionId: z.guid(),
+  customerId: z.guid(),
   pointsAwarded: z.number(),
   status: z.string(),
   replay: z.boolean().optional()
 }).passthrough();
 
 const OrderReturnCreateResponseSchema = okEnvelope({
-  orderReturnId: z.string().uuid(),
-  orderId: z.string().uuid(),
-  customerId: z.string().uuid(),
+  orderReturnId: z.guid(),
+  orderId: z.guid(),
+  customerId: z.guid(),
   outcome: z.enum(["PENDING_CANCELLED", "POSTED_REVERSED"]),
   pointsEffect: z.number(),
-  reversalTransactionId: z.string().uuid().nullable().optional(),
+  reversalTransactionId: z.guid().nullable().optional(),
   replay: z.boolean().optional()
 }).passthrough();
 
@@ -336,7 +332,7 @@ const schemas = {
   SuperCreateBusinessRequest: CreateBusinessSchema,
   SuperCreateBusinessUserRequest: CreateBusinessUserSchema,
   BusinessPublicResponse: z.object({
-    id: z.string().uuid(),
+    id: z.guid(),
     name: z.string(),
     slug: z.string(),
     category: z.string().nullable().optional(),
@@ -366,7 +362,7 @@ const schemas = {
   }),
   TierInfoResponse: z.object({
     ok: z.literal(true),
-    tier: z.record(z.any())
+    tier: z.record(z.string(), z.any())
   }),
   AchievementCreateRequest: AchievementCreateSchema,
   AchievementUpdateRequest: AchievementUpdateSchema,
@@ -464,15 +460,25 @@ const schemas = {
   PublicContactIdentifierUnlinkResponse: PublicContactIdentifierUnlinkResponseSchema
 };
 
-function toComponentSchema(schema, name) {
-  const jsonSchema = toJsonSchema(/** @type {import("zod").ZodTypeAny} */ (schema), name);
-  if (jsonSchema?.definitions?.[name]) return jsonSchema.definitions[name];
-  return jsonSchema;
+function toComponentSchema(schema) {
+  return z.toJSONSchema(schema, {
+    target: "openapi-3.0",
+    io: "input",
+    reused: "inline",
+    cycles: "throw",
+    override: ({ zodSchema, jsonSchema }) => {
+      // Retain the documented stripped-object shape while defaults and
+      // transformations describe what callers send rather than parsed output.
+      if (zodSchema._zod.def.type === "object" && jsonSchema.additionalProperties === undefined) {
+        jsonSchema.additionalProperties = false;
+      }
+    }
+  });
 }
 
 const components = {};
 for (const [name, schema] of Object.entries(schemas)) {
-  components[name] = toComponentSchema(schema, name);
+  components[name] = toComponentSchema(schema);
 }
 
 function schemaRef(name) {
@@ -2051,13 +2057,6 @@ const curatedPaths = {
   }
 };
 
-function detectMountPrefix(layer) {
-  const source = String(layer?.regexp || "");
-  if (source.includes("\\/api\\/v1")) return "/api/v1";
-  if (source.includes("\\/api\\/?")) return "/api";
-  return "";
-}
-
 function normalizeExpressPath(routePath) {
   return String(routePath || "").replace(/:([A-Za-z0-9_]+)/g, "{$1}");
 }
@@ -2288,8 +2287,7 @@ function collectVersionedRoutes(stack, prefix = "", paths = new Map(), inherited
     }
 
     if (layer.name === "router" && layer.handle?.stack) {
-      const nextPrefix = prefix || detectMountPrefix(layer);
-      collectVersionedRoutes(layer.handle.stack, nextPrefix, paths, activeInherited);
+      collectVersionedRoutes(layer.handle.stack, prefix, paths, activeInherited);
       continue;
     }
 
@@ -2300,8 +2298,12 @@ function collectVersionedRoutes(stack, prefix = "", paths = new Map(), inherited
 }
 
 async function deriveRoutePaths() {
-  const { apiRoutes } = await import("../app/routes/index.js");
-  const derivedEntries = Array.from(collectVersionedRoutes(apiRoutes.stack).entries())
+  const { apiRouteMounts } = await import("../app/routes/index.js");
+  const paths = new Map();
+  for (const { basePath, router } of apiRouteMounts) {
+    if (basePath === "/api/v1") collectVersionedRoutes(router.stack, basePath, paths);
+  }
+  const derivedEntries = Array.from(paths.entries())
     .sort(([left], [right]) => left.localeCompare(right));
   return Object.fromEntries(derivedEntries);
 }

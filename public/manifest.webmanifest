@@ -2,7 +2,7 @@
   "name": "PuntosFieles",
   "short_name": "Puntos",
   "id": "/",
-  "start_url": "/c",
+  "start_url": "/mi-tarjeta/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0b0f14",

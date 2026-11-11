@@ -1,0 +1,44 @@
+<odoo>
+  <record id="view_pf_pos_order_link" model="ir.ui.view">
+    <field name="name">pos.order.pf.redemption.link</field><field name="model">pos.order</field>
+    <field name="inherit_id" ref="point_of_sale.view_pos_pos_form"/>
+    <field name="arch" type="xml"><xpath expr="//header" position="inside"><button name="action_pf_link_redemption" type="object" string="Link PF redemption" groups="point_of_sale.group_pos_manager" invisible="state not in ('paid','done','invoiced')"/></xpath></field>
+  </record>
+  <record id="view_pf_link_wizard" model="ir.ui.view">
+    <field name="name">pf.pos.link.wizard.form</field><field name="model">pf.pos.link.wizard</field>
+    <field name="arch" type="xml"><form string="Link completed PF redemption">
+      <div class="alert alert-info" role="status">This records evidence for an already redeemed reward. It does not deliver another reward, debit points, or change inventory. Select its exact complimentary product/service line from the completed POS receipt.</div>
+      <group><field name="order_id" readonly="1"/><field name="line_id" domain="[('order_id','=',order_id),('qty','&gt;',0)]" options="{'no_create': True}"/><field name="code"/><field name="verified_snapshot" invisible="1"/></group>
+      <group invisible="not verified_snapshot"><field name="reward_name"/><field name="expected_product"/><field name="expected_quantity"/></group>
+      <footer><button name="action_lookup" type="object" string="Verify with PF" class="btn-primary"/><button name="action_record" type="object" string="Record verified link" class="btn-primary" invisible="not verified_snapshot"/><button string="Close" special="cancel" class="btn-secondary"/></footer>
+    </form></field>
+  </record>
+  <record id="view_reward_fulfillment_list" model="ir.ui.view">
+    <field name="name">pf.pos.reward.fulfillment.list</field><field name="model">pf.pos.reward.fulfillment</field>
+    <field name="arch" type="xml"><list create="0" edit="0" delete="0" decoration-danger="reconciliation_state == 'review'"><field name="redemption_code"/><field name="reward_name"/><field name="order_id"/><field name="quantity"/><field name="reconciliation_state"/><field name="stock_status"/><field name="review_reason"/></list></field>
+  </record>
+  <record id="view_reward_fulfillment_form" model="ir.ui.view">
+    <field name="name">pf.pos.reward.fulfillment.form</field><field name="model">pf.pos.reward.fulfillment</field>
+    <field name="arch" type="xml"><form create="0" edit="0" delete="0"><sheet>
+      <div class="alert alert-info" role="status">POS recorded and inventory completed are separate evidence. Returns require review in PF; this integration never restores points or changes stock.</div>
+      <group><field name="redemption_code"/><field name="reward_name"/><field name="order_id"/><field name="order_line_id"/><field name="quantity"/><field name="currency"/><field name="reconciliation_state"/><field name="stock_status"/><field name="review_reason"/><field name="linked_by_id"/><field name="source"/></group>
+      <field name="event_ids"><list create="0" edit="0" delete="0"><field name="event_id"/><field name="kind"/><field name="stock_status"/><field name="state"/><field name="reason"/><field name="attempts"/><field name="next_attempt"/></list></field>
+    </sheet></form></field>
+  </record>
+  <record id="view_reward_event_list" model="ir.ui.view">
+    <field name="name">pf.pos.reward.event.list</field><field name="model">pf.pos.reward.event</field>
+    <field name="arch" type="xml"><list create="0" edit="0" delete="0" decoration-danger="state == 'review'"><field name="event_id"/><field name="fulfillment_id"/><field name="kind"/><field name="stock_status"/><field name="state"/><field name="reason"/><field name="attempts"/><field name="next_attempt"/></list></field>
+  </record>
+  <record id="view_reward_event_form" model="ir.ui.view">
+    <field name="name">pf.pos.reward.event.form</field><field name="model">pf.pos.reward.event</field>
+    <field name="arch" type="xml"><form create="0" edit="0" delete="0"><header><button name="action_retry" type="object" string="Retry reviewed evidence" invisible="state == 'done'" confirm="Retry the exact frozen evidence. Review the PF reconciliation record first; this does not resolve a returned reward or change points."/></header><sheet>
+      <group><field name="fulfillment_id"/><field name="event_id"/><field name="kind"/><field name="order_line_id"/><field name="parent_event_id"/><field name="quantity"/><field name="stock_status"/><field name="state"/><field name="reason"/><field name="http_status"/><field name="attempts"/><field name="total_attempts"/><field name="next_attempt"/></group>
+      <div class="alert alert-info" role="status">A dependent return or inventory update waits until its original event is acknowledged. Acknowledged return evidence still requires business review in PF.</div>
+      <field name="payload" groups="base.group_system"/>
+    </sheet></form></field>
+  </record>
+  <record id="action_reward_fulfillment" model="ir.actions.act_window"><field name="name">PF redemption evidence</field><field name="res_model">pf.pos.reward.fulfillment</field><field name="view_mode">list,form</field></record>
+  <record id="action_reward_event" model="ir.actions.act_window"><field name="name">PF evidence queue</field><field name="res_model">pf.pos.reward.event</field><field name="view_mode">list,form</field></record>
+  <menuitem id="menu_pf_reward_evidence" name="PF redemption evidence" parent="point_of_sale.menu_point_root" action="action_reward_fulfillment" groups="point_of_sale.group_pos_manager" sequence="91"/>
+  <menuitem id="menu_pf_reward_events" name="PF evidence queue" parent="point_of_sale.menu_point_root" action="action_reward_event" groups="point_of_sale.group_pos_manager" sequence="92"/>
+</odoo>

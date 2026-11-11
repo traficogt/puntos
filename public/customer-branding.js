@@ -126,7 +126,7 @@ function ensureBrandingThemeTag() {
  * @param {ReturnType<typeof normalizeCustomerBranding>} branding
  */
 export function applyCustomerBrandingTheme(branding) {
-  ensureBrandingThemeTag().textContent = `:root{--accent:${branding.primaryColor};--accent-deep:${darken(branding.primaryColor, 0.78)};--accent-3:${branding.accentColor};}`;
+  ensureBrandingThemeTag().textContent = `:root[data-theme]{--accent:${branding.primaryColor};--accent-deep:${darken(branding.primaryColor, 0.78)};--accent-3:${branding.accentColor};}`;
   document.body?.setAttribute("data-branding-mode", branding.brandingMode);
   document.body?.setAttribute("data-branding-neutral-theme", branding.neutralTheme);
 

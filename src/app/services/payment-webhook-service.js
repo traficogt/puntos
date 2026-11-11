@@ -153,7 +153,7 @@ async function setEventStatus(eventId, patch = {}) {
   );
 }
 
-export async function processPaymentWebhook({ provider, payload, secretHeader, signatureHeader = "", rawBody = "" }) {
+export async function processPaymentWebhook({ provider, payload, secretHeader, signatureHeader = "", rawBody = "" }, {award=awardFromExternalEventTrusted}={}) {
   const normalizedProvider = normalizeProvider(provider);
   assertProviderAuthConfigured(normalizedProvider);
   validateProviderSecret(normalizedProvider, secretHeader);
@@ -245,12 +245,13 @@ export async function processPaymentWebhook({ provider, payload, secretHeader, s
   }
 
   try {
-    const out = await awardFromExternalEventTrusted({
+    const out = await award({
       businessSlug: n.businessSlug,
       externalEventId: `${normalizedProvider}:${n.providerEventId}`,
       customerId: n.customerId ?? undefined,
       customerPhone: customerPhone ?? undefined,
       amount_q: n.amount_q,
+      expectedCurrency: n.currency,
       meta: { provider: normalizedProvider, payment_event_id: n.providerEventId, currency: n.currency }
     });
     await setEventStatus(event.id, {
@@ -325,7 +326,7 @@ export async function resolvePaymentWebhookEventForBusiness({
   eventId,
   customerId,
   customerPhone
-}) {
+}, {award=awardFromExternalEventTrusted}={}) {
   const { rows } = await dbQuery(
     `SELECT *
      FROM payment_webhook_events
@@ -343,12 +344,13 @@ export async function resolvePaymentWebhookEventForBusiness({
   const providerEventId = `${event.provider}:${event.provider_event_id}`;
   const amount = Number(event.amount_q || 0);
 
-  const out = await awardFromExternalEventTrusted({
+  const out = await award({
     businessSlug: event.business_slug,
     externalEventId: providerEventId,
     customerId: customerId ?? undefined,
     customerPhone: phone ?? undefined,
     amount_q: amount,
+    expectedCurrency: event.currency || "GTQ",
     meta: {
       provider: event.provider,
       payment_event_id: event.provider_event_id,

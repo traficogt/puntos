@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="theme-color" content="#0b0f14"/>
+  <meta name="theme-color" content="#f7f5ef"/>
   <title>Panel Admin • PuntosFieles</title>
   <link rel="icon" href="/icon.svg?v=4" type="image/svg+xml"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -12,39 +12,43 @@
   <script type="module" src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css"/>
   <link rel="stylesheet" href="/styles/admin-dashboard-premium.css"/>
+  <link rel="stylesheet" href="/styles/operations-modern.css?v=1"/>
+  <link rel="stylesheet" href="/styles/pos-integration.css?v=1"/>
+  <link rel="stylesheet" href="/styles/customer-enrollment.css"/>
   <script src="/runtime-config.js"></script>
   <script defer src="https://privatrack.com/script.js" data-website-id="e2ed248a-786d-472f-a3b6-333c949602e6"></script>
 </head>
-<body class="app-shell page-admin">
-  <div class="nav app-topbar">
+<body class="operations-shell app-shell page-admin">
+  <a class="operations-skip" href="#contenido">Saltar al contenido</a>
+  <nav class="nav app-topbar" aria-label="Navegación principal">
     <div class="brand brand-stack">
-      <span class="brand-kicker">Operación del programa</span>
-      <span class="brand-title">Panel Admin</span>
+      <img class="operations-brand-mark" src="/icon.svg?v=4" alt="" width="32" height="32"/>
+      <span class="brand-title">Administración</span>
     </div>
     <div class="row">
-      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><span class="theme-toggle-glyph" aria-hidden="true">◐</span></button>
-      <a class="ghost-link" href="/staff" data-shell-link="app-scanner">Escáner</a>
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" stroke="none"/></svg></button>
+      <a class="ghost-link" href="/negocio/">Resumen del negocio</a>
+      <a class="ghost-link" href="/equipo/escaner/" data-shell-link="app-scanner">Escáner</a>
       <a class="ghost-link" href="/sitio" data-shell-link="marketing-home">Sitio</a>
       <button id="btnShareView">Compartir vista</button>
       <button id="btnLogout">Salir</button>
     </div>
-  </div>
+  </nav>
 
-  <div class="container">
+  <main class="container" id="contenido" tabindex="-1">
     <div id="needLogin" class="is-hidden">
       <div class="card hero">
         <h1>Acceso denegado</h1>
         <p>Necesitas iniciar sesión como propietario para ver este panel.</p>
-        <a href="/staff/login" data-shell-link="app-login" class="badge">Ir a ingreso</a>
+        <a href="/equipo/ingresar/" data-shell-link="app-login" class="badge">Ir a ingreso</a>
       </div>
     </div>
 
     <div id="main" class="is-hidden">
       <section class="admin-command-deck">
         <div class="admin-command-main card">
-          <p class="section-kicker">Centro de control</p>
-          <h1 id="businessName">Panel de control</h1>
-          <p class="lede admin-lede">Crecimiento, retorno y decisiones del programa en una sola vista. La operación diaria sigue viviendo en el flujo de staff; aquí se interpreta el negocio.</p>
+          <h1 id="businessName">Centro de control</h1>
+          <p class="lede admin-lede">Tu programa, con todo a la vista.</p>
           <div class="admin-signal-grid">
             <div class="admin-signal-card">
               <span>Plan activo</span>
@@ -69,29 +73,18 @@
             <button type="button" id="btnFocusStaff">Revisar operación</button>
           </div>
         </div>
-        <aside class="admin-command-aside">
-          <div class="card admin-brief-card">
-            <span class="admin-brief-label">Enfoque actual</span>
-            <strong id="adminWorkspaceTitle">Recompensas</strong>
-            <p id="adminWorkspaceDesc">Diseña los premios que el cliente puede alcanzar, controla costos y valida que el catálogo esté listo para operar.</p>
-          </div>
-          <div class="card admin-brief-card">
-            <span class="admin-brief-label">Disciplina operativa</span>
-            <ul class="admin-discipline-list">
-              <li>Configura el programa antes de abrir caja.</li>
-              <li>Usa staff para operar y este panel para decidir.</li>
-              <li>Deja la analítica para revisar ritmo y riesgo, no para cada cobro.</li>
-            </ul>
-          </div>
-        </aside>
+        <details class="admin-command-aside operations-disclosure">
+          <summary>Guía de esta área</summary>
+          <strong id="adminWorkspaceTitle">Recompensas</strong>
+          <p id="adminWorkspaceDesc">Diseña los premios que el cliente puede alcanzar, controla costos y valida que el catálogo esté listo para operar.</p>
+        </details>
       </section>
 
       <section class="admin-growth-summary card" id="adminGrowthSummary">
         <div class="admin-growth-summary-head">
           <div>
-            <p class="section-kicker">Resumen ejecutivo</p>
-            <h2>Lo que el programa está moviendo hoy</h2>
-            <p class="lede">Clientes, recurrencia, retorno y riesgo en una vista pensada para decidir rápido.</p>
+            <h2>El pulso de tu programa</h2>
+            <p class="lede">Clientes, recurrencia y retorno del negocio.</p>
           </div>
           <div class="admin-growth-scope">
             <span>Alcance actual</span>
@@ -132,7 +125,9 @@
           </article>
         </div>
 
-        <div class="admin-executive-grid">
+        <details class="operations-disclosure admin-executive-details">
+          <summary>Lectura del programa y acciones sugeridas</summary>
+          <div class="admin-executive-grid">
           <article class="admin-executive-card">
             <span class="admin-brief-label">Narrativa ejecutiva</span>
             <p id="adminExecutiveNarrative">Cargando resumen del programa…</p>
@@ -144,16 +139,20 @@
             </ul>
           </article>
         </div>
+        </details>
       </section>
 
+      <details class="operations-disclosure admin-program-disclosure">
+        <summary>Regla de puntos y configuración <span>Acumulación, límites, automatizaciones y sucursales</span></summary>
       <div id="dashboardProgramHost" class="admin-program-host">
         <div class="card admin-loading-card">
           <p class="small">Cargando panel...</p>
         </div>
       </div>
+      </details>
 
       <section class="admin-shell-grid">
-        <aside class="admin-tab-rail">
+        <nav class="admin-tab-rail" aria-label="Áreas de administración">
           <div class="admin-tab-group">
             <p class="admin-tab-group-label">Programa</p>
             <div class="tabs">
@@ -180,12 +179,11 @@
               <button type="button" class="tab" data-tab="analytics">Analítica</button>
             </div>
           </div>
-        </aside>
+        </nav>
 
         <div class="admin-tab-stage">
           <header class="admin-stage-header card">
             <div>
-              <span class="admin-stage-kicker">Área activa</span>
               <h2 id="adminStageTitle">Recompensas</h2>
               <p id="adminStageDesc">Diseña el catálogo, controla el costo de puntos y valida que cada premio esté listo para ser canjeado sin fricción.</p>
             </div>
@@ -209,7 +207,7 @@
         </div>
       </section>
     </div>
-  </div>
+  </main>
 
   <div id="toast" class="toast"></div>
   <script type="module" src="/admin-dashboard.js"></script>

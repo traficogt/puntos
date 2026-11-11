@@ -9,10 +9,10 @@ test("customer offline cache only activates on network failure, not auth failure
 
   assert.match(source, /getCustomerCacheSnapshot/);
   assert.match(source, /clearCustomerCache/);
-  assert.match(source, /isAuthError/);
+  assert.match(source, /isCustomerAuthError/);
   assert.match(source, /isNetworkFailure/);
-  assert.match(source, /if \(isAuthError\(error\) && navigator\.onLine\)/);
-  assert.match(source, /if \(isNetworkFailure\(error\)\)/);
+  assert.match(source, /if \(isCustomerAuthError\(error\)\)/);
+  assert.match(source, /if \(isNetworkFailure\(error\) && identity\)/);
   assert.doesNotMatch(source, /localStorage\.getItem\("pf_me"\)/);
   assert.doesNotMatch(source, /localStorage\.setItem\("pf_me"/);
 });

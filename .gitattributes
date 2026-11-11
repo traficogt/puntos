@@ -1,0 +1,12 @@
+# Keep generated distributions available while focusing review on their sources.
+public/merchant/recursos/** linguist-generated=true -whitespace
+public/merchant/assets/** linguist-generated=true -whitespace
+public/merchant/index.html linguist-generated=true
+public/merchant/THIRD_PARTY_NOTICES.txt linguist-generated=true -whitespace
+docs/openapi.json linguist-generated=true
+docs/openapi.yaml linguist-generated=true
+integrations/odoo/dist/*.zip binary linguist-generated=true
+
+# Preserve upstream license text and the official Wallet badge byte-for-byte.
+public/fonts/*-OFL.txt -whitespace
+public/images/wallet/apple-wallet-es-mx.svg -whitespace

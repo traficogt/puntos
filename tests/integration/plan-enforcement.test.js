@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { config } from "../../src/config/index.js";
 
 const runIntegration = process.env.RUN_INTEGRATION === "true";
 const integrationDescribe = runIntegration ? describe : describe.skip;
@@ -27,12 +28,14 @@ function csrfTokenFromJar(jar) {
 integrationDescribe("Plan enforcement regression", () => {
   const baseUrl = process.env.TEST_API_URL || "http://localhost:3001";
   const browserOrigin = new URL(baseUrl).origin;
+  const forwardedFor = process.env.TEST_CLIENT_IP || `198.19.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
   const superEmail = process.env.SUPER_ADMIN_EMAIL;
   const superPassword = process.env.SUPER_ADMIN_PASSWORD;
 
   async function request(jar, path, options = {}) {
     const headers = {
       "Content-Type": "application/json",
+      "X-Forwarded-For": forwardedFor,
       ...(options.headers || {})
     };
     const cookie = cookieHeader(jar);
@@ -66,7 +69,7 @@ integrationDescribe("Plan enforcement regression", () => {
       body: JSON.stringify({ email: superEmail, password: superPassword })
     });
     assert.equal(login.status, 200);
-    assert.ok(superJar.get("__Host-pf_super"), "expected super auth cookie");
+    assert.ok(superJar.get(config.SUPER_COOKIE_NAME), "expected super auth cookie");
 
     const rand = Math.random().toString(36).slice(2, 9);
     const ownerEmail = `owner-lock-${rand}@example.com`;
@@ -92,14 +95,14 @@ integrationDescribe("Plan enforcement regression", () => {
       body: "{}"
     });
     assert.equal(impersonate.status, 200);
-    assert.ok(superJar.get("__Host-pf_staff"), "expected owner staff cookie");
+    assert.ok(superJar.get(config.STAFF_COOKIE_NAME), "expected owner staff cookie");
 
     const planInfo = await request(superJar, "/api/admin/plan");
     assert.equal(planInfo.status, 200);
     const features = planInfo.data?.features || {};
 
     const checks = [
-      { feature: "analytics", method: "GET", path: "/api/admin/rfm?days=30" },
+      { feature: "analytics", method: "GET", path: "/api/admin/analytics/rfm?days=30" },
       { feature: "campaign_rules", method: "GET", path: "/api/admin/campaign-rules" },
       { feature: "external_awards", method: "GET", path: "/api/admin/external-awards" },
       { feature: "lifecycle_automation", method: "GET", path: "/api/admin/automations" },

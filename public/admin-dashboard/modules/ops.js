@@ -31,6 +31,8 @@ export function registerOpsModule(app) {
         if (next.action.selector) {
           const el = document.querySelector(next.action.selector);
           if (el) {
+            const disclosure = el.closest("details");
+            if (disclosure) disclosure.open = true;
             el.scrollIntoView({ behavior: "smooth", block: "center" });
             if (typeof el.focus === "function") el.focus();
           }
@@ -70,6 +72,8 @@ export function registerOpsModule(app) {
           if (item.action.selector) {
             const el = document.querySelector(item.action.selector);
             if (el) {
+              const disclosure = el.closest("details");
+              if (disclosure) disclosure.open = true;
               el.scrollIntoView({ behavior: "smooth", block: "center" });
               if (typeof el.focus === "function") el.focus();
             }

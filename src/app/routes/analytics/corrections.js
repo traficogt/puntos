@@ -15,10 +15,10 @@ import {
 export const analyticsCorrectionRoutes = Router();
 
 const CorrectionCreateSchema = z.object({
-  customerId: z.string().uuid(),
+  customerId: z.guid(),
   reason: z.string().min(8).max(500),
-  sourceRunId: z.string().uuid().optional(),
-  sourceFindingId: z.string().uuid().optional()
+  sourceRunId: z.guid().optional(),
+  sourceFindingId: z.guid().optional()
 });
 
 const CorrectionRejectSchema = z.object({

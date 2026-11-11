@@ -1,8 +1,11 @@
+import { clearRewardEntitlements } from "./reward-entitlements.js";
+import { clearGrowthOffers } from "./growth-offers.js";
 import { clearCustomerCache } from "/idb.js";
 import { loadAll } from "./load.js";
 import { setOnlineBadge } from "./network.js";
 import { createQrController } from "./qr.js";
 import { registerServiceWorker } from "/lib.js";
+import { clearWalletView, invalidateCustomerIdentity, isCustomerAuthError, readCustomerStorage } from "./session.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
 
@@ -38,13 +41,23 @@ async function run(action, onError) {
 }
 
 export async function initCustomerPage({ api, $, toast, mountIosInstallHint, modalAlert }) {
+  const entryParams = new URLSearchParams(location.search || "");
+  if (entryParams.get("sesion") === "nueva") {
+    invalidateCustomerIdentity();
+    await clearCustomerCache().catch(() => {});
+    entryParams.delete("sesion");
+    window.history?.replaceState(null, "", `${location.pathname}${entryParams.size ? `?${entryParams}` : ""}`);
+  }
   let refreshInFlight = false;
   let refreshTimer = null;
+  let loggingOut = false;
+  let refreshPending = false;
 
-  const { generateQR } = createQrController({ $, toast });
+  const { generateQR, dispose } = createQrController({ $, toast });
 
   async function refreshWallet({ silent = true } = {}) {
-    if (refreshInFlight) return;
+    if (loggingOut) return;
+    if (refreshInFlight) { refreshPending = true; return; }
     refreshInFlight = true;
     const btn = /** @type {HTMLButtonElement | null} */ (safeEl($, "#btnRefreshWallet"));
     const previousText = btn?.textContent || "Actualizar tarjeta";
@@ -53,14 +66,15 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
       btn.textContent = silent ? "Actualizando…" : "Actualizando tarjeta…";
     }
     try {
-      await loadAll({ api, $, toast, silent });
-      if (!silent) toast("Tarjeta actualizada.");
+      const result = await loadAll({ api, $, toast, silent });
+      if (result?.status === "auth" || result?.status === "error") dispose();
     } finally {
       refreshInFlight = false;
       if (btn) {
         btn.disabled = false;
         btn.textContent = previousText;
       }
+      if (refreshPending) { refreshPending = false; ignore(refreshWallet({ silent: true })); }
     }
   }
 
@@ -68,19 +82,30 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   $("#btnRefreshWallet")?.addEventListener("click", () => ignore(refreshWallet({ silent: false })));
 
   $("#btnLogout")?.addEventListener("click", async () => {
-    const cachedSlug = typeof localStorage !== "undefined"
-      ? (localStorage.getItem("pf_customer_slug") || "").trim()
-      : "";
-    await api("/api/public/customer/logout", { method: "POST", body: "{}" }).catch(() => {});
-    toast("Sesión cerrada.");
+    if (loggingOut) return;
+    loggingOut = true;
+    const cachedSlug = readCustomerStorage("pf_customer_slug").trim();
+    invalidateCustomerIdentity({ block: true });
+    clearWalletView($);
+    dispose();
     await clearCustomerCache().catch(() => {});
-    setTimeout(() => {
-      if (cachedSlug) {
-        location.href = `/ingresar/${encodeURIComponent(cachedSlug)}?motivo=salida`;
+    try {
+      await api("/api/public/customer/logout", { method: "POST", body: "{}" });
+    } catch (error) {
+      if (!isCustomerAuthError(error)) {
+        loggingOut = false;
+        const logout = safeEl($, "#btnLogout");
+        if (logout) { logout.hidden = false; logout.classList.toggle("is-hidden", false); }
+        toast("No se pudo cerrar la sesión del servidor. Conéctate e intenta salir de nuevo.");
         return;
       }
-      location.reload();
-    }, 600);
+    }
+    toast("Sesión cerrada.");
+    if (cachedSlug) {
+      location.href = `/ingresar/${encodeURIComponent(cachedSlug)}?motivo=salida`;
+      return;
+    }
+    location.reload();
   });
 
   $("#btnCopyCode")?.addEventListener("click", () => {
@@ -124,9 +149,22 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     });
   });
 
-  window.addEventListener("online", () => { setOnlineBadge($); ignore(refreshWallet({ silent: true })); });
-  window.addEventListener("offline", () => setOnlineBadge($));
+  window.addEventListener("online", () => {
+    setOnlineBadge($);
+    if (readCustomerStorage("pf_customer_blocked") === "1") {
+      $("#btnLogout")?.dispatchEvent(new Event("click"));
+    } else ignore(refreshWallet({ silent: true }));
+  });
+  window.addEventListener("offline", () => { setOnlineBadge($); clearGrowthOffers($); clearRewardEntitlements($); });
   window.addEventListener("focus", () => ignore(refreshWallet({ silent: true })));
+  window.addEventListener("storage", event => {
+    if (event.key !== "pf_customer_epoch" && event.key !== "pf_customer_identity" && event.key !== "pf_customer_blocked" && event.key !== null) return;
+    clearWalletView($);
+    dispose();
+    // Removing identity means logout or verification is still in progress.
+    // Revalidate only after a later focus or a completed identity change.
+    if (event.key === "pf_customer_identity" && event.newValue) ignore(refreshWallet({ silent: true }));
+  });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") ignore(refreshWallet({ silent: true }));
   });
@@ -145,6 +183,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
 
   window.addEventListener("beforeunload", () => {
     if (refreshTimer) window.clearInterval(refreshTimer);
+    dispose();
   }, { once: true });
 
   ignore(registerServiceWorker());

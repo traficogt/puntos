@@ -60,8 +60,8 @@ test("logged-out wallet shell stays Spanish-first and treats /c as wallet-only e
 
   assert.match(html, /Tu tarjeta se abre con el enlace del negocio\./, "expected wallet-only customer entry copy");
   assert.match(html, /Si tu sesión venció, usa el acceso del negocio para entrar de nuevo\./);
-  assert.match(html, /No hay formulario aquí\./);
-  assert.match(html, /\/ingresar\/&lt;slug&gt;/);
+  assert.match(html, /Pide al negocio su enlace de acceso o escanea el código de registro en caja\./);
+  assert.doesNotMatch(html, /\/ingresar\/&lt;slug&gt;/, "customer-facing guidance should not expose route implementation details");
   assert.match(
     html,
     /<h1\b[^>]*id="customerEntryTitle"[^>]*>\s*Tu tarjeta se abre con el enlace del negocio\.\s*<\/h1>/,

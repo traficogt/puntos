@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 const { upsertContactWithDeps } = await import("../../src/app/services/contact-sync-service.js");
 
 test("creates a customer when no phone match exists", async () => {
+  /** @type {{phone: string, business_id: string} | null} */
   let created = null;
   const out = await upsertContactWithDeps({
     randomUUID: () => "cust-1",
@@ -23,6 +24,7 @@ test("creates a customer when no phone match exists", async () => {
     name: "Ana"
   });
 
+  assert.ok(created, "A customer must be created");
   assert.equal(created.phone, "50255554444");
   assert.equal(created.business_id, "biz-1");
   assert.equal(out.phone, "50255554444");
@@ -68,7 +70,7 @@ test("rejects when no phone and no customerId are provided", async () => {
       businessId: "biz-1",
       name: "Ana"
     }),
-    (err) => err?.statusCode === 400 && /phone/i.test(err.message)
+    { statusCode: 400, message: /phone/i }
   );
 });
 
@@ -91,7 +93,7 @@ test("rejects when phone and customerId point to different customers", async () 
       customerId: "cust-other",
       name: "Ana"
     }),
-    (err) => err?.statusCode === 409 && /different customers/i.test(err.message)
+    { statusCode: 409, message: /different customers/i }
   );
 });
 
@@ -114,7 +116,7 @@ test("rejects when supplied customerId does not resolve for the business", async
       customerId: "cust-missing",
       name: "Ana"
     }),
-    (err) => err?.statusCode === 404 && /customer not found/i.test(err.message)
+    { statusCode: 404, message: /customer not found/i }
   );
 });
 
@@ -137,7 +139,7 @@ test("rejects when phone is supplied but does not match an existing customer", a
       customerId: "cust-1",
       name: "Ana"
     }),
-    (err) => err?.statusCode === 409 && /phone/i.test(err.message)
+    { statusCode: 409, message: /phone/i }
   );
 });
 
@@ -175,7 +177,7 @@ test("customerId-only rejects when not found", async () => {
       customerId: "cust-missing",
       name: "Ana"
     }),
-    (err) => err?.statusCode === 404 && /customer not found/i.test(err.message)
+    { statusCode: 404, message: /customer not found/i }
   );
 });
 

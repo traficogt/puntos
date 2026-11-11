@@ -1,5 +1,6 @@
 import { createBrandingActions } from "./branding-actions.js";
 import { updateBrandingSummary } from "./branding-form.js";
+import { createCustomerEnrollment } from "./customer-enrollment.js";
 
 /** @typedef {import("../types.js").AdminDashboardApp} AdminDashboardApp */
 
@@ -8,9 +9,10 @@ import { updateBrandingSummary } from "./branding-form.js";
  */
 export function registerBrandingModule(app) {
   const actions = createBrandingActions(app);
+  const enrollment = createCustomerEnrollment(app);
 
   app.registerTab("branding", {
-    load: () => actions.loadBranding()
+    load: async () => { await Promise.all([actions.loadBranding(), enrollment.load()]); }
   });
 
   app.onAfterPlanReady(async () => {
@@ -38,6 +40,6 @@ export function registerBrandingModule(app) {
       actions.loadBranding().catch(() => {});
     });
 
-    await actions.loadBranding();
+    await Promise.all([actions.loadBranding(), enrollment.load()]);
   });
 }

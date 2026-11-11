@@ -79,16 +79,16 @@ describe("ui visibility helper", () => {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     const staffLogin = fs.readFileSync(new URL("../../public/staff-login.html", import.meta.url), "utf8");
 
-    assert.match(admin, /<body class="app-shell page-admin">/);
+    assert.match(admin, /<body class="[^"]*\bapp-shell\b[^"]*\bpage-admin\b[^"]*">/);
     assert.match(admin, /class="nav app-topbar"/);
     assert.match(admin, /id="themeToggle" class="theme-toggle" aria-label="Cambiar tema"/);
-    assert.match(customer, /<body class="app-shell page-customer">/);
+    assert.match(customer, /<body class="[^"]*\bapp-shell\b[^"]*\bpage-customer\b[^"]*">/);
     assert.match(customer, /class="nav app-topbar"/);
     assert.match(customer, /id="themeToggle" class="theme-toggle" aria-label="Cambiar tema"/);
-    assert.match(signup, /<body class="app-shell page-admin-entry">/);
+    assert.match(signup, /<body class="[^"]*\bapp-shell\b[^"]*\bpage-admin-entry\b[^"]*">/);
     assert.match(signup, /class="nav app-topbar"/);
     assert.match(signup, /id="themeToggle" class="theme-toggle" aria-label="Cambiar tema"/);
-    assert.match(staffLogin, /<body class="app-shell page-staff-login">/);
+    assert.match(staffLogin, /<body class="[^"]*\bapp-shell\b[^"]*\bpage-staff-login\b[^"]*">/);
     assert.match(staffLogin, /class="nav app-topbar"/);
     assert.match(staffLogin, /id="themeToggle" class="theme-toggle" aria-label="Cambiar tema"/);
   });

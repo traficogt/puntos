@@ -1,5 +1,5 @@
 import { setHidden } from "/lib.js";
-import { getRewardViewModel, rewardsWithState } from "./rewards.js";
+import { rewardsWithState, nextInventoryRefresh } from "./rewards.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
 /** @typedef {import("../types.js").CustomerReferralCodeData} CustomerReferralCodeData */
@@ -18,17 +18,43 @@ function safeEl($, id) {
   return /** @type {HTMLElement | HTMLInputElement | null} */ ($(id));
 }
 
+/** @type {WeakMap<HTMLElement,number>} */
+const rewardFreshnessTimers=new WeakMap();
+
 /**
  * @param {(selector: string) => Element | null} $
  * @param {number} points
  * @param {CustomerReward[] | undefined} rewards
+ * @param {{progress?: import("../types.js").CustomerRewardProgress, isLive?: boolean, isCurrent?: () => boolean, region?: {locale?: string, timezone?: string}}} [options]
  */
-export function renderRewards($, points, rewards) {
+export function renderRewards($, points, rewards, options = {}) {
   const box = safeEl($, "#rewards");
-  if (!box) return;
+  if (!box || options.isCurrent?.() === false) return;
+  const previousTimer = rewardFreshnessTimers.get(box);
+  if (previousTimer) window.clearTimeout(previousTimer);
+  rewardFreshnessTimers.delete(box);
   box.replaceChildren();
 
-  const nextRewardEl = safeEl($, "#nextReward");
+  const { progress, isLive = true } = options;
+  const now = Date.now();
+  const deadline = Date.parse(progress?.next_refresh_at ?? "");
+  const stale = !isLive || Number.isFinite(deadline) && deadline <= now;
+  const savedMessage = !isLive ? "Datos guardados. Actualiza la tarjeta para consultar tu recompensa." : "Actualiza la tarjeta para confirmar la disponibilidad de tu recompensa.";
+  rewards = progress?.choices ?? rewards;
+  points = progress?.available_points ?? points;
+  const { sorted, eligible, next, remain } = rewardsWithState(points, rewards, now);
+  const target = progress ? progress.reward : next ? { ...next, remaining_points: remain } : null;
+  const selected = !stale ? target : null;
+  const number = value => new Intl.NumberFormat("es").format(value);
+  const date = value => new Intl.DateTimeFormat(options.region?.locale || "es-GT", { dateStyle: "medium", timeStyle: "short", timeZone: options.region?.timezone || "America/Guatemala" }).format(new Date(value));
+  const text = (id, value) => { const element = safeEl($, id); if (element) element.textContent = value; };
+  text("#nextReward", stale ? savedMessage : selected ? selected.remaining_points === 0
+    ? `Tienes los puntos para “${selected.name}”.`
+    : `Te faltan ${number(selected.remaining_points)} puntos para “${selected.name}”.`
+    : "No hay una recompensa disponible ahora. Consulta las opciones en caja.");
+  text("#nextRewardBalance", selected ? `${number(points)} puntos disponibles · ${number(selected.points_cost)} puntos de costo` : "");
+  text("#nextRewardConditions", selected ? (progress?.conditions || "Sujeto a disponibilidad al canjear.").replace(/\d{4}-\d{2}-\d{2}T[\d:.]+Z/g, date) + " En caja se confirman las condiciones del canje." : "");
+  text("#nextRewardEarning", !stale ? progress?.earning ?? "" : "");
 
   if (!rewards?.length) {
     const card = document.createElement("div");
@@ -38,75 +64,61 @@ export function renderRewards($, points, rewards) {
     p.textContent = "No hay recompensas activas.";
     card.appendChild(p);
     box.appendChild(card);
-    if (nextRewardEl) nextRewardEl.textContent = "";
-    return;
-  }
-
-  // Siguiente recompensa sugerida
-  const { sorted, eligible, next, remain } = rewardsWithState(points, rewards);
-  if (nextRewardEl) {
-    nextRewardEl.textContent = remain === 0
-      ? `¡Ya puedes canjear “${next.name}”!`
-      : `Te faltan ${remain} puntos para “${next.name}”.`;
-  }
-
-  const callout = document.createElement("div");
-  callout.className = "card cus-rewards-callout";
-  const calloutTitle = document.createElement("h2");
-  calloutTitle.textContent = eligible.length > 0
-    ? `${eligible.length} recompensa${eligible.length === 1 ? "" : "s"} lista${eligible.length === 1 ? "" : "s"} para canjear en caja`
-    : `Te faltan ${remain} puntos para canjear "${next.name}".`;
-  const calloutText = document.createElement("p");
-  calloutText.className = "small";
-  calloutText.textContent = eligible.length > 0
-    ? "Muestra tu QR en caja para canjear esta recompensa."
-    : `La siguiente recompensa es "${next.name}".`;
-  const calloutBadge = document.createElement("span");
-  calloutBadge.className = "badge";
-  calloutBadge.textContent = eligible.length > 0 ? "Disponible en caja" : `Faltan ${remain} pts`;
-  callout.appendChild(calloutTitle);
-  callout.appendChild(calloutText);
-  callout.appendChild(calloutBadge);
-  box.appendChild(callout);
-
-  for (const entry of sorted) {
-    const r = entry.reward;
-    const { canRedeem: can, remainingPoints } = getRewardViewModel(points, r);
-    const div = document.createElement("div");
-    div.className = "card cus-reward-card";
-    if (can) div.classList.add("cus-reward-ready");
+  } else {
+    const callout = document.createElement("div");
+    callout.className = "card cus-rewards-callout";
     const title = document.createElement("h2");
-    title.textContent = r.name;
-    const desc = document.createElement("p");
-    desc.textContent = r.description || "";
-    const row = document.createElement("div");
-    row.className = "row";
-    const badge1 = document.createElement("span");
-    badge1.className = "badge";
-    badge1.appendChild(document.createTextNode("Costo: "));
-    const codeEl = document.createElement("code");
-    codeEl.textContent = String(r.points_cost);
-    badge1.appendChild(codeEl);
-    badge1.appendChild(document.createTextNode(" pts"));
+    title.textContent = stale ? "Actualiza la disponibilidad" : eligible.length > 0
+      ? `Tus puntos alcanzan para ${eligible.length} opción${eligible.length === 1 ? "" : "es"}`
+      : selected ? `Tu próxima opción: ${selected.name}` : "Consulta la disponibilidad en caja";
+    const description = document.createElement("p");
+    description.className = "small";
+    description.textContent = stale ? savedMessage : "Muestra tu QR en caja. Allí se confirman la disponibilidad y las condiciones antes de canjear; no se reserva una recompensa.";
+    callout.append(title, description);
+    box.appendChild(callout);
 
-    const badge2 = document.createElement("span");
-    badge2.className = "badge";
-    badge2.textContent = can ? "✅ Canjeable en caja" : `⏳ Te faltan ${remainingPoints} pts`;
-
-    const hint = document.createElement("p");
-    hint.className = "small cus-reward-note";
-    hint.textContent = can
-      ? "Muestra tu QR en caja para canjear esta recompensa."
-      : `Te faltan ${remainingPoints} puntos para canjear esta recompensa.`;
-
-    row.appendChild(badge1);
-    row.appendChild(badge2);
-
-    div.appendChild(title);
-    div.appendChild(desc);
-    div.appendChild(row);
-    div.appendChild(hint);
-    box.appendChild(div);
+    for (const entry of sorted) {
+      const r = entry.reward;
+      const { canRedeem, remainingPoints, available, statusLabel, inventoryNote } = entry;
+      const can = !stale && canRedeem;
+      const div = document.createElement("div");
+      div.className = "card cus-reward-card";
+      if (can) div.classList.add("cus-reward-ready");
+      const heading = document.createElement("h2");
+      heading.textContent = r.name;
+      const desc = document.createElement("p");
+      desc.textContent = r.description || "";
+      const row = document.createElement("div");
+      row.className = "row";
+      const cost = document.createElement("span");
+      cost.className = "badge";
+      cost.textContent = `Costo: ${number(r.points_cost)} puntos`;
+      const state = document.createElement("span");
+      state.className = "badge";
+      state.textContent = stale ? "Disponibilidad pendiente de actualizar" : !available ? statusLabel : can ? "Tienes los puntos necesarios" : `Te faltan ${number(remainingPoints)} puntos`;
+      row.append(cost, state);
+      const hint = document.createElement("p");
+      hint.className = "small cus-reward-note";
+      hint.textContent = [r.protected ? "Condiciones originales protegidas." : "", r.branch_labels?.length ? `Canje en: ${r.branch_labels.join(", ")}.` : r.branch_ids?.length ? "Válido en las sucursales del beneficio original. Confirma en caja." : "Canje en las sucursales del negocio.", r.valid_until ? `Vigencia: ${date(r.valid_until)}.` : ""].filter(Boolean).join(" ");
+      div.append(heading, desc, row, hint);
+      if (inventoryNote) {
+        const evidence = document.createElement("p");
+        evidence.className = "small cus-reward-note";
+        evidence.textContent = inventoryNote;
+        div.appendChild(evidence);
+      }
+      box.appendChild(div);
+    }
+  }
+  const inventoryRefresh = nextInventoryRefresh(rewards, now);
+  const deadlines = [inventoryRefresh, deadline].filter(at => Number.isFinite(at) && at > now);
+  const refreshAt = deadlines.length ? Math.min(...deadlines) : null;
+  if (refreshAt) {
+    const marker = box.firstChild;
+    rewardFreshnessTimers.set(box, window.setTimeout(() => {
+      // A cleared or replaced account must never be restored by an old deadline.
+      if (box.isConnected && box.firstChild === marker && options.isCurrent?.() !== false) renderRewards($, points, rewards, options);
+    }, Math.min(2147483647, Math.max(1, refreshAt - Date.now()))));
   }
 }
 
@@ -115,16 +127,18 @@ export function renderRewards($, points, rewards) {
  * @param {CustomerTransaction[] | undefined} transactions
  * @param {CustomerRedemption[] | undefined} redemptions
  */
-export function renderHistory($, transactions, redemptions) {
+export function renderHistory($, transactions, redemptions, region = undefined) {
+  const whenInRegion = value => new Intl.DateTimeFormat(region?.locale || "es-GT", { dateStyle: "short", timeStyle: "short", timeZone: region?.timezone || "America/Guatemala" }).format(new Date(value));
+  const moneyInRegion = value => new Intl.NumberFormat(region?.locale || "es-GT", { style: "currency", currency: region?.currency || "GTQ" }).format(Number(value));
   const txText = (transactions || []).slice(0, 12).map((t) => {
-    const when = new Date(t.created_at).toLocaleString();
+    const when = whenInRegion(t.created_at);
     const pts = t.points_delta >= 0 ? `+${t.points_delta}` : String(t.points_delta);
-    const amt = t.amount_q != null ? ` Q${Number(t.amount_q).toFixed(2)}` : "";
+    const amt = t.amount_q != null ? ` ${moneyInRegion(t.amount_q)}` : "";
     return `${when}  ${pts} pts${amt}`;
   }).join("\n") || "(sin registros)";
 
   const rdText = (redemptions || []).slice(0, 12).map((r) => {
-    const when = new Date(r.created_at).toLocaleString();
+    const when = whenInRegion(r.created_at);
     const status = r.redeemed_at ? "✅" : "⏳";
     return `${when}  ${status} ${r.reward_name}  (-${r.points_cost} pts)  Código: ${r.code}`;
   }).join("\n") || "(sin canjes)";

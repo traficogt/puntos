@@ -1,4 +1,5 @@
 import { one, many, exec } from "./base.js";
+import { conflict } from "../../utils/http-error.js";
 
 export const CustomerRepo = {
   // ✅ Alias expected by customer-service.js
@@ -7,17 +8,20 @@ export const CustomerRepo = {
   },
 
   async upsertByPhone({ id, business_id, phone, name }) {
-    // if exists, return existing
-    const existing = await one(
-      `SELECT * FROM customers WHERE business_id=$1 AND phone=$2 AND deleted_at IS NULL`,
-      [business_id, phone]
-    );
-    if (existing) return existing;
-
-    await exec(
-      `INSERT INTO customers (id, business_id, phone, name) VALUES ($1,$2,$3,$4)`,
+    const created = await one(
+      `INSERT INTO customers (id, business_id, phone, name) VALUES ($1,$2,$3,$4)
+       ON CONFLICT (business_id, phone) DO NOTHING
+       RETURNING id`,
       [id, business_id, phone, name ?? null]
     );
+    if (!created) {
+      const existing = await one(
+        `SELECT * FROM customers WHERE business_id=$1 AND phone=$2 AND deleted_at IS NULL`,
+        [business_id, phone]
+      );
+      if (existing) return existing;
+      throw conflict("Esta tarjeta fue desactivada o eliminada. Contacta al negocio para recibir ayuda.");
+    }
 
     await exec(
       `INSERT INTO customer_balances (customer_id, points, lifetime_points)

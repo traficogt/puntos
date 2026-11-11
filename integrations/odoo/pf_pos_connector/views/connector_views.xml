@@ -1,0 +1,35 @@
+<odoo>
+  <record id="view_connector_list" model="ir.ui.view">
+    <field name="name">pf.pos.connector.list</field><field name="model">pf.pos.connector</field>
+    <field name="arch" type="xml"><list><field name="name"/><field name="pos_config_id"/><field name="company_id" groups="base.group_multi_company"/><field name="business_slug"/><field name="expected_currency"/><field name="enabled"/><field name="outbox_count"/></list></field>
+  </record>
+  <record id="view_connector_form" model="ir.ui.view">
+    <field name="name">pf.pos.connector.form</field><field name="model">pf.pos.connector</field>
+    <field name="arch" type="xml"><form string="Puntos Fieles POS connection">
+      <header><button name="action_activate" type="object" string="Activate delivery" class="oe_highlight" invisible="enabled" confirm="Authorize signed deliveries to this PF business? Complete the pilot and verify the destination and currency first."/><button name="action_pause" type="object" string="Pause delivery" invisible="not enabled"/><field name="enabled" readonly="1"/></header>
+      <sheet>
+        <div class="alert alert-info" role="status">Installing is paused. After activation, paid orders are queued in Odoo; pausing delivery keeps capturing new orders. No historical backfill. Customer phone must include country code. Partial refunds require review in PF.</div>
+        <group><field name="name"/><field name="company_id" groups="base.group_multi_company" readonly="activated_at"/><field name="pos_config_id" readonly="activated_at"/><field name="base_url" readonly="activated_at"/><field name="business_slug" readonly="activated_at"/><field name="expected_currency" readonly="activated_at"/><field name="api_secret" password="True" groups="base.group_system"/><field name="activated_at"/><field name="source" readonly="1"/></group>
+        <button name="action_open_outbox" type="object" string="Open delivery queue"/>
+        <group string="Catalog and stock"><field name="catalog_auto_sync"/><field name="catalog_synced_at"/><field name="catalog_sync_state"/><button name="action_publish_catalog" type="object" string="Publish catalog and stock now"/></group>
+        <div class="alert alert-info" role="status">Checkout requires PF owner approval for this source and branch. Customers scan their PF QR card. Stock is published only for the configured PF branch, using this POS source location; snapshots do not reserve inventory.</div>
+        <group string="Reward evidence"><field name="pf_branch_id" readonly="mappings_refreshed_at"/><field name="mappings_refreshed_at"/><button name="action_refresh_mappings" type="object" string="Refresh PF reward mappings" confirm="Send a signed read request to the configured PF origin and replace the active mapping cache? Verify the exact PF branch first."/></group>
+        <div class="alert alert-info" role="status">Refresh mappings before the first reward receipt. Mapped complimentary lines do not earn ITEM points. Link each already completed reward to its own exact zero-total POS line. A paid receipt alone does not prove inventory completion.</div>
+        <field name="reward_mapping_ids" readonly="1"><list create="0" edit="0" delete="0"><field name="reward_name"/><field name="product_id"/><field name="quantity"/><field name="item_kind"/><field name="version"/><field name="enabled"/></list></field>
+      </sheet>
+    </form></field>
+  </record>
+  <record id="view_outbox_list" model="ir.ui.view">
+    <field name="name">pf.pos.outbox.list</field><field name="model">pf.pos.outbox</field>
+    <field name="arch" type="xml"><list create="0" edit="0" delete="0" decoration-danger="state == 'review'" decoration-success="state == 'done'"><field name="order_id"/><field name="connector_id"/><field name="kind"/><field name="state"/><field name="reason"/><field name="http_status"/><field name="attempts"/><field name="next_attempt"/></list></field>
+  </record>
+  <record id="view_outbox_form" model="ir.ui.view">
+    <field name="name">pf.pos.outbox.form</field><field name="model">pf.pos.outbox</field>
+    <field name="arch" type="xml"><form create="0" edit="0" delete="0"><header><button name="action_retry" type="object" string="Queue reviewed receipt again" invisible="state in ('done','skipped')" confirm="Keep the exact receipt ID and frozen payload. If normalization failed before any send, rebuild it from the corrected POS order. This does not resolve a partial refund in PF."/><field name="state" widget="statusbar"/></header><sheet><group><field name="order_id"/><field name="connector_id"/><field name="kind"/><field name="reason"/><field name="http_status"/><field name="attempts"/><field name="total_attempts"/><field name="last_attempt"/><field name="next_attempt"/></group><div class="alert alert-info" role="status">Review PF receipt history before retrying. HTTP 200 alone is not proof of points applied. Full refunds must cover every original line, including free items; partial refunds remain pending for review.</div><field name="payload" groups="base.group_system"/></sheet></form></field>
+  </record>
+  <record id="action_connector" model="ir.actions.act_window"><field name="name">Puntos Fieles connections</field><field name="res_model">pf.pos.connector</field><field name="view_mode">list,form</field></record>
+  <record id="action_outbox" model="ir.actions.act_window"><field name="name">Puntos Fieles deliveries</field><field name="res_model">pf.pos.outbox</field><field name="view_mode">list,form</field></record>
+  <menuitem id="menu_pf_root" name="Puntos Fieles" parent="point_of_sale.menu_point_root" groups="base.group_system" sequence="90"/>
+  <menuitem id="menu_pf_connections" name="Connections" parent="menu_pf_root" action="action_connector" sequence="10"/>
+  <menuitem id="menu_pf_deliveries" name="Delivery queue" parent="menu_pf_root" action="action_outbox" sequence="20"/>
+</odoo>

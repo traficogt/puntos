@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
@@ -12,10 +13,9 @@ if [[ -f ".env" ]]; then
 fi
 
 DB_NAME="${DB_NAME:-puntos}"
-DB_USER="${DB_USER:-loyalty}"
-DB_PASSWORD="${DB_PASSWORD:-}"
-OUT_DIR="${1:-backups}"
-STAMP="$(date +%Y%m%d_%H%M%S)"
+BACKUP_DB_USER="${BACKUP_DB_USER:-${DB_MIGRATIONS_USER:-${DB_USER:-loyalty}}}"
+OUT_DIR="${1:-${BACKUP_DIR:-backups}}"
+STAMP="$(date -u +%Y%m%d_%H%M%S)"
 OUT_FILE="${OUT_DIR}/puntos_${STAMP}.sql.gz"
 MANIFEST_FILE="${OUT_FILE}.json"
 SHA_FILE="${OUT_FILE}.sha256"
@@ -34,38 +34,47 @@ sha256_file() {
 }
 
 mkdir -p "$OUT_DIR"
+TMP_FILE="$(mktemp "${OUT_DIR}/.puntos_${STAMP}.XXXXXX.sql.gz")"
+cleanup() {
+  rm -f "$TMP_FILE" "${TMP_FILE}.sha256" "${TMP_FILE}.json"
+}
+trap cleanup EXIT
 
 echo "Creating backup: ${OUT_FILE}"
-docker compose exec -T \
-  -e PGPASSWORD="$DB_PASSWORD" \
-  db pg_dump \
-    -U "$DB_USER" \
+# Use the database container's local socket. Never pass application passwords
+# on the command line; BACKUP_DB_USER must be allowed to read all tenant rows.
+docker compose exec -T db pg_dump \
+    -U "$BACKUP_DB_USER" \
     -d "$DB_NAME" \
+    --no-password \
     --clean \
     --if-exists \
     --no-owner \
     --no-privileges \
-  | gzip -9 > "$OUT_FILE"
+  | gzip -9 > "$TMP_FILE"
 
-SHA256="$(sha256_file "$OUT_FILE")"
-BYTES="$(wc -c < "$OUT_FILE" | tr -d ' ')"
+node src/scripts/verify-backup.mjs --file "$TMP_FILE" >/dev/null
+SHA256="$(sha256_file "$TMP_FILE")"
+BYTES="$(wc -c < "$TMP_FILE" | tr -d ' ')"
 
-if [[ -n "$SHA256" ]]; then
-  printf "%s  %s\n" "$SHA256" "$(basename "$OUT_FILE")" > "$SHA_FILE"
-  echo "SHA256: $SHA256"
-fi
+[[ -n "$SHA256" ]] || { echo "A SHA-256 checksum tool is required." >&2; exit 1; }
+printf "%s  %s\n" "$SHA256" "$(basename "$OUT_FILE")" > "${TMP_FILE}.sha256"
 
 node src/scripts/write-ops-report.mjs \
-  --output "$MANIFEST_FILE" \
+  --output "${TMP_FILE}.json" \
   --field type=backup \
   --field status=pass \
   --field file="$OUT_FILE" \
   --field bytes="$BYTES" \
   --field sha256="$SHA256" \
   --field db_name="$DB_NAME" \
-  --field db_user="$DB_USER"
+  --field db_user="$BACKUP_DB_USER" >/dev/null
 
-node src/scripts/verify-backup.mjs --file "$OUT_FILE"
+node src/scripts/verify-backup.mjs --file "$TMP_FILE" --require-metadata >/dev/null
+# A hard link publishes only a complete verified dump and refuses collisions.
+ln "$TMP_FILE" "$OUT_FILE"
+mv "${TMP_FILE}.sha256" "$SHA_FILE"
+mv "${TMP_FILE}.json" "$MANIFEST_FILE"
 
 echo "Backup complete."
 echo "Backup file: $OUT_FILE"

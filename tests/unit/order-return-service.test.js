@@ -66,7 +66,7 @@ function makeDeps({
   },
   originalReturn = null,
   existingByOrder = null,
-  createReturn
+  createReturn = null
 } = {}) {
   let tenantId = null;
   const creates = [];
@@ -164,6 +164,7 @@ test("cancels pending points and records a pending cancellation return", async (
 });
 
 test("reverses posted points and records a reversal transaction", async () => {
+  /** @type {unknown[] | null} */
   let reversalInsertParams = null;
   const client = makeClient({
     findTransaction: async () => ({
@@ -289,7 +290,7 @@ test("rejects replay when the same externalReturnId is reused with a different p
       externalOrderId: "ord-1",
       reason: "different_reason"
     }),
-    (err) => err?.statusCode === 409 && /different payload/i.test(err.message)
+    { statusCode: 409, message: /different payload/i }
   );
 });
 
@@ -302,7 +303,7 @@ test("rejects when the original order is missing", async () => {
       externalReturnId: "ret-1",
       externalOrderId: "ord-1"
     }),
-    (err) => err?.statusCode === 404 && /order not found/i.test(err.message)
+    { statusCode: 404, message: /order not found/i }
   );
 });
 
@@ -321,7 +322,7 @@ test("rejects when the original order already has a return", async () => {
       externalReturnId: "ret-2",
       externalOrderId: "ord-1"
     }),
-    (err) => err?.statusCode === 409 && /already returned/i.test(err.message)
+    { statusCode: 409, message: /already returned/i }
   );
 });
 
@@ -348,7 +349,7 @@ test("rejects pending cancellation when no customer balance row is updated", asy
       externalReturnId: "ret-1",
       externalOrderId: "ord-1"
     }),
-    (err) => err?.statusCode === 409 && /balance/i.test(err.message)
+    { statusCode: 409, message: /balance/i }
   );
 
   assert.equal(client.calls.some(({ sql }) => sql.includes("UPDATE transactions")), false);
@@ -382,7 +383,7 @@ test("rejects pending cancellation when pending points are underfunded", async (
       externalReturnId: "ret-1",
       externalOrderId: "ord-1"
     }),
-    (err) => err?.statusCode === 409 && /pending cancellation|balance/i.test(err.message)
+    { statusCode: 409, message: /pending cancellation|balance/i }
   );
 
   assert.equal(client.calls.some(({ sql }) => sql.includes("UPDATE transactions")), false);
@@ -412,7 +413,7 @@ test("rejects when the original transaction is already reversed", async () => {
       externalReturnId: "ret-1",
       externalOrderId: "ord-1"
     }),
-    (err) => err?.statusCode === 409 && /already reversed|unexpected status/i.test(err.message)
+    { statusCode: 409, message: /already reversed|unexpected status/i }
   );
 });
 
@@ -438,7 +439,7 @@ test("rejects when the original transaction customer does not match the source o
       externalReturnId: "ret-1",
       externalOrderId: "ord-1"
     }),
-    (err) => err?.statusCode === 409 && /customer mismatch|same business and customer/i.test(err.message)
+    { statusCode: 409, message: /customer mismatch|same business and customer/i }
   );
 });
 
@@ -467,7 +468,7 @@ test("rechecks same-order conflicts after taking the order-level lock", async ()
       externalReturnId: "ret-2",
       externalOrderId: "ord-1"
     }),
-    (err) => err?.statusCode === 409 && /already returned/i.test(err.message)
+    { statusCode: 409, message: /already returned/i }
   );
 
   assert.equal(lockCalls, 2);
@@ -526,7 +527,7 @@ test("rejects posted reversal when no customer balance row is updated", async ()
       externalReturnId: "ret-1",
       externalOrderId: "ord-1"
     }),
-    (err) => err?.statusCode === 409 && /balance/i.test(err.message)
+    { statusCode: 409, message: /balance/i }
   );
 
   assert.equal(client.calls.some(({ sql }) => sql.includes("UPDATE transactions")), false);
@@ -558,7 +559,7 @@ test("rejects when marking the original transaction returned updates no rows", a
       externalReturnId: "ret-1",
       externalOrderId: "ord-1"
     }),
-    (err) => err?.statusCode === 409 && /transaction/i.test(err.message)
+    { statusCode: 409, message: /transaction/i }
   );
 
   assert.equal(client.calls.some(({ sql }) => sql.includes("UPDATE orders")), false);
@@ -590,7 +591,7 @@ test("rejects when marking the original order returned updates no rows", async (
       externalReturnId: "ret-1",
       externalOrderId: "ord-1"
     }),
-    (err) => err?.statusCode === 409 && /order/i.test(err.message)
+    { statusCode: 409, message: /order/i }
   );
 
   assert.equal(ctx.creates.length, 0);
@@ -634,6 +635,6 @@ test("rejects when a posted reversal would require a negative balance and policy
       externalOrderId: "ord-1",
       reason: "customer_refund"
     }),
-    (err) => err?.statusCode === 409 && /negative balance|manual/i.test(err.message)
+    { statusCode: 409, message: /negative balance|manual/i }
   );
 });

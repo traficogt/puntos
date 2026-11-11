@@ -1,15 +1,13 @@
-import { registerServiceWorker, setHidden } from "/lib.js";
+import { registerServiceWorker, setHidden, setBrowserRegion } from "/lib.js";
 import { copyCurrentViewUrl } from "./view-state.js";
+import { captureDashboardSession, initDashboardLogout, isDashboardSessionBlocked } from "./logout-controller.js";
 
 /** @typedef {import("./types.js").ApiFn} ApiFn */
 /** @typedef {import("./types.js").DashboardState} DashboardState */
 /** @typedef {import("./types.js").QueryFn} QueryFn */
 /** @typedef {import("./types.js").ToastFn} ToastFn */
 
-/**
- * @param {ApiFn} api
- * @param {DashboardState} state
- */
+/** @param {ApiFn} api @param {DashboardState} state */
 export async function loadPlanInfo(api, state) {
   const out = await api("/api/admin/plan");
   state.planInfo = {
@@ -23,8 +21,15 @@ export async function loadPlanInfo(api, state) {
  * @param {{ api: ApiFn, $: QueryFn, state: DashboardState }} deps
  */
 export async function loadStaffSession({ api, $, state }) {
+  const isCurrent = captureDashboardSession();
+  if (isDashboardSessionBlocked()) {
+    setHidden($("#needLogin"), false);
+    setHidden($("#main"), true);
+    return false;
+  }
   try {
     const data = await api("/api/staff/me");
+    if (!isCurrent()) return false;
     state.currentStaff = data.staff;
 
     if (!["OWNER", "MANAGER"].includes(state.currentStaff.role)) {
@@ -32,6 +37,11 @@ export async function loadStaffSession({ api, $, state }) {
       setHidden($("#main"), true);
       return false;
     }
+    const program = await api("/api/staff/program");
+    if (!isCurrent()) return false;
+    setBrowserRegion(program.region);
+    document.querySelectorAll("[data-business-currency]").forEach(node => { node.textContent = program.region?.currency || "GTQ"; });
+    document.querySelectorAll("[data-business-money]").forEach(node => { if(node instanceof HTMLInputElement)node.step=program.region?.minorUnits===0?"1":"0.01"; });
     state.managerMode = state.currentStaff.role === "MANAGER";
     setHidden($("#needLogin"), true);
     setHidden($("#main"), false);
@@ -58,10 +68,6 @@ export function initDashboardChrome({ api, $, toast, syncDashboardViewToUrl }) {
     }
   });
 
-  $("#btnLogout")?.addEventListener("click", async () => {
-    await api("/api/staff/logout", { method: "POST", body: "{}" }).catch(() => {});
-    location.href = "/staff/login";
-  });
-
+  initDashboardLogout({ api, $, toast });
   registerServiceWorker().catch(() => {});
 }

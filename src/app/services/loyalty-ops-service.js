@@ -1,3 +1,4 @@
+import {assertCheckoutCorrectionAllowed} from './pos-checkout-guard.js';
 import crypto from "node:crypto";
 import { dbQuery, withTransaction } from "../database.js";
 import { conflict, forbidden, notFound } from "../../utils/http-error.js";
@@ -51,8 +52,8 @@ async function getPointsExpirationDays({ businessId, client = null }) {
   return Math.max(0, Number(rows?.[0]?.days ?? 0));
 }
 
-export async function settlePendingPointsForCustomer(customerId, businessId = null) {
-  return withTransaction(async (client) => {
+export async function settlePendingPointsForCustomer(customerId, businessId = null, transaction = withTransaction) {
+  return transaction(async (client) => {
     const params = [customerId];
     let where = `customer_id = $1`;
     if (businessId) {
@@ -121,8 +122,8 @@ export async function settlePendingPointsForBusiness(businessId, limit = 1000) {
   return { totalCustomers, totalSettled, totalPoints };
 }
 
-export async function expirePointsForCustomer(customerId, businessId = null) {
-  return withTransaction(async (client) => {
+export async function expirePointsForCustomer(customerId, businessId = null, transaction = withTransaction) {
+  return transaction(async (client) => {
     let resolvedBusinessId = businessId;
     if (!resolvedBusinessId) {
       const c = await client.query(
@@ -235,7 +236,12 @@ export async function expirePointsForBusiness(businessId, limit = 1000) {
 }
 
 export async function refundAwardTransaction({ staff, transactionId, requestId, reason = "refund" }) {
-  return withTransaction(async (client) => {
+  return withTransaction(client => refundAwardTransactionWithClient(client, { staff, transactionId, requestId, reason }));
+}
+
+// Call only inside an existing transaction. POS reconciliation must commit its
+// receipt result together with the ledger and gamification corrections.
+export async function refundAwardTransactionWithClient(client, { staff, transactionId, requestId, reason = "refund" }) {
     await lockRefundRequest(client, staff.business_id, requestId);
     const replay = await findExistingRefundByRequestId(client, staff.business_id, requestId);
     if (replay) {
@@ -245,7 +251,7 @@ export async function refundAwardTransaction({ staff, transactionId, requestId, 
       await AuditRepo.log({
         id: id(),
         business_id: staff.business_id,
-        actor_type: "STAFF",
+        actor_type: staff.id ? "STAFF" : "SYSTEM",
         actor_id: staff.id,
         action: "award.refund.replay",
         ip: null,
@@ -280,7 +286,21 @@ export async function refundAwardTransaction({ staff, transactionId, requestId, 
     if (!tx) throw notFound("Transaction not found");
     if (tx.business_id !== staff.business_id) throw forbidden("Transaction belongs to different business");
     if (tx.source === "reversal") throw conflict("Cannot reverse a reversal transaction");
-    if (tx.status === "REVERSED") throw conflict("Transaction already reversed");
+    if (tx.status === "REVERSED" || tx.reversed_transaction_id) throw conflict("Transaction already reversed");
+    // Service restoration and legacy refunds both hold this original debit's
+    // FOR UPDATE lock. Check after acquiring it so a concurrent restoration
+    // cannot commit a credit between this check and the refund balance update.
+    if (tx.source === "redeem" && typeof tx.meta?.redemption_id === "string") {
+      await assertCheckoutCorrectionAllowed(client, {businessId: tx.business_id, redemptionId: tx.meta.redemption_id});
+      const restored = await client.query(
+        `SELECT id FROM service_redemption_restorations
+         WHERE business_id = $1 AND customer_id = $2
+           AND redemption_id::text = $3
+         LIMIT 1`,
+        [tx.business_id, tx.customer_id, tx.meta.redemption_id]
+      );
+      if (restored.rowCount) throw conflict("Transaction already reversed");
+    }
     const businessResult = await client.query(
       `SELECT program_json FROM businesses WHERE id = $1`,
       [tx.business_id]
@@ -378,7 +398,7 @@ export async function refundAwardTransaction({ staff, transactionId, requestId, 
     await AuditRepo.log({
       id: id(),
       business_id: tx.business_id,
-      actor_type: "STAFF",
+      actor_type: staff.id ? "STAFF" : "SYSTEM",
       actor_id: staff.id,
       action: "award.refund",
       ip: null,
@@ -417,5 +437,4 @@ export async function refundAwardTransaction({ staff, transactionId, requestId, 
       newBalance,
       newPendingBalance
     };
-  });
 }

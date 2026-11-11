@@ -23,7 +23,7 @@ export const UpdatePlanSchema = z.object({
 });
 
 export const UpdatePlanFeaturesSchema = z.object({
-  features: z.record(z.boolean())
+  features: z.record(z.string(), z.boolean())
 });
 
 export const CreateBusinessSchema = z.object({
@@ -33,7 +33,7 @@ export const CreateBusinessSchema = z.object({
   password: passwordSchema,
   category: z.string().optional(),
   program_type: z.enum(["SPEND", "VISIT", "ITEM"]).optional(),
-  program_json: z.record(z.any()).optional(),
+  program_json: z.record(z.string(), z.any()).optional(),
   plan: z.string().min(3).max(40).optional()
 });
 
@@ -43,7 +43,7 @@ export const CreateBusinessUserSchema = z.object({
   phone: z.string().min(6).optional(),
   password: passwordSchema,
   role: z.enum(["OWNER", "MANAGER", "CASHIER"]).optional(),
-  branch_id: z.string().uuid().optional(),
+  branch_id: z.guid().optional(),
   can_manage_gift_cards: z.boolean().optional(),
   allow_multi_owner: z.boolean().optional()
 });
@@ -51,14 +51,14 @@ export const CreateBusinessUserSchema = z.object({
 export const InternalMagicLinkCreateSchema = z.discriminatedUnion("actorType", [
   z.object({
     actorType: z.literal("staff"),
-    actorId: z.string().uuid(),
-    businessId: z.string().uuid(),
+    actorId: z.guid(),
+    businessId: z.guid(),
     target: z.enum(["staff", "admin-dashboard"])
   }),
   z.object({
     actorType: z.literal("customer"),
-    actorId: z.string().uuid(),
-    businessId: z.string().uuid(),
+    actorId: z.guid(),
+    businessId: z.guid(),
     target: z.literal("customer-wallet")
   })
 ]);

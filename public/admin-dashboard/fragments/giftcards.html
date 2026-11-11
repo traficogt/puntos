@@ -5,11 +5,11 @@
           <div class="grid">
             <div class="card">
               <h3>Nueva gift card</h3>
-              <label>Monto inicial (Q)</label>
-              <input id="gcAmount" type="number" min="1" step="0.01" value="50"/>
-              <label>Nombre destinatario (opcional)</label>
+              <label for="gcAmount">Monto inicial (<span data-business-currency>GTQ</span>)</label>
+              <input id="gcAmount" data-business-money type="number" min="1" step="0.01" value="50"/>
+              <label for="gcName">Nombre destinatario (opcional)</label>
               <input id="gcName" placeholder="Juan Pérez"/>
-              <label>Teléfono destinatario (opcional)</label>
+              <label for="gcPhone">Teléfono destinatario (opcional)</label>
               <input id="gcPhone" placeholder="55551234"/>
               <button class="primary mt-10" id="btnCreateGiftCard">Crear gift card</button>
               <pre id="gcLastCreated" class="small pre-wrap"></pre>

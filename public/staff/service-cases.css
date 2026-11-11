@@ -1,0 +1,11 @@
+.staff-service-cases { margin-block: 24px; }
+.staff-service-cases summary { cursor: pointer; font-weight: 650; font-size: 1.1rem; padding-block: 14px; }
+.staff-service-cases details > p, .staff-service-cases form, .staff-service-cases [data-detail] { max-width: 70ch; }
+.staff-service-cases textarea { display: block; width: 100%; box-sizing: border-box; font: inherit; color: inherit; background: var(--surface, transparent); border: 1px solid currentColor; border-radius: 8px; padding: 12px; }
+.staff-service-cases button, .staff-service-cases select { min-height: 44px; }
+.staff-service-cases [type="checkbox"] { width: auto; margin-inline-end: 10px; }
+.staff-service-cases .service-case-row { border-block-start: 1px solid var(--line, #8c8379); padding-block: 18px; }
+.staff-service-cases [data-detail]:not(:empty) { margin-block-start: 24px; padding-block-start: 24px; border-block-start: 1px solid var(--line, #8c8379); }
+.staff-service-cases :focus-visible { outline: 3px solid var(--accent, #b75d39); outline-offset: 3px; }
+
+.staff-service-cases .pos-recording-reference { overflow-wrap: anywhere; }

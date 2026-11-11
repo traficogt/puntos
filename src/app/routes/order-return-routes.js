@@ -1,3 +1,4 @@
+import { dateTimeSchema } from '../../utils/date-time-schema.js';
 import crypto from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
@@ -14,8 +15,8 @@ export const OrderReturnCreateSchema = z.object({
   externalReturnId: z.string().min(1).max(160),
   externalOrderId: z.string().min(1).max(160),
   reason: z.string().min(1).max(240).optional(),
-  occurred_at: z.string().datetime().optional(),
-  meta: z.record(z.any()).optional()
+  occurred_at: dateTimeSchema().optional(),
+  meta: z.record(z.string(), z.any()).optional()
 });
 
 function normalizeSignature(signature) {

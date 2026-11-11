@@ -1,22 +1,29 @@
+import { createPublicPlans } from '../middleware/public-plans.js';
+import { createGuides } from "../middleware/guides.js";
+import { createSpanishWeb, createSpanishWebRedirects } from "../middleware/spanish-web.js";
+import { createSearchVisibility } from "../middleware/search-visibility.js";
 import express from "express";
+import { createMobilePreview } from "../middleware/mobile-preview.js";
+import { processNativeWalletUpdates } from "./services/native-wallet/runtime.js";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
+import { isProbePath, requestComplexityLimit } from "../middleware/request-boundaries.js";
 import path from "node:path";
 import cron from "node-cron";
 import { randomUUID } from "node:crypto";
 
-import { logger } from "../utils/logger.js";
+import { logger, httpLogOptions } from "../utils/logger.js";
 import { config } from "../config/index.js";
 import { initDatabase, closeDatabase, withDbClientContext } from "./database.js";
 import { apiRoutes } from "./routes/index.js";
-import { errorHandler, notFound } from "../middleware/common.js";
+import { defaultRequestBody, errorHandler, notFound } from "../middleware/common.js";
 import { csrfInit } from "../middleware/csrf.js";
 import { deliverPendingOnce } from "./services/webhook-service.js";
+import { syncConfiguredPosOnce } from "./services/pos-integration-service.js";
 import { BusinessRepo } from "./repositories/business-repository.js";
-import { runChurnOnce } from "./services/churn-service.js";
-import { runLifecycleOnce } from "./services/lifecycle-service.js";
+import { runLifecycleOnce, createMarketingTick } from "./services/lifecycle-service.js";
 import { processPendingJobsOnce } from "./services/job-service.js";
 import { WebhookRepo } from "./repositories/webhook-repository.js";
 import { withPgClient } from "../middleware/pg-client.js";
@@ -26,6 +33,8 @@ import { isAllowedApiOrigin } from "../utils/cors-origin.js";
 import { resolveHostSplitRedirect, runtimeConfigForHost } from "../utils/app-host-routing.js";
 
 const app = express();
+// Preserve the existing bracket/array query contract across Express majors.
+app.set("query parser", "extended");
 // Default to off in production to avoid duplicate workers when horizontally scaling.
 const ENABLE_IN_PROCESS_JOBS = (process.env.IN_PROCESS_WORKERS ?? (config.NODE_ENV === "production" ? "false" : "true")) === "true";
 
@@ -47,7 +56,7 @@ if (config.TRUST_PROXY) {
 // Logging
 // @ts-ignore
 const pinoMw = pinoHttp({
-  logger,
+  ...httpLogOptions,
   genReqId(req, res) {
     const requestId = String(req.headers["x-request-id"] || randomUUID());
     res.setHeader("X-Request-Id", requestId);
@@ -109,6 +118,7 @@ app.use(cookieParser());
 app.use(withPgClient);
 app.use(csrfInit); // Initialize CSRF token for all requests
 app.use(metricsMiddleware);
+app.use("/api", globalApiRateLimit((req) => isProbePath(req.path)));
 app.use(express.json({
   limit: "1mb",
   verify: (req, _res, buf) => {
@@ -116,19 +126,15 @@ app.use(express.json({
     req.rawBody = buf.toString("utf8");
   }
 }));
+app.use(defaultRequestBody, requestComplexityLimit);
 
-// Apply global limiter to API only (avoid throttling static assets/PWA files).
-app.use("/api", globalApiRateLimit((req) => {
-  // Do not throttle health/observability probes (both /api/* and /api/v1/*).
-  const url = String(req.originalUrl || req.url || "");
-  const p = String(req.path || "");
-  return ["/health", "/ready", "/live", "/metrics", "/info"].some((s) =>
-    p === s || p.endsWith(s) || url.includes(`/api/v1${s}`) || url.includes(`/api${s}`)
-  );
-}));
+app.use(createSearchVisibility({ marketingOrigin: config.MARKETING_ORIGIN, appOrigin: config.APP_ORIGIN }));
+app.use(createGuides({ marketingOrigin: config.MARKETING_ORIGIN }));
 
 // Static (PWA)
 const publicDir = path.join(process.cwd(), "public");
+app.use(createPublicPlans({publicDir,marketingOrigin:config.MARKETING_ORIGIN,appOrigin:config.APP_ORIGIN}));
+app.use(createSpanishWebRedirects());
 
 app.use((req, res, next) => {
   if (req.method !== "GET" && req.method !== "HEAD") return next();
@@ -174,6 +180,8 @@ app.get("/sw.js", (req, res, next) => {
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   next();
 });
+app.use("/app-preview", createMobilePreview(publicDir));
+app.use(createSpanishWeb(publicDir));
 app.use(express.static(publicDir, { extensions: ["html"], redirect: false }));
 
 // Friendly routes
@@ -184,10 +192,6 @@ app.get("/staff/login", (req, res) => res.sendFile(path.join(publicDir, "staff-l
 app.get("/staff", (req, res) => res.sendFile(path.join(publicDir, "staff.html")));
 app.get("/registro/:slug", (req, res) => res.sendFile(path.join(publicDir, "join.html")));
 app.get("/ingresar/:slug", (req, res) => res.sendFile(path.join(publicDir, "ingresar.html")));
-app.get("/join/:slug", (req, res) => {
-  const slug = encodeURIComponent(String(req.params.slug || "").trim());
-  return res.redirect(302, `/registro/${slug}`);
-});
 app.get("/c", (req, res) => res.sendFile(path.join(publicDir, "customer.html")));
 app.get("/super", (req, res) => res.sendFile(path.join(publicDir, "super.html")));
 
@@ -201,6 +205,10 @@ app.use(errorHandler);
 let server;
 let webhookInterval;
 let jobInterval;
+let marketingInterval;
+const marketingTick = createMarketingTick();
+let posInterval;
+let nativeWalletInterval;
 let cronTask;
 
 async function start() {
@@ -225,7 +233,11 @@ async function start() {
   }
 
   if (ENABLE_IN_PROCESS_JOBS) {
+    nativeWalletInterval = setInterval(processNativeWalletUpdates, 60_000);
     logger.info("Starting in-process job runners (IN_PROCESS_WORKERS=true)");
+    posInterval = setInterval(() => {
+      syncConfiguredPosOnce().catch(() => logger.warn("POS polling did not complete"));
+    }, 300_000);
     // Webhook delivery worker (every minute)
     webhookInterval = setInterval(() => {
       deliverPendingOnce().catch((e) => logger.warn({ err: e?.message }, "deliverPendingOnce failed"));
@@ -237,17 +249,17 @@ async function start() {
         .catch((e) => logger.warn({ err: e?.message }, "processPendingJobsOnce failed"));
     }, config.JOB_WORKER_INTERVAL_MS);
 
-    // Churn worker: daily at CHURN_SEND_HOUR_LOCAL (server local time)
+    // Saved rule schedules are evaluated every minute; both outboxes are
+    // processed independently even if incentive generation fails.
+    marketingInterval = setInterval(marketingTick, 60_000);
+
+    // Daily maintenance keeps its established business-calendar schedule.
     const hour = String(config.CHURN_SEND_HOUR_LOCAL).padStart(2, "0");
     cronTask = cron.schedule(`0 ${hour} * * *`, async () => {
       try {
-        const ids = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => BusinessRepo.listAllIds());
-        for (const bid of ids) {
-          await runChurnOnce({ businessId: bid, days: config.CHURN_DAYS });
-        }
         await runLifecycleOnce();
-      } catch (e) {
-        logger.warn({ err: e?.message }, "churn job failed");
+      } catch {
+        logger.warn("Daily lifecycle maintenance did not complete");
       }
     }, { timezone: config.CRON_TZ });
   } else {
@@ -268,6 +280,9 @@ function shutdown(signal) {
   logger.info({ signal }, "Shutting down gracefully");
   if (webhookInterval) clearInterval(webhookInterval);
   if (jobInterval) clearInterval(jobInterval);
+  if (marketingInterval) clearInterval(marketingInterval);
+  if (posInterval) clearInterval(posInterval);
+  if (nativeWalletInterval) clearInterval(nativeWalletInterval);
   if (cronTask) cronTask.stop();
   server?.close?.(() => {
     logger.info("HTTP server closed");

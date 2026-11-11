@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { config } from "../../src/config/index.js";
 import crypto from "node:crypto";
 import pg from "pg";
 import { resolveJoinCode } from "./_support/dev-join-code.js";
@@ -56,12 +57,14 @@ function createAdminClient() {
 integrationDescribe("Recurring Challenge Integration", () => {
   const baseUrl = process.env.TEST_API_URL || "http://localhost:3001";
   const browserOrigin = new URL(baseUrl).origin;
+  const forwardedFor = process.env.TEST_CLIENT_IP || `198.19.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
   const superEmail = process.env.SUPER_ADMIN_EMAIL;
   const superPassword = process.env.SUPER_ADMIN_PASSWORD;
 
   async function request(jar, path, options = {}) {
     const headers = {
       "Content-Type": "application/json",
+      "X-Forwarded-For": forwardedFor,
       ...(options.headers || {})
     };
     const cookie = cookieHeader(jar);
@@ -130,7 +133,7 @@ integrationDescribe("Recurring Challenge Integration", () => {
       });
       assert.equal(impersonate.status, 200);
       for (const [key, value] of superJar.entries()) {
-        if (key.startsWith("__Host-pf_staff") || key.startsWith("pf_csrf")) ownerJar.set(key, value);
+        if (key === config.STAFF_COOKIE_NAME || key.startsWith("pf_csrf")) ownerJar.set(key, value);
       }
 
       const challengeName = `Daily points ${rand}`;

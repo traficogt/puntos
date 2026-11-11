@@ -1,0 +1,20 @@
+body { margin: 0; background: var(--bg, #f7f5ef); color: var(--text, #302820); font-family: Inter, sans-serif; }
+.preferences-header { max-width: 1100px; margin: 0 auto; padding: 24px clamp(20px, 5vw, 48px); border-bottom: 1px solid var(--border, #d9d2c6); }
+.preferences-brand { font-family: 'Bricolage Grotesque', sans-serif; font-size: 1.25rem; font-weight: 700; text-decoration: none; color: inherit; }
+.preferences-main { max-width: 640px; margin: 0 auto; padding: clamp(36px, 7vw, 72px) 24px; }
+.preferences-main h1 { font: 500 clamp(2rem, 5vw, 3rem)/1.12 Fraunces, serif; margin: 0 0 24px; text-wrap: balance; }
+.preferences-main p { line-height: 1.65; }
+.preferences-intro { margin-bottom: 32px; }
+.preferences-main h2 { font-family: 'Bricolage Grotesque', sans-serif; font-size: 1.35rem; margin-top: 32px; overflow-wrap: anywhere; }
+.preferences-choice { display: flex; align-items: flex-start; gap: 12px; line-height: 1.6; padding: 18px 0; cursor: pointer; }
+.preferences-choice input { width: 22px; height: 22px; margin-top: 2px; flex: 0 0 22px; accent-color: var(--primary, #a43d28); }
+.preferences-note { font-size: .9rem; margin-bottom: 24px; }
+.preferences-main button { min-height: 48px; padding: 12px 20px; font: 600 1rem Inter, sans-serif; background: var(--primary, #a43d28); color: var(--primary-contrast, #fff); border: 0; border-radius: 10px; cursor: pointer; }
+.preferences-main button:hover { filter: brightness(.94); }
+.preferences-main button:disabled { opacity: .65; cursor: wait; }
+.preferences-links { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: center; margin-top: 32px; }
+.preferences-links a { color: inherit; text-underline-offset: 4px; padding: 12px 0; }
+.preferences-main :focus-visible, .preferences-header :focus-visible { outline: 3px solid var(--primary, #a43d28); outline-offset: 4px; }
+.preferences-main [hidden] { display: none !important; }
+#preferencesStatus[data-error="true"] { color: var(--danger, #9c2b26); }
+::selection { background: #f0dda5; color: #302820; }

@@ -1,0 +1,77 @@
+.customer-modern .native-wallet {
+  padding: 24px 0 8px;
+}
+.customer-modern .native-wallet h2 {
+  margin: 0 0 8px;
+  font: 600 20px/1.25 var(--font-brand);
+}
+.customer-modern .native-wallet p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.native-wallet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 8px;
+}
+.customer-modern .native-wallet .native-wallet-apple,
+.customer-modern .native-wallet .native-wallet-apple:hover,
+.customer-modern .native-wallet .native-wallet-apple:active {
+  min-height: 55px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+.customer-modern .native-wallet .native-wallet-apple:disabled { opacity: 1; }
+.native-wallet-apple img { display: block; width: auto; height: 55px; }
+.customer-modern .native-wallet .native-wallet-google,
+.customer-modern .native-wallet .native-wallet-google:hover,
+.customer-modern .native-wallet .native-wallet-google:active {
+  display: block;
+  width: 239px;
+  height: 55px;
+  min-height: 55px;
+  padding: 0;
+  border: 0;
+  border-radius: 28px;
+  background: transparent;
+}
+.native-wallet-google img {
+  display: block;
+  width: 239px;
+  height: 55px;
+}
+.customer-modern .native-wallet .native-wallet-revoke {
+  border: 0;
+  padding: 8px 0;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.native-wallet-confirm {
+  margin-top: 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+.native-wallet-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+.customer-modern .native-wallet #nativeWalletStatus:not(:empty) {
+  margin: 8px 0;
+  color: var(--text);
+}
+@media (max-width: 480px) {
+  .native-wallet-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

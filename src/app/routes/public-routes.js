@@ -1,3 +1,5 @@
+import { businessRegion } from "../services/regional-settings.js";
+import { normalizeEnrollmentPhone } from "../services/regional-phone.js";
 import { Router } from "express";
 import { z } from "zod";
 import nodeCrypto from "node:crypto";
@@ -7,6 +9,7 @@ import { BusinessRepo } from "../repositories/business-repository.js";
 import { CustomerRepo } from "../repositories/customer-repository.js";
 import { InternalMagicLinkRepo } from "../repositories/internal-magic-link-repository.js";
 import { normalizePhone } from "../../utils/phone.js";
+import { sanitizeProgramForClient } from "../../utils/program-secrets.js";
 import { requestJoinCode, verifyJoinCode, issueCustomerQr } from "../services/customer-service.js";
 import { awardFromExternalEventTrusted } from "../services/external-award-service.js";
 import { config } from "../../config/index.js";
@@ -61,17 +64,7 @@ const ContactSchema = z.object({
 
 function rejectMissingCustomer(req, res) {
   res.clearCookie(config.CUSTOMER_COOKIE_NAME, { path: "/" });
-  return res.status(404).json({ error: "Customer not found" });
-}
-
-function sanitizeProgramJsonForPublic(programJson) {
-  const json = programJson && typeof programJson === "object" ? { ...programJson } : {};
-  if (json.external_awards && typeof json.external_awards === "object") {
-    json.external_awards = {
-      enabled: Boolean(json.external_awards.enabled)
-    };
-  }
-  return json;
+  return res.status(404).json({ error: "Customer not found", code: "CUSTOMER_NOT_FOUND" });
 }
 
 function sanitizeCustomerBrandingForPublic(customerBrandingJson) {
@@ -115,8 +108,9 @@ publicRoutes.get("/public/business/:slug", asyncRoute(async (req, res) => {
     name: business.name,
     slug: business.slug,
     category: business.category,
+    region: businessRegion(business),
     program_type: business.program_type,
-    program_json: sanitizeProgramJsonForPublic(business.program_json),
+    program_json: sanitizeProgramForClient(business.program_json),
     customer_branding: sanitizeCustomerBrandingForPublic(business.customer_branding_json)
   });
 }));
@@ -134,7 +128,7 @@ publicRoutes.post("/public/business/:slug/join/request-code", strictRateLimit, r
 	if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
 	await setTenantForRequest(req, business.id);
 
-	const phone = normalizePhone(v.data.phone);
+	const phone = v.data.phone;
 	const out = await requestJoinCode({
     business,
     phone,
@@ -153,7 +147,7 @@ publicRoutes.post("/public/business/:slug/login/request-code", strictRateLimit, 
 	if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
 	await setTenantForRequest(req, business.id);
 
-	const phone = normalizePhone(v.data.phone);
+	const phone = v.data.phone;
 	const out = await requestJoinCode({
     business,
     phone,
@@ -211,7 +205,8 @@ publicRoutes.get("/magic/staff/:token", asyncRoute(async (req, res) => {
     })
   ));
   res.cookie(config.STAFF_COOKIE_NAME, out.token, staffCookieOptions(req));
-  res.redirect(out.redirectTo);
+  const destinations = new Map([["/admin-dashboard", "/administracion/"], ["/staff", "/equipo/escaner/"]]);
+  res.redirect(destinations.get(out.redirectTo) || out.redirectTo);
 }));
 
 publicRoutes.get("/magic/customer/:token", asyncRoute(async (req, res) => {
@@ -226,7 +221,8 @@ publicRoutes.get("/magic/customer/:token", asyncRoute(async (req, res) => {
     })
   ));
   res.cookie(config.CUSTOMER_COOKIE_NAME, out.token, customerCookieOptions(req));
-  res.redirect(out.redirectTo);
+  const destinations = new Map([["/c", "/mi-tarjeta/?sesion=nueva"]]);
+  res.redirect(destinations.get(out.redirectTo) || out.redirectTo);
 }));
 
 publicRoutes.post("/public/business/:slug/join/verify", moderateRateLimit, rateLimitByPhone(10, 10 * 60 * 1000), asyncRoute(async (req, res) => {
@@ -237,13 +233,14 @@ publicRoutes.post("/public/business/:slug/join/verify", moderateRateLimit, rateL
 	if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
 	await setTenantForRequest(req, business.id);
 
-	const phone = normalizePhone(v.data.phone);
+	const phone = v.data.phone;
 	const { customer, token } = await verifyJoinCode({
     business,
     phone,
     code: v.data.code,
     name: v.data.name ?? null,
-    referralCode: v.data.referralCode ?? null // Pass referral code if provided
+    referralCode: v.data.referralCode ?? null, // Pass referral code if provided
+    visitToken: v.data.visitToken ?? null
   });
 
   res.cookie(config.CUSTOMER_COOKIE_NAME, token, { ...cookieOpts(req), maxAge: browserCookieMaxAge("CUSTOMER") });
@@ -258,7 +255,7 @@ publicRoutes.post("/public/business/:slug/login/verify", moderateRateLimit, rate
 	if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
 	await setTenantForRequest(req, business.id);
 
-	const phone = normalizePhone(v.data.phone);
+	const phone = v.data.phone;
 	const { customer, token } = await verifyJoinCode({
     business,
     phone,
@@ -274,7 +271,7 @@ publicRoutes.post("/public/business/:slug/login/verify", moderateRateLimit, rate
 
 publicRoutes.post("/public/customer/logout", requireCustomer, csrfProtect, asyncRoute(async (req, res) => {
   if (req.authSession?.id) {
-    await invalidateBrowserSessionById(req.authSession.id, "logout").catch(() => {});
+    await invalidateBrowserSessionById(req.authSession.id, "logout");
   }
   res.clearCookie(config.CUSTOMER_COOKIE_NAME, { path: "/" });
   res.json({ ok: true });
@@ -291,12 +288,12 @@ publicRoutes.post("/public/customer/qr", csrfProtect, requireCustomer, asyncRout
 export const ExternalAwardSchema = z.object({
   businessSlug: z.string().min(2).max(120),
   externalEventId: z.string().min(4).max(120),
-  customerId: z.string().uuid().optional(),
+  customerId: z.guid().optional(),
   customerPhone: z.string().min(6).optional(),
   amount_q: z.number().nonnegative().optional(),
   visits: z.number().int().nonnegative().optional(),
   items: z.number().int().nonnegative().optional(),
-  meta: z.record(z.any()).optional()
+  meta: z.record(z.string(), z.any()).optional()
 }).refine(v => Boolean(v.customerId || v.customerPhone), {
   message: "customerId or customerPhone is required"
 });
@@ -328,7 +325,7 @@ publicRoutes.post("/public/external/award", moderateRateLimit, asyncRoute(async 
 	  businessSlug: business.slug,
 	  externalEventId: v.data.externalEventId,
 	  customerId: v.data.customerId,
-	  customerPhone: v.data.customerPhone ? normalizePhone(v.data.customerPhone) : undefined,
+	  customerPhone: v.data.customerPhone ? normalizeEnrollmentPhone(v.data.customerPhone,business) : undefined,
 	  amount_q: v.data.amount_q ?? 0,
     visits: v.data.visits ?? 0,
     items: v.data.items ?? 0,

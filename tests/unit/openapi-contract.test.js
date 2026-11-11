@@ -3,6 +3,37 @@ import assert from "node:assert/strict";
 import { buildOpenApiDoc } from "../../src/scripts/generate-openapi.mjs";
 
 describe("openapi contract", () => {
+  it("documents optional transformed inputs, defaults and coerced query constraints", async () => {
+    const doc = await buildOpenApiDoc();
+    const schemas = doc.components.schemas;
+    assert.deepEqual(schemas.VerifyJoinCodeRequest.required, ["phone", "code"]);
+    assert.deepEqual(schemas.VerifyJoinCodeRequest.properties.visitToken, {});
+    assert.deepEqual(schemas.RewardCreateRequest.required, ["name", "points_cost"]);
+    assert.equal(schemas.RewardCreateRequest.properties.active.default, true);
+    const cohorts = doc.paths["/api/v1/admin/analytics/cohorts"].get;
+    const months = cohorts.parameters.find(parameter => parameter.name === "months");
+    assert.equal(months.required, false);
+    assert.equal(months.schema.type, "integer");
+    assert.equal(months.schema.minimum, 1);
+    assert.equal(months.schema.maximum, 60);
+  });
+
+  it("resolves every schema reference and retains automatically discovered route metadata", async () => {
+    const doc = await buildOpenApiDoc();
+    function inspect(value) {
+      if (!value || typeof value !== "object") return;
+      if (value.$ref) {
+        assert.ok(value.$ref.startsWith("#/"));
+        const target = value.$ref.slice(2).split("/").reduce((current, key) => current?.[key.replace(/~1/g, "/").replace(/~0/g, "~")], doc);
+        assert.ok(target, `Unresolved schema reference: ${value.$ref}`);
+      }
+      for (const nested of Object.values(value)) inspect(nested);
+    }
+    inspect(doc);
+    assert.ok(doc.paths["/api/v1/mobile/customer"]?.get);
+    assert.ok(doc.paths["/api/v1/admin/activation-insights/reward-exposure"]?.get);
+  });
+
   it("captures middleware-derived security metadata for critical routes", async () => {
     const doc = await buildOpenApiDoc();
 

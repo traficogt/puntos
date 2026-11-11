@@ -13,9 +13,12 @@ import { analyticsDashboardRoutes } from "./analytics/dashboard.js";
 import { analyticsCustomerRoutes } from "./analytics/customer-360.js";
 import { analyticsLedgerRoutes } from "./analytics/ledger.js";
 import { analyticsRedemptionRoutes } from "./analytics/redemptions.js";
+import { analyticsRedemptionReturnRoutes } from "./analytics/redemption-returns.js";
 import { analyticsAnomalyRoutes } from "./analytics/anomalies.js";
 import { analyticsCorrectionRoutes } from "./analytics/corrections.js";
 import { analyticsCertificationRoutes } from "./analytics/certification.js";
+import { analyticsOverviewRoutes } from "./analytics/overview.js";
+import { analyticsRecoveryRoutes } from "./analytics/recovery.js";
 
 const router = Router();
 
@@ -30,9 +33,12 @@ router.use(analyticsSegmentRoutes);
 router.use(analyticsCohortRoutes);
 router.use(analyticsRfmRoutes);
 router.use(analyticsDashboardRoutes);
+router.use(analyticsOverviewRoutes);
+router.use(analyticsRecoveryRoutes);
 router.use(analyticsCustomerRoutes);
 router.use(analyticsLedgerRoutes);
 router.use(analyticsRedemptionRoutes);
+router.use(analyticsRedemptionReturnRoutes);
 router.use(analyticsAnomalyRoutes);
 router.use(analyticsCorrectionRoutes);
 router.use(analyticsCertificationRoutes);

@@ -7,9 +7,9 @@ test("customer rewards surface a redemption callout and in-store guidance for el
   const source = fs.readFileSync(new URL("../../public/customer/render.js", import.meta.url), "utf8");
 
   assert.match(source, /cus-rewards-callout/);
-  assert.match(source, /Muestra tu QR en caja para canjear esta recompensa\./);
-  assert.match(source, /Canjeable en caja/);
-  assert.match(source, /Te faltan .* puntos para canjear esta recompensa\./);
+  assert.match(source, /Muestra tu QR en caja\./);
+  assert.match(source, /Tienes los puntos necesarios/);
+  assert.match(source, /Te faltan .* puntos/);
   assert.match(source, /rewardsWithState/);
 });
 

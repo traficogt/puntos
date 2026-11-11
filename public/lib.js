@@ -116,10 +116,10 @@ export function hydrateShellLinks(root = document) {
   /** @type {Record<string, () => string>} */
   const linkMap = {
     "marketing-home": () => marketingUrl("/"),
-    "app-login": () => appUrl("/staff/login"),
-    "app-scanner": () => appUrl("/staff"),
-    "app-dashboard": () => appUrl("/admin-dashboard"),
-    "customer-wallet": () => appUrl("/c")
+    "app-login": () => appUrl("/equipo/ingresar/"),
+    "app-scanner": () => appUrl("/equipo/escaner/"),
+    "app-dashboard": () => appUrl("/administracion/"),
+    "customer-wallet": () => appUrl("/mi-tarjeta/")
   };
 
   root.querySelectorAll("[data-shell-link]").forEach((node) => {
@@ -143,19 +143,17 @@ export function isNativeShell() {
 export async function api(path, opts = {}) {
   const csrfToken = readCookieCsrfToken() || readStoredCsrfToken();
 
-  const headers = {
-    "Content-Type": "application/json",
-    ...(opts.headers ?? {})
-  };
+  const headers = new Headers(opts.headers || {});
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
   if (csrfToken && MUTATION_METHODS.has(String(opts.method || "").toUpperCase())) {
-    headers["X-CSRF-Token"] = csrfToken;
+    headers.set("X-CSRF-Token", csrfToken);
   }
 
   const res = await fetch(apiUrl(path), {
     credentials: "include",
-    headers,
-    ...opts
+    ...opts,
+    headers
   });
 
   const txt = await res.text();
@@ -219,11 +217,13 @@ export async function api(path, opts = {}) {
       }
     }
     const message = typeof err === "string" ? err : JSON.stringify(err);
-    const wrapped = /** @type {Error & { code?: string; requestId?: string }} */ (
+    const wrapped = /** @type {Error & { code?: string; requestId?: string; status?: number; recoveryCaseId?: string }} */ (
       new Error(requestId ? `${message} (Ref: ${requestId})` : message)
     );
     wrapped.code = code || undefined;
+    wrapped.status = res.status;
     wrapped.requestId = requestId || undefined;
+    if (typeof data?.recoveryCaseId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.recoveryCaseId)) wrapped.recoveryCaseId = data.recoveryCaseId;
     throw wrapped;
   }
   return data;
@@ -262,7 +262,9 @@ export function registerServiceWorker() {
   }
 
   let refreshing = false;
+  let hadController = Boolean(navigator.serviceWorker.controller);
   navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController) { hadController = true; return; }
     if (suppressReloadOnControl) return;
     if (refreshing) return;
     refreshing = true;
@@ -314,8 +316,7 @@ export function toast(msg) {
 }
 
 export function fmtQ(n) {
-  const v = Number(n ?? 0);
-  return `Q${v.toFixed(2)}`;
+  return regionalMoney(n);
 }
 
 export function isStrongPassword(value) {
@@ -522,3 +523,15 @@ export function mountIosInstallHint() {
   container.prepend(box);
   box.querySelector("#btnHideIosInstallHint")?.addEventListener("click", () => box.remove());
 }
+
+// Keep previously shared section bookmarks usable after the Spanish URL migration.
+const legacySections = new Map([["nativeWalletSection", "billeteras"], ["operationsMain", "contenido"], ["mainCard", "planes"], ["securityCard", "seguridad"], ["businessCard", "negocios"]]);
+if (typeof location !== "undefined" && typeof history !== "undefined") {
+  const section = legacySections.get(location.hash?.slice(1));
+  if (section) history.replaceState(null, "", `${location.pathname}${location.search}#${section}`);
+}
+
+let browserRegion = {currency:"GTQ",locale:"es-GT",timezone:"America/Guatemala",minorUnits:2};
+export function setBrowserRegion(region) { browserRegion = {currency:"GTQ",locale:"es-GT",timezone:"America/Guatemala",minorUnits:2,...region}; }
+export function currentBrowserRegion() { return browserRegion; }
+export function regionalMoney(value) { return new Intl.NumberFormat(browserRegion.locale, {style:"currency",currency:browserRegion.currency,minimumFractionDigits:browserRegion.minorUnits,maximumFractionDigits:browserRegion.minorUnits}).format(Number(value)||0); }

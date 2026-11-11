@@ -1,0 +1,41 @@
+.customer-enrollment {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  align-items: start;
+  gap: 32px;
+  padding: 24px;
+  margin-bottom: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+}
+.customer-enrollment h2 { margin: 0 0 12px; }
+.customer-enrollment p { max-width: 70ch; line-height: 1.6; }
+.customer-enrollment-copy { min-width: 0; }
+.customer-enrollment-copy > p:first-of-type { margin: 0 0 24px; }
+.customer-enrollment-link { display: flex; align-items: center; gap: 10px; }
+.customer-enrollment-link input { min-width: 0; flex: 1; margin: 0; text-overflow: ellipsis; }
+.customer-enrollment-link button { flex: none; min-height: 44px; }
+.customer-enrollment .customer-enrollment-note { margin: 20px 0 0; color: var(--muted); font-size: 0.875rem; }
+.customer-enrollment-feedback { min-height: 1.5em; margin: 12px 0 0; font-size: 0.875rem; }
+.customer-enrollment-qr { width: 240px; margin: 0; }
+.customer-enrollment-preview { width: 240px; height: 240px; background: #fff; }
+.customer-enrollment-preview img { display: block; width: 100%; height: auto; }
+.customer-enrollment [hidden] { display: none; }
+.customer-enrollment-qr figcaption { display: grid; gap: 6px; margin-top: 12px; text-align: center; }
+.customer-enrollment-qr figcaption span { font-size: 0.8125rem; color: var(--muted); line-height: 1.5; }
+.customer-enrollment-download { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; color: var(--text); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.customer-enrollment-download:hover { text-decoration-thickness: 2px; }
+.customer-enrollment-download[aria-disabled="true"] { opacity: 0.5; cursor: default; text-decoration: none; }
+.customer-enrollment :is(a, button, input):focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+.customer-enrollment input::selection { color: var(--bg); background: var(--text); }
+.customer-enrollment #customerEnrollmentRetry { margin-top: 10px; min-height: 44px; }
+@media (max-width: 720px) {
+  .customer-enrollment { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 20px; }
+  .customer-enrollment-qr { justify-self: center; }
+}
+@media (max-width: 420px) {
+  .customer-enrollment { padding: 16px; }
+  .customer-enrollment-link { flex-direction: column; align-items: stretch; }
+  .customer-enrollment-link input { width: 100%; }
+}

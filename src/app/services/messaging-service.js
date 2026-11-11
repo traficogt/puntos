@@ -10,9 +10,13 @@ import { createDevProvider } from "./messaging/providers/dev-provider.js";
 import { createSmtpProvider } from "./messaging/providers/smtp-provider.js";
 import { createWhatsAppCloudProvider } from "./messaging/providers/whatsapp-cloud-provider.js";
 import { createWahaProvider } from "./messaging/providers/waha-provider.js";
+import { createEvolutionProvider } from "./messaging/providers/evolution-provider.js";
 import { createTwilioProvider } from "./messaging/providers/twilio-provider.js";
 import { createBaileysProvider } from "./messaging/providers/baileys-provider.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
+import { getMarketingPreference, issueMarketingUnsubscribeUrl } from './marketing-preference-service.js';
+import { PlanConfigService } from './plan-config-service.js';
+import { hasPlanFeature } from '../../utils/plan.js';
 
 function id() { return crypto.randomUUID(); }
 
@@ -33,18 +37,23 @@ function buildProviderOrder() {
   return order.length > 0 ? order : [String(config.MESSAGE_PROVIDER || "dev").trim()];
 }
 
-function buildRouter() {
+function buildRouter(marketing = false) {
   return createMessageRouter({
-    order: buildProviderOrder(),
+    order: buildProviderOrder().filter(name => !marketing || name !== "dev"),
     providers: {
       dev: createDevProvider(),
       smtp_email: createSmtpProvider({ config }),
       whatsapp_cloud: createWhatsAppCloudProvider({ config }),
       waha: createWahaProvider({ config }),
+      evolution: createEvolutionProvider({ config }),
       twilio: createTwilioProvider({ config }),
       baileys: createBaileysProvider({ config })
     }
   });
+}
+
+export function marketingProviderReady() {
+  return buildRouter(true).canSend({channel:"campaign",body:"",destinations:{phone:"+50255550000",email:null}});
 }
 
 export async function sendMessage({
@@ -58,10 +67,27 @@ export async function sendMessage({
   html = null,
   email = null,
   privilegedLog = false,
-  destinations = null
+  destinations = null,
+  unsubscribeUrl = null
 }) {
+  const marketing = ['campaign','lifecycle','churn'].includes(String(channel).toLowerCase());
+  if (marketing) {
+    if (!customerId) return {ok:false,suppressed:true,error:'MARKETING_CONSENT_REQUIRED'};
+    const preference = await getMarketingPreference({businessId,customerId}).catch(() => null);
+    const business = await BusinessRepo.getById(businessId);
+    const overrides = await PlanConfigService.getPlanFeatureOverrides();
+    if (!preference?.marketing_opt_in || !business || !hasPlanFeature(business.plan,'lifecycle_automation',overrides)) {
+      return {ok:false,suppressed:true,error:'MARKETING_NOT_AUTHORIZED'};
+    }
+    if (String(channel).toLowerCase() !== 'campaign') {
+      const optOutUrl = unsubscribeUrl || await issueMarketingUnsubscribeUrl({businessId,customerId});
+      const line = `Dejar de recibir promociones: ${optOutUrl}`;
+      body = `${body}\n\n${line}`;
+      if (email) email = {...email,lines:[...(email.lines || []),line]};
+    }
+  }
   const logId = id();
-  const safeBody = channel === "verify" ? String(body).replace(/\b\d{6}\b/g, "******") : body;
+  const safeBody = (channel === "verify" ? String(body).replace(/\b\d{6}\b/g, "******") : String(body)).replace(/(\?token=)[A-Za-z0-9_-]+/g, '$1[REDACTED]');
   const createLog = privilegedLog ? MessageLogRepo.createSecurity.bind(MessageLogRepo) : MessageLogRepo.create.bind(MessageLogRepo);
   const updateLog = privilegedLog ? MessageLogRepo.updateSecurityStatus.bind(MessageLogRepo) : MessageLogRepo.updateStatus.bind(MessageLogRepo);
   const resolvedDestinations = inferDestinations(to, destinations);
@@ -99,33 +125,40 @@ export async function sendMessage({
       resolvedHtml = resolvedHtml || renderedEmail.html;
     }
 
-    const router = buildRouter();
+    const router = buildRouter(marketing);
     const routed = await router.send({
       channel,
       body,
+      strictAcceptance: marketing,
       subject: resolvedSubject,
       text: resolvedText,
       html: resolvedHtml,
       destinations: resolvedDestinations
     });
     if (!routed?.ok) {
+      if (routed?.error === "DELIVERY_UNCERTAIN") throw new Error("DELIVERY_UNCERTAIN");
       const attempts = Array.isArray(routed?.attempts) ? routed.attempts.join(",") : "";
       throw new Error(attempts ? `NO_DELIVERY_PROVIDER:${attempts}` : "NO_DELIVERY_PROVIDER");
     }
-    await updateLog(logId, { status: "SENT", provider_id: routed.providerId ?? routed.provider ?? "message", error: null });
+    // Acceptance is irreversible: bookkeeping errors must never tell callers to resend.
     sendOk = true;
-    return { ok: true, id: logId, provider: routed.provider };
+    const providerId = /^(?:waha|evolution):[a-f0-9]{64}$/.test(routed.providerId || '')
+      ? routed.providerId : `${routed.provider}:${crypto.createHash('sha256').update(String(routed.providerId || routed.provider)).digest('hex')}`;
+    await updateLog(logId, { status: "SENT", provider_id: providerId, error: null })
+      .catch(() => logger.warn({messageLogId:logId}, 'Accepted message log could not be updated'));
+    return { ok: true, id: logId, provider: routed.provider, providerId, accepted: routed.provider !== 'dev', simulated: routed.provider === 'dev' };
   } catch (e) {
-    const msg = e?.message ?? String(e);
+    const msg = String(e?.message || '').startsWith('NO_DELIVERY_PROVIDER') ? 'NO_DELIVERY_PROVIDER' : 'DELIVERY_UNCERTAIN';
     logger.error({ err: msg }, "sendMessage failed");
-    await updateLog(logId, { status: "FAILED", error: msg, provider_id: null });
+    await updateLog(logId, { status: "FAILED", error: msg, provider_id: null }).catch(() => {});
     return { ok: false, id: logId, error: msg };
   }
   finally {
     // Record usage even on failure for billing transparency
     const base = { businessId, amount: 1, unit: "count", metadata: { channel } };
-    await emitBillingEvent({ ...base, eventType: "message.attempt" });
-    await emitBillingEvent({ ...base, eventType: sendOk ? "message.sent" : "message.failed" });
+    for (const eventType of ['message.attempt',sendOk ? 'message.sent' : 'message.failed']) {
+      await emitBillingEvent({ ...base, eventType }).catch(() => logger.warn({messageLogId:logId,eventType}, 'Message billing event could not be recorded'));
+    }
   }
 }
 
@@ -134,5 +167,5 @@ export function verificationBody({ businessName, code }) {
 }
 
 export function churnBody({ businessName }) {
-  return `¡Te extrañamos en ${businessName}! Visítanos esta semana y gana puntos dobles.`;
+  return `¡Te extrañamos en ${businessName}! Tu programa de puntos sigue disponible. Consulta tus beneficios antes de tu próxima visita.`;
 }

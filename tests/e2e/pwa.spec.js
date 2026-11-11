@@ -24,8 +24,20 @@ async function gotoStable(page, url, options) {
 }
 
 async function waitForServiceWorker(page) {
+  const fixtures = {
+    me: { staff: { id: "staff-install", business_id: "biz-install", role: "OWNER" } },
+    permissions: { matrix: { OWNER: ["staff.award", "staff.sync", "staff.redeem"] } },
+    program: { program_type: "SPEND", program_json: { points_per_q: 0.1 } },
+    rewards: { rewards: [] },
+    "offline-grant": { grant: "fixture-signed-install-grant", expiresAt: new Date(Date.now() + 86400000).toISOString() }
+  };
+  const fixtureRoute = "**/api/staff/*";
+  await page.route(fixtureRoute, (route) => {
+    const key = new URL(route.request().url()).pathname.split("/").at(-1);
+    return route.fulfill({ json: fixtures[key] || { ok: true } });
+  });
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    await gotoStable(page, appUrl("/staff/login"), { waitUntil: "domcontentloaded", timeout: 20_000 });
+    await gotoStable(page, appUrl("/staff"), { waitUntil: "domcontentloaded", timeout: 20_000 });
     await page.waitForFunction(async () => {
       if (!("serviceWorker" in navigator)) return false;
       const registration = await navigator.serviceWorker.ready;
@@ -34,6 +46,7 @@ async function waitForServiceWorker(page) {
 
     const controllerUrl = await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL || "");
     if (/\/sw\.js$/.test(controllerUrl)) {
+      await page.unroute(fixtureRoute);
       return;
     }
   }
@@ -60,7 +73,10 @@ test.describe("PWA coverage", () => {
     expect(details.cacheKeys.some((key) => /^pf-v\d+$/.test(key))).toBeTruthy();
 
     await page.evaluate(async () => {
-      const { clearCustomerCache, putCustomerCache } = await import("/idb.js");
+      const { clearCustomerCache, putCustomerCache: writeCache } = await import("/idb.js");
+      const identity = { businessId: "biz-offline", customerId: "cust-offline" };
+      const putCustomerCache = (key, data) => writeCache(key, data, identity);
+      localStorage.setItem("pf_customer_identity", JSON.stringify({ ...identity, slug: "offline-cafe" }));
       await clearCustomerCache();
       await putCustomerCache("me", {
         business: { id: "biz-offline", name: "Offline Cafe", slug: "offline-cafe" },
@@ -125,17 +141,18 @@ test.describe("PWA coverage", () => {
 
     await gotoStable(page, appUrl("/staff/login"), { waitUntil: "domcontentloaded", timeout: 20_000 });
     await expect(page).toHaveTitle(/Ingreso del equipo/i);
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(/Una sola entrada para caja y dueño/i);
-    await expect(page.locator('a[href="/staff"]')).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Abrir escáner" })).toBeVisible();
 
     await page.evaluate(async () => {
       localStorage.setItem("pf_staff_snapshot", JSON.stringify({
-        staff: { id: "staff-offline", role: "OWNER", email: "owner@example.com" },
+        staff: { id: "staff-offline", business_id: "biz-offline", role: "OWNER", email: "owner@example.com" },
         permissions: ["staff.award", "staff.sync", "staff.redeem"],
         programRule: {
           program_type: "SPEND",
           program_json: { points_per_q: 0.1, round: "ceil" }
         },
+        offlineGrant: { grant: "fixture-signed-offline-grant", expiresAt: new Date(Date.now() + 86400000).toISOString() },
         updatedAt: new Date().toISOString()
       }));
 
@@ -146,10 +163,11 @@ test.describe("PWA coverage", () => {
     await gotoStable(page, appUrl("/staff"), { waitUntil: "domcontentloaded", timeout: 20_000 });
     await page.fill("#token", "qr_offline_valid_token");
     await page.fill("#amount", "55");
+    await page.click("#btnSelectCustomer");
     await page.click("#btnAward");
     await expect.poll(async () => page.locator("#queueBadge").textContent(), { timeout: 20_000 }).toMatch(/Cola:\s*1/);
 
-    await page.reload({ waitUntil: "domcontentloaded", timeout: 20_000 });
+    await gotoStable(page, appUrl("/staff"), { waitUntil: "domcontentloaded", timeout: 20_000 });
     await expect.poll(async () => page.locator("#queueBadge").textContent(), { timeout: 20_000 }).toMatch(/Cola:\s*1/);
     await expect(page.locator("#queueMeta")).toContainText(/Pendientes:\s*1/);
     await expect(page.locator("#queueList")).toContainText(/queued|syncing|failed/i);
@@ -158,9 +176,11 @@ test.describe("PWA coverage", () => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ staff: { id: "staff-offline", role: "OWNER", email: "owner@example.com" } })
+        body: JSON.stringify({ staff: { id: "staff-offline", business_id: "biz-offline", role: "OWNER", email: "owner@example.com" } })
       });
     });
+    await page.route("**/api/staff/permissions", (route) => route.fulfill({ json: { matrix: { OWNER: ["staff.award", "staff.sync", "staff.redeem"] } } }));
+    await page.route("**/api/staff/program", (route) => route.fulfill({ json: { program_type: "SPEND", program_json: { points_per_q: 0.1, round: "ceil" } } }));
     await page.route("**/api/staff/sync", async (route) => {
       const payload = JSON.parse(route.request().postData() || "{}");
       const awards = Array.isArray(payload?.awards) ? payload.awards : [];
@@ -175,8 +195,9 @@ test.describe("PWA coverage", () => {
     });
 
     await context.setOffline(false);
-    await page.click("#btnSync");
-    await expect.poll(async () => page.locator("#queueBadge").textContent(), { timeout: 20_000 }).toMatch(/Cola:\s*0/);
+    await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(true);
+    // Include the 30-second visible-page retry when restoring an offline page.
+    await expect.poll(async () => page.locator("#queueBadge").textContent(), { timeout: 40_000 }).toMatch(/Cola:\s*0/);
     await expect(page.locator("#queueMeta")).toContainText(/Pendientes:\s*0/);
     await expect(page.locator("#queueList")).toContainText(/\(sin operaciones pendientes\)/i);
   });

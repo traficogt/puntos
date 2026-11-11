@@ -1,3 +1,4 @@
+import { regionalMoney } from "/lib.js";
 /** @typedef {import("../../types.js").AdminDashboardApp} AdminDashboardApp */
 /** @typedef {import("../../types.js").AnalyticsAuditController} AnalyticsAuditController */
 
@@ -128,13 +129,13 @@ export function createAnalyticsAuditController(app) {
     if (detail.linked?.gift_card) {
       const card = detail.linked.gift_card;
       lines.push(`Gift card: ${card.code}`);
-      lines.push(`Saldo: Q${Number(card.balance_q || 0).toFixed(2)} • Estado: ${card.status}`);
+      lines.push(`Saldo: ${regionalMoney(card.balance_q || 0)} • Estado: ${card.status}`);
       lines.push("");
     }
 
     if (detail.linked?.gift_card_transaction) {
       const tx = detail.linked.gift_card_transaction;
-      lines.push(`Movimiento gift card: ${tx.tx_type} • Q${Number(tx.amount_q || 0).toFixed(2)} • saldo Q${Number(tx.balance_after_q || 0).toFixed(2)}`);
+      lines.push(`Movimiento gift card: ${tx.tx_type} • ${regionalMoney(tx.amount_q || 0)} • saldo ${regionalMoney(tx.balance_after_q || 0)}`);
       lines.push("");
     }
 

@@ -1,3 +1,4 @@
+import { dateTimeSchema } from '../../utils/date-time-schema.js';
 import crypto from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
@@ -23,7 +24,7 @@ const OrderLineItemSchema = z.object({
 export const OrderCreateSchema = z.object({
   businessSlug: z.string().min(2).max(120),
   externalOrderId: z.string().min(1).max(160),
-  customerId: z.string().uuid().optional(),
+  customerId: z.guid().optional(),
   customerPhone: z.string().min(6).optional(),
   identifierType: z.string().min(1).max(120).optional(),
   identifierValue: z.string().min(1).max(200).optional(),
@@ -33,9 +34,9 @@ export const OrderCreateSchema = z.object({
   discount_q: z.number().nonnegative().optional(),
   tax_q: z.number().nonnegative().optional(),
   currency: z.string().min(3).max(3).optional(),
-  occurred_at: z.string().datetime().optional(),
+  occurred_at: dateTimeSchema().optional(),
   items: z.array(OrderLineItemSchema).max(500).optional(),
-  meta: z.record(z.any()).optional()
+  meta: z.record(z.string(), z.any()).optional()
 })
   .refine((value) => {
     const hasIdentifierPair = Boolean(value.identifierType && value.identifierValue);

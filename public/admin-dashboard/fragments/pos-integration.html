@@ -1,0 +1,120 @@
+<section id="externalAwardsSection" class="pos-integration" aria-labelledby="posHeading" hidden>
+              <h3 id="posHeading">Conecta tus ventas</h3>
+              <p class="small">Elige cómo traer las compras de tu punto de venta. Los puntos se asignan a clientes registrados por su teléfono.</p>
+              <p id="posFeedback" class="pos-feedback small" role="status" aria-live="polite">Cargando conexión…</p>
+              <button type="button" id="posReload" hidden>Reintentar conexión</button>
+              <fieldset id="posControls" class="pos-fields" disabled>
+                <legend class="pos-sr-only">Conexión del punto de venta</legend>
+                <label for="posMode">¿Cómo quieres conectar tus ventas?</label>
+                <select id="posMode" aria-describedby="posModeHelp">
+                  <option value="loyverse">Loyverse · automático</option>
+                  <option value="csv">Importar archivo CSV</option>
+                  <option value="api">API · integración personalizada</option>
+                </select>
+                <p id="posModeHelp" class="small"></p>
+                <label class="pos-check" for="posEnabled">
+                  <input id="posEnabled" type="checkbox" role="switch"/>
+                  <span>Habilitar esta conexión</span>
+                </label>
+
+                <div id="posLoyverseSetup" hidden>
+                  <label for="posLoyverseToken">Token de acceso de Loyverse</label>
+                  <input id="posLoyverseToken" type="password" autocomplete="new-password" spellcheck="false" aria-describedby="posTokenHint"/>
+                  <p id="posTokenHint" class="small">Crea un token de acceso en tu cuenta de Loyverse y pégalo aquí. Se verificará al guardar.</p>
+                  <label for="posLoyverseStore">ID de tienda (opcional)</label>
+                  <input id="posLoyverseStore" autocomplete="off" spellcheck="false" aria-describedby="posStoreHint"/>
+                  <p id="posStoreHint" class="small">Déjalo vacío para incluir todas tus tiendas de Loyverse.</p>
+                  <label class="pos-check" for="posAutomatic">
+                    <input id="posAutomatic" type="checkbox" aria-describedby="posAutomaticHint"/>
+                    <span>Asignar puntos automáticamente cada 5 minutos</span>
+                  </label>
+                  <p id="posAutomaticHint" class="small">Solo compras desde la activación de la conexión. Las ventas anteriores no se importan.</p>
+                </div>
+
+                <div class="pos-actions">
+                  <button type="button" id="posSave" class="primary">Guardar conexión</button>
+                </div>
+                <p id="posSavedState" class="small"></p>
+
+                <section id="posLoyversePanel" class="pos-method" aria-labelledby="posLoyverseHeading" hidden>
+                  <h4 id="posLoyverseHeading">Comprueba las ventas</h4>
+                  <p id="posMerchant" class="small"></p>
+                  <p id="posLastSync" class="small">Aún no se han sincronizado ventas.</p>
+                  <ul id="posSyncIssues" class="pos-sync-issues small" hidden></ul>
+                  <p class="small">La vista previa no asigna puntos. Se omiten ventas sin teléfono, reembolsos y clientes sin registrar.</p>
+                  <p class="small">Los reembolsos no revierten puntos automáticamente; revísalos en tu programa.</p>
+                  <p class="small">Corrige los teléfonos o registra los clientes pendientes. Las ventas con problemas se vuelven a consultar en grupos de hasta 25.</p>
+                  <div class="pos-actions">
+                    <button type="button" id="posLoyversePreview">Ver vista previa</button>
+                    <button type="button" id="posLoyverseSync" class="primary" disabled>Sincronizar ventas</button>
+                  </div>
+                  <div id="posLoyversePreviewBox" class="pos-preview" hidden>
+                    <p id="posLoyversePreviewSummary" class="small" role="status"></p>
+                    <div class="pos-table-scroll" role="region" aria-label="Vista previa de ventas Loyverse" tabindex="0">
+                      <table><caption>Ventas de Loyverse · sin asignar puntos</caption><thead><tr><th scope="col">Fila</th><th scope="col">Venta</th><th scope="col">Teléfono</th><th scope="col">Monto</th><th scope="col">Puntos</th><th scope="col">Revisión</th></tr></thead><tbody id="posLoyversePreviewRows"></tbody></table>
+                    </div>
+                  </div>
+                  <div id="posLoyverseResult" class="pos-result" role="status" hidden></div>
+                </section>
+
+                <section id="posCsvPanel" class="pos-method" aria-labelledby="posCsvHeading" hidden>
+                  <h4 id="posCsvHeading">Importa un archivo de ventas</h4>
+                  <p class="small">Exporta un CSV con encabezados desde tu sistema. Hasta 100 ventas por archivo, en la moneda del negocio. Conserva el mismo ID para cada venta: repetir una importación no suma puntos dos veces.</p>
+                  <label for="posCsvSource">Sistema o tienda de origen</label>
+                  <input id="posCsvSource" value="csv" maxlength="60" aria-describedby="posCsvSourceHint"/>
+                  <p id="posCsvSourceHint" class="small">Usa siempre el mismo nombre para este origen. Usa nombres distintos si dos tiendas repiten números de venta.</p>
+                  <label for="posCsvFile">Archivo CSV</label>
+                  <input id="posCsvFile" type="file" accept=".csv,text/csv" aria-describedby="posCsvFileStatus"/>
+                  <p id="posCsvFileStatus" class="small" role="status">Selecciona un archivo para elegir sus columnas.</p>
+                  <div id="posCsvMapping" hidden>
+                    <div class="pos-mapping-grid">
+                      <div><label for="posCsvSaleId">ID de venta</label><select id="posCsvSaleId"></select></div>
+                      <div><label for="posCsvPhone">Teléfono del cliente</label><select id="posCsvPhone"></select></div>
+                      <div><label for="posCsvAmount">Monto de la venta</label><select id="posCsvAmount"></select></div>
+                      <div><label for="posCsvStatus">Estado del pago</label><select id="posCsvStatus"></select></div>
+                      <div><label for="posCsvItems">Cantidad de artículos (opcional)</label><select id="posCsvItems"></select></div>
+                      <div><label for="posCsvUnits">Unidad del monto</label><select id="posCsvUnits"><option value="major">Moneda del negocio · importe decimal</option><option value="minor">Unidades menores · según los decimales de la moneda</option></select></div>
+                    </div>
+                    <p class="small">Estados aceptados: paid, completed, pagado o pagada. Los demás se omiten.</p>
+                    <label id="posCsvPaidLabel" class="pos-check" for="posCsvPaid">
+                      <input id="posCsvPaid" type="checkbox"/>
+                      <span>Confirmo que todas las ventas del archivo están pagadas y no son reembolsos.</span>
+                    </label>
+                    <p class="small">Si tu archivo no incluye el estado del pago, debes confirmarlo antes de continuar.</p>
+                    <div class="pos-actions"><button type="button" id="posCsvPreview" disabled>Revisar ventas</button></div>
+                  </div>
+                  <div id="posCsvPreviewBox" class="pos-preview" hidden>
+                    <p id="posCsvPreviewSummary" class="small" role="status"></p>
+                    <div class="pos-table-scroll" role="region" aria-label="Vista previa del archivo CSV" tabindex="0">
+                      <table><caption>Revisa los montos y teléfonos antes de importar</caption><thead><tr><th scope="col">Fila</th><th scope="col">Venta</th><th scope="col">Teléfono</th><th scope="col">Monto</th><th scope="col">Puntos</th><th scope="col">Revisión</th></tr></thead><tbody id="posCsvPreviewRows"></tbody></table>
+                    </div>
+                    <p class="small">Solo se asignarán puntos a las ventas listas. No se crean clientes nuevos.</p>
+                  </div>
+                  <div class="pos-actions"><button type="button" id="posCsvImport" class="primary" disabled>Importar ventas y asignar puntos</button></div>
+                  <div id="posCsvResult" class="pos-result" role="status" hidden></div>
+                </section>
+
+                <section id="posApiPanel" class="pos-method" aria-labelledby="posApiHeading" hidden>
+                  <h4 id="posApiHeading">Conexión por API</h4>
+                  <p class="small">Para sistemas que envían ventas mediante una integración personalizada. Comparte estas instrucciones con quien configura tu punto de venta.</p>
+                  <label for="posEndpoint">Dirección para enviar ventas (POST)</label>
+                  <input id="posEndpoint" readonly spellcheck="false"/>
+                  <div class="pos-actions"><button type="button" id="posCopyEndpoint">Copiar dirección</button></div>
+                  <p id="posKeyStatus" class="small"></p>
+                  <div class="pos-actions"><button type="button" id="posKeyGenerate">Generar clave API</button></div>
+                  <div id="posKeyReveal" class="pos-key-reveal" hidden>
+                    <label for="posApiKey">Tu nueva clave API</label>
+                    <input id="posApiKey" readonly autocomplete="off" spellcheck="false" aria-describedby="posKeyHint"/>
+                    <p id="posKeyHint" class="small">Cópiala y guárdala en un lugar seguro. Solo se muestra esta vez.</p>
+                    <div class="pos-actions"><button type="button" id="posCopyKey">Copiar clave</button><button type="button" id="posHideKey">Ya la guardé</button></div>
+                  </div>
+                  <details class="pos-api-instructions">
+                    <summary>Ver ejemplo para la integración</summary>
+                    <p class="small">Envía JSON con <code>Content-Type: application/json</code> y <code>Authorization: Bearer TU_CLAVE_API</code>. Usa un ID único por venta y un nombre estable para tu sistema.</p>
+                    <pre id="posApiSample" aria-label="Ejemplo de venta en JSON"></pre>
+                    <button type="button" id="posCopySample">Copiar ejemplo JSON</button>
+                    <p class="small">El ejemplo usa <code>dryRun: true</code> para validar sin asignar puntos. En producción, quita ese campo. Se requiere un teléfono registrado y una compra pagada en la moneda del negocio.</p>
+                  </details>
+                </section>
+              </fieldset>
+            </section>

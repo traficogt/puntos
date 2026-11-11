@@ -1,7 +1,3 @@
-import { mountIosInstallHint } from "/lib.js";
-
-mountIosInstallHint();
-
 let turnstileLoadPromise = null;
 
 function ensureTurnstileScript() {
@@ -29,17 +25,29 @@ function ensureTurnstileScript() {
   return turnstileLoadPromise;
 }
 
-const revealNodes = [...document.querySelectorAll(".reveal")];
-if (revealNodes.length > 0 && "IntersectionObserver" in window) {
-  revealNodes.forEach((el) => el.classList.add("reveal-ready"));
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((e) => {
-      if (!e.isIntersecting) return;
-      e.target.classList.add("visible");
-      observer.unobserve(e.target);
-    });
-  }, { threshold: 0.12 });
-  revealNodes.forEach((el) => observer.observe(el));
+// This preview uses illustrative values and never sends a transaction.
+const demoVisit = /** @type {HTMLButtonElement|null} */ (document.getElementById("demoVisit"));
+if (demoVisit) {
+  const pointsEl = document.getElementById("demoPoints");
+  const progress = /** @type {HTMLProgressElement|null} */ (document.getElementById("demoProgress"));
+  const progressLabel = document.getElementById("demoProgressLabel");
+  const feedback = document.getElementById("demoFeedback");
+  const card = document.querySelector(".loyalty-demo");
+  let points = 340;
+  demoVisit.hidden = false;
+  demoVisit.addEventListener("click", () => {
+    points = points >= 400 ? 340 : points + 40;
+    const earned = points >= 400;
+    if (pointsEl) pointsEl.textContent = String(points);
+    if (progress) {
+      progress.value = Math.min(points, 400);
+      progress.textContent = `${Math.min(points, 400)} de 400 puntos`;
+    }
+    if (progressLabel) progressLabel.textContent = earned ? "Tu recompensa está lista para disfrutar" : `Te faltan ${400 - points} puntos para tu recompensa`;
+    if (feedback) feedback.textContent = earned ? "¡Una recompensa lista! Así se siente volver. Ejemplo ilustrativo." : points === 340 ? "Una tarjeta de ejemplo. Imagina la de tu negocio." : "+40 puntos. Una visita más cerca de tu recompensa. Ejemplo ilustrativo.";
+    card?.classList.toggle("is-earned", earned);
+    demoVisit.textContent = earned ? "Volver a probar" : "Simular una visita";
+  });
 }
 
 // Contact form
@@ -47,8 +55,16 @@ const contactForm = /** @type {HTMLFormElement|null} */ (document.getElementById
 if (contactForm) {
   const submitBtn = /** @type {HTMLButtonElement} */ (document.getElementById("contactSubmit"));
   const statusEl = /** @type {HTMLParagraphElement} */ (document.getElementById("contactStatus"));
+  submitBtn.disabled = false;
   const contactSection = /** @type {HTMLElement|null} */ (document.getElementById("contacto"));
   const contactChallenge = /** @type {HTMLElement|null} */ (contactForm.querySelector(".cf-turnstile"));
+
+  contactForm.addEventListener("input", (event) => {
+    const field = event.target;
+    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+      field.removeAttribute("aria-invalid");
+    }
+  });
 
   const loadVerification = () => {
     ensureTurnstileScript().catch(() => {
@@ -82,9 +98,19 @@ if (contactForm) {
     const message = /** @type {HTMLTextAreaElement} */ (document.getElementById("cfMessage")).value.trim();
     const turnstileToken = (/** @type {HTMLInputElement|null} */ (contactForm.querySelector("[name=cf-turnstile-response]")))?.value || "";
 
-    if (!name || !business || !contact || !message) {
-      statusEl.textContent = "Por favor completa todos los campos.";
+    const requiredFields = [
+      { id: "cfName", value: name, message: "Escribe tu nombre para que podamos contactarte." },
+      { id: "cfBusiness", value: business, message: "Escribe el nombre de tu negocio." },
+      { id: "cfContact", value: contact, message: "Escribe un correo o teléfono de contacto." },
+      { id: "cfMessage", value: message, message: "Cuéntanos qué quieres resolver en tu negocio." }
+    ];
+    const missing = requiredFields.find((field) => !field.value);
+    if (missing) {
+      statusEl.textContent = missing.message;
       statusEl.className = "contact-status contact-status-error";
+      const field = document.getElementById(missing.id);
+      field?.setAttribute("aria-invalid", "true");
+      field?.focus();
       return;
     }
 
@@ -114,6 +140,8 @@ if (contactForm) {
       });
       if (res.ok) {
         contactForm.reset();
+        submitBtn.textContent = "Solicitud enviada";
+        try { window["umami"]?.track("demo_inquiry_submitted"); } catch { /* Measurement is optional. */ }
         statusEl.textContent = "Recibimos tu solicitud. Te escribimos pronto para coordinar la demo.";
         statusEl.className = "contact-status contact-status-success";
       } else {

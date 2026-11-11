@@ -22,6 +22,8 @@ services:
     startCommand: node src/app/server.js
     healthCheckPath: /api/health
     envVars:
+      - key: NODE_VERSION
+        value: 24.22.3
       - key: NODE_ENV
         value: development
       - key: AUTO_APPLY_SCHEMA_EXTENSIONS

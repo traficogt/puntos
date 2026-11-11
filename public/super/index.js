@@ -23,6 +23,52 @@ export async function initSuperPage({ api, $, toast }) {
   let businessList = [];
   /** @type {SuperStaffRow[] | SuperCustomerRow[]} */
   let magicActorRows = [];
+  let sessionGeneration = 0;
+  let sessionActionInProgress = false;
+  let logoutPending = readLogoutPending();
+
+  function readLogoutPending() {
+    try { return localStorage.getItem("pf_super_logout_pending") === "1"; }
+    catch { return false; }
+  }
+
+  function hidePrivateView() {
+    for (const selector of ["#planes", "#seguridad", "#negocios"]) setHidden(element(selector), true);
+    setHidden(element("#loginCard"), false);
+    setHidden(element("#btnLogout"), !logoutPending);
+    for (const selector of ["#superMfaSecret", "#magicLinkOutput", "#magicLinkCopy"]) element(selector).textContent = "";
+    planList = [];
+    businessList = [];
+    magicActorRows = [];
+  }
+
+  async function revokePendingSession() {
+    try { await api("/api/super/logout", { method: "POST", body: "{}" }); }
+    catch (error) { if (error.status !== 401) throw error; }
+    logoutPending = false;
+    try { localStorage.removeItem("pf_super_logout_pending"); } catch {}
+    hidePrivateView();
+  }
+
+  async function logout() {
+    if (sessionActionInProgress) return;
+    sessionActionInProgress = true;
+    logoutPending = true;
+    sessionGeneration += 1;
+    try {
+      localStorage.setItem("pf_super_logout_pending", "1");
+      localStorage.setItem("pf_super_epoch", crypto.randomUUID());
+    } catch { /* The current page remains blocked if browser storage is unavailable. */ }
+    hidePrivateView();
+    try {
+      await revokePendingSession();
+      toast("Sesión cerrada.");
+    } catch {
+      toast("No se pudo cerrar la sesión en el servidor. Reconecta e inténtalo de nuevo.");
+    } finally {
+      sessionActionInProgress = false;
+    }
+  }
   const FEATURE_LABELS = {
     gift_cards: "Gift Cards",
     rewards: "Recompensas",
@@ -436,23 +482,24 @@ export async function initSuperPage({ api, $, toast }) {
   }
 
   async function loadMe() {
+    if (logoutPending) { hidePrivateView(); return; }
+    const generation = sessionGeneration;
     await run(async () => {
       await api("/api/super/me");
+      if (logoutPending || generation !== sessionGeneration) return;
       setHidden(element("#loginCard"), true);
-      setHidden(element("#mainCard"), false);
-      setHidden(element("#securityCard"), false);
-      setHidden(element("#businessCard"), false);
+      setHidden(element("#planes"), false);
+      setHidden(element("#seguridad"), false);
+      setHidden(element("#negocios"), false);
       setHidden(element("#btnLogout"), false);
       await loadPlans();
+      if (logoutPending || generation !== sessionGeneration) return;
       renderPlanMatrix();
       await loadSecurityPosture();
+      if (logoutPending || generation !== sessionGeneration) return;
       await loadBusinesses();
     }, () => {
-      setHidden(element("#loginCard"), false);
-      setHidden(element("#mainCard"), true);
-      setHidden(element("#securityCard"), true);
-      setHidden(element("#businessCard"), true);
-      setHidden(element("#btnLogout"), true);
+      if (generation === sessionGeneration) hidePrivateView();
     });
   }
 
@@ -567,7 +614,7 @@ export async function initSuperPage({ api, $, toast }) {
             await api(`/api/super/impersonate/${encodeURIComponent(business.id)}`, { method: "POST", body: "{}" });
             toast("Impersonación lista. Abriendo panel admin...");
             setTimeout(() => {
-              location.href = "/admin-dashboard.html";
+              location.href = "/administracion/";
             }, 500);
           }, (error) => {
             toast("No se pudo impersonar: " + error.message);
@@ -652,7 +699,10 @@ export async function initSuperPage({ api, $, toast }) {
   }
 
   element("#btnLogin").addEventListener("click", async () => {
+    if (sessionActionInProgress) return;
+    sessionActionInProgress = true;
     await run(async () => {
+      if (logoutPending || readLogoutPending()) await revokePendingSession();
       await api("/api/super/login", {
         method: "POST",
         body: JSON.stringify({
@@ -661,17 +711,27 @@ export async function initSuperPage({ api, $, toast }) {
           ...(input("#loginMfaCode").value.trim() ? { mfaCode: input("#loginMfaCode").value.trim() } : {})
         })
       });
+      sessionGeneration += 1;
+      try { localStorage.setItem("pf_super_epoch", crypto.randomUUID()); } catch {}
+      input("#password").value = "";
+      input("#loginMfaCode").value = "";
       toast("Sesión iniciada.");
       await loadMe();
     }, (error) => {
       toast(error.message);
     });
+    sessionActionInProgress = false;
   });
 
-  element("#btnLogout").addEventListener("click", async () => {
-    await api("/api/super/logout", { method: "POST", body: "{}" }).catch(() => {});
-    toast("Sesión cerrada.");
-    await loadMe();
+  element("#btnLogout").addEventListener("click", logout);
+  window.addEventListener("online", () => {
+    if (logoutPending) return logout();
+  });
+  window.addEventListener("storage", event => {
+    if (event.key !== "pf_super_epoch" && event.key !== "pf_super_logout_pending") return;
+    sessionGeneration += 1;
+    logoutPending = readLogoutPending();
+    hidePrivateView();
   });
 
   element("#btnReload").addEventListener("click", async () => {
@@ -821,6 +881,7 @@ export async function initSuperPage({ api, $, toast }) {
   });
   element("#btnGenerateMagicLink").addEventListener("click", generateMagicLink);
 
-  await loadMe();
+  if (logoutPending) await logout();
+  else await loadMe();
   registerServiceWorker().catch(() => {});
 }

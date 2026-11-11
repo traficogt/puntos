@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { config } from "../../config/index.js";
 import { logger } from "../../utils/logger.js";
 import { pool, migrationPool } from "./pools.js";
+import { orderMigrations } from "./migration-order.js";
 
 async function checkSchemaExtensions() {
   try {
@@ -124,7 +125,7 @@ export async function runManagedMigrations() {
     return;
   }
 
-  const files = fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort();
+  const files = orderMigrations(fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")));
   if (!files.length) {
     logger.info("No managed migrations to apply.");
     return;

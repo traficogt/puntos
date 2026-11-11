@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 const { GamificationService } = await import("../../src/app/services/gamification-service.js");
 const { GamificationRepository } = await import("../../src/app/repositories/gamification-repository.js");
-const { pool } = await import("../../src/app/db/pools.js");
+const { transactionPool } = await import("../../src/app/db/pools.js");
 const { achievementProgressValue } = await import("../../src/app/services/gamification/achievements-service.js");
 const {
   hasRecurringWindowElapsed,
@@ -108,7 +108,7 @@ describe("challenge completion math", () => {
 
 describe("recurring challenge state transitions", () => {
   it("blocks repeat completion in the same window and allows completion after rollover", async () => {
-    const originalConnect = pool.connect;
+    const originalConnect = transactionPool.connect;
     const originalListActiveChallenges = GamificationRepository.listActiveChallenges;
     const originalGetCustomerChallengeProgress = GamificationRepository.getCustomerChallengeProgress;
     const originalResetRecurringChallengeProgress = GamificationRepository.resetRecurringChallengeProgress;
@@ -163,7 +163,7 @@ describe("recurring challenge state transitions", () => {
       release() {}
     };
 
-    pool.connect = async () => fakeClient;
+    transactionPool.connect = async () => fakeClient;
     GamificationRepository.listActiveChallenges = async () => [challenge];
     GamificationRepository.getCustomerChallengeProgress = async () => ({ ...progressState });
     GamificationRepository.resetRecurringChallengeProgress = async () => {
@@ -238,7 +238,7 @@ describe("recurring challenge state transitions", () => {
       assert.equal(progressState.completion_history.length, 2);
       assert.deepEqual(updates, [1, 1]);
     } finally {
-      pool.connect = originalConnect;
+      transactionPool.connect = originalConnect;
       GamificationRepository.listActiveChallenges = originalListActiveChallenges;
       GamificationRepository.getCustomerChallengeProgress = originalGetCustomerChallengeProgress;
       GamificationRepository.resetRecurringChallengeProgress = originalResetRecurringChallengeProgress;

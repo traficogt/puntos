@@ -1,14 +1,17 @@
+import { businessRegion } from "../services/regional-settings.js";
 import { Router } from "express";
 import { z } from "zod";
 import { asyncRoute } from "../../middleware/common.js";
 import { validate } from "../../utils/validation.js";
 import { browserCookieMaxAge, cookieOpts } from "../../utils/auth-token.js";
 import { config } from "../../config/index.js";
+import { sanitizeProgramForClient } from "../../utils/program-secrets.js";
+import { issueOfflineGrant } from "../services/staff-offline-service.js";
 import { requireRecentReauth, requireStaff, requireStaffPermission } from "../../middleware/auth.js";
 import { csrfProtect } from "../../middleware/csrf.js";
 import { requirePlanFeature } from "../../middleware/plan-feature.js";
 import { strictRateLimit } from "../../middleware/rate-limit.js";
-import { staffLogin, awardPoints, redeemReward, syncAwards, refundAward, lookupCustomerByQrToken } from "../services/staff-service.js";
+import { staffLogin, awardPoints, redeemRewardWithRecovery, syncAwards, refundAward, lookupCustomerByQrToken } from "../services/staff-service.js";
 import { RewardRepo } from "../repositories/reward-repository.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
 import { getPermissionMatrix, Permission } from "../../utils/permissions.js";
@@ -111,7 +114,7 @@ staffRoutes.post("/staff/security/lockdown", requireStaff, csrfProtect, requireR
 
 staffRoutes.post("/staff/logout", requireStaff, csrfProtect, asyncRoute(async (req, res) => {
   if (req.authSession?.id) {
-    await invalidateBrowserSessionById(req.authSession.id, "logout").catch(() => {});
+    await invalidateBrowserSessionById(req.authSession.id, "logout");
   }
   res.clearCookie(config.STAFF_COOKIE_NAME, { path: "/" });
   res.json({ ok: true });
@@ -133,8 +136,9 @@ staffRoutes.get("/staff/program", requireStaff, tenantContext, asyncRoute(async 
   if (!business) return res.status(404).json({ error: "Business not found" });
   res.json({
     ok: true,
+    region: businessRegion(business),
     program_type: business.program_type,
-    program_json: business.program_json
+    program_json: sanitizeProgramForClient(business.program_json)
   });
 }));
 
@@ -183,23 +187,28 @@ staffRoutes.post("/staff/redeem", csrfProtect, requireStaff, tenantContext, requ
   if (!v.ok) return res.status(400).json({ error: v.error });
   const payload = v.data;
 
-  const out = await redeemReward({ staff: req.staff, ...payload });
+  const out = await redeemRewardWithRecovery({ staff: req.staff, ...payload });
   res.json({ ok: true, ...out });
 }));
 
 export const SyncSchema = z.object({
   awards: z.array(z.object({
-    txId: z.string().uuid(),
+    txId: z.guid(),
     customerQrToken: z.string().min(20),
-    amount_q: z.number().nonnegative().optional(),
-    visits: z.number().int().positive().optional(),
-    items: z.number().int().positive().optional(),
-    meta: z.any().optional(),
-    client_ts: z.string().optional()
+    amount_q: z.number().nonnegative().max(1000000).optional(),
+    visits: z.number().int().positive().max(1000).optional(),
+    items: z.number().int().positive().max(10000).optional(),
+    meta: z.record(z.string(), z.any()).optional(),
+    client_ts: z.string().optional(),
+    offlineGrant: z.string().min(20).max(4096).optional()
   })).max(200)
 });
 
-staffRoutes.post("/staff/sync", csrfProtect, requireStaff, tenantContext, requireStaffPermission(Permission.STAFF_SYNC), asyncRoute(async (req, res) => {
+staffRoutes.get("/staff/offline-grant", requireStaff, tenantContext, requireStaffPermission(Permission.STAFF_AWARD), requireStaffPermission(Permission.STAFF_SYNC), asyncRoute(async (req, res) => {
+  res.json(await issueOfflineGrant(req.staff));
+}));
+
+staffRoutes.post("/staff/sync", csrfProtect, requireStaff, tenantContext, requireStaffPermission(Permission.STAFF_AWARD), requireStaffPermission(Permission.STAFF_SYNC), asyncRoute(async (req, res) => {
   const v = validate(SyncSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
 
@@ -208,8 +217,8 @@ staffRoutes.post("/staff/sync", csrfProtect, requireStaff, tenantContext, requir
 }));
 
 export const RefundSchema = z.object({
-  transactionId: z.string().uuid(),
-  requestId: z.string().uuid(),
+  transactionId: z.guid(),
+  requestId: z.guid(),
   reason: z.string().min(2).max(200).optional()
 });
 

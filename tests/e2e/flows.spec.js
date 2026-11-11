@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { apiGet, apiPost, apiPut, expectOk } from "./lib.js";
+import { apiDelete, apiGet, apiPost, apiPut, expectOk } from "./lib.js";
 test.describe.configure({ mode: "serial" });
 
 function rand(len = 6) {
@@ -16,7 +16,7 @@ async function createBusinessViaUi(page) {
   const businessName = `Cafe E2E ${token}`;
   const email = `owner-${token}@example.com`;
   const password = "OrchardLanternMarble2026!";
-  await page.goto("/admin");
+  await page.goto("/admin", { waitUntil: "domcontentloaded" });
   await page.fill("#businessName", businessName);
   await page.fill("#email", email);
   await page.fill("#password", password);
@@ -36,7 +36,7 @@ test("owner can onboard business and create reward in dashboard", async ({ page 
   await useRandomClientIp(page);
   await createBusinessViaUi(page);
 
-  await page.goto("/admin-dashboard.html");
+  await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
   await expect(page.locator("#main")).toBeVisible();
 
   const rewardName = `Promo ${rand(5)}`;
@@ -53,7 +53,7 @@ test("customer can join business with OTP and open card", async ({ page }) => {
   const out = await createBusinessViaUi(page);
   const phone = `5555${Math.floor(1000 + Math.random() * 8999)}`;
 
-  await page.goto(`/join/${out.slug}`);
+  await page.goto(`/join/${out.slug}`, { waitUntil: "domcontentloaded" });
   await page.fill("#phone", phone);
   await page.fill("#name", "Cliente E2E");
   const reqCodeRespPromise = page.waitForResponse((resp) =>
@@ -79,7 +79,7 @@ test("staff can award points using customer QR token", async ({ page }) => {
   const out = await createBusinessViaUi(page);
   const phone = `5555${Math.floor(1000 + Math.random() * 8999)}`;
 
-  await page.goto(`/join/${out.slug}`);
+  await page.goto(`/join/${out.slug}`, { waitUntil: "domcontentloaded" });
   await page.fill("#phone", phone);
   await page.fill("#name", "Cliente Premio");
   const reqCodeRespPromise = page.waitForResponse((resp) =>
@@ -95,7 +95,7 @@ test("staff can award points using customer QR token", async ({ page }) => {
   await page.click("#btnVerify");
   await page.waitForURL(/\/c$/);
 
-  await page.goto("/staff/login");
+  await page.goto("/staff/login", { waitUntil: "domcontentloaded" });
   await page.fill("#email", out.email);
   await page.fill("#password", out.password);
   const loginRespPromise = page.waitForResponse((resp) =>
@@ -104,8 +104,9 @@ test("staff can award points using customer QR token", async ({ page }) => {
   await page.click("#btnLogin");
   const loginResp = await loginRespPromise;
   expect(loginResp.ok(), "staff login should succeed").toBeTruthy();
-  await page.goto("/staff");
-  await page.goto("/c");
+  await page.waitForURL(/\/admin-dashboard(?:\.html)?$/);
+  await page.goto("/staff", { waitUntil: "domcontentloaded" });
+  await page.goto("/c", { waitUntil: "domcontentloaded" });
 
   const qr = await apiPost(page, "/api/public/customer/qr", {}, { csrf: true });
   expectOk(qr, "qr token should be issued");
@@ -130,7 +131,7 @@ test("staff can award points using customer QR token", async ({ page }) => {
 test("admin dashboard tab visibility matches plan features", async ({ page }) => {
   await useRandomClientIp(page);
   await createBusinessViaUi(page);
-  await page.goto("/admin-dashboard.html");
+  await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
   await expect(page.locator("#main")).toBeVisible();
 
   const plan = await apiGet(page, "/api/admin/plan");
@@ -167,7 +168,7 @@ test("staff can redeem reward for customer after points award", async ({ page })
   const out = await createBusinessViaUi(page);
   const phone = `5555${Math.floor(1000 + Math.random() * 8999)}`;
 
-  await page.goto(`/join/${out.slug}`);
+  await page.goto(`/join/${out.slug}`, { waitUntil: "domcontentloaded" });
   await page.fill("#phone", phone);
   await page.fill("#name", "Cliente Canje");
   const reqCodeRespPromise = page.waitForResponse((resp) =>
@@ -183,7 +184,7 @@ test("staff can redeem reward for customer after points award", async ({ page })
   await page.click("#btnVerify");
   await page.waitForURL(/\/c$/);
 
-  await page.goto("/staff/login");
+  await page.goto("/staff/login", { waitUntil: "domcontentloaded" });
   await page.fill("#email", out.email);
   await page.fill("#password", out.password);
   const loginRespPromise = page.waitForResponse((resp) =>
@@ -192,8 +193,9 @@ test("staff can redeem reward for customer after points award", async ({ page })
   await page.click("#btnLogin");
   const loginResp = await loginRespPromise;
   expect(loginResp.ok(), "staff login should succeed").toBeTruthy();
-  await page.goto("/staff");
-  await page.goto("/c");
+  await page.waitForURL(/\/admin-dashboard(?:\.html)?$/);
+  await page.goto("/staff", { waitUntil: "domcontentloaded" });
+  await page.goto("/c", { waitUntil: "domcontentloaded" });
 
   const rewardName = `Canje ${rand(5)}`;
   const plan = await apiGet(page, "/api/admin/plan");
@@ -241,14 +243,28 @@ test("staff can redeem reward for customer after points award", async ({ page })
 test("admin can apply automation template from dashboard", async ({ page }) => {
   await useRandomClientIp(page);
   await createBusinessViaUi(page);
-  await page.goto("/admin-dashboard.html");
+  await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
   await expect(page.locator("#main")).toBeVisible();
 
   const plan = await apiGet(page, "/api/admin/plan");
   expectOk(plan, "plan should be readable");
-  const lifecycleEnabled = Boolean(plan.body?.features?.lifecycle_automation);
-  test.skip(!lifecycleEnabled, "Plan sin lifecycle_automation");
+  if (!plan.body?.features?.lifecycle_automation) {
+    const email = process.env.SUPER_ADMIN_EMAIL || "";
+    const password = process.env.SUPER_ADMIN_PASSWORD || "";
+    test.skip(!email || !password, "Super credentials are required to select an automation-enabled plan");
+    const me = await apiGet(page, "/api/staff/me");
+    expectOk(me, "owner identity should be readable");
+    expectOk(await apiPost(page, "/api/super/login", { email, password }, { csrf: false }), "super login should succeed");
+    const plans = await apiGet(page, "/api/super/plans");
+    expectOk(plans, "plans should be readable");
+    const automationPlan = plans.body?.plans?.find(candidate => candidate.features?.lifecycle_automation);
+    expect(automationPlan, "an automation-enabled plan should be available").toBeTruthy();
+    expectOk(await apiPut(page, `/api/super/businesses/${encodeURIComponent(me.body.staff.business_id)}/plan`, { plan: automationPlan.plan }), "automation plan should be applied");
+    await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("#main")).toBeVisible();
+  }
 
+  await page.locator(".admin-program-disclosure > summary").click();
   await page.click("#btnTplReactivacion");
   await expect(page.locator("#lifecycleWinbackEnabled")).toBeChecked();
   await expect(page.locator("#lifecycleWinbackDays")).toHaveValue("21");
@@ -257,7 +273,7 @@ test("admin can apply automation template from dashboard", async ({ page }) => {
 test("rbac: cashier cannot refund while manager can reach refund validation", async ({ page }) => {
   await useRandomClientIp(page);
   await createBusinessViaUi(page);
-  await page.goto("/admin-dashboard.html");
+  await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
   await expect(page.locator("#main")).toBeVisible();
 
   const plan = await apiGet(page, "/api/admin/plan");
@@ -291,7 +307,7 @@ test("rbac: cashier cannot refund while manager can reach refund validation", as
     return out.status;
   };
 
-  await page.goto("/staff/login");
+  await page.goto("/staff/login", { waitUntil: "domcontentloaded" });
   await page.fill("#email", managerEmail);
   await page.fill("#password", pwd);
   const mgrLoginRespPromise = page.waitForResponse((resp) =>
@@ -300,13 +316,13 @@ test("rbac: cashier cannot refund while manager can reach refund validation", as
   await page.click("#btnLogin");
   const mgrLoginResp = await mgrLoginRespPromise;
   expect(mgrLoginResp.ok(), "manager login should succeed").toBeTruthy();
-  await page.goto("/staff");
+  await page.waitForURL(/\/staff$/);
   const managerStatus = await postRefundAndGetStatus();
 
   const logout = await apiPost(page, "/api/staff/logout", {}, { csrf: true });
   expectOk(logout, "logout should succeed");
 
-  await page.goto("/staff/login");
+  await page.goto("/staff/login", { waitUntil: "domcontentloaded" });
   await page.fill("#email", cashierEmail);
   await page.fill("#password", pwd);
   const cashLoginRespPromise = page.waitForResponse((resp) =>
@@ -315,7 +331,7 @@ test("rbac: cashier cannot refund while manager can reach refund validation", as
   await page.click("#btnLogin");
   const cashLoginResp = await cashLoginRespPromise;
   expect(cashLoginResp.ok(), "cashier login should succeed").toBeTruthy();
-  await page.goto("/staff");
+  await page.waitForURL(/\/staff$/);
   const cashierStatus = await postRefundAndGetStatus();
 
   expect(managerStatus).not.toBe(403);
@@ -328,7 +344,7 @@ test("super admin plan update is reflected in admin feature tabs", async ({ page
   test.skip(!superEmail || !superPassword, "Faltan credenciales de super admin para e2e");
 
   await useRandomClientIp(page);
-  await page.goto("/super");
+  await page.goto("/super", { waitUntil: "domcontentloaded" });
   await page.fill("#email", superEmail);
   await page.fill("#password", superPassword);
   await page.click("#btnLogin");
@@ -367,17 +383,17 @@ test("super admin plan update is reflected in admin feature tabs", async ({ page
     const imp1 = await apiPost(page, `/api/super/impersonate/${encodeURIComponent(created.id)}`, {}, { csrf: true });
     expectOk(imp1, "impersonate should succeed");
 
-    await page.goto("/admin-dashboard.html");
+    await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
     await expect(page.locator("#main")).toBeVisible();
     const analyticsVisibleLow = await page.locator('.tab[data-tab="analytics"]').isVisible();
 
-    await page.goto("/super");
+    await page.goto("/super", { waitUntil: "domcontentloaded" });
     const upPlan = await apiPut(page, `/api/super/businesses/${encodeURIComponent(created.id)}/plan`, { plan: highPlan }, { csrf: true });
     expectOk(upPlan, "update business plan should succeed");
     const imp2 = await apiPost(page, `/api/super/impersonate/${encodeURIComponent(created.id)}`, {}, { csrf: true });
     expectOk(imp2, "impersonate should succeed");
 
-    await page.goto("/admin-dashboard.html");
+    await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
     await expect(page.locator("#main")).toBeVisible();
     const analyticsVisibleHigh = await page.locator('.tab[data-tab="analytics"]').isVisible();
 
@@ -386,7 +402,7 @@ test("super admin plan update is reflected in admin feature tabs", async ({ page
   } finally {
     try {
       if (!page.isClosed()) {
-        await page.goto("/super");
+        await page.goto("/super", { waitUntil: "domcontentloaded" });
         await apiPut(page, `/api/super/plans/${encodeURIComponent(lowPlan)}/features`, { features: lowOrigFeatures }, { csrf: true });
         await apiPut(page, `/api/super/plans/${encodeURIComponent(highPlan)}/features`, { features: highOrigFeatures }, { csrf: true });
       }
@@ -402,7 +418,7 @@ test("gift cards enforce role permissions (manager/cashier)", async ({ page }) =
   test.skip(!superEmail || !superPassword, "Faltan credenciales de super admin para e2e");
 
   await useRandomClientIp(page);
-  await page.goto("/super");
+  await page.goto("/super", { waitUntil: "domcontentloaded" });
   await page.fill("#email", superEmail);
   await page.fill("#password", superPassword);
   await page.click("#btnLogin");
@@ -492,7 +508,7 @@ test("suspicious awards are flagged when guard threshold is exceeded", async ({ 
   const out = await createBusinessViaUi(page);
   const phone = `5555${Math.floor(1000 + Math.random() * 8999)}`;
 
-  await page.goto("/admin-dashboard.html");
+  await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
   await expect(page.locator("#main")).toBeVisible();
 
   const plan = await apiGet(page, "/api/admin/plan");
@@ -503,11 +519,12 @@ test("suspicious awards are flagged when guard threshold is exceeded", async ({ 
   };
   test.skip(!gates.programRules || !gates.fraudMonitoring, "Plan sin program_rules o fraud_monitoring");
 
+  await page.locator(".admin-program-disclosure > summary").click();
   await page.fill("#guardSuspiciousAmount", "1");
   await page.fill("#guardSuspiciousPoints", "1");
   await page.click("#btnSaveProgram");
 
-  await page.goto(`/join/${out.slug}`);
+  await page.goto(`/join/${out.slug}`, { waitUntil: "domcontentloaded" });
   await page.fill("#phone", phone);
   await page.fill("#name", "Cliente Alerta");
   const reqCodeRespPromise = page.waitForResponse((resp) =>
@@ -522,7 +539,7 @@ test("suspicious awards are flagged when guard threshold is exceeded", async ({ 
   await page.click("#btnVerify");
   await page.waitForURL(/\/c$/);
 
-  await page.goto("/staff/login");
+  await page.goto("/staff/login", { waitUntil: "domcontentloaded" });
   await page.fill("#email", out.email);
   await page.fill("#password", out.password);
   const loginRespPromise = page.waitForResponse((resp) =>
@@ -531,7 +548,8 @@ test("suspicious awards are flagged when guard threshold is exceeded", async ({ 
   await page.click("#btnLogin");
   const loginResp = await loginRespPromise;
   expect(loginResp.ok(), "staff login should succeed").toBeTruthy();
-  await page.goto("/staff");
+  await page.waitForURL(/\/admin-dashboard(?:\.html)?$/);
+  await page.goto("/staff", { waitUntil: "domcontentloaded" });
 
   const qr = await apiPost(page, "/api/public/customer/qr", {}, { csrf: true });
   expectOk(qr, "qr token should be issued");
@@ -549,12 +567,12 @@ test("suspicious awards are flagged when guard threshold is exceeded", async ({ 
   expect(hasFlag).toBeTruthy();
 });
 
-test("customer export works (if enabled) and delete disables profile access", async ({ page }) => {
+test("customer export works and delete disables profile access", async ({ page }) => {
   await useRandomClientIp(page);
   const out = await createBusinessViaUi(page);
   const phone = `5555${Math.floor(1000 + Math.random() * 8999)}`;
 
-  await page.goto(`/join/${out.slug}`);
+  await page.goto(`/join/${out.slug}`, { waitUntil: "domcontentloaded" });
   await page.fill("#phone", phone);
   await page.fill("#name", "Cliente Privacidad");
   const reqCodeRespPromise = page.waitForResponse((resp) =>
@@ -569,42 +587,13 @@ test("customer export works (if enabled) and delete disables profile access", as
   await page.click("#btnVerify");
   await page.waitForURL(/\/c$/);
 
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
-  const csrf = cookies.find((c) => c.name === "pf_csrf_readable")?.value || "";
+  const exportResp = await apiGet(page, "/api/customer/export");
+  expectOk(exportResp, "customer export should succeed");
+  expect(Boolean(exportResp.body?.customer?.id)).toBeTruthy();
 
-  const req = async (method, path, body = undefined) => {
-    const doFetch = async () => {
-      const headers = {
-        cookie: cookieHeader,
-        "content-type": "application/json",
-        "x-forwarded-for": `10.220.${Math.floor(Math.random() * 200)}.${Math.floor(Math.random() * 200) + 1}`
-      };
-      if (method !== "GET" && method !== "HEAD" && csrf) headers["x-csrf-token"] = csrf;
-      const resp = await page.request.fetch(path, {
-        method,
-        headers,
-        data: body
-      });
-      let json = null;
-      try { json = await resp.json(); } catch {}
-      return { status: resp.status(), json };
-    };
-    const first = await doFetch();
-    if (first.status !== 429) return first;
-    await page.waitForTimeout(1200);
-    return doFetch();
-  };
+  const deleteResp = await apiDelete(page, "/api/customer/me");
+  expectOk(deleteResp, "customer deletion should succeed");
 
-  const exportResp = await req("GET", "/api/customer/export");
-  if (exportResp.status !== 403) {
-    expect(exportResp.status).toBe(200);
-    expect(Boolean(exportResp.json?.customer?.id)).toBeTruthy();
-  }
-
-  const deleteResp = await req("DELETE", "/api/customer/me", {});
-  expect(deleteResp.status).toBe(200);
-
-  const meAfterDelete = await req("GET", "/api/customer/me");
+  const meAfterDelete = await apiGet(page, "/api/customer/me");
   expect([401, 404]).toContain(meAfterDelete.status);
 });

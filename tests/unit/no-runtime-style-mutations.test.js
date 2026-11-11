@@ -23,7 +23,10 @@ function collectJsFiles(dirPath) {
 describe("runtime style guardrails", () => {
   it("does not use direct inline style mutations in public scripts", () => {
     const findings = [];
-    const files = collectJsFiles(PUBLIC_DIR);
+    // Vendor-generated React/Mantine bundles use DOM styles by design. The merchant
+    // shell is covered by CSP nonce tests and a browser policy-violation check.
+    const vendorBundleDirs = ["assets", "recursos"].map(directory => path.join(PUBLIC_DIR, "merchant", directory) + path.sep);
+    const files = collectJsFiles(PUBLIC_DIR).filter(filePath => !vendorBundleDirs.some(directory => filePath.startsWith(directory)));
 
     for (const filePath of files) {
       // eslint-disable-next-line security/detect-non-literal-fs-filename

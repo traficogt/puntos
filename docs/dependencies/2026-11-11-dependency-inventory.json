@@ -1,0 +1,4611 @@
+{
+  "schema_version": 1,
+  "title": "Puntos dependency upgrade preparation",
+  "preparation_only": true,
+  "observed_from": "2026-11-11T17:11:44.807339+00:00",
+  "assembled_at": "2026-11-11T17:24:08.130Z",
+  "source": {
+    "canonical_root": "/opt/puntos",
+    "git_head": "c6786e676ae774d05196cbf6b5ed5fd9857c9e96",
+    "state": "Large existing dirty tree; source and locks are current filesystem snapshots, not a clean release. No source/manifest/lock edits performed by this audit."
+  },
+  "scope": {
+    "direct_npm_entries": 77,
+    "npm_projects": 3,
+    "package_lock_entries_excluding_roots": 1291,
+    "pods_entries_including_subspecs": 185,
+    "native_release_baseline": {
+      "ios": "0.1.0 (3)",
+      "android": "0.1.0 (13)"
+    },
+    "exclusions": [
+      "node_modules/vendor/generated manifests as independent projects",
+      "production DB/provider/credentials access",
+      "dependency installation",
+      "native/cloud build or deployment"
+    ],
+    "limitations": [
+      "npm audit covers npm advisory data, not a binary/OS/CocoaPods/Maven scan or reachability proof",
+      "container exact running versions and installed Odoo Python packages were not queried",
+      "latest registry versions are candidates, not proof of compatibility",
+      "all native dependency changes remain deferred to an explicitly requested app upgrade/release"
+    ]
+  },
+  "manifest_coverage": [
+    {
+      "path": "package.json",
+      "sha256": "b51aba529db9f36a55ed6b8de4a24a363e0a68554270482888d762786bc9ff5f"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "45b516084eec7686821a093a810bbac6bc6786ca6e9d3a0c36ec789d79d72708"
+    },
+    {
+      "path": "web/merchant/package.json",
+      "sha256": "57159e6041bf7884a293acebee15389b62f6ccd030d1ad66907c2641d5e4fe31"
+    },
+    {
+      "path": "web/merchant/package-lock.json",
+      "sha256": "ca426a17a4e0ef97ff29c00ed8190f0fcbef238e71c55d2cf5f2c312cfe28189"
+    },
+    {
+      "path": "apps/customer/package.json",
+      "sha256": "64b36c47e18430a2fb33e8f70a11aef6402471ccad49efa45a3be1603bc934ad"
+    },
+    {
+      "path": "apps/customer/package-lock.json",
+      "sha256": "ea521e07d67d7d59163b333de19638aec2983e559a467ec7aeba6148844c3360"
+    },
+    {
+      "path": "apps/customer/ios/Podfile",
+      "sha256": "8d852e409371fb3fd6ec00cfd0bf0cd84f66093250e9742804d276a1a86fc926"
+    },
+    {
+      "path": "apps/customer/ios/Podfile.lock",
+      "sha256": "8736ca082192781a19e99eb066a20aaf4efe430ec429d12dd715ebc283d7cd12"
+    },
+    {
+      "path": "apps/customer/ios/Podfile.properties.json",
+      "sha256": "26254b828bc426d921170f9dde18626e6e0baeecac02e2329f2820927aff09fa"
+    },
+    {
+      "path": "apps/customer/.nvmrc",
+      "sha256": "4c42fb8d6334c5cdcac68b93f96c581fb83b1f58cda898cff115e5e941ef717d"
+    },
+    {
+      "path": "apps/customer/eas.json",
+      "sha256": "6809f9e40276550a5707ee1efe47069a7b0fbed44173631610fd4638c85aeb57"
+    },
+    {
+      "path": "apps/customer/app.json",
+      "sha256": "3cf157a67544cdff49bc48cb6f142ff09971cd8cc59d860501da9dc3fea2e06d"
+    },
+    {
+      "path": "apps/customer/scripts/patch-query-string.mjs",
+      "sha256": "f206bcc2f455c1cfcaf6fff746cda24adb9d529c5c3872759dc7da89840848ad"
+    },
+    {
+      "path": "apps/customer/scripts/build-android-release.sh",
+      "sha256": "ee2a63d18ea5b263e7fd328d67eba13ecebf6d734bc9c4afb798c967170e8af8"
+    },
+    {
+      "path": "Dockerfile",
+      "sha256": "00b63e0138598d68a5fe95035126f0944f4dedff3dfa61f889f9dc6ab7e4eea5"
+    },
+    {
+      "path": "docker-compose.yml",
+      "sha256": "e0f83d56445eca03643d56eadfd45bba8783acb029f7b6b2f1790a90a82ceaa8"
+    },
+    {
+      "path": "docker-compose.e2e.yml",
+      "sha256": "e304aed3e0108d69637426a6d3662e50e0c19af30833d9dbe1cb5c0e0a61cfe2"
+    },
+    {
+      "path": "docker-compose.e2e.override.yml",
+      "sha256": "52deee8bf82f09d030bcdcf50b7c03840922904b3b0ee9adab4fca8d1c755eef"
+    },
+    {
+      "path": "docker-compose.e2e.base-override.yml",
+      "sha256": "402eeb753a18b608ffbd15d288a90cec641575d05b5e016069d2a0aa53b448a7"
+    },
+    {
+      "path": "docker-compose.e2e.standalone.yml",
+      "sha256": "aa7028c552bb91770d1efd67d2de1b989a3cc6ea6290ff184e00a4da1eaac5b5"
+    },
+    {
+      "path": "render.yaml",
+      "sha256": "020798a7557378d8de1b496f575cfc20a87199e594b206b85a23aab7fdd37d32"
+    },
+    {
+      "path": "codemagic.yaml",
+      "sha256": "6bc33a98a5360dcfef4aad83fd9123890c56a226b88a07d8f00a4d2e1c90855e"
+    },
+    {
+      "path": "integrations/odoo/pf_pos_connector/__manifest__.py",
+      "sha256": "667a044bb5d7eabe13ee3265aa0bd1cdd25a018747ec434293855fd3d45f2b65"
+    },
+    {
+      "path": "integrations/odoo/fixtures/pf_checkout_browser_fixture/__manifest__.py",
+      "sha256": "e9b776b0cb9aa7d774a2cdee256fda90297f260293b3547677f9d5789c32e4b0"
+    },
+    {
+      "path": "integrations/odoo/test_local.sh",
+      "sha256": "f1b41f67c886c687b1b124719fb9c6f4c49c629de17c55aefe9634bceff88622"
+    },
+    {
+      "path": "integrations/odoo/test_browser.sh",
+      "sha256": "fae8e9e4685474bc05a1d8cf929debf8b7bd2fe9b0a69d68f888657abd9e3e55"
+    },
+    {
+      "path": ".github/workflows/nightly-e2e.yml",
+      "sha256": "77989ba4c6ca99fd9a5d0f00b514873aad5b8e2669cadb6f3dd4511aed8ef74e"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "0962bdd4c6c7d6e3e3419e786e536db5ee6101f5e04d0c8e59b10add2b1aa5f6"
+    },
+    {
+      "path": ".github/workflows/design-screenshots.yml",
+      "sha256": "53c846a1e037b0d8892dd44082b5095d5083032d375a1cbc0f02ba78afde821f"
+    },
+    {
+      "path": ".github/workflows/release-gate.yml",
+      "sha256": "6e9fa819479c42433db508b9b458f87b38fdc1469fc845cdf7acec2907af25f6"
+    }
+  ],
+  "projects": {
+    "root": {
+      "path": ".",
+      "manifest_hashes": {
+        "package.json": "b51aba529db9f36a55ed6b8de4a24a363e0a68554270482888d762786bc9ff5f",
+        "package-lock.json": "45b516084eec7686821a093a810bbac6bc6786ca6e9d3a0c36ec789d79d72708"
+      },
+      "version": "1.3.7",
+      "lockfile_version": 3,
+      "declared_engines": {
+        "node": ">=20.0.0"
+      },
+      "direct_runtime_count": 22,
+      "direct_dev_count": 10,
+      "locked_package_entries": 278,
+      "unique_package_names": 264,
+      "audit_all_counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 1,
+        "critical": 0,
+        "total": 1
+      },
+      "audit_production_counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 1,
+        "critical": 0,
+        "total": 1
+      },
+      "audit_dependency_counts": {
+        "prod": 176,
+        "dev": 101,
+        "optional": 2,
+        "peer": 1,
+        "peerOptional": 0,
+        "total": 278
+      },
+      "audit_unique_advisory_urls": [
+        "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5"
+      ],
+      "audit_vulnerabilities": {
+        "zod": {
+          "name": "zod",
+          "severity": "high",
+          "isDirect": true,
+          "via": [
+            {
+              "source": 1243066,
+              "name": "zod",
+              "dependency": "zod",
+              "title": "Zod can exhaust memory while validating oversized constrained collections",
+              "url": "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5",
+              "severity": "high",
+              "cwe": [
+                "CWE-770"
+              ],
+              "cvss": {
+                "score": 7.5,
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+              },
+              "range": "<4.6.6"
+            }
+          ],
+          "effects": [],
+          "range": "<4.6.6",
+          "nodes": [
+            "node_modules/zod"
+          ],
+          "fixAvailable": {
+            "name": "zod",
+            "version": "4.6.7",
+            "isSemVerMajor": true
+          }
+        }
+      },
+      "dependencies": [
+        {
+          "name": "argon2",
+          "kind": "dependencies",
+          "declared": "^0.44.0",
+          "current_installed": "0.44.0",
+          "locked": "0.44.0",
+          "latest_stable": "0.45.2",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "0.44.0",
+          "latest_in_caret_compatibility_line": "0.44.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=16.17.0"
+          },
+          "latest_engines": {
+            "node": ">=16.17.0"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "4-major-migrations",
+            "action": "review breaking update",
+            "candidate": "0.45.2"
+          },
+          "constraints": "0.x minor is potentially breaking; verify Alpine/native addon build and existing password hashes.",
+          "source": "https://registry.npmjs.org/argon2"
+        },
+        {
+          "name": "bcryptjs",
+          "kind": "dependencies",
+          "declared": "2.4.3",
+          "current_installed": "2.4.3",
+          "locked": "2.4.3",
+          "latest_stable": "3.0.3",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "2.4.3",
+          "latest_in_caret_compatibility_line": "2.4.3",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "4-major-migrations",
+            "action": "review breaking update",
+            "candidate": "3.0.3"
+          },
+          "constraints": "Preserve existing bcrypt hash verification, password byte limits and login behavior.",
+          "source": "https://registry.npmjs.org/bcryptjs"
+        },
+        {
+          "name": "cookie-parser",
+          "kind": "dependencies",
+          "declared": "1.4.7",
+          "current_installed": "1.4.7",
+          "locked": "1.4.7",
+          "latest_stable": "1.4.7",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "1.4.7",
+          "latest_in_caret_compatibility_line": "1.4.7",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">= 0.8.0"
+          },
+          "latest_engines": {
+            "node": ">= 0.8.0"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "retain",
+            "action": "retain current",
+            "candidate": "1.4.7"
+          },
+          "constraints": "Review changelog and existing unit/integration or browser gates; same-major is only a candidate classification.",
+          "source": "https://registry.npmjs.org/cookie-parser"
+        },
+        {
+          "name": "cors",
+          "kind": "dependencies",
+          "declared": "2.8.5",
+          "current_installed": "2.8.5",
+          "locked": "2.8.5",
+          "latest_stable": "2.8.6",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "2.8.5",
+          "latest_in_caret_compatibility_line": "2.8.6",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">= 0.10"
+          },
+          "latest_engines": {
+            "node": ">= 0.10"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "2-compatible",
+            "action": "review same compatibility-line update",
+            "candidate": "2.8.6"
+          },
+          "constraints": "Review changelog and existing unit/integration or browser gates; same-major is only a candidate classification.",
+          "source": "https://registry.npmjs.org/cors"
+        },
+        {
+          "name": "csv-stringify",
+          "kind": "dependencies",
+          "declared": "6.5.1",
+          "current_installed": "6.5.1",
+          "locked": "6.5.1",
+          "latest_stable": "6.9.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "6.5.1",
+          "latest_in_caret_compatibility_line": "6.9.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "2-compatible",
+            "action": "review same compatibility-line update",
+            "candidate": "6.9.0"
+          },
+          "constraints": "Review changelog and existing unit/integration or browser gates; same-major is only a candidate classification.",
+          "source": "https://registry.npmjs.org/csv-stringify"
+        },
+        {
+          "name": "dotenv",
+          "kind": "dependencies",
+          "declared": "16.4.7",
+          "current_installed": "16.4.7",
+          "locked": "16.4.7",
+          "latest_stable": "18.0.10",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "16.4.7",
+          "latest_in_caret_compatibility_line": "16.6.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=12"
+          },
+          "latest_engines": {
+            "node": ">=12"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "2-compatible",
+            "action": "review same compatibility-line update",
+            "candidate": "16.6.1"
+          },
+          "constraints": "Preserve environment precedence and quiet startup; review every intervening major.",
+          "source": "https://registry.npmjs.org/dotenv"
+        },
+        {
+          "name": "express",
+          "kind": "dependencies",
+          "declared": "4.22.1",
+          "current_installed": "4.22.1",
+          "locked": "4.22.1",
+          "latest_stable": "5.3.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "4.22.1",
+          "latest_in_caret_compatibility_line": "4.22.3",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">= 0.10.0"
+          },
+          "latest_engines": {
+            "node": ">= 18"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "2-compatible",
+            "action": "review same compatibility-line update",
+            "candidate": "4.22.3"
+          },
+          "constraints": "Patch 4.x first; 5.x requires route pattern, query parsing, body parsing and asynchronous error review; preserve mobile/API contracts.",
+          "source": "https://registry.npmjs.org/express"
+        },
+        {
+          "name": "helmet",
+          "kind": "dependencies",
+          "declared": "7.1.0",
+          "current_installed": "7.1.0",
+          "locked": "7.1.0",
+          "latest_stable": "8.3.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "7.1.0",
+          "latest_in_caret_compatibility_line": "7.2.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=16.0.0"
+          },
+          "latest_engines": {
+            "node": ">=18.0.0"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "2-compatible",
+            "action": "review same compatibility-line update",
+            "candidate": "7.2.0"
+          },
+          "constraints": "Review browser CSP, asset loading and header defaults when moving to 8.x.",
+          "source": "https://registry.npmjs.org/helmet"
+        },
+        {
+          "name": "jose",
+          "kind": "dependencies",
+          "declared": "6.1.3",
+          "current_installed": "6.1.3",
+          "locked": "6.1.3",
+          "latest_stable": "6.2.17",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "6.1.3",
+          "latest_in_caret_compatibility_line": "6.2.17",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "2-compatible",
+            "action": "review same compatibility-line update",
+            "candidate": "6.2.17"
+          },
+          "constraints": "Preserve JWT/JWK algorithms, claims, expiry, Apple/Google wallet and mobile authorization behavior.",
+          "source": "https://registry.npmjs.org/jose"
+        },
+        {
+          "name": "luxon",
+          "kind": "dependencies",
+          "declared": "3.7.2",
+          "current_installed": "3.7.2",
+          "locked": "3.7.2",
+          "latest_stable": "3.7.2",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "3.7.2",
+          "latest_in_caret_compatibility_line": "3.7.2",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=12"
+          },
+          "latest_engines": {
+            "node": ">=12"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "retain",
+            "action": "retain current",
+            "candidate": "3.7.2"
+          },
+          "constraints": "Review changelog and existing unit/integration or browser gates; same-major is only a candidate classification.",
+          "source": "https://registry.npmjs.org/luxon"
+        },
+        {
+          "name": "nanoid",
+          "kind": "dependencies",
+          "declared": "5.1.16",
+          "current_installed": "5.1.16",
+          "locked": "5.1.16",
+          "latest_stable": "6.0.2",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "5.1.16",
+          "latest_in_caret_compatibility_line": "5.1.16",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": "^18 || >=20"
+          },
+          "latest_engines": {
+            "node": "^22 || ^24 || >=26"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "4-major-migrations",
+            "action": "review breaking update",
+            "candidate": "6.0.2"
+          },
+          "constraints": "Preserve identifier size, alphabet and import style; stored identifiers must remain accepted.",
+          "source": "https://registry.npmjs.org/nanoid"
+        },
+        {
+          "name": "node-cron",
+          "kind": "dependencies",
+          "declared": "4.6.0",
+          "current_installed": "4.6.0",
+          "locked": "4.6.0",
+          "latest_stable": "4.6.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "4.6.0",
+          "latest_in_caret_compatibility_line": "4.6.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=20"
+          },
+          "latest_engines": {
+            "node": ">=20"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "retain",
+            "action": "retain current",
+            "candidate": "4.6.0"
+          },
+          "constraints": "Preserve timezone, schedules, deduplication and worker job behavior; no production scheduling during verification.",
+          "source": "https://registry.npmjs.org/node-cron"
+        },
+        {
+          "name": "nodemailer",
+          "kind": "dependencies",
+          "declared": "10.4.0",
+          "current_installed": "10.4.0",
+          "locked": "10.4.0",
+          "latest_stable": "10.5.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "10.4.0",
+          "latest_in_caret_compatibility_line": "10.5.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=20.0.0"
+          },
+          "latest_engines": {
+            "node": ">=20.0.0"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "2-compatible",
+            "action": "review same compatibility-line update",
+            "candidate": "10.5.0"
+          },
+          "constraints": "Validate MIME and provider settings using local/mock transport; do not send real messages.",
+          "source": "https://registry.npmjs.org/nodemailer"
+        },
+        {
+          "name": "passkit-generator",
+          "kind": "dependencies",
+          "declared": "3.7.0",
+          "current_installed": "3.7.0",
+          "locked": "3.7.0",
+          "latest_stable": "3.7.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "3.7.0",
+          "latest_in_caret_compatibility_line": "3.7.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=14.21.3"
+          },
+          "latest_engines": {
+            "node": ">=14.21.3"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "retain",
+            "action": "retain current",
+            "candidate": "3.7.0"
+          },
+          "constraints": "Keep joi 17.13.9 override until upstream resolves a safe compatible version; use offline wallet fixtures.",
+          "source": "https://registry.npmjs.org/passkit-generator"
+        },
+        {
+          "name": "pg",
+          "kind": "dependencies",
+          "declared": "8.13.1",
+          "current_installed": "8.13.1",
+          "locked": "8.13.1",
+          "latest_stable": "8.23.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "8.13.1",
+          "latest_in_caret_compatibility_line": "8.23.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">= 8.0.0"
+          },
+          "latest_engines": {
+            "node": ">= 16.0.0"
+          },
+          "current_peer_dependencies": {
+            "pg-native": ">=3.0.1"
+          },
+          "latest_peer_dependencies": {
+            "pg-native": ">=3.0.1"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "2-compatible",
+            "action": "review same compatibility-line update",
+            "candidate": "8.23.1"
+          },
+          "constraints": "Check connection pool release, transaction rollback, RLS/tenant isolation and idempotency using disposable PostgreSQL 16.",
+          "source": "https://registry.npmjs.org/pg"
+        },
+        {
+          "name": "pino",
+          "kind": "dependencies",
+          "declared": "9.6.0",
+          "current_installed": "9.6.0",
+          "locked": "9.6.0",
+          "latest_stable": "10.4.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "9.6.0",
+          "latest_in_caret_compatibility_line": "9.14.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "2-compatible",
+            "action": "review same compatibility-line update",
+            "candidate": "9.14.0"
+          },
+          "constraints": "Update with pino-http as a reviewed logging pair; preserve redaction and log field consumers.",
+          "source": "https://registry.npmjs.org/pino"
+        },
+        {
+          "name": "pino-http",
+          "kind": "dependencies",
+          "declared": "10.3.0",
+          "current_installed": "10.3.0",
+          "locked": "10.3.0",
+          "latest_stable": "11.0.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "10.3.0",
+          "latest_in_caret_compatibility_line": "10.5.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "2-compatible",
+            "action": "review same compatibility-line update",
+            "candidate": "10.5.0"
+          },
+          "constraints": "Update with pino; preserve request serializers and secret redaction.",
+          "source": "https://registry.npmjs.org/pino-http"
+        },
+        {
+          "name": "prom-client",
+          "kind": "dependencies",
+          "declared": "15.1.3",
+          "current_installed": "15.1.3",
+          "locked": "15.1.3",
+          "latest_stable": "15.1.3",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "15.1.3",
+          "latest_in_caret_compatibility_line": "15.1.3",
+          "latest_unsupported_line": "15.1.3",
+          "current_deprecation": "prom-client has been replaced by @prometheus-io/client",
+          "latest_deprecation": "prom-client has been replaced by @prometheus-io/client",
+          "current_engines": {
+            "node": "^16 || ^18 || >=20"
+          },
+          "latest_engines": {
+            "node": "^16 || ^18 || >=20"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "4-major-migrations",
+            "candidate": "@prometheus-io/client@0.16.1",
+            "action": "replace after compatibility review"
+          },
+          "constraints": "Registry marks package replaced by @prometheus-io/client; replacement is a migration, not a same-name update. Preserve metric names, labels and privacy.",
+          "source": "https://registry.npmjs.org/prom-client"
+        },
+        {
+          "name": "qrcode",
+          "kind": "dependencies",
+          "declared": "1.5.4",
+          "current_installed": "1.5.4",
+          "locked": "1.5.4",
+          "latest_stable": "1.5.4",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "1.5.4",
+          "latest_in_caret_compatibility_line": "1.5.4",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=10.13.0"
+          },
+          "latest_engines": {
+            "node": ">=10.13.0"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "retain",
+            "action": "retain current",
+            "candidate": "1.5.4"
+          },
+          "constraints": "Review changelog and existing unit/integration or browser gates; same-major is only a candidate classification.",
+          "source": "https://registry.npmjs.org/qrcode"
+        },
+        {
+          "name": "redis",
+          "kind": "dependencies",
+          "declared": "4.6.13",
+          "current_installed": "4.6.13",
+          "locked": "4.6.13",
+          "latest_stable": "6.3.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "4.6.13",
+          "latest_in_caret_compatibility_line": "4.7.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": {
+            "node": ">= 20.0.0"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "2-compatible",
+            "action": "review same compatibility-line update",
+            "candidate": "4.7.1"
+          },
+          "constraints": "Update 4.x first; review 4-to-5 and 5-to-6 client changes separately from Redis server changes; verify connection shutdown/reconnect and atomic rate limits.",
+          "source": "https://registry.npmjs.org/redis"
+        },
+        {
+          "name": "swagger-ui-express",
+          "kind": "dependencies",
+          "declared": "5.0.1",
+          "current_installed": "5.0.1",
+          "locked": "5.0.1",
+          "latest_stable": "5.0.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "5.0.1",
+          "latest_in_caret_compatibility_line": "5.0.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">= v0.10.32"
+          },
+          "latest_engines": {
+            "node": ">= v0.10.32"
+          },
+          "current_peer_dependencies": {
+            "express": ">=4.0.0 || >=5.0.0-beta"
+          },
+          "latest_peer_dependencies": {
+            "express": ">=4.0.0 || >=5.0.0-beta"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "retain",
+            "action": "retain current",
+            "candidate": "5.0.1"
+          },
+          "constraints": "Review changelog and existing unit/integration or browser gates; same-major is only a candidate classification.",
+          "source": "https://registry.npmjs.org/swagger-ui-express"
+        },
+        {
+          "name": "zod",
+          "kind": "dependencies",
+          "declared": "3.25.1",
+          "current_installed": "3.25.1",
+          "locked": "3.25.1",
+          "latest_stable": "4.6.7",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "3.25.1",
+          "latest_in_caret_compatibility_line": "3.25.76",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [
+            {
+              "severity": "high",
+              "via": [
+                {
+                  "source": 1243066,
+                  "name": "zod",
+                  "dependency": "zod",
+                  "title": "Zod can exhaust memory while validating oversized constrained collections",
+                  "url": "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5",
+                  "severity": "high",
+                  "cwe": [
+                    "CWE-770"
+                  ],
+                  "cvss": {
+                    "score": 7.5,
+                    "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+                  },
+                  "range": "<4.6.6"
+                }
+              ],
+              "range": "<4.6.6"
+            }
+          ],
+          "proposal": {
+            "phase": "1-security",
+            "candidate": "4.6.7",
+            "action": "migrate"
+          },
+          "constraints": "High advisory affects <4.6.6; latest 3.x 3.25.76 is still in affected range. Target 4.6.7 with validation and OpenAPI migration; do not claim zod/v3 import solves it.",
+          "source": "https://registry.npmjs.org/zod"
+        },
+        {
+          "name": "@eslint/js",
+          "kind": "devDependencies",
+          "declared": "9.39.2",
+          "current_installed": "9.39.2",
+          "locked": "9.39.2",
+          "latest_stable": "10.0.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "9.39.2",
+          "latest_in_caret_compatibility_line": "9.39.5",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+          },
+          "latest_engines": {
+            "node": "^20.19.0 || ^22.13.0 || >=24"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": {
+            "eslint": "^10.0.0"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "4-tooling",
+            "candidate": "10.0.1",
+            "action": "migrate with ESLint"
+          },
+          "constraints": "Move in the same change as ESLint; candidate 10.0.1 pairs with ESLint 10, versions need not be identical.",
+          "source": "https://registry.npmjs.org/%40eslint%2Fjs"
+        },
+        {
+          "name": "@playwright/test",
+          "kind": "devDependencies",
+          "declared": "1.58.1",
+          "current_installed": "1.58.1",
+          "locked": "1.58.1",
+          "latest_stable": "1.65.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "1.58.1",
+          "latest_in_caret_compatibility_line": "1.65.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=18"
+          },
+          "latest_engines": {
+            "node": ">=20"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "3-browser",
+            "candidate": "1.65.0",
+            "action": "update browser tooling as a unit"
+          },
+          "constraints": "Update package, browser binaries and Docker image together; review browser visual changes, keep existing coverage.",
+          "source": "https://registry.npmjs.org/%40playwright%2Ftest"
+        },
+        {
+          "name": "@types/express",
+          "kind": "devDependencies",
+          "declared": "5.0.6",
+          "current_installed": "5.0.6",
+          "locked": "5.0.6",
+          "latest_stable": "5.0.6",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "5.0.6",
+          "latest_in_caret_compatibility_line": "5.0.6",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "2-compatible",
+            "candidate": "4.17.25",
+            "action": "align types with Express 4; separate Express 5 migration"
+          },
+          "constraints": "Current types major 5 differs from Express runtime 4. Align to 4.17.25 while retaining Express 4, or deliberately retain 5 with the separate Express 5 migration.",
+          "source": "https://registry.npmjs.org/%40types%2Fexpress"
+        },
+        {
+          "name": "@types/express-serve-static-core",
+          "kind": "devDependencies",
+          "declared": "5.1.1",
+          "current_installed": "5.1.1",
+          "locked": "5.1.1",
+          "latest_stable": "5.1.3",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "5.1.1",
+          "latest_in_caret_compatibility_line": "5.1.3",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "2-compatible",
+            "candidate": "4.19.9",
+            "action": "align types with Express 4; separate Express 5 migration"
+          },
+          "constraints": "Current types major 5 differs from Express runtime 4. Use 4.19.9 for an Express 4 typing alignment or 5.1.3 with Express 5.",
+          "source": "https://registry.npmjs.org/%40types%2Fexpress-serve-static-core"
+        },
+        {
+          "name": "@types/node",
+          "kind": "devDependencies",
+          "declared": "25.2.0",
+          "current_installed": "25.2.0",
+          "locked": "25.2.0",
+          "latest_stable": "26.6.6",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "25.2.0",
+          "latest_in_caret_compatibility_line": "25.9.9",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "0-runtime",
+            "candidate": "24.19.2",
+            "action": "align root types to Node 24"
+          },
+          "constraints": "Types should model the selected runtime: root Node 24 => 24.19.2; native Node 22 => 22.20.5. Latest 26.6.6 is not automatically appropriate.",
+          "source": "https://registry.npmjs.org/%40types%2Fnode"
+        },
+        {
+          "name": "eslint",
+          "kind": "devDependencies",
+          "declared": "9.39.2",
+          "current_installed": "9.39.2",
+          "locked": "9.39.2",
+          "latest_stable": "10.14.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "9.39.2",
+          "latest_in_caret_compatibility_line": "9.39.5",
+          "latest_unsupported_line": "9.39.5",
+          "current_deprecation": "This version is no longer supported. Please see https://eslint.org/version-support for other options.",
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+          },
+          "latest_engines": {
+            "node": "^20.19.0 || ^22.13.0 || >=24"
+          },
+          "current_peer_dependencies": {
+            "jiti": "*"
+          },
+          "latest_peer_dependencies": {
+            "jiti": "*"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "4-tooling",
+            "candidate": "10.14.0",
+            "action": "migrate with plugins"
+          },
+          "constraints": "9.x is EOL. Root can migrate to 10.14.0 with @eslint/js and security plugin; native must verify all Expo-config plugin peers first.",
+          "source": "https://registry.npmjs.org/eslint"
+        },
+        {
+          "name": "eslint-plugin-security",
+          "kind": "devDependencies",
+          "declared": "3.0.1",
+          "current_installed": "3.0.1",
+          "locked": "3.0.1",
+          "latest_stable": "4.2.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "3.0.1",
+          "latest_in_caret_compatibility_line": "3.0.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+          },
+          "latest_engines": {
+            "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "4-tooling",
+            "candidate": "4.2.1",
+            "action": "migrate with ESLint"
+          },
+          "constraints": "Review rules and plugin compatibility with ESLint 10; keep security checks active.",
+          "source": "https://registry.npmjs.org/eslint-plugin-security"
+        },
+        {
+          "name": "globals",
+          "kind": "devDependencies",
+          "declared": "17.3.0",
+          "current_installed": "17.3.0",
+          "locked": "17.3.0",
+          "latest_stable": "17.14.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "17.3.0",
+          "latest_in_caret_compatibility_line": "17.14.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=18"
+          },
+          "latest_engines": {
+            "node": ">=18"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "2-compatible",
+            "action": "review same compatibility-line update",
+            "candidate": "17.14.0"
+          },
+          "constraints": "Review changelog and existing unit/integration or browser gates; same-major is only a candidate classification.",
+          "source": "https://registry.npmjs.org/globals"
+        },
+        {
+          "name": "typescript",
+          "kind": "devDependencies",
+          "declared": "5.9.3",
+          "current_installed": "5.9.3",
+          "locked": "5.9.3",
+          "latest_stable": "7.0.2",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "5.9.3",
+          "latest_in_caret_compatibility_line": "5.9.3",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=14.17"
+          },
+          "latest_engines": {
+            "node": ">=16.20.0"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "4-tooling",
+            "candidate": "6.0.3 then 7.0.2",
+            "action": "stage compiler majors"
+          },
+          "constraints": "Root 5.9.3 and native 6.0.3 are distinct toolchains. Stage 6.0.3 before 7.0.2 for root; verify JS/JSDoc checks and Expo/parser support before native changes.",
+          "source": "https://registry.npmjs.org/typescript"
+        },
+        {
+          "name": "zod-to-json-schema",
+          "kind": "devDependencies",
+          "declared": "3.25.1",
+          "current_installed": "3.25.1",
+          "locked": "3.25.1",
+          "latest_stable": "3.25.2",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "3.25.1",
+          "latest_in_caret_compatibility_line": "3.25.2",
+          "latest_unsupported_line": "3.25.2",
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "zod": "^3.25 || ^4"
+          },
+          "latest_peer_dependencies": {
+            "zod": "^3.25.28 || ^4"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "1-security",
+            "candidate": null,
+            "action": "replace with zod.toJSONSchema; preserve OpenAPI contract"
+          },
+          "constraints": "3.25.1 peers zod ^3.25 || ^4; 3.25.2 peers ^3.25.28 || ^4. Both consume v3 schemas, not v4 schemas. Archived upstream recommends Zod native JSON Schema conversion.",
+          "source": "https://registry.npmjs.org/zod-to-json-schema"
+        }
+      ]
+    },
+    "merchant": {
+      "path": "web/merchant",
+      "manifest_hashes": {
+        "package.json": "57159e6041bf7884a293acebee15389b62f6ccd030d1ad66907c2641d5e4fe31",
+        "package-lock.json": "ca426a17a4e0ef97ff29c00ed8190f0fcbef238e71c55d2cf5f2c312cfe28189"
+      },
+      "version": "1.0.0",
+      "lockfile_version": 3,
+      "declared_engines": null,
+      "direct_runtime_count": 7,
+      "direct_dev_count": 5,
+      "locked_package_entries": 121,
+      "unique_package_names": 121,
+      "audit_all_counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "audit_production_counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "audit_dependency_counts": {
+        "prod": 65,
+        "dev": 56,
+        "optional": 39,
+        "peer": 1,
+        "peerOptional": 0,
+        "total": 121
+      },
+      "audit_unique_advisory_urls": [],
+      "audit_vulnerabilities": {},
+      "dependencies": [
+        {
+          "name": "@mantine/charts",
+          "kind": "dependencies",
+          "declared": "9.8.0",
+          "current_installed": "9.8.0",
+          "locked": "9.8.0",
+          "latest_stable": "9.8.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "9.8.0",
+          "latest_in_caret_compatibility_line": "9.8.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "^19.2.0",
+            "recharts": ">=3.2.1",
+            "react-dom": "^19.2.0",
+            "@mantine/core": "9.8.0",
+            "@mantine/hooks": "9.8.0"
+          },
+          "latest_peer_dependencies": {
+            "react": "^19.2.0",
+            "recharts": ">=3.2.1",
+            "react-dom": "^19.2.0",
+            "@mantine/core": "9.8.0",
+            "@mantine/hooks": "9.8.0"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "3-browser",
+            "action": "retain current",
+            "candidate": "9.8.0"
+          },
+          "constraints": "Keep all Mantine packages on identical 9.8.0; declared React peer range ^19.2.0 allows 19.3.1.",
+          "source": "https://registry.npmjs.org/%40mantine%2Fcharts"
+        },
+        {
+          "name": "@mantine/core",
+          "kind": "dependencies",
+          "declared": "9.8.0",
+          "current_installed": "9.8.0",
+          "locked": "9.8.0",
+          "latest_stable": "9.8.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "9.8.0",
+          "latest_in_caret_compatibility_line": "9.8.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "^19.2.0",
+            "react-dom": "^19.2.0",
+            "@mantine/hooks": "9.8.0"
+          },
+          "latest_peer_dependencies": {
+            "react": "^19.2.0",
+            "react-dom": "^19.2.0",
+            "@mantine/hooks": "9.8.0"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "3-browser",
+            "action": "retain current",
+            "candidate": "9.8.0"
+          },
+          "constraints": "Keep all Mantine packages on identical 9.8.0; declared React peer range ^19.2.0 allows 19.3.1.",
+          "source": "https://registry.npmjs.org/%40mantine%2Fcore"
+        },
+        {
+          "name": "@mantine/form",
+          "kind": "dependencies",
+          "declared": "9.8.0",
+          "current_installed": "9.8.0",
+          "locked": "9.8.0",
+          "latest_stable": "9.8.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "9.8.0",
+          "latest_in_caret_compatibility_line": "9.8.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "^19.2.0"
+          },
+          "latest_peer_dependencies": {
+            "react": "^19.2.0"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "3-browser",
+            "action": "retain current",
+            "candidate": "9.8.0"
+          },
+          "constraints": "Keep all Mantine packages on identical 9.8.0; declared React peer range ^19.2.0 allows 19.3.1.",
+          "source": "https://registry.npmjs.org/%40mantine%2Fform"
+        },
+        {
+          "name": "@mantine/hooks",
+          "kind": "dependencies",
+          "declared": "9.8.0",
+          "current_installed": "9.8.0",
+          "locked": "9.8.0",
+          "latest_stable": "9.8.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "9.8.0",
+          "latest_in_caret_compatibility_line": "9.8.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "^19.2.0"
+          },
+          "latest_peer_dependencies": {
+            "react": "^19.2.0"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "3-browser",
+            "action": "retain current",
+            "candidate": "9.8.0"
+          },
+          "constraints": "Keep all Mantine packages on identical 9.8.0; declared React peer range ^19.2.0 allows 19.3.1.",
+          "source": "https://registry.npmjs.org/%40mantine%2Fhooks"
+        },
+        {
+          "name": "react",
+          "kind": "dependencies",
+          "declared": "19.2.0",
+          "current_installed": "19.2.0",
+          "locked": "19.2.0",
+          "latest_stable": "19.3.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "19.2.0",
+          "latest_in_caret_compatibility_line": "19.3.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=0.10.0"
+          },
+          "latest_engines": {
+            "node": ">=0.10.0"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "3-browser",
+            "action": "update after browser verification",
+            "candidate": "19.3.1"
+          },
+          "constraints": "Keep react and react-dom exactly paired. Merchant may use 19.3.1; Expo 57 pins 19.2.3 and Expo 58.0.24 bundles 19.3.0.",
+          "source": "https://registry.npmjs.org/react"
+        },
+        {
+          "name": "react-dom",
+          "kind": "dependencies",
+          "declared": "19.2.0",
+          "current_installed": "19.2.0",
+          "locked": "19.2.0",
+          "latest_stable": "19.3.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "19.2.0",
+          "latest_in_caret_compatibility_line": "19.3.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "^19.2.0"
+          },
+          "latest_peer_dependencies": {
+            "react": "^19.3.1"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "3-browser",
+            "action": "update after browser verification",
+            "candidate": "19.3.1"
+          },
+          "constraints": "Keep paired with react; native/browser Expo versions follow the selected SDK bundle.",
+          "source": "https://registry.npmjs.org/react-dom"
+        },
+        {
+          "name": "recharts",
+          "kind": "dependencies",
+          "declared": "3.10.1",
+          "current_installed": "3.10.1",
+          "locked": "3.10.1",
+          "latest_stable": "3.10.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "3.10.1",
+          "latest_in_caret_compatibility_line": "3.10.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=18"
+          },
+          "latest_engines": {
+            "node": ">=18"
+          },
+          "current_peer_dependencies": {
+            "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
+            "react-is": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
+            "react-dom": "^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
+          },
+          "latest_peer_dependencies": {
+            "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
+            "react-is": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
+            "react-dom": "^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "3-browser",
+            "action": "retain current",
+            "candidate": "3.10.1"
+          },
+          "constraints": "Review changelog and existing unit/integration or browser gates; same-major is only a candidate classification.",
+          "source": "https://registry.npmjs.org/recharts"
+        },
+        {
+          "name": "@resvg/resvg-js",
+          "kind": "devDependencies",
+          "declared": "2.6.2",
+          "current_installed": "2.6.2",
+          "locked": "2.6.2",
+          "latest_stable": "2.6.2",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "2.6.2",
+          "latest_in_caret_compatibility_line": "2.6.2",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">= 10"
+          },
+          "latest_engines": {
+            "node": ">= 10"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "3-browser",
+            "action": "retain current",
+            "candidate": "2.6.2"
+          },
+          "constraints": "Review changelog and existing unit/integration or browser gates; same-major is only a candidate classification.",
+          "source": "https://registry.npmjs.org/%40resvg%2Fresvg-js"
+        },
+        {
+          "name": "@vitejs/plugin-react",
+          "kind": "devDependencies",
+          "declared": "6.3.0",
+          "current_installed": "6.3.0",
+          "locked": "6.3.0",
+          "latest_stable": "6.3.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "6.3.0",
+          "latest_in_caret_compatibility_line": "6.3.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": "^20.19.0 || >=22.12.0"
+          },
+          "latest_engines": {
+            "node": "^20.19.0 || >=22.12.0"
+          },
+          "current_peer_dependencies": {
+            "vite": "^8.0.0",
+            "oxc-transform-react": ">=0.152.0 <0.157.0",
+            "@rolldown/plugin-babel": "^0.1.7 || ^0.2.0 || ^0.3.0",
+            "babel-plugin-react-compiler": "^1.0.0"
+          },
+          "latest_peer_dependencies": {
+            "vite": "^8.0.0",
+            "oxc-transform-react": ">=0.152.0 <0.157.0",
+            "@rolldown/plugin-babel": "^0.1.7 || ^0.2.0 || ^0.3.0",
+            "babel-plugin-react-compiler": "^1.0.0"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "3-browser",
+            "action": "retain current",
+            "candidate": "6.3.0"
+          },
+          "constraints": "6.3.0 declares Vite ^8.0.0; preserve this pair.",
+          "source": "https://registry.npmjs.org/%40vitejs%2Fplugin-react"
+        },
+        {
+          "name": "axe-core",
+          "kind": "devDependencies",
+          "declared": "4.14.0",
+          "current_installed": "4.14.0",
+          "locked": "4.14.0",
+          "latest_stable": "4.14.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "4.14.0",
+          "latest_in_caret_compatibility_line": "4.14.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=4"
+          },
+          "latest_engines": {
+            "node": ">=4"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "3-browser",
+            "action": "retain current",
+            "candidate": "4.14.0"
+          },
+          "constraints": "Review changelog and existing unit/integration or browser gates; same-major is only a candidate classification.",
+          "source": "https://registry.npmjs.org/axe-core"
+        },
+        {
+          "name": "jsqr",
+          "kind": "devDependencies",
+          "declared": "1.4.0",
+          "current_installed": "1.4.0",
+          "locked": "1.4.0",
+          "latest_stable": "1.4.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "1.4.0",
+          "latest_in_caret_compatibility_line": "1.4.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "3-browser",
+            "action": "retain current",
+            "candidate": "1.4.0"
+          },
+          "constraints": "Review changelog and existing unit/integration or browser gates; same-major is only a candidate classification.",
+          "source": "https://registry.npmjs.org/jsqr"
+        },
+        {
+          "name": "vite",
+          "kind": "devDependencies",
+          "declared": "8.3.7",
+          "current_installed": "8.3.7",
+          "locked": "8.3.7",
+          "latest_stable": "8.3.8",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "8.3.7",
+          "latest_in_caret_compatibility_line": "8.3.8",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": "^20.19.0 || >=22.12.0"
+          },
+          "latest_engines": {
+            "node": "^20.19.0 || >=22.12.0"
+          },
+          "current_peer_dependencies": {
+            "tsx": "^4.8.1",
+            "jiti": ">=1.21.0",
+            "less": "^4.0.0",
+            "sass": "^1.70.0",
+            "yaml": "^2.4.2",
+            "stylus": ">=0.54.8",
+            "terser": "^5.16.0",
+            "esbuild": "^0.27.0 || ^0.28.0",
+            "sugarss": "^5.0.0",
+            "@types/node": "^20.19.0 || >=22.12.0",
+            "sass-embedded": "^1.70.0",
+            "@vitejs/devtools": "^0.7.1 || ^0.8.0"
+          },
+          "latest_peer_dependencies": {
+            "tsx": "^4.8.1",
+            "jiti": ">=1.21.0",
+            "less": "^4.0.0",
+            "sass": "^1.70.0",
+            "yaml": "^2.4.2",
+            "stylus": ">=0.54.8",
+            "terser": "^5.16.0",
+            "esbuild": "^0.27.0 || ^0.28.0",
+            "sugarss": "^5.0.0",
+            "@types/node": "^20.19.0 || >=22.12.0",
+            "sass-embedded": "^1.70.0",
+            "@vitejs/devtools": "^0.7.1 || ^0.8.0"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "3-browser",
+            "action": "update after browser verification",
+            "candidate": "8.3.8"
+          },
+          "constraints": "8.3.8 requires Node ^20.19.0 || >=22.12.0; selected supported Node 24 satisfies this. Rebuild notices and versioned browser assets.",
+          "source": "https://registry.npmjs.org/vite"
+        }
+      ]
+    },
+    "customer": {
+      "path": "apps/customer",
+      "manifest_hashes": {
+        "package.json": "64b36c47e18430a2fb33e8f70a11aef6402471ccad49efa45a3be1603bc934ad",
+        "package-lock.json": "ea521e07d67d7d59163b333de19638aec2983e559a467ec7aeba6148844c3360"
+      },
+      "version": "0.1.0",
+      "lockfile_version": 3,
+      "declared_engines": null,
+      "direct_runtime_count": 28,
+      "direct_dev_count": 5,
+      "locked_package_entries": 892,
+      "unique_package_names": 768,
+      "audit_all_counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 11,
+        "high": 0,
+        "critical": 0,
+        "total": 11
+      },
+      "audit_production_counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 4,
+        "high": 0,
+        "critical": 0,
+        "total": 4
+      },
+      "audit_dependency_counts": {
+        "prod": 620,
+        "dev": 252,
+        "optional": 32,
+        "peer": 10,
+        "peerOptional": 0,
+        "total": 892
+      },
+      "audit_unique_advisory_urls": [
+        "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4",
+        "https://github.com/advisories/GHSA-g3hv-75wg-m249"
+      ],
+      "audit_vulnerabilities": {
+        "@expo/fingerprint": {
+          "name": "@expo/fingerprint",
+          "severity": "moderate",
+          "isDirect": false,
+          "via": [
+            "glob",
+            "minimatch"
+          ],
+          "effects": [
+            "expo"
+          ],
+          "range": ">=0.11.12-canary-20250303-4dba60e",
+          "nodes": [
+            "node_modules/@expo/fingerprint"
+          ],
+          "fixAvailable": {
+            "name": "expo",
+            "version": "52.0.49",
+            "isSemVerMajor": true
+          }
+        },
+        "@typescript-eslint/eslint-plugin": {
+          "name": "@typescript-eslint/eslint-plugin",
+          "severity": "moderate",
+          "isDirect": false,
+          "via": [
+            "@typescript-eslint/parser",
+            "@typescript-eslint/type-utils",
+            "@typescript-eslint/utils"
+          ],
+          "effects": [],
+          "range": "6.16.0 - 8.72.2",
+          "nodes": [
+            "node_modules/@typescript-eslint/eslint-plugin"
+          ],
+          "fixAvailable": true
+        },
+        "@typescript-eslint/parser": {
+          "name": "@typescript-eslint/parser",
+          "severity": "moderate",
+          "isDirect": false,
+          "via": [
+            "@typescript-eslint/typescript-estree"
+          ],
+          "effects": [
+            "@typescript-eslint/eslint-plugin",
+            "eslint-config-expo"
+          ],
+          "range": "6.16.0 - 8.72.2",
+          "nodes": [
+            "node_modules/@typescript-eslint/parser"
+          ],
+          "fixAvailable": {
+            "name": "eslint-config-expo",
+            "version": "6.0.0",
+            "isSemVerMajor": true
+          }
+        },
+        "@typescript-eslint/type-utils": {
+          "name": "@typescript-eslint/type-utils",
+          "severity": "moderate",
+          "isDirect": false,
+          "via": [
+            "@typescript-eslint/typescript-estree",
+            "@typescript-eslint/utils"
+          ],
+          "effects": [
+            "@typescript-eslint/eslint-plugin"
+          ],
+          "range": "6.16.0 - 8.72.2",
+          "nodes": [
+            "node_modules/@typescript-eslint/type-utils"
+          ],
+          "fixAvailable": true
+        },
+        "@typescript-eslint/typescript-estree": {
+          "name": "@typescript-eslint/typescript-estree",
+          "severity": "moderate",
+          "isDirect": false,
+          "via": [
+            "minimatch"
+          ],
+          "effects": [
+            "@typescript-eslint/parser",
+            "@typescript-eslint/type-utils",
+            "@typescript-eslint/utils"
+          ],
+          "range": "6.16.0 - 8.72.2",
+          "nodes": [
+            "node_modules/@typescript-eslint/typescript-estree"
+          ],
+          "fixAvailable": {
+            "name": "eslint-config-expo",
+            "version": "6.0.0",
+            "isSemVerMajor": true
+          }
+        },
+        "@typescript-eslint/utils": {
+          "name": "@typescript-eslint/utils",
+          "severity": "moderate",
+          "isDirect": false,
+          "via": [
+            "@typescript-eslint/typescript-estree"
+          ],
+          "effects": [
+            "eslint-plugin-expo"
+          ],
+          "range": "6.16.0 - 8.72.2",
+          "nodes": [
+            "node_modules/@typescript-eslint/utils"
+          ],
+          "fixAvailable": true
+        },
+        "eslint-config-expo": {
+          "name": "eslint-config-expo",
+          "severity": "moderate",
+          "isDirect": true,
+          "via": [
+            "@typescript-eslint/eslint-plugin",
+            "@typescript-eslint/parser",
+            "eslint-plugin-expo"
+          ],
+          "effects": [],
+          "range": "<=0.0.1-canary-20240418-8d74597 || >=7.0.0",
+          "nodes": [
+            "node_modules/eslint-config-expo"
+          ],
+          "fixAvailable": {
+            "name": "eslint-config-expo",
+            "version": "6.0.0",
+            "isSemVerMajor": true
+          }
+        },
+        "eslint-plugin-expo": {
+          "name": "eslint-plugin-expo",
+          "severity": "moderate",
+          "isDirect": false,
+          "via": [
+            "@typescript-eslint/utils"
+          ],
+          "effects": [],
+          "range": ">=0.0.1-canary-20240327-a7302d9",
+          "nodes": [
+            "node_modules/eslint-plugin-expo"
+          ],
+          "fixAvailable": true
+        },
+        "expo": {
+          "name": "expo",
+          "severity": "moderate",
+          "isDirect": true,
+          "via": [
+            "@expo/fingerprint"
+          ],
+          "effects": [],
+          "range": ">=53.0.0-canary-20241211-61c49bd",
+          "nodes": [
+            "node_modules/expo"
+          ],
+          "fixAvailable": {
+            "name": "expo",
+            "version": "52.0.49",
+            "isSemVerMajor": true
+          }
+        },
+        "glob": {
+          "name": "glob",
+          "severity": "moderate",
+          "isDirect": false,
+          "via": [
+            {
+              "source": 1244013,
+              "name": "glob",
+              "dependency": "glob",
+              "title": "Glob: AbortSignal cancellation bypass allows post-timeout filesystem traversal",
+              "url": "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4",
+              "severity": "moderate",
+              "cwe": [
+                "CWE-400"
+              ],
+              "cvss": {
+                "score": 0,
+                "vectorString": null
+              },
+              "range": ">=9.0.0 <=14.0.1"
+            },
+            "minimatch"
+          ],
+          "effects": [
+            "@expo/fingerprint"
+          ],
+          "range": "9.0.0 - 14.0.1",
+          "nodes": [
+            "node_modules/@expo/fingerprint/node_modules/glob"
+          ],
+          "fixAvailable": {
+            "name": "expo",
+            "version": "52.0.49",
+            "isSemVerMajor": true
+          }
+        },
+        "minimatch": {
+          "name": "minimatch",
+          "severity": "moderate",
+          "isDirect": false,
+          "via": [
+            {
+              "source": 1244623,
+              "name": "minimatch",
+              "dependency": "minimatch",
+              "title": "minimatch has potential denial of service via globparts amplification",
+              "url": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+              "severity": "moderate",
+              "cwe": [
+                "CWE-405"
+              ],
+              "cvss": {
+                "score": 0,
+                "vectorString": null
+              },
+              "range": ">=7.0.0 <11.0.1"
+            }
+          ],
+          "effects": [
+            "@expo/fingerprint",
+            "@typescript-eslint/typescript-estree",
+            "glob"
+          ],
+          "range": "7.0.0 - 11.0.0",
+          "nodes": [
+            "node_modules/minimatch"
+          ],
+          "fixAvailable": {
+            "name": "expo",
+            "version": "52.0.49",
+            "isSemVerMajor": true
+          }
+        }
+      },
+      "dependencies": [
+        {
+          "name": "@expo-google-fonts/bricolage-grotesque",
+          "kind": "dependencies",
+          "declared": "^0.4.1",
+          "current_installed": "0.4.1",
+          "locked": "0.4.1",
+          "latest_stable": "0.4.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "0.4.1",
+          "latest_in_caret_compatibility_line": "0.4.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "0.4.1",
+            "next_sdk_candidate": null
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/%40expo-google-fonts%2Fbricolage-grotesque"
+        },
+        {
+          "name": "@expo-google-fonts/fraunces",
+          "kind": "dependencies",
+          "declared": "^0.4.1",
+          "current_installed": "0.4.1",
+          "locked": "0.4.1",
+          "latest_stable": "0.4.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "0.4.1",
+          "latest_in_caret_compatibility_line": "0.4.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "0.4.1",
+            "next_sdk_candidate": null
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/%40expo-google-fonts%2Ffraunces"
+        },
+        {
+          "name": "@expo-google-fonts/inter",
+          "kind": "dependencies",
+          "declared": "^0.4.2",
+          "current_installed": "0.4.2",
+          "locked": "0.4.2",
+          "latest_stable": "0.4.2",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "0.4.2",
+          "latest_in_caret_compatibility_line": "0.4.2",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "0.4.2",
+            "next_sdk_candidate": null
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/%40expo-google-fonts%2Finter"
+        },
+        {
+          "name": "@expo/vector-icons",
+          "kind": "dependencies",
+          "declared": "^15.1.1",
+          "current_installed": "15.1.1",
+          "locked": "15.1.1",
+          "latest_stable": "15.1.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "15.1.1",
+          "latest_in_caret_compatibility_line": "15.1.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "*",
+            "expo-font": ">=14.0.4",
+            "react-native": "*"
+          },
+          "latest_peer_dependencies": {
+            "react": "*",
+            "expo-font": ">=14.0.4",
+            "react-native": "*"
+          },
+          "expo57_bundle_constraint": "^15.0.2",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "15.1.1",
+            "next_sdk_candidate": "^15.0.2"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/%40expo%2Fvector-icons"
+        },
+        {
+          "name": "@react-native-async-storage/async-storage",
+          "kind": "dependencies",
+          "declared": "2.2.0",
+          "current_installed": "2.2.0",
+          "locked": "2.2.0",
+          "latest_stable": "3.1.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "2.2.0",
+          "latest_in_caret_compatibility_line": "2.2.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react-native": "^0.0.0-0 || >=0.65 <1.0"
+          },
+          "latest_peer_dependencies": {
+            "react": "*",
+            "react-native": "*"
+          },
+          "expo57_bundle_constraint": "2.2.0",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "2.2.0",
+            "next_sdk_candidate": "2.2.0"
+          },
+          "constraints": "Both inspected Expo SDK bundles pin 2.2.0. Upstream 3.1.1 is not an Expo-approved automatic target; preserve installed storage.",
+          "source": "https://registry.npmjs.org/%40react-native-async-storage%2Fasync-storage"
+        },
+        {
+          "name": "@react-native-community/netinfo",
+          "kind": "dependencies",
+          "declared": "12.0.1",
+          "current_installed": "12.0.1",
+          "locked": "12.0.1",
+          "latest_stable": "12.0.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "12.0.1",
+          "latest_in_caret_compatibility_line": "12.0.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "*",
+            "react-native": ">=0.59"
+          },
+          "latest_peer_dependencies": {
+            "react": "*",
+            "react-native": ">=0.59"
+          },
+          "expo57_bundle_constraint": "12.0.1",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "12.0.1",
+            "next_sdk_candidate": "12.0.1"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/%40react-native-community%2Fnetinfo"
+        },
+        {
+          "name": "expo",
+          "kind": "dependencies",
+          "declared": "~57.0.32",
+          "current_installed": "57.0.32",
+          "locked": "57.0.32",
+          "latest_stable": "58.0.24",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "57.0.32",
+          "latest_in_caret_compatibility_line": "57.0.32",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": {
+            "node": "^22.13.0 || ^24.3.0 || ^26.0.0 || >=27.0.0"
+          },
+          "current_peer_dependencies": {
+            "react": "*",
+            "react-dom": "*",
+            "react-native": "*",
+            "react-native-web": "*",
+            "@expo/dom-webview": "*",
+            "@expo/metro-runtime": "*",
+            "react-native-webview": "*"
+          },
+          "latest_peer_dependencies": {
+            "react": "*",
+            "react-dom": "*",
+            "react-native": "*",
+            "react-native-web": "*",
+            "@expo/dom-webview": "*",
+            "@expo/metro-runtime": "*",
+            "react-native-webview": "*"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [
+            {
+              "severity": "moderate",
+              "via": [
+                "@expo/fingerprint"
+              ],
+              "range": ">=53.0.0-canary-20241211-61c49bd"
+            }
+          ],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "57.0.32",
+            "next_sdk_candidate": null
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/expo"
+        },
+        {
+          "name": "expo-constants",
+          "kind": "dependencies",
+          "declared": "~57.0.23",
+          "current_installed": "57.0.23",
+          "locked": "57.0.23",
+          "latest_stable": "58.0.16",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "57.0.23",
+          "latest_in_caret_compatibility_line": "57.0.23",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "expo": "*",
+            "react-native": "*"
+          },
+          "latest_peer_dependencies": {
+            "expo": "*",
+            "react-native": "*"
+          },
+          "expo57_bundle_constraint": "~57.0.23",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "57.0.23",
+            "next_sdk_candidate": "~58.0.16"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/expo-constants"
+        },
+        {
+          "name": "expo-crypto",
+          "kind": "dependencies",
+          "declared": "~57.0.4",
+          "current_installed": "57.0.4",
+          "locked": "57.0.4",
+          "latest_stable": "58.0.8",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "57.0.4",
+          "latest_in_caret_compatibility_line": "57.0.4",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "expo": "*"
+          },
+          "latest_peer_dependencies": {
+            "expo": "*"
+          },
+          "expo57_bundle_constraint": "~57.0.4",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "57.0.4",
+            "next_sdk_candidate": "~58.0.8"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/expo-crypto"
+        },
+        {
+          "name": "expo-dev-client",
+          "kind": "dependencies",
+          "declared": "~57.0.21",
+          "current_installed": "57.0.21",
+          "locked": "57.0.21",
+          "latest_stable": "58.0.19",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "57.0.21",
+          "latest_in_caret_compatibility_line": "57.0.21",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "expo": "*"
+          },
+          "latest_peer_dependencies": {
+            "expo": "*"
+          },
+          "expo57_bundle_constraint": "~57.0.21",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "57.0.21",
+            "next_sdk_candidate": "~58.0.19"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/expo-dev-client"
+        },
+        {
+          "name": "expo-device",
+          "kind": "dependencies",
+          "declared": "~57.0.2",
+          "current_installed": "57.0.2",
+          "locked": "57.0.2",
+          "latest_stable": "58.0.5",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "57.0.2",
+          "latest_in_caret_compatibility_line": "57.0.2",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "expo": "*"
+          },
+          "latest_peer_dependencies": {
+            "expo": "*"
+          },
+          "expo57_bundle_constraint": "~57.0.2",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "57.0.2",
+            "next_sdk_candidate": "~58.0.5"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/expo-device"
+        },
+        {
+          "name": "expo-font",
+          "kind": "dependencies",
+          "declared": "~57.0.4",
+          "current_installed": "57.0.4",
+          "locked": "57.0.4",
+          "latest_stable": "58.0.12",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "57.0.4",
+          "latest_in_caret_compatibility_line": "57.0.4",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "expo": "*",
+            "react": "*",
+            "react-native": "*"
+          },
+          "latest_peer_dependencies": {
+            "expo": "*",
+            "react": "*",
+            "react-native": "*"
+          },
+          "expo57_bundle_constraint": "~57.0.4",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "57.0.4",
+            "next_sdk_candidate": "~58.0.12"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/expo-font"
+        },
+        {
+          "name": "expo-linking",
+          "kind": "dependencies",
+          "declared": "~57.0.13",
+          "current_installed": "57.0.13",
+          "locked": "57.0.13",
+          "latest_stable": "58.0.17",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "57.0.13",
+          "latest_in_caret_compatibility_line": "57.0.13",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "*",
+            "react-native": "*"
+          },
+          "latest_peer_dependencies": {
+            "expo": "*",
+            "react": "*",
+            "react-native": "*"
+          },
+          "expo57_bundle_constraint": "~57.0.13",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "57.0.13",
+            "next_sdk_candidate": "~58.0.17"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/expo-linking"
+        },
+        {
+          "name": "expo-notifications",
+          "kind": "dependencies",
+          "declared": "~57.0.25",
+          "current_installed": "57.0.25",
+          "locked": "57.0.25",
+          "latest_stable": "58.1.9",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "57.0.25",
+          "latest_in_caret_compatibility_line": "57.0.25",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "expo": "*",
+            "react": "*",
+            "react-native": "*"
+          },
+          "latest_peer_dependencies": {
+            "expo": "*",
+            "react": "*",
+            "react-native": "*"
+          },
+          "expo57_bundle_constraint": "~57.0.25",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "57.0.25",
+            "next_sdk_candidate": "~58.1.9"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/expo-notifications"
+        },
+        {
+          "name": "expo-router",
+          "kind": "dependencies",
+          "declared": "~57.0.30",
+          "current_installed": "57.0.30",
+          "locked": "57.0.30",
+          "latest_stable": "58.0.31",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "57.0.30",
+          "latest_in_caret_compatibility_line": "57.0.30",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "expo": "*",
+            "react": "*",
+            "react-dom": "*",
+            "expo-linking": "^57.0.13",
+            "react-native": "*",
+            "@expo/log-box": "^57.0.5",
+            "expo-constants": "^57.0.23",
+            "react-native-web": "*",
+            "@expo/metro-runtime": "^57.0.18",
+            "react-native-screens": "^4.26.0",
+            "react-native-reanimated": "*",
+            "react-server-dom-webpack": "~19.0.4 || ~19.1.5 || ~19.2.4",
+            "react-native-gesture-handler": "*",
+            "@testing-library/react-native": ">= 13.2.0",
+            "react-native-safe-area-context": ">= 5.4.0"
+          },
+          "latest_peer_dependencies": {
+            "expo": "*",
+            "react": "*",
+            "@expo/ui": "^58.0.28",
+            "react-dom": "*",
+            "expo-linking": "^58.0.17",
+            "expo-symbols": "^58.0.5",
+            "react-native": "*",
+            "@expo/log-box": "^58.0.15",
+            "expo-constants": "^58.0.16",
+            "react-native-web": "*",
+            "@expo/metro-runtime": "^58.0.17",
+            "react-native-screens": "^4.30.1 || ^5.0.0-alpha.3",
+            "react-native-worklets": "*",
+            "react-native-reanimated": "*",
+            "react-server-dom-webpack": "~19.0.4 || ~19.1.5 || ~19.2.4 || ~19.3.0",
+            "react-native-gesture-handler": "*",
+            "@testing-library/react-native": ">= 14.0.0",
+            "react-native-safe-area-context": ">= 5.4.0"
+          },
+          "expo57_bundle_constraint": "~57.0.30",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "57.0.30",
+            "next_sdk_candidate": "~58.0.31"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/expo-router"
+        },
+        {
+          "name": "expo-secure-store",
+          "kind": "dependencies",
+          "declared": "~57.0.4",
+          "current_installed": "57.0.4",
+          "locked": "57.0.4",
+          "latest_stable": "58.0.3",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "57.0.4",
+          "latest_in_caret_compatibility_line": "57.0.4",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "expo": "*"
+          },
+          "latest_peer_dependencies": {
+            "expo": "*"
+          },
+          "expo57_bundle_constraint": "~57.0.4",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "57.0.4",
+            "next_sdk_candidate": "~58.0.3"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/expo-secure-store"
+        },
+        {
+          "name": "expo-status-bar",
+          "kind": "dependencies",
+          "declared": "~57.0.1",
+          "current_installed": "57.0.1",
+          "locked": "57.0.1",
+          "latest_stable": "58.0.5",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "57.0.1",
+          "latest_in_caret_compatibility_line": "57.0.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "expo": "*",
+            "react": "*",
+            "react-native": "*"
+          },
+          "latest_peer_dependencies": {
+            "expo": "*",
+            "react": "*",
+            "react-native": "*"
+          },
+          "expo57_bundle_constraint": "~57.0.1",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "57.0.1",
+            "next_sdk_candidate": "~58.0.5"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/expo-status-bar"
+        },
+        {
+          "name": "expo-system-ui",
+          "kind": "dependencies",
+          "declared": "~57.0.4",
+          "current_installed": "57.0.4",
+          "locked": "57.0.4",
+          "latest_stable": "58.0.7",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "57.0.4",
+          "latest_in_caret_compatibility_line": "57.0.4",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "expo": "*",
+            "react-native": "*",
+            "react-native-web": "*"
+          },
+          "latest_peer_dependencies": {
+            "expo": "*",
+            "react-native": "*",
+            "react-native-web": "*"
+          },
+          "expo57_bundle_constraint": "~57.0.4",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "57.0.4",
+            "next_sdk_candidate": "~58.0.7"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/expo-system-ui"
+        },
+        {
+          "name": "react",
+          "kind": "dependencies",
+          "declared": "19.2.3",
+          "current_installed": "19.2.3",
+          "locked": "19.2.3",
+          "latest_stable": "19.3.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "19.2.3",
+          "latest_in_caret_compatibility_line": "19.3.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=0.10.0"
+          },
+          "latest_engines": {
+            "node": ">=0.10.0"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": "19.2.3",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "19.2.3",
+            "next_sdk_candidate": "19.3.0"
+          },
+          "constraints": "Keep react and react-dom exactly paired. Merchant may use 19.3.1; Expo 57 pins 19.2.3 and Expo 58.0.24 bundles 19.3.0.",
+          "source": "https://registry.npmjs.org/react"
+        },
+        {
+          "name": "react-dom",
+          "kind": "dependencies",
+          "declared": "19.2.3",
+          "current_installed": "19.2.3",
+          "locked": "19.2.3",
+          "latest_stable": "19.3.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "19.2.3",
+          "latest_in_caret_compatibility_line": "19.3.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "^19.2.3"
+          },
+          "latest_peer_dependencies": {
+            "react": "^19.3.1"
+          },
+          "expo57_bundle_constraint": "19.2.3",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "19.2.3",
+            "next_sdk_candidate": "19.3.0"
+          },
+          "constraints": "Keep paired with react; native/browser Expo versions follow the selected SDK bundle.",
+          "source": "https://registry.npmjs.org/react-dom"
+        },
+        {
+          "name": "react-native",
+          "kind": "dependencies",
+          "declared": "0.86.3",
+          "current_installed": "0.86.3",
+          "locked": "0.86.3",
+          "latest_stable": "0.88.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "0.86.3",
+          "latest_in_caret_compatibility_line": "0.86.3",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": "^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0"
+          },
+          "latest_engines": {
+            "node": "^22.13.0 || ^24.3.0 || >= 26.0.0"
+          },
+          "current_peer_dependencies": {
+            "react": "^19.2.3",
+            "@types/react": "^19.1.1",
+            "@react-native/jest-preset": "0.86.3"
+          },
+          "latest_peer_dependencies": {
+            "react": "^19.3.0",
+            "@types/react": "^19.1.1"
+          },
+          "expo57_bundle_constraint": "0.86.3",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "0.86.3",
+            "next_sdk_candidate": "0.88.1"
+          },
+          "constraints": "Do not upgrade independently of Expo; SDK 57 pins 0.86.3, SDK 58.0.24 pins 0.88.1.",
+          "source": "https://registry.npmjs.org/react-native"
+        },
+        {
+          "name": "react-native-qrcode-svg",
+          "kind": "dependencies",
+          "declared": "^6.3.54",
+          "current_installed": "6.3.54",
+          "locked": "6.3.54",
+          "latest_stable": "6.3.54",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "6.3.54",
+          "latest_in_caret_compatibility_line": "6.3.54",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "*",
+            "react-native": ">=0.63.4",
+            "react-native-svg": ">=14.0.0"
+          },
+          "latest_peer_dependencies": {
+            "react": "*",
+            "react-native": ">=0.63.4",
+            "react-native-svg": ">=14.0.0"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "6.3.54",
+            "next_sdk_candidate": null
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/react-native-qrcode-svg"
+        },
+        {
+          "name": "react-native-reanimated",
+          "kind": "dependencies",
+          "declared": "4.5.1",
+          "current_installed": "4.5.1",
+          "locked": "4.5.1",
+          "latest_stable": "4.7.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "4.5.1",
+          "latest_in_caret_compatibility_line": "4.7.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "*",
+            "react-native": "0.83 - 0.86",
+            "react-native-worklets": "0.10.x"
+          },
+          "latest_peer_dependencies": {
+            "react": "*",
+            "react-native": "0.86 - 0.88",
+            "react-native-worklets": "0.13.x"
+          },
+          "expo57_bundle_constraint": "4.5.1",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "4.5.1",
+            "next_sdk_candidate": "4.7.1"
+          },
+          "constraints": "Keep paired with Worklets and Expo/RN; SDK 57 pins 4.5.1 and SDK 58.0.24 pins 4.7.1.",
+          "source": "https://registry.npmjs.org/react-native-reanimated"
+        },
+        {
+          "name": "react-native-safe-area-context",
+          "kind": "dependencies",
+          "declared": "~5.7.0",
+          "current_installed": "5.7.0",
+          "locked": "5.7.0",
+          "latest_stable": "5.11.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "5.7.0",
+          "latest_in_caret_compatibility_line": "5.11.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "*",
+            "react-native": "*"
+          },
+          "latest_peer_dependencies": {
+            "react": "*",
+            "react-native": "*"
+          },
+          "expo57_bundle_constraint": "~5.7.0",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "5.7.0",
+            "next_sdk_candidate": "~5.11.1"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/react-native-safe-area-context"
+        },
+        {
+          "name": "react-native-screens",
+          "kind": "dependencies",
+          "declared": "~4.26.0",
+          "current_installed": "4.26.2",
+          "locked": "4.26.2",
+          "latest_stable": "4.30.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "4.26.2",
+          "latest_in_caret_compatibility_line": "4.30.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "*",
+            "react-native": "*"
+          },
+          "latest_peer_dependencies": {
+            "react": "*",
+            "react-native": "*"
+          },
+          "expo57_bundle_constraint": "~4.26.0",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "4.26.2",
+            "next_sdk_candidate": "~4.30.1"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/react-native-screens"
+        },
+        {
+          "name": "react-native-svg",
+          "kind": "dependencies",
+          "declared": "15.15.4",
+          "current_installed": "15.15.4",
+          "locked": "15.15.4",
+          "latest_stable": "15.16.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "15.15.4",
+          "latest_in_caret_compatibility_line": "15.16.1",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "*",
+            "react-native": "*"
+          },
+          "latest_peer_dependencies": {
+            "react": "*",
+            "react-native": "*"
+          },
+          "expo57_bundle_constraint": "15.15.4",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "15.15.4",
+            "next_sdk_candidate": "15.16.0"
+          },
+          "constraints": "SDK 57 pins 15.15.4; SDK 58.0.24 pins 15.16.0, not upstream 15.16.1.",
+          "source": "https://registry.npmjs.org/react-native-svg"
+        },
+        {
+          "name": "react-native-web",
+          "kind": "dependencies",
+          "declared": "^0.21.2",
+          "current_installed": "0.21.4",
+          "locked": "0.21.4",
+          "latest_stable": "0.21.4",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "0.21.4",
+          "latest_in_caret_compatibility_line": "0.21.4",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "^18.0.0 || ^19.0.0",
+            "react-dom": "^18.0.0 || ^19.0.0"
+          },
+          "latest_peer_dependencies": {
+            "react": "^18.0.0 || ^19.0.0",
+            "react-dom": "^18.0.0 || ^19.0.0"
+          },
+          "expo57_bundle_constraint": "~0.21.0",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "0.21.4",
+            "next_sdk_candidate": "~0.21.4"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/react-native-web"
+        },
+        {
+          "name": "react-native-worklets",
+          "kind": "dependencies",
+          "declared": "0.10.1",
+          "current_installed": "0.10.1",
+          "locked": "0.10.1",
+          "latest_stable": "0.13.1",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "0.10.1",
+          "latest_in_caret_compatibility_line": "0.10.4",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "react": "*",
+            "@babel/core": "*",
+            "react-native": "0.83 - 0.86",
+            "@react-native/metro-config": "*"
+          },
+          "latest_peer_dependencies": {
+            "react": "*",
+            "@babel/core": "*",
+            "react-native": "0.86 - 0.88",
+            "@react-native/metro-config": "*"
+          },
+          "expo57_bundle_constraint": "0.10.1",
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "0.10.1",
+            "next_sdk_candidate": "0.13.0"
+          },
+          "constraints": "SDK 57 pins 0.10.1; SDK 58.0.24 pins 0.13.0, even though upstream latest is 0.13.1.",
+          "source": "https://registry.npmjs.org/react-native-worklets"
+        },
+        {
+          "name": "@types/node",
+          "kind": "devDependencies",
+          "declared": "^26.6.6",
+          "current_installed": "26.6.6",
+          "locked": "26.6.6",
+          "latest_stable": "26.6.6",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "26.6.6",
+          "latest_in_caret_compatibility_line": "26.6.6",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "26.6.6",
+            "next_sdk_candidate": null
+          },
+          "constraints": "Types should model the selected runtime: root Node 24 => 24.19.2; native Node 22 => 22.20.5. Latest 26.6.6 is not automatically appropriate.",
+          "source": "https://registry.npmjs.org/%40types%2Fnode"
+        },
+        {
+          "name": "@types/react",
+          "kind": "devDependencies",
+          "declared": "~19.2.2",
+          "current_installed": "19.2.18",
+          "locked": "19.2.18",
+          "latest_stable": "19.3.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "19.2.18",
+          "latest_in_caret_compatibility_line": "19.3.0",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "19.2.18",
+            "next_sdk_candidate": null
+          },
+          "constraints": "Match React and Expo-supported type/compiler versions rather than choosing latest independently.",
+          "source": "https://registry.npmjs.org/%40types%2Freact"
+        },
+        {
+          "name": "eslint",
+          "kind": "devDependencies",
+          "declared": "^9.39.5",
+          "current_installed": "9.39.5",
+          "locked": "9.39.5",
+          "latest_stable": "10.14.0",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "9.39.5",
+          "latest_in_caret_compatibility_line": "9.39.5",
+          "latest_unsupported_line": "9.39.5",
+          "current_deprecation": "This version is no longer supported. Please see https://eslint.org/version-support for other options.",
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+          },
+          "latest_engines": {
+            "node": "^20.19.0 || ^22.13.0 || >=24"
+          },
+          "current_peer_dependencies": {
+            "jiti": "*"
+          },
+          "latest_peer_dependencies": {
+            "jiti": "*"
+          },
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "9.39.5",
+            "next_sdk_candidate": null
+          },
+          "constraints": "9.x is EOL. Root can migrate to 10.14.0 with @eslint/js and security plugin; native must verify all Expo-config plugin peers first.",
+          "source": "https://registry.npmjs.org/eslint"
+        },
+        {
+          "name": "eslint-config-expo",
+          "kind": "devDependencies",
+          "declared": "~57.0.2",
+          "current_installed": "57.0.2",
+          "locked": "57.0.2",
+          "latest_stable": "58.0.4",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "57.0.2",
+          "latest_in_caret_compatibility_line": "57.0.2",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": null,
+          "latest_engines": null,
+          "current_peer_dependencies": {
+            "eslint": ">=8.10"
+          },
+          "latest_peer_dependencies": {
+            "eslint": ">=8.10"
+          },
+          "expo57_bundle_constraint": "~57.0.2",
+          "advisories": [
+            {
+              "severity": "moderate",
+              "via": [
+                "@typescript-eslint/eslint-plugin",
+                "@typescript-eslint/parser",
+                "eslint-plugin-expo"
+              ],
+              "range": "<=0.0.1-canary-20240418-8d74597 || >=7.0.0"
+            }
+          ],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "57.0.2",
+            "next_sdk_candidate": "~58.0.4"
+          },
+          "constraints": "Resolve through Expo install against the chosen SDK; verify native peer dependencies, app behavior and lock/pod synchronization.",
+          "source": "https://registry.npmjs.org/eslint-config-expo"
+        },
+        {
+          "name": "typescript",
+          "kind": "devDependencies",
+          "declared": "~6.0.3",
+          "current_installed": "6.0.3",
+          "locked": "6.0.3",
+          "latest_stable": "7.0.2",
+          "latest_is_prerelease": false,
+          "wanted_with_current_manifest": "6.0.3",
+          "latest_in_caret_compatibility_line": "6.0.3",
+          "latest_unsupported_line": null,
+          "current_deprecation": null,
+          "latest_deprecation": null,
+          "current_engines": {
+            "node": ">=14.17"
+          },
+          "latest_engines": {
+            "node": ">=16.20.0"
+          },
+          "current_peer_dependencies": null,
+          "latest_peer_dependencies": null,
+          "expo57_bundle_constraint": null,
+          "advisories": [],
+          "proposal": {
+            "phase": "5-native-deferred",
+            "action": "hold current until explicit native scope",
+            "candidate": "6.0.3",
+            "next_sdk_candidate": null
+          },
+          "constraints": "Root 5.9.3 and native 6.0.3 are distinct toolchains. Stage 6.0.3 before 7.0.2 for root; verify JS/JSDoc checks and Expo/parser support before native changes.",
+          "source": "https://registry.npmjs.org/typescript"
+        }
+      ]
+    }
+  },
+  "static_compatibility": {
+    "checked_at": "2026-11-11T17:16:46.777Z",
+    "defects": {
+      "root": [],
+      "merchant": [],
+      "customer": []
+    },
+    "method": "Semver comparison of direct manifests/locks and installed Expo 57 bundledNativeModules.json; no Expo command or installation"
+  },
+  "overrides": [
+    {
+      "scope": "root",
+      "name": "qs",
+      "declared": "6.16.2",
+      "locked": [
+        {
+          "location": "node_modules/qs",
+          "version": "6.16.2"
+        }
+      ],
+      "parents": [
+        {
+          "location": "node_modules/body-parser",
+          "version": "1.20.9",
+          "requested": "~6.16.0"
+        },
+        {
+          "location": "node_modules/express",
+          "version": "4.22.1",
+          "requested": "~6.14.0"
+        }
+      ],
+      "latest_stable": "6.17.1",
+      "proposed_action": "Retain 6.16.2 for first batch; assess 6.17.1 in parsing compatibility batch. Remove only after upstream resolved graph is safe.",
+      "source": "https://registry.npmjs.org/qs"
+    },
+    {
+      "scope": "root",
+      "name": "joi",
+      "declared": "17.13.9",
+      "locked": [
+        {
+          "location": "node_modules/joi",
+          "version": "17.13.9"
+        }
+      ],
+      "parents": [
+        {
+          "location": "node_modules/passkit-generator",
+          "version": "3.7.0",
+          "requested": "17.13.4"
+        }
+      ],
+      "latest_stable": "18.3.2",
+      "proposed_action": "Retain 17.13.9; latest 17.x is already installed. 18.3.2 is outside passkit-generator exact 17.13.4 dependency and needs upstream/API verification.",
+      "source": "https://registry.npmjs.org/joi"
+    },
+    {
+      "scope": "customer",
+      "name": "query-string",
+      "declared": "7.1.3",
+      "locked": [
+        {
+          "location": "node_modules/query-string",
+          "version": "7.1.3"
+        }
+      ],
+      "parents": [
+        {
+          "location": "node_modules/expo-router",
+          "version": "57.0.30",
+          "requested": "^7.1.3"
+        }
+      ],
+      "latest_stable": "10.0.0",
+      "proposed_action": "Keep query-string 7.1.3, decode-uri-component 0.5.1 and patch-query-string.mjs together. Latest query-string 10.0.0 is not an automatic replacement for Router CJS API.",
+      "source": "https://registry.npmjs.org/query-string"
+    },
+    {
+      "scope": "customer",
+      "name": "decode-uri-component",
+      "declared": "0.5.1",
+      "locked": [
+        {
+          "location": "node_modules/decode-uri-component",
+          "version": "0.5.1"
+        }
+      ],
+      "parents": [
+        {
+          "location": "node_modules/query-string",
+          "version": "7.1.3",
+          "requested": "^0.2.2"
+        }
+      ],
+      "latest_stable": "0.5.1",
+      "proposed_action": "Keep query-string 7.1.3, decode-uri-component 0.5.1 and patch-query-string.mjs together. Latest query-string 10.0.0 is not an automatic replacement for Router CJS API.",
+      "source": "https://registry.npmjs.org/decode-uri-component"
+    }
+  ],
+  "native_toolchains": {
+    "android": {
+      "canonical_android_directory": "absent; generated by Expo in isolated builder",
+      "generated_wrapper_evidence": "/var/lib/puntos/android-builder/work/build-yF4VN1/app/android/gradle/wrapper/gradle-wrapper.properties",
+      "gradle_wrapper": "9.3.1",
+      "gradle_latest_stable": "9.9.1",
+      "react_native_catalog_source": "apps/customer/node_modules/react-native/gradle/libs.versions.toml",
+      "agp_catalog": "8.12.0",
+      "kotlin_catalog": "2.1.20",
+      "jdk": "17",
+      "min_sdk": 24,
+      "target_sdk": 36,
+      "compile_sdk": 36,
+      "build_tools": "36.0.0",
+      "ndk": "27.1.12297006",
+      "cmake": "3.22.1",
+      "bundletool": "1.18.3",
+      "bundletool_latest_stable": "1.18.3",
+      "local_builder_source": "/opt/puntos/.worktrees/android-local/apps/customer/tools/android/Dockerfile",
+      "local_builder_java_image": "eclipse-temurin:17-jdk-jammy@sha256:057a0daec60e87c96571bf5c9c7792065bcb19e804d584cd37d4144038a35717",
+      "android_command_line_tools_archive": "commandlinetools-linux-15859902_latest.zip",
+      "constraint": "Current parent build is independent work. No Gradle resolution/build was launched here. SDK/catalog/template pins are a unit; do not independently adopt latest Gradle/AGP/NDK/Kotlin."
+    },
+    "ios": {
+      "podfile": "apps/customer/ios/Podfile",
+      "lockfile": "apps/customer/ios/Podfile.lock",
+      "cocoapods_lock_generator": "1.16.2",
+      "cocoapods_latest_stable": "1.17.0",
+      "codemagic_cocoapods_selector": "default (not pinned)",
+      "xcode_selector": "26.6",
+      "deployment_target": "16.4",
+      "pods": [
+        {
+          "name": "EXApplication",
+          "version": "57.0.3"
+        },
+        {
+          "name": "EXConstants",
+          "version": "57.0.23"
+        },
+        {
+          "name": "EXJSONUtils",
+          "version": "57.0.2"
+        },
+        {
+          "name": "EXManifests",
+          "version": "57.0.2"
+        },
+        {
+          "name": "Expo",
+          "version": "57.0.32"
+        },
+        {
+          "name": "expo-dev-client",
+          "version": "57.0.21"
+        },
+        {
+          "name": "expo-dev-launcher",
+          "version": "57.0.22"
+        },
+        {
+          "name": "expo-dev-launcher/Main",
+          "version": "57.0.22"
+        },
+        {
+          "name": "expo-dev-launcher/Unsafe",
+          "version": "57.0.22"
+        },
+        {
+          "name": "expo-dev-menu",
+          "version": "57.0.21"
+        },
+        {
+          "name": "expo-dev-menu-interface",
+          "version": "57.0.0"
+        },
+        {
+          "name": "expo-dev-menu/Main",
+          "version": "57.0.21"
+        },
+        {
+          "name": "ExpoAsset",
+          "version": "57.0.21"
+        },
+        {
+          "name": "ExpoCrypto",
+          "version": "57.0.4"
+        },
+        {
+          "name": "ExpoDevice",
+          "version": "57.0.2"
+        },
+        {
+          "name": "ExpoDomWebView",
+          "version": "57.0.1"
+        },
+        {
+          "name": "ExpoFileSystem",
+          "version": "57.0.7"
+        },
+        {
+          "name": "ExpoFont",
+          "version": "57.0.4"
+        },
+        {
+          "name": "ExpoGlassEffect",
+          "version": "57.0.5"
+        },
+        {
+          "name": "ExpoKeepAwake",
+          "version": "57.0.2"
+        },
+        {
+          "name": "ExpoLinking",
+          "version": "57.0.13"
+        },
+        {
+          "name": "ExpoLogBox",
+          "version": "57.0.5"
+        },
+        {
+          "name": "ExpoModulesCore",
+          "version": "57.0.25"
+        },
+        {
+          "name": "ExpoModulesJSI",
+          "version": "57.1.3"
+        },
+        {
+          "name": "ExpoModulesWorklets",
+          "version": "57.0.25"
+        },
+        {
+          "name": "ExpoModulesWorkletsAdapter",
+          "version": "57.0.25"
+        },
+        {
+          "name": "ExpoNotifications",
+          "version": "57.0.25"
+        },
+        {
+          "name": "ExpoRouter",
+          "version": "57.0.30"
+        },
+        {
+          "name": "ExpoSecureStore",
+          "version": "57.0.4"
+        },
+        {
+          "name": "ExpoSymbols",
+          "version": "57.0.3"
+        },
+        {
+          "name": "ExpoSystemUI",
+          "version": "57.0.4"
+        },
+        {
+          "name": "ExpoUI",
+          "version": "57.0.26"
+        },
+        {
+          "name": "EXUpdatesInterface",
+          "version": "57.0.2"
+        },
+        {
+          "name": "FBLazyVector",
+          "version": "0.86.3"
+        },
+        {
+          "name": "hermes-engine",
+          "version": "250829098.0.17"
+        },
+        {
+          "name": "hermes-engine/Pre-built",
+          "version": "250829098.0.17"
+        },
+        {
+          "name": "RCTDeprecation",
+          "version": "0.86.3"
+        },
+        {
+          "name": "RCTRequired",
+          "version": "0.86.3"
+        },
+        {
+          "name": "RCTSwiftUI",
+          "version": "0.86.3"
+        },
+        {
+          "name": "RCTSwiftUIWrapper",
+          "version": "0.86.3"
+        },
+        {
+          "name": "RCTTypeSafety",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-callinvoker",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core-prebuilt",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core/CoreModulesHeaders",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core/Default",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core/DevSupport",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core/RCTActionSheetHeaders",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core/RCTAnimationHeaders",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core/RCTBlobHeaders",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core/RCTImageHeaders",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core/RCTLinkingHeaders",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core/RCTNetworkHeaders",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core/RCTSettingsHeaders",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core/RCTTextHeaders",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core/RCTVibrationHeaders",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Core/RCTWebSocket",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-CoreModules",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-cxxreact",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-debug",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-debug/redbox",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-defaultsnativemodule",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-domnativemodule",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/animated",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/animationbackend",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/animations",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/attributedstring",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/bridging",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/componentregistry",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/componentregistrynative",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/components",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/components/legacyviewmanagerinterop",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/components/root",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/components/scrollview",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/components/view",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/consistency",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/core",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/dom",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/imagemanager",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/leakchecker",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/mounting",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/observers",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/observers/events",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/observers/intersection",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/observers/mutation",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/scheduler",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/telemetry",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/uimanager",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/uimanager/consistency",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Fabric/viewtransition",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricComponents",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricComponents/components",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricComponents/components/inputaccessory",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricComponents/components/iostextinput",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricComponents/components/modal",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricComponents/components/rncore",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricComponents/components/safeareaview",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricComponents/components/scrollview",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricComponents/components/switch",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricComponents/components/text",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricComponents/components/textinput",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricComponents/components/unimplementedview",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricComponents/components/virtualview",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricComponents/textlayoutmanager",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-FabricImage",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-featureflags",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-featureflagsnativemodule",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-graphics",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-hermes",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-idlecallbacksnativemodule",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-ImageManager",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-intersectionobservernativemodule",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-jserrorhandler",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-jsi",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-jsiexecutor",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-jsinspector",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-jsinspectorcdp",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-jsinspectornetwork",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-jsinspectortracing",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-jsitooling",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-jsitracing",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-logger",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-Mapbuffer",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-microtasksnativemodule",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-mutationobservernativemodule",
+          "version": "0.86.3"
+        },
+        {
+          "name": "react-native-netinfo",
+          "version": "12.0.1"
+        },
+        {
+          "name": "react-native-safe-area-context",
+          "version": "5.7.0"
+        },
+        {
+          "name": "react-native-safe-area-context/common",
+          "version": "5.7.0"
+        },
+        {
+          "name": "react-native-safe-area-context/fabric",
+          "version": "5.7.0"
+        },
+        {
+          "name": "React-NativeModulesApple",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-networking",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-oscompat",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-perflogger",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-performancecdpmetrics",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-performancetimeline",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RCTActionSheet",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RCTAnimation",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RCTAppDelegate",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RCTBlob",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RCTFabric",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RCTFBReactNativeSpec",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RCTFBReactNativeSpec/components",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RCTImage",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RCTLinking",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RCTNetwork",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RCTRuntime",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RCTSettings",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RCTText",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RCTVibration",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-rendererconsistency",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-renderercss",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-rendererdebug",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RuntimeApple",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RuntimeCore",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-runtimeexecutor",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-RuntimeHermes",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-runtimescheduler",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-timing",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-utils",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-viewtransitionnativemodule",
+          "version": "0.86.3"
+        },
+        {
+          "name": "React-webperformancenativemodule",
+          "version": "0.86.3"
+        },
+        {
+          "name": "ReactAppDependencyProvider",
+          "version": "0.86.3"
+        },
+        {
+          "name": "ReactCodegen",
+          "version": "0.86.3"
+        },
+        {
+          "name": "ReactCommon",
+          "version": "0.86.3"
+        },
+        {
+          "name": "ReactCommon/turbomodule",
+          "version": "0.86.3"
+        },
+        {
+          "name": "ReactCommon/turbomodule/bridging",
+          "version": "0.86.3"
+        },
+        {
+          "name": "ReactCommon/turbomodule/core",
+          "version": "0.86.3"
+        },
+        {
+          "name": "ReactNativeDependencies",
+          "version": "0.86.3"
+        },
+        {
+          "name": "RNCAsyncStorage",
+          "version": "2.2.0"
+        },
+        {
+          "name": "RNCMaskedView",
+          "version": "0.3.2"
+        },
+        {
+          "name": "RNGestureHandler",
+          "version": "3.5.0"
+        },
+        {
+          "name": "RNReanimated",
+          "version": "4.5.1"
+        },
+        {
+          "name": "RNReanimated/apple",
+          "version": "4.5.1"
+        },
+        {
+          "name": "RNReanimated/common",
+          "version": "4.5.1"
+        },
+        {
+          "name": "RNReanimated/view",
+          "version": "4.5.1"
+        },
+        {
+          "name": "RNScreens",
+          "version": "4.26.2"
+        },
+        {
+          "name": "RNScreens/common",
+          "version": "4.26.2"
+        },
+        {
+          "name": "RNSVG",
+          "version": "15.15.4"
+        },
+        {
+          "name": "RNSVG/common",
+          "version": "15.15.4"
+        },
+        {
+          "name": "RNWorklets",
+          "version": "0.10.1"
+        },
+        {
+          "name": "RNWorklets/apple",
+          "version": "0.10.1"
+        },
+        {
+          "name": "RNWorklets/common",
+          "version": "0.10.1"
+        },
+        {
+          "name": "Yoga",
+          "version": "0.0.0"
+        }
+      ],
+      "constraint": "Regenerate lock only on a requested native upgrade, on macOS, then deployment-mode install; do not delete maintained ios directory or independently update pods. Xcode 27/SDK 58 scene lifecycle requires review."
+    },
+    "expo": {
+      "current": "57.0.32",
+      "latest_stable": "58.0.24",
+      "sdk57_bundle": {
+        "@expo/dom-webview": "~57.0.1",
+        "@expo/fingerprint": "~0.20.15",
+        "@expo/metro-runtime": "~57.0.18",
+        "@expo/vector-icons": "^15.0.2",
+        "@expo/ui": "~57.0.26",
+        "@react-native-async-storage/async-storage": "2.2.0",
+        "@react-native-community/datetimepicker": "9.1.0",
+        "@react-native-masked-view/masked-view": "0.3.2",
+        "@react-native-community/slider": "5.2.0",
+        "@react-native-community/netinfo": "12.0.1",
+        "@react-native-community/viewpager": "5.0.11",
+        "@react-native-picker/picker": "2.11.4",
+        "@react-native-segmented-control/segmented-control": "2.5.7",
+        "@stripe/stripe-react-native": "0.64.0",
+        "eslint-config-expo": "~57.0.2",
+        "expo-analytics-amplitude": "~11.3.0",
+        "expo-app-auth": "~11.1.0",
+        "expo-app-loader-provider": "~8.0.0",
+        "expo-app-metrics": "~57.0.24",
+        "expo-apple-authentication": "~57.0.2",
+        "expo-application": "~57.0.3",
+        "expo-asset": "~57.0.21",
+        "expo-audio": "~57.0.5",
+        "expo-auth-session": "~57.0.16",
+        "expo-background-fetch": "~57.0.22",
+        "expo-background-task": "~57.0.22",
+        "expo-battery": "~57.0.3",
+        "expo-blur": "~57.0.3",
+        "expo-brightness": "~57.0.2",
+        "expo-brownfield": "~57.0.25",
+        "expo-build-properties": "~57.0.23",
+        "expo-calendar": "~57.0.6",
+        "expo-camera": "~57.0.6",
+        "expo-cellular": "~57.0.2",
+        "expo-checkbox": "~57.0.0",
+        "expo-clipboard": "~57.0.2",
+        "expo-constants": "~57.0.23",
+        "expo-contacts": "~57.0.8",
+        "expo-crypto": "~57.0.4",
+        "expo-dev-client": "~57.0.21",
+        "expo-device": "~57.0.2",
+        "expo-document-picker": "~57.0.3",
+        "expo-eas-client": "~57.0.5",
+        "expo-file-system": "~57.0.7",
+        "expo-font": "~57.0.4",
+        "expo-gl": "~57.0.3",
+        "expo-glass-effect": "~57.0.5",
+        "expo-google-app-auth": "~8.3.0",
+        "expo-haptics": "~57.0.3",
+        "expo-image": "~57.0.5",
+        "expo-image-loader": "~57.0.1",
+        "expo-image-manipulator": "~57.0.22",
+        "expo-image-picker": "~57.0.21",
+        "expo-intent-launcher": "~57.0.1",
+        "expo-insights": "~57.0.22",
+        "expo-keep-awake": "~57.0.2",
+        "expo-linear-gradient": "~57.0.2",
+        "expo-linking": "~57.0.13",
+        "expo-local-authentication": "~57.0.3",
+        "expo-localization": "~57.0.2",
+        "expo-location": "~57.0.23",
+        "expo-mail-composer": "~57.0.2",
+        "expo-manifests": "~57.0.2",
+        "expo-maps": "~57.0.4",
+        "expo-mcp": "~0.2.1",
+        "expo-media-library": "~57.0.6",
+        "expo-mesh-gradient": "~57.0.2",
+        "expo-module-template": "~57.0.16",
+        "expo-modules-core": "~57.0.25",
+        "expo-navigation-bar": "~57.0.3",
+        "expo-network": "~57.0.3",
+        "expo-notifications": "~57.0.25",
+        "expo-observe": "~57.0.27",
+        "expo-print": "~57.0.2",
+        "expo-live-photo": "~57.0.2",
+        "expo-router": "~57.0.30",
+        "expo-screen-capture": "~57.0.4",
+        "expo-screen-orientation": "~57.0.3",
+        "expo-secure-store": "~57.0.4",
+        "expo-sensors": "~57.0.3",
+        "expo-server": "~57.0.3",
+        "expo-sharing": "~57.0.25",
+        "expo-sms": "~57.0.2",
+        "expo-speech": "~57.0.3",
+        "expo-splash-screen": "~57.0.11",
+        "expo-sqlite": "~57.0.4",
+        "expo-status-bar": "~57.0.1",
+        "expo-store-review": "~57.0.3",
+        "expo-symbols": "~57.0.3",
+        "expo-system-ui": "~57.0.4",
+        "expo-task-manager": "~57.0.22",
+        "expo-tracking-transparency": "~57.0.2",
+        "expo-updates": "~57.0.27",
+        "expo-video-thumbnails": "~57.0.2",
+        "expo-video": "~57.0.5",
+        "expo-web-browser": "~57.0.3",
+        "expo-widgets": "~57.0.28",
+        "jest-expo": "~57.0.6",
+        "lottie-react-native": "~7.3.8",
+        "react": "19.2.3",
+        "react-dom": "19.2.3",
+        "react-native": "0.86.3",
+        "react-native-web": "~0.21.0",
+        "react-native-gesture-handler": "~2.32.0",
+        "react-native-get-random-values": "~1.11.0",
+        "react-native-keyboard-controller": "1.21.9",
+        "react-native-maps": "1.27.2",
+        "react-native-pager-view": "8.0.2",
+        "react-native-worklets": "0.10.1",
+        "react-native-reanimated": "4.5.1",
+        "react-native-screens": "~4.26.0",
+        "react-native-safe-area-context": "~5.7.0",
+        "react-native-svg": "15.15.4",
+        "react-native-view-shot": "5.1.0",
+        "react-native-webview": "13.16.1",
+        "react-server-dom-webpack": "~19.2.4",
+        "sentry-expo": "~7.0.0",
+        "unimodules-app-loader": "~57.0.2",
+        "unimodules-image-loader-interface": "~6.1.0",
+        "@shopify/react-native-skia": "2.6.2",
+        "@shopify/flash-list": "2.0.2",
+        "@sentry/react-native": "~7.11.0",
+        "react-native-bootsplash": "^6.3.10"
+      },
+      "sdk58_bundle": {
+        "@expo/dom-webview": "~58.0.2",
+        "@expo/fingerprint": "~0.21.10",
+        "@expo/metro-runtime": "~58.0.17",
+        "@expo/vector-icons": "^15.0.2",
+        "@expo/ui": "~58.0.28",
+        "@react-native-async-storage/async-storage": "2.2.0",
+        "@react-native-community/datetimepicker": "9.2.1",
+        "@react-native-masked-view/masked-view": "0.3.2",
+        "@react-native-community/slider": "5.2.1",
+        "@react-native-community/netinfo": "12.0.1",
+        "@react-native-community/viewpager": "5.0.11",
+        "@react-native-picker/picker": "2.11.4",
+        "@react-native-segmented-control/segmented-control": "2.5.7",
+        "@stripe/stripe-react-native": "0.81.0",
+        "eslint-config-expo": "~58.0.4",
+        "expo-analytics-amplitude": "~11.3.0",
+        "expo-app-auth": "~11.1.0",
+        "expo-app-intents": "~0.5.17",
+        "expo-app-loader-provider": "~8.0.0",
+        "expo-app-metrics": "~58.0.15",
+        "expo-apple-authentication": "~58.0.3",
+        "expo-application": "~58.1.2",
+        "expo-asset": "~58.0.21",
+        "expo-audio": "~58.0.12",
+        "expo-auth-session": "~58.0.18",
+        "expo-background-fetch": "~58.0.13",
+        "expo-background-task": "~58.0.13",
+        "expo-battery": "~58.0.4",
+        "expo-blur": "~58.0.6",
+        "expo-brightness": "~58.0.3",
+        "expo-brownfield": "~58.0.20",
+        "expo-build-properties": "~58.0.12",
+        "expo-calendar": "~58.0.6",
+        "expo-camera": "~58.0.14",
+        "expo-cellular": "~58.0.4",
+        "expo-checkbox": "~58.0.2",
+        "expo-clipboard": "~58.0.4",
+        "expo-constants": "~58.0.16",
+        "expo-contacts": "~58.0.10",
+        "expo-crypto": "~58.0.8",
+        "expo-dev-client": "~58.0.19",
+        "expo-device": "~58.0.5",
+        "expo-document-picker": "~58.0.5",
+        "expo-eas-client": "~58.0.2",
+        "expo-file-system": "~58.0.13",
+        "expo-font": "~58.0.12",
+        "expo-gl": "~58.0.4",
+        "expo-glass-effect": "~58.0.5",
+        "expo-google-app-auth": "~8.3.0",
+        "expo-haptics": "~58.0.8",
+        "expo-hinge": "~58.0.2",
+        "expo-image": "~58.0.18",
+        "expo-image-loader": "~58.0.3",
+        "expo-image-manipulator": "~58.0.16",
+        "expo-image-picker": "~58.0.10",
+        "expo-intent-launcher": "~58.0.3",
+        "expo-insights": "~58.0.11",
+        "expo-keep-awake": "~58.0.4",
+        "expo-linear-gradient": "~58.0.4",
+        "expo-linking": "~58.0.17",
+        "expo-local-authentication": "~58.0.3",
+        "expo-localization": "~58.0.5",
+        "expo-location": "~58.0.21",
+        "expo-mail-composer": "~58.0.4",
+        "expo-manifests": "~58.0.1",
+        "expo-maps": "~58.0.11",
+        "expo-mcp": "~0.2.1",
+        "expo-media-library": "~58.0.14",
+        "expo-mesh-gradient": "~58.0.4",
+        "expo-module-template": "~58.0.9",
+        "expo-modules-core": "~58.1.0",
+        "expo-navigation-bar": "~58.0.4",
+        "expo-network": "~58.0.5",
+        "expo-notifications": "~58.1.9",
+        "expo-observe": "~58.0.19",
+        "expo-print": "~58.0.9",
+        "expo-live-photo": "~58.0.8",
+        "expo-router": "~58.0.31",
+        "expo-screen-capture": "~58.0.6",
+        "expo-screen-orientation": "~58.0.4",
+        "expo-secure-store": "~58.0.3",
+        "expo-sensors": "~58.0.5",
+        "expo-server": "~58.1.0",
+        "expo-sharing": "~58.0.23",
+        "expo-sms": "~58.0.3",
+        "expo-speech": "~58.0.4",
+        "expo-splash-screen": "~58.0.14",
+        "expo-sqlite": "~58.0.16",
+        "expo-status-bar": "~58.0.5",
+        "expo-store-review": "~58.0.3",
+        "expo-symbols": "~58.0.5",
+        "expo-system-ui": "~58.0.7",
+        "expo-task-manager": "~58.0.14",
+        "expo-tracking-transparency": "~58.1.0",
+        "expo-updates": "~58.0.22",
+        "expo-video-thumbnails": "~58.0.3",
+        "expo-video": "~58.0.14",
+        "expo-web-browser": "~58.0.8",
+        "expo-widgets": "~58.0.28",
+        "jest-expo": "~58.0.14",
+        "lottie-react-native": "~7.5.0",
+        "react": "19.3.0",
+        "react-dom": "19.3.0",
+        "react-native": "0.88.1",
+        "react-native-web": "~0.21.4",
+        "react-native-gesture-handler": "~3.3.0",
+        "react-native-keyboard-controller": "1.22.7",
+        "react-native-maps": "1.29.11",
+        "react-native-pager-view": "9.0.7",
+        "react-native-worklets": "0.13.0",
+        "react-native-reanimated": "4.7.1",
+        "react-native-screens": "~4.30.1",
+        "react-native-safe-area-context": "~5.11.1",
+        "react-native-svg": "15.16.0",
+        "react-native-view-shot": "6.1.1",
+        "react-native-webview": "14.0.1",
+        "react-server-dom-webpack": "~19.3.0",
+        "sentry-expo": "~7.0.0",
+        "unimodules-app-loader": "~58.0.2",
+        "unimodules-image-loader-interface": "~6.1.0",
+        "@shopify/react-native-skia": "2.14.0",
+        "@shopify/flash-list": "2.3.2",
+        "@sentry/react-native": "~8.28.0",
+        "react-native-bootsplash": "^6.3.10"
+      },
+      "sdk58_bundle_source": "https://registry.npmjs.org/expo/-/expo-58.0.24.tgz",
+      "notes": [
+        "Latest stable does not mean every native package latest is compatible.",
+        "SDK58 still pins AsyncStorage 2.2.0, React 19.3.0, Worklets 0.13.0 and SVG 15.16.0.",
+        "SDK58 @expo/fingerprint 0.21.10 still requests minimatch ^10.2.6, so SDK58 alone is not proven to clear the audit.",
+        "Use versioned docs and Expo install for actual changes; no install/doctor/export was run for this preparation."
+      ]
+    }
+  },
+  "infrastructure": {
+    "node": {
+      "host": "22.22.2",
+      "npm_host": "10.9.7",
+      "root_engines": ">=20.0.0",
+      "ci": "20 (EOL 2026-04-30)",
+      "container": "node:24-alpine (floating)",
+      "native_nvmrc": "22.22.2",
+      "native_codemagic": "22.22.2",
+      "native_local_builder": "22.22.2",
+      "available_lts": {
+        "22": {
+          "version": "v22.23.5",
+          "npm": "10.9.9",
+          "security_release": true,
+          "schedule": {
+            "start": "2024-04-24",
+            "lts": "2024-10-29",
+            "maintenance": "2025-10-21",
+            "end": "2027-04-30",
+            "codename": "Jod"
+          }
+        },
+        "24": {
+          "version": "v24.22.3",
+          "npm": "11.19.1",
+          "security_release": true,
+          "schedule": {
+            "start": "2025-05-06",
+            "lts": "2025-10-28",
+            "maintenance": "2026-10-20",
+            "end": "2028-04-30",
+            "codename": "Krypton"
+          }
+        },
+        "26": {
+          "version": "v26.13.1",
+          "npm": "11.20.0",
+          "security_release": true,
+          "schedule": {
+            "start": "2026-05-05",
+            "lts": "2026-10-28",
+            "maintenance": "2027-10-20",
+            "end": "2029-04-30",
+            "codename": "Lithium"
+          }
+        }
+      },
+      "proposal": "Root/web build and CI: Node 24.22.3 LTS, matching supported image digest and @types/node24. Native later: 22.23.5 security patch after launcher/Codemagic/.nvmrc/hash update and checks. Node26.13.1 is a separate tested LTS option; reject Node27 alpha.",
+      "npm_latest_stable": "12.2.2",
+      "npm_proposal": "Prefer bundled npm for selected Node first; stage npm12 lock-resolution change separately."
+    },
+    "containers": {
+      "postgres": {
+        "declared": "postgres:16-alpine",
+        "running_version": "not queried",
+        "same_major_stable": "16.15",
+        "latest_stable": "18.6",
+        "support_until": "2028-11-09",
+        "source": "https://www.postgresql.org/support/versioning/",
+        "proposal": "Patch existing major in separate approved infrastructure maintenance; use disposable rehearsal and backup/restore. Do not deploy database major through npm work."
+      },
+      "redis": {
+        "declared_e2e": "redis:7-alpine",
+        "running_version": "not queried",
+        "latest_stable": "8.10.3",
+        "source": "https://api.github.com/repos/redis/redis/releases/latest",
+        "proposal": "Keep server and npm client version decisions separate. Resolve a patched 7.x image/digest for tests; major server migration and data-format rollback need separate scope."
+      },
+      "playwright": {
+        "declared": "mcr.microsoft.com/playwright:v1.58.1-jammy",
+        "candidate_version": "1.65.0",
+        "proposal": "Choose supported official image matching package/browser version and pin digest during implementation."
+      },
+      "trivy": {
+        "declared": "aquasec/trivy:0.56.1",
+        "latest_stable": "v0.76.2",
+        "source": "https://api.github.com/repos/aquasecurity/trivy/releases/latest"
+      }
+    },
+    "github_actions": [
+      {
+        "name": "actions/checkout",
+        "current": "v4",
+        "latest_stable": "v7.0.1",
+        "source": "https://api.github.com/repos/actions/checkout/releases/latest",
+        "release_url": "https://github.com/actions/checkout/releases/tag/v7.0.1",
+        "limitation": null,
+        "proposal": "Review runner runtime requirements/changed inputs, preserve permissions and workflow triggers, then pin reviewed immutable commit SHA."
+      },
+      {
+        "name": "actions/setup-node",
+        "current": "v4",
+        "latest_stable": "v7.1.0",
+        "source": "https://api.github.com/repos/actions/setup-node/releases/latest",
+        "release_url": "https://github.com/actions/setup-node/releases/tag/v7.1.0",
+        "limitation": null,
+        "proposal": "Review runner runtime requirements/changed inputs, preserve permissions and workflow triggers, then pin reviewed immutable commit SHA."
+      },
+      {
+        "name": "actions/upload-artifact",
+        "current": "v4",
+        "latest_stable": "v7.0.2",
+        "source": "https://api.github.com/repos/actions/upload-artifact/releases/latest",
+        "release_url": "https://github.com/actions/upload-artifact/releases/tag/v7.0.2",
+        "limitation": null,
+        "proposal": "Review runner runtime requirements/changed inputs, preserve permissions and workflow triggers, then pin reviewed immutable commit SHA."
+      },
+      {
+        "name": "actions/github-script",
+        "current": "v7",
+        "latest_stable": "v9.0.0",
+        "source": "https://api.github.com/repos/actions/github-script/releases/latest",
+        "release_url": "https://github.com/actions/github-script/releases/tag/v9.0.0",
+        "limitation": null,
+        "proposal": "Review runner runtime requirements/changed inputs, preserve permissions and workflow triggers, then pin reviewed immutable commit SHA."
+      },
+      {
+        "name": "gitleaks/gitleaks-action",
+        "current": "v2",
+        "latest_stable": "v3.0.0",
+        "source": "https://api.github.com/repos/gitleaks/gitleaks-action/releases/latest",
+        "release_url": "https://github.com/gitleaks/gitleaks-action/releases/tag/v3.0.0",
+        "limitation": null,
+        "proposal": "Prioritize in phase0: v3 moves embedded action runtime from Node20 to Node24; setup-node application version does not change action runtime. Verify runner support and preserve permissions/triggers."
+      },
+      {
+        "name": "dawidd6/action-send-mail",
+        "current": "v3",
+        "latest_stable": "v24",
+        "source": "https://api.github.com/repos/dawidd6/action-send-mail/releases/latest",
+        "release_url": "https://github.com/dawidd6/action-send-mail/releases/tag/v24",
+        "limitation": null,
+        "proposal": "Review runner runtime requirements/changed inputs, preserve permissions and workflow triggers, then pin reviewed immutable commit SHA."
+      },
+      {
+        "name": "returntocorp/semgrep-action",
+        "current": "v1",
+        "latest_stable": null,
+        "source": "https://api.github.com/repos/returntocorp/semgrep-action/releases/latest",
+        "release_url": null,
+        "limitation": "HTTP Error 404: Not Found",
+        "proposal": "Replace deprecated wrapper with official Semgrep CLI/container workflow; review official integration docs."
+      }
+    ],
+    "odoo": {
+      "manifests": [
+        "integrations/odoo/pf_pos_connector/__manifest__.py",
+        "integrations/odoo/fixtures/pf_checkout_browser_fixture/__manifest__.py"
+      ],
+      "connector_version": "18.0.3.0.0",
+      "fixture_version": "18.0.1.0.0",
+      "depends": [
+        "point_of_sale"
+      ],
+      "external_python": [
+        "requests"
+      ],
+      "requirements_lock": "none in repository",
+      "fixture_image": "odoo:18.0@sha256:f61d3e36eb699e63557bbcdf4d7bd659e51418c326009e6574565d87e1d9026d",
+      "python_and_requests_installed": "not queried from customer/fixture image",
+      "requests_latest_stable": "2.34.2",
+      "requests_latest_python_requirement": ">=3.10",
+      "source": "https://pypi.org/pypi/requests/json",
+      "proposal": "Stay on Odoo18 supported connector line. Inventory actual interpreter/requests from chosen disposable image before upgrade; changing host Python packages does not update Odoo image. Separate Odoo19/20 port from dependency update."
+    },
+    "eas_cli": {
+      "declared": ">=16.0.0 (not exact)",
+      "latest_stable": "27.7.2",
+      "proposal": "Pin a reviewed CLI version only for an explicitly requested app release; no EAS/Codemagic invocation during preparation."
+    }
+  },
+  "validation_and_rollback": {
+    "executed": [
+      "filesystem manifest/lock inventory",
+      "npm outdated --json --long for all 3 projects",
+      "npm audit --package-lock-only --json and --omit=dev for all 3 projects",
+      "official registry/release/advisory queries",
+      "semver comparison of manifests/locks and Expo57 bundled dependencies",
+      "artifact JSON and hash validation"
+    ],
+    "not_executed": [
+      "npm install/ci/update/audit fix",
+      "unit/integration/browser suites",
+      "Expo doctor/install/export/prebuild",
+      "Gradle/CocoaPods/native/cloud builds",
+      "deployment or production DB queries"
+    ],
+    "historical_baselines_only": {
+      "root_unit": 1259,
+      "merchant": 125,
+      "native": 94,
+      "note": "Reported by parent/prior release, not rerun by this preparation. Parent launcher work may increase native test count; implementation must record its exact current baseline."
+    },
+    "required_gates": {
+      "root": [
+        "npm run lint",
+        "npm run typecheck",
+        "npm run test:unit",
+        "npm run test:integration with verified disposable PostgreSQL credentials/network",
+        "npm run openapi:generate in isolated release tree; compare API contracts",
+        "npm audit --omit=dev and all-dependency audit"
+      ],
+      "merchant": [
+        "npm --prefix web/merchant test",
+        "npm --prefix web/merchant run build",
+        "local isolated Playwright smoke/auth/customer/staff/merchant plus accessibility/visual review",
+        "inspect third-party notices and public/merchant asset diff"
+      ],
+      "native": [
+        "npm run lint",
+        "npm run typecheck",
+        "npm test",
+        "Expo install --check and pinned Expo Doctor, after explicit app scope",
+        "Expo export smoke and local Android build only when requested",
+        "iOS macOS checks/build only when explicitly requested",
+        "physical-device storage/session/deep-link/notification/QR verification for affected platforms"
+      ]
+    },
+    "api_and_data_contracts": [
+      "Keep installed iOS0.1.0(3)/Android0.1.0(13) login/session/refresh, points/rewards, wallet/QR, errors and push-registration contracts.",
+      "Preserve stored password hashes, identifiers, keys, ledger/idempotency semantics and database schema compatibility.",
+      "Live wallet-server-refresh release contains 66 migrations; checkout has 73 SQL files. Dependency-only releases must not apply seven unpublished migrations or include unrelated order/contact routes."
+    ],
+    "rollback": {
+      "application": "Preserve exact source snapshot, npm locks, container image digests and static-assets release; revert only the reviewed upgrade commits and deploy the previous approved image/static bundle as a separate authorized release.",
+      "data": "No schema migration expected for dependency work. If a database major is scoped later, rehearse dump/restore or pg_upgrade and a data-compatible rollback; swapping an older image is insufficient.",
+      "native": "Preserve package lock, Podfile.lock, app versions, upload identity and prior artifacts. No binary/OTA/store release is authorized by this preparation."
+    }
+  },
+  "primary_sources": [
+    "https://registry.npmjs.org/",
+    "https://nodejs.org/dist/index.json",
+    "https://nodejs.org/en/about/previous-releases",
+    "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5",
+    "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4",
+    "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+    "https://zod.dev/v4/changelog",
+    "https://zod.dev/json-schema",
+    "https://github.com/StefanTerdell/zod-to-json-schema",
+    "https://docs.expo.dev/versions/v57.0.0/",
+    "https://docs.expo.dev/versions/v58.0.0/",
+    "https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/",
+    "https://expo.dev/changelog/sdk-57",
+    "https://expo.dev/changelog/sdk-58",
+    "https://expressjs.com/en/guide/migrating-5/",
+    "https://github.com/redis/node-redis/blob/master/docs/v4-to-v5.md",
+    "https://eslint.org/version-support/",
+    "https://github.com/prometheus/client_js",
+    "https://github.com/returntocorp/semgrep-action",
+    "https://playwright.dev/docs/docker",
+    "https://www.postgresql.org/support/versioning/",
+    "https://developer.android.com/build/releases/agp-8-12-0-release-notes",
+    "https://services.gradle.org/versions/current",
+    "https://rubygems.org/api/v1/gems/cocoapods.json",
+    "https://pypi.org/pypi/requests/json"
+  ],
+  "evidence": {
+    "directory": "/var/lib/puntos/releases/dependency-preparation-20261111",
+    "files": [
+      {
+        "name": "source-snapshot.json",
+        "sha256": "5010b0da7bc6748ae66f63e358d249e3f4e5142f733c8fce65425b448888d517"
+      },
+      {
+        "name": "manifest-coverage.json",
+        "sha256": "004069472a1dd403c32b5c3b838d509a80493ae26e6a5655038f12d81ac02196"
+      },
+      {
+        "name": "registry-metadata.json",
+        "sha256": "d6f3eea86c880a49f814846aa4b7583d2e15242c575ebbdc6b59dd7673559d45"
+      },
+      {
+        "name": "registry-additional.json",
+        "sha256": "d7e6c7ea16caed0e2d09d1cba3c132a1975c1c7518ff58049791b70e7e4ba38c"
+      },
+      {
+        "name": "registry-specific.json",
+        "sha256": "d0fffa2699001e9b540e5f106ca1d46bd4bcb4ff8e8680908838e1bb34788920"
+      },
+      {
+        "name": "successor-metadata.json",
+        "sha256": "dcb8537410d3c005e0aae56d8051d69bc9a8bf03f77b803df575c35c02e72ccf"
+      },
+      {
+        "name": "toolchain-upstream.json",
+        "sha256": "36842d24b07be85692a1a8b9e90c59f685cbe9a43978ea55ca00fd99bbab7828"
+      },
+      {
+        "name": "pods-inventory.json",
+        "sha256": "d74fcb9dc3ce49a4c8faa04d08e0d1b0468b10af0ecc1d3336835072cddeec13"
+      },
+      {
+        "name": "static-compatibility.json",
+        "sha256": "098b40a257e8a24d6b1df42c6666ee5281dbe11222ac9f265c551e4f9de001fd"
+      },
+      {
+        "name": "root-outdated.json",
+        "sha256": "482403e1d2fd6bc7cd6b87cb9ff84250da998e88e1229521000c7ae28f6c77e8"
+      },
+      {
+        "name": "root-audit.json",
+        "sha256": "a84983eb66b169b114d98e7aa84b87f2a4da36141b6f98782c1009afc69cae62"
+      },
+      {
+        "name": "root-audit-production.json",
+        "sha256": "a84983eb66b169b114d98e7aa84b87f2a4da36141b6f98782c1009afc69cae62"
+      },
+      {
+        "name": "merchant-outdated.json",
+        "sha256": "fb4c8571c072acb3e07e9fa2d0d1193b49eb0311c39b10a9c8309e5ad3338bc7"
+      },
+      {
+        "name": "merchant-audit.json",
+        "sha256": "df9390afbe4e5996c2e6837034693588d441c60781fd27b74fc59763399f04ab"
+      },
+      {
+        "name": "merchant-audit-production.json",
+        "sha256": "df9390afbe4e5996c2e6837034693588d441c60781fd27b74fc59763399f04ab"
+      },
+      {
+        "name": "customer-outdated.json",
+        "sha256": "986769055da6a34f3c91f83682c63d63519a8e30bc6280f3aa2fd885e4915b5d"
+      },
+      {
+        "name": "customer-audit.json",
+        "sha256": "db16cd3ba94cb3d75ba0a7530fe212094042d034c7d45cc84b38b8dadeac2d66"
+      },
+      {
+        "name": "customer-audit-production.json",
+        "sha256": "66921c9ad5677521d41ec01b98d2ef7174bf7b4adec5cd4723197ed0c681c9e7"
+      }
+    ]
+  }
+}
