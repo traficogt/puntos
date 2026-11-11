@@ -1,0 +1,84 @@
+{
+  "expo": {
+    "name": "PuntosFieles",
+    "slug": "puntosfieles",
+    "version": "0.1.0",
+    "scheme": "puntosfieles",
+    "icon": "./assets/pf-logo.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "appleTeamId": "PPSXDC8227",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.puntosfieles.customer",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.puntosfieles.customer",
+      "allowBackup": false,
+      "predictiveBackGestureEnabled": true,
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.WAKE_LOCK",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "com.google.android.c2dm.permission.RECEIVE",
+        "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE",
+        "com.sec.android.provider.badge.permission.READ",
+        "com.sec.android.provider.badge.permission.WRITE",
+        "com.htc.launcher.permission.READ_SETTINGS",
+        "com.htc.launcher.permission.UPDATE_SHORTCUT",
+        "com.sonyericsson.home.permission.BROADCAST_BADGE",
+        "com.sonymobile.home.permission.PROVIDER_INSERT_BADGE",
+        "com.anddoes.launcher.permission.UPDATE_COUNT",
+        "com.majeur.launcher.permission.UPDATE_BADGE",
+        "com.huawei.android.launcher.permission.CHANGE_BADGE",
+        "com.huawei.android.launcher.permission.READ_SETTINGS",
+        "com.huawei.android.launcher.permission.WRITE_SETTINGS",
+        "android.permission.READ_APP_BADGE",
+        "com.oppo.launcher.permission.READ_SETTINGS",
+        "com.oppo.launcher.permission.WRITE_SETTINGS",
+        "me.everything.badger.permission.BADGE_COUNT_READ",
+        "me.everything.badger.permission.BADGE_COUNT_WRITE"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/pf-logo.png",
+        "backgroundColor": "#F7F5EF"
+      }
+    },
+    "web": {
+      "favicon": "./assets/pf-logo.png",
+      "name": "PuntosFieles \u00b7 Vista previa",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true
+        }
+      ],
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "mode": "production"
+        }
+      ],
+      "./plugins/with-xcode-cloud.cjs",
+      "./plugins/with-android-release.cjs"
+    ],
+    "experiments": {
+      "baseUrl": "/app-preview"
+    }
+  }
+}

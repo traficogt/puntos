@@ -1,0 +1,136 @@
+# yaml-language-server: $schema=https://codemagic.io/codemagic-schema.json
+# Start with pf-ios-simulator. Workflows are manual; no push triggers.
+workflows:
+  pf-ios-simulator:
+    name: PF iOS - first simulator build
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    working_directory: apps/customer
+    environment: &ios_environment
+      node: 22.23.5
+      xcode: "26.6"
+      cocoapods: default
+      vars:
+        EXPO_PUBLIC_API_ORIGIN: https://app.puntosfieles.com
+        EXPO_NO_TELEMETRY: "1"
+        COCOAPODS_DISABLE_STATS: "true"
+    scripts:
+      - &install_and_check
+        name: Install and validate PF app
+        script: |
+          #!/bin/bash
+          set -euo pipefail
+          test "$(node --version)" = "v$(tr -d '[:space:]' < .nvmrc)"
+          npm ci --include=dev --no-audit --no-fund
+          npm run check:xcode-cloud
+          npm run lint
+          npm run typecheck
+          npm test
+      - &install_pods
+        name: Install native iOS dependencies
+        script: |
+          #!/bin/bash
+          set -euo pipefail
+          printf 'export NODE_BINARY=%q\n' "$(command -v node)" > ios/.xcode.env.local
+          cd ios
+          if [[ -f Podfile.lock ]]; then
+            pod install --deployment
+          else
+            echo 'First native build: preserve the Podfile.lock artifact and commit it after validation.'
+            pod install
+          fi
+      - name: Compile an unsigned iOS simulator app
+        script: |
+          #!/bin/bash
+          set -euo pipefail
+          mkdir -p build
+          xcodebuild build \
+            -workspace ios/PuntosFieles.xcworkspace \
+            -scheme PuntosFieles \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/ios-simulator \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build/xcodebuild-simulator.log
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/ios-simulator/Build/Products/Release-iphonesimulator/PuntosFieles.app \
+            build/PuntosFieles-simulator.app.zip
+          mkdir -p /tmp/pf-ios-artifacts
+          cp build/PuntosFieles-simulator.app.zip build/xcodebuild-simulator.log ios/Podfile.lock /tmp/pf-ios-artifacts/
+          test -s /tmp/pf-ios-artifacts/PuntosFieles-simulator.app.zip
+          ls -lh /tmp/pf-ios-artifacts
+    artifacts:
+      - /tmp/pf-ios-artifacts/PuntosFieles-simulator.app.zip
+      - /tmp/pf-ios-artifacts/xcodebuild-simulator.log
+      - /tmp/pf-ios-artifacts/Podfile.lock
+
+  pf-ios-testflight:
+    name: PF iOS - signed internal TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    working_directory: apps/customer
+    environment:
+      <<: *ios_environment
+      groups:
+        - pf_app_store
+    scripts:
+      - *install_and_check
+      - *install_pods
+      - name: Configure internal distribution and build number
+        script: |
+          #!/bin/bash
+          set -euo pipefail
+          : "${APP_STORE_APPLE_ID:?Set the numeric PF App Store app ID in the pf_app_store variable group.}"
+          [[ "$APP_STORE_APPLE_ID" =~ ^[0-9]+$ ]]
+          keychain initialize
+          app-store-connect fetch-signing-files com.puntosfieles.customer --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles --project ios/PuntosFieles.xcodeproj --custom-export-options='{"testFlightInternalTestingOnly":true}'
+          PF_LATEST_BUILD=$(app-store-connect get-latest-build-number "$APP_STORE_APPLE_ID")
+          PF_LATEST_BUILD=${PF_LATEST_BUILD:-0}
+          [[ "$PF_LATEST_BUILD" =~ ^[0-9]+$ ]] || { echo 'Could not read a numeric latest build number.' >&2; exit 1; }
+          cd ios
+          agvtool new-version -all "$((PF_LATEST_BUILD + 1))"
+      - name: Build signed iOS archive
+        script: |
+          #!/bin/bash
+          set -euo pipefail
+          xcode-project build-ipa \
+            --workspace ios/PuntosFieles.xcworkspace \
+            --scheme PuntosFieles
+          mkdir -p /tmp/pf-ios-artifacts
+          cp build/ios/ipa/*.ipa ios/Podfile.lock /tmp/pf-ios-artifacts/
+          ls -lh /tmp/pf-ios-artifacts
+    artifacts:
+      - /tmp/pf-ios-artifacts/*.ipa
+      - /tmp/pf-ios-artifacts/Podfile.lock
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        # Uploads appear in TestFlight automatically. This flag requests external
+        # beta review, which does not apply to this internal-only build.
+        submit_to_testflight: false
+        submit_to_app_store: false
+
+  pf-ios-resolve-pods:
+    name: PF iOS - resolve native dependency lockfile
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    working_directory: apps/customer
+    environment: *ios_environment
+    scripts:
+      - *install_and_check
+      - name: Resolve added native modules on macOS
+        script: |
+          #!/bin/bash
+          set -euo pipefail
+          cd ios
+          pod install
+          mkdir -p /tmp/pf-ios-artifacts
+          cp Podfile.lock /tmp/pf-ios-artifacts/
+    artifacts:
+      - /tmp/pf-ios-artifacts/Podfile.lock
