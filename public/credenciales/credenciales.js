@@ -72,7 +72,7 @@ form.addEventListener('submit', async event => {
   if (!turnstileToken) { loadVerification(); setStatus('Completá la verificación de seguridad antes de enviar.', 'error'); return; }
   sending = true; submit.disabled = true; submit.textContent = 'Enviando solicitud…'; form.setAttribute('aria-busy', 'true'); setStatus('Enviando tu solicitud…');
   const values = new FormData(form);
-  const message = ['Solicitud de PF Credenciales — membresías y verificación.', `Organización: ${values.get('organizationType')}`, `Miembros: ${values.get('memberCount')}`, `Consulta: ${values.get('message') || 'Desea una demostración y cotización.'}`, 'Autorizó contacto para esta solicitud.'].join('\n');
+  const message = ['Solicitud de Pertenece — membresías y consulta de vigencia.', `Organización: ${values.get('organizationType')}`, `Miembros: ${values.get('memberCount')}`, `Consulta: ${values.get('message') || 'Desea una demostración y cotización.'}`, 'Autorizó contacto para esta solicitud.'].join('\n');
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 15000);
   try {
@@ -83,7 +83,7 @@ form.addEventListener('submit', async event => {
     }
     const result = await response.json();
     if (result.ok !== true) throw new Error('No pudimos confirmar la recepción. Contactanos por correo antes de reenviar.');
-    sent = true; form.reset(); submit.textContent = 'Solicitud recibida'; setStatus('Recibimos tu solicitud. El equipo de PF te contactará para coordinar la demostración.', 'success'); status.focus();
+    sent = true; form.reset(); submit.textContent = 'Solicitud recibida'; setStatus('Recibimos tu solicitud. El equipo de Pertenece te contactará para coordinar la demostración.', 'success'); status.focus();
   } catch (error) {
     setStatus(error.name === 'AbortError' || error instanceof TypeError ? 'No pudimos confirmar el envío por un problema de conexión. Tus datos siguen aquí. Antes de reenviar, podés consultar por correo si recibimos tu solicitud.' : error.message, 'error');
     submit.disabled = false; submit.replaceChildren(...submitLabel.map(node => node.cloneNode(true)));
