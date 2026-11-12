@@ -23,7 +23,7 @@ const status = document.getElementById('leadStatus');
 let verificationLoading = false;
 let sending = false;
 let sent = false;
-const submitLabel = submit.innerHTML;
+const submitLabel = Array.from(submit.childNodes, node => node.cloneNode(true));
 submit.disabled = false;
 function setStatus(message, kind = '') {
   status.textContent = message;
@@ -86,7 +86,7 @@ form.addEventListener('submit', async event => {
     sent = true; form.reset(); submit.textContent = 'Solicitud recibida'; setStatus('Recibimos tu solicitud. El equipo de PF te contactará para coordinar la demostración.', 'success'); status.focus();
   } catch (error) {
     setStatus(error.name === 'AbortError' || error instanceof TypeError ? 'No pudimos confirmar el envío por un problema de conexión. Tus datos siguen aquí. Antes de reenviar, podés consultar por correo si recibimos tu solicitud.' : error.message, 'error');
-    submit.disabled = false; submit.innerHTML = submitLabel;
+    submit.disabled = false; submit.replaceChildren(...submitLabel.map(node => node.cloneNode(true)));
     try { window.turnstile?.reset(); } catch { /* A blocked challenge must not prevent retry. */ }
   } finally { window.clearTimeout(timeout); sending = false; form.removeAttribute('aria-busy'); }
 });
