@@ -87,3 +87,11 @@ Fuentes primarias consultadas el 2026-11-12:
 - [Google: funciones de IA](https://developers.google.com/search/docs/appearance/ai-features): aplican fundamentos SEO habituales; no se necesitan archivos de texto ni markup especiales.
 
 No se generó dashboard HTML. Los entregables son este reporte, el plan y la carpeta `evidence/`. Esta subtarea no desplegó, hizo commit ni push y no tocó aplicaciones nativas o workflows de construcción.
+
+## Verificación posterior a la publicación
+
+Publicación de código `9b295bd`, verificada el 12 de noviembre de 2026 a las 03:40 UTC. La portada de Pertenece, robots y sitemap devuelven 200; la portada, planes y soporte de PF sirven sus nuevos metadatos. La aplicación y la vista previa anterior de PF conservan HTTP noindex. Se verificó la imagen social versionada por SHA-256; el correo visible ya no se reescribe a un enlace de ofuscación. Las insignias oficiales se publicaron como ejemplos no interactivos.
+
+El error Turnstile 110200 desapareció después de que el propietario autorizara pertenecegt.com. La validación de solicitudes inválidas devuelve 400; las pruebas de envío usan un transporte simulado. La entrega de un formulario humano real todavía no se verificó y no se enviaron correos de prueba. El nuevo proxy conserva la dirección del visitante mediante la cadena de proxies de confianza, evitando un límite compartido entre visitantes.
+
+Comprobaciones locales: 36 pruebas enfocadas, 12 escenarios de navegador, lint y comprobación de tipos aprobados. No se reconstruyeron ni publicaron apps nativas. Evidencia pública: `deployment-verification.json`.

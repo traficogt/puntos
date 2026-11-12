@@ -9,7 +9,7 @@ Fecha: 12 de noviembre de 2026. Alcance: https://pertenecegt.com/.
 | P1 | Añadir imagen OG/Twitter y metadatos completos | Fuente final con ?v=2 y archivo revisado listos; comprobar último despliegue | Medio / bajo | Ninguna |
 | P1 | Describir Pertenece con Organization/WebSite fieles | Hecho, Confirmed: validador JSON-LD sin errores | Medio / bajo | Datos reales disponibles |
 | P1 | Recentrar el texto en membresía y configuración | Hecho, Confirmed: copia pública nueva; revisión combinada con insignias Wallet a 1440/390/320px | Medio / bajo | Preferencia del propietario |
-| P1 | Cerrar correo visible y Turnstile | Correo público corregido y confirmado; Turnstile se verifica en trabajo paralelo | Alto para conversión / bajo-medio | Configuración Cloudflare y comprobación del formulario |
+| P1 | Cerrar correo visible y Turnstile | Publicado: hola@pertenecegt.com, correo sin ofuscación, destino propio y hostname autorizado. Envío humano real por confirmar | Alto para conversión / bajo-medio | Prueba humana de verificación y recepción |
 | P2 | Inspeccionar URL y enviar sitemap a Search Console | Pendiente, no se dispone de evidencia de propiedad/indexación | Alto / bajo | Propiedad verificada y acceso autorizado |
 | P2 | Medir LCP, INP y CLS | Pendiente; API PageSpeed limitada por cuota | Desconocido / bajo | Cuota disponible y datos reales |
 | P3 | Consolidar la antigua vista previa de PF si se retira | Mantiene HTTP noindex; decisión de migración del servidor | Medio / bajo | Retirada definitiva de la vista previa |
