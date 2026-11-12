@@ -19,6 +19,12 @@ for (const [canonical, aliases] of browserRoutes) {
   for (const entry of [canonical.slice(0, -1), ...aliases]) entryPaths.set(entry, canonical);
 }
 
+// Public landing aliases canonicalize without becoming application-host routes.
+const publicEntryPaths = new Map([
+  ["/credenciales", "/credenciales/"],
+  ["/credenciales/index.html", "/credenciales/"]
+]);
+
 const sections = new Map(Object.entries({
   rewards: "recompensas", branding: "marca", tiers: "niveles", branches: "sucursales",
   staff: "equipo", giftcards: "tarjetas-regalo", achievements: "logros", challenges: "retos",
@@ -60,7 +66,7 @@ export function resolveSpanishWebRedirect(originalUrl) {
   const queryStart = original.indexOf("?");
   const pathname = queryStart < 0 ? original : original.slice(0, queryStart);
   const query = queryStart < 0 ? "" : original.slice(queryStart + 1);
-  let canonicalPath = entryPath(pathname);
+  let canonicalPath = publicEntryPaths.get(pathname) || entryPath(pathname);
   if (!canonicalPath) return "";
   let canonicalQuery = query;
   if (canonicalPath === "/negocio/" && new URLSearchParams(query).get("demo") === "1") {

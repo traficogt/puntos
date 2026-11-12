@@ -13,6 +13,8 @@ import { resolveHostSplitRedirect } from "../../src/utils/app-host-routing.js";
 async function serveFixture(t, { splitHosts = false } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), "pf-spanish-web-"));
   const fixtures = {
+    "credenciales/index.html": "<main>Membership credentials</main>",
+    "credenciales/credenciales.js": "window.credentialsPreview = true;",
     "merchant/index.html": '<meta name="pf-style-nonce" content="__PF_STYLE_NONCE__"><main>Merchant</main>',
     "merchant/recursos/new.js": 'window.newMerchant = true;',
     "merchant/assets/old.js": 'window.oldMerchant = true;',
@@ -163,4 +165,26 @@ test("legacy business registration keeps its identifier, token and temporary red
   const response = await request("/join/Cafe-Capital?token=a%2Bb&ref=one+two");
   assert.equal(response.status, 308);
   assert.equal(response.headers.get("location"), "/registro/Cafe-Capital?token=a%2Bb&ref=one+two");
+});
+
+
+test("credential landing accepts slashless links without redirecting to the app host", async (t) => {
+  const request = await serveFixture(t, { splitHosts: true });
+  const headers = { host: "example.com" };
+  const query = "?utm_source=qr&reference=a%2Bb&campaign=one&campaign=two";
+  for (const method of ["GET", "HEAD"]) {
+    const response = await request(`/credenciales${query}`, { method, headers });
+    assert.equal(response.status, 308);
+    assert.equal(response.headers.get("location"), `/credenciales/${query}`);
+    const page = await request(response.headers.get("location"), { method, headers });
+    assert.equal(page.status, 200);
+    assert.equal(page.headers.get("location"), null);
+    if (method === "GET") assert.equal(await page.text(), "<main>Membership credentials</main>");
+  }
+  const asset = await request("/credenciales/credenciales.js", { headers });
+  assert.equal(asset.status, 200);
+  assert.match(await asset.text(), /credentialsPreview/);
+  const write = await request("/credenciales", { method: "POST", headers });
+  assert.equal(write.status, 404);
+  assert.equal(write.headers.get("location"), null);
 });
