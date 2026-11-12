@@ -1,0 +1,123 @@
+[
+  {
+    "id": "PF-01",
+    "area": "Metadatos de planes",
+    "severity": "Warning",
+    "confidence": "Confirmed",
+    "finding": "La página de planes tiene un título genérico y metadatos sociales incompletos.",
+    "evidence": "precios-before.html: título «Planes para tu negocio · PuntosFieles»; og:image, og:site_name, og:locale y twitter:image ausentes. social-plans.json lo confirma.",
+    "impact": "El resultado no identifica el programa de lealtad; los enlaces compartidos carecen de una imagen declarada.",
+    "fix": "Aplicado localmente: título específico de planes de lealtad, descripción consistente y metadatos completos, reutilizando la imagen existente.",
+    "source": "evidence/precios-before.html"
+  },
+  {
+    "id": "PF-02",
+    "area": "Cobertura de dominio",
+    "severity": "Warning",
+    "confidence": "Confirmed",
+    "finding": "La variante www no resuelve durante la auditoría.",
+    "evidence": "verification.json: www falla en getaddrinfo; www-dns.json: consulta pública A devuelve NOERROR sin Answer. El dominio principal responde 200.",
+    "impact": "Quien use enlaces o escriba la variante www no llega al sitio; no es un bloqueo de indexación del dominio principal.",
+    "fix": "Pendiente de infraestructura: habilitar DNS/TLS de www y redirigir permanentemente a https://puntosfieles.com conservando ruta y parámetros.",
+    "source": "evidence/www-dns.json"
+  },
+  {
+    "id": "PF-03",
+    "area": "Datos estructurados",
+    "severity": "Info",
+    "confidence": "Confirmed",
+    "finding": "Los datos existentes identifican la marca y el sitio, pero no conectan el servicio y las páginas de planes y ayuda.",
+    "evidence": "home-before-parse.json contiene Organization y WebSite; precios-before.html y soporte-before.html no contienen JSON-LD.",
+    "impact": "Oportunidad de expresar relaciones y contenido visible con identificadores estables; no implica un error de indexación ni garantiza resultados enriquecidos.",
+    "fix": "Aplicado localmente: WebPage y Service en portada, WebPage en planes y ContactPage en soporte, relacionados con los mismos @id.",
+    "source": "evidence/home-before-parse.json"
+  },
+  {
+    "id": "PF-04",
+    "area": "Contenido",
+    "severity": "Info",
+    "confidence": "Confirmed",
+    "finding": "La biblioteca de guías aún no tiene artículos publicados.",
+    "evidence": "src/content/guides/manifest.json tiene articles: []; /guias/ muestra el estado vacío y noindex, follow, noarchive.",
+    "impact": "La captación de consultas educativas queda pendiente; excluir una biblioteca vacía del índice es correcto.",
+    "fix": "Crear posteriormente guías basadas en procedimientos y experiencia reales, con autoría y fechas verificables. Mantener noindex mientras esté vacía.",
+    "source": "evidence/public-routes-before.json"
+  },
+  {
+    "id": "PF-05",
+    "area": "Core Web Vitals",
+    "severity": "Info",
+    "confidence": "Hypothesis",
+    "finding": "No hay una medición utilizable de Core Web Vitals en esta auditoría.",
+    "evidence": "pagespeed-mobile.json: API de Google limitada por cuota; performance_score es null.",
+    "impact": "LCP, INP y CLS reales y cualquier impacto de velocidad permanecen desconocidos.",
+    "fix": "Medir con PageSpeed/Search Console o Lighthouse autorizado; no atribuir puntuación ni afirmar una mejora de velocidad.",
+    "source": "evidence/pagespeed-mobile.json"
+  },
+  {
+    "id": "PF-06",
+    "area": "AI y robots",
+    "severity": "Info",
+    "confidence": "Confirmed",
+    "finding": "No existe llms.txt, sin que ello constituya un requisito de Google Search.",
+    "evidence": "llms.json devuelve 404; Google Search Central indica que no hacen falta archivos o marcado especiales para sus funciones de IA. robots.txt permite búsqueda y bloquea varios crawlers de entrenamiento mediante Cloudflare.",
+    "impact": "No se confirma ningún perjuicio SEO por la ausencia de llms.txt o por no repetir reglas para cada bot.",
+    "fix": "Conservar la política existente y priorizar contenido HTML útil, enlaces, metadatos e indexabilidad.",
+    "source": "evidence/llms.json"
+  },
+  {
+    "id": "PF-07",
+    "area": "Rastreo y sitemap",
+    "severity": "Pass",
+    "confidence": "Confirmed",
+    "finding": "Las cinco URLs del sitemap son públicas, canónicas y accesibles.",
+    "evidence": "public-routes-before.json: /, /soporte, /privacidad, /terminos y /precios responden 200, canonical propio y sin noindex. robots.txt declara sitemap.xml.",
+    "impact": "Base técnica apta para descubrimiento e indexación; la inclusión real en Google requiere Search Console.",
+    "fix": "Conservar y comprobar después del despliegue.",
+    "source": "evidence/public-routes-before.json"
+  },
+  {
+    "id": "PF-08",
+    "area": "Privacidad de indexación",
+    "severity": "Pass",
+    "confidence": "Confirmed",
+    "finding": "Las pantallas de aplicación conservan noindex y las guías vacías quedan fuera del sitemap.",
+    "evidence": "/customer.html redirige al host app; /mi-tarjeta/ devuelve X-Robots-Tag: noindex, nofollow. /guias/ conserva noindex.",
+    "impact": "Evita promover pantallas de cuenta y contenido vacío como resultados públicos.",
+    "fix": "Conservar la separación de hosts y sus pruebas existentes.",
+    "source": "evidence/public-routes-before.json"
+  },
+  {
+    "id": "PF-09",
+    "area": "Enlaces",
+    "severity": "Pass",
+    "confidence": "Confirmed",
+    "finding": "No se detectan enlaces rotos en la portada.",
+    "evidence": "broken-links.json: 9 comprobados, 0 rotos, 0 timeouts; la demo redirige al host de aplicación y termina en 200. /precios está enlazada en la navegación.",
+    "impact": "Las rutas de navegación esenciales son utilizables; la alerta de orphan por tener un enlace entrante es un falso positivo.",
+    "fix": "Conservar enlaces; no añadir enlaces artificiales para cumplir cuotas del recolector.",
+    "source": "evidence/broken-links.json"
+  },
+  {
+    "id": "PF-10",
+    "area": "Imágenes y texto",
+    "severity": "Pass",
+    "confidence": "Confirmed",
+    "finding": "La portada entrega su contenido principal en HTML e imagen hero dimensionada y ligera.",
+    "evidence": "home-before.html: un H1, texto visible en HTML, hero WebP 1000×667 con alt y fetchpriority=high; recurso público pesa 84.348 bytes.",
+    "impact": "Contenido rastreable sin ejecutar JavaScript y buenas señales básicas de carga; no sustituye medición CWV.",
+    "fix": "Conservar diseño, fuentes, dimensiones y alt.",
+    "source": "evidence/home-before.html"
+  },
+  {
+    "id": "PF-11",
+    "area": "Canonicalización",
+    "severity": "Pass",
+    "confidence": "Confirmed",
+    "finding": "HTTP y los alias HTML auditados llegan a las URLs canónicas.",
+    "evidence": "verification.json confirma http→https; public-routes-before.json confirma /index.html→/ y /precios.html→/precios.",
+    "impact": "Las variantes auditadas convergen en las páginas públicas correctas.",
+    "fix": "Conservar redirecciones y cubrir la variante www cuando se configure.",
+    "source": "evidence/verification.json"
+  }
+]

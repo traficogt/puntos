@@ -1,0 +1,21 @@
+{
+  "checked_at": "2026-11-12T03:30:53.498109+00:00",
+  "sitemap": {
+    "status": 200,
+    "content_type": "text/xml; charset=utf-8",
+    "urls": [
+      "https://pertenecegt.com/"
+    ]
+  },
+  "social_image": {
+    "status": 200,
+    "content_type": "image/jpeg",
+    "bytes": 72149,
+    "matches_local": false
+  },
+  "pf_preview": {
+    "status": 200,
+    "final_url": "https://puntosfieles.com/credenciales/",
+    "x_robots_tag": "noindex, nofollow"
+  }
+}

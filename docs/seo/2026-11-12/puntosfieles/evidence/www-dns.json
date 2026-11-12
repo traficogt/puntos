@@ -1,0 +1,23 @@
+{
+  "Status": 0,
+  "TC": false,
+  "RD": true,
+  "RA": true,
+  "AD": true,
+  "CD": false,
+  "Question": [
+    {
+      "name": "www.puntosfieles.com.",
+      "type": 1
+    }
+  ],
+  "Authority": [
+    {
+      "name": "puntosfieles.com.",
+      "type": 6,
+      "TTL": 1800,
+      "data": "dalary.ns.cloudflare.com. dns.cloudflare.com. 2419754233 10000 2400 604800 1800"
+    }
+  ],
+  "Comment": "Response from 173.245.59.242."
+}

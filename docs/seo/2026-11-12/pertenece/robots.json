@@ -1,0 +1,33 @@
+{
+  "url": "https://pertenecegt.com/robots.txt",
+  "status": 200,
+  "user_agents": {
+    "*": {
+      "allow": [
+        "/"
+      ],
+      "disallow": []
+    }
+  },
+  "sitemaps": [
+    "https://pertenecegt.com/sitemap.xml"
+  ],
+  "crawl_delays": {},
+  "ai_crawler_status": {
+    "GPTBot": "not managed (inherits * rules)",
+    "ChatGPT-User": "not managed (inherits * rules)",
+    "ClaudeBot": "not managed (inherits * rules)",
+    "PerplexityBot": "not managed (inherits * rules)",
+    "Google-Extended": "not managed (inherits * rules)",
+    "Applebot-Extended": "not managed (inherits * rules)",
+    "Bytespider": "not managed (inherits * rules)",
+    "CCBot": "not managed (inherits * rules)",
+    "anthropic-ai": "not managed (inherits * rules)",
+    "FacebookBot": "not managed (inherits * rules)",
+    "Amazonbot": "not managed (inherits * rules)"
+  },
+  "issues": [
+    "\u26a0\ufe0f 11 AI crawlers not explicitly managed: GPTBot, ChatGPT-User, ClaudeBot, PerplexityBot, Google-Extended"
+  ],
+  "error": null
+}

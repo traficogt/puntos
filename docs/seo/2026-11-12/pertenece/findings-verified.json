@@ -1,0 +1,97 @@
+{
+  "findings": [
+    {
+      "area": "Cach\u00e9 de imagen social",
+      "severity": "Warning",
+      "confidence": "Confirmed",
+      "finding": "La fuente ya versiona la imagen social revisada; falta comprobar ese \u00faltimo despliegue p\u00fablico.",
+      "evidence": "combined-final-check.json: fuente con og-pertenece.jpg?v=2, HTML p\u00fablico a\u00fan sin versi\u00f3n en la captura 03:33 UTC. La variante ?v=2 devuelve el JPEG revisado id\u00e9ntico al local.",
+      "impact": "La vista previa puede seguir mostrando el antiguo \u00e9nfasis geogr\u00e1fico mientras la p\u00e1gina ya cambi\u00f3.",
+      "fix": "Publicar el HTML final ya preparado y verificar que og:image y twitter:image apunten a ?v=2.",
+      "sources": []
+    },
+    {
+      "area": "Rendimiento",
+      "severity": "Info",
+      "confidence": "Hypothesis",
+      "finding": "Core Web Vitals y el rendimiento de campo permanecen sin medir.",
+      "evidence": "pagespeed.json: Google API rate limited; performance_score null y field_data_available false.",
+      "impact": "No se puede afirmar que LCP, INP o CLS pasen o fallen.",
+      "fix": "Consultar PageSpeed/CrUX cuando haya cuota y datos suficientes.",
+      "sources": []
+    },
+    {
+      "area": "AI/GEO",
+      "severity": "Info",
+      "confidence": "Confirmed",
+      "finding": "Los rastreadores heredan reglas permisivas; llms.txt no existe.",
+      "evidence": "robots.json: Allow / para *; llms.json: llms.txt y llms-full.txt 404.",
+      "impact": "La ausencia de llms.txt no constituye un bloqueo de Google Search ni de sus funciones de IA.",
+      "fix": "Priorizar rastreabilidad, contenido \u00fatil y datos estructurados fieles; no a\u00f1adir archivos para subir una puntuaci\u00f3n autom\u00e1tica.",
+      "sources": []
+    },
+    {
+      "area": "Indexaci\u00f3n",
+      "severity": "Pass",
+      "confidence": "Confirmed",
+      "finding": "La portada p\u00fablica responde 200 y permite indexaci\u00f3n.",
+      "evidence": "live-analysis.json: meta robots y X-Robots-Tag = index, follow, max-image-preview:large; fetch p\u00fablico HTTP 200.",
+      "impact": "La p\u00e1gina puede ser rastreada y considerada para indexaci\u00f3n.",
+      "fix": "Comprobar la indexaci\u00f3n real en Search Console; no est\u00e1 demostrada por HTTP 200.",
+      "sources": []
+    },
+    {
+      "area": "Dominio y rastreo",
+      "severity": "Pass",
+      "confidence": "Confirmed",
+      "finding": "Canonical, sitemap y variantes del dominio convergen en la ra\u00edz HTTPS.",
+      "evidence": "Canonical https://pertenecegt.com/; robots.txt 200 permite / y declara sitemap.xml; sitemap XML 200 con una URL; HTTP 301 a HTTPS y www 308 al dominio principal.",
+      "impact": "Alinea el descubrimiento y las se\u00f1ales de URL preferida.",
+      "fix": "Conservar estas se\u00f1ales al publicar cambios.",
+      "sources": []
+    },
+    {
+      "area": "Metadatos sociales",
+      "severity": "Pass",
+      "confidence": "Confirmed",
+      "finding": "Open Graph y Twitter incluyen imagen propia y texto de membres\u00edas.",
+      "evidence": "social.json sin campos obligatorios ausentes; JPEG 1200\u00d7630, HTTP 200. La variante ?v=2 entrega los 72,547 bytes locales; la URL sin versi\u00f3n conserva la imagen previa en cach\u00e9.",
+      "impact": "Prepara una vista previa coherente al compartir.",
+      "fix": "Los dos metadatos locales ya usan ?v=2; comprobar la versi\u00f3n al concluir el \u00faltimo despliegue.",
+      "sources": []
+    },
+    {
+      "area": "Datos estructurados",
+      "severity": "Pass",
+      "confidence": "Confirmed",
+      "finding": "Organization y WebSite JSON-LD coinciden con la marca y el servicio en preparaci\u00f3n.",
+      "evidence": "live-analysis.json: Pertenece, URL ra\u00edz, hola@pertenecegt.com, es-GT y descripci\u00f3n sin precios, rese\u00f1as ni verificaci\u00f3n de identidad inventados. validate_schema.py pasa.",
+      "impact": "Ayuda a interpretar el nombre del sitio y la organizaci\u00f3n.",
+      "fix": "Actualizar solo con datos reales cuando cambie la oferta.",
+      "sources": []
+    },
+    {
+      "area": "Contenido y m\u00f3vil",
+      "severity": "Pass",
+      "confidence": "Confirmed",
+      "finding": "El texto prioriza el valor de la membres\u00eda y conserva l\u00edmites claros de la demostraci\u00f3n.",
+      "evidence": "T\u00edtulo p\u00fablico Carn\u00e9s digitales para membres\u00edas | Pertenece; browser-copy-check.json: 1440/390/320px sin desbordamiento, un H1, sin alegatos visibles de pa\u00eds/idioma/moneda; simulaci\u00f3n identificada. Revisi\u00f3n combinada final: ambas insignias Wallet locales visibles, en l\u00ednea a 1440px y apiladas a 390/320px, con r\u00f3tulo de ejemplo; capturas inspeccionadas.",
+      "impact": "Aclara la propuesta sin alterar las tipograf\u00edas ni presentar el ejemplo como un sistema real.",
+      "fix": "Mantener la distinci\u00f3n entre demostraci\u00f3n y servicio disponible.",
+      "sources": []
+    },
+    {
+      "area": "Contacto",
+      "severity": "Pass",
+      "confidence": "Confirmed",
+      "finding": "El correo p\u00fablico conserva su enlace mailto legible; se corrigi\u00f3 la ofuscaci\u00f3n observada inicialmente.",
+      "evidence": "combined-final-check.json, 03:33 UTC: href mailto:hola@pertenecegt.com presente y /cdn-cgi/l/email-protection ausente en HTML p\u00fablico.",
+      "impact": "El contacto por correo ya no depende del enlace t\u00e9cnico de ofuscaci\u00f3n.",
+      "fix": "La comprobaci\u00f3n funcional de Turnstile se realiza en el trabajo paralelo de publicaci\u00f3n; no se enviaron correos de prueba desde esta auditor\u00eda.",
+      "sources": []
+    }
+  ],
+  "dropped": [],
+  "raw_count": 9,
+  "verified_count": 9
+}

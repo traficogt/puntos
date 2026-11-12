@@ -1,0 +1,30 @@
+{
+  "page_url": "https://pertenecegt.com/",
+  "total_links": 5,
+  "checked": 5,
+  "broken": [
+    {
+      "url": "https://pertenecegt.com/cdn-cgi/l/email-protection#b6ded9dad7f6c6d3c4c2d3d8d3d5d3d1c298d5d9db89c5c3d4dcd3d5c28bf2d3dbd9c5c2c4d7d5df93f58593f485d8938486e6d3c4c2d3d8d3d5d3",
+      "anchor_text": "[email\u00a0protected]",
+      "is_internal": true,
+      "status": 404,
+      "error": null,
+      "redirect": null,
+      "response_time_ms": 53
+    }
+  ],
+  "redirected": [],
+  "timeout": [],
+  "healthy": 4,
+  "summary": {
+    "total": 5,
+    "healthy": 4,
+    "broken": 1,
+    "redirected": 0,
+    "timeout": 0
+  },
+  "issues": [
+    "\ud83d\udd34 1 broken link(s) found"
+  ],
+  "error": null
+}

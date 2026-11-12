@@ -378,7 +378,7 @@ publicRoutes.post("/public/contact", strictRateLimit, asyncRoute(async (req, res
   const valid = await verifyTurnstile(v.data.turnstileToken, ip).catch(() => false);
   if (!valid) return res.status(400).json({ error: "Verificación fallida. Intenta de nuevo." });
   try {
-    await sendContactEmail(v.data);
+    await sendContactEmail(v.data, { host: req.get('host') });
   } catch {
     return res.status(502).json({ error: "No se pudo enviar el mensaje. Intenta de nuevo en unos minutos." });
   }

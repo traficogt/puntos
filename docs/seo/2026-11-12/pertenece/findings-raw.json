@@ -1,0 +1,83 @@
+[
+  {
+    "area": "Indexación",
+    "severity": "Pass",
+    "confidence": "Confirmed",
+    "finding": "La portada pública responde 200 y permite indexación.",
+    "evidence": "live-analysis.json: meta robots y X-Robots-Tag = index, follow, max-image-preview:large; fetch público HTTP 200.",
+    "impact": "La página puede ser rastreada y considerada para indexación.",
+    "fix": "Comprobar la indexación real en Search Console; no está demostrada por HTTP 200."
+  },
+  {
+    "area": "Dominio y rastreo",
+    "severity": "Pass",
+    "confidence": "Confirmed",
+    "finding": "Canonical, sitemap y variantes del dominio convergen en la raíz HTTPS.",
+    "evidence": "Canonical https://pertenecegt.com/; robots.txt 200 permite / y declara sitemap.xml; sitemap XML 200 con una URL; HTTP 301 a HTTPS y www 308 al dominio principal.",
+    "impact": "Alinea el descubrimiento y las señales de URL preferida.",
+    "fix": "Conservar estas señales al publicar cambios."
+  },
+  {
+    "area": "Metadatos sociales",
+    "severity": "Pass",
+    "confidence": "Confirmed",
+    "finding": "Open Graph y Twitter incluyen imagen propia y texto de membresías.",
+    "evidence": "social.json sin campos obligatorios ausentes; JPEG 1200×630, HTTP 200. La variante ?v=2 entrega los 72,547 bytes locales; la URL sin versión conserva la imagen previa en caché.",
+    "impact": "Prepara una vista previa coherente al compartir.",
+    "fix": "Los dos metadatos locales ya usan ?v=2; comprobar la versión al concluir el último despliegue."
+  },
+  {
+    "area": "Datos estructurados",
+    "severity": "Pass",
+    "confidence": "Confirmed",
+    "finding": "Organization y WebSite JSON-LD coinciden con la marca y el servicio en preparación.",
+    "evidence": "live-analysis.json: Pertenece, URL raíz, hola@pertenecegt.com, es-GT y descripción sin precios, reseñas ni verificación de identidad inventados. validate_schema.py pasa.",
+    "impact": "Ayuda a interpretar el nombre del sitio y la organización.",
+    "fix": "Actualizar solo con datos reales cuando cambie la oferta."
+  },
+  {
+    "area": "Contenido y móvil",
+    "severity": "Pass",
+    "confidence": "Confirmed",
+    "finding": "El texto prioriza el valor de la membresía y conserva límites claros de la demostración.",
+    "evidence": "Título público Carnés digitales para membresías | Pertenece; browser-copy-check.json: 1440/390/320px sin desbordamiento, un H1, sin alegatos visibles de país/idioma/moneda; simulación identificada. Revisión combinada final: ambas insignias Wallet locales visibles, en línea a 1440px y apiladas a 390/320px, con rótulo de ejemplo; capturas inspeccionadas.",
+    "impact": "Aclara la propuesta sin alterar las tipografías ni presentar el ejemplo como un sistema real.",
+    "fix": "Mantener la distinción entre demostración y servicio disponible."
+  },
+  {
+    "area": "Contacto",
+    "severity": "Pass",
+    "confidence": "Confirmed",
+    "finding": "El correo público conserva su enlace mailto legible; se corrigió la ofuscación observada inicialmente.",
+    "evidence": "combined-final-check.json, 03:33 UTC: href mailto:hola@pertenecegt.com presente y /cdn-cgi/l/email-protection ausente en HTML público.",
+    "impact": "El contacto por correo ya no depende del enlace técnico de ofuscación.",
+    "fix": "La comprobación funcional de Turnstile se realiza en el trabajo paralelo de publicación; no se enviaron correos de prueba desde esta auditoría."
+  },
+  {
+    "area": "Rendimiento",
+    "severity": "Info",
+    "confidence": "Hypothesis",
+    "finding": "Core Web Vitals y el rendimiento de campo permanecen sin medir.",
+    "evidence": "pagespeed.json: Google API rate limited; performance_score null y field_data_available false.",
+    "impact": "No se puede afirmar que LCP, INP o CLS pasen o fallen.",
+    "fix": "Consultar PageSpeed/CrUX cuando haya cuota y datos suficientes."
+  },
+  {
+    "area": "AI/GEO",
+    "severity": "Info",
+    "confidence": "Confirmed",
+    "finding": "Los rastreadores heredan reglas permisivas; llms.txt no existe.",
+    "evidence": "robots.json: Allow / para *; llms.json: llms.txt y llms-full.txt 404.",
+    "impact": "La ausencia de llms.txt no constituye un bloqueo de Google Search ni de sus funciones de IA.",
+    "fix": "Priorizar rastreabilidad, contenido útil y datos estructurados fieles; no añadir archivos para subir una puntuación automática."
+  },
+  {
+    "area": "Caché de imagen social",
+    "severity": "Warning",
+    "confidence": "Confirmed",
+    "finding": "La fuente ya versiona la imagen social revisada; falta comprobar ese último despliegue público.",
+    "evidence": "combined-final-check.json: fuente con og-pertenece.jpg?v=2, HTML público aún sin versión en la captura 03:33 UTC. La variante ?v=2 devuelve el JPEG revisado idéntico al local.",
+    "impact": "La vista previa puede seguir mostrando el antiguo énfasis geográfico mientras la página ya cambió.",
+    "fix": "Publicar el HTML final ya preparado y verificar que og:image y twitter:image apunten a ?v=2."
+  }
+]

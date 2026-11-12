@@ -235,6 +235,25 @@ h2{
 .wallet-caption span+span{
   border-left:1px solid #9eaa8e;
   padding-left:10px}
+.wallet-example{
+  margin:32px 0 0}
+.wallet-example figcaption{
+  display:grid;
+  gap:4px;
+  font-size:.88rem}
+.wallet-example figcaption span{
+  color:var(--muted);
+  font-size:.8rem}
+.wallet-example-badges{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:16px;
+  padding:8px;
+  margin-top:10px}
+.wallet-example-badges img{
+  height:48px;
+  width:auto}
 .credential-stage figcaption{
   text-align:center;
   font-size:.71rem;

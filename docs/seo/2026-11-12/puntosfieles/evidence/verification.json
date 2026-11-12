@@ -1,0 +1,95 @@
+{
+  "local_checks": [
+    {
+      "file": "public/index.html",
+      "body_unchanged": true,
+      "body_sha256": "c8fcb6c13bc11dfaebc347bf4fb789e2b8168e25585f8c6c5e13f4cc45619b6b",
+      "title": "Programas de lealtad y tarjetas digitales | PuntosFieles",
+      "title_length": 56,
+      "description_length": 157,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "WebPage",
+        "Service"
+      ],
+      "metadata_and_schema_valid": true
+    },
+    {
+      "file": "public/precios.html",
+      "body_unchanged": true,
+      "body_sha256": "1adf20a5a4cc4e1e218a0235c5dc98b10e510009d9a8ca15508d3a07239cefd2",
+      "title": "Planes de programas de lealtad | PuntosFieles",
+      "title_length": 45,
+      "description_length": 159,
+      "schema_types": [
+        "WebPage"
+      ],
+      "metadata_and_schema_valid": true
+    },
+    {
+      "file": "public/soporte.html",
+      "body_unchanged": true,
+      "body_sha256": "185e3c94574deecd74c63a51bf8437267ee3532bec74463fda8b76c1cef1e022",
+      "title": "Ayuda con tarjetas, puntos y acceso | PuntosFieles",
+      "title_length": 50,
+      "description_length": 141,
+      "schema_types": [
+        "ContactPage"
+      ],
+      "metadata_and_schema_valid": true
+    }
+  ],
+  "public_resource_checks": [
+    {
+      "url": "https://puntosfieles.com/",
+      "status_code": 200,
+      "redirect_chain": [
+        "http://puntosfieles.com/"
+      ],
+      "error": null,
+      "requested_url": "http://puntosfieles.com/",
+      "headers": {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "public, max-age=0"
+      }
+    },
+    {
+      "url": "https://www.puntosfieles.com/",
+      "status_code": null,
+      "redirect_chain": [],
+      "error": "Connection error: HTTPSConnectionPool(host='www.puntosfieles.com', port=443): Max retries exceeded with url: / (Caused by NameResolutionError(\"HTTPSConnection(host='www.puntosfieles.com', port=443): Failed to resolve 'www.puntosfieles.com' ([Errno -5] No address associated with hostname)\"))",
+      "requested_url": "https://www.puntosfieles.com/",
+      "headers": {}
+    },
+    {
+      "url": "https://puntosfieles.com/images/coffee-gathering.webp",
+      "status_code": 200,
+      "redirect_chain": [],
+      "error": null,
+      "requested_url": "https://puntosfieles.com/images/coffee-gathering.webp",
+      "headers": {
+        "Content-Type": "image/webp",
+        "Content-Length": "84348",
+        "Cache-Control": "public, max-age=14400"
+      }
+    },
+    {
+      "url": "https://puntosfieles.com/icon-512.png",
+      "status_code": 200,
+      "redirect_chain": [],
+      "error": null,
+      "requested_url": "https://puntosfieles.com/icon-512.png",
+      "headers": {
+        "Content-Type": "image/png",
+        "Content-Length": "89168",
+        "Cache-Control": "public, max-age=0"
+      }
+    }
+  ],
+  "focused_unit_tests": {
+    "command": "NODE_ENV=test node --test tests/unit/public-search.test.js tests/unit/public-plans.test.js tests/unit/landing-page-contract.test.js tests/unit/guides.test.js",
+    "passed": 18,
+    "failed": 0
+  }
+}

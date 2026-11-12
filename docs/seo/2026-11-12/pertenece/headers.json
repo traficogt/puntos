@@ -1,0 +1,27 @@
+{
+  "url": "https://pertenecegt.com/",
+  "score": 100,
+  "https": true,
+  "headers_present": {
+    "HSTS (Strict-Transport-Security)": "max-age=31536000",
+    "Content-Security-Policy (CSP)": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://challenges.cloudflare.com https://cloudflareinsights.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
+  },
+  "headers_missing": {},
+  "header_values": {
+    "strict-transport-security": "max-age=31536000",
+    "content-security-policy": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://challenges.cloudflare.com https://cloudflareinsights.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+    "x-frame-options": "DENY",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "permissions-policy": "camera=(), microphone=(), geolocation=()"
+  },
+  "issues": [
+    "\u26a0\ufe0f HSTS missing includeSubDomains directive"
+  ],
+  "recommendations": [],
+  "error": null
+}

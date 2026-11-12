@@ -21,6 +21,7 @@ const form = document.getElementById('membershipContact');
 const submit = document.getElementById('leadSubmit');
 const status = document.getElementById('leadStatus');
 let verificationLoading = false;
+let verificationUnavailable = false;
 let sending = false;
 let sent = false;
 const submitLabel = Array.from(submit.childNodes, node => node.cloneNode(true));
@@ -29,11 +30,20 @@ function setStatus(message, kind = '') {
   status.textContent = message;
   status.dataset.kind = kind;
 }
+window.membershipVerificationError = () => {
+  verificationUnavailable = true;
+  setStatus('La verificación no está disponible. Intentá nuevamente o escribinos a hola@pertenecegt.com para coordinar tu demostración.', 'error');
+  return true;
+};
+window.membershipVerificationSuccess = () => {
+  if (verificationUnavailable) setStatus('Verificación completada. Ya podés enviar tu solicitud.');
+  verificationUnavailable = false;
+};
 function loadVerification() {
   if (window.turnstile || verificationLoading) return;
   verificationLoading = true;
   const script = document.createElement('script');
-  script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?hl=es';
+  script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
   script.async = true;
   script.defer = true;
   script.addEventListener('error', () => {
@@ -69,7 +79,12 @@ form.addEventListener('submit', async event => {
     setStatus('Escribí un correo válido o un teléfono de 8 a 15 dígitos, con código de país si corresponde.', 'error'); return;
   }
   const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value || '';
-  if (!turnstileToken) { loadVerification(); setStatus('Completá la verificación de seguridad antes de enviar.', 'error'); return; }
+  if (!turnstileToken) {
+    loadVerification();
+    if (verificationUnavailable) window.membershipVerificationError();
+    else setStatus('Completá la verificación de seguridad antes de enviar.', 'error');
+    return;
+  }
   sending = true; submit.disabled = true; submit.textContent = 'Enviando solicitud…'; form.setAttribute('aria-busy', 'true'); setStatus('Enviando tu solicitud…');
   const values = new FormData(form);
   const message = ['Solicitud de Pertenece — membresías y consulta de vigencia.', `Organización: ${values.get('organizationType')}`, `Miembros: ${values.get('memberCount')}`, `Consulta: ${values.get('message') || 'Desea una demostración y cotización.'}`, 'Autorizó contacto para esta solicitud.'].join('\n');

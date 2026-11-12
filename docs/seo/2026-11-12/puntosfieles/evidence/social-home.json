@@ -1,0 +1,49 @@
+{
+  "url": "https://puntosfieles.com/",
+  "score": 85,
+  "og_tags": {
+    "og:type": "website",
+    "og:site_name": "PuntosFieles",
+    "og:locale": "es_GT",
+    "og:title": "Programas de lealtad y tarjetas digitales | PuntosFieles",
+    "og:description": "Crea un programa de lealtad para tu negocio con puntos, recompensas y tarjetas digitales. Gestiona clientes y sucursales con PuntosFieles. Solicita una demo.",
+    "og:url": "https://puntosfieles.com/",
+    "og:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+    "og:image:width": "1000",
+    "og:image:height": "667",
+    "og:image:alt": "Tres personas comparten un caf\u00e9 alrededor de una mesa."
+  },
+  "twitter_tags": {
+    "twitter:card": "summary_large_image",
+    "twitter:title": "Programas de lealtad y tarjetas digitales | PuntosFieles",
+    "twitter:description": "Crea un programa de lealtad para tu negocio con puntos, recompensas y tarjetas digitales. Gestiona clientes y sucursales con PuntosFieles. Solicita una demo.",
+    "twitter:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+    "twitter:image:alt": "Tres personas comparten un caf\u00e9 alrededor de una mesa."
+  },
+  "og_present": [
+    "og:title",
+    "og:description",
+    "og:image",
+    "og:url",
+    "og:type",
+    "og:site_name",
+    "og:locale"
+  ],
+  "og_missing": [],
+  "twitter_present": [
+    "twitter:card",
+    "twitter:title",
+    "twitter:description",
+    "twitter:image"
+  ],
+  "twitter_missing": [],
+  "issues": [],
+  "recommendations": [],
+  "preview": {
+    "title": "Programas de lealtad y tarjetas digitales | PuntosFieles",
+    "description": "Crea un programa de lealtad para tu negocio con puntos, recompensas y tarjetas digitales. Gestiona clientes y sucursales con PuntosFieles. Solicita una demo.",
+    "image": "https://puntosfieles.com/images/coffee-gathering.webp",
+    "site_name": "PuntosFieles"
+  },
+  "error": null
+}

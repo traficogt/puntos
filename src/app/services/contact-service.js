@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import { config } from "../../config/index.js";
 import { logger } from "../../utils/logger.js";
+import { contactSite } from "../../utils/contact-site.js";
 
 function escapeHtml(str) {
   return String(str ?? "")
@@ -11,7 +12,7 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
-function buildEmailHtml({ name, business, contact, message }) {
+function buildEmailHtml({ name, business, contact, message }, site) {
   const timestamp = new Date().toLocaleString("es-GT", { timeZone: "America/Guatemala" });
   return `<!DOCTYPE html>
 <html lang="es">
@@ -24,7 +25,7 @@ function buildEmailHtml({ name, business, contact, message }) {
     <tr><td align="center">
       <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
         <tr><td style="background:#1a1008;border-radius:16px 16px 0 0;padding:28px 32px 24px;">
-          <p style="margin:0;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(240,235,228,0.36);">PuntosFieles</p>
+          <p style="margin:0;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(240,235,228,0.36);">${escapeHtml(site.name)}</p>
           <p style="margin:8px 0 0;font-size:20px;font-weight:300;letter-spacing:-0.01em;color:#fff;">Nueva solicitud de demo</p>
         </td></tr>
         <tr><td style="background:#ffffff;padding:28px 32px;border-left:1px solid #e8dfd0;border-right:1px solid #e8dfd0;">
@@ -38,7 +39,7 @@ function buildEmailHtml({ name, business, contact, message }) {
           <p style="margin:0;font-size:15px;line-height:1.65;color:#1a1008;white-space:pre-wrap;">${escapeHtml(message)}</p>
         </td></tr>
         <tr><td style="background:#f3ece0;border-radius:0 0 16px 16px;padding:14px 32px;border:1px solid #e8dfd0;border-top:none;">
-          <p style="margin:0;font-size:12px;color:#a08060;">${escapeHtml(timestamp)} · puntosfieles.com</p>
+          <p style="margin:0;font-size:12px;color:#a08060;">${escapeHtml(timestamp)} · ${escapeHtml(site.domain)}</p>
         </td></tr>
       </table>
     </td></tr>
@@ -62,8 +63,9 @@ export async function verifyTurnstile(token, remoteip) {
   return data.success === true;
 }
 
-export async function sendContactEmail({ name, business, contact, message }) {
-  if (!config.CONTACT_TO) {
+export async function sendContactEmail({ name, business, contact, message }, { host = '' } = {}) {
+  const site = contactSite(host, config.CONTACT_TO);
+  if (!site.to) {
     logger.info({ name, business, contact }, "[CONTACT] CONTACT_TO not configured — logging only");
     return;
   }
@@ -77,10 +79,10 @@ export async function sendContactEmail({ name, business, contact, message }) {
 
   await transport.sendMail({
     from: config.CONTACT_FROM,
-    to: config.CONTACT_TO,
+    to: site.to,
     subject: `Solicitud de demo — ${business}`,
     text: `Nombre: ${name}\nNegocio: ${business}\nContacto: ${contact}\n\nContexto:\n${message}`,
-    html: buildEmailHtml({ name, business, contact, message })
+    html: buildEmailHtml({ name, business, contact, message }, site)
   });
 
   logger.info({ name, business }, "[CONTACT] Email sent");

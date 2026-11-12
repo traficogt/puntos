@@ -1,0 +1,37 @@
+{
+  "url": "https://puntosfieles.com/precios",
+  "score": 38,
+  "og_tags": {
+    "og:title": "Planes para tu negocio \u00b7 PuntosFieles",
+    "og:description": "Prueba el panel y compara el alcance de cada plan.",
+    "og:type": "website",
+    "og:url": "https://puntosfieles.com/precios"
+  },
+  "twitter_tags": {
+    "twitter:card": "summary"
+  },
+  "og_present": [
+    "og:title",
+    "og:description",
+    "og:url",
+    "og:type"
+  ],
+  "og_missing": [
+    "og:image"
+  ],
+  "twitter_present": [
+    "twitter:card"
+  ],
+  "twitter_missing": [],
+  "issues": [
+    "\ud83d\udd34 Missing required: og:image"
+  ],
+  "recommendations": [],
+  "preview": {
+    "title": "Planes para tu negocio \u00b7 PuntosFieles",
+    "description": "Prueba el panel y compara el alcance de cada plan.",
+    "image": null,
+    "site_name": ""
+  },
+  "error": null
+}

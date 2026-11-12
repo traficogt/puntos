@@ -1,0 +1,35 @@
+{
+  "page_url": "https://puntosfieles.com/",
+  "total_links": 9,
+  "checked": 9,
+  "broken": [],
+  "redirected": [
+    {
+      "url": "https://puntosfieles.com/demostracion/",
+      "anchor_text": "Probar la demo",
+      "is_internal": true,
+      "status": 200,
+      "error": null,
+      "redirect": {
+        "from": "https://puntosfieles.com/demostracion/",
+        "to": "https://app.puntosfieles.com/demostracion/",
+        "hops": 1,
+        "codes": [
+          302
+        ]
+      },
+      "response_time_ms": 96
+    }
+  ],
+  "timeout": [],
+  "healthy": 8,
+  "summary": {
+    "total": 9,
+    "healthy": 8,
+    "broken": 0,
+    "redirected": 1,
+    "timeout": 0
+  },
+  "issues": [],
+  "error": null
+}
