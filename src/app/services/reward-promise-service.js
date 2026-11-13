@@ -31,7 +31,7 @@ export async function listCustomerEntitlements({businessId,customerId},injected=
  return (injected.transaction??withTransaction)(async client=>{
   const customer=(await client.query('SELECT c.id,cb.points,cb.pending_points FROM customers c JOIN customer_balances cb ON cb.customer_id=c.id WHERE c.id=$1 AND c.business_id=$2 AND c.deleted_at IS NULL',[customerId,businessId])).rows[0];if(!customer)throw notFound('Cliente no encontrado.');
   const cycle=(await client.query('SELECT * FROM reward_promise_cycles WHERE business_id=$1 AND customer_id=$2 AND completed_at IS NULL',[businessId,customerId])).rows[0]??null;
-  const promises=cycle?(await client.query(`SELECT p.*,r.stock,COALESCE(a.available,true) AS available,COALESCE(a.alternative_reward_ids,'{}'::uuid[]) AS alternative_reward_ids,
+  const promises=cycle?(await client.query(`SELECT p.*,GREATEST(p.valid_until,(SELECT max(e.extended_until) FROM reward_promise_extensions e WHERE e.business_id=p.business_id AND e.promise_id=p.id)) AS effective_valid_until,r.stock,COALESCE(a.available,true) AS available,COALESCE(a.alternative_reward_ids,'{}'::uuid[]) AS alternative_reward_ids,
    COALESCE((SELECT jsonb_agg(jsonb_build_object('id',ar.id,'name',ar.name,'stock',ar.stock)) FROM rewards ar WHERE ar.business_id=p.business_id AND ar.id=ANY(a.alternative_reward_ids) AND ar.active),'[]'::jsonb) AS alternatives
    FROM customer_reward_promises p JOIN rewards r ON r.id=p.reward_id LEFT JOIN reward_availability a ON a.business_id=p.business_id AND a.reward_id=p.reward_id WHERE p.cycle_id=$1 ORDER BY p.points_cost,p.reward_name`,[cycle.id])).rows:[];
   const hospitality=(await client.query(`SELECT e.id,e.title,e.reward_name,e.description,e.reward_id,e.branch_id,e.issued_at,e.expires_at,r.stock,COALESCE(a.available,true) AS available,f.redemption_id
@@ -81,7 +81,7 @@ export async function redeemEntitlement(options,injected={}){
   const customer=(await client.query('SELECT id FROM customers WHERE id=$1 AND business_id=$2 AND deleted_at IS NULL FOR SHARE',[customerId,businessId])).rows[0];if(!customer||!balance)throw notFound('Cliente no encontrado.');
   if(promiseId){const cycle=(await client.query('SELECT completed_at FROM reward_promise_cycles WHERE id=$1',[entitlement.cycle_id])).rows[0];if(cycle.completed_at)throw conflict('Este ciclo ya terminó.');}
   else if((await client.query('SELECT id FROM reward_entitlement_fulfillments WHERE hospitality_id=$1',[hospitalityId])).rowCount)throw conflict('La cortesía ya fue entregada.');
-  const expiration=promiseId?entitlement.valid_until:entitlement.expires_at;
+  const expiration=promiseId?await effectivePromiseExpiration(client,businessId,promiseId,entitlement.valid_until):entitlement.expires_at;
   const now=(await client.query('SELECT clock_timestamp() AS now')).rows[0].now;if(expiration&&new Date(expiration)<=new Date(now))throw conflict('El beneficio venció.');
   const scope=promiseId?entitlement.branch_ids:entitlement.branch_id?[entitlement.branch_id]:[];
   if(scope.length&&!scope.includes(member.branch_id))throw forbidden('El beneficio corresponde a otra sucursal.');
@@ -112,7 +112,7 @@ export async function protectedRedemptionReward(client,{businessId,customerId,re
  await client.query('SELECT customer_id FROM customer_balances WHERE customer_id=$1 FOR UPDATE',[customerId]);
  const terms=(await client.query(`SELECT p.* FROM customer_reward_promises p JOIN reward_promise_cycles c ON c.id=p.cycle_id WHERE p.business_id=$1 AND c.customer_id=$2 AND p.reward_id=$3 AND c.completed_at IS NULL`,[businessId,customerId,reward.id])).rows[0];
  const availability=(await client.query('SELECT available FROM reward_availability WHERE business_id=$1 AND reward_id=$2',[businessId,reward.id])).rows[0];if(availability?.available===false)throw conflict('La recompensa está temporalmente no disponible.');
- return terms?{...reward,name:terms.reward_name,description:terms.description,points_cost:terms.points_cost,valid_until:terms.valid_until,active:true,promise_id:terms.id,protected_branch_ids:terms.branch_ids}:reward;
+ return terms?{...reward,name:terms.reward_name,description:terms.description,points_cost:terms.points_cost,valid_until:await effectivePromiseExpiration(client,businessId,terms.id,terms.valid_until),active:true,promise_id:terms.id,protected_branch_ids:terms.branch_ids}:reward;
 }
 export async function completeLegacyProtectedRedemption(client,{businessId,staff,customerId,redemptionId,reward,pointsCost,requestId,cycleId=undefined}){
  if(reward.promise_id){
@@ -135,3 +135,27 @@ export async function assertProtectedRedemptionGuards(client,{business,customerI
 }
 
 export async function protectedRedemptionName(client,redemptionId){return (await client.query('SELECT fulfilled_reward_name FROM reward_entitlement_fulfillments WHERE redemption_id=$1',[redemptionId])).rows[0]?.fulfilled_reward_name;}
+
+/** Additional permission is append-only; the original issued terms remain unchanged. */
+export async function extendRewardPromise(options,injected={}){
+ const {businessId,staff,promiseId,extendedUntil}=options,requestId=requestIdentity(options.requestId),reason=String(options.reason??'').trim(),until=new Date(extendedUntil);
+ requestIdentity(promiseId);if(reason.length<3||reason.length>500||!Number.isFinite(+until))throw badRequest('Indica el motivo y la nueva fecha.');
+ const payload=fingerprint([staff.id,promiseId,until.toISOString(),reason]);
+ return (injected.transaction??withTransaction)(async client=>{
+  const member=await livePromiseMember(client,options);await lockPromiseRequest(client,businessId,requestId);
+  const prior=(await client.query('SELECT * FROM reward_promise_extensions WHERE business_id=$1 AND request_id=$2',[businessId,requestId])).rows[0];if(prior){if(prior.payload_fingerprint!==payload)throw conflict('La referencia ya pertenece a otra extensión.');return {ok:true,extension:prior,replay:true};}
+  const promise=(await client.query('SELECT p.*,c.completed_at FROM customer_reward_promises p JOIN reward_promise_cycles c ON c.id=p.cycle_id WHERE p.business_id=$1 AND p.id=$2 FOR UPDATE OF c',[businessId,promiseId])).rows[0];
+  if(!promise)throw notFound('Promesa no encontrada.');if(promise.completed_at)throw conflict('El ciclo de esta promesa ya terminó.');if(promise.branch_ids.length&&!promise.branch_ids.includes(member.branch_id)&&member.role!=='OWNER')throw forbidden('La promesa corresponde a otra sucursal.');
+  const previous=await effectivePromiseExpiration(client,businessId,promiseId,promise.valid_until),now=new Date((await client.query('SELECT clock_timestamp() AS now')).rows[0].now);
+  if(!previous)throw conflict('La promesa ya está vigente sin vencimiento.');
+  if(until<=new Date(previous)||until<=now||until>new Date(+now+90*86400000))throw badRequest('La extensión debe ampliar la fecha y quedar dentro de los próximos 90 días.');
+  await (await import('./staff-delegation-service.js')).consumeStaffAuthority(client,{merchantId:businessId,staffId:staff.id,staff,action:'extend_promise',locationId:member.branch_id??null,referenceType:'promise_extension',referenceId:requestId});
+  const extension=(await client.query('INSERT INTO reward_promise_extensions(id,business_id,promise_id,previous_valid_until,extended_until,reason,actor_staff_id,request_id,payload_fingerprint) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',[randomUUID(),businessId,promiseId,previous,until,reason,staff.id,requestId,payload])).rows[0];
+  await promiseAudit(client,options,'reward.promise.extend',{extension_id:extension.id,promise_id:promiseId,previous_valid_until:previous,extended_until:until,reason});return {ok:true,extension,replay:false};
+ });
+}
+export async function effectivePromiseExpiration(client,businessId,promiseId,original){
+ if(!original)return null;
+ const extension=(await client.query('SELECT max(extended_until) AS extended_until FROM reward_promise_extensions WHERE business_id=$1 AND promise_id=$2',[businessId,promiseId])).rows[0]?.extended_until;
+ return extension&&new Date(extension)>new Date(original)?extension:original;
+}

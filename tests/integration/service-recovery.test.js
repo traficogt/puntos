@@ -33,6 +33,12 @@ suite('service recovery durable PostgreSQL',()=>{
   await pool.query(await readFile(new URL('../../src/app/migrations/2026-11-10-reward-economics.sql',import.meta.url),'utf8'));
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   await pool.query(await readFile(new URL('../fixtures/service-refund-ledger.sql',import.meta.url),'utf8'));
+  await pool.query("ALTER TABLE businesses ADD COLUMN IF NOT EXISTS program_type text DEFAULT 'SPEND'; ALTER TABLE rewards ADD COLUMN IF NOT EXISTS description text; CREATE TABLE IF NOT EXISTS reward_branches(reward_id uuid,branch_id uuid,PRIMARY KEY(reward_id,branch_id));");
+  for(const name of ['2026-11-10-customer-migration.sql','2026-11-11-reward-promises-hospitality.sql','2026-11-13-service-completion.sql']){
+   // Fixed test migration names, never caller input.
+   // eslint-disable-next-line security/detect-non-literal-fs-filename
+   await pool.query(await readFile(new URL(`../../src/app/migrations/${name}`,import.meta.url),'utf8'));
+  }
   service=await import('../../src/app/services/service-recovery-service.js');
  });
  after(async()=>{await pool?.end();});

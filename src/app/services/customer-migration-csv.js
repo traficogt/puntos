@@ -7,7 +7,11 @@ export const migrationTemplate = 'Teléfono,Nombre,Saldo\r\n55550001,Ana de ejem
 export const migrationLimits = { rows: 100, bytes: 200 * 1024, points: MAX_LEDGER_INTEGER };
 
 /** Pure, bounded normalization shared by the server and the isolated demonstration. */
-export function normalizeCustomerMigration({ csv = undefined, columns = undefined, limits = undefined, country = 'GT' }) {
+export function normalizeCustomerMigration({ csv = undefined, columns = undefined, limits = undefined, country = 'GT', source = undefined }) {
+  if(source&&(!['csv_balance','paper_card','progress'].includes(source.type)||!source.label?.trim()||!source.evidence?.trim()))throw badRequest('Registra el origen y la evidencia de la conversión.');
+  if(source?.evidence_type==='photo')throw badRequest('Una foto no prueba el saldo. Usa un registro verificado por el dueño.');
+  const converted=source&&source.type!=='csv_balance';
+  if(converted&&(!source.conversion?.approved||!Number.isSafeInteger(source.conversion.points_per_unit)||source.conversion.points_per_unit<1||source.conversion.points_per_unit>100000))throw badRequest('La conversión requiere aprobación del dueño y puntos enteros por unidad.');
   const document = parsePosCsv(csv, limits);
   if (!document.rows.length) throw badRequest('Incluye al menos un cliente debajo del encabezado.');
   if (columns === undefined) return { headers: document.headers, rows: [] };
@@ -27,12 +31,12 @@ export function normalizeCustomerMigration({ csv = undefined, columns = undefine
     const phone = normalizePhone(rawPhone, country);
     const name = mapping.name === undefined ? null : values[mapping.name].trim() || null;
     const rawPoints = mapping.points === undefined ? '0' : values[mapping.points].trim();
-    const points = Number(rawPoints);
+    const units = Number(rawPoints), points = units*(converted?source.conversion.points_per_unit:1);
     const issues = [];
     if ((country !== 'GT' && !rawPhone.startsWith('+')) || !/^[+\d() .-]+$/.test(rawPhone) || !/^\d{8,15}$/.test(phone)) issues.push({ code: 'INVALID_PHONE', message: country === 'GT' ? 'Usa un teléfono de 8 a 15 dígitos; los números locales se completan con 502.' : 'Usa + y el número internacional completo, con código de país.' });
     if (name && (name.length > 120 || /[\p{Cc}\p{Cf}]/u.test(name))) issues.push({ code: 'INVALID_NAME', message: 'El nombre admite hasta 120 caracteres sin saltos de línea ni caracteres de control.' });
     if (!/^\d+$/.test(rawPoints) || !Number.isInteger(points) || points > MAX_LEDGER_INTEGER) issues.push({ code: 'INVALID_POINTS', message: 'El saldo debe ser un entero entre 0 y 2,147,483,647, sin separadores.' });
-    return { row, phone, name, points: Number.isSafeInteger(points) ? points : null, issues };
+    return { row, phone, name, points: Number.isSafeInteger(points) ? points : null, ...(converted?{source_units:units}:{}), issues };
   });
   const counts = new Map();
   for (const row of rows) counts.set(row.phone, (counts.get(row.phone) || 0) + 1);

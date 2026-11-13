@@ -30,6 +30,9 @@ suite('bounded staff authority against disposable PostgreSQL',()=>{
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const migration=await readFile(new URL('../../src/app/migrations/2026-11-11-staff-delegation.sql',import.meta.url),'utf8').catch(()=>null);
   assert.ok(migration,'bounded authority migration must exist');await pool.query(migration);
+  // Only delegation additions are needed in this deliberately minimal fixture.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+ const completion=await readFile(new URL('../../src/app/migrations/2026-11-13-service-completion.sql',import.meta.url),'utf8');await pool.query(completion.split('CREATE TABLE IF NOT EXISTS staff_auto_briefings')[0]);
   service=await import('../../src/app/services/staff-delegation-service.js');
  });
  after(async()=>pool?.end());
@@ -120,7 +123,7 @@ suite('bounded staff authority against disposable PostgreSQL',()=>{
  });
  it('supports branch-scoped authority and briefings with SELECT-only branch access',async()=>{
   await pool.query(`GRANT USAGE ON SCHEMA app TO staff_delegation_test_app;
-   GRANT SELECT,UPDATE ON staff_users TO staff_delegation_test_app;
+   GRANT SELECT,UPDATE ON businesses,staff_users TO staff_delegation_test_app;
    REVOKE ALL ON branches FROM staff_delegation_test_app;
    GRANT SELECT ON branches TO staff_delegation_test_app;
    GRANT SELECT,INSERT,UPDATE ON staff_service_grants,staff_shift_notices TO staff_delegation_test_app;

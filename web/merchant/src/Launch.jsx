@@ -11,12 +11,13 @@ import {firstLaunchStep,launchReadiness,launchPilot} from './launch-model.js';
 export default function Launch({staff,features={},onDirty}){
  const [refresh,setRefresh]=useState(0),[step,setStep]=useState(null),[dirty,setDirty]=useState(false),[savedProgram,setSavedProgram]=useState(null),[practiceComplete,setPracticeComplete]=useState(false);
  const program=useResource('/api/admin/launch/program',refresh),rewards=useResource('/api/admin/reward-workspace',refresh),invite=useResource('/api/admin/customer-enrollment',refresh),operations=useResource('/api/admin/operations-health',refresh);
+ const persistedPractice=useResource('/api/admin/service-operations/rehearsal',refresh);
  const pilots=useResource(features.analytics?'/api/admin/pilots':null,refresh);
  const selectedPilot=launchPilot([...(pilots.data?.pilots||[]),...(pilots.data?.latest_completed?[pilots.data.latest_completed]:[])]);
  const pilot=useResource(selectedPilot?`/api/admin/pilots/${selectedPilot.id}`:null,refresh);
  const currentProgram=savedProgram?.refresh===refresh?savedProgram.program:program.data?.program;
  const readiness=launchReadiness({program:currentProgram,rewards:rewards.data?.rewards,branches:rewards.data?.branches,pilot:pilot.data});
- const actions=operations.data?.next_actions||[],nextStep=firstLaunchStep(readiness,practiceComplete);
+ const actions=operations.data?.next_actions||[],nextStep=firstLaunchStep(readiness,practiceComplete||(persistedPractice.data?.current&&persistedPractice.data?.session?.state?.complete));
  useEffect(()=>{if(step===null&&!program.loading&&!rewards.loading)setStep(nextStep);},[step,program.loading,rewards.loading,nextStep]);
  function changeStep(value){if(dirty&&!confirm('Tienes cambios sin guardar. ¿Quieres descartarlos?'))return;setDirty(false);onDirty?.(false);setStep(value);}
  function reload(){if(dirty&&!confirm('Recargar descartará los cambios de la regla. ¿Quieres continuar?'))return;setRefresh(v=>v+1);setPracticeComplete(false);setDirty(false);onDirty?.(false);}
@@ -25,7 +26,7 @@ export default function Launch({staff,features={},onDirty}){
  const tasks=[
   {step:'program',label:'Guardar una regla de puntos',status:program.loading?'Consultando regla':program.error?'Regla sin consultar':readiness.program?'Regla guardada':'Pendiente'},
   {step:'rewards',label:'Preparar tu primera recompensa',status:readiness.activeRewards===null?'Catálogo sin consultar':readiness.activeRewards>0?`${number(readiness.activeRewards)} ${readiness.activeRewards===1?'preparada':'preparadas'}`:'Pendiente'},
-  {step:'data',label:'Preparar al equipo y practicar',status:practiceComplete?'Práctica ficticia completada':'Práctica pendiente'},
+  {step:'data',label:'Preparar al equipo y practicar',status:practiceComplete||(persistedPractice.data?.current&&persistedPractice.data?.session?.state?.complete)?'Práctica ficticia completada':'Práctica pendiente'},
   {step:'launch',label:'Revisar la inscripción y el QR',status:'Comprobar antes de compartir'},
  ];
  return <Stack gap="xl">

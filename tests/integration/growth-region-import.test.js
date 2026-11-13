@@ -22,6 +22,7 @@ suite('regional settings, large import and fenced workers in disposable PostgreS
    CREATE TABLE growth_campaigns(id uuid,business_id uuid,preparation_status text);
    CREATE TABLE background_jobs(id uuid PRIMARY KEY,business_id uuid,job_type text,status text DEFAULT 'QUEUED',payload jsonb,result jsonb,error text,attempts int DEFAULT 0,run_after timestamptz DEFAULT now(),locked_at timestamptz,started_at timestamptz,completed_at timestamptz,created_at timestamptz DEFAULT now());`);
   for(const name of ['2026-11-10-customer-migration.sql','2026-11-11-customer-import-jobs.sql','2026-11-11-regional-settings.sql','2026-11-11-regional-settings2.sql'])await db.query(await readFile(new URL(`../../src/app/migrations/${name}`,import.meta.url),'utf8'));
+  await db.query('ALTER TABLE customer_migration_batches ADD COLUMN IF NOT EXISTS source_evidence jsonb');
   await db.query('GRANT SELECT,INSERT,UPDATE ON gift_cards,pos_refund_receipts,reward_economics_settings,businesses,staff_users,customer_import_jobs,background_jobs,reward_unit_costs,hospitality_grants,hospitality_entitlements,growth_campaigns TO migration_launch_tenant;GRANT SELECT,INSERT ON customer_migration_batches TO migration_launch_tenant');
  });
  after(async()=>db?.end());

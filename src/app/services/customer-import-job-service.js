@@ -7,8 +7,8 @@ import { normalizeCustomerMigration, summarizeCustomerMigration } from './custom
 import { commitCustomerMigration, migrationPreviewSchema, migrationCommitSchema } from './customer-migration-service.js';
 import { businessRegion } from './regional-settings.js';
 export const largeImportLimits={rows:5000,bytes:750*1024};
-export const importJobPreviewSchema=migrationPreviewSchema.extend({csv:z.string().min(1).max(750*1024)});
-export const importJobCreateSchema=migrationCommitSchema.extend({csv:z.string().min(1).max(750*1024)});
+export const importJobPreviewSchema=migrationPreviewSchema.extend({csv:z.string().min(1).max(750*1024),source:z.never().optional()});
+export const importJobCreateSchema=migrationCommitSchema.extend({csv:z.string().min(1).max(750*1024),source:z.never().optional()});
 const defaults={query:dbQuery,transaction:withTransaction,context:withDbClientContext};
 const publicJob=({rows_json:_rows,payload_hash:_hash,created_by_staff_id:_staff,business_id:_tenant,...job})=>job;
 async function inspect(businessId,input,d){

@@ -4,6 +4,8 @@ import { addAward as storeAward, deleteAward as removeAward, getAwardQueueStats,
 import { registerServiceWorker, setHidden } from "/lib.js";
 import { createAwardQueue } from "./award-queue.js";
 import { mountServiceCases } from "./service-cases.js";
+import {mountDemandNotebook} from "../demand-notebook.js";
+import {mountOwnerOperations} from "./owner-operations.js";
 import { mountServiceBriefing } from "./service-briefing.js";
 
 /** @typedef {import("./types.js").StaffAwardResponse} StaffAwardResponse */
@@ -25,6 +27,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   let posRecording = null;
   let protectedCycle = null;
   let serviceBriefing = null;
+  let demandNotebook = null;
   let scanning = false;
   let lastCustomerId = null;
   let lastCustomerToken = "";
@@ -131,6 +134,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     rewardEntitlements?.destroy();
     posRecording?.destroy();
     serviceBriefing?.destroy();
+    demandNotebook?.destroy();
     sessionEnded = true;
     sessionOnline = false;
     permissionSet = new Set();
@@ -985,6 +989,10 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   posRecording = mountPosRecording({ container: element("#staffPosRecording"), api, getContext: () => ({ customerId: lastCustomerId, staffId: staff?.id, businessId: staff?.business_id, branchId: staff?.branch_id, online: canUseRedeemFlow() && !sessionEnded }) });
   rewardEntitlements = mountRewardEntitlements({ container: element("#staffRewardEntitlements"), api, getContext: () => ({ customerId: lastCustomerId, online: sessionOnline && !sessionEnded }), onCycle: cycle => { protectedCycle = cycle; renderProgramInfo(); updateInputsForRule(); }, onBalance: balance => { lastCustomerPoints = Number(balance); renderRewardOptions(); updateCustomerSurfaceState(); }, onRedeemed: result => posRecording?.showRedemption(result) });
   serviceCases = mountServiceCases({ container: element("#staffServiceCases"), api, getContext: () => ({ customerId: lastCustomerId, rewardId: select("#rewardSelect").value, online: sessionOnline && !sessionEnded }) });
-  serviceBriefing = mountServiceBriefing({ container: element("#staffServiceBriefing"), api, program: programRule, rewards: rewardOptions });
+  const operationsContainer=document.createElement("section"),demandContainer=document.createElement("section");
+  element("#staffServiceBriefing").after(operationsContainer,demandContainer);
+  mountOwnerOperations(operationsContainer,api);
+  demandNotebook=mountDemandNotebook({container:demandContainer,source:"staff",getContext:()=>({customerId:lastCustomerId,rewardId:select("#rewardSelect").value||null})});
+  serviceBriefing = mountServiceBriefing({ container: element("#staffServiceBriefing"), api, program: programRule });
   registerServiceWorker().catch(() => {});
 }

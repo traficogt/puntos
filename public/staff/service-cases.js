@@ -46,11 +46,26 @@ export function mountServiceCases({container,api,getContext}){
   if(current!==selection){selection=current;refreshSequence++;detailSequence++;updateResolutionControls=null;detailRow=null;detail.replaceChildren();list.replaceChildren();reason.value='';reportPending=null;resolvePending=null;if(details.open)refresh();}
   if(!online())message('Conéctate para registrar o resolver una incidencia.');
  }
- function renderDetail(row,restoration){
+ function renderDetail(row,restoration,result={}){
   detailRow=row;detail.replaceChildren();detail.append(node('h3','Resolver este caso'),node('p',row.reason));
   if(row.kind==='redemption_failed')detail.append(node('p','El intento rechazado no descontó puntos.'));
-  detail.append(node('p','Las condiciones prometidas anteriormente no están documentadas. La entrega física debe confirmarse con el cliente.'));
+  detail.append(node('p',row.evidence?.promise_terms?`Promesa guardada: ${row.evidence.promise_terms.reward_name} · ${row.evidence.promise_terms.points_cost} puntos.`:'Sin condiciones prometidas guardadas. La configuración actual no demuestra las anteriores.'));
+  for(const entry of result.events??[])detail.append(node('p',`${entry.event_type}: ${entry.details.reason||''}${entry.details.evidence_level?` · Evidencia: ${entry.details.evidence_level}`:''}`));
+  if(result.customer_active===false)detail.append(node('p','La cuenta está desactivada. Se conserva el historial; no se pueden entregar beneficios ni modificar su saldo.'));
   if(row.status!=='open'){detail.append(node('p','Este caso ya tiene una resolución guardada.'));return;}
+  const promises=(result.promises??[]).filter(p=>!row.reward_id||p.reward_id===row.reward_id),promiseSelect=node('select'),alternativeSelect=node('select');promiseSelect.id='servicePromise';alternativeSelect.id='serviceAlternative';promiseSelect.add(new Option('Sin canje nuevo; solo registrar confirmación',''));
+  for(const p of promises)promiseSelect.add(new Option(`${p.reward_name} · ${p.points_cost} puntos`,p.id));
+  function alternatives(){alternativeSelect.replaceChildren(new Option('Selecciona alternativa aprobada',''));for(const r of promises.find(p=>p.id===promiseSelect.value)?.alternatives??[])alternativeSelect.add(new Option(r.name,r.id));}
+  promiseSelect.addEventListener('change',alternatives);alternatives();
+  const promiseLabel=node('label','Promesa protegida'),alternativeLabel=node('label','Alternativa aprobada');promiseLabel.htmlFor=promiseSelect.id;alternativeLabel.htmlFor=alternativeSelect.id;
+  if(!row.redemption_id)detail.append(promiseLabel,promiseSelect,alternativeLabel,alternativeSelect,node('p','Seleccionar una promesa registra un canje real al confirmar su entrega. Sin selección solo queda una declaración del equipo.'));
+  const management=node('div'),followLabel=node('label','Motivo del seguimiento'),followReason=node('textarea');followReason.id='serviceFollowReason';followLabel.htmlFor=followReason.id;followReason.maxLength=500;followReason.rows=2;management.append(followLabel,followReason);
+  let managePending=null;
+  async function manage(action,extra={}){if(busy||!online()||followReason.value.trim().length<3){message('Describe el motivo del seguimiento (mínimo tres caracteres).');return;}const payload={version:row.version,action,reason:followReason.value.trim(),...extra};managePending=stable({caseId:row.id,...payload},managePending);busy=true;controls();try{await api(`/api/staff/service-cases/${row.id}/manage`,{method:'POST',body:JSON.stringify({...payload,requestId:managePending.requestId})});managePending=null;await openCase(row.id);message('Seguimiento guardado.');}catch(e){message(e.message);}finally{busy=false;controls();}}
+  const escalate=node('button','Escalar al dueño');escalate.type='button';escalate.addEventListener('click',()=>manage('escalate'));management.append(escalate);
+  if(result.capabilities?.can_assign){const assignee=node('select');assignee.id='serviceAssignee';assignee.add(new Option('Sin asignar',''));for(const person of result.team??[])if(person.role==='OWNER'||(person.branch_id??null)===(row.branch_id??null))assignee.add(new Option(person.name,person.id));const assignLabel=node('label','Responsable del caso');assignLabel.htmlFor=assignee.id;const assign=node('button','Guardar responsable');assign.type='button';assign.addEventListener('click',()=>manage('assign',{assignedStaffId:assignee.value||null}));management.append(assignLabel,assignee,assign);}
+  if(promises.some(p=>p.valid_until)){const date=node('input');date.type='datetime-local';date.id='serviceExtendedUntil';const label=node('label','Nueva vigencia de la promesa seleccionada');label.htmlFor=date.id;const extend=node('button','Ampliar vigencia');extend.type='button';extend.addEventListener('click',()=>{if(!promiseSelect.value||!date.value){message('Selecciona una promesa y su nueva fecha.');return;}manage('extend_expiry',{promiseId:promiseSelect.value,extendedUntil:new Date(date.value).toISOString()});});management.append(label,date,extend);}
+  detail.append(management);
   const resolveForm=node('form'),label=node('label','Cómo se resolvió'),select=node('select');label.htmlFor='serviceResolution';select.id='serviceResolution';
   for(const [value,text] of Object.entries(labels)){const option=new Option(text,value);option.disabled=value==='points_restored'&&(!row.redemption_id||!!restoration);select.add(option);}select.value='closed_with_reason';
   const textLabel=node('label','Motivo de la resolución'),text=node('textarea');textLabel.htmlFor='serviceResolutionReason';text.id='serviceResolutionReason';text.required=true;text.minLength=3;text.maxLength=500;text.rows=3;
@@ -61,14 +76,14 @@ export function mountServiceCases({container,api,getContext}){
   updateResolutionControls=update;
   resolveForm.append(label,select,explanation,textLabel,text,confirmLabel,save);detail.append(resolveForm);update();
   resolveForm.addEventListener('submit',async event=>{
-   event.preventDefault();if(busy||!online()||row!==detailRow)return;const customerId=getContext().customerId,payload={version:row.version,resolution:select.value,reason:text.value.trim(),attested:confirmed.checked};resolvePending=stable({caseId:row.id,...payload},resolvePending);busy=true;controls();
+   event.preventDefault();if(busy||!online()||row!==detailRow)return;const customerId=getContext().customerId,payload={version:row.version,resolution:select.value,reason:text.value.trim(),attested:confirmed.checked,...(!row.redemption_id&&promiseSelect.value&&requiresAttestation(select.value)?{promiseId:promiseSelect.value,...(select.value==='alternative_accepted'?{fulfillmentRewardId:alternativeSelect.value}:{})}:{})};resolvePending=stable({caseId:row.id,...payload},resolvePending);busy=true;controls();
    try{await api(`/api/staff/service-cases/${row.id}/resolve`,{method:'POST',body:JSON.stringify({...payload,requestId:resolvePending.requestId})});resolvePending=null;if(destroyed||getContext().customerId!==customerId)return;detailRow=null;detail.replaceChildren(node('p','Resolución guardada. Actualiza el cliente para consultar su saldo actual.'));await refresh();message('Resolución guardada en el historial.');}
    catch(error){if(!destroyed)message(error.message||'No se confirmó la resolución. Puedes reintentar la misma solicitud.');}finally{busy=false;controls();if(detailRow)update();}
   });
  }
  async function openCase(id){
   if(!online()){message('Conéctate para revisar el caso.');return;}const customerId=getContext().customerId,sequence=++detailSequence;
-  try{const result=await api(`/api/staff/service-cases/${id}`);if(destroyed||sequence!==detailSequence||customerId!==getContext().customerId)return;renderDetail(result.case,result.restoration);}
+  try{const result=await api(`/api/staff/service-cases/${id}`);if(destroyed||sequence!==detailSequence||customerId!==getContext().customerId)return;renderDetail(result.case,result.restoration,result);}
   catch(error){if(!destroyed)message(error.message||'No se pudo consultar el caso.');}
  }
  form.addEventListener('submit',async event=>{

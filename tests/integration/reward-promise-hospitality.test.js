@@ -33,6 +33,8 @@ suite('protected reward cycles and bounded hospitality',()=>{
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const sql=await readFile(new URL(`../../src/app/migrations/${file}`,import.meta.url),'utf8').catch(()=>null);assert.ok(sql,`${file} must exist`);await pool.query(sql);
  }
+ // eslint-disable-next-line security/detect-non-literal-fs-filename
+ const completion=await readFile(new URL('../../src/app/migrations/2026-11-13-service-completion.sql',import.meta.url),'utf8');await pool.query(completion.slice(completion.indexOf('CREATE TABLE IF NOT EXISTS reward_promise_extensions'),completion.indexOf('CREATE TABLE IF NOT EXISTS staff_rehearsals')));
  svc=await import('../../src/app/services/reward-promise-service.js');hospitality=await import('../../src/app/services/hospitality-service.js');
  });
  after(async()=>pool?.end());
@@ -125,6 +127,7 @@ suite('protected reward cycles and bounded hospitality',()=>{
   await pool.query(`GRANT USAGE ON SCHEMA public,app TO reward_promise_test_app;
    GRANT SELECT,UPDATE ON businesses,staff_users,customers,customer_balances,rewards TO reward_promise_test_app;
    GRANT SELECT,INSERT,DELETE ON reward_branches TO reward_promise_test_app;
+   GRANT SELECT ON reward_promise_extensions TO reward_promise_test_app;
    GRANT SELECT,INSERT ON branches,redemptions,transactions,reward_unit_costs,redemption_cost_snapshots,customer_reward_promises,hospitality_entitlements,reward_entitlement_fulfillments TO reward_promise_test_app;
    GRANT SELECT,INSERT,UPDATE ON reward_promise_cycles,reward_availability,hospitality_grants TO reward_promise_test_app;
    GRANT INSERT ON audit_logs TO reward_promise_test_app;`);
