@@ -1,0 +1,24 @@
+{
+  "results": [
+    {
+      "width": 320,
+      "status": 200,
+      "assetFailures": [],
+      "robots": "index, follow, max-image-preview:large"
+    },
+    {
+      "width": 390,
+      "status": 200,
+      "assetFailures": [],
+      "robots": "index, follow, max-image-preview:large"
+    },
+    {
+      "width": 1440,
+      "status": 200,
+      "assetFailures": [],
+      "robots": "index, follow, max-image-preview:large"
+    }
+  ],
+  "noJsEmail": true,
+  "realEmailsSent": 0
+}

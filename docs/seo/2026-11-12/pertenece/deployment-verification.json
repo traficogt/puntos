@@ -1,0 +1,85 @@
+{
+  "checkedAt": "2026-11-12T03:40:57.877804+00:00",
+  "sourceSha": "9b295bd305aaf48acf0f93a48d0fcb551333da5f",
+  "pages": [
+    {
+      "url": "https://pertenecegt.com/",
+      "title": [
+        "Carn\u00e9s digitales para membres\u00edas | Pertenece"
+      ],
+      "canonical": [
+        "https://pertenecegt.com/"
+      ],
+      "robots": [
+        "index, follow, max-image-preview:large"
+      ]
+    },
+    {
+      "url": "https://pertenecegt.com/robots.txt",
+      "title": [],
+      "canonical": [],
+      "robots": [
+        "index, follow, max-image-preview:large"
+      ]
+    },
+    {
+      "url": "https://pertenecegt.com/sitemap.xml",
+      "title": [],
+      "canonical": [],
+      "robots": [
+        "index, follow, max-image-preview:large"
+      ]
+    },
+    {
+      "url": "https://puntosfieles.com/",
+      "title": [
+        "Programas de lealtad y tarjetas digitales | PuntosFieles"
+      ],
+      "canonical": [
+        "https://puntosfieles.com/"
+      ],
+      "robots": []
+    },
+    {
+      "url": "https://puntosfieles.com/precios",
+      "title": [
+        "Planes de programas de lealtad | PuntosFieles"
+      ],
+      "canonical": [
+        "https://puntosfieles.com/precios"
+      ],
+      "robots": []
+    },
+    {
+      "url": "https://puntosfieles.com/soporte",
+      "title": [
+        "Ayuda con tarjetas, puntos y acceso | PuntosFieles"
+      ],
+      "canonical": [
+        "https://puntosfieles.com/soporte"
+      ],
+      "robots": []
+    },
+    {
+      "url": "https://puntosfieles.com/credenciales/",
+      "title": [
+        "Carn\u00e9s digitales para membres\u00edas | Pertenece"
+      ],
+      "canonical": [
+        "https://pertenecegt.com/"
+      ],
+      "robots": [
+        "noindex, nofollow"
+      ]
+    },
+    {
+      "url": "https://app.puntosfieles.com/ingresar",
+      "title": [],
+      "canonical": [],
+      "robots": [
+        "noindex, nofollow"
+      ]
+    }
+  ],
+  "workerAndDatabaseUnchanged": true
+}

@@ -1,0 +1,19 @@
+{
+  "url": "https://puntosfieles.com/",
+  "final_url": "https://puntosfieles.com/",
+  "chain": [
+    {
+      "step": 1,
+      "url": "https://puntosfieles.com/",
+      "status": 200,
+      "time_ms": 83,
+      "final": true
+    }
+  ],
+  "total_hops": 0,
+  "total_time_ms": 83,
+  "has_loop": false,
+  "has_mixed_protocol": false,
+  "issues": [],
+  "error": null
+}

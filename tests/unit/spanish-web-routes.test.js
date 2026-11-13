@@ -63,3 +63,14 @@ test("every served owner/demo index alias canonicalizes before host split", () =
   assert.equal(resolveSpanishWebRedirect("/negocio/index.html"), "/negocio/");
   assert.equal(isSpanishWebRoutePath("/demostracion/index.html"), true);
 });
+
+
+test("public credential entry canonicalizes while remaining outside application host routes", () => {
+  assert.equal(resolveSpanishWebRedirect("/credenciales?utm_source=qr"), "/credenciales/?utm_source=qr");
+  assert.equal(resolveSpanishWebRedirect("/credenciales/index.html?ref=a%2Bb"), "/credenciales/?ref=a%2Bb");
+  assert.equal(resolveSpanishWebRedirect("/credenciales/?utm_source=qr"), "");
+  assert.equal(resolveSpanishWebRedirect("/credenciales/credenciales.js"), "");
+  assert.equal(isSpanishWebRoutePath("/credenciales"), false);
+  assert.equal(isSpanishWebRoutePath("/credenciales/"), false);
+  assert.equal(isSpanishWebRoutePath("/credenciales/index.html"), false);
+});

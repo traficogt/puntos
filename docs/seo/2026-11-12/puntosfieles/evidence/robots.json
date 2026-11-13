@@ -1,0 +1,224 @@
+{
+  "url": "https://puntosfieles.com/robots.txt",
+  "status": 200,
+  "user_agents": {
+    "*": {
+      "allow": [
+        "/",
+        "/"
+      ],
+      "disallow": []
+    },
+    "Amazonbot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "Applebot-Extended": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "Bytespider": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "CCBot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "ClaudeBot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "Diffbot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "Google-Extended": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "GPTBot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "omgili": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "anthropic-ai": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "Claude-Web": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "cohere-ai": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "MistralAI-Training": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "meta-externalagent": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "GoogleOther": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "Baiduspider": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "PetalBot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "AwarioSmartBot": {
+      "allow": [],
+      "disallow": []
+    },
+    "AwarioRssBot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "Google-CloudVertexBot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "QualifiedBot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "Cotoyogi": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "ICC-Crawler": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "atlassian-bot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "FishBot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "BorderxBot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "NavuBot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "SemrushBot-SWA": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "WARDBot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "magpie-crawler": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "KimiBot": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    },
+    "CitibotSiteCrawler": {
+      "allow": [],
+      "disallow": [
+        "/"
+      ]
+    }
+  },
+  "sitemaps": [
+    "https://puntosfieles.com/sitemap.xml"
+  ],
+  "crawl_delays": {},
+  "ai_crawler_status": {
+    "GPTBot": "fully blocked",
+    "ChatGPT-User": "not managed (inherits * rules)",
+    "ClaudeBot": "fully blocked",
+    "PerplexityBot": "not managed (inherits * rules)",
+    "Google-Extended": "fully blocked",
+    "Applebot-Extended": "fully blocked",
+    "Bytespider": "fully blocked",
+    "CCBot": "fully blocked",
+    "anthropic-ai": "fully blocked",
+    "FacebookBot": "not managed (inherits * rules)",
+    "Amazonbot": "fully blocked"
+  },
+  "issues": [
+    "\u26a0\ufe0f 3 AI crawlers not explicitly managed: ChatGPT-User, PerplexityBot, FacebookBot"
+  ],
+  "error": null
+}

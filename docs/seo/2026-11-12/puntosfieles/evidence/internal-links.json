@@ -1,0 +1,72 @@
+{
+  "start_url": "https://puntosfieles.com/",
+  "domain": "puntosfieles.com",
+  "pages_crawled": 7,
+  "total_internal_links": 27,
+  "unique_pages_found": 8,
+  "max_depth_reached": 1,
+  "pages": {
+    "https://puntosfieles.com/privacidad": {
+      "outgoing_links": 3,
+      "incoming_links": 4
+    },
+    "https://puntosfieles.com/": {
+      "outgoing_links": 7,
+      "incoming_links": 6
+    },
+    "https://puntosfieles.com/guias": {
+      "outgoing_links": 5,
+      "incoming_links": 3
+    },
+    "https://puntosfieles.com/soporte": {
+      "outgoing_links": 4,
+      "incoming_links": 5
+    },
+    "https://puntosfieles.com/terminos": {
+      "outgoing_links": 2,
+      "incoming_links": 4
+    },
+    "https://puntosfieles.com/demostracion": {
+      "outgoing_links": 0,
+      "incoming_links": 2
+    },
+    "https://puntosfieles.com/precios": {
+      "outgoing_links": 6,
+      "incoming_links": 1
+    }
+  },
+  "anchor_texts": {
+    "PuntosFieles.": 6,
+    "Soporte": 4,
+    "T\u00e9rminos": 4,
+    "Gu\u00edas": 3,
+    "Probar la demo": 2,
+    "Privacidad": 2,
+    "[email\u00a0protected]": 2,
+    "Planes": 1,
+    "Aviso de privacidad": 1,
+    "aviso de privacidad": 1,
+    "centro de ayuda": 1
+  },
+  "link_distribution": {
+    "min": 0,
+    "max": 7,
+    "avg": 3.9
+  },
+  "orphan_candidates": [
+    {
+      "url": "https://puntosfieles.com/precios",
+      "incoming_links": 1
+    }
+  ],
+  "nofollow_links": [],
+  "issues": [
+    "\u26a0\ufe0f 1 potential orphan page(s) (\u22641 internal link pointing to them)",
+    "\u26a0\ufe0f 2 page(s) have fewer than 3 internal links"
+  ],
+  "recommendations": [
+    "Add internal links pointing to orphan pages from related content",
+    "Increase internal linking \u2014 aim for 3-5 relevant links per 1000 words"
+  ],
+  "error": null
+}

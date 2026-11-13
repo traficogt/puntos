@@ -1,0 +1,11 @@
+{
+  "checked_at": "2026-11-12T03:33:28.139791+00:00",
+  "public_status": 200,
+  "live_social_url": "https://pertenecegt.com/credenciales/og-pertenece.jpg",
+  "local_social_url": "https://pertenecegt.com/credenciales/og-pertenece.jpg?v=2",
+  "live_badge_illustration": false,
+  "live_plain_email": true,
+  "local_plain_email": true,
+  "live_email_obfuscation": false,
+  "local_callbacks": true
+}

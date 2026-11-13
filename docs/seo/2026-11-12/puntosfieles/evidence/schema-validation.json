@@ -1,0 +1,22 @@
+[
+  {
+    "file": "/opt/puntos/.worktrees/pf-credenciales/public/index.html",
+    "raw_validator_warnings": [
+      "Block 1: Missing @type"
+    ],
+    "graph_node_validation": [],
+    "valid": true
+  },
+  {
+    "file": "/opt/puntos/.worktrees/pf-credenciales/public/precios.html",
+    "raw_validator_warnings": [],
+    "graph_node_validation": [],
+    "valid": true
+  },
+  {
+    "file": "/opt/puntos/.worktrees/pf-credenciales/public/soporte.html",
+    "raw_validator_warnings": [],
+    "graph_node_validation": [],
+    "valid": true
+  }
+]

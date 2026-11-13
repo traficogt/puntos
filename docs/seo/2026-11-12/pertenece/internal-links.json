@@ -1,0 +1,43 @@
+{
+  "start_url": "https://pertenecegt.com/",
+  "domain": "pertenecegt.com",
+  "pages_crawled": 2,
+  "total_internal_links": 2,
+  "unique_pages_found": 2,
+  "max_depth_reached": 0,
+  "pages": {
+    "https://pertenecegt.com/": {
+      "outgoing_links": 2,
+      "incoming_links": 1
+    },
+    "https://pertenecegt.com/cdn-cgi/l/email-protection": {
+      "outgoing_links": 0,
+      "incoming_links": 1
+    }
+  },
+  "anchor_texts": {
+    "Pertenece": 1,
+    "[email\u00a0protected]": 1
+  },
+  "link_distribution": {
+    "min": 2,
+    "max": 2,
+    "avg": 2.0
+  },
+  "orphan_candidates": [
+    {
+      "url": "https://pertenecegt.com/cdn-cgi/l/email-protection",
+      "incoming_links": 1
+    }
+  ],
+  "nofollow_links": [],
+  "issues": [
+    "\u26a0\ufe0f 1 potential orphan page(s) (\u22641 internal link pointing to them)",
+    "\u26a0\ufe0f 1 page(s) have fewer than 3 internal links"
+  ],
+  "recommendations": [
+    "Add internal links pointing to orphan pages from related content",
+    "Increase internal linking \u2014 aim for 3-5 relevant links per 1000 words"
+  ],
+  "error": null
+}

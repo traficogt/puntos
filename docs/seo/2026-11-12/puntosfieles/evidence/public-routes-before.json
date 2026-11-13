@@ -1,0 +1,1124 @@
+[
+  {
+    "requested_url": "https://puntosfieles.com/",
+    "url": "https://puntosfieles.com/",
+    "status_code": 200,
+    "headers": {
+      "Date": "Thu, 12 Nov 2026 03:27:11 GMT",
+      "Content-Type": "text/html; charset=utf-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "Cache-Control": "public, max-age=0",
+      "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=rrr0XIIrOZxWwDfxO2oZBfyR8RA0DUFGNdFAGGaf4ey%2BCh8Fq7VmWqCeNYd2AY9aoZEvrlWv6xe%2F4aQVW76yetRf1pfLr49d4JaNm2PBuv8bYxuxO9IF1usM3JDPvCt2NRu6\"}]}",
+      "content-security-policy": "default-src 'self';base-uri 'self';font-src 'self' https://fonts.gstatic.com;form-action 'self';frame-ancestors 'self';img-src 'self' data: https:;object-src 'none';script-src 'self' https://privatrack.com https://static.cloudflareinsights.com https://challenges.cloudflare.com;script-src-attr 'none';style-src 'self' https://fonts.googleapis.com;upgrade-insecure-requests;connect-src 'self' https://privatrack.com https://cloudflareinsights.com https://challenges.cloudflare.com;media-src 'self';frame-src https://challenges.cloudflare.com",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "cross-origin",
+      "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "last-modified": "Wed, 11 Nov 2026 22:43:37 GMT",
+      "origin-agent-cluster": "?1",
+      "permissions-policy": "camera=(self), microphone=(), geolocation=()",
+      "referrer-policy": "no-referrer",
+      "Set-Cookie": "pf_csrf=ZaE6E5n7gd0iHLQbmIW52pBw5Tq-2WXSJKmxo_CFn7I; Max-Age=86400; Path=/; Expires=Fri, 13 Nov 2026 03:27:11 GMT; HttpOnly; Secure; SameSite=Strict; Secure, pf_csrf_readable=ZaE6E5n7gd0iHLQbmIW52pBw5Tq-2WXSJKmxo_CFn7I; Max-Age=86400; Path=/; Expires=Fri, 13 Nov 2026 03:27:11 GMT; Secure; SameSite=Strict; Secure",
+      "strict-transport-security": "max-age=31536000",
+      "vary": "Accept-Encoding",
+      "via": "1.1 Caddy",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-request-id": "616981e9-887d-41d9-9bae-7f336a701a5a",
+      "x-xss-protection": "0",
+      "cf-cache-status": "DYNAMIC",
+      "Content-Encoding": "gzip",
+      "Server": "cloudflare",
+      "CF-RAY": "a5927083ce17d3b5-FRA"
+    },
+    "redirect_chain": [],
+    "error": null,
+    "seo": {
+      "title": "Programas de lealtad y tarjetas digitales | PuntosFieles",
+      "meta_description": "Crea un programa de lealtad para tu negocio con puntos, recompensas y tarjetas digitales. Gestiona clientes y sucursales con PuntosFieles. Solicita una demo.",
+      "meta_robots": "index, follow, max-image-preview:large",
+      "x_robots_tag": null,
+      "canonical": "https://puntosfieles.com/",
+      "lang": "es",
+      "h1": [
+        "La mejor visitaes la quese repite."
+      ],
+      "h2": [
+        "Así empiezala próxima visita.",
+        "Tu tarjeta, tambiénen tu billetera.",
+        "Tu negocio.Tu manerade premiar.",
+        "Lo que quieressaber, sin vueltas.",
+        "La próximabuena relaciónempieza aquí."
+      ],
+      "schema": [
+        {
+          "@type": "Unknown",
+          "@types": [
+            "Unknown"
+          ],
+          "@id": null,
+          "@context": "https://schema.org",
+          "status": "active",
+          "note": "",
+          "has_context": true,
+          "has_type": false,
+          "from_graph": false,
+          "raw": {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "Organization",
+                "@id": "https://puntosfieles.com/#organization",
+                "name": "PuntosFieles",
+                "url": "https://puntosfieles.com/",
+                "logo": "https://puntosfieles.com/icon-512.png",
+                "contactPoint": {
+                  "@type": "ContactPoint",
+                  "contactType": "customer support",
+                  "email": "soporte@puntosfieles.com",
+                  "url": "https://puntosfieles.com/soporte",
+                  "availableLanguage": "es"
+                }
+              },
+              {
+                "@type": "WebSite",
+                "@id": "https://puntosfieles.com/#website",
+                "url": "https://puntosfieles.com/",
+                "name": "PuntosFieles",
+                "alternateName": "Puntos Fieles",
+                "inLanguage": "es",
+                "publisher": {
+                  "@id": "https://puntosfieles.com/#organization"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "@type": "Organization",
+          "@types": [
+            "Organization"
+          ],
+          "@id": "https://puntosfieles.com/#organization",
+          "@context": "https://schema.org",
+          "status": "active",
+          "note": "",
+          "has_context": true,
+          "has_type": true,
+          "from_graph": true,
+          "raw": {
+            "@type": "Organization",
+            "@id": "https://puntosfieles.com/#organization",
+            "name": "PuntosFieles",
+            "url": "https://puntosfieles.com/",
+            "logo": "https://puntosfieles.com/icon-512.png",
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "contactType": "customer support",
+              "email": "soporte@puntosfieles.com",
+              "url": "https://puntosfieles.com/soporte",
+              "availableLanguage": "es"
+            }
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@types": [
+            "WebSite"
+          ],
+          "@id": "https://puntosfieles.com/#website",
+          "@context": "https://schema.org",
+          "status": "active",
+          "note": "",
+          "has_context": true,
+          "has_type": true,
+          "from_graph": true,
+          "raw": {
+            "@type": "WebSite",
+            "@id": "https://puntosfieles.com/#website",
+            "url": "https://puntosfieles.com/",
+            "name": "PuntosFieles",
+            "alternateName": "Puntos Fieles",
+            "inLanguage": "es",
+            "publisher": {
+              "@id": "https://puntosfieles.com/#organization"
+            }
+          }
+        }
+      ],
+      "open_graph": {
+        "og:type": "website",
+        "og:site_name": "PuntosFieles",
+        "og:locale": "es_GT",
+        "og:title": "Programas de lealtad y tarjetas digitales | PuntosFieles",
+        "og:description": "Crea un programa de lealtad para tu negocio con puntos, recompensas y tarjetas digitales. Gestiona clientes y sucursales con PuntosFieles. Solicita una demo.",
+        "og:url": "https://puntosfieles.com/",
+        "og:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+        "og:image:width": "1000",
+        "og:image:height": "667",
+        "og:image:alt": "Tres personas comparten un café alrededor de una mesa."
+      },
+      "twitter_card": {
+        "twitter:card": "summary_large_image",
+        "twitter:title": "Programas de lealtad y tarjetas digitales | PuntosFieles",
+        "twitter:description": "Crea un programa de lealtad para tu negocio con puntos, recompensas y tarjetas digitales. Gestiona clientes y sucursales con PuntosFieles. Solicita una demo.",
+        "twitter:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+        "twitter:image:alt": "Tres personas comparten un café alrededor de una mesa."
+      },
+      "images": [
+        {
+          "src": "https://puntosfieles.com/icon.svg?v=4",
+          "alt": "",
+          "width": "36",
+          "height": "36",
+          "is_responsive_fill": false,
+          "loading": null
+        },
+        {
+          "src": "https://puntosfieles.com/images/coffee-gathering.webp",
+          "alt": "Tres personas comparten un café alrededor de una mesa.",
+          "width": "1000",
+          "height": "667",
+          "is_responsive_fill": false,
+          "loading": null
+        },
+        {
+          "src": "https://puntosfieles.com/images/wallet/apple-wallet-es-mx.svg",
+          "alt": "Agregar a Apple Wallet",
+          "width": "189",
+          "height": "60",
+          "is_responsive_fill": false,
+          "loading": null
+        },
+        {
+          "src": "https://puntosfieles.com/images/wallet/google-wallet-es-419.svg",
+          "alt": "Agregar a la Billetera de Google",
+          "width": "261",
+          "height": "60",
+          "is_responsive_fill": false,
+          "loading": null
+        },
+        {
+          "src": "https://puntosfieles.com/icon.svg?v=4",
+          "alt": "",
+          "width": "32",
+          "height": "32",
+          "is_responsive_fill": false,
+          "loading": null
+        }
+      ],
+      "word_count": 788
+    }
+  },
+  {
+    "requested_url": "https://puntosfieles.com/soporte",
+    "url": "https://puntosfieles.com/soporte",
+    "status_code": 200,
+    "headers": {
+      "Date": "Thu, 12 Nov 2026 03:27:12 GMT",
+      "Content-Type": "text/html; charset=utf-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "Cache-Control": "public, max-age=0",
+      "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=8q7sgeQIwA4KZO0Oe3TSwx%2B3DViH%2BQrE7A3nmGz4xXpr7%2B%2FmNeQnDOCAPbAQiehuyEJZPhtyliBhYvr%2BcJGSLZzLPVfHLvg0qKTLRU45H5mUSnQ87upAF969ryLmShUcMilq\"}]}",
+      "content-security-policy": "default-src 'self';base-uri 'self';font-src 'self' https://fonts.gstatic.com;form-action 'self';frame-ancestors 'self';img-src 'self' data: https:;object-src 'none';script-src 'self' https://privatrack.com https://static.cloudflareinsights.com https://challenges.cloudflare.com;script-src-attr 'none';style-src 'self' https://fonts.googleapis.com;upgrade-insecure-requests;connect-src 'self' https://privatrack.com https://cloudflareinsights.com https://challenges.cloudflare.com;media-src 'self';frame-src https://challenges.cloudflare.com",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "cross-origin",
+      "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "last-modified": "Wed, 11 Nov 2026 22:43:37 GMT",
+      "origin-agent-cluster": "?1",
+      "permissions-policy": "camera=(self), microphone=(), geolocation=()",
+      "referrer-policy": "no-referrer",
+      "Set-Cookie": "pf_csrf=N76Q7f0T75n4nhZVgYqc0wBAE2SU2fBqxmSwVTdCnpc; Max-Age=86400; Path=/; Expires=Fri, 13 Nov 2026 03:27:11 GMT; HttpOnly; Secure; SameSite=Strict; Secure, pf_csrf_readable=N76Q7f0T75n4nhZVgYqc0wBAE2SU2fBqxmSwVTdCnpc; Max-Age=86400; Path=/; Expires=Fri, 13 Nov 2026 03:27:11 GMT; Secure; SameSite=Strict; Secure",
+      "strict-transport-security": "max-age=31536000",
+      "vary": "Accept-Encoding",
+      "via": "1.1 Caddy",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-request-id": "99080b48-1bc7-4e52-96f9-310f8db36b66",
+      "x-xss-protection": "0",
+      "cf-cache-status": "DYNAMIC",
+      "Content-Encoding": "gzip",
+      "Server": "cloudflare",
+      "CF-RAY": "a5927083ccf81c01-FRA"
+    },
+    "redirect_chain": [],
+    "error": null,
+    "seo": {
+      "title": "Ayuda con tarjetas, puntos y acceso | PuntosFieles",
+      "meta_description": "Resuelve dudas sobre tu tarjeta digital, puntos, recompensas y acceso a PuntosFieles. Consulta la ayuda o escribe a soporte@puntosfieles.com.",
+      "meta_robots": "index, follow, max-image-preview:large",
+      "x_robots_tag": null,
+      "canonical": "https://puntosfieles.com/soporte",
+      "lang": "es",
+      "h1": [
+        "Un poco de ayuda.Y seguimos."
+      ],
+      "h2": [
+        "Cuéntanos qué pasó.",
+        "Tu tarjeta,sin dudas.",
+        "¿Administras un negocio?"
+      ],
+      "schema": [],
+      "open_graph": {
+        "og:type": "website",
+        "og:site_name": "PuntosFieles",
+        "og:locale": "es_GT",
+        "og:title": "Ayuda con tarjetas, puntos y acceso | PuntosFieles",
+        "og:description": "Resuelve dudas sobre tu tarjeta digital, puntos, recompensas y acceso a PuntosFieles. Consulta la ayuda o escribe a soporte@puntosfieles.com.",
+        "og:url": "https://puntosfieles.com/soporte",
+        "og:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+        "og:image:width": "1000",
+        "og:image:height": "667",
+        "og:image:alt": "Tres personas comparten un café alrededor de una mesa."
+      },
+      "twitter_card": {
+        "twitter:card": "summary_large_image",
+        "twitter:title": "Ayuda con tarjetas, puntos y acceso | PuntosFieles",
+        "twitter:description": "Resuelve dudas sobre tu tarjeta digital, puntos, recompensas y acceso a PuntosFieles. Consulta la ayuda o escribe a soporte@puntosfieles.com.",
+        "twitter:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+        "twitter:image:alt": "Tres personas comparten un café alrededor de una mesa."
+      },
+      "images": [
+        {
+          "src": "https://puntosfieles.com/icon.svg?v=4",
+          "alt": "",
+          "width": "36",
+          "height": "36",
+          "is_responsive_fill": false,
+          "loading": null
+        },
+        {
+          "src": "https://puntosfieles.com/icon.svg?v=4",
+          "alt": "",
+          "width": "32",
+          "height": "32",
+          "is_responsive_fill": false,
+          "loading": null
+        }
+      ],
+      "word_count": 502
+    }
+  },
+  {
+    "requested_url": "https://puntosfieles.com/privacidad",
+    "url": "https://puntosfieles.com/privacidad",
+    "status_code": 200,
+    "headers": {
+      "Date": "Thu, 12 Nov 2026 03:27:12 GMT",
+      "Content-Type": "text/html; charset=utf-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "Cache-Control": "public, max-age=0",
+      "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=xuLpmudU0R5zP86Mh2uVjlFB122MNVGvqt410FebI2DmUor8AXURDSx4AMo%2FhKjzP%2BobBJpnEfrnZnqKL4JXOHua7XiB0uKTX9C027bmpSwr3iE0nwW%2BNTUokW7IN9q%2FayM2\"}]}",
+      "content-security-policy": "default-src 'self';base-uri 'self';font-src 'self' https://fonts.gstatic.com;form-action 'self';frame-ancestors 'self';img-src 'self' data: https:;object-src 'none';script-src 'self' https://privatrack.com https://static.cloudflareinsights.com https://challenges.cloudflare.com;script-src-attr 'none';style-src 'self' https://fonts.googleapis.com;upgrade-insecure-requests;connect-src 'self' https://privatrack.com https://cloudflareinsights.com https://challenges.cloudflare.com;media-src 'self';frame-src https://challenges.cloudflare.com",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "cross-origin",
+      "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "last-modified": "Wed, 11 Nov 2026 22:43:37 GMT",
+      "origin-agent-cluster": "?1",
+      "permissions-policy": "camera=(self), microphone=(), geolocation=()",
+      "referrer-policy": "no-referrer",
+      "Set-Cookie": "pf_csrf=9yW_wjzVlGAuKtc30kEbdPj_vZqV_8Z4TDYUV3kKsvs; Max-Age=86400; Path=/; Expires=Fri, 13 Nov 2026 03:27:12 GMT; HttpOnly; Secure; SameSite=Strict; Secure, pf_csrf_readable=9yW_wjzVlGAuKtc30kEbdPj_vZqV_8Z4TDYUV3kKsvs; Max-Age=86400; Path=/; Expires=Fri, 13 Nov 2026 03:27:12 GMT; Secure; SameSite=Strict; Secure",
+      "strict-transport-security": "max-age=31536000",
+      "vary": "Accept-Encoding",
+      "via": "1.1 Caddy",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-request-id": "55d5572c-6e1a-4bf3-a3a6-6dbb5cc55f61",
+      "x-xss-protection": "0",
+      "cf-cache-status": "DYNAMIC",
+      "Content-Encoding": "gzip",
+      "Server": "cloudflare",
+      "CF-RAY": "a5927083f8e1365c-FRA"
+    },
+    "redirect_chain": [],
+    "error": null,
+    "seo": {
+      "title": "Aviso de privacidad | PuntosFieles",
+      "meta_description": "Conoce qué datos utiliza PuntosFieles para operar tarjetas digitales y programas de lealtad, cómo solicitar ayuda y cómo ejercer tus derechos sobre tu cuenta.",
+      "meta_robots": "index, follow, max-image-preview:large",
+      "x_robots_tag": null,
+      "canonical": "https://puntosfieles.com/privacidad",
+      "lang": "es",
+      "h1": [
+        "Tratamiento de datos personales"
+      ],
+      "h2": [
+        "Qué datos tratamos",
+        "Para qué se usan",
+        "Solicitudes de acceso o eliminación",
+        "Contacto"
+      ],
+      "schema": [],
+      "open_graph": {
+        "og:type": "website",
+        "og:site_name": "PuntosFieles",
+        "og:locale": "es_GT",
+        "og:title": "Aviso de privacidad | PuntosFieles",
+        "og:description": "Conoce qué datos utiliza PuntosFieles para operar tarjetas digitales y programas de lealtad, cómo solicitar ayuda y cómo ejercer tus derechos sobre tu cuenta.",
+        "og:url": "https://puntosfieles.com/privacidad",
+        "og:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+        "og:image:width": "1000",
+        "og:image:height": "667",
+        "og:image:alt": "Tres personas comparten un café alrededor de una mesa."
+      },
+      "twitter_card": {
+        "twitter:card": "summary_large_image",
+        "twitter:title": "Aviso de privacidad | PuntosFieles",
+        "twitter:description": "Conoce qué datos utiliza PuntosFieles para operar tarjetas digitales y programas de lealtad, cómo solicitar ayuda y cómo ejercer tus derechos sobre tu cuenta.",
+        "twitter:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+        "twitter:image:alt": "Tres personas comparten un café alrededor de una mesa."
+      },
+      "images": [
+        {
+          "src": "https://puntosfieles.com/icon.svg?v=4",
+          "alt": "",
+          "width": "36",
+          "height": "36",
+          "is_responsive_fill": false,
+          "loading": null
+        }
+      ],
+      "word_count": 137
+    }
+  },
+  {
+    "requested_url": "https://puntosfieles.com/terminos",
+    "url": "https://puntosfieles.com/terminos",
+    "status_code": 200,
+    "headers": {
+      "Date": "Thu, 12 Nov 2026 03:27:12 GMT",
+      "Content-Type": "text/html; charset=utf-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "Cache-Control": "public, max-age=0",
+      "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=3ScVxFAwYQZ%2FnP1hI1fJDOjUI1v99n7v5L%2FQhsDODaewAgG6jo%2FBlN94aaoowpsuzWi7vmZmdSvYecmSo7xzN4t3FePcfaEq5J86lJoobWKC%2FiSY4ZE2SfR7amrp7ScZYDuo\"}]}",
+      "content-security-policy": "default-src 'self';base-uri 'self';font-src 'self' https://fonts.gstatic.com;form-action 'self';frame-ancestors 'self';img-src 'self' data: https:;object-src 'none';script-src 'self' https://privatrack.com https://static.cloudflareinsights.com https://challenges.cloudflare.com;script-src-attr 'none';style-src 'self' https://fonts.googleapis.com;upgrade-insecure-requests;connect-src 'self' https://privatrack.com https://cloudflareinsights.com https://challenges.cloudflare.com;media-src 'self';frame-src https://challenges.cloudflare.com",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "cross-origin",
+      "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "last-modified": "Wed, 11 Nov 2026 22:43:37 GMT",
+      "origin-agent-cluster": "?1",
+      "permissions-policy": "camera=(self), microphone=(), geolocation=()",
+      "referrer-policy": "no-referrer",
+      "Set-Cookie": "pf_csrf=d6EHza7fh1iNmzAlJ4Hrajk0sZHwc1_pdS4fUChfU7U; Max-Age=86400; Path=/; Expires=Fri, 13 Nov 2026 03:27:12 GMT; HttpOnly; Secure; SameSite=Strict; Secure, pf_csrf_readable=d6EHza7fh1iNmzAlJ4Hrajk0sZHwc1_pdS4fUChfU7U; Max-Age=86400; Path=/; Expires=Fri, 13 Nov 2026 03:27:12 GMT; Secure; SameSite=Strict; Secure",
+      "strict-transport-security": "max-age=31536000",
+      "vary": "Accept-Encoding",
+      "via": "1.1 Caddy",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-request-id": "3383e660-9805-4cf3-bda0-7285a20d5721",
+      "x-xss-protection": "0",
+      "cf-cache-status": "DYNAMIC",
+      "Content-Encoding": "gzip",
+      "Server": "cloudflare",
+      "CF-RAY": "a59270846f17dc85-FRA"
+    },
+    "redirect_chain": [],
+    "error": null,
+    "seo": {
+      "title": "Términos del servicio | PuntosFieles",
+      "meta_description": "Consulta las condiciones de uso de PuntosFieles y la responsabilidad de cada negocio sobre su programa de lealtad, acumulación de puntos y canje de recompensas.",
+      "meta_robots": "index, follow, max-image-preview:large",
+      "x_robots_tag": null,
+      "canonical": "https://puntosfieles.com/terminos",
+      "lang": "es",
+      "h1": [
+        "Condiciones generales del servicio"
+      ],
+      "h2": [
+        "Uso del servicio",
+        "Disponibilidad",
+        "Privacidad y solicitudes de datos"
+      ],
+      "schema": [],
+      "open_graph": {
+        "og:type": "website",
+        "og:site_name": "PuntosFieles",
+        "og:locale": "es_GT",
+        "og:title": "Términos del servicio | PuntosFieles",
+        "og:description": "Consulta las condiciones de uso de PuntosFieles y la responsabilidad de cada negocio sobre su programa de lealtad, acumulación de puntos y canje de recompensas.",
+        "og:url": "https://puntosfieles.com/terminos",
+        "og:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+        "og:image:width": "1000",
+        "og:image:height": "667",
+        "og:image:alt": "Tres personas comparten un café alrededor de una mesa."
+      },
+      "twitter_card": {
+        "twitter:card": "summary_large_image",
+        "twitter:title": "Términos del servicio | PuntosFieles",
+        "twitter:description": "Consulta las condiciones de uso de PuntosFieles y la responsabilidad de cada negocio sobre su programa de lealtad, acumulación de puntos y canje de recompensas.",
+        "twitter:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+        "twitter:image:alt": "Tres personas comparten un café alrededor de una mesa."
+      },
+      "images": [
+        {
+          "src": "https://puntosfieles.com/icon.svg?v=4",
+          "alt": "",
+          "width": "36",
+          "height": "36",
+          "is_responsive_fill": false,
+          "loading": null
+        }
+      ],
+      "word_count": 123
+    }
+  },
+  {
+    "requested_url": "https://puntosfieles.com/precios",
+    "url": "https://puntosfieles.com/precios",
+    "status_code": 200,
+    "headers": {
+      "Date": "Thu, 12 Nov 2026 03:27:12 GMT",
+      "Content-Type": "text/html; charset=utf-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "Cache-Control": "no-store",
+      "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=s52PkKdLgqX5W3Ge2iuOUErJd8BqQMcKGEAwGaNLMnGKBKuDW4UNaS5aqomI%2F5N%2FptxvnER%2Ffg8RiDVVqcwlwUVKZ8lzKNmiGKZNcIP9p0hRK7zGX7R%2FpCemh66MgKfrgajo\"}]}",
+      "content-security-policy": "default-src 'self';base-uri 'self';font-src 'self' https://fonts.gstatic.com;form-action 'self';frame-ancestors 'self';img-src 'self' data: https:;object-src 'none';script-src 'self' https://privatrack.com https://static.cloudflareinsights.com https://challenges.cloudflare.com;script-src-attr 'none';style-src 'self' https://fonts.googleapis.com;upgrade-insecure-requests;connect-src 'self' https://privatrack.com https://cloudflareinsights.com https://challenges.cloudflare.com;media-src 'self';frame-src https://challenges.cloudflare.com",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "cross-origin",
+      "origin-agent-cluster": "?1",
+      "permissions-policy": "camera=(self), microphone=(), geolocation=()",
+      "referrer-policy": "no-referrer",
+      "Set-Cookie": "pf_csrf=l8fRtnvnz7Fs1zCtAvTL46qB4vMw4UKIodzXo29nWQE; Max-Age=86400; Path=/; Expires=Fri, 13 Nov 2026 03:27:12 GMT; HttpOnly; Secure; SameSite=Strict; Secure, pf_csrf_readable=l8fRtnvnz7Fs1zCtAvTL46qB4vMw4UKIodzXo29nWQE; Max-Age=86400; Path=/; Expires=Fri, 13 Nov 2026 03:27:12 GMT; Secure; SameSite=Strict; Secure",
+      "strict-transport-security": "max-age=31536000",
+      "vary": "Accept-Encoding",
+      "via": "1.1 Caddy",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-request-id": "d52eefb9-c279-4a11-983e-1f07d97a0dad",
+      "x-xss-protection": "0",
+      "cf-cache-status": "DYNAMIC",
+      "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "Content-Encoding": "gzip",
+      "Server": "cloudflare",
+      "CF-RAY": "a59270846948a079-FRA"
+    },
+    "redirect_chain": [],
+    "error": null,
+    "seo": {
+      "title": "Planes para tu negocio · PuntosFieles",
+      "meta_description": "Compara los planes de PuntosFieles: clientes, sucursales, análisis e integraciones. Prueba la demo y solicita una cotización para tu negocio.",
+      "meta_robots": null,
+      "x_robots_tag": null,
+      "canonical": "https://puntosfieles.com/precios",
+      "lang": "es",
+      "h1": [
+        "Un plan paratu manera de crecer."
+      ],
+      "h2": [
+        "Antes de elegir",
+        "Conócelo antes de decidir."
+      ],
+      "schema": [],
+      "open_graph": {
+        "og:title": "Planes para tu negocio · PuntosFieles",
+        "og:description": "Prueba el panel y compara el alcance de cada plan.",
+        "og:type": "website",
+        "og:url": "https://puntosfieles.com/precios"
+      },
+      "twitter_card": {
+        "twitter:card": "summary"
+      },
+      "images": [
+        {
+          "src": "https://puntosfieles.com/icon.svg?v=4",
+          "alt": "",
+          "width": "36",
+          "height": "36",
+          "is_responsive_fill": false,
+          "loading": null
+        }
+      ],
+      "word_count": 280
+    }
+  },
+  {
+    "requested_url": "https://puntosfieles.com/guias/",
+    "url": "https://puntosfieles.com/guias/",
+    "status_code": 200,
+    "headers": {
+      "Date": "Thu, 12 Nov 2026 03:27:12 GMT",
+      "Content-Type": "text/html; charset=utf-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "Cache-Control": "no-cache",
+      "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=FnGF70Me8FRRghkFBiHHQmBdLwF2Fp9YKVGIre7b%2FfgZoYEmp%2FKGgzAZlSNnqeiBjzsV79C%2FYR2sKn5eDqcKxmYaEmgO%2BX4KT7%2BZ0ybF4HQUmv32MwFS4R5V3LIxlwCJD8SE\"}]}",
+      "content-security-policy": "default-src 'self';base-uri 'self';font-src 'self' https://fonts.gstatic.com;form-action 'self';frame-ancestors 'self';img-src 'self' data: https:;object-src 'none';script-src 'self' https://privatrack.com https://static.cloudflareinsights.com https://challenges.cloudflare.com;script-src-attr 'none';style-src 'self' https://fonts.googleapis.com;upgrade-insecure-requests;connect-src 'self' https://privatrack.com https://cloudflareinsights.com https://challenges.cloudflare.com;media-src 'self';frame-src https://challenges.cloudflare.com",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "cross-origin",
+      "origin-agent-cluster": "?1",
+      "permissions-policy": "camera=(self), microphone=(), geolocation=()",
+      "referrer-policy": "no-referrer",
+      "Set-Cookie": "pf_csrf=sKa8udq-8aSQ0eLCuqOmUknxKi5szHdRrZQ-qH6wMkg; Max-Age=86400; Path=/; Expires=Fri, 13 Nov 2026 03:27:12 GMT; HttpOnly; Secure; SameSite=Strict; Secure, pf_csrf_readable=sKa8udq-8aSQ0eLCuqOmUknxKi5szHdRrZQ-qH6wMkg; Max-Age=86400; Path=/; Expires=Fri, 13 Nov 2026 03:27:12 GMT; Secure; SameSite=Strict; Secure",
+      "strict-transport-security": "max-age=31536000",
+      "vary": "Accept-Encoding",
+      "via": "1.1 Caddy",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-request-id": "cfffb568-de1b-4c60-93dd-692ceb07b533",
+      "x-robots-tag": "noindex, follow, noarchive",
+      "x-xss-protection": "0",
+      "cf-cache-status": "DYNAMIC",
+      "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "Content-Encoding": "gzip",
+      "Server": "cloudflare",
+      "CF-RAY": "a5927084cd96d37a-FRA"
+    },
+    "redirect_chain": [],
+    "error": null,
+    "seo": {
+      "title": "Guías de lealtad y recompensas para negocios | PuntosFieles",
+      "meta_description": "Guías de PuntosFieles sobre programas de lealtad, puntos y recompensas para negocios. Consulta las publicaciones disponibles y conoce nuestra plataforma.",
+      "meta_robots": "noindex, follow, noarchive",
+      "x_robots_tag": "noindex, follow, noarchive",
+      "canonical": "https://puntosfieles.com/guias/",
+      "lang": "es",
+      "h1": [
+        "Guías paratu negocio."
+      ],
+      "h2": [
+        "Las primeras guíasestán en camino."
+      ],
+      "schema": [],
+      "open_graph": {
+        "og:type": "website",
+        "og:site_name": "PuntosFieles",
+        "og:locale": "es_GT",
+        "og:title": "Guías de lealtad y recompensas para negocios | PuntosFieles",
+        "og:description": "Guías de PuntosFieles sobre programas de lealtad, puntos y recompensas para negocios. Consulta las publicaciones disponibles y conoce nuestra plataforma.",
+        "og:url": "https://puntosfieles.com/guias/",
+        "og:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+        "og:image:alt": "Tres personas comparten un café alrededor de una mesa."
+      },
+      "twitter_card": {
+        "twitter:card": "summary_large_image",
+        "twitter:title": "Guías de lealtad y recompensas para negocios | PuntosFieles",
+        "twitter:description": "Guías de PuntosFieles sobre programas de lealtad, puntos y recompensas para negocios. Consulta las publicaciones disponibles y conoce nuestra plataforma.",
+        "twitter:image": "https://puntosfieles.com/images/coffee-gathering.webp"
+      },
+      "images": [
+        {
+          "src": "https://puntosfieles.com/icon.svg?v=4",
+          "alt": "",
+          "width": "36",
+          "height": "36",
+          "is_responsive_fill": false,
+          "loading": null
+        },
+        {
+          "src": "https://puntosfieles.com/icon.svg?v=4",
+          "alt": "",
+          "width": "32",
+          "height": "32",
+          "is_responsive_fill": false,
+          "loading": null
+        }
+      ],
+      "word_count": 57
+    }
+  },
+  {
+    "requested_url": "https://puntosfieles.com/index.html",
+    "url": "https://puntosfieles.com/",
+    "status_code": 200,
+    "headers": {
+      "Date": "Thu, 12 Nov 2026 03:27:12 GMT",
+      "Content-Type": "text/html; charset=utf-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "Cache-Control": "public, max-age=0",
+      "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=TLHtyC9tYps5DAZo%2BsF9s2MxYSY41kH312FvCDhd5bf19NnrTmM6YWzU9%2FAoX8C04OyNv8Li2AWLSzlFUm29A%2FaZzOEK6Ivbxkdg%2Ft7tAKRJJJU8rRup%2BXGFAS9qfznpBv%2Bx\"}]}",
+      "content-security-policy": "default-src 'self';base-uri 'self';font-src 'self' https://fonts.gstatic.com;form-action 'self';frame-ancestors 'self';img-src 'self' data: https:;object-src 'none';script-src 'self' https://privatrack.com https://static.cloudflareinsights.com https://challenges.cloudflare.com;script-src-attr 'none';style-src 'self' https://fonts.googleapis.com;upgrade-insecure-requests;connect-src 'self' https://privatrack.com https://cloudflareinsights.com https://challenges.cloudflare.com;media-src 'self';frame-src https://challenges.cloudflare.com",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "cross-origin",
+      "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "last-modified": "Wed, 11 Nov 2026 22:43:37 GMT",
+      "origin-agent-cluster": "?1",
+      "permissions-policy": "camera=(self), microphone=(), geolocation=()",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000",
+      "vary": "Accept-Encoding",
+      "via": "1.1 Caddy",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-request-id": "6532cf4c-fd67-4604-90d8-1e28fc676219",
+      "x-xss-protection": "0",
+      "cf-cache-status": "DYNAMIC",
+      "Content-Encoding": "gzip",
+      "Server": "cloudflare",
+      "CF-RAY": "a59270854e985c68-FRA"
+    },
+    "redirect_chain": [
+      "https://puntosfieles.com/index.html"
+    ],
+    "error": null,
+    "seo": {
+      "title": "Programas de lealtad y tarjetas digitales | PuntosFieles",
+      "meta_description": "Crea un programa de lealtad para tu negocio con puntos, recompensas y tarjetas digitales. Gestiona clientes y sucursales con PuntosFieles. Solicita una demo.",
+      "meta_robots": "index, follow, max-image-preview:large",
+      "x_robots_tag": null,
+      "canonical": "https://puntosfieles.com/",
+      "lang": "es",
+      "h1": [
+        "La mejor visitaes la quese repite."
+      ],
+      "h2": [
+        "Así empiezala próxima visita.",
+        "Tu tarjeta, tambiénen tu billetera.",
+        "Tu negocio.Tu manerade premiar.",
+        "Lo que quieressaber, sin vueltas.",
+        "La próximabuena relaciónempieza aquí."
+      ],
+      "schema": [
+        {
+          "@type": "Unknown",
+          "@types": [
+            "Unknown"
+          ],
+          "@id": null,
+          "@context": "https://schema.org",
+          "status": "active",
+          "note": "",
+          "has_context": true,
+          "has_type": false,
+          "from_graph": false,
+          "raw": {
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "Organization",
+                "@id": "https://puntosfieles.com/#organization",
+                "name": "PuntosFieles",
+                "url": "https://puntosfieles.com/",
+                "logo": "https://puntosfieles.com/icon-512.png",
+                "contactPoint": {
+                  "@type": "ContactPoint",
+                  "contactType": "customer support",
+                  "email": "soporte@puntosfieles.com",
+                  "url": "https://puntosfieles.com/soporte",
+                  "availableLanguage": "es"
+                }
+              },
+              {
+                "@type": "WebSite",
+                "@id": "https://puntosfieles.com/#website",
+                "url": "https://puntosfieles.com/",
+                "name": "PuntosFieles",
+                "alternateName": "Puntos Fieles",
+                "inLanguage": "es",
+                "publisher": {
+                  "@id": "https://puntosfieles.com/#organization"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "@type": "Organization",
+          "@types": [
+            "Organization"
+          ],
+          "@id": "https://puntosfieles.com/#organization",
+          "@context": "https://schema.org",
+          "status": "active",
+          "note": "",
+          "has_context": true,
+          "has_type": true,
+          "from_graph": true,
+          "raw": {
+            "@type": "Organization",
+            "@id": "https://puntosfieles.com/#organization",
+            "name": "PuntosFieles",
+            "url": "https://puntosfieles.com/",
+            "logo": "https://puntosfieles.com/icon-512.png",
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "contactType": "customer support",
+              "email": "soporte@puntosfieles.com",
+              "url": "https://puntosfieles.com/soporte",
+              "availableLanguage": "es"
+            }
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@types": [
+            "WebSite"
+          ],
+          "@id": "https://puntosfieles.com/#website",
+          "@context": "https://schema.org",
+          "status": "active",
+          "note": "",
+          "has_context": true,
+          "has_type": true,
+          "from_graph": true,
+          "raw": {
+            "@type": "WebSite",
+            "@id": "https://puntosfieles.com/#website",
+            "url": "https://puntosfieles.com/",
+            "name": "PuntosFieles",
+            "alternateName": "Puntos Fieles",
+            "inLanguage": "es",
+            "publisher": {
+              "@id": "https://puntosfieles.com/#organization"
+            }
+          }
+        }
+      ],
+      "open_graph": {
+        "og:type": "website",
+        "og:site_name": "PuntosFieles",
+        "og:locale": "es_GT",
+        "og:title": "Programas de lealtad y tarjetas digitales | PuntosFieles",
+        "og:description": "Crea un programa de lealtad para tu negocio con puntos, recompensas y tarjetas digitales. Gestiona clientes y sucursales con PuntosFieles. Solicita una demo.",
+        "og:url": "https://puntosfieles.com/",
+        "og:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+        "og:image:width": "1000",
+        "og:image:height": "667",
+        "og:image:alt": "Tres personas comparten un café alrededor de una mesa."
+      },
+      "twitter_card": {
+        "twitter:card": "summary_large_image",
+        "twitter:title": "Programas de lealtad y tarjetas digitales | PuntosFieles",
+        "twitter:description": "Crea un programa de lealtad para tu negocio con puntos, recompensas y tarjetas digitales. Gestiona clientes y sucursales con PuntosFieles. Solicita una demo.",
+        "twitter:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+        "twitter:image:alt": "Tres personas comparten un café alrededor de una mesa."
+      },
+      "images": [
+        {
+          "src": "https://puntosfieles.com/icon.svg?v=4",
+          "alt": "",
+          "width": "36",
+          "height": "36",
+          "is_responsive_fill": false,
+          "loading": null
+        },
+        {
+          "src": "https://puntosfieles.com/images/coffee-gathering.webp",
+          "alt": "Tres personas comparten un café alrededor de una mesa.",
+          "width": "1000",
+          "height": "667",
+          "is_responsive_fill": false,
+          "loading": null
+        },
+        {
+          "src": "https://puntosfieles.com/images/wallet/apple-wallet-es-mx.svg",
+          "alt": "Agregar a Apple Wallet",
+          "width": "189",
+          "height": "60",
+          "is_responsive_fill": false,
+          "loading": null
+        },
+        {
+          "src": "https://puntosfieles.com/images/wallet/google-wallet-es-419.svg",
+          "alt": "Agregar a la Billetera de Google",
+          "width": "261",
+          "height": "60",
+          "is_responsive_fill": false,
+          "loading": null
+        },
+        {
+          "src": "https://puntosfieles.com/icon.svg?v=4",
+          "alt": "",
+          "width": "32",
+          "height": "32",
+          "is_responsive_fill": false,
+          "loading": null
+        }
+      ],
+      "word_count": 788
+    }
+  },
+  {
+    "requested_url": "https://puntosfieles.com/precios.html",
+    "url": "https://puntosfieles.com/precios",
+    "status_code": 200,
+    "headers": {
+      "Date": "Thu, 12 Nov 2026 03:27:12 GMT",
+      "Content-Type": "text/html; charset=utf-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "Cache-Control": "no-store",
+      "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=QZBVBedn3SpxC3y2mtsm3kAneYK3Zr7Qz46ocxV1ipcR8qTIUZUWI9V3lEx%2B3Ck4PixqawnaYYHU0HZbTavalMa2GqFbHG76mpRtMjvp6R39ZuQPmbtdhgzXPjq18RQKr%2Bka\"}]}",
+      "content-security-policy": "default-src 'self';base-uri 'self';font-src 'self' https://fonts.gstatic.com;form-action 'self';frame-ancestors 'self';img-src 'self' data: https:;object-src 'none';script-src 'self' https://privatrack.com https://static.cloudflareinsights.com https://challenges.cloudflare.com;script-src-attr 'none';style-src 'self' https://fonts.googleapis.com;upgrade-insecure-requests;connect-src 'self' https://privatrack.com https://cloudflareinsights.com https://challenges.cloudflare.com;media-src 'self';frame-src https://challenges.cloudflare.com",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "cross-origin",
+      "origin-agent-cluster": "?1",
+      "permissions-policy": "camera=(self), microphone=(), geolocation=()",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000",
+      "vary": "Accept-Encoding",
+      "via": "1.1 Caddy",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-request-id": "538720bf-cbba-42eb-91e9-a2106c622d2b",
+      "x-xss-protection": "0",
+      "cf-cache-status": "DYNAMIC",
+      "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "Content-Encoding": "gzip",
+      "Server": "cloudflare",
+      "CF-RAY": "a59270852cffe7b6-FRA"
+    },
+    "redirect_chain": [
+      "https://puntosfieles.com/precios.html"
+    ],
+    "error": null,
+    "seo": {
+      "title": "Planes para tu negocio · PuntosFieles",
+      "meta_description": "Compara los planes de PuntosFieles: clientes, sucursales, análisis e integraciones. Prueba la demo y solicita una cotización para tu negocio.",
+      "meta_robots": null,
+      "x_robots_tag": null,
+      "canonical": "https://puntosfieles.com/precios",
+      "lang": "es",
+      "h1": [
+        "Un plan paratu manera de crecer."
+      ],
+      "h2": [
+        "Antes de elegir",
+        "Conócelo antes de decidir."
+      ],
+      "schema": [],
+      "open_graph": {
+        "og:title": "Planes para tu negocio · PuntosFieles",
+        "og:description": "Prueba el panel y compara el alcance de cada plan.",
+        "og:type": "website",
+        "og:url": "https://puntosfieles.com/precios"
+      },
+      "twitter_card": {
+        "twitter:card": "summary"
+      },
+      "images": [
+        {
+          "src": "https://puntosfieles.com/icon.svg?v=4",
+          "alt": "",
+          "width": "36",
+          "height": "36",
+          "is_responsive_fill": false,
+          "loading": null
+        }
+      ],
+      "word_count": 280
+    }
+  },
+  {
+    "requested_url": "https://puntosfieles.com/customer.html",
+    "url": "https://app.puntosfieles.com/mi-tarjeta/",
+    "status_code": 200,
+    "headers": {
+      "Date": "Thu, 12 Nov 2026 03:27:12 GMT",
+      "Content-Type": "text/html; charset=utf-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "Cache-Control": "public, max-age=0",
+      "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=%2B%2FJXfFsg0pxX3njghp0S3ARI9HBOIYVwR9IpDieWDL%2BdTTUrBP2f2SEC4MJIQ4Om8lww%2FfMsQUgPP3meJBTapZ7Y20%2BYoVq8N39QCkiG1icOHbKZWtJu2ti3sbJj9lwUuN%2Bulj2I0A%3D%3D\"}]}",
+      "content-security-policy": "default-src 'self';base-uri 'self';font-src 'self' https://fonts.gstatic.com;form-action 'self';frame-ancestors 'self';img-src 'self' data: https:;object-src 'none';script-src 'self' https://privatrack.com https://static.cloudflareinsights.com https://challenges.cloudflare.com;script-src-attr 'none';style-src 'self' https://fonts.googleapis.com;upgrade-insecure-requests;connect-src 'self' https://privatrack.com https://cloudflareinsights.com https://challenges.cloudflare.com;media-src 'self';frame-src https://challenges.cloudflare.com",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "cross-origin",
+      "last-modified": "Wed, 11 Nov 2026 22:43:37 GMT",
+      "origin-agent-cluster": "?1",
+      "permissions-policy": "camera=(self), microphone=(), geolocation=()",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000",
+      "vary": "Accept-Encoding",
+      "via": "1.1 Caddy",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-request-id": "024a46e7-0a93-4a0f-8ae9-b1686ca9cf3d",
+      "x-robots-tag": "noindex, nofollow",
+      "x-xss-protection": "0",
+      "cf-cache-status": "DYNAMIC",
+      "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "Content-Encoding": "gzip",
+      "Server": "cloudflare",
+      "CF-RAY": "a59270862a594dc0-FRA"
+    },
+    "redirect_chain": [
+      "https://puntosfieles.com/customer.html",
+      "https://puntosfieles.com/mi-tarjeta/"
+    ],
+    "error": null,
+    "seo": {
+      "title": "Mi tarjeta • PuntosFieles",
+      "meta_description": null,
+      "meta_robots": null,
+      "x_robots_tag": "noindex, nofollow",
+      "canonical": null,
+      "lang": "es",
+      "h1": [
+        "Tu tarjeta se abre con el enlace del negocio.",
+        "—"
+      ],
+      "h2": [
+        "Lleva tu tarjeta contigo",
+        "Tu nivel",
+        "Tus beneficios protegidos",
+        "Ofertas para ti",
+        "Recompensas",
+        "Actividad reciente",
+        "Invita amigos",
+        "Logros"
+      ],
+      "schema": [],
+      "open_graph": {},
+      "twitter_card": {},
+      "images": [
+        {
+          "src": "",
+          "alt": "",
+          "width": null,
+          "height": null,
+          "is_responsive_fill": false,
+          "loading": null
+        },
+        {
+          "src": "https://puntosfieles.com/images/wallet/apple-wallet-es-mx.svg",
+          "alt": "Agregar a Apple Wallet",
+          "width": "173",
+          "height": "55",
+          "is_responsive_fill": false,
+          "loading": null
+        },
+        {
+          "src": "https://puntosfieles.com/images/wallet/google-wallet-es-419.svg",
+          "alt": "Agregar a la Billetera de Google",
+          "width": "239",
+          "height": "55",
+          "is_responsive_fill": false,
+          "loading": null
+        }
+      ],
+      "word_count": 175
+    }
+  },
+  {
+    "requested_url": "https://app.puntosfieles.com/mi-tarjeta/",
+    "url": "https://app.puntosfieles.com/mi-tarjeta/",
+    "status_code": 200,
+    "headers": {
+      "Date": "Thu, 12 Nov 2026 03:27:12 GMT",
+      "Content-Type": "text/html; charset=utf-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "Cache-Control": "public, max-age=0",
+      "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=f2K%2FBJpF7OEjPmSMQrkL5iH45oYPEfRRO78M8JBexnrjR3kxL77AGfvm5nBk59UyKI79zLpWJBvXaf7Ud5xpNUu%2FlKDXXfmvOt86%2BVpiuquV%2Fa3r%2FOvaPDZtB1cxqtYigstMqEDxEw%3D%3D\"}]}",
+      "content-security-policy": "default-src 'self';base-uri 'self';font-src 'self' https://fonts.gstatic.com;form-action 'self';frame-ancestors 'self';img-src 'self' data: https:;object-src 'none';script-src 'self' https://privatrack.com https://static.cloudflareinsights.com https://challenges.cloudflare.com;script-src-attr 'none';style-src 'self' https://fonts.googleapis.com;upgrade-insecure-requests;connect-src 'self' https://privatrack.com https://cloudflareinsights.com https://challenges.cloudflare.com;media-src 'self';frame-src https://challenges.cloudflare.com",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-resource-policy": "cross-origin",
+      "last-modified": "Wed, 11 Nov 2026 22:43:37 GMT",
+      "origin-agent-cluster": "?1",
+      "permissions-policy": "camera=(self), microphone=(), geolocation=()",
+      "referrer-policy": "no-referrer",
+      "Set-Cookie": "pf_csrf=5tfX1a5f21W6XPAcIvj4433xP_QWhxPM7aIDGZh5pio; Max-Age=86400; Path=/; Expires=Fri, 13 Nov 2026 03:27:12 GMT; HttpOnly; Secure; SameSite=Strict; Secure, pf_csrf_readable=5tfX1a5f21W6XPAcIvj4433xP_QWhxPM7aIDGZh5pio; Max-Age=86400; Path=/; Expires=Fri, 13 Nov 2026 03:27:12 GMT; Secure; SameSite=Strict; Secure",
+      "strict-transport-security": "max-age=31536000",
+      "vary": "Accept-Encoding",
+      "via": "1.1 Caddy",
+      "x-content-type-options": "nosniff",
+      "x-dns-prefetch-control": "off",
+      "x-download-options": "noopen",
+      "x-frame-options": "SAMEORIGIN",
+      "x-permitted-cross-domain-policies": "none",
+      "x-request-id": "2a7e148b-2e6c-445c-b7b3-d9ca3413da27",
+      "x-robots-tag": "noindex, nofollow",
+      "x-xss-protection": "0",
+      "cf-cache-status": "DYNAMIC",
+      "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+      "Content-Encoding": "gzip",
+      "Server": "cloudflare",
+      "CF-RAY": "a5927085dee565cc-FRA"
+    },
+    "redirect_chain": [],
+    "error": null,
+    "seo": {
+      "title": "Mi tarjeta • PuntosFieles",
+      "meta_description": null,
+      "meta_robots": null,
+      "x_robots_tag": "noindex, nofollow",
+      "canonical": null,
+      "lang": "es",
+      "h1": [
+        "Tu tarjeta se abre con el enlace del negocio.",
+        "—"
+      ],
+      "h2": [
+        "Lleva tu tarjeta contigo",
+        "Tu nivel",
+        "Tus beneficios protegidos",
+        "Ofertas para ti",
+        "Recompensas",
+        "Actividad reciente",
+        "Invita amigos",
+        "Logros"
+      ],
+      "schema": [],
+      "open_graph": {},
+      "twitter_card": {},
+      "images": [
+        {
+          "src": "",
+          "alt": "",
+          "width": null,
+          "height": null,
+          "is_responsive_fill": false,
+          "loading": null
+        },
+        {
+          "src": "https://app.puntosfieles.com/images/wallet/apple-wallet-es-mx.svg",
+          "alt": "Agregar a Apple Wallet",
+          "width": "173",
+          "height": "55",
+          "is_responsive_fill": false,
+          "loading": null
+        },
+        {
+          "src": "https://app.puntosfieles.com/images/wallet/google-wallet-es-419.svg",
+          "alt": "Agregar a la Billetera de Google",
+          "width": "239",
+          "height": "55",
+          "is_responsive_fill": false,
+          "loading": null
+        }
+      ],
+      "word_count": 175
+    }
+  }
+]

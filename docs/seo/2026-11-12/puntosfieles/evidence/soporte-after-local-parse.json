@@ -1,0 +1,174 @@
+{
+  "title": "Ayuda con tarjetas, puntos y acceso | PuntosFieles",
+  "meta_description": "Resuelve dudas sobre tu tarjeta digital, puntos, recompensas y acceso a PuntosFieles. Consulta la ayuda o escribe a soporte@puntosfieles.com.",
+  "meta_robots": "index, follow, max-image-preview:large",
+  "x_robots_tag": null,
+  "canonical": "https://puntosfieles.com/soporte",
+  "lang": "es",
+  "charset": "utf-8",
+  "viewport": "width=device-width, initial-scale=1",
+  "favicon": "https://puntosfieles.com/icon.svg?v=4",
+  "h1": [
+    "Un poco de ayuda.Y seguimos."
+  ],
+  "h2": [
+    "Cuéntanos qué pasó.",
+    "Tu tarjeta,sin dudas.",
+    "¿Administras un negocio?"
+  ],
+  "h3": [
+    "Para revisar tu caso, incluye:"
+  ],
+  "h4": [],
+  "h5": [],
+  "h6": [],
+  "images": [
+    {
+      "src": "https://puntosfieles.com/icon.svg?v=4",
+      "alt": "",
+      "width": "36",
+      "height": "36",
+      "is_responsive_fill": false,
+      "loading": null
+    },
+    {
+      "src": "https://puntosfieles.com/icon.svg?v=4",
+      "alt": "",
+      "width": "32",
+      "height": "32",
+      "is_responsive_fill": false,
+      "loading": null
+    }
+  ],
+  "links": {
+    "internal": [
+      {
+        "href": "https://puntosfieles.com/",
+        "text": "PuntosFieles.",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/privacidad",
+        "text": "aviso de privacidad",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/",
+        "text": "PuntosFieles.",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/soporte",
+        "text": "Soporte",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/privacidad",
+        "text": "Privacidad",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/terminos",
+        "text": "Términos",
+        "rel": []
+      }
+    ],
+    "external": [
+      {
+        "href": "https://app.puntosfieles.com/equipo/ingresar/",
+        "text": "Acceso para negocios",
+        "rel": []
+      },
+      {
+        "href": "mailto:soporte@puntosfieles.com?subject=Ayuda%20con%20PuntosFieles",
+        "text": "soporte@puntosfieles.com",
+        "rel": []
+      },
+      {
+        "href": "mailto:soporte@puntosfieles.com?subject=Ayuda%20con%20el%20acceso%20a%20PuntosFieles",
+        "text": "soporte@puntosfieles.com",
+        "rel": []
+      },
+      {
+        "href": "mailto:privacidad@puntosfieles.com",
+        "text": "privacidad@puntosfieles.com",
+        "rel": []
+      },
+      {
+        "href": "mailto:soporte@puntosfieles.com?subject=Soporte%20para%20mi%20negocio%20en%20PuntosFieles",
+        "text": "Escribir a soporte",
+        "rel": []
+      },
+      {
+        "href": "https://viasolvia.com",
+        "text": "Viasolvia",
+        "rel": [
+          "noopener",
+          "noreferrer"
+        ]
+      }
+    ]
+  },
+  "pagination": {
+    "prev": null,
+    "next": null
+  },
+  "resource_hints": {
+    "preload": [],
+    "preconnect": [],
+    "dns-prefetch": [],
+    "prefetch": [],
+    "prerender": []
+  },
+  "schema": [
+    {
+      "@type": "ContactPage",
+      "@types": [
+        "ContactPage"
+      ],
+      "@id": "https://puntosfieles.com/soporte#webpage",
+      "@context": "https://schema.org",
+      "status": "active",
+      "note": "",
+      "has_context": true,
+      "has_type": true,
+      "from_graph": false,
+      "raw": {
+        "@context": "https://schema.org",
+        "@type": "ContactPage",
+        "@id": "https://puntosfieles.com/soporte#webpage",
+        "url": "https://puntosfieles.com/soporte",
+        "name": "Ayuda con tarjetas, puntos y acceso | PuntosFieles",
+        "description": "Resuelve dudas sobre tu tarjeta digital, puntos, recompensas y acceso a PuntosFieles. Consulta la ayuda o escribe a soporte@puntosfieles.com.",
+        "inLanguage": "es",
+        "isPartOf": {
+          "@id": "https://puntosfieles.com/#website"
+        },
+        "about": {
+          "@id": "https://puntosfieles.com/#organization"
+        }
+      }
+    }
+  ],
+  "open_graph": {
+    "og:type": "website",
+    "og:site_name": "PuntosFieles",
+    "og:locale": "es_GT",
+    "og:title": "Ayuda con tarjetas, puntos y acceso | PuntosFieles",
+    "og:description": "Resuelve dudas sobre tu tarjeta digital, puntos, recompensas y acceso a PuntosFieles. Consulta la ayuda o escribe a soporte@puntosfieles.com.",
+    "og:url": "https://puntosfieles.com/soporte",
+    "og:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+    "og:image:width": "1000",
+    "og:image:height": "667",
+    "og:image:alt": "Tres personas comparten un café alrededor de una mesa."
+  },
+  "twitter_card": {
+    "twitter:card": "summary_large_image",
+    "twitter:title": "Ayuda con tarjetas, puntos y acceso | PuntosFieles",
+    "twitter:description": "Resuelve dudas sobre tu tarjeta digital, puntos, recompensas y acceso a PuntosFieles. Consulta la ayuda o escribe a soporte@puntosfieles.com.",
+    "twitter:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+    "twitter:image:alt": "Tres personas comparten un café alrededor de una mesa."
+  },
+  "word_count": 502,
+  "hreflang": []
+}

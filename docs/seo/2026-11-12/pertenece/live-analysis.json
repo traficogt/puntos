@@ -1,0 +1,189 @@
+{
+  "title": "Carnés digitales para membresías | Pertenece",
+  "meta_description": "Carnés de membresía en Apple Wallet y Google Wallet para gimnasios, academias y clubes. Configuración acompañada desde tu listado de miembros.",
+  "meta_robots": "index, follow, max-image-preview:large",
+  "x_robots_tag": "index, follow, max-image-preview:large",
+  "canonical": "https://pertenecegt.com/",
+  "lang": "es-GT",
+  "charset": "utf-8",
+  "viewport": "width=device-width, initial-scale=1",
+  "favicon": "https://pertenecegt.com/credenciales/icon.svg",
+  "h1": [
+    "Tu membresía.Siempre a mano."
+  ],
+  "h2": [
+    "Ya tenés los miembros.Empecemos por ahí.",
+    "Un carné muestra la membresía.La verificación dice si sigue vigente.",
+    "Distintas organizaciones.La misma necesidad.",
+    "No te dejamoscon un manual y ya.",
+    "Primero, tu caso.Después, un precio claro.",
+    "Antes de dar el paso.",
+    "Veamos tu organización.Y tu próxima credencial."
+  ],
+  "h3": [
+    "Preparamos tu credencial",
+    "Tus miembros la guardan",
+    "Tu equipo consulta la vigencia",
+    "Membresía vigente",
+    "Gimnasios y estudios",
+    "Clubes y asociaciones",
+    "Academias y centros de formación",
+    "Tu propuesta incluirá"
+  ],
+  "h4": [],
+  "h5": [],
+  "h6": [],
+  "images": [
+    {
+      "src": "https://pertenecegt.com/credenciales/icon.svg",
+      "alt": "",
+      "width": "34",
+      "height": "34",
+      "is_responsive_fill": false,
+      "loading": null
+    },
+    {
+      "src": "https://pertenecegt.com/credenciales/demo-qr.svg",
+      "alt": "QR de muestra; no acredita una membresía real",
+      "width": "92",
+      "height": "92",
+      "is_responsive_fill": false,
+      "loading": null
+    },
+    {
+      "src": "https://pertenecegt.com/credenciales/icon.svg",
+      "alt": "",
+      "width": "34",
+      "height": "34",
+      "is_responsive_fill": false,
+      "loading": null
+    }
+  ],
+  "links": {
+    "internal": [
+      {
+        "href": "https://pertenecegt.com/",
+        "text": "Pertenece",
+        "rel": []
+      },
+      {
+        "href": "https://pertenecegt.com/",
+        "text": "Pertenece",
+        "rel": []
+      }
+    ],
+    "external": [
+      {
+        "href": "mailto:hola@pertenecegt.com?subject=Demostraci%C3%B3n%20Pertenece",
+        "text": "hola@pertenecegt.com",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/privacidad",
+        "text": "Aviso de privacidad",
+        "rel": []
+      },
+      {
+        "href": "mailto:hola@pertenecegt.com?subject=Demostraci%C3%B3n%20Pertenece",
+        "text": "escribinos por correo",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/privacidad",
+        "text": "Privacidad",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/terminos",
+        "text": "Términos",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/soporte",
+        "text": "Contacto PF",
+        "rel": []
+      }
+    ]
+  },
+  "pagination": {
+    "prev": null,
+    "next": null
+  },
+  "resource_hints": {
+    "preload": [],
+    "preconnect": [],
+    "dns-prefetch": [],
+    "prefetch": [],
+    "prerender": []
+  },
+  "schema": [
+    {
+      "@type": "Organization",
+      "@types": [
+        "Organization"
+      ],
+      "@id": "https://pertenecegt.com/#organization",
+      "@context": "https://schema.org",
+      "status": "active",
+      "note": "",
+      "has_context": true,
+      "has_type": true,
+      "from_graph": true,
+      "raw": {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "@id": "https://pertenecegt.com/#organization",
+        "name": "Pertenece",
+        "url": "https://pertenecegt.com/",
+        "description": "Iniciativa del equipo de PuntosFieles para carnés digitales de membresía en Guatemala. Servicio en preparación.",
+        "email": "hola@pertenecegt.com"
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@types": [
+        "WebSite"
+      ],
+      "@id": "https://pertenecegt.com/#website",
+      "@context": "https://schema.org",
+      "status": "active",
+      "note": "",
+      "has_context": true,
+      "has_type": true,
+      "from_graph": true,
+      "raw": {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "@id": "https://pertenecegt.com/#website",
+        "url": "https://pertenecegt.com/",
+        "name": "Pertenece",
+        "inLanguage": "es-GT",
+        "publisher": {
+          "@id": "https://pertenecegt.com/#organization"
+        }
+      }
+    }
+  ],
+  "open_graph": {
+    "og:type": "website",
+    "og:site_name": "Pertenece",
+    "og:locale": "es_GT",
+    "og:title": "Tu membresía. Siempre a mano. | Pertenece",
+    "og:description": "La membresía de tu organización, en el celular. Carnés con tu marca y acompañamiento desde el primer listado de miembros.",
+    "og:url": "https://pertenecegt.com/",
+    "og:image": "https://pertenecegt.com/credenciales/og-pertenece.jpg",
+    "og:image:type": "image/jpeg",
+    "og:image:width": "1200",
+    "og:image:height": "630",
+    "og:image:alt": "Pertenece: carnés digitales para membresías. Tu membresía, siempre a mano."
+  },
+  "twitter_card": {
+    "twitter:card": "summary_large_image",
+    "twitter:title": "Tu membresía. Siempre a mano. | Pertenece",
+    "twitter:description": "La membresía de tu organización, en el celular. Carnés con tu marca y acompañamiento desde el primer listado de miembros.",
+    "twitter:image": "https://pertenecegt.com/credenciales/og-pertenece.jpg",
+    "twitter:image:alt": "Pertenece: carnés digitales para membresías. Tu membresía, siempre a mano."
+  },
+  "word_count": 975,
+  "hreflang": []
+}

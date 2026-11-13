@@ -1,0 +1,27 @@
+{
+  "url": "https://puntosfieles.com/",
+  "score": 100,
+  "https": true,
+  "headers_present": {
+    "HSTS (Strict-Transport-Security)": "max-age=31536000",
+    "Content-Security-Policy (CSP)": "default-src 'self';base-uri 'self';font-src 'self' https://fonts.gstatic.com;form-action 'self';frame-ancestors 'self';img-src 'self' data: https:;object-src 'none';script-src 'self' https://privatrack.com https://static.cloudflareinsights.com https://challenges.cloudflare.com;script-src-attr 'none';style-src 'self' https://fonts.googleapis.com;upgrade-insecure-requests;connect-src 'self' https://privatrack.com https://cloudflareinsights.com https://challenges.cloudflare.com;media-src 'self';frame-src https://challenges.cloudflare.com",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Permissions-Policy": "camera=(self), microphone=(), geolocation=()"
+  },
+  "headers_missing": {},
+  "header_values": {
+    "strict-transport-security": "max-age=31536000",
+    "content-security-policy": "default-src 'self';base-uri 'self';font-src 'self' https://fonts.gstatic.com;form-action 'self';frame-ancestors 'self';img-src 'self' data: https:;object-src 'none';script-src 'self' https://privatrack.com https://static.cloudflareinsights.com https://challenges.cloudflare.com;script-src-attr 'none';style-src 'self' https://fonts.googleapis.com;upgrade-insecure-requests;connect-src 'self' https://privatrack.com https://cloudflareinsights.com https://challenges.cloudflare.com;media-src 'self';frame-src https://challenges.cloudflare.com",
+    "x-frame-options": "SAMEORIGIN",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "permissions-policy": "camera=(self), microphone=(), geolocation=()"
+  },
+  "issues": [
+    "\u26a0\ufe0f HSTS missing includeSubDomains directive"
+  ],
+  "recommendations": [],
+  "error": null
+}

@@ -1,0 +1,11 @@
+{
+  "url": "https://pertenecegt.com/",
+  "final_url": null,
+  "chain": [],
+  "total_hops": 0,
+  "total_time_ms": 0,
+  "has_loop": false,
+  "has_mixed_protocol": false,
+  "issues": [],
+  "error": "HTTPSConnectionPool(host='pertenecegt.com', port=443): Max retries exceeded with url: / (Caused by NewConnectionError(\"HTTPSConnection(host='pertenecegt.com', port=443): Failed to establish a new connection: [Errno 101] Network is unreachable\"))"
+}

@@ -1,0 +1,142 @@
+{
+  "title": "Planes de programas de lealtad | PuntosFieles",
+  "meta_description": "Compara los planes de PuntosFieles para tu programa de lealtad: clientes, sucursales e integraciones. Prueba la demo y solicita una cotización para tu negocio.",
+  "meta_robots": "index, follow, max-image-preview:large",
+  "x_robots_tag": null,
+  "canonical": "https://puntosfieles.com/precios",
+  "lang": "es",
+  "charset": "UTF-8",
+  "viewport": "width=device-width,initial-scale=1",
+  "favicon": "https://puntosfieles.com/icon.svg?v=4",
+  "h1": [
+    "Un plan paratu manera de crecer."
+  ],
+  "h2": [
+    "Antes de elegir",
+    "Conócelo antes de decidir."
+  ],
+  "h3": [],
+  "h4": [],
+  "h5": [],
+  "h6": [],
+  "images": [
+    {
+      "src": "https://puntosfieles.com/icon.svg?v=4",
+      "alt": "",
+      "width": "36",
+      "height": "36",
+      "is_responsive_fill": false,
+      "loading": null
+    }
+  ],
+  "links": {
+    "internal": [
+      {
+        "href": "https://puntosfieles.com/",
+        "text": "PuntosFieles.",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/guias/",
+        "text": "Guías",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/demostracion/",
+        "text": "Probar la demo",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/demostracion/",
+        "text": "Probar la demo",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/#contacto",
+        "text": "Hablar con nosotros",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/soporte",
+        "text": "Soporte",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/privacidad",
+        "text": "Privacidad",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/terminos",
+        "text": "Términos",
+        "rel": []
+      }
+    ],
+    "external": []
+  },
+  "pagination": {
+    "prev": null,
+    "next": null
+  },
+  "resource_hints": {
+    "preload": [],
+    "preconnect": [],
+    "dns-prefetch": [],
+    "prefetch": [],
+    "prerender": []
+  },
+  "schema": [
+    {
+      "@type": "WebPage",
+      "@types": [
+        "WebPage"
+      ],
+      "@id": "https://puntosfieles.com/precios#webpage",
+      "@context": "https://schema.org",
+      "status": "active",
+      "note": "",
+      "has_context": true,
+      "has_type": true,
+      "from_graph": false,
+      "raw": {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "@id": "https://puntosfieles.com/precios#webpage",
+        "url": "https://puntosfieles.com/precios",
+        "name": "Planes de programas de lealtad | PuntosFieles",
+        "description": "Compara los planes de PuntosFieles para tu programa de lealtad: clientes, sucursales e integraciones. Prueba la demo y solicita una cotización para tu negocio.",
+        "inLanguage": "es",
+        "isPartOf": {
+          "@id": "https://puntosfieles.com/#website"
+        },
+        "about": {
+          "@id": "https://puntosfieles.com/#service"
+        },
+        "publisher": {
+          "@id": "https://puntosfieles.com/#organization"
+        }
+      }
+    }
+  ],
+  "open_graph": {
+    "og:type": "website",
+    "og:site_name": "PuntosFieles",
+    "og:locale": "es_GT",
+    "og:title": "Planes de programas de lealtad | PuntosFieles",
+    "og:description": "Compara los planes de PuntosFieles para tu programa de lealtad: clientes, sucursales e integraciones. Prueba la demo y solicita una cotización para tu negocio.",
+    "og:url": "https://puntosfieles.com/precios",
+    "og:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+    "og:image:width": "1000",
+    "og:image:height": "667",
+    "og:image:alt": "Tres personas comparten un café alrededor de una mesa."
+  },
+  "twitter_card": {
+    "twitter:card": "summary_large_image",
+    "twitter:title": "Planes de programas de lealtad | PuntosFieles",
+    "twitter:description": "Compara los planes de PuntosFieles para tu programa de lealtad: clientes, sucursales e integraciones. Prueba la demo y solicita una cotización para tu negocio.",
+    "twitter:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+    "twitter:image:alt": "Tres personas comparten un café alrededor de una mesa."
+  },
+  "word_count": 173,
+  "hreflang": []
+}

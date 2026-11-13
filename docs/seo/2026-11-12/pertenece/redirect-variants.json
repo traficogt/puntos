@@ -1,0 +1,77 @@
+[
+  {
+    "url": "http://pertenecegt.com/",
+    "final_url": "https://pertenecegt.com/",
+    "chain": [
+      {
+        "step": 1,
+        "url": "http://pertenecegt.com/",
+        "status": 301,
+        "time_ms": 37,
+        "redirect_to": "https://pertenecegt.com/",
+        "redirect_type": "permanent (301)"
+      },
+      {
+        "step": 2,
+        "url": "https://pertenecegt.com/",
+        "status": 200,
+        "time_ms": 107,
+        "final": true
+      }
+    ],
+    "total_hops": 1,
+    "total_time_ms": 144,
+    "has_loop": false,
+    "has_mixed_protocol": true,
+    "issues": [
+      "\u26a0\ufe0f Mixed HTTP/HTTPS in redirect chain"
+    ],
+    "error": null
+  },
+  {
+    "url": "https://www.pertenecegt.com/",
+    "final_url": "https://pertenecegt.com/",
+    "chain": [
+      {
+        "step": 1,
+        "url": "https://www.pertenecegt.com/",
+        "status": 308,
+        "time_ms": 91,
+        "redirect_to": "https://pertenecegt.com/",
+        "redirect_type": "permanent (308)"
+      },
+      {
+        "step": 2,
+        "url": "https://pertenecegt.com/",
+        "status": 200,
+        "time_ms": 63,
+        "final": true
+      }
+    ],
+    "total_hops": 1,
+    "total_time_ms": 154,
+    "has_loop": false,
+    "has_mixed_protocol": false,
+    "issues": [],
+    "error": null
+  },
+  {
+    "url": "https://puntosfieles.com/credenciales/",
+    "final_url": "https://puntosfieles.com/credenciales/",
+    "chain": [
+      {
+        "step": 1,
+        "url": "https://puntosfieles.com/credenciales/",
+        "status": 200,
+        "time_ms": 83,
+        "final": true
+      }
+    ],
+    "total_hops": 0,
+    "total_time_ms": 83,
+    "has_loop": false,
+    "has_mixed_protocol": false,
+    "issues": [],
+    "error": null
+  }
+]

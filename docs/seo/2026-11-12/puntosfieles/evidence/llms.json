@@ -1,0 +1,24 @@
+{
+  "url": "https://puntosfieles.com/llms.txt",
+  "full_url": "https://puntosfieles.com/llms-full.txt",
+  "exists": false,
+  "full_exists": false,
+  "status": 404,
+  "full_status": 404,
+  "parsed": {
+    "title": null,
+    "description": null,
+    "sections": [],
+    "links": []
+  },
+  "quality": {
+    "score": 0,
+    "issues": [
+      "\ud83d\udd34 No llms.txt found"
+    ],
+    "suggestions": [
+      "Create /llms.txt with site name, description, and key page links"
+    ]
+  },
+  "error": null
+}

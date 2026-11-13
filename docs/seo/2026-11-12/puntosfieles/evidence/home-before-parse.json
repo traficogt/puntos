@@ -1,0 +1,283 @@
+{
+  "title": "Programas de lealtad y tarjetas digitales | PuntosFieles",
+  "meta_description": "Crea un programa de lealtad para tu negocio con puntos, recompensas y tarjetas digitales. Gestiona clientes y sucursales con PuntosFieles. Solicita una demo.",
+  "meta_robots": "index, follow, max-image-preview:large",
+  "x_robots_tag": null,
+  "canonical": "https://puntosfieles.com/",
+  "lang": "es",
+  "charset": "utf-8",
+  "viewport": "width=device-width, initial-scale=1",
+  "favicon": "https://puntosfieles.com/icon.svg?v=4",
+  "h1": [
+    "La mejor visitaes la quese repite."
+  ],
+  "h2": [
+    "As\u00ed empiezala pr\u00f3xima visita.",
+    "Tu tarjeta, tambi\u00e9nen tu billetera.",
+    "Tu negocio.Tu manerade premiar.",
+    "Lo que quieressaber, sin vueltas.",
+    "La pr\u00f3ximabuena relaci\u00f3nempieza aqu\u00ed."
+  ],
+  "h3": [
+    "Se une a tu programa.",
+    "Cada compra suma.",
+    "Volver tiene recompensa."
+  ],
+  "h4": [],
+  "h5": [],
+  "h6": [],
+  "images": [
+    {
+      "src": "https://puntosfieles.com/icon.svg?v=4",
+      "alt": "",
+      "width": "36",
+      "height": "36",
+      "is_responsive_fill": false,
+      "loading": null
+    },
+    {
+      "src": "https://puntosfieles.com/images/coffee-gathering.webp",
+      "alt": "Tres personas comparten un caf\u00e9 alrededor de una mesa.",
+      "width": "1000",
+      "height": "667",
+      "is_responsive_fill": false,
+      "loading": null
+    },
+    {
+      "src": "https://puntosfieles.com/images/wallet/apple-wallet-es-mx.svg",
+      "alt": "Agregar a Apple Wallet",
+      "width": "189",
+      "height": "60",
+      "is_responsive_fill": false,
+      "loading": null
+    },
+    {
+      "src": "https://puntosfieles.com/images/wallet/google-wallet-es-419.svg",
+      "alt": "Agregar a la Billetera de Google",
+      "width": "261",
+      "height": "60",
+      "is_responsive_fill": false,
+      "loading": null
+    },
+    {
+      "src": "https://puntosfieles.com/icon.svg?v=4",
+      "alt": "",
+      "width": "32",
+      "height": "32",
+      "is_responsive_fill": false,
+      "loading": null
+    }
+  ],
+  "links": {
+    "internal": [
+      {
+        "href": "https://puntosfieles.com/",
+        "text": "PuntosFieles.",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/precios",
+        "text": "Planes",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/guias/",
+        "text": "Gu\u00edas",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/demostracion/",
+        "text": "Probar la demo",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/demostracion/",
+        "text": "Probar la demo",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/demostracion/",
+        "text": "Explora el panel",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/privacidad",
+        "text": "Aviso de privacidad",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/",
+        "text": "PuntosFieles.",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/guias/",
+        "text": "Gu\u00edas",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/soporte",
+        "text": "Soporte",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/privacidad",
+        "text": "Privacidad",
+        "rel": []
+      },
+      {
+        "href": "https://puntosfieles.com/terminos",
+        "text": "T\u00e9rminos",
+        "rel": []
+      }
+    ],
+    "external": [
+      {
+        "href": "https://app.puntosfieles.com/mi-tarjeta/#billeteras",
+        "text": "",
+        "rel": []
+      },
+      {
+        "href": "https://app.puntosfieles.com/mi-tarjeta/#billeteras",
+        "text": "",
+        "rel": []
+      },
+      {
+        "href": "https://viasolvia.com",
+        "text": "Viasolvia",
+        "rel": [
+          "noopener",
+          "noreferrer"
+        ]
+      }
+    ]
+  },
+  "pagination": {
+    "prev": null,
+    "next": null
+  },
+  "resource_hints": {
+    "preload": [],
+    "preconnect": [],
+    "dns-prefetch": [],
+    "prefetch": [],
+    "prerender": []
+  },
+  "schema": [
+    {
+      "@type": "Unknown",
+      "@types": [
+        "Unknown"
+      ],
+      "@id": null,
+      "@context": "https://schema.org",
+      "status": "active",
+      "note": "",
+      "has_context": true,
+      "has_type": false,
+      "from_graph": false,
+      "raw": {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://puntosfieles.com/#organization",
+            "name": "PuntosFieles",
+            "url": "https://puntosfieles.com/",
+            "logo": "https://puntosfieles.com/icon-512.png",
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "contactType": "customer support",
+              "email": "soporte@puntosfieles.com",
+              "url": "https://puntosfieles.com/soporte",
+              "availableLanguage": "es"
+            }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://puntosfieles.com/#website",
+            "url": "https://puntosfieles.com/",
+            "name": "PuntosFieles",
+            "alternateName": "Puntos Fieles",
+            "inLanguage": "es",
+            "publisher": {
+              "@id": "https://puntosfieles.com/#organization"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "@type": "Organization",
+      "@types": [
+        "Organization"
+      ],
+      "@id": "https://puntosfieles.com/#organization",
+      "@context": "https://schema.org",
+      "status": "active",
+      "note": "",
+      "has_context": true,
+      "has_type": true,
+      "from_graph": true,
+      "raw": {
+        "@type": "Organization",
+        "@id": "https://puntosfieles.com/#organization",
+        "name": "PuntosFieles",
+        "url": "https://puntosfieles.com/",
+        "logo": "https://puntosfieles.com/icon-512.png",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "email": "soporte@puntosfieles.com",
+          "url": "https://puntosfieles.com/soporte",
+          "availableLanguage": "es"
+        }
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@types": [
+        "WebSite"
+      ],
+      "@id": "https://puntosfieles.com/#website",
+      "@context": "https://schema.org",
+      "status": "active",
+      "note": "",
+      "has_context": true,
+      "has_type": true,
+      "from_graph": true,
+      "raw": {
+        "@type": "WebSite",
+        "@id": "https://puntosfieles.com/#website",
+        "url": "https://puntosfieles.com/",
+        "name": "PuntosFieles",
+        "alternateName": "Puntos Fieles",
+        "inLanguage": "es",
+        "publisher": {
+          "@id": "https://puntosfieles.com/#organization"
+        }
+      }
+    }
+  ],
+  "open_graph": {
+    "og:type": "website",
+    "og:site_name": "PuntosFieles",
+    "og:locale": "es_GT",
+    "og:title": "Programas de lealtad y tarjetas digitales | PuntosFieles",
+    "og:description": "Crea un programa de lealtad para tu negocio con puntos, recompensas y tarjetas digitales. Gestiona clientes y sucursales con PuntosFieles. Solicita una demo.",
+    "og:url": "https://puntosfieles.com/",
+    "og:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+    "og:image:width": "1000",
+    "og:image:height": "667",
+    "og:image:alt": "Tres personas comparten un caf\u00e9 alrededor de una mesa."
+  },
+  "twitter_card": {
+    "twitter:card": "summary_large_image",
+    "twitter:title": "Programas de lealtad y tarjetas digitales | PuntosFieles",
+    "twitter:description": "Crea un programa de lealtad para tu negocio con puntos, recompensas y tarjetas digitales. Gestiona clientes y sucursales con PuntosFieles. Solicita una demo.",
+    "twitter:image": "https://puntosfieles.com/images/coffee-gathering.webp",
+    "twitter:image:alt": "Tres personas comparten un caf\u00e9 alrededor de una mesa."
+  },
+  "word_count": 788,
+  "hreflang": []
+}
