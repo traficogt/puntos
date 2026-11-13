@@ -48,6 +48,13 @@ suite('completed staff operations with real isolated PostgreSQL',()=>{
   const next=await completion.getAutomaticBriefing({businessId:b,staff},deps);assert.equal(next.briefing.version,first.briefing.version+1);assert.equal(next.briefing.acknowledged,false);assert.equal(next.briefing.payload.unavailable_rewards[0].alternatives[0].name,'Tea');
   await assert.rejects(completion.acknowledgeAutomaticBriefing({businessId:b,staff,briefingId:first.briefing.id,version:first.briefing.version},deps),{statusCode:409});
  });
+ it('marks expired or other-branch substitutes unavailable in the staff briefing',async()=>{
+  const elsewhere=randomUUID();await pool.query("INSERT INTO branches(id,business_id,name,code) VALUES($1,$2,'Other branch',$3)",[elsewhere,b,elsewhere]);
+  await pool.query('INSERT INTO reward_branches(reward_id,branch_id) VALUES($1,$2)',[alt,elsewhere]);
+  try{const scoped=await completion.getAutomaticBriefing({businessId:b,staff},deps);assert.equal(scoped.briefing.payload.unavailable_rewards.find(x=>x.id===r).alternatives[0].available,false);}finally{await pool.query('DELETE FROM reward_branches WHERE reward_id=$1 AND branch_id=$2',[alt,elsewhere]);}
+  await pool.query("UPDATE rewards SET valid_until=clock_timestamp()-interval '1 day' WHERE id=$1",[alt]);
+  try{const expired=await completion.getAutomaticBriefing({businessId:b,staff},deps);assert.equal(expired.briefing.payload.unavailable_rewards.find(x=>x.id===r).alternatives[0].available,false);}finally{await pool.query('UPDATE rewards SET valid_until=NULL WHERE id=$1',[alt]);}
+ });
  it('persists full rehearsal with no customer, ledger, stock or balance mutations and rejects foreign access',async()=>{
   const before=(await pool.query('SELECT points FROM customer_balances WHERE customer_id=$1',[c])).rows[0].points;
   const initial=await completion.startRehearsal({businessId:b,staff,requestId:randomUUID()},deps);let session=initial.session;
