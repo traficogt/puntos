@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
+import {readFile} from 'node:fs/promises';
 import {before,after,describe,it} from 'node:test';
 import pg from 'pg';
 import {APP_TABLE_PRIVILEGES,buildGrantPlan} from '../../src/scripts/create-app-role.mjs';
@@ -29,6 +30,14 @@ suite('integrated operations least-privilege runtime role',()=>{
   const plan=buildGrantPlan({appDbUser:role,dbName:'operations_completion_test'});
   for(const statement of plan.statements)await client.query(statement);await client.query(plan.grantFunctionsSql);
   await client.query('BEGIN');
+  // Production's legacy default ACL grants CRUD. Exercise the additive migration
+  // against broader existing grants, rather than letting buildGrantPlan mask them.
+  for(const table of tables)await client.query(`GRANT ALL ON ${ident(table)} TO ${ident(role)}`);
+  // Static repository fixture resolved relative to this test, with no user input.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  const repair=await readFile(new URL('../../src/app/migrations/2026-11-13-z-operations-runtime-grants.sql',import.meta.url),'utf8');
+  await client.query(repair.replaceAll("'puntos_app'",`'${role}'`));
+  await client.query(repair.replaceAll("'puntos_app'",`'${role}'`)); // Reapplying is safe.
   await client.query("INSERT INTO businesses(id,name,slug,email,password_hash,program_type,program_json) VALUES($1,'Runtime fixture',$2,$3,'fixture','VISIT','{\"points_per_visit\":10}'),($4,'Other runtime fixture',$5,$6,'fixture','VISIT','{}')",[b,`runtime-${b}`,`${b}@example.test`,other,`runtime-${other}`,`${other}@example.test`]);
   await client.query("INSERT INTO staff_users(id,business_id,name,role,password_hash) VALUES($1,$2,'Runtime owner','OWNER','fixture')",[staff,b]);
   await client.query("INSERT INTO customers(id,business_id,phone,name) VALUES($1,$2,$3,'Runtime customer')",[customer,b,`502${String(Date.now()).slice(-8)}`]);
@@ -43,7 +52,7 @@ suite('integrated operations least-privilege runtime role',()=>{
   const actor=(await client.query('SELECT rolsuper,rolbypassrls,rolinherit FROM pg_roles WHERE rolname=current_user')).rows[0];assert.deepEqual(actor,{rolsuper:false,rolbypassrls:false,rolinherit:false});
   for(const table of tables){
    const policy=(await client.query('SELECT relrowsecurity,relforcerowsecurity FROM pg_class WHERE oid=$1::regclass',[table])).rows[0];assert.deepEqual(policy,{relrowsecurity:true,relforcerowsecurity:true},table);
-   for(const privilege of ['SELECT','INSERT','UPDATE','DELETE','TRUNCATE']){
+   for(const privilege of ['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']){
     const actual=(await client.query('SELECT has_table_privilege(current_user,$1,$2) AS allowed',[table,privilege])).rows[0].allowed;
     assert.equal(actual,APP_TABLE_PRIVILEGES[table].includes(privilege),`${table} ${privilege}`);
    }
