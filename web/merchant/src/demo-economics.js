@@ -1,9 +1,10 @@
+import {demoRegion} from './demo-region.js';
 // Synthetic data, isolated to this browser module; no outbound requests.
 let settings = { gross_margin_pct: null, cost_per_point_q: null };
 const rewards = [
-  { id: 'demo-coffee', name: 'Café de la casa', points_cost: 50, active: true, valid_until: null, unit_cost_q: 4.5 },
-  { id: 'demo-dessert', name: 'Postre del día', points_cost: 100, active: true, valid_until: null, unit_cost_q: null },
-  { id: 'demo-upgrade', name: 'Tamaño grande', points_cost: 25, active: true, valid_until: null, unit_cost_q: 0 },
+  { id: 'demo-coffee', name: 'Café de la casa', points_cost: 50, active: true, valid_until: null, unit_cost_q: 4.5,retail_value_q:12 },
+  { id: 'demo-dessert', name: 'Postre del día', points_cost: 100, active: true, valid_until: null, unit_cost_q: null,retail_value_q:null },
+  { id: 'demo-upgrade', name: 'Tamaño grande', points_cost: 25, active: true, valid_until: null, unit_cost_q: 0,retail_value_q:null },
 ];
 const round = value => Math.round((value + Number.EPSILON) * 100) / 100;
 function valid(value, max, places) {
@@ -20,10 +21,12 @@ export function demoEconomics(url, options = {}) {
   if (url.pathname.startsWith(`${base}/rewards/`) && method === 'PUT') {
     const reward = rewards.find(row => row.id === url.pathname.slice(`${base}/rewards/`.length));
     const body = JSON.parse(options.body || '{}');
-    if (!reward || Object.keys(body).length !== 1 || !valid(body.unit_cost_q, 1000000, 2)) throw new Error('Revisa el costo de la recompensa.');
+    if (!reward || Object.keys(body).some(key=>!['unit_cost_q','retail_value_q'].includes(key)) || !valid(body.unit_cost_q, 1000000, 2)||(body.retail_value_q!==undefined&&!valid(body.retail_value_q,1000000,2))) throw new Error('Revisa el costo de la recompensa.');
     reward.unit_cost_q = body.unit_cost_q;
+    if(body.retail_value_q!==undefined)reward.retail_value_q=body.retail_value_q;
     return structuredClone({ ok: true, reward_id: reward.id, unit_cost_q: reward.unit_cost_q });
   }
+  if(url.pathname===`${base}/commitments`&&method==='GET')return {ok:true,region:demoRegion().region,generated_at:new Date().toISOString(),points_separate:true,groups:[{kind:'protected_reward',currency:'GTQ',units:5,known_retail_value:36,known_fulfillment_cost:13.5,unknown_retail_units:2,unknown_cost_units:2,historical_unknown_units:2},{kind:'hospitality',currency:'GTQ',units:2,known_retail_value:24,known_fulfillment_cost:9,unknown_retail_units:0,unknown_cost_units:0,historical_unknown_units:0},{kind:'offer',currency:'GTQ',units:10,known_retail_value:0,known_fulfillment_cost:20,unknown_retail_units:10,unknown_cost_units:0,historical_unknown_units:0}],notes:['Datos ficticios: los valores emitidos permanecen fijos cuando editas costos futuros.','Las opciones de un ciclo son alternativas; no se entregan todas.','Los puntos se estiman por separado. El costo de bonos usa un supuesto, no una entrega observada.']};
   if (url.pathname !== base || method !== 'GET') throw new Error('Acción de costos no disponible en la demostración.');
   const days = url.searchParams.get('days') === '90' ? 90 : 30;
   const offset = Math.max(0, Math.min(100000, Number(url.searchParams.get('offset') || 0)));

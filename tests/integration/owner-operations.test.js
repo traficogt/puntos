@@ -23,9 +23,9 @@ suite('complete owner workflows in isolated PostgreSQL',()=>{
   await db.query('CREATE TABLE service_cases(id uuid,business_id uuid,status text,created_at timestamptz,updated_at timestamptz)');
   // Compatibility fixture for the independently migrated delegation extension.
   await db.query(`ALTER TABLE staff_service_grants DROP CONSTRAINT staff_service_grants_action_check;
-   ALTER TABLE staff_service_grants ADD COLUMN max_actions int DEFAULT 100000,ADD COLUMN used_actions int DEFAULT 0,ADD COLUMN frequency_limit int DEFAULT 100000,ADD COLUMN frequency_minutes int DEFAULT 1440,ADD COLUMN per_action_cost numeric DEFAULT 0,ADD COLUMN total_cost numeric DEFAULT 0,ADD COLUMN used_cost numeric DEFAULT 0;
+   ALTER TABLE staff_service_grants ADD COLUMN currency text,ADD COLUMN max_actions int DEFAULT 100000,ADD COLUMN used_actions int DEFAULT 0,ADD COLUMN frequency_limit int DEFAULT 100000,ADD COLUMN frequency_minutes int DEFAULT 1440,ADD COLUMN per_action_cost numeric DEFAULT 0,ADD COLUMN total_cost numeric DEFAULT 0,ADD COLUMN used_cost numeric DEFAULT 0;
    ALTER TABLE staff_service_usage DROP CONSTRAINT staff_service_usage_action_check;ALTER TABLE staff_service_usage DROP CONSTRAINT staff_service_usage_points_check;
-   ALTER TABLE staff_service_usage ADD COLUMN cost_amount numeric DEFAULT 0,ADD COLUMN reference_type text,ADD COLUMN reference_id uuid;`);
+   ALTER TABLE staff_service_usage ADD COLUMN currency text,ADD COLUMN cost_amount numeric DEFAULT 0,ADD COLUMN reference_type text,ADD COLUMN reference_id uuid;`);
   // Static migration URL.
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const migration=await readFile(new URL('../../src/app/migrations/2026-11-13-owner-operations.sql',import.meta.url),'utf8').catch(()=>null);assert.ok(migration,'owner completion migration must exist');await db.query(migration);
@@ -102,6 +102,9 @@ suite('complete owner workflows in isolated PostgreSQL',()=>{
   await operating.triggerOperatingTemplate({businessId:b,staff:owner,input:{template_id:approved.template.id,version:1,request_id:randomUUID()}},deps);
   await assert.rejects(operating.triggerOperatingTemplate({businessId:b,staff:owner,input:{template_id:approved.template.id,version:2,request_id:randomUUID()}},deps),/capacidad/);
   assert.equal((await db.query('SELECT used_runs FROM operating_offer_templates')).rows[0].used_runs,1);
+  const preflights=await import('../../src/app/services/campaign-preflight-service.js'),growth=await import('../../src/app/services/growth-campaign-service.js');
+  const preview=await preflights.createCampaignPreflight({businessId:b,campaignId:approved.template.source_campaign_id},deps);assert.equal(preview.preflight.can_activate,false);assert.ok(preview.preflight.blockers.some(item=>item.code==='capacity_exceeded'));
+  await assert.rejects(growth.activateGrowthCampaign({businessId:b,staffId:ownerId,campaignId:approved.template.source_campaign_id,preflightId:preview.preflight.id},deps),{statusCode:409});
  });
  it('protects owner-approved audience and financial terms from later changes',async()=>{
   const approved=await template();await assert.rejects(db.query("UPDATE operating_offer_templates SET terms='{}' WHERE id=$1",[approved.template.id]),/immutable/);
