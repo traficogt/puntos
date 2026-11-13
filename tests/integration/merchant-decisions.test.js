@@ -12,6 +12,10 @@ suite('merchant decisions and operating controls',()=>{
    // eslint-disable-next-line security/detect-non-literal-fs-filename
    await db.query(await readFile(new URL('../../src/app/'+file,import.meta.url),'utf8'));
   }
+  // Owner completion tables needed by the legacy behavior regressions.
+  await db.query(`ALTER TABLE merchant_decision_reviews ADD COLUMN assigned_staff_id uuid,ADD COLUMN dismiss_reason text;
+   CREATE TABLE merchant_decision_events(id uuid PRIMARY KEY,business_id uuid REFERENCES businesses(id) ON DELETE CASCADE,decision_key text,version int,actor_staff_id uuid,evidence_fingerprint text,status text,assigned_staff_id uuid,dismiss_reason text,snoozed_until timestamptz,created_at timestamptz DEFAULT now());
+   CREATE TABLE operating_mode_changes(id uuid PRIMARY KEY,business_id uuid REFERENCES businesses(id) ON DELETE CASCADE,request_id uuid,staff_id uuid,payload_fingerprint text,result jsonb);`);
   await db.query("CREATE TABLE service_cases(id uuid PRIMARY KEY,business_id uuid REFERENCES businesses(id) ON DELETE CASCADE,status text,created_at timestamptz DEFAULT now(),updated_at timestamptz DEFAULT now())");
   await db.query("DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='decisions_rls_test') THEN CREATE ROLE decisions_rls_test NOLOGIN;END IF;END $$;GRANT USAGE ON SCHEMA public,app TO decisions_rls_test;GRANT SELECT,INSERT,UPDATE ON merchant_decision_reviews TO decisions_rls_test;");
   await db.query('CREATE TABLE service_redemption_restorations(id uuid PRIMARY KEY,business_id uuid REFERENCES businesses(id) ON DELETE CASCADE,redemption_id uuid,points_restored int,created_at timestamptz);CREATE TABLE redemption_cost_snapshots(redemption_id uuid PRIMARY KEY,business_id uuid REFERENCES businesses(id) ON DELETE CASCADE,unit_cost_q numeric)');

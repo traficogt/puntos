@@ -111,18 +111,18 @@ it('accepts Wallet review keys and bounded pause values with authenticated actor
   for (const decision_key of ['operation-apple_wallet', 'operation-google_wallet']) {
     const input = { ...review, decision_key };
     assert.equal((await request('/review', { method: 'POST', body: input, cookie: otherCookie })).status, 200);
-    assert.deepEqual(calls.at(-1), { kind: 'review', input: { businessId: otherBusiness, staffId: otherStaff, ip: '127.0.0.1', ua: 'decisions-route-test', impersonated_by: null, input } });
+    assert.deepEqual(calls.at(-1), { kind: 'review', input: { businessId: otherBusiness, staffId: otherStaff, staff:{id:otherStaff,business_id:otherBusiness,role:'OWNER',branch_id:null,impersonated_by:null}, ip: '127.0.0.1', ua: 'decisions-route-test', impersonated_by: null, input } });
   }
   for (const snooze_hours of [1, 4, 24]) {
     const input = { ...review, status: 'snoozed', snooze_hours, version: 1 };
     assert.equal((await request('/review', { method: 'POST', body: input })).status, 200);
     assert.deepEqual(calls.at(-1).input.input, input);
   }
-  for (const input of [{ ...review, status: 'open', version: 2 }, mode, { mode: 'normal', version: mode.version }]) {
+  for (const input of [{ ...review, status: 'open', version: 2 }, mode, {...mode,mode:'quiet',capacity:12}, { mode: 'normal', version: mode.version }]) {
     const path = 'mode' in input ? '/operating-mode' : '/review';
     const response = await request(path, { method: 'POST', body: input, cookie: impersonatedCookie });
     assert.equal(response.status, 200); assert.equal(response.cache, 'no-store');
-    assert.deepEqual(calls.at(-1).input, { businessId, staffId, ip: '127.0.0.1', ua: 'decisions-route-test', impersonated_by: 'support@example.invalid', input });
+    assert.deepEqual(calls.at(-1).input, { businessId, staffId, staff:{id:staffId,business_id:businessId,role:'OWNER',branch_id:null,impersonated_by:'support@example.invalid'}, ip: '127.0.0.1', ua: 'decisions-route-test', impersonated_by: 'support@example.invalid', input });
   }
 });
 
@@ -145,7 +145,7 @@ it('strictly validates review evidence, versions, statuses and snooze bounds bef
 
 it('strictly validates operating modes, bounded durations and concurrency tokens before service access', async () => {
   const invalid = [
-    {}, { ...mode, mode: 'quiet' }, { mode: 'busy', version: mode.version },
+    {}, { ...mode, mode: 'invalid' }, { mode: 'busy', version: mode.version },
     { ...mode, minutes: 0 }, { ...mode, minutes: 31 }, { ...mode, minutes: 241 }, { ...mode, minutes: '120' },
     { ...mode, mode: 'normal' }, { ...mode, version: 1 }, { ...mode, version: 'b'.repeat(63) },
     { ...mode, business_id: otherBusiness }, { ...mode, staff_id: otherStaff }, { ...mode, until: '2030-01-01T00:00:00Z' }

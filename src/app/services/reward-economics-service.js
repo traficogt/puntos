@@ -32,11 +32,13 @@ async function audit(client, actor, action, meta) {
 
 export async function updateRewardUnitCost(options, injected = {}) {
   boundedNullable(options.unitCostQ, 1000000, 2);
+  if(options.retailValueQ!==undefined)boundedNullable(options.retailValueQ,1000000,2);
   const d = { ...defaults, ...injected }, overrides = await d.getPlanFeatureOverrides();
   return d.transaction(async client => {
     const business = await entitled(client, options.businessId, overrides);
     const region=businessRegion(business);
     if(options.unitCostQ!==null)assertRegionAmount(options.unitCostQ,region.currency,business);
+    if(options.retailValueQ!==undefined&&options.retailValueQ!==null)assertRegionAmount(options.retailValueQ,region.currency,business);
     // The completion flow locks the same reward before spending points. This
     // serializes cost edits with completion, even when the cost row is absent.
     const { rows } = await client.query('SELECT id FROM rewards WHERE business_id=$1 AND id=$2 FOR UPDATE', [options.businessId,options.rewardId]);
@@ -44,8 +46,9 @@ export async function updateRewardUnitCost(options, injected = {}) {
     await client.query(`INSERT INTO reward_unit_costs(business_id,reward_id,unit_cost_q,updated_by_staff_id)
       VALUES($1,$2,$3,$4) ON CONFLICT(business_id,reward_id) DO UPDATE
       SET unit_cost_q=EXCLUDED.unit_cost_q,updated_by_staff_id=EXCLUDED.updated_by_staff_id,updated_at=now()`, [options.businessId,options.rewardId,options.unitCostQ,options.staffId]);
-    await audit(client,options,'reward.unit_cost.update',{reward_id:options.rewardId,unit_cost_q:options.unitCostQ,currency:region.currency});
-    return {ok:true,reward_id:options.rewardId,unit_cost_q:options.unitCostQ,currency:region.currency};
+    if(options.retailValueQ!==undefined)await client.query('UPDATE reward_unit_costs SET retail_value_q=$3 WHERE business_id=$1 AND reward_id=$2',[options.businessId,options.rewardId,options.retailValueQ]);
+    await audit(client,options,'reward.unit_cost.update',{reward_id:options.rewardId,unit_cost_q:options.unitCostQ,...(options.retailValueQ!==undefined?{retail_value_q:options.retailValueQ}:{}),currency:region.currency});
+    return {ok:true,reward_id:options.rewardId,unit_cost_q:options.unitCostQ,...(options.retailValueQ!==undefined?{retail_value_q:options.retailValueQ}:{}),currency:region.currency};
   });
 }
 export async function updateRewardEconomicsSettings(options, injected = {}) {
@@ -111,7 +114,7 @@ WITH bounds AS (
  FROM customer_balances cb JOIN customers c ON c.id=cb.customer_id
  WHERE c.business_id=$1 AND c.deleted_at IS NULL
 ), reward_page AS (
- SELECT r.id,r.name,r.points_cost,r.active,r.valid_until,c.unit_cost_q
+ SELECT r.id,r.name,r.points_cost,r.active,r.valid_until,c.unit_cost_q,c.retail_value_q
  FROM rewards r LEFT JOIN reward_unit_costs c ON c.business_id=$1 AND c.reward_id=r.id
  WHERE r.business_id=$1 ORDER BY r.active DESC,r.name,r.id LIMIT 50 OFFSET $5
 )

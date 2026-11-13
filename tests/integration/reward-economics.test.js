@@ -37,6 +37,7 @@ suite('reward economics against disposable PostgreSQL',()=>{
   const migration=await readFile(new URL('../../src/app/migrations/2026-11-10-reward-economics.sql',import.meta.url),'utf8').catch(()=>null);
   assert.ok(migration,'reward economics migration must exist');
   await pool.query(migration);
+  await pool.query('ALTER TABLE reward_unit_costs ADD COLUMN IF NOT EXISTS retail_value_q numeric(12,2)');
   service=await import('../../src/app/services/reward-economics-service.js');
   ({redeemRewardWithDeps}=await import('../../src/app/services/staff-service.js'));
  });

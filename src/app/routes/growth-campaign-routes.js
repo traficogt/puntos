@@ -1,3 +1,4 @@
+import {previewCampaignCollisions,CollisionSampleInput} from '../services/campaign-collision-service.js';
 import { Router } from "express";
 import { z } from "zod";
 import {
@@ -120,7 +121,7 @@ export function createGrowthCampaignRouter(deps = {}) {
     getGrowthCampaign,
     activateGrowthCampaign,
     pauseGrowthCampaign,
-    createCampaignPreflight, createCampaignPreparation, retryCampaignPreparation, cancelCampaignPreparation,
+    previewCampaignCollisions,createCampaignPreflight, createCampaignPreparation, retryCampaignPreparation, cancelCampaignPreparation,
     ...deps,
   };
   const router = Router();
@@ -184,6 +185,11 @@ export function createGrowthCampaignRouter(deps = {}) {
     if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
     return res.status(202).json(await services.createCampaignPreparation({ ...actor(req), ...expansionOptions(body.data),
       durationDays: body.data.duration_days, holdoutPercent: body.data.holdout_percent }));
+  }));
+  router.post(`${base}/:id/collision-preview`,csrfProtect,asyncRoute(async(req,res)=>{
+    const params=Params.safeParse(req.params),input=CollisionSampleInput.safeParse(req.body);
+    if(!params.success||!input.success||!Empty.safeParse(req.query).success)return invalid(res);
+    return res.json(await services.previewCampaignCollisions({...actor(req),campaignId:params.data.id,input:input.data}));
   }));
   for (const [suffix, execute] of Object.entries({ preflight: services.createCampaignPreflight,
     "preparation/retry": services.retryCampaignPreparation, "preparation/cancel": services.cancelCampaignPreparation })) {
