@@ -37,8 +37,8 @@ Root: explanation and health 10–11; central API registry, navigation/screen re
 - [x] Review each track against its full criteria, then inspect permission boundaries, concurrency, money rounding, evidence provenance and error paths; fix review findings.
 - [x] Build merchant browser bundle; run lint, typecheck, migration lock checks and relevant existing/new unit/integration suites. Use a new isolated DB, never production for tests.
 - [x] Browser verification of all twelve workflows including small-screen controls, empty/error states, actual API-backed persistence in isolated runtime, and no live customer messages.
-- [ ] Back up production DB; apply additive migrations with established deployment tools; deploy API/worker/browser artifacts preserving Pertenece and native compatibility. Verify live endpoints and record release/rollback evidence.
-- [ ] Push branch/PR without triggering native workflows; report feature entry URLs, verification evidence and any actual external acceptance limits precisely.
+- [x] Back up production DB; apply additive migrations with established deployment tools; deploy API/worker/browser artifacts preserving Pertenece and native compatibility. Verify live endpoints and record release/rollback evidence.
+- [x] Push branch/PR without triggering native workflows; report feature entry URLs, verification evidence and any actual external acceptance limits precisely.
 
 ## Integration review corrections
 
@@ -48,3 +48,13 @@ Root: explanation and health 10–11; central API registry, navigation/screen re
 - Reconciliation excludes correction-linked cache-repair records from newly earned points; ordinary restitution remains additive. Apply locks the stored balance and retains second-owner approval.
 - Full unit suite: 1,321 passing; merchant unit suite: 129 passing; full demo: 52 desktop/mobile page checks.
 - PostgreSQL integration and actual-API browser workflows cover each track; the combined runtime-role test covers all 20 new tables.
+- The live runtime check exposed legacy default CRUD grants. A fifth additive migration normalizes non-owner runtime grants without changing historical migrations, table ownership, or unrelated defaults. A regression first reproduced the unexpected UPDATE privilege, then passed with broader existing grants, replayed migration, real writes, history protection, and cross-tenant denial.
+
+## Released
+
+- API and worker source: `c5f0b463290c78d68bd3e1f6ff260197fd54674e`, deployed November 13, 2026 after verified database backups. Five additive migrations applied. Public browser assets ship with the API image.
+- GitHub: `feat/operations-completion-20261113`, PR https://github.com/traficogt/puntos/pull/3, stacked on the existing Pertenece/SEO PR. Main was not changed.
+- Live database: all 140 privilege checks and forced tenant policies pass across the 20 new tables. API and worker are healthy; public screens return 200 and protected APIs reject anonymous access. The public demo passed 52 desktop/mobile page checks.
+- Entry points: https://app.puntosfieles.com/negocio/ and https://app.puntosfieles.com/demostracion/. New owner sections include decisions, customer requests, suppliers, team, cases, movements, operation health, costs, preparation, and imports. Staff workflows are in https://app.puntosfieles.com/equipo/escaner/; platform health is under https://app.puntosfieles.com/plataforma/#salud.
+- Release/rollback evidence and local test logs: `/var/lib/puntos/releases/operations-completion-20261113`, with the final permission migration deployment under `runtime-grants-followup`. Credentials and database backups remain outside Git.
+- Native app files, versions, and release workflows are unchanged. No native builds or provider/customer test messages were sent. Actual staff/device/POS-provider acceptance is separate from the completed code and automated verification.

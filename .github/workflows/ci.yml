@@ -44,6 +44,8 @@ jobs:
           cache: npm
       - name: Install deps (locked, no scripts)
         run: npm ci --ignore-scripts
+      - name: Install merchant browser dependencies for integration fixture typechecks
+        run: npm ci --prefix web/merchant --ignore-scripts
       - name: Odoo distribution matches source
         run: python3 integrations/odoo/build_package.py --check
       - name: Migrations lock (immutability guard)
