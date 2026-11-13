@@ -1,4 +1,4 @@
-const CACHE = "pf-v47";
+const CACHE = "pf-v48";
 const CORE_ASSETS = [
   "/crear-negocio/", "/equipo/ingresar/", "/equipo/escaner/",
   "/mi-tarjeta/", "/administracion/", "/plataforma/", "/registro/", "/ingresar/",
@@ -81,6 +81,7 @@ const CORE_ASSETS = [
   "/staff/service-briefing.js",
   "/staff/service-briefing.css",
   "/super/index.js",
+  "/super/operations-health.js",
   "/admin-dashboard/index.js",
   "/admin-dashboard/core.js",
   "/admin-dashboard/layout.js",

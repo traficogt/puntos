@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Accordion, Alert, Badge, Button, Group, List, Select, SimpleGrid, Stack, Table, Text, TextInput, Title } from '@mantine/core';
 import { isDemo, useResource } from './api.js';
 import { Failure, Loading, money } from './ui.jsx';
+import {HistoricalReplay,RejectedAttempts,SafeCorrections} from './TransactionEvidence.jsx';
 
 const base = '/api/admin/transaction-history';
 // Rule rates and intermediate totals must not inherit dashboard rounding.
@@ -76,9 +77,11 @@ function Detail({ data, select, titleRef }) {
     {row.kind==='purchase' && <Text>Compra registrada: {money(row.amount_q)}. Visitas: {number(row.visits)}. Artículos: {number(row.items)}.</Text>}
     {row.redemption && <Text>Recompensa: {row.redemption.reward_name || 'Sin nombre disponible'}. Costo guardado: {number(row.redemption.points_cost)} puntos.</Text>}
     {explanation.award && <Award award={explanation.award} />}
+    <HistoricalReplay replay={explanation.replay} history={data.history}/>
     {row.adjustment && <List spacing="xs"><List.Item>Puntos disponibles: {signed(row.adjustment.points)}</List.Item><List.Item>Puntos pendientes: {signed(row.adjustment.pending_points)}</List.Item><List.Item>Puntos acumulados: {signed(row.adjustment.lifetime_points)}</List.Item></List>}
     <section><Title order={3}>Qué permite confirmar este registro</Title><List mt="sm" spacing="sm" maw="72ch">{explanation.limitations.map((line,index)=><List.Item key={index}>{line}</List.Item>)}</List></section>
     <Group>{row.links.original_id && <Button mih={44} variant="outline" onClick={()=>select(row.links.original_id)}>Ver movimiento original</Button>}{row.links.reversal_id && <Button mih={44} variant="outline" onClick={()=>select(row.links.reversal_id)}>Ver reversión relacionada</Button>}</Group>
+    <SafeCorrections customerId={row.customer_id}/>
   </Stack>;
 }
 export default function TransactionHistory() {
@@ -99,6 +102,7 @@ export default function TransactionHistory() {
   return <Stack gap="xl">
     <Group justify="space-between" align="start"><div><Title order={1}>Movimientos y puntos</Title><Text mt="sm" c="dimmed" maw="72ch">Revisa una compra, un canje o un cambio de saldo. Cada detalle distingue lo que quedó guardado de lo que todavía no se puede confirmar.</Text></div><Button mih={44} variant="outline" onClick={refresh} loading={history.loading||detail.loading}>Actualizar historial</Button></Group>
     {isDemo && <Text size="sm" c="dimmed">Movimientos ficticios para explorar el historial. No representan clientes ni puntos reales.</Text>}
+    {!selected&&<RejectedAttempts/>}
     {Object.keys(activityFilters).length > 0 && <Alert color="gray" title="Vista filtrada desde el resumen"><Stack gap="sm"><Text size="sm">{activityFilters.staff_id ? 'Persona seleccionada. ' : ''}{activityFilters.source_group ? `${activitySourceLabels[activityFilters.source_group]}. ` : ''}{activityFilters.branch_id ? 'Sucursal seleccionada. ' : ''}{activityFilters.start ? `Desde ${date(activityFilters.start)} hasta ${date(activityFilters.end)}, sin incluir el final.` : ''}</Text><Button variant="default" mih={44} w="fit-content" onClick={clearFilters}>Quitar filtros del resumen</Button></Stack></Alert>}
     <form onSubmit={submit}><Group align="end"><TextInput size="md" label="ID del movimiento" description="Pega el ID completo de una compra, canje o ajuste, aunque sea antiguo." placeholder="00000000-0000-0000-0000-000000000000" value={search} onChange={event=>{setSearch(event.currentTarget.value);setSearchError('');}} error={searchError} style={{flex:'1 1 300px'}}/><Button mih={44} type="submit" disabled={!search.trim()}>Buscar movimiento</Button></Group></form>
     {selected ? <section className="operation-section" aria-label="Explicación del movimiento"><Stack gap="lg">

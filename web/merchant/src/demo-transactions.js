@@ -24,7 +24,7 @@ function detail(movement) {
   } : null;
   const limitations = ['Los nombres son los que figuran actualmente en PF. Este detalle no reconstruye el saldo anterior ni el saldo posterior.'];
   if (!award) limitations.unshift(movement.kind === 'purchase' ? 'No se guardaron las reglas evaluadas de esta compra. No se puede reconstruir su cálculo con la configuración actual.' : movement.kind === 'refund' ? 'La reversión de puntos no confirma una devolución de dinero. Comprueba el recibo en tu caja.' : movement.kind === 'opening_balance' ? 'El saldo inicial no representa una compra ni puntos calculados con las reglas del programa.' : movement.kind === 'adjustment' ? 'Este ajuste corrige saldos. No representa una compra ni modifica los puntos del movimiento original.' : 'El costo registrado del canje no depende del precio actual de la recompensa. Las condiciones de elegibilidad de ese momento no se guardaron.');
-  return {movement,explanation:{coverage:award?'recorded':'partial',award,steps:[{label:'Puntos registrados',points:movement.points}],limitations}};
+  return {movement,explanation:{coverage:award?'recorded':'partial',award,replay:award?{status:'matched',changes_balances:false,calculated_points:movement.points,recorded_points:movement.points,difference:0,summary:'Ejemplo: las reglas guardadas reproducen los puntos registrados.',limitations:['Datos ficticios de la demostración.']}:{status:'unavailable',changes_balances:false,summary:'Ejemplo de un registro sin reglas históricas guardadas.'},steps:[{label:'Puntos registrados',points:movement.points}],limitations}};
 }
 export async function demoTransactions(url, options = {}) {
   if ((options.method || 'GET') !== 'GET') throw Object.assign(new Error('Esta consulta es de solo lectura.'),{status:405});

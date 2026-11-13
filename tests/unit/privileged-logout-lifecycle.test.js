@@ -18,7 +18,7 @@ async function setup(t, kind, api, initial = {}) {
     hidden: false, textContent: "private", value: "test", classList: { toggle() {} },
     addEventListener: (event, cb) => { events[`${key}:${event}`] = cb; }
   };
-  for (const key of ["#main", "#needLogin", "#planes", "#seguridad", "#negocios", "#superMfaSecret", "#magicLinkOutput"]) $(key);
+  for (const key of ["#main", "#needLogin", "#planes", "#seguridad", "#negocios", "#salud", "#superMfaSecret", "#magicLinkOutput"]) $(key);
   for (const [key, value] of Object.entries({ location: { href: "" },
     localStorage: { getItem: key => saved.get(key) || null, setItem: (key, value) => saved.set(key, value), removeItem: key => saved.delete(key) },
     window: { addEventListener: (event, cb) => { events[`window:${event}`] = cb; } }
@@ -30,6 +30,7 @@ async function setup(t, kind, api, initial = {}) {
   const instance = ++run;
   const module = await import(data((kind === "admin" ? adminSource : superSource)
     .replace('"/lib.js"', JSON.stringify(library))
+    .replace("'./operations-health.js'", JSON.stringify(data("export const createPlatformHealth=({container})=>({load:async()=>{},clear:()=>{container.textContent='';}});")))
     .replace('"./logout-controller.js"', JSON.stringify(data(logoutSource.replace('"/lib.js"', JSON.stringify(library)) + `\n// run ${instance}`)))
     .replace('"./view-state.js"', JSON.stringify(data("export const copyCurrentViewUrl=async()=>{};"))) + `\n// run ${instance}`));
   const deps = { api, $, toast: text => messages.push(text), syncDashboardViewToUrl() {} };

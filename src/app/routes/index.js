@@ -1,3 +1,4 @@
+import {dataHealthRoutes} from './data-health-routes.js';
 import {rewardWorkspaceRoutes} from './reward-workspace-routes.js';
 import {merchantCatalogRoutes} from './merchant-catalog-routes.js';
 import {posCheckoutRoutes} from './pos-checkout-routes.js';
@@ -72,6 +73,7 @@ function mountApiRoute(basePath, router) {
 }
 
 const mountRoutes = (basePath) => {
+  mountApiRoute(basePath, dataHealthRoutes);
   mountApiRoute(basePath, healthRoutes);
   mountApiRoute(basePath, merchantCatalogRoutes);
   mountApiRoute(basePath, rewardWorkspaceRoutes);

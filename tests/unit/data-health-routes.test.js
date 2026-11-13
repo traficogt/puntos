@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {before,after,test} from 'node:test';
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import {createDataHealthRoutes} from '../../src/app/routes/data-health-routes.js';
+import {createBrowserSession} from '../../src/app/services/auth-session-service.js';
+import {StaffRepo} from '../../src/app/repositories/staff-repository.js';
+import {config} from '../../src/config/index.js';
+import {errorHandler} from '../../src/middleware/common.js';
+const businessId=randomUUID(),staffId=randomUUID();let server,origin,cookie,calls=[],role='OWNER';const original=StaffRepo.getById;
+before(async()=>{StaffRepo.getById=async()=>({id:staffId,business_id:businessId,active:true,role});const session=await createBrowserSession({actorType:'STAFF',actorId:staffId,businessId,role:'OWNER'});cookie=`${config.STAFF_COOKIE_NAME}=${session.token}`;const app=express();app.use(express.json(),cookieParser());app.use('/api',createDataHealthRoutes({getDataHealth:async input=>{calls.push(input);return {ok:true};},saveDataHealth:async input=>{calls.push(input);return {ok:true};},getPlatformOperationsHealth:async input=>{calls.push(input);return {businesses:[]};}}));app.use(errorHandler);server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));origin=`http://127.0.0.1:${server.address().port}`;});
+after(async()=>{await new Promise(resolve=>server.close(resolve));StaffRepo.getById=original;});
+test('health settings require an owner and take tenant identity only from session',async()=>{calls=[];let r=await fetch(origin+'/api/admin/data-health');assert.equal(r.status,401);role='MANAGER';r=await fetch(origin+'/api/admin/data-health',{headers:{cookie}});assert.equal(r.status,403);role='OWNER';r=await fetch(origin+'/api/admin/data-health?business_id='+randomUUID(),{headers:{cookie}});assert.equal(r.status,400);assert.equal(calls.length,0);r=await fetch(origin+'/api/admin/data-health',{headers:{cookie}});assert.equal(r.status,200);assert.equal(r.headers.get('cache-control'),'no-store');assert.deepEqual(calls,[{businessId}]);});
+test('a staff session cannot read platform-wide health',async()=>{const before=calls.length;const r=await fetch(origin+'/api/super/operations-health',{headers:{cookie}});assert.equal(r.status,401);assert.equal(calls.length,before);});
+test('health configuration writes require the CSRF token',async()=>{const before=calls.length;const r=await fetch(origin+'/api/admin/data-health',{method:'PUT',headers:{cookie,'content-type':'application/json'},body:JSON.stringify({version:'0'.repeat(64),sources:[]})});assert.equal(r.status,403);assert.equal(calls.length,before);});

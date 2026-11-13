@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { requireStaff, requireOwner } from '../../middleware/auth.js';
 import { tenantContext } from '../../middleware/tenant.js';
 import { asyncRoute } from '../../middleware/common.js';
-import { listTransactionHistory, getTransactionExplanation, movementKinds, transactionHistoryFilters, validHistoryInterval } from '../services/transaction-explanation-service.js';
+import { listTransactionHistory, getTransactionExplanation, listRejectedAttempts, movementKinds, transactionHistoryFilters, validHistoryInterval } from '../services/transaction-explanation-service.js';
 
 const empty = z.object({}).strict();
 const query = z.object({ limit: z.string().regex(/^\d{1,2}$/).transform(Number).pipe(z.number().min(1).max(50)).optional().prefault('25'), cursor: z.string().min(1).max(400).optional(), kind: z.string().refine(value => movementKinds.includes(value)).optional().default('all') }).merge(transactionHistoryFilters).strict().refine(validHistoryInterval);
@@ -19,6 +19,10 @@ async function respond(res, fn) {
 }
 export function createTransactionExplanationRoutes(deps = {}) {
   const router = Router(), guards = [noStore,requireStaff,requireOwner,tenantContext];
+  router.get('/admin/transaction-rejections', ...guards, asyncRoute(async(req,res)=>{
+    if(!empty.safeParse(req.query).success||hasBody(req))return invalid(res);
+    return respond(res,()=>(deps.listRejectedAttempts??listRejectedAttempts)({businessId:req.tenantId}));
+  }));
   router.get('/admin/transaction-history', ...guards, asyncRoute(async (req,res) => {
     const parsed = query.safeParse(req.query);
     if (!parsed.success || hasBody(req)) return invalid(res);

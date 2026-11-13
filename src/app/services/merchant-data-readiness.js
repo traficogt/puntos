@@ -1,3 +1,4 @@
+import {sourceHealth,sourceHealthReasons} from './source-health-model.js';
 const HOUR=3600000;
 const summaries={
  integration_paused:'La importación automática está pausada. No podemos interpretar la ausencia de compras como inactividad.',
@@ -24,9 +25,12 @@ export function readinessForBusiness(business={},now=new Date()) {
   else if(automatic&&Date.parse(completed)>now.getTime()+5*60000)reason='sync_time_invalid';
   else if(automatic&&now.getTime()-Date.parse(completed)>24*HOUR)reason='sync_stale';
  }
- const state=reason?'blocked':automatic?'ready':'recorded_only';
- return{state,source,inactivity_allowed:!reason,reason,last_completed_at:completed,checked_at:now.toISOString(),
-  summary:reason?summaries[reason]:automatic?'La última ventana de importación está completa y dentro de 24 horas. Esto no acredita todas las ventas del negocio.':'El análisis usa únicamente las compras registradas en PF. Este método no tiene un plazo automático de sincronización.',
+ const sources=sourceHealth(business.program_json?.data_health?.sources,now);
+ const blockedSource=sources.find(item=>item.state==='blocked');
+ if(!reason&&blockedSource)reason=blockedSource.reason;
+ const state=reason?'blocked':automatic||sources.length?'ready':'recorded_only';
+ return{state,source,sources,inactivity_allowed:!reason,reason,last_completed_at:completed,checked_at:now.toISOString(),
+  summary:reason?(summaries[reason]??sourceHealthReasons[reason]):automatic?'La última ventana de importación está completa y dentro de 24 horas. Esto no acredita todas las ventas del negocio.':sources.length?'Las conexiones monitoreadas declaran datos completos y vigentes. No demuestra ventas que no fueron registradas.':'El análisis usa únicamente las compras registradas en PF. Este método no tiene un plazo automático de sincronización.',
   action:{label:'Revisar conexión de caja',href:'#conectar-caja'}};
 }
 export function campaignNeedsFreshActivity(campaign={}) {

@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+import {readinessForBusiness,promotionDelay} from '../../src/app/services/merchant-data-readiness.js';
+const now=new Date('2026-11-13T18:00:00Z');
+const source={id:'7aad84c4-86db-4d67-98e2-e7d9e317975e',source:'odoo',label:'Caja central',branch_id:null,expected_minutes:60,enabled:true};
+const business=(heartbeat)=>({program_json:{data_health:{sources:[{...source,last_heartbeat:heartbeat}]}}});
+test('declared external feed without a complete heartbeat stops inactivity automation',()=>{const result=readinessForBusiness(business(null),now);assert.equal(result.state,'blocked');assert.equal(result.reason,'source_initial_sync');assert.equal(promotionDelay({business:business(null),rule:'winback',now}).reason,'data_quality_source_initial_sync');});
+test('fresh completed source coverage is observable, not inferred from sales',()=>{const result=readinessForBusiness(business({received_at:now.toISOString(),coverage_through:now.toISOString(),status:'complete',pending:0,errors:0}),now);assert.equal(result.state,'ready');assert.equal(result.sources[0].state,'ready');});
+test('a recent ping does not disguise stale data or pending/error coverage',()=>{for(const [patch,reason] of [[{coverage_through:'2026-11-13T16:00:00Z'},'source_stale'],[{pending:1},'source_incomplete'],[{errors:1},'source_errors'],[{status:'partial'},'source_incomplete'],[{coverage_through:'2026-11-14T18:00:00Z'},'source_time_invalid']]){const h={received_at:now.toISOString(),coverage_through:now.toISOString(),status:'complete',pending:0,errors:0,.../** @type {Record<string,unknown>} */ (patch)};assert.equal(readinessForBusiness(business(h),now).reason,reason);}});
+test('manual merchants stay recorded-only and disabled optional feeds do not invent an outage',()=>{assert.equal(readinessForBusiness({},now).state,'recorded_only');const b=business(null);b.program_json.data_health.sources[0].enabled=false;assert.equal(readinessForBusiness(b,now).state,'recorded_only');});
