@@ -1,3 +1,8 @@
+const viewCleanups = new Set();
+export function onCustomerViewClear(callback) {
+  viewCleanups.add(callback);
+  return () => viewCleanups.delete(callback);
+}
 const IDENTITY_KEY = "pf_customer_identity";
 const EPOCH_KEY = "pf_customer_epoch";
 let memoryEpoch = "";
@@ -47,6 +52,7 @@ export function isCustomerAuthError(error) {
 }
 
 export function clearWalletView($) {
+  for (const cleanup of viewCleanups) cleanup();
   $("#customerStatement")?.replaceChildren();
   for (const selector of ["#rewardEntitlementsSection", "#growthOffersSection", "#main", "#btnLogout", "#tierSection", "#referralsSection", "#achievementsSection", "#billeteras", "#nativeWalletConfirm"]) {
     const element = $(selector);

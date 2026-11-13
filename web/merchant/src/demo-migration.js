@@ -23,7 +23,7 @@ export function demoMigration(url, options = {}) {
     const batch = {
       id: crypto.randomUUID(), request_id: body.request_id, label: body.label.trim(), existing_policy: body.existing_policy,
       row_count: preview.summary.total, imported_count: preview.summary.new_customers, skipped_count: preview.summary.existing_customers,
-      opening_points: preview.summary.opening_points, created_at: new Date().toISOString()
+      opening_points: preview.summary.opening_points,source_evidence:body.source??null, created_at: new Date().toISOString()
     };
     for (const row of preview.rows) if (row.status === 'new') phones.add(row.phone);
     batches.unshift(batch);

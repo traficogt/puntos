@@ -1,3 +1,4 @@
+import IssuedCommitments from './IssuedCommitments.jsx';
 import { useState } from 'react';
 import { Accordion, Alert, Badge, Button, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
 import { api, isDemo, useResource } from './api.js';
@@ -57,12 +58,12 @@ export default function Economics({ features }) {
           {data.rewards.length ? <Table.ScrollContainer minWidth={520}>
             <Table>
               <Table.Caption>Los cambios aplican a los próximos canjes completados y no modifican los costos históricos.</Table.Caption>
-              <Table.Thead><Table.Tr><Table.Th>Recompensa</Table.Th><Table.Th ta="right">Puntos</Table.Th><Table.Th ta="right">Costo unitario</Table.Th><Table.Th>Acción</Table.Th></Table.Tr></Table.Thead>
+              <Table.Thead><Table.Tr><Table.Th>Recompensa</Table.Th><Table.Th ta="right">Puntos</Table.Th><Table.Th ta="right">Costo unitario</Table.Th><Table.Th ta="right">Valor de venta</Table.Th><Table.Th>Acción</Table.Th></Table.Tr></Table.Thead>
               <Table.Tbody>{data.rewards.map(reward => <Table.Tr key={reward.id}>
                 <Table.Td><Text fw={500}>{reward.name}</Text>{(!reward.active || (reward.valid_until && new Date(reward.valid_until) < new Date(data.generated_at))) && <Text size="xs" c="dimmed">{!reward.active ? 'Inactiva' : 'Vencida'}</Text>}</Table.Td>
                 <Table.Td ta="right">{number(reward.points_cost)}</Table.Td>
                 <Table.Td ta="right">{reward.unit_cost_q === null ? 'Sin registrar' : money(reward.unit_cost_q)}</Table.Td>
-                <Table.Td><Button variant="subtle" size="compact-sm" mih={44} aria-label={`Editar costo de ${reward.name}`} onClick={() => setEditing({ kind: 'reward', reward })}>Editar costo</Button></Table.Td>
+                <Table.Td ta="right">{reward.retail_value_q==null?'Sin registrar':money(reward.retail_value_q)}</Table.Td><Table.Td><Button variant="subtle" size="compact-sm" mih={44} aria-label={`Editar costo de ${reward.name}`} onClick={() => setEditing({ kind: 'reward', reward })}>Editar costo</Button></Table.Td>
               </Table.Tr>)}</Table.Tbody>
             </Table>
           </Table.ScrollContainer> : <Text>No hay recompensas en esta página. <BusinessLink href="/administracion/?seccion=recompensas">Administrar recompensas</BusinessLink></Text>}
@@ -88,6 +89,7 @@ export default function Economics({ features }) {
             <Estimate label="Costo potencial de puntos pendientes" value={data.estimates.pending_points_cost_q} detail="Puntos pendientes × costo supuesto por punto. Escenario separado; aún no se pueden canjear." />
           </Table.Tbody></Table>
         </section>
+        <IssuedCommitments key={`issued-${refresh}`}/>
         <CommitmentScenarios key={`${days}-${refresh}`} data={data} days={days}/>
         <Accordion><Accordion.Item value="definitions"><Accordion.Control>Cómo leer estas cifras</Accordion.Control><Accordion.Panel><Stack gap="sm">{data.notes.map(note => <Text size="sm" key={note}>{note}</Text>)}</Stack></Accordion.Panel></Accordion.Item></Accordion>
       </>}
@@ -106,16 +108,17 @@ function Estimate({ label, value, detail }) {
 }
 function CostForm({ reward, region, saved, saving, setSaving }) {
   const [value, setValue] = useState(reward.unit_cost_q ?? '');
+  const [retail,setRetail]=useState(reward.retail_value_q??'');
   const [error, setError] = useState('');
   async function submit(event) {
     event.preventDefault(); if (saving) return; setSaving(true); setError('');
     try {
-      await api(`/api/admin/reward-economics/rewards/${encodeURIComponent(reward.id)}`, { method: 'PUT', body: JSON.stringify({ unit_cost_q: nullable(value) }) });
+      await api(`/api/admin/reward-economics/rewards/${encodeURIComponent(reward.id)}`, { method: 'PUT', body: JSON.stringify({ unit_cost_q: nullable(value),retail_value_q:nullable(retail) }) });
       saved(`Costo de ${reward.name} guardado para futuros canjes.`);
     } catch (failure) { setError(failure.message || 'No se pudo guardar el costo.'); }
     finally { setSaving(false); }
   }
-  return <form onSubmit={submit}><Stack gap="md"><Text fw={600}>{reward.name}</Text><NumberInput label={`Tu costo por unidad (${region.currency})`} description="Vacío significa desconocido. Escribe 0 solo si confirmaste un costo cero." value={value} onChange={setValue} min={0} max={1000000} decimalScale={region.minorUnits} allowNegative={false} disabled={saving} /><Text size="sm" c="dimmed">Se guardará junto a cada nuevo canje completado. No se aplicará a canjes anteriores ni cambiará sus puntos.</Text>{error && <Alert color="red" role="alert">{error}</Alert>}<Button type="submit" mih={44} loading={saving}>Guardar costo</Button></Stack></form>;
+  return <form onSubmit={submit}><Stack gap="md"><Text fw={600}>{reward.name}</Text><NumberInput label={`Tu costo por unidad (${region.currency})`} description="Vacío significa desconocido. Escribe 0 solo si confirmaste un costo cero." value={value} onChange={setValue} min={0} max={1000000} decimalScale={region.minorUnits} allowNegative={false} disabled={saving} /><NumberInput label={`Valor de venta al cliente (${region.currency})`} description="Precio de una unidad. Vacío significa desconocido; se conserva al emitir nuevos beneficios." value={retail} onChange={setRetail} min={0} max={1000000} decimalScale={region.minorUnits} allowNegative={false} disabled={saving}/><Text size="sm" c="dimmed">Se guardará junto a cada nuevo canje completado. No se aplicará a canjes anteriores ni cambiará sus puntos.</Text>{error && <Alert color="red" role="alert">{error}</Alert>}<Button type="submit" mih={44} loading={saving}>Guardar costo</Button></Stack></form>;
 }
 function AssumptionsForm({ settings, region, saved, saving, setSaving }) {
   const [margin, setMargin] = useState(settings.gross_margin_pct ?? '');

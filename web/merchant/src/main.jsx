@@ -30,6 +30,8 @@ const Fulfillment = lazy(() => import('./Fulfillment.jsx'));
 const RegionSettings = lazy(() => import('./RegionSettings.jsx'));
 const RewardPromises = lazy(() => import('./RewardPromises.jsx'));
 const Hospitality = lazy(() => import('./Hospitality.jsx'));
+const DemandNotebook=lazy(()=>import('./DemandNotebook.jsx').then(m=>({default:m.DemandNotebook})));
+const SupplierFunding=lazy(()=>import('./SupplierFunding.jsx').then(m=>({default:m.SupplierFunding})));
 const Decisions = lazy(() => import("./Decisions.jsx"));
 const ServiceCases = lazy(() => import("./ServiceCases.jsx"));
 const StaffAuthority = lazy(() => import("./StaffAuthority.jsx"));
@@ -294,6 +296,8 @@ function Merchant({ staff }) {
                   ["overview", "Resumen"],
                   ["decisions", "Decisiones"],
                   ["cases", "Atención al cliente"],
+                  ["demand", "Pedidos de clientes"],
+                  ["funding", "Financiamiento de proveedores"],
                   ["authority", "Equipo y permisos"],
                   ["hospitality", "Cortesías del equipo"],
                   ["promises", "Promesas de recompensa"],
@@ -378,6 +382,10 @@ function Merchant({ staff }) {
                   <Decisions />
                 ) : page === "cases" ? (
                   <ServiceCases />
+                ) : page === "demand" ? (
+                  <DemandNotebook/>
+                ) : page === "funding" ? (
+                  <SupplierFunding/>
                 ) : page === "authority" ? (
                   <StaffAuthority />
                 ) : page === "hospitality" ? (

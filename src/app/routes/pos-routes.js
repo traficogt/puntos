@@ -1,4 +1,5 @@
 import {getPosCheckoutOptions,authorizePosCheckout,getPosCheckoutStatus,cancelPosCheckout} from '../services/pos-checkout-service.js';
+import {recordDataHeartbeat} from '../services/data-health-service.js';
 import {syncMerchantCatalog,recordInventorySnapshot} from '../services/merchant-catalog-service.js';
 import {lookupPosRedemption,recordPosFulfillmentEvent} from '../services/redemption-pos-event-service.js';
 import {getPosRewardMappings} from '../services/reward-pos-mapping-service.js';
@@ -21,6 +22,7 @@ export function createPosRoutes(deps = {}) {
   const setTenant = deps.setTenantForRequest ?? setTenantForRequest;
   const handlers = { "catalog/sync": deps.syncMerchantCatalog ?? syncMerchantCatalog, "inventory/snapshot": deps.recordInventorySnapshot ?? recordInventorySnapshot, "checkout/options": deps.getPosCheckoutOptions ?? getPosCheckoutOptions, "checkout/authorize": deps.authorizePosCheckout ?? authorizePosCheckout, "checkout/status": deps.getPosCheckoutStatus ?? getPosCheckoutStatus, "checkout/cancel": deps.cancelPosCheckout ?? cancelPosCheckout, sales: deps.ingestPosSale ?? ingestPosSale, refunds: deps.ingestPosRefund ?? ingestPosRefund, "redemptions/lookup": deps.lookupPosRedemption ?? lookupPosRedemption, "redemptions/events": deps.recordPosFulfillmentEvent ?? recordPosFulfillmentEvent, "redemptions/mappings": deps.getPosRewardMappings ?? getPosRewardMappings };
 
+  handlers['health/heartbeat']=deps.recordDataHeartbeat??recordDataHeartbeat;
   for (const [kind, ingest] of Object.entries(handlers)) router.post(`/public/pos/:slug/${kind}`, moderateRateLimit, asyncRoute(async (req, res) => {
     const publicBusiness = await businessRepo.getPublicBySlug(req.params.slug);
     if (!publicBusiness) throw notFound("Negocio no encontrado");

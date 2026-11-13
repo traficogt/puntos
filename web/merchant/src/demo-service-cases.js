@@ -9,8 +9,12 @@ const requests=new Map();
 export function demoServiceCases(url,options={}){
  const base='/api/admin/service-cases',method=options.method??'GET',suffix=url.pathname.slice(base.length);
  if(!suffix&&method==='GET'){const status=url.searchParams.get('status')??'open',offset=Number(url.searchParams.get('offset')??0);const rows=cases.filter(row=>status==='all'||row.status===status);return structuredClone({ok:true,cases:rows.slice(offset,offset+50),pagination:{offset,limit:50,has_more:offset+50<rows.length}});}
+ if(suffix==='/insights'&&method==='GET')return {ok:true,reasons:['redemption_failed','unavailable','unfulfilled'].map(kind=>({kind,total:cases.filter(c=>c.kind===kind).length,open:cases.filter(c=>c.kind===kind&&c.status==='open').length,escalated:cases.filter(c=>c.kind===kind&&c.escalated_at).length})),suggestions:[],window_days:30};
  const [id,action]=suffix.replace(/^\//,'').split('/'),row=cases.find(item=>item.id===id);if(!row)throw new Error('Caso de ejemplo no encontrado.');
- if(method==='GET'&&!action)return structuredClone({ok:true,case:row,events:events.get(id),restoration:row.resolution==='points_restored'?{points_restored:50}:null});
+ if(method==='GET'&&!action)return structuredClone({ok:true,case:row,events:events.get(id),team:[{id:'demo-ana',name:'Ana (ejemplo)',role:'CASHIER',branch_id:null}],promises:[],capabilities:{can_assign:true},restoration:row.resolution==='points_restored'?{points_restored:50}:null});
+ if(method==='POST'&&action==='manage'){
+  const body=JSON.parse(options.body??'{}');if(body.version!==row.version||row.status!=='open')throw new Error('El caso cambió.');if(String(body.reason??'').trim().length<3)throw new Error('Describe el motivo.');if(body.action==='assign')row.assigned_staff_id=body.assignedStaffId;else if(body.action==='escalate'){row.escalated_at=new Date().toISOString();row.escalation_reason=body.reason;}else throw new Error('Este caso ficticio no tiene promesa con vencimiento.');row.version++;events.get(id).push({id:crypto.randomUUID(),event_type:body.action==='assign'?'assigned':'escalated',version:row.version,created_at:new Date().toISOString(),details:{reason:body.reason}});return structuredClone({ok:true,case:row});
+ }
  if(method==='POST'&&action==='resolve'){
   const body=JSON.parse(options.body??'{}'),key=JSON.stringify({id,...body}),previous=requests.get(body.requestId);
   if(previous){if(previous!==key)throw new Error('La referencia ya se usó.');return structuredClone({ok:true,case:row,replay:true});}

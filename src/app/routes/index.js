@@ -1,3 +1,6 @@
+import {serviceCompletionRoutes} from './service-completion-routes.js';
+import {createDemandFundingRoutes} from './demand-funding-routes.js';
+import {dataHealthRoutes} from './data-health-routes.js';
 import {rewardWorkspaceRoutes} from './reward-workspace-routes.js';
 import {merchantCatalogRoutes} from './merchant-catalog-routes.js';
 import {posCheckoutRoutes} from './pos-checkout-routes.js';
@@ -53,6 +56,7 @@ import { createReferralGrowthRoutes } from "./referral-growth-routes.js";
 import { posOnboardingRoutes } from "./admin/pos-onboarding-routes.js";
 
 export const apiRoutes = Router();
+const demandFundingRoutes = createDemandFundingRoutes();
 const referralGrowthRoutes = createReferralGrowthRoutes();
 const growthCampaignRoutes = createGrowthCampaignRouter();
 const customerGrowthOffersRoutes = createCustomerGrowthOffersRouter();
@@ -72,6 +76,9 @@ function mountApiRoute(basePath, router) {
 }
 
 const mountRoutes = (basePath) => {
+  mountApiRoute(basePath, dataHealthRoutes);
+  mountApiRoute(basePath, demandFundingRoutes);
+  mountApiRoute(basePath, serviceCompletionRoutes);
   mountApiRoute(basePath, healthRoutes);
   mountApiRoute(basePath, merchantCatalogRoutes);
   mountApiRoute(basePath, rewardWorkspaceRoutes);

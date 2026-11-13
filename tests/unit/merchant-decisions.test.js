@@ -20,6 +20,21 @@ it('operating mode has a version and expires without extending itself on reads',
  const b={program_json:{merchant_operating_mode:{mode:'busy',until:'2026-11-11T19:00:00Z'}}};const busy=operatingMode(b,now);assert.equal(busy.mode,'busy');assert.match(busy.version,/^[a-f0-9]{64}$/);assert.equal(operatingMode(b,new Date('2026-11-11T19:00:00Z')).mode,'normal');assert.equal(operatingMode(b,new Date('2026-11-11T19:00:00Z')).version,busy.version);
 });
 
+it('quiet mode expires and exposes a versioned capacity without changing earned benefits',()=>{
+ const business={program_json:{merchant_operating_mode:{mode:'quiet',until:'2026-11-11T19:00:00Z',capacity:12}}};
+ assert.equal(operatingMode(business,now).mode,'quiet');assert.equal(operatingMode(business,now).capacity,12);
+ assert.equal(operatingMode(business,new Date('2026-11-11T19:00:00Z')).mode,'normal');
+ assert.notEqual(operatingMode(business,now).version,operatingMode({program_json:{merchant_operating_mode:{...business.program_json.merchant_operating_mode,capacity:13}}},now).version);
+});
+it('dismissal is evidence-bound, assignment survives changed evidence and cost stays explicitly unknown',()=>{
+ const first=buildDecisions({operations,now})[0];
+ const review={decision_key:first.key,evidence_fingerprint:first.fingerprint,status:'dismissed',version:2,dismiss_reason:'Contact confirmed',assigned_staff_id:'staff-1',assigned_staff_name:'Ana'};
+ const item=buildDecisions({operations,now,reviews:[review]})[0];
+ assert.equal(item.review_state,'dismissed');assert.equal(item.dismiss_reason,'Contact confirmed');assert.equal(item.assigned_staff_id,'staff-1');assert.equal(item.impact.cost_state,'unknown');
+ const changed=structuredClone(operations);changed.sections[0].metrics[0].value=2;
+ const reopened=buildDecisions({operations:changed,now,reviews:[review]})[0];assert.equal(reopened.review_state,'open');assert.equal(reopened.assigned_staff_id,'staff-1');assert.equal(reopened.evidence_changed,true);
+});
+
 it('accepts review identities for every operational section including Wallet',async()=>{
  const {ReviewDecisionInput}=await import('../../src/app/services/merchant-decisions-service.js');
  for(const id of ['pos','messaging','apple_wallet','google_wallet','economics']){

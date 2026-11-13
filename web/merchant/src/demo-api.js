@@ -1,3 +1,6 @@
+import {demoServiceCompletion} from './demo-service-completion.js';
+import {demoDemandFunding} from './demo-demand-funding.js';
+import {demoEvidenceHealth} from './demo-evidence-health.js';
 import {demoRewardWorkspace} from './demo-reward-workspace.js';
 import { demoFulfillment } from './demo-fulfillment.js';
 import { demoImportJobs } from './demo-import-jobs.js';
@@ -116,6 +119,9 @@ function overview(url) {
 export async function demoApi(path, options = {}) {
   if (options.signal?.aborted) throw new DOMException("Aborted", "AbortError");
   const url = new URL(path, "https://preview.invalid");
+  if(url.pathname==='/api/admin/data-health'||url.pathname==='/api/admin/transaction-rejections'||url.pathname.startsWith('/api/admin/analytics/ledger-corrections'))return demoEvidenceHealth(url,options);
+  if (['/api/admin/demand-notebook','/api/admin/supplier-funding'].some(prefix=>url.pathname.startsWith(prefix))) return demoDemandFunding(url,options);
+  if (url.pathname.startsWith('/api/admin/service-operations')) return demoServiceCompletion(url,options);
   const method = options.method || "GET";
   if (["/api/admin/reward-workspace", "/api/admin/merchant-catalog", "/api/admin/pos-checkout/sources"].some(prefix=>url.pathname.startsWith(prefix))) return structuredClone(demoRewardWorkspace(url, options));
   if (url.pathname.startsWith('/api/admin/customer-import-jobs')) return structuredClone(demoImportJobs(url,options));

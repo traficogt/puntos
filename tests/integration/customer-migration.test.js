@@ -48,6 +48,7 @@ integration('customer migration against restricted tenant role in disposable Pos
     await db.query(await readFile(new URL('../../src/app/migrations/2026-11-10-customer-migration.sql', import.meta.url), 'utf8'));
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     await db.query(await readFile(new URL('../../src/app/migrations/2026-11-10-merchant-pilots.sql', import.meta.url), 'utf8'));
+    await db.query('ALTER TABLE customer_migration_batches ADD COLUMN IF NOT EXISTS source_evidence jsonb');
     await db.query('GRANT SELECT,INSERT ON customer_migration_batches TO migration_launch_tenant; GRANT SELECT ON merchant_pilots,merchant_pilot_checks TO migration_launch_tenant');
     migration = await import('../../src/app/services/customer-migration-service.js');
   });

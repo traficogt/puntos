@@ -22,7 +22,7 @@ export function createCustomerMigrationRoutes({ staffAuth = requireStaff, servic
   router.post(`${base}/preview`, csrfProtect, asyncRoute(async (req, res) => {
     const parsed = migration.migrationPreviewSchema.safeParse(req.body);
     if (!req.is('application/json') || !parsed.success) return res.status(400).json({ error: 'Revisa el archivo y las columnas seleccionadas.' });
-    return res.json(await service.previewCustomerMigration({ businessId: req.tenantId, csv: parsed.data.csv, columns: parsed.data.columns, existingPolicy: parsed.data.existing_policy }));
+    return res.json(await service.previewCustomerMigration({ businessId: req.tenantId, csv: parsed.data.csv, columns: parsed.data.columns, existingPolicy: parsed.data.existing_policy,source:parsed.data.source }));
   }));
   router.post(`${base}/commit`, csrfProtect, asyncRoute(async (req, res) => {
     const parsed = migration.migrationCommitSchema.safeParse(req.body);
@@ -30,7 +30,7 @@ export function createCustomerMigrationRoutes({ staffAuth = requireStaff, servic
     const value = parsed.data;
     return res.status(201).json(await service.commitCustomerMigration({ businessId: req.tenantId, staffId: req.staff.id,
       requestId: value.request_id, label: value.label, csv: value.csv, columns: value.columns, existingPolicy: value.existing_policy,
-      confirmed: value.confirmed, ip: req.ip, ua: req.get('user-agent') || null, impersonated_by: req.staff.impersonated_by || null }));
+      confirmed: value.confirmed,source:value.source, ip: req.ip, ua: req.get('user-agent') || null, impersonated_by: req.staff.impersonated_by || null }));
   }));
   return router;
 }

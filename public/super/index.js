@@ -1,3 +1,4 @@
+import {createPlatformHealth} from './operations-health.js';
 import { isStrongPassword, passwordRequirementsText, registerServiceWorker, setHidden } from "/lib.js";
 
 /** @typedef {import("./types.js").SuperPlanDefinition} SuperPlanDefinition */
@@ -26,6 +27,7 @@ export async function initSuperPage({ api, $, toast }) {
   let sessionGeneration = 0;
   let sessionActionInProgress = false;
   let logoutPending = readLogoutPending();
+  const platformHealth=createPlatformHealth({container:$('#salud'),api,currentSession:()=>sessionGeneration});
 
   function readLogoutPending() {
     try { return localStorage.getItem("pf_super_logout_pending") === "1"; }
@@ -33,7 +35,8 @@ export async function initSuperPage({ api, $, toast }) {
   }
 
   function hidePrivateView() {
-    for (const selector of ["#planes", "#seguridad", "#negocios"]) setHidden(element(selector), true);
+    platformHealth.clear();
+    for (const selector of ["#planes", "#seguridad", "#negocios", "#salud"]) setHidden(element(selector), true);
     setHidden(element("#loginCard"), false);
     setHidden(element("#btnLogout"), !logoutPending);
     for (const selector of ["#superMfaSecret", "#magicLinkOutput", "#magicLinkCopy"]) element(selector).textContent = "";
@@ -491,6 +494,7 @@ export async function initSuperPage({ api, $, toast }) {
       setHidden(element("#planes"), false);
       setHidden(element("#seguridad"), false);
       setHidden(element("#negocios"), false);
+      setHidden(element("#salud"), false);
       setHidden(element("#btnLogout"), false);
       await loadPlans();
       if (logoutPending || generation !== sessionGeneration) return;
@@ -498,6 +502,8 @@ export async function initSuperPage({ api, $, toast }) {
       await loadSecurityPosture();
       if (logoutPending || generation !== sessionGeneration) return;
       await loadBusinesses();
+      if (logoutPending || generation !== sessionGeneration) return;
+      await platformHealth.load();
     }, () => {
       if (generation === sessionGeneration) hidePrivateView();
     });

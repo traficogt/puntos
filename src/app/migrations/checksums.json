@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-11T12:49:03.582Z",
+  "generated_at": "2026-11-13T17:28:20.013Z",
   "files": {
     "001_add_transactions_type.sql": "34e119c91fa5c744920b65a77dedeb89276bfd86a1b45e9a7edd59d73e8ffefc",
     "002_reward_branch_scope.sql": "5a076cc3a0b4df04031c5dc6d8ec26f75ebf44e648ca14a234dd8dfea08af401",
@@ -73,6 +73,11 @@
     "2026-11-11-wallet-engagement.sql": "3bf3bd9c41c00dbd185962997bcb21a84dd09adbf2a2e8e7ed42f8ed42632810",
     "2026-11-11-z-pos-fulfillment.sql": "3b4059b12094d00ebb456a3578f4f43894c2b05ddea4404b5b1252beceabb7d5",
     "2026-11-11-z-reward-catalog.sql": "3a72ded5a3141a41e267c56cf54845d8e3f1e255ab9cd8c6c62ecd25b8407487",
-    "2026-11-11-zz-pos-checkout.sql": "d2f1b92bfe1961c3091aa05ff8154efac10bec7d2e311e2ab7bb6e846d039060"
+    "2026-11-11-zz-pos-checkout.sql": "d2f1b92bfe1961c3091aa05ff8154efac10bec7d2e311e2ab7bb6e846d039060",
+    "2026-11-13-demand-funding.sql": "dacdc39367444974e1a1f41487569f9865d4619a224e04ab70a3f03cd68a0260",
+    "2026-11-13-evidence-health.sql": "e75bd9d15cadf8ce92484c67a3af8adee312eb7b538ab4f2977e792d08ba7711",
+    "2026-11-13-owner-operations.sql": "31df05198d01d0020ddfc047bb96187f438fabcde40e8d86914ec46fc8a99ec3",
+    "2026-11-13-service-completion.sql": "2ec39f04f9554efc0dbe922073a1a5794315f07b6e724797506552a17b4090a3",
+    "2026-11-13-z-operations-runtime-grants.sql": "f6b032169bfaec07d3c180d11fcd2a4b307296e7d573f0cea32a2f576d3da827"
   }
 }

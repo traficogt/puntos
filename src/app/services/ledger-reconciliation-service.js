@@ -85,6 +85,7 @@ async function readLedgerRows(query, { businessId = null, customerId = null, lim
          COALESCE(SUM(delta_pending_points), 0)::int AS delta_pending_points,
          COALESCE(SUM(delta_lifetime_points), 0)::int AS delta_lifetime_points
        FROM ledger_balance_adjustments
+       WHERE correction_id IS NULL
        GROUP BY customer_id
      )
      SELECT

@@ -2,6 +2,8 @@ const fragments = {
   overview: "resumen",
   decisions: "decisiones",
   cases: "casos",
+  demand: "pedidos-de-clientes",
+  funding: "proveedores",
   authority: "equipo",
   hospitality: "cortesias",
   promises: "promesas",

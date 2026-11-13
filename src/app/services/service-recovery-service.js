@@ -1,3 +1,5 @@
+import {redeemEntitlement,listCustomerEntitlements,extendRewardPromise} from './reward-promise-service.js';
+import {consumeStaffAuthority} from './staff-delegation-service.js';
 import {assertCheckoutCorrectionAllowed} from './pos-checkout-guard.js';
 import { randomUUID, createHash } from 'node:crypto';
 import { z } from 'zod';
@@ -52,7 +54,8 @@ export async function createServiceCase(options,injected={}){
   }
   const effectiveRewardId=rewardId??redemption?.reward_id??null;
   if(effectiveRewardId){const found=await client.query('SELECT id,name FROM rewards WHERE business_id=$1 AND id=$2',[businessId,effectiveRewardId]);reward=found.rows[0];if(!reward)throw notFound('Recompensa no encontrada.');}
-  const evidence={source:kind==='redemption_failed'?'rejected_attempt':'staff_report',promise_terms:null,reward_name_at_report:reward?.name??null,redemption: redemption?{id:redemption.id,status:redemption.status,points_cost:redemption.points_cost,redeemed_at:redemption.redeemed_at}:null,physical_fulfillment:'unverified',points_deducted:kind==='redemption_failed'?false:null};
+  const promise=(await client.query(`SELECT p.* FROM customer_reward_promises p JOIN reward_promise_cycles c ON c.id=p.cycle_id WHERE p.business_id=$1 AND c.customer_id=$2 AND p.reward_id=$3 AND c.completed_at IS NULL ORDER BY c.observed_at DESC LIMIT 1`,[businessId,customerId,effectiveRewardId])).rows[0]??null;
+  const evidence={evidence_level:kind==='redemption_failed'?'attempted':redemption?'code_generated':'staff_report',source:kind==='redemption_failed'?'rejected_attempt':'staff_report',promise_terms:promise,reward_name_at_report:reward?.name??null,redemption: redemption?{id:redemption.id,status:redemption.status,points_cost:redemption.points_cost,redeemed_at:redemption.redeemed_at}:null,physical_fulfillment:'unverified',points_deducted:kind==='redemption_failed'?false:null};
   const {rows}=await client.query(`INSERT INTO service_cases(id,business_id,branch_id,customer_id,reward_id,redemption_id,kind,request_id,request_fingerprint,reported_by_staff_id,reason,evidence) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,[randomUUID(),businessId,branchId,customerId,effectiveRewardId,redemptionId,kind,requestId,hash,staff.id,reason,JSON.stringify(evidence)]);
   const row=rows[0];await appendEvent(client,{staff,row,requestId,hash,type:'reported',details:{kind,reason,evidence}});await audit(client,staff,'service.case.report',{case_id:row.id,kind,redemption_id:redemptionId});return {ok:true,case:visible(row),replay:false};
  });
@@ -69,21 +72,39 @@ export async function getServiceCase({businessId,staff:session,caseId},injected=
  return {...defaults,...injected}.transaction(async client=>{const staff=await actor(client,businessId,session),row=await selectedCase(client,businessId,staff,caseId);
   const {rows}=await client.query('SELECT id,actor_staff_id,event_type,version,details,created_at FROM service_case_events WHERE business_id=$1 AND case_id=$2 ORDER BY version',[businessId,caseId]);
   const restoration=await client.query('SELECT id,points_restored,created_at FROM service_redemption_restorations WHERE business_id=$1 AND redemption_id=$2',[businessId,row.redemption_id]);
-  return {ok:true,case:visible(row),events:rows,restoration:restoration.rows[0]??null};
+  const customerActive=(await client.query('SELECT id FROM customers WHERE business_id=$1 AND id=$2 AND deleted_at IS NULL',[businessId,row.customer_id])).rowCount>0;
+  const entitlements=customerActive?await listCustomerEntitlements({businessId,customerId:row.customer_id},{transaction:fn=>fn(client)}):{promises:[]};
+  const team=(await client.query("SELECT id,name,role,branch_id FROM staff_users WHERE business_id=$1 AND active AND ($2 OR branch_id IS NOT DISTINCT FROM $3::uuid) ORDER BY name",[businessId,staff.role==='OWNER',staff.branch_id??null])).rows;
+  return {ok:true,case:visible(row),events:rows,restoration:restoration.rows[0]??null,promises:entitlements.promises,customer_active:customerActive,team,capabilities:{can_assign:staff.role==='OWNER'}};
  });
 }
 export async function resolveServiceCase(options,injected={}){
  const d={...defaults,...injected},{businessId,caseId,requestId,resolution,version}=options;identity(caseId);identity(requestId);const reason=reasonText(options.reason);
  if(!resolutions.has(resolution)||!Number.isInteger(version)||version<1)throw badRequest('Selecciona una resolución válida.');
  if(['original_fulfilled','alternative_accepted'].includes(resolution)&&options.attested!==true)throw badRequest('Confirma la entrega o la alternativa acordada con el cliente.');
- const hash=fingerprint({staffId:options.staff?.id,caseId,version,resolution,reason,attested:options.attested===true});
+ const hash=fingerprint({staffId:options.staff?.id,caseId,version,resolution,reason,attested:options.attested===true,promiseId:options.promiseId??null,fulfillmentRewardId:options.fulfillmentRewardId??null});
  return d.transaction(async client=>{
   const staff=await actor(client,businessId,options.staff);await lockRequest(client,businessId,requestId);
   const row=await selectedCase(client,businessId,staff,caseId,true);
-  const replay=await client.query('SELECT request_fingerprint FROM service_case_events WHERE business_id=$1 AND request_id=$2',[businessId,requestId]);
-  if(replay.rows[0]){if(replay.rows[0].request_fingerprint!==hash)throw conflict('La solicitud ya se usó para otra resolución.');return {ok:true,case:visible(row),replay:true};}
+  const replay=await client.query('SELECT request_fingerprint,details FROM service_case_events WHERE business_id=$1 AND request_id=$2',[businessId,requestId]);
+  if(replay.rows[0]){if(replay.rows[0].request_fingerprint!==hash)throw conflict('La solicitud ya se usó para otra resolución.');return {ok:true,case:visible(row),...replay.rows[0].details,replay:true};}
   if(row.version!==version||row.status!=='open')throw conflict('El caso cambió. Actualiza antes de resolverlo.');
-  let restoration=null;
+  let restoration=null,fulfillment=null;
+  if(options.promiseId){
+   if(!['original_fulfilled','alternative_accepted'].includes(resolution)||row.redemption_id)throw badRequest('El canje protegido requiere un caso sin canje previo y una entrega confirmada.');
+   identity(options.promiseId);if(options.fulfillmentRewardId)identity(options.fulfillmentRewardId);
+   const promised=(await client.query('SELECT p.* FROM customer_reward_promises p JOIN reward_promise_cycles c ON c.id=p.cycle_id WHERE p.business_id=$1 AND p.id=$2 AND c.customer_id=$3',[businessId,options.promiseId,row.customer_id])).rows[0];
+   if(!promised||row.reward_id&&row.reward_id!==promised.reward_id)throw notFound('La promesa no pertenece al caso.');
+   const actual=options.fulfillmentRewardId??promised.reward_id;
+   if((resolution==='original_fulfilled')!==(actual===promised.reward_id))throw badRequest('La entrega seleccionada no coincide con la resolución.');
+   await client.query('SELECT id FROM businesses WHERE id=$1 FOR SHARE',[businessId]);
+   await client.query('SELECT id FROM rewards WHERE business_id=$1 AND id=ANY($2::uuid[]) ORDER BY id FOR UPDATE',[businessId,[...new Set([actual,promised.reward_id])]]);
+   const unitCost=(await client.query('SELECT unit_cost_q FROM reward_unit_costs WHERE business_id=$1 AND reward_id=$2',[businessId,actual])).rows[0]?.unit_cost_q;
+   if(unitCost==null&&staff.role!=='OWNER')throw forbidden('El dueño debe registrar el costo antes de delegar esta entrega.');
+   await consumeStaffAuthority(client,{merchantId:businessId,staffId:staff.id,staff,action:'fulfill_promise',locationId:staff.branch_id??null,points:promised.points_cost,costAmount:Number(unitCost??0),referenceType:'service_case_fulfillment',referenceId:requestId});
+   fulfillment=await redeemEntitlement({businessId,staff,customerId:row.customer_id,promiseId:options.promiseId,fulfillmentRewardId:actual,customerAccepted:resolution==='alternative_accepted',requestId},{transaction:fn=>fn(client)});
+  }
+
   if(resolution==='points_restored'){
    if(!row.redemption_id)throw conflict('Este caso no tiene un canje completado del que restituir puntos.');
    // The original debit below
@@ -111,7 +132,8 @@ export async function resolveServiceCase(options,injected={}){
    restoration={...restored.rows[0],adjustment_id:adjustmentId,grant_id:allowance.grantId??null};
   }
   const {rows}=await client.query(`UPDATE service_cases SET status='resolved',resolution=$3,version=version+1,resolved_at=now(),updated_at=now() WHERE business_id=$1 AND id=$2 RETURNING *`,[businessId,caseId,resolution]);
-  const details={resolution,reason,attested:options.attested===true,restoration};await appendEvent(client,{staff,row:rows[0],requestId,hash,type:'resolved',details});await audit(client,staff,'service.case.resolve',{case_id:caseId,...details});return {ok:true,case:visible(rows[0]),restoration,replay:false};
+  const evidence_level=fulfillment?'fulfilled':['original_fulfilled','alternative_accepted'].includes(resolution)?'attested':restoration?'balance_restored':row.evidence?.evidence_level??'attempted';
+  const details={resolution,reason,attested:options.attested===true,restoration,fulfillment,evidence_level,promise_id:options.promiseId??null};await appendEvent(client,{staff,row:rows[0],requestId,hash,type:'resolved',details});await audit(client,staff,'service.case.resolve',{case_id:caseId,...details});return {ok:true,case:visible(rows[0]),restoration,fulfillment,evidence_level,replay:false};
  });
 }
 
@@ -150,4 +172,33 @@ export async function listServiceRedemptions({businessId,staff:session,customerI
    ORDER BY r.created_at DESC,r.id DESC LIMIT 30`,[businessId,customerId,staff.role==='OWNER',staff.branch_id??null]);
   return {ok:true,redemptions:rows};
  });
+}
+
+export async function manageServiceCase(options,injected={}){
+ const {businessId,caseId,requestId,version,action}=options;identity(caseId);identity(requestId);const reason=reasonText(options.reason);
+ if(!['assign','escalate','extend_expiry'].includes(action)||!Number.isSafeInteger(version)||version<1)throw badRequest('Acción de caso no válida.');
+ const hash=fingerprint({staff:options.staff.id,caseId,version,action,reason,assignedStaffId:options.assignedStaffId??null,promiseId:options.promiseId??null,extendedUntil:options.extendedUntil??null});
+ return {...defaults,...injected}.transaction(async client=>{
+  const staff=await actor(client,businessId,options.staff);await lockRequest(client,businessId,requestId);const row=await selectedCase(client,businessId,staff,caseId,true);
+  const prior=(await client.query('SELECT * FROM service_case_events WHERE business_id=$1 AND request_id=$2',[businessId,requestId])).rows[0];if(prior){if(prior.request_fingerprint!==hash)throw conflict('La referencia ya pertenece a otra acción.');return {ok:true,case:visible(row),replay:true};}
+  if(row.version!==version||row.status!=='open')throw conflict('El caso cambió. Actualiza antes de continuar.');
+  let assignment=row.assigned_staff_id,escalated=row.escalated_at,escalation=row.escalation_reason,extension=null;
+  if(action==='assign'){
+   if(staff.role!=='OWNER')throw forbidden('El dueño asigna los casos.');assignment=options.assignedStaffId??null;
+   if(assignment){identity(assignment);const target=(await client.query('SELECT id,role,branch_id FROM staff_users WHERE business_id=$1 AND id=$2 AND active',[businessId,assignment])).rows[0];if(!target||target.role!=='OWNER'&&(target.branch_id??null)!==(row.branch_id??null))throw badRequest('Selecciona una persona activa de la sucursal del caso.');}
+  }
+  if(action==='escalate'){escalated=new Date();escalation=reason;}
+  if(action==='extend_expiry'){
+   identity(options.promiseId);const promise=(await client.query('SELECT p.id FROM customer_reward_promises p JOIN reward_promise_cycles c ON c.id=p.cycle_id WHERE p.business_id=$1 AND p.id=$2 AND c.customer_id=$3 AND ($4::uuid IS NULL OR p.reward_id=$4)',[businessId,options.promiseId,row.customer_id,row.reward_id])).rows[0];if(!promise)throw notFound('La promesa no pertenece al caso.');
+   extension=(await extendRewardPromise({businessId,staff,promiseId:options.promiseId,extendedUntil:options.extendedUntil,reason,requestId},{transaction:fn=>fn(client)})).extension;
+  }
+  const changed=(await client.query('UPDATE service_cases SET assigned_staff_id=$3,escalated_at=$4,escalation_reason=$5,version=version+1,updated_at=clock_timestamp() WHERE business_id=$1 AND id=$2 RETURNING *',[businessId,caseId,assignment,escalated,escalation])).rows[0];
+  const details={reason,assigned_staff_id:assignment,escalation_reason:escalation,expiry_extension_id:extension?.id??null,promise_id:options.promiseId??null};await appendEvent(client,{staff,row:changed,requestId,hash,type:action==='assign'?'assigned':action==='escalate'?'escalated':'expiry_extended',details});await audit(client,staff,`service.case.${action}`,{case_id:caseId,...details});return {ok:true,case:visible(changed),extension,replay:false};
+ });
+}
+export async function getServiceInsights({businessId,staff:session},injected={}){
+ return {...defaults,...injected}.transaction(async client=>{const staff=await actor(client,businessId,session);if(staff.role!=='OWNER')throw forbidden('El dueño revisa las políticas.');
+ const reasons=(await client.query(`SELECT kind,count(*)::int total,count(*) FILTER(WHERE status='open')::int open,count(*) FILTER(WHERE escalated_at IS NOT NULL)::int escalated,count(*) FILTER(WHERE resolution='points_restored')::int restored FROM service_cases WHERE business_id=$1 AND created_at>=clock_timestamp()-interval '30 days' GROUP BY kind ORDER BY count(*) DESC,kind`,[businessId])).rows;
+ const suggestions=reasons.filter(row=>row.escalated>=3).map(row=>({kind:row.kind,evidence_count:row.escalated,window_days:30,suggestion:'Revisa los límites y las instrucciones de esta incidencia recurrente. Solo el dueño puede aprobar un cambio.'}));
+ return {ok:true,reasons,suggestions,window_days:30};});
 }

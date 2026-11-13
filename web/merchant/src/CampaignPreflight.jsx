@@ -1,3 +1,4 @@
+import CollisionPreview from './CollisionPreview.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Checkbox, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { api } from './api.js';
@@ -32,6 +33,7 @@ export default function CampaignPreflight({ campaign, busy, onActivate, onPendin
       <Text size="sm">{p.data_readiness?.summary}</Text><Text size="sm" c="dimmed">Esta oferta concede puntos. No reserva premios ni garantiza existencias para canjearlos.</Text>
       {p.blockers?.map(item=><Alert key={item.code} color="red" role="alert">{item.message}</Alert>)}
       {p.warnings?.map(item=><Alert key={item.code} color="yellow">{item.message}</Alert>)}
+      <CollisionPreview campaign={campaign}/>
       {expired&&<Alert color="yellow" role="status">La comprobación venció. Actualízala para revisar los datos actuales.</Alert>}
       <Checkbox label={`Apruebo estos términos y el compromiso máximo. La oferta durará ${quiet?`${campaign.duration_minutes} minutos`:`${campaign.duration_days} días`} desde la activación.`} checked={checked} disabled={busy||!p.can_activate||expired} onChange={event=>setChecked(event.currentTarget.checked)}/>
       <Text size="sm" c="dimmed">Activar aplica el bono a compras elegibles. Los mensajes se preparan por separado. Pausar o vencer no retira puntos ya otorgados.</Text>

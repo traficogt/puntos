@@ -1,3 +1,4 @@
+import {mountServiceOperations} from './service-operations.js';
 /** Fictional practice keeps its state in this closure; it has no API dependency. */
 export function createPracticeSession(program,rewards=[]){
  const type=program?.program_type,cfg=program?.program_json||{};
@@ -28,38 +29,17 @@ export function createPracticeSession(program,rewards=[]){
  };
 }
 let mountNumber=0;
+const actionNames={restore_redemption:'Restituir puntos',extend_promise:'Ampliar vigencia',fulfill_promise:'Entregar promesa',operating_mode:'Cambiar ritmo',offer_template:'Activar oferta aprobada',assigned_decision:'Atender decisión asignada'};
 const format=value=>new Intl.NumberFormat('es-GT').format(value);
 function element(tag,text,attrs={}){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;for(const [key,value] of Object.entries(attrs))node.setAttribute(key,String(value));return node;}
 function button(text,fn,attrs={}){const node=element('button',text,{type:'button',...attrs});node.addEventListener('click',fn);return node;}
-function mountPractice(container,program,rewards,prefix){
- const details=element('details',undefined,{class:'service-briefing-practice'}),summary=element('summary','Practicar sin afectar datos reales');details.append(summary);container.append(details);
- details.append(element('p','Práctica ficticia · no cambia saldos, inventario, autorizaciones ni historial real.',{class:'service-briefing-emphasis'}));
- let session;try{session=createPracticeSession(program,rewards);}catch(error){details.append(element('p',error.message));return;}
- const initial=session.snapshot(),{type,rate,round}=initial.program;
- const unit=type==='SPEND'?`por ${program?.region?.currency||'Q'}`:type==='VISIT'?'por visita':'por artículo';
- details.append(element('p',`Regla base actual: ${format(rate)} puntos ${unit}${type==='SPEND'?` (redondeo ${round==='floor'?'hacia abajo':round==='round'?'al más cercano':'hacia arriba'})`:''}. Esta práctica no aplica promociones, bonos ni restricciones de clientes.`,{class:'service-briefing-muted'}));
- const balance=element('p',undefined,{class:'service-briefing-balance','aria-live':'polite'}),status=element('p','El cliente ficticio empieza con 200 puntos.',{role:'status'});
- details.append(balance);
- const earnForm=element('form',undefined,{class:'service-briefing-form'}),inputId=`${prefix}-quantity`,label=element('label',type==='SPEND'?`Compra de práctica (${program?.region?.currency||'Q'})`:type==='VISIT'?'Visitas de práctica':'Artículos de práctica',{for:inputId}),input=element('input',undefined,{id:inputId,type:'number',min:type==='SPEND'?'0.01':'1',max:'1000000',step:type==='SPEND'?'0.01':'1',value:type==='SPEND'?'100':'1',required:'',inputmode:type==='SPEND'?'decimal':'numeric'});
- const earn=element('button','Registrar puntos ficticios',{type:'submit'});earnForm.append(label,input,earn);details.append(earnForm);
- const redeemForm=element('form',undefined,{class:'service-briefing-form'}),selectId=`${prefix}-reward`,select=element('select',undefined,{id:selectId});redeemForm.append(element('label','Recompensa para practicar',{for:selectId}),select);
- for(const reward of initial.rewards)select.append(element('option',`${reward.name} · ${format(reward.points_cost)} puntos`,{value:reward.id}));
- const redeem=element('button','Canjear en práctica',{type:'submit'});redeemForm.append(redeem);details.append(redeemForm);
- if(!initial.rewards.length){select.disabled=true;redeem.disabled=true;details.append(element('p','No hay recompensas disponibles para practicar un canje. Puedes practicar el registro de puntos.',{class:'service-briefing-muted'}));}
- function render(){const current=session.snapshot();balance.textContent=`Cliente ficticio · ${format(current.points)} puntos`;correct.disabled=!current.redemption;redeem.disabled=!initial.rewards.length||!!current.redemption;}
- function act(fn){try{status.textContent=fn();status.setAttribute('role','status');}catch(error){status.textContent=error.message;status.setAttribute('role','alert');}render();}
- earnForm.addEventListener('submit',event=>{event.preventDefault();act(()=>{const quantity=Number(input.value);const earned=session.earn({amount:quantity,visits:quantity,items:quantity});return `Se registraron ${format(earned)} puntos ficticios.`;});});
- redeemForm.addEventListener('submit',event=>{event.preventDefault();act(()=>`Canje ficticio registrado por ${format(session.redeem(select.value))} puntos. Si hubo un error, practica la corrección.`);});
- const actions=element('div',undefined,{class:'service-briefing-actions'}),correct=button('Corregir canje ficticio',()=>act(()=>`Se restauraron ${format(session.correct())} puntos ficticios. El saldo real no cambió.`)),reset=button('Reiniciar práctica',()=>act(()=>{session.reset();return 'Práctica reiniciada. El cliente ficticio tiene 200 puntos.';}));
- actions.append(correct,reset);details.append(actions,status);render();
-}
 /** api follows public/lib.js: JSON request bodies are already stringified. */
-export function mountServiceBriefing({container,api,program,rewards=[]}){
+export function mountServiceBriefing({container,api,program}){
  if(!container||typeof api!=='function')throw new TypeError('A container and API adapter are required.');
  const when=value=>new Intl.DateTimeFormat(program?.region?.locale,{dateStyle:'short',timeStyle:'short',timeZone:program?.region?.timezone}).format(new Date(value));
  const prefix=`service-briefing-${++mountNumber}`,root=element('section',undefined,{class:'service-briefing','aria-labelledby':`${prefix}-heading`});
  root.append(element('h2','Antes del turno',{id:`${prefix}-heading`}));
- const notices=element('div'),authority=element('div',undefined,{class:'service-briefing-authority'});root.append(notices,authority);mountPractice(root,program,rewards,prefix);container.replaceChildren(root);
+ const notices=element('div'),authority=element('div',undefined,{class:'service-briefing-authority'});root.append(notices,authority);container.replaceChildren(root);const operations=mountServiceOperations({container:root,api});
  let destroyed=false,refreshNumber=0;
  function showFailure(target,message){target.replaceChildren(element('p',message,{role:'alert'}),button('Volver a cargar',()=>refresh()));}
  async function refresh(){
@@ -85,8 +65,8 @@ export function mountServiceBriefing({container,api,program,rewards=[]}){
    authority.replaceChildren(element('h3','Tu autorización para resolver canjes'));
    if(allowance.value.owner)authority.append(element('p','Tienes acceso como dueño. Cada restauración de puntos queda registrada.'));
    else if(!allowance.value.grants?.length)authority.append(element('p','Sin autorización vigente para restaurar puntos. Puedes revisar el caso y pedir ayuda al dueño.'));
-   else for(const grant of allowance.value.grants)authority.append(element('p',`Hasta ${format(grant.per_action_points)} puntos por acción · ${format(grant.remaining_points)} disponibles · vence ${when(grant.ends_at)} (Guatemala).`));
+   else for(const grant of allowance.value.grants)authority.append(element('p',`Acción ${actionNames[grant.action]||grant.action}: hasta ${format(grant.per_action_points)} puntos · ${format(grant.remaining_points)} disponibles; ${format(grant.remaining_actions??0)} acciones; costo disponible ${format(grant.remaining_cost??0)} · vence ${when(grant.ends_at)} (Guatemala).`));
   }
  }
- refresh();return {refresh,destroy(){destroyed=true;refreshNumber++;root.remove();}};
+ refresh();return {refresh,destroy(){operations.destroy();destroyed=true;refreshNumber++;root.remove();}};
 }

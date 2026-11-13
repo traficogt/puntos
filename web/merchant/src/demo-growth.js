@@ -1,3 +1,4 @@
+import {demoOperatingMode} from './demo-owner-operating-state.js';
 import { demoAudienceSnapshot } from "./demo-audiences.js";
 import { demoRecovery } from "./demo-recovery.js";
 const day = 86400000, now = Date.now();
@@ -50,6 +51,7 @@ export function demoGrowth(url, options = {}) {
     }
     return { campaign: c, results: results(c) };
   }
+  if(action==='collision-preview'&&method==='POST')return demoCollision(c,body);
   if (action === 'preparation' && method === 'POST') {
     if (['ready','cancelled'].includes(c.preparation_status)) throw new Error('Esta preparación ya terminó.');
     if (subaction === 'cancel') c.preparation_status = 'cancelled';
@@ -60,17 +62,19 @@ export function demoGrowth(url, options = {}) {
   if (action === 'preflight' && method === 'POST') {
     const controls = c.offer_kind === 'quiet' ? 0 : Math.max(1, Math.round(c.member_count * c.holdout_percent / 100));
     const count = Math.max(0,c.member_count-controls), commitment = Math.min(count,c.points_budget == null ? count : Math.floor(c.points_budget/c.bonus_points))*c.bonus_points;
+    const mode=demoOperatingMode(),capacityBlocked=c.offer_kind==='quiet'&&mode.capacity!==null&&demoOccupiedOperatingCapacity(c.id)+commitment/c.bonus_points>mode.capacity;
     const id = crypto.randomUUID(); preflights.set(c.id,id);
-    return { preflight: { id, expires_at: new Date(Date.now()+600000).toISOString(), generated_at: new Date().toISOString(), can_activate: c.preparation_status === 'ready' && c.member_count >= (c.offer_kind === 'quiet' ? 1 : 10),
+    return { preflight: { id, expires_at: new Date(Date.now()+600000).toISOString(), generated_at: new Date().toISOString(), can_activate: !capacityBlocked&&c.preparation_status === 'ready' && c.member_count >= (c.offer_kind === 'quiet' ? 1 : 10),
       audience_count: c.member_count, treatment_count: count, control_count: controls, maximum_commitment_points: commitment,
       maximum_incentive_cost_q: c.estimated_cost_per_point_q == null ? null : commitment*c.estimated_cost_per_point_q,
       stacking: { targeted_offers_per_purchase: 1, external_discounts: 'unknown', maximum_targeted_bonus_per_purchase: c.bonus_points, maximum_total_points_per_purchase: null, sample_program_points: 1, sample_total_points: c.bonus_points+1 },
       contacts: { without_permission_or_phone: Math.round(c.member_count/3), frequency_excluded: 0, eligible_now: c.member_count-Math.round(c.member_count/3), minimum_contact_days: 7 },
-      data_readiness: { summary: 'Ejemplo con compras registradas en PF; no acredita todas las ventas del negocio.' }, reward_availability: {state:'not_applicable'}, blockers: [], warnings: c.estimated_cost_per_point_q == null ? [{code:'cost_unknown',message:'Sin costo por punto: el costo en dinero es desconocido.'}] : [] } };
+      data_readiness: { summary: 'Ejemplo con compras registradas en PF; no acredita todas las ventas del negocio.' }, reward_availability: {state:'not_applicable'}, blockers: capacityBlocked?[{code:'capacity_exceeded',message:'Los bonos pendientes y nuevos superan la capacidad de ejemplo.'}]:[], warnings: c.estimated_cost_per_point_q == null ? [{code:'cost_unknown',message:'Sin costo por punto: el costo en dinero es desconocido.'}] : [] } };
   }
   if (action === "messages" && method === "GET") return messages(c);
   if (action === "messages" && subaction === "queue" && method === "POST") { const replayed = queued.has(c.id); if (c.status !== "active" || body.confirm !== true) throw new Error("Revisa la campaña y confirma el envío."); queued.add(c.id); return { ...messages(c), queued_count: replayed ? 0 : 12, replayed }; }
   if (action === "activate" && method === "POST") {
+    const mode=demoOperatingMode();if(c.status==='draft'&&c.offer_kind==='quiet'&&mode.capacity!==null&&demoOccupiedOperatingCapacity(c.id)+Math.min(c.member_count,Math.floor(c.points_budget/c.bonus_points))>mode.capacity)throw new Error('Las ofertas vigentes ya ocupan la capacidad.');
     if (c.status === "paused") throw new Error("Una campaña pausada no puede reactivarse.");
     if (c.preparation_status && c.preparation_status !== 'ready') throw new Error('Espera a que termine la preparación.');
     if ((c.offer_kind === 'quiet' || c.audience_snapshot?.preparation === 'background') && (!body.preflight_id || body.preflight_id !== preflights.get(c.id))) throw new Error('Revisa la comprobación previa.');
@@ -80,4 +84,16 @@ export function demoGrowth(url, options = {}) {
   }
   if (action === "pause" && method === "POST") { c.status = "paused"; return { campaign: c }; }
   throw new Error("Acción no disponible en la demostración.");
+}
+
+export function demoOperatingDrafts(){return structuredClone(campaigns.filter(c=>c.status==='draft'&&c.offer_kind==='quiet'));}
+export function demoOccupiedOperatingCapacity(excludeId=null){return campaigns.filter(c=>c.id!==excludeId&&c.offer_kind==='quiet'&&c.status==='active'&&new Date(c.expires_at)>new Date()).reduce((total,c)=>total+Math.min(c.treatment_count,Math.floor((c.points_budget-c.points_committed)/c.bonus_points)),0);}
+export function demoActivateOperatingCampaign(template){const c={...template.terms,id:crypto.randomUUID(),name:template.name,status:'active',operating_template_id:template.id,offer_kind:'quiet',duration_days:null,holdout_percent:0,points_committed:0,points_remaining:template.terms.points_budget,budget_exhausted:false,member_count:template.audience_count,treatment_count:template.audience_count,control_count:0,starts_at:new Date().toISOString(),expires_at:new Date(Date.now()+template.terms.duration_minutes*60000).toISOString(),preparation_status:'ready'};campaigns.unshift(c);return structuredClone(c);}
+function demoCollision(c,input){
+ if(!Number.isFinite(input.amount_q)||input.amount_q<0)throw new Error('Ingresa una compra válida.');
+ const options={branches:[{id:'demo-centro',name:'Centro'},{id:'demo-norte',name:'Norte'}],rewards:[{id:'demo-coffee',name:'Café de la casa',points_cost:50,active:true,stock:20,available:true,branch_ids:['demo-centro']},{id:'demo-dessert',name:'Postre del día',points_cost:100,active:true,stock:0,available:false,branch_ids:[]}],tiers:[{id:'demo-gold',name:'Oro',points_multiplier:1.5,perks:['Atención prioritaria']} ]};
+ const reward=options.rewards.find(r=>r.id===input.reward_id),tier=options.tiers.find(t=>t.id===input.tier_id),issues=[];
+ if(reward){if(!reward.available)issues.push('unavailable');if(reward.stock===0)issues.push('out_of_stock');if(reward.branch_ids.length&&!reward.branch_ids.includes(input.branch_id))issues.push(input.branch_id?'wrong_branch':'select_branch');}
+ const program=Math.ceil(input.amount_q*0.1),eligible=[c,...campaigns.filter(item=>item.id!==c.id&&item.status==='active'&&new Date(item.expires_at)>new Date())].filter(item=>item.minimum_purchase_q<=input.amount_q).sort((a,b)=>Date.parse(a.expires_at??new Date(Date.now()+(a.duration_minutes??43200)*60000).toISOString())-Date.parse(b.expires_at??new Date(Date.now()+(b.duration_minutes??43200)*60000).toISOString())||a.id.localeCompare(b.id)),combinations=eligible.map(item=>({campaign_id:item.id,name:item.name,bonus_points:item.bonus_points,total_points:program+item.bonus_points})),mode=demoOperatingMode();
+ return {ok:true,generated_at:new Date().toISOString(),currency:'GTQ',sample:{inputs:input,program_points:program,combinations,rejected_combinations:[],most_generous_supported_total:combinations[0]?.total_points??program,maximum_candidate_total:Math.max(program,...combinations.map(row=>row.total_points)),selected_path:{would_reject:false,campaign_id:eligible[0]?.id??null},maximum_hypothetical_within_guard:Math.max(program,...combinations.map(row=>row.total_points)),hard_guard:null,external_discounts:'unknown',tier_awards:'not_applied_by_purchase_writer',targeted_offers_per_purchase:1},options,contacts:{pending_contacts:2,shared_customers:1,frequency_excluded:1,without_permission_or_phone:2},operating_mode:mode,capacity:{configured:mode.capacity,occupied_operational_units:demoOccupiedOperatingCapacity(),proposed_units:Math.min(c.member_count,Math.floor((c.points_budget??c.member_count*c.bonus_points)/c.bonus_points))},reward_availability:{reward,issues,inventory_note:'Ejemplo ficticio; no reserva existencias.'},tier:tier?{...tier,applied_to_sample:false}:null,remediation:issues.length?[{code:'reward',message:'Revisa la sucursal y disponibilidad de este premio de ejemplo.'}]:[],notes:['Datos ficticios. Esta compra usa 0.1 puntos por unidad monetaria y un solo bono dirigido. No registra ventas ni envía mensajes.','El valor de descuentos externos y beneficios descriptivos de nivel es desconocido. Los niveles no aumentan el total calculado.']};
 }

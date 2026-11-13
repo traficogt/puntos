@@ -3,7 +3,9 @@ import { z } from 'zod';
 import { dbQuery, getDbTenantId } from '../database.js';
 import { badRequest, notFound } from '../../utils/http-error.js';
 import { activityAttributionSql, activityGroups } from './activity-attribution.js';
-import { targetedOfferCriteriaSchema } from './transaction-rule-evidence.js';
+import { awardSchema } from './transaction-evidence-schema.js';
+import {replaySavedAward} from './transaction-replay.js';
+import {transactionDetailEvidence} from './transaction-detail-evidence.js';
 
 export const movementKinds = ['all', 'purchase', 'redemption', 'refund', 'opening_balance', 'adjustment', 'other'];
 const uuid = z.guid();
@@ -16,26 +18,6 @@ export const transactionHistoryFilters = z.object({
 export function validHistoryInterval(value) {
   return (!value.start && !value.end) || (Boolean(value.start && value.end) && Date.parse(value.start) < Date.parse(value.end) && Date.parse(value.end) - Date.parse(value.start) <= 93 * 86400000);
 }
-const finite = z.number().finite();
-const numberOrNull = finite.nullable();
-const date = dateTimeSchema();
-const rule = z.object({
-  index: z.number().int().nonnegative(), present: z.boolean(), active: z.boolean(), program_type: z.enum(['SPEND','VISIT','ITEM','OTHER']).nullable(),
-  kind: z.enum(['bonus_points','multiplier']), value: finite, max_points: numberOrNull,
-  condition: z.object({ weekdays: z.array(z.number().int().min(0).max(6)).nullable(), min_amount_q: numberOrNull, min_visits: numberOrNull, min_items: numberOrNull, start_hour: numberOrNull, end_hour: numberOrNull }),
-  outcome: z.enum(['applied','inactive','program_type','weekday','min_amount_q','min_visits','min_items','hours']), points_before: finite, points_after: finite
-});
-// Parse every level to an allowlist; neither configuration nor arbitrary meta is returned.
-const awardSchema = z.object({
-  schema_version: z.literal(1), algorithm: z.literal('pf-points-v1'), rule_version: z.string().regex(/^[a-f0-9]{64}$/),
-  evaluated_at: date, clock: z.literal('server'), time_zone: z.string().max(100).refine(value => { try { new Intl.DateTimeFormat('en-US', { timeZone: value }); return true; } catch { return false; } }), local_weekday: z.number().int().min(0).max(6), local_hour: z.number().int().min(0).max(24),
-  inputs: z.object({ amount_q: finite, visits: finite, items: finite }),
-  program: z.object({ type: z.enum(['SPEND','VISIT','ITEM']), rate: finite, round: z.enum(['ceil','floor','round']), quantity: finite }),
-  base_points: finite, rules: z.array(rule).max(1000), program_points: z.number().int().nonnegative(),
-  targeted_offer: z.object({ bonus_points: z.number().int().nonnegative(), campaign_id: uuid.nullable(), criteria: z.union([z.literal('not_snapshotted'), targetedOfferCriteriaSchema]) }),
-  awarded_points: z.number().int().nonnegative(), hold_days: z.number().int().nonnegative(), initial_status: z.enum(['POSTED','PENDING']), available_at: date.nullable(),
-  offline_capture: z.object({ recorded_at: date, clock: z.literal('client_reported') }).nullable()
-});
 const cursorSchema = z.object({ at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/).refine(value => Number.isFinite(Date.parse(value))), id: uuid, record: z.enum(['transaction','adjustment','redemption']) }).strict();
 const kinds = { purchase: 'Compra', redemption: 'Canje', refund: 'Reversión', opening_balance: 'Saldo inicial', adjustment: 'Ajuste de saldo', other: 'Otro movimiento' };
 const statuses = ['POSTED','PENDING','REVERSED','EXPIRED','REDEEMED','CANCELLED','CANCELED'];
@@ -125,7 +107,8 @@ function explanation(row) {
     limitations.push('La reversión de puntos no confirma una devolución de dinero. Comprueba el recibo en tu caja.');
   } else limitations.push('Se muestra el movimiento registrado. No hay evidencia suficiente para explicar todas sus reglas de origen.');
   limitations.push('Los nombres son los que figuran actualmente en PF. Este detalle no reconstruye el saldo anterior ni el saldo posterior.');
-  return { coverage: coverage(award), award, steps, limitations };
+  return { coverage: coverage(award), award, steps, limitations,
+    replay: row.kind==='purchase'?replaySavedAward(award,Number(row.points)):null };
 }
 function requireTenant(businessId) {
   if (!uuid.safeParse(businessId).success || String(getDbTenantId() || '') !== String(businessId)) throw notFound('Negocio no disponible.');
@@ -157,5 +140,15 @@ export async function getTransactionExplanation({ businessId, id }) {
   if (!uuid.safeParse(id).success) throw badRequest('El ID del movimiento no es válido.');
   const { rows } = await dbQuery(`${activity} WHERE a.id=$2::uuid OR a.redemption_id=$2::uuid ORDER BY a.created_at DESC,a.id DESC LIMIT 1`, [businessId,id]);
   if (!rows[0]) throw notFound('No se encontró ese movimiento en este negocio.');
-  return { movement: movement(rows[0]), explanation: explanation(rows[0]) };
+  const item=movement(rows[0]);
+  return { movement:item, explanation:explanation(rows[0]), history:await transactionDetailEvidence(businessId,item) };
+}
+
+export async function listRejectedAttempts({businessId}){
+ requireTenant(businessId);
+ const {rows}=await dbQuery(`SELECT s.id,s.reason,s.status,s.resolution,s.created_at,s.customer_id,c.name AS customer_name,r.name AS reward_name
+ FROM service_cases s JOIN customers c ON c.business_id=s.business_id AND c.id=s.customer_id
+ LEFT JOIN rewards r ON r.business_id=s.business_id AND r.id=s.reward_id
+ WHERE s.business_id=$1 AND s.kind='redemption_failed' ORDER BY s.created_at DESC,s.id DESC LIMIT 25`,[businessId]);
+ return {attempts:rows,note:'Estos intentos fallidos no son débitos de puntos. Abre Atención al cliente para revisar todos los casos y su resolución.'};
 }

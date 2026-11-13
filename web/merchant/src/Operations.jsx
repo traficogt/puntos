@@ -1,4 +1,5 @@
 import {merchantRegion} from './region.js';
+import DataHealth from './DataHealth.jsx';
 import { useState } from 'react';
 import { Accordion, Anchor, Badge, Button, Group, List, Stack, Table, Text, Title } from '@mantine/core';
 import { useResource } from './api.js';
@@ -52,6 +53,7 @@ export default function Operations() {
       </div>
       <Button variant="outline" onClick={refresh} loading={resource.loading}>Actualizar estado</Button>
     </Group>
+    <DataHealth/>
     {resource.loading ? <Loading label="Consultando la operación…" /> : resource.error ? <Failure error={resource.error} retry={refresh} /> : <Stack gap="xl">
       {sections.length === 0 ? <Text>No hay áreas de operación disponibles para evaluar.</Text> : <>
         <section aria-labelledby="operation-actions" className="operation-section">

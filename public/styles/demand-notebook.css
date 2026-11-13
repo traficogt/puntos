@@ -1,0 +1,10 @@
+.demand-notebook { margin-block: 2rem; padding-block: 1.5rem; border-top: 1px solid var(--border, #d5cbbd); }
+.demand-notebook h2 { margin-block: 0 0.75rem; }
+.demand-notebook p { max-width: 70ch; }
+.demand-notebook form { display: grid; gap: 1rem; max-width: 42rem; margin-block: 1.5rem; }
+.demand-notebook label { display: block; font-weight: 600; margin-bottom: 0.4rem; }
+.demand-notebook input, .demand-notebook select, .demand-notebook textarea { box-sizing: border-box; width: 100%; max-width: 100%; min-height: 44px; font: inherit; padding: 0.65rem; color: inherit; background: var(--surface, #fff); border: 1px solid var(--border, #8a7e70); border-radius: 8px; }
+.demand-notebook button { min-height: 44px; width: fit-content; max-width: 100%; padding-inline: 1rem; white-space: normal; }
+.demand-notebook :focus-visible { outline: 3px solid var(--brand, #a43d28); outline-offset: 3px; }
+.demand-notebook li { margin-block: 0.7rem; overflow-wrap: anywhere; }
+[data-theme="dark"] .demand-notebook input, [data-theme="dark"] .demand-notebook select, [data-theme="dark"] .demand-notebook textarea { background: var(--surface, #28231f); }

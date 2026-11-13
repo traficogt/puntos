@@ -10,7 +10,7 @@ import * as services from '../services/staff-delegation-service.js';
 const uuid=z.guid().transform(value=>value.toLowerCase());
 const empty=z.object({}).strict();
 const integer=max=>z.number().int().positive().max(max);
-const grantBody=z.object({request_id:uuid,staff_id:uuid,branch_id:uuid.nullable().default(null),action:z.literal('restore_redemption'),per_action_points:integer(100000),total_points:integer(1000000),starts_at:dateTimeSchema({offset:true}),ends_at:dateTimeSchema({offset:true})}).strict();
+const grantBody=z.object({request_id:uuid,staff_id:uuid,branch_id:uuid.nullable().default(null),action:z.enum(['restore_redemption','extend_promise','fulfill_promise','operating_mode','offer_template']),per_action_points:integer(100000),total_points:integer(1000000),starts_at:dateTimeSchema({offset:true}),ends_at:dateTimeSchema({offset:true}),max_actions:integer(100000).optional(),frequency_limit:integer(100000).optional(),frequency_minutes:integer(44640).optional(),per_action_cost:z.number().nonnegative().max(10000000).optional(),total_cost:z.number().nonnegative().max(10000000).optional()}).strict();
 const noticeFields={title:z.string().trim().min(1).max(100),body:z.string().trim().min(1).max(600),branch_id:uuid.nullable().default(null),expires_at:dateTimeSchema({offset:true})};
 const noticeBody=z.object(noticeFields).strict();
 const noticeEdit=z.object({...noticeFields,expected_version:integer(2147483646)}).strict();
@@ -27,7 +27,7 @@ export function createStaffDelegationRoutes(deps={}){
  router.get('/admin/staff-authority',asyncRoute(async(req,res)=>{const parsed=pagination.safeParse(req.query);if(!parsed.success)return invalid(res);return res.json(await s.listServiceGrants({...actor(req),...parsed.data}));}));
  router.post('/admin/staff-authority',csrfProtect,asyncRoute(async(req,res)=>{
   const parsed=grantBody.safeParse(req.body);if(!parsed.success||!empty.safeParse(req.query).success)return invalid(res);const v=parsed.data;
-  return res.status(201).json(await s.createServiceGrant({...actor(req),requestId:v.request_id,staffId:v.staff_id,branchId:v.branch_id,action:v.action,perActionPoints:v.per_action_points,totalPoints:v.total_points,startsAt:v.starts_at,endsAt:v.ends_at}));
+  return res.status(201).json(await s.createServiceGrant({...actor(req),requestId:v.request_id,staffId:v.staff_id,branchId:v.branch_id,action:v.action,perActionPoints:v.per_action_points,totalPoints:v.total_points,startsAt:v.starts_at,endsAt:v.ends_at,maxActions:v.max_actions,frequencyLimit:v.frequency_limit,frequencyMinutes:v.frequency_minutes,perActionCost:v.per_action_cost,totalCost:v.total_cost}));
  }));
  router.post('/admin/staff-authority/:grantId/revoke',csrfProtect,asyncRoute(async(req,res)=>{
   const id=uuid.safeParse(req.params.grantId);if(!id.success||!empty.safeParse(req.body).success||!empty.safeParse(req.query).success)return invalid(res);

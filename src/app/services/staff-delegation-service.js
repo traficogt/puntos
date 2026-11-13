@@ -1,3 +1,4 @@
+import {businessRegion} from './regional-settings.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { withTransaction } from '../database.js';
 import { badRequest, conflict, forbidden, notFound } from '../../utils/http-error.js';
@@ -28,60 +29,75 @@ async function branchExists(client,businessId,branchId){
 async function audit(client,businessId,staff,action,meta){
  await client.query('INSERT INTO audit_logs(id,business_id,actor_type,actor_id,action,meta) VALUES($1,$2,\'STAFF\',$3,$4,$5::jsonb)',[randomUUID(),businessId,staff.id,action,JSON.stringify(withImpersonationMeta(meta,staff))]);
 }
-function serializedGrant(row){return {...row,remaining_points:row.total_points-row.used_points};}
+function serializedGrant(row){return {...row,remaining_points:row.total_points-row.used_points,remaining_actions:row.max_actions-row.used_actions,remaining_cost:Number(row.total_cost)-Number(row.used_cost)};}
 function usageResult(row,replay){return {grantId:row.grant_id,remainingPoints:row.remaining_points,usageId:row.id,owner:row.owner_bypass,replay};}
 
-/** Must run inside the caller's transaction before its ledger mutation. */
-export async function consumeServiceAllowance(client,{businessId,staff,action,points:amount,requestId}){
- points(amount,2147483647);if(action!=='restore_redemption'||!uuid(requestId))throw badRequest('La acción o la referencia no es válida.');
- requestId=requestId.toLowerCase();
- const member=await liveMember(client,businessId,staff);
+export const delegatedActions=['restore_redemption','extend_promise','fulfill_promise','operating_mode','offer_template'];
+function cost(value){if(typeof value!=='number'||!Number.isFinite(value)||value<0||value>10000000||Math.abs(value*1000000-Math.round(value*1000000))>0.00001)throw badRequest('Ingresa un costo válido con hasta seis decimales.');return Math.round(value*1000000);}
+/** Must run in the same transaction as the authorized operation. */
+export async function consumeStaffAuthority(client,{merchantId,staffId,action,locationId=null,points:amount=0,costAmount=0,referenceType=action,referenceId,staff:session=null}){
+ if(!delegatedActions.includes(action)||!uuid(referenceId)||!Number.isSafeInteger(amount)||amount<0||amount>2147483647||!uuid(merchantId)||!uuid(staffId)||typeof referenceType!=='string'||referenceType.length>100)throw badRequest('La acción o referencia no es válida.');
+ const costUnits=cost(costAmount),businessId=merchantId,requestId=referenceId.toLowerCase();
+ const found=(await client.query('SELECT id,business_id,branch_id,role,active FROM staff_users WHERE business_id=$1 AND id=$2 FOR SHARE',[businessId,staffId])).rows[0];
+ const member=await liveMember(client,businessId,session??found);
+ const currency=businessRegion((await client.query("SELECT to_jsonb(b)->'program_json' AS program_json FROM businesses b WHERE id=$1 FOR SHARE",[businessId])).rows[0]).currency;
+ await branchExists(client,businessId,locationId);
+ if(locationId&&member.role!=='OWNER'&&member.branch_id!==locationId)throw forbidden('La acción corresponde a otra sucursal.');
  await client.query('SELECT pg_advisory_xact_lock(hashtext($1),hashtext($2))',[businessId,`service-authority:${requestId}`]);
- const fingerprint=createHash('sha256').update(JSON.stringify([businessId,member.id,member.branch_id,action,amount])).digest('hex');
+ const fingerprint=createHash('sha256').update(JSON.stringify([businessId,member.id,locationId,action,amount,costUnits,referenceType])).digest('hex');
  const prior=(await client.query('SELECT * FROM staff_service_usage WHERE business_id=$1 AND request_id=$2',[businessId,requestId])).rows[0];
- if(prior){if(prior.payload_fingerprint!==fingerprint)throw conflict('Esta referencia ya se usó para otra acción.');return usageResult(prior,true);}
+ if(prior){if(prior.payload_fingerprint!==fingerprint&&!(action==='restore_redemption'&&costAmount===0&&referenceType===action&&prior.payload_fingerprint===createHash('sha256').update(JSON.stringify([businessId,member.id,locationId,action,amount])).digest('hex')))throw conflict('Esta referencia ya se usó para otra acción.');return usageResult(prior,true);}
  let grant=null,remaining=null;
  if(member.role!=='OWNER'){
   const candidates=await client.query(`SELECT * FROM staff_service_grants WHERE business_id=$1 AND staff_id=$2 AND action=$3 AND revoked_at IS NULL
     AND (branch_id IS NULL OR branch_id=$4) AND starts_at<=clock_timestamp() AND ends_at>clock_timestamp()
-    AND per_action_points>=$5 AND total_points-used_points>=$5 ORDER BY ends_at,id FOR UPDATE`,[businessId,member.id,action,member.branch_id,amount]);
-  // Re-evaluate after locks: a wait can cross expiration or observe a consumed cap.
-  const time=(await client.query('SELECT clock_timestamp() AS now')).rows[0].now;
-  grant=candidates.rows.find(row=>!row.revoked_at&&new Date(row.starts_at)<=time&&new Date(row.ends_at)>time&&row.total_points-row.used_points>=amount);
-  if(!grant)throw forbidden('No tienes una autorización vigente con puntos suficientes. Pide ayuda al dueño.');
+    AND per_action_points>=$5 AND total_points-used_points>=$5 ORDER BY ends_at,id FOR UPDATE`,[businessId,member.id,action,locationId,amount]);
+  const now=new Date((await client.query('SELECT clock_timestamp() AS now')).rows[0].now);
+  for(const candidate of candidates.rows){
+   if(costUnits>0&&candidate.currency!==currency||candidate.revoked_at||new Date(candidate.starts_at)>now||new Date(candidate.ends_at)<=now||candidate.total_points-candidate.used_points<amount||candidate.used_actions>=candidate.max_actions||Math.round(Number(candidate.per_action_cost)*1000000)<costUnits||Math.round((Number(candidate.total_cost)-Number(candidate.used_cost))*1000000)<costUnits)continue;
+   const frequency=(await client.query('SELECT count(*)::int AS count FROM staff_service_usage WHERE business_id=$1 AND grant_id=$2 AND created_at>clock_timestamp()-make_interval(mins=>$3::int)',[businessId,candidate.id,candidate.frequency_minutes])).rows[0].count;
+   if(frequency<candidate.frequency_limit){grant=candidate;break;}
+  }
+  if(!grant)throw forbidden('No tienes una autorización vigente dentro de los límites de puntos, costo y frecuencia. Pide ayuda al dueño.');
   remaining=grant.total_points-grant.used_points-amount;
-  await client.query('UPDATE staff_service_grants SET used_points=used_points+$3 WHERE business_id=$1 AND id=$2',[businessId,grant.id,amount]);
+  await client.query('UPDATE staff_service_grants SET used_points=used_points+$3,used_actions=used_actions+1,used_cost=used_cost+$4 WHERE business_id=$1 AND id=$2',[businessId,grant.id,amount,costAmount]);
  }
- const usage=(await client.query(`INSERT INTO staff_service_usage(id,business_id,grant_id,staff_id,branch_id,action,points,request_id,payload_fingerprint,remaining_points,owner_bypass)
-   VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,[randomUUID(),businessId,grant?.id??null,member.id,member.branch_id,action,amount,requestId,fingerprint,remaining,member.role==='OWNER'])).rows[0];
- await audit(client,businessId,staff,'staff.authority.consume',{usage_id:usage.id,grant_id:grant?.id??null,action,points:amount,request_id:requestId,branch_id:member.branch_id,owner_bypass:member.role==='OWNER'});
+ const usage=(await client.query(`INSERT INTO staff_service_usage(id,business_id,grant_id,staff_id,branch_id,action,points,request_id,payload_fingerprint,remaining_points,owner_bypass,cost_amount,reference_type,reference_id,currency)
+   VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$8,$14) RETURNING *`,[randomUUID(),businessId,grant?.id??null,member.id,locationId,action,amount,requestId,fingerprint,remaining,member.role==='OWNER',costAmount,referenceType,currency])).rows[0];
+ await audit(client,businessId,session??member,'staff.authority.consume',{usage_id:usage.id,grant_id:grant?.id??null,action,points:amount,cost_amount:costAmount,currency,request_id:requestId,reference_type:referenceType,branch_id:locationId,owner_bypass:member.role==='OWNER'});
  return usageResult(usage,false);
 }
-export async function createServiceGrant({businessId,staff,staffId,branchId=null,action='restore_redemption',perActionPoints,totalPoints,startsAt,endsAt,requestId},deps=defaults){
- points(perActionPoints);points(totalPoints,1000000);if(totalPoints<perActionPoints||action!=='restore_redemption'||!uuid(staffId))throw badRequest('Revisa los límites y la persona autorizada.');
+export async function consumeServiceAllowance(client,{businessId,staff,action,points:amount,requestId}){
+ points(amount,2147483647);if(action!=='restore_redemption')throw badRequest('La acción no es válida.');
+ return consumeStaffAuthority(client,{merchantId:businessId,staffId:staff.id,staff,action,locationId:staff.branch_id??null,points:amount,referenceId:requestId});
+}
+export async function createServiceGrant({businessId,staff,staffId,branchId=null,action='restore_redemption',perActionPoints,totalPoints,startsAt,endsAt,requestId,maxActions=100000,frequencyLimit=100000,frequencyMinutes=1440,perActionCost=0,totalCost=0},deps=defaults){
+ points(perActionPoints);points(totalPoints,1000000);if(totalPoints<perActionPoints||!delegatedActions.includes(action)||!uuid(staffId))throw badRequest('Revisa los límites y la persona autorizada.');
+ points(maxActions);points(frequencyLimit);points(frequencyMinutes,44640);cost(perActionCost);cost(totalCost);if(totalCost<perActionCost)throw badRequest('El costo total debe cubrir una acción.');
  if(!uuid(requestId))throw badRequest('La referencia de esta autorización no es válida.');
  requestId=requestId.toLowerCase();staffId=staffId.toLowerCase();
  if(branchId!==null){if(!uuid(branchId))throw badRequest('Selecciona una sucursal válida.');branchId=branchId.toLowerCase();}
  const start=date(startsAt),end=date(endsAt);
  if(end<=start||end.getTime()-start.getTime()>31*86400000)throw badRequest('La autorización puede durar hasta 31 días.');
- const fingerprint=createHash('sha256').update(JSON.stringify([businessId,staff?.id,staffId,branchId,action,perActionPoints,totalPoints,start.toISOString(),end.toISOString()])).digest('hex');
+ const fingerprint=createHash('sha256').update(JSON.stringify([businessId,staff?.id,staffId,branchId,action,perActionPoints,totalPoints,start.toISOString(),end.toISOString(),maxActions,frequencyLimit,frequencyMinutes,perActionCost,totalCost])).digest('hex');
  return deps.transaction(async client=>{
   await liveMember(client,businessId,staff,{owner:true});
   await client.query('SELECT pg_advisory_xact_lock(hashtext($1),hashtext($2))',[businessId,`service-authority-create:${requestId}`]);
   const prior=(await client.query('SELECT * FROM staff_service_grants WHERE business_id=$1 AND creation_request_id=$2',[businessId,requestId])).rows[0];
   if(prior){
-   if(prior.creation_payload_fingerprint!==fingerprint)throw conflict('Esta referencia ya se usó para una autorización con otros límites o condiciones.');
+   if(prior.creation_payload_fingerprint!==fingerprint&&!(maxActions===100000&&frequencyLimit===100000&&frequencyMinutes===1440&&perActionCost===0&&totalCost===0&&prior.creation_payload_fingerprint===createHash('sha256').update(JSON.stringify([businessId,staff?.id,staffId,branchId,action,perActionPoints,totalPoints,start.toISOString(),end.toISOString()])).digest('hex')))throw conflict('Esta referencia ya se usó para una autorización con otros límites o condiciones.');
    return {ok:true,grant:serializedGrant(prior),replay:true};
   }
+  const currency=businessRegion((await client.query("SELECT to_jsonb(b)->'program_json' AS program_json FROM businesses b WHERE id=$1 FOR SHARE",[businessId])).rows[0]).currency;
   await branchExists(client,businessId,branchId);
   const target=(await client.query('SELECT id,active,role,branch_id FROM staff_users WHERE business_id=$1 AND id=$2 FOR SHARE',[businessId,staffId])).rows[0];
   if(!target?.active||!['MANAGER','CASHIER'].includes(target.role))throw badRequest('Selecciona una persona activa del equipo.');
   if(branchId&&target.branch_id!==branchId)throw badRequest('La persona debe pertenecer a la sucursal seleccionada.');
   const now=(await client.query('SELECT clock_timestamp() AS now')).rows[0].now;
   if(end<=now||start>new Date(+now+31*86400000))throw badRequest('Revisa el inicio y el vencimiento de la autorización.');
-  const grant=(await client.query(`INSERT INTO staff_service_grants(id,business_id,staff_id,branch_id,action,per_action_points,total_points,starts_at,ends_at,created_by_staff_id,creation_request_id,creation_payload_fingerprint)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,[randomUUID(),businessId,staffId,branchId,action,perActionPoints,totalPoints,start,end,staff.id,requestId,fingerprint])).rows[0];
-  await audit(client,businessId,staff,'staff.authority.create',{grant_id:grant.id,request_id:requestId,staff_id:staffId,branch_id:branchId,action,per_action_points:perActionPoints,total_points:totalPoints,starts_at:start,ends_at:end});
+  const grant=(await client.query(`INSERT INTO staff_service_grants(id,business_id,staff_id,branch_id,action,per_action_points,total_points,starts_at,ends_at,created_by_staff_id,creation_request_id,creation_payload_fingerprint,max_actions,frequency_limit,frequency_minutes,per_action_cost,total_cost,currency)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,[randomUUID(),businessId,staffId,branchId,action,perActionPoints,totalPoints,start,end,staff.id,requestId,fingerprint,maxActions,frequencyLimit,frequencyMinutes,perActionCost,totalCost,currency])).rows[0];
+  await audit(client,businessId,staff,'staff.authority.create',{grant_id:grant.id,request_id:requestId,staff_id:staffId,branch_id:branchId,action,per_action_points:perActionPoints,total_points:totalPoints,starts_at:start,ends_at:end,max_actions:maxActions,frequency_limit:frequencyLimit,frequency_minutes:frequencyMinutes,per_action_cost:perActionCost,total_cost:totalCost,currency});
   return {ok:true,grant:serializedGrant(grant),replay:false};
  });
 }
@@ -102,7 +118,7 @@ export async function listServiceGrants({businessId,staff,offset=0},deps=default
   const grants=await client.query(`SELECT g.*,s.name AS staff_name,b.name AS branch_name,clock_timestamp() AS server_now FROM staff_service_grants g
    JOIN staff_users s ON s.business_id=g.business_id AND s.id=g.staff_id LEFT JOIN branches b ON b.business_id=g.business_id AND b.id=g.branch_id
    WHERE g.business_id=$1 ORDER BY g.created_at DESC,g.id LIMIT 51 OFFSET $2`,[businessId,offset]);
-  const usage=await client.query(`SELECT u.id,u.grant_id,u.staff_id,s.name AS staff_name,u.action,u.points,u.created_at,u.remaining_points,u.owner_bypass FROM staff_service_usage u
+  const usage=await client.query(`SELECT u.id,u.grant_id,u.staff_id,s.name AS staff_name,u.action,u.points,u.created_at,u.remaining_points,u.owner_bypass,u.cost_amount,u.currency,u.reference_type,u.reference_id FROM staff_service_usage u
    JOIN staff_users s ON s.business_id=u.business_id AND s.id=u.staff_id WHERE u.business_id=$1 ORDER BY u.created_at DESC,u.id LIMIT 50`,[businessId]);
   const team=await client.query("SELECT id,name,role,branch_id FROM staff_users WHERE business_id=$1 AND active AND role IN ('CASHIER','MANAGER') ORDER BY name,id LIMIT 500",[businessId]);
   const branches=await client.query('SELECT id,name FROM branches WHERE business_id=$1 ORDER BY name,id LIMIT 500',[businessId]);
@@ -112,8 +128,8 @@ export async function listServiceGrants({businessId,staff,offset=0},deps=default
 export async function getOwnServiceAuthority({businessId,staff},deps=defaults){
  return deps.transaction(async client=>{
   const member=await liveMember(client,businessId,staff);
-  const grants=await client.query(`SELECT id,action,branch_id,per_action_points,total_points,used_points,starts_at,ends_at FROM staff_service_grants WHERE business_id=$1 AND staff_id=$2
-   AND revoked_at IS NULL AND starts_at<=clock_timestamp() AND ends_at>clock_timestamp() AND total_points>used_points AND (branch_id IS NULL OR branch_id=$3) ORDER BY ends_at,id`,[businessId,member.id,member.branch_id]);
+  const grants=await client.query(`SELECT * FROM staff_service_grants WHERE business_id=$1 AND staff_id=$2
+   AND revoked_at IS NULL AND starts_at<=clock_timestamp() AND ends_at>clock_timestamp() AND (action<>'restore_redemption' OR total_points>used_points) AND used_actions<max_actions AND (branch_id IS NULL OR branch_id=$3) ORDER BY ends_at,id`,[businessId,member.id,member.branch_id]);
   return {ok:true,owner:member.role==='OWNER',grants:grants.rows.map(serializedGrant)};
  });
 }

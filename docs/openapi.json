@@ -2994,6 +2994,43 @@
         ]
       }
     },
+    "/api/v1/admin/data-health": {
+      "get": {
+        "summary": "Derived GET /api/v1/admin/data-health",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      },
+      "put": {
+        "summary": "Derived PUT /api/v1/admin/data-health",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
     "/api/v1/admin/decisions": {
       "get": {
         "summary": "Derived GET /api/v1/admin/decisions",
@@ -3005,6 +3042,35 @@
         "security": [
           {
             "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/decisions/history/{key}": {
+      "get": {
+        "summary": "Derived GET /api/v1/admin/decisions/history/{key}",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "x-tenant-context": true,
@@ -3044,6 +3110,163 @@
         "security": [
           {
             "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/decisions/templates": {
+      "get": {
+        "summary": "Derived GET /api/v1/admin/decisions/templates",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/decisions/templates/approve": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/decisions/templates/approve",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/decisions/templates/revoke": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/decisions/templates/revoke",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/decisions/templates/trigger": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/decisions/templates/trigger",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/demand-notebook": {
+      "get": {
+        "summary": "Derived GET /api/v1/admin/demand-notebook",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/demand-notebook/{id}": {
+      "get": {
+        "summary": "Derived GET /api/v1/admin/demand-notebook/{id}",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/demand-notebook/{id}/triage": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/demand-notebook/{id}/triage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "x-csrf-required": true,
@@ -3410,6 +3633,40 @@
     "/api/v1/admin/growth-campaigns/{id}/activate": {
       "post": {
         "summary": "Derived POST /api/v1/admin/growth-campaigns/{id}/activate",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ],
+        "x-plan-features": [
+          "campaign_rules",
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/admin/growth-campaigns/{id}/collision-preview": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/growth-campaigns/{id}/collision-preview",
         "responses": {
           "200": {
             "description": "Success"
@@ -5010,6 +5267,28 @@
         ]
       }
     },
+    "/api/v1/admin/reward-economics/commitments": {
+      "get": {
+        "summary": "Derived GET /api/v1/admin/reward-economics/commitments",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ],
+        "x-plan-features": [
+          "analytics"
+        ]
+      }
+    },
     "/api/v1/admin/reward-economics/rewards/{rewardId}": {
       "put": {
         "summary": "Derived PUT /api/v1/admin/reward-economics/rewards/{rewardId}",
@@ -5512,6 +5791,36 @@
         ]
       }
     },
+    "/api/v1/admin/service-cases/{caseId}/manage": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/service-cases/{caseId}/manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "caseId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
     "/api/v1/admin/service-cases/{caseId}/resolve": {
       "post": {
         "summary": "Derived POST /api/v1/admin/service-cases/{caseId}/resolve",
@@ -5529,6 +5838,141 @@
           {
             "in": "path",
             "name": "caseId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/service-cases/insights": {
+      "get": {
+        "summary": "Derived GET /api/v1/admin/service-cases/insights",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/service-operations/briefing": {
+      "get": {
+        "summary": "Derived GET /api/v1/admin/service-operations/briefing",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/service-operations/briefing/{id}/ack": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/service-operations/briefing/{id}/ack",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/service-operations/rehearsal": {
+      "get": {
+        "summary": "Derived GET /api/v1/admin/service-operations/rehearsal",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      },
+      "post": {
+        "summary": "Derived POST /api/v1/admin/service-operations/rehearsal",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/service-operations/rehearsal/{id}/step": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/service-operations/rehearsal/{id}/step",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
               "type": "string"
@@ -5928,6 +6372,222 @@
         }
       }
     },
+    "/api/v1/admin/supplier-funding": {
+      "get": {
+        "summary": "Derived GET /api/v1/admin/supplier-funding",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/supplier-funding/agreements": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/supplier-funding/agreements",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/supplier-funding/agreements/{id}/claims": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/supplier-funding/agreements/{id}/claims",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/supplier-funding/agreements/{id}/close": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/supplier-funding/agreements/{id}/close",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/supplier-funding/agreements/{id}/eligible": {
+      "get": {
+        "summary": "Derived GET /api/v1/admin/supplier-funding/agreements/{id}/eligible",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/supplier-funding/agreements/{id}/export": {
+      "get": {
+        "summary": "Derived GET /api/v1/admin/supplier-funding/agreements/{id}/export",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/supplier-funding/claims/{id}": {
+      "get": {
+        "summary": "Derived GET /api/v1/admin/supplier-funding/claims/{id}",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/admin/supplier-funding/claims/{id}/transition": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/supplier-funding/claims/{id}/transition",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
     "/api/v1/admin/tiers": {
       "get": {
         "summary": "List business tiers",
@@ -6153,6 +6813,25 @@
         ]
       }
     },
+    "/api/v1/admin/transaction-rejections": {
+      "get": {
+        "summary": "Derived GET /api/v1/admin/transaction-rejections",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
     "/api/v1/admin/webhooks": {
       "get": {
         "summary": "List webhook endpoints for the current business",
@@ -6346,6 +7025,37 @@
         "x-plan-features": [
           "gamification"
         ]
+      }
+    },
+    "/api/v1/customer/demand-notebook": {
+      "get": {
+        "summary": "Derived GET /api/v1/customer/demand-notebook",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true
+      },
+      "post": {
+        "summary": "Derived POST /api/v1/customer/demand-notebook",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true
       }
     },
     "/api/v1/customer/export": {
@@ -8178,6 +8888,26 @@
         ]
       }
     },
+    "/api/v1/public/pos/{slug}/health/heartbeat": {
+      "post": {
+        "summary": "Derived POST /api/v1/public/pos/{slug}/health/heartbeat",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/v1/public/pos/{slug}/inventory/snapshot": {
       "post": {
         "summary": "Derived POST /api/v1/public/pos/{slug}/inventory/snapshot",
@@ -8455,6 +9185,105 @@
         "x-tenant-context": true
       }
     },
+    "/api/v1/staff/decisions": {
+      "get": {
+        "summary": "Derived GET /api/v1/staff/decisions",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/staff/decisions/history/{key}": {
+      "get": {
+        "summary": "Derived GET /api/v1/staff/decisions/history/{key}",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/staff/decisions/review": {
+      "post": {
+        "summary": "Derived POST /api/v1/staff/decisions/review",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/staff/demand-notebook": {
+      "get": {
+        "summary": "Derived GET /api/v1/staff/demand-notebook",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true
+      },
+      "post": {
+        "summary": "Derived POST /api/v1/staff/demand-notebook",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true
+      }
+    },
     "/api/v1/staff/gift-cards/{codeOrToken}": {
       "get": {
         "summary": "Look up a gift card by code or QR token",
@@ -8696,6 +9525,63 @@
         "x-required-permissions": [
           "staff.award",
           "staff.sync"
+        ]
+      }
+    },
+    "/api/v1/staff/operating-mode": {
+      "get": {
+        "summary": "Derived GET /api/v1/staff/operating-mode",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      },
+      "post": {
+        "summary": "Derived POST /api/v1/staff/operating-mode",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/staff/operating-mode/trigger": {
+      "post": {
+        "summary": "Derived POST /api/v1/staff/operating-mode/trigger",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
         ]
       }
     },
@@ -9125,6 +10011,36 @@
         ]
       }
     },
+    "/api/v1/staff/service-cases/{caseId}/manage": {
+      "post": {
+        "summary": "Derived POST /api/v1/staff/service-cases/{caseId}/manage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "caseId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
     "/api/v1/staff/service-cases/{caseId}/resolve": {
       "post": {
         "summary": "Derived POST /api/v1/staff/service-cases/{caseId}/resolve",
@@ -9153,6 +10069,126 @@
         "x-required-roles": [
           "OWNER"
         ]
+      }
+    },
+    "/api/v1/staff/service-cases/insights": {
+      "get": {
+        "summary": "Derived GET /api/v1/staff/service-cases/insights",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ]
+      }
+    },
+    "/api/v1/staff/service-operations/briefing": {
+      "get": {
+        "summary": "Derived GET /api/v1/staff/service-operations/briefing",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true
+      }
+    },
+    "/api/v1/staff/service-operations/briefing/{id}/ack": {
+      "post": {
+        "summary": "Derived POST /api/v1/staff/service-operations/briefing/{id}/ack",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true
+      }
+    },
+    "/api/v1/staff/service-operations/rehearsal": {
+      "get": {
+        "summary": "Derived GET /api/v1/staff/service-operations/rehearsal",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-tenant-context": true
+      },
+      "post": {
+        "summary": "Derived POST /api/v1/staff/service-operations/rehearsal",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true
+      }
+    },
+    "/api/v1/staff/service-operations/rehearsal/{id}/step": {
+      "post": {
+        "summary": "Derived POST /api/v1/staff/service-operations/rehearsal/{id}/step",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true
       }
     },
     "/api/v1/staff/service-redemptions": {
@@ -9689,6 +10725,21 @@
                 }
               }
             }
+          }
+        },
+        "security": [
+          {
+            "superAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/super/operations-health": {
+      "get": {
+        "summary": "Derived GET /api/v1/super/operations-health",
+        "responses": {
+          "200": {
+            "description": "Success"
           }
         },
         "security": [

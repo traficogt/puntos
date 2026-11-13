@@ -1,3 +1,5 @@
+import {occupiedOperatingCapacity} from './operating-capacity-service.js';
+import {operatingMode} from './merchant-decisions-model.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { withTransaction } from '../database.js';
 import { badRequest, conflict, notFound } from '../../utils/http-error.js';
@@ -38,7 +40,8 @@ export async function evaluateCampaignPreflight({ businessId, campaign, business
   const region = businessRegion(settings), readiness = readinessForBusiness(settings, currentTime);
   const guard = Number(settings.program_json?.award_guard?.max_points_per_tx ?? 0);
   const sample = computePointsWithEvidence(settings, { amount_q: Number(campaign.minimum_purchase_q), visits: 1, items: 1 }, { now: currentTime, timeZone: region.timezone });
-  const blockers = [];
+  const blockers = [], mode=operatingMode(settings,currentTime);
+  if(mode.capacity!==null&&campaign.offer_kind==='quiet'&&maximumPoints/campaign.bonus_points+await occupiedOperatingCapacity(client,businessId,campaign.id)>mode.capacity)blockers.push({code:'capacity_exceeded',message:'Los bonos pendientes y los nuevos superan la capacidad operativa vigente. Reduce la audiencia o el presupuesto antes de activar.'});
   if ((campaign.preparation_status ?? 'ready') !== 'ready') blockers.push({ code: 'preparation_not_ready', message: 'Espera a que termine la preparación de participantes.' });
   if (count < (campaign.offer_kind === 'quiet' ? 1 : 10)) blockers.push({ code: 'insufficient_members', message: campaign.offer_kind === 'quiet' ? 'Necesitas al menos un cliente activo.' : 'Necesitas al menos 10 clientes activos para comparar grupos.' });
   if (guard > 0 && campaign.bonus_points > guard) blockers.push({ code: 'bonus_exceeds_purchase_guard', message: 'El bono supera el límite de puntos por compra del programa. Revisa los términos antes de activar.' });
