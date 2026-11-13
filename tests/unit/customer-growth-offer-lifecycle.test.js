@@ -20,7 +20,7 @@ const loadSource = await readFile(new URL("../../public/customer/load.js", impor
 const entitlementSource = await readFile(new URL("../../public/customer/reward-entitlements.js", import.meta.url), "utf8");
 const entitlementUrl = dataModule(entitlementSource.replace("'/lib.js'", JSON.stringify(libStub)).replace("'./session.js'", JSON.stringify(sessionUrl)));
 const { loadRewardEntitlements } = await import(entitlementUrl);
-const loadUrl = dataModule(loadSource.replace('"./reward-entitlements.js"', JSON.stringify(entitlementUrl)).replace(/(['"])\.\/growth-offers\.js\1/, JSON.stringify(offerUrl))
+const loadUrl = dataModule(loadSource.replace("'./demand-notebook.js'", JSON.stringify(new URL('../../public/customer/demand-notebook.js', import.meta.url).href)).replace('"./reward-entitlements.js"', JSON.stringify(entitlementUrl)).replace(/(['"])\.\/growth-offers\.js\1/, JSON.stringify(offerUrl))
   .replace(/(['"])\/idb\.js\1/, JSON.stringify(idbStub)).replace(/(['"])\/lib\.js\1/, JSON.stringify(libStub))
   .replace(/(['"])\.\/me\.js\1/, JSON.stringify(meStub)).replace(/(['"])\.\/network\.js\1/, JSON.stringify(networkStub))
   .replace(/(['"])\.\/session\.js\1/, JSON.stringify(sessionUrl)));

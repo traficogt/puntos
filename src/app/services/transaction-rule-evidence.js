@@ -1,6 +1,7 @@
 import { dateTimeSchema } from '../../utils/date-time-schema.js';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import {businessRegion} from './regional-settings.js';
 
 const finite = value => Number.isFinite(Number(value)) ? Number(value) : null;
 const types = ['SPEND', 'VISIT', 'ITEM'];
@@ -63,7 +64,7 @@ export function evaluatePointRules(business, { amount_q = 0, visits = 0, items =
   const program = { type: programType, rate, round, quantity };
   return { points, evidence: { schema_version: 1, algorithm: 'pf-points-v1',
     rule_version: createHash('sha256').update(JSON.stringify({ type: programType, rate, round, rules: safeRules })).digest('hex'),
-    evaluated_at: now.toISOString(), clock: 'server', time_zone: clock.timeZone,
+    evaluated_at: now.toISOString(), clock: 'server', time_zone: clock.timeZone, currency: businessRegion(business).currency,
     local_weekday: clock.weekday, local_hour: clock.hour,
     inputs: { amount_q: Number(amount_q), visits: Number(visits), items: Number(items) },
     program, base_points: base, rules, program_points: points

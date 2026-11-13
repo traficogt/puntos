@@ -18,7 +18,10 @@ export async function transactionDetailEvidence(businessId,movement,query=dbQuer
  FROM reward_entitlement_fulfillments f LEFT JOIN customer_reward_promises p ON p.business_id=f.business_id AND p.id=f.promise_id
  LEFT JOIN reward_promise_cycles c ON c.business_id=p.business_id AND c.id=p.cycle_id
  WHERE f.business_id=$1 AND f.redemption_id=$2 LIMIT 1`,[businessId,redemptionId])).rows[0]??null:null;
- const cases=redemptionId?(await query(`SELECT id,status,reason,resolution,created_at,resolved_at FROM service_cases WHERE business_id=$1 AND redemption_id=$2 ORDER BY created_at,id LIMIT 50`,[businessId,redemptionId])).rows:[];
- return {events,redemptions,promise,cases,
+ const cases=redemptionId?(await query(`SELECT c.id,c.status,c.reason,c.resolution,c.created_at,c.resolved_at FROM service_cases c WHERE c.business_id=$1 AND (c.redemption_id=$2 OR EXISTS(SELECT 1 FROM service_case_events e WHERE e.business_id=c.business_id AND e.case_id=c.id AND e.details->'fulfillment'->>'redemptionId'=$2::text)) ORDER BY c.created_at,c.id LIMIT 50`,[businessId,redemptionId])).rows:[];
+ const service_events=cases.length?(await query(`SELECT id,case_id,actor_staff_id,event_type,created_at,
+ jsonb_build_object('reason',details->'reason','resolution',details->'resolution','evidence_level',details->'evidence_level','promise_id',details->'promise_id','expiry_extension_id',details->'expiry_extension_id') AS details
+ FROM service_case_events WHERE business_id=$1 AND case_id=ANY($2::uuid[]) ORDER BY created_at,id LIMIT 200`,[businessId,cases.map(c=>c.id)])).rows:[];
+ return {events,redemptions,promise,cases,service_events,
   note:'La secuencia contiene eventos guardados desde la activación del registro. Una configuración observada no demuestra entrega física ni reconstruye un saldo anterior.'};
 }

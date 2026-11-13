@@ -32,7 +32,7 @@ async function audit(client,businessId,staff,action,meta){
 function serializedGrant(row){return {...row,remaining_points:row.total_points-row.used_points,remaining_actions:row.max_actions-row.used_actions,remaining_cost:Number(row.total_cost)-Number(row.used_cost)};}
 function usageResult(row,replay){return {grantId:row.grant_id,remainingPoints:row.remaining_points,usageId:row.id,owner:row.owner_bypass,replay};}
 
-export const delegatedActions=['restore_redemption','extend_promise','fulfill_promise','operating_mode','offer_template','assigned_decision'];
+export const delegatedActions=['restore_redemption','extend_promise','fulfill_promise','operating_mode','offer_template'];
 function cost(value){if(typeof value!=='number'||!Number.isFinite(value)||value<0||value>10000000||Math.abs(value*1000000-Math.round(value*1000000))>0.00001)throw badRequest('Ingresa un costo válido con hasta seis decimales.');return Math.round(value*1000000);}
 /** Must run in the same transaction as the authorized operation. */
 export async function consumeStaffAuthority(client,{merchantId,staffId,action,locationId=null,points:amount=0,costAmount=0,referenceType=action,referenceId,staff:session=null}){

@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { Alert, Badge, Button, Group, NativeSelect, NumberInput, Stack, Table, Text, Textarea, TextInput, Title } from '@mantine/core';
 import { api, isDemo, useResource } from './api.js';
 import { BusinessLink, Failure, Loading, number } from './ui.jsx';
-const actionLabels={restore_redemption:'Restituir puntos',extend_promise:'Ampliar vencimiento de promesa',fulfill_promise:'Entregar promesa en un caso',operating_mode:'Cambiar ritmo de operación',offer_template:'Activar oferta preaprobada',assigned_decision:'Atender decisión asignada'};
+const actionLabels={restore_redemption:'Restituir puntos',extend_promise:'Ampliar vencimiento de promesa',fulfill_promise:'Entregar promesa en un caso',operating_mode:'Cambiar ritmo de operación',offer_template:'Activar oferta preaprobada'};
 const durations=[{value:'4',label:'4 horas'},{value:'8',label:'8 horas'},{value:'24',label:'1 día'},{value:'72',label:'3 días'},{value:'168',label:'7 días'}];
 const date=value=>new Intl.DateTimeFormat(merchantRegion().locale,{dateStyle:'medium',timeStyle:'short',timeZone:merchantRegion().timezone}).format(new Date(value));
 const state=grant=>grant.revoked_at?['Revocada','gray']:new Date(grant.ends_at)<=new Date(grant.server_now||Date.now())?['Vencida','gray']:grant.remaining_actions===0?['Límite de acciones agotado','gray']:grant.remaining_points===0&&['restore_redemption','fulfill_promise'].includes(grant.action)?['Sin puntos disponibles','gray']:new Date(grant.starts_at)>new Date(grant.server_now||Date.now())?['Programada','blue']:['Vigente','green'];

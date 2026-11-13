@@ -9,6 +9,7 @@ export async function getPlatformOperationsHealth({limit=25,offset=0},injected={
  const {rows}=await d.query(`WITH page AS (
  SELECT id,name,slug,program_json FROM businesses ORDER BY name,id LIMIT $1 OFFSET $2
  ) SELECT b.*,
+ (SELECT jsonb_object_agg(br.id::text,br.name) FROM branches br WHERE br.business_id=b.id) AS branch_names,
  (SELECT count(*)::int FROM customers c WHERE c.business_id=b.id AND c.deleted_at IS NULL) AS members,
  (SELECT max(t.created_at) FROM transactions t WHERE t.business_id=b.id AND t.type='PURCHASE') AS last_purchase_at,
  (SELECT count(*)::int FROM redemptions r WHERE r.business_id=b.id AND r.status='REDEEMED') AS recorded_redemptions,
@@ -19,6 +20,7 @@ export async function getPlatformOperationsHealth({limit=25,offset=0},injected={
  FROM page b`,[Math.min(100,Math.max(1,limit)),Math.max(0,offset),now.toISOString()]);
  return {generated_at:now.toISOString(),limit,offset,businesses:rows.map(b=>{
   const readiness=readinessForBusiness(b,now),issues=[];
+  readiness.sources=readiness.sources.map(source=>({...source,branch_name:source.branch_id?b.branch_names?.[source.branch_id]??null:null}));
   if(readiness.state==='blocked')issues.push({kind:'data',summary:readiness.summary,action:'Revisar la conexión y completar la sincronización.'});
   if(b.members>0&&b.recorded_redemptions===0)issues.push({kind:'activation',summary:'Hay miembros registrados y ningún canje completado registrado.',action:'Realizar el ensayo de lanzamiento y revisar los casos pendientes.'});
   if(b.failed_attempts_7d>0)issues.push({kind:'redemption',summary:`${b.failed_attempts_7d} intentos de canje con caso abierto o resuelto en siete días.`,action:'Revisar motivos y resoluciones antes de cambiar las recompensas.'});

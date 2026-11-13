@@ -28,6 +28,7 @@ window.__transactionsApi=async(path,options={})=>{
  if(window.__emptyTransactions && url.pathname==='/api/admin/transaction-history')return {movements:[],next_cursor:null};
  if(url.pathname==='/api/admin/transaction-history')url.searchParams.set('limit','2');
  const result=await demoTransactions(url,options);
+ if(result.explanation?.award)result.explanation.award.currency='GTQ';
  if(window.__preciseRate && result.explanation?.award){
    result.movement.points=2;const award=result.explanation.award;
    award.program.rate=0.015;award.base_points=2;award.program_points=2;award.awarded_points=2;
@@ -96,7 +97,7 @@ try {
  await page.evaluate(()=>{window.__targetedTerms=false;});
  await page.evaluate(()=>{window.__preciseRate=true;});
  await page.getByRole('button',{name:'Actualizar historial',exact:true}).click();
- await page.getByText(/0\.015 puntos por quetzal/).waitFor();
+ await page.getByText(/0\.015 puntos por unidad de GTQ/).waitFor();
  await page.getByText('De 2 a 2.25 puntos',{exact:true}).waitFor();
  await page.evaluate(()=>{window.__preciseRate=false;});
  await page.getByRole('button',{name:'Volver al historial',exact:true}).click();

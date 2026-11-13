@@ -108,7 +108,7 @@ function explanation(row) {
   } else limitations.push('Se muestra el movimiento registrado. No hay evidencia suficiente para explicar todas sus reglas de origen.');
   limitations.push('Los nombres son los que figuran actualmente en PF. Este detalle no reconstruye el saldo anterior ni el saldo posterior.');
   return { coverage: coverage(award), award, steps, limitations,
-    replay: row.kind==='purchase'?replaySavedAward(row.award_evidence,Number(row.points)):null };
+    replay: row.kind==='purchase'?replaySavedAward(award,Number(row.points)):null };
 }
 function requireTenant(businessId) {
   if (!uuid.safeParse(businessId).success || String(getDbTenantId() || '') !== String(businessId)) throw notFound('Negocio no disponible.');

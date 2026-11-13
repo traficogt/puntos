@@ -48,7 +48,7 @@ suite('transaction explanations on disposable PostgreSQL', () => {
     await admin.query(`DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='transaction_explanation_rls') THEN CREATE ROLE transaction_explanation_rls NOLOGIN NOSUPERUSER NOBYPASSRLS; END IF; END $$;
       GRANT USAGE ON SCHEMA public,app TO transaction_explanation_rls;
       GRANT INSERT ON transaction_evidence_events,redemption_evidence_events TO transaction_explanation_rls;
-      GRANT SELECT ON businesses,customers,transactions,redemptions,rewards,branches,staff_users,ledger_balance_adjustments,transaction_evidence_events,redemption_evidence_events,reward_entitlement_fulfillments,customer_reward_promises,reward_promise_cycles,service_cases TO transaction_explanation_rls;`);
+      GRANT SELECT ON businesses,customers,transactions,redemptions,rewards,branches,staff_users,ledger_balance_adjustments,transaction_evidence_events,redemption_evidence_events,reward_entitlement_fulfillments,customer_reward_promises,reward_promise_cycles,service_cases,service_case_events TO transaction_explanation_rls;`);
     database = await import('../../src/app/database.js');
     service = await import('../../src/app/services/transaction-explanation-service.js');
   });
@@ -93,6 +93,11 @@ suite('transaction explanations on disposable PostgreSQL', () => {
     await admin.query('UPDATE businesses SET program_json=$2 WHERE id=$1', [businessId,{ points_per_q: 99 }]);
     assert.deepEqual((await explain(recorded)).explanation, first.explanation);
     assert.equal((await explain(legacy)).explanation.award, null);
+    const mismatched = await transaction({ meta: { award_evidence: evidence } });
+    await admin.query('UPDATE transactions SET amount_q=99 WHERE id=$1', [mismatched]);
+    const inconsistent = await explain(mismatched);
+    assert.equal(inconsistent.explanation.award, null);
+    assert.equal(inconsistent.explanation.replay.status, 'unavailable', 'replay must reject evidence that does not match the recorded purchase inputs');
     await admin.query("UPDATE transactions SET meta=jsonb_set(meta,'{award_evidence,inputs,amount_q}','999'::jsonb) WHERE id=$1", [recorded]);
     assert.equal((await explain(recorded)).explanation.coverage,'partial','inconsistent sale inputs cannot be called an exact calculation');
     const unsafeZone = await transaction({ meta: { award_evidence: { ...evidence, time_zone: 'PRIVATE_INTERNAL_SETTING' } } });
@@ -123,7 +128,7 @@ suite('transaction explanations on disposable PostgreSQL', () => {
     assert.equal((await explain(malformed)).explanation.coverage, 'partial');
     await admin.query('REVOKE SELECT ON ledger_balance_adjustments FROM transaction_explanation_rls');
     try { await assert.rejects(list(), { code: '42501' }); }
-    finally { await admin.query('GRANT SELECT ON ledger_balance_adjustments,transaction_evidence_events,redemption_evidence_events,reward_entitlement_fulfillments,customer_reward_promises,reward_promise_cycles,service_cases TO transaction_explanation_rls'); }
+    finally { await admin.query('GRANT SELECT ON ledger_balance_adjustments,transaction_evidence_events,redemption_evidence_events,reward_entitlement_fulfillments,customer_reward_promises,reward_promise_cycles,service_cases,service_case_events TO transaction_explanation_rls'); }
   });
   it('preserves sub-millisecond cursor order without losing rows', async () => {
     const firstId = await transaction({ created: '2026-11-11T18:00:00.000001Z' });

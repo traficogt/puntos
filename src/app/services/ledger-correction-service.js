@@ -53,6 +53,8 @@ function normalizeReason(reason) {
   return value;
 }
 
+// Correction-linked adjustments document a repair of the stored balance. They are
+// not additional earned points; ordinary restorations (no correction_id) remain additive.
 async function readCustomerLedgerRow(query, customerId) {
   const { rows } = await query(
     `WITH tx_agg AS (
@@ -72,7 +74,7 @@ async function readCustomerLedgerRow(query, customerId) {
          COALESCE(SUM(delta_pending_points), 0)::int AS delta_pending_points,
          COALESCE(SUM(delta_lifetime_points), 0)::int AS delta_lifetime_points
        FROM ledger_balance_adjustments
-       WHERE customer_id = $1
+       WHERE customer_id = $1 AND correction_id IS NULL
        GROUP BY customer_id
      )
      SELECT
@@ -255,6 +257,8 @@ export async function applyLedgerCorrectionWithDeps(deps, {
       throw forbidden("A different owner must apply the correction");
     }
 
+    // Serialize with live awards/redemptions before rebuilding the authoritative balance.
+    await client.query('SELECT cb.customer_id FROM customer_balances cb JOIN customers c ON c.id=cb.customer_id WHERE cb.customer_id=$1 AND c.business_id=$2 FOR UPDATE OF cb', [correction.customer_id, businessId]);
     const row = await deps.readCustomerLedgerRow(client.query.bind(client), correction.customer_id);
     if (!row || String(row.business_id) !== String(businessId)) {
       throw notFound("Customer not found");

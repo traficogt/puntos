@@ -1,3 +1,4 @@
+import {clearCustomerDemand,loadCustomerDemand} from './demand-notebook.js';
 import { clearRewardEntitlements, loadRewardEntitlements } from "./reward-entitlements.js";
 import { clearGrowthOffers, loadGrowthOffers } from "./growth-offers.js";
 import { clearCustomerCache, getCustomerCacheSnapshot, putCustomerCache } from "/idb.js";
@@ -18,6 +19,7 @@ export async function loadAll({ api, $, toast, silent = false }) {
   let epoch = getCustomerEpoch();
   const isCurrent = () => loadId === latestLoad && epoch === getCustomerEpoch();
   setOnlineBadge($);
+  clearCustomerDemand();
   clearGrowthOffers($);
   clearRewardEntitlements($);
   const identity = getCustomerIdentity();
@@ -42,6 +44,7 @@ export async function loadAll({ api, $, toast, silent = false }) {
     if (!isCurrent()) return { status: "superseded" };
     await Promise.all([loadGrowthOffers({ api, $, isCurrent, region: me.business.region }), loadRewardEntitlements({ api, $, isCurrent })]);
     if (!isCurrent()) return { status: "superseded" };
+    loadCustomerDemand({api,$,isCurrent});
     if (!silent) toast(result?.status === "partial" ? "Algunos datos no se pudieron actualizar. Intenta de nuevo." : "Tarjeta actualizada.");
     return result || { status: "live" };
   } catch (error) {

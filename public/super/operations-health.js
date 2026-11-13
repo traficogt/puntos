@@ -11,7 +11,7 @@ export function createPlatformHealth({container,api,currentSession}){
    next=out.next_offset;content.replaceChildren();
    for(const b of out.businesses){const section=node('section','','operation-section');section.append(node('h3',b.name),node('p',b.readiness.summary,'small'),node('p',`${b.members} miembros · ${b.recorded_redemptions} canjes registrados · ${b.open_cases} casos abiertos`,'small'));
     if(b.issues.length){const list=node('ul','');for(const issue of b.issues)list.append(node('li',`${issue.summary} ${issue.action}`));section.append(list);}else section.append(node('p','Sin incidencias detectadas en los registros consultados.','small'));
-    for(const source of b.readiness.sources??[])section.append(node('p',`${source.label}: ${source.summary}`,'small'));
+    for(const source of b.readiness.sources??[])section.append(node('p',`${source.label} · ${source.branch_id?`Sucursal: ${source.branch_name??source.branch_id}`:'Todo el negocio'}: ${source.summary}`,'small'));
     section.append(node('p',b.note,'small'));content.append(section);
    }
    status.textContent=out.businesses.length?`Mostrando ${offset+1} a ${offset+out.businesses.length}.`:'No hay negocios en esta página.';
