@@ -14,8 +14,8 @@
 - [x] Scheduling: exact five Saturday timestamps, safe host/URL handling, no future disclosure, dynamic sitemap/hub/noindex, no stale cache, regression and boundary tests.
 - [x] Six finished articles: verified original sources, arithmetic, readable prose and illustrations, no invented author credentials/results.
 - [x] QA: focused route/schema/SEO/cache tests; browser at desktop/tablet/mobile; image loading, reference anchors, no overflow or console errors; simulate all dates against one server process.
-- [ ] Commit and push; checked API-only overlay deployment with health and rollback guards; live first article/hub/sitemap verification and future article 404 verification.
-- [ ] Report public link, five titles and dates, and publication mechanism. Record release evidence privately.
+- [x] Commit and push; checked API-only overlay deployment with health and rollback guards; live first article/hub/sitemap verification and future article 404 verification.
+- [x] Report public link, five titles and dates, and publication mechanism. Record release evidence privately.
 
 ## Schedule
 
@@ -34,3 +34,7 @@ Each Saturday is 15:00 UTC. Static committed schedules survive restarts and requ
 - Browser checks: hub + all six article pages at 1440, 768, 390 and 320 px; no overflow, missing images or page errors; every reference link/target verified. Actual rendered desktop/mobile header, body, notes and bibliography inspected.
 - TypeScript check passes using existing matching merchant dependencies (no dependency changes). Gallery fixture tuple annotation corrected. Targeted ESLint passes. Impeccable static scan reports no findings; rendered browser checks supply the visual verification it cannot perform.
 - Independent read-only code review found no actionable issues.
+
+## Live deployment
+
+API-only release `puntos-api:articles-launch-20261114-51a8fbf` deployed 2026-11-14T21:31:55.514910+00:00. Health check passes; worker image unchanged. 27 public HTTP checks pass: hub and first article return indexable200, all five future articles return404/noindex, documents and sitemap carry no-store, both artwork sizes load, public home/support/legal pages return200, and www redirects to the canonical host. Source commit `51a8fbfb2783b4e01e221bee5e3a37c2643c02b1` is pushed. Private deployment and rollback evidence: `/var/lib/puntos/releases/articles-launch-20261114/`.
