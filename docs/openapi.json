@@ -3698,6 +3698,105 @@
         ]
       }
     },
+    "/api/v1/admin/growth-campaigns/{id}/measurement-costs": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/growth-campaigns/{id}/measurement-costs",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ],
+        "x-plan-features": [
+          "campaign_rules",
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/admin/growth-campaigns/{id}/measurement-reports": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/growth-campaigns/{id}/measurement-reports",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ],
+        "x-plan-features": [
+          "campaign_rules",
+          "analytics"
+        ]
+      },
+      "get": {
+        "summary": "Derived GET /api/v1/admin/growth-campaigns/{id}/measurement-reports",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ],
+        "x-plan-features": [
+          "campaign_rules",
+          "analytics"
+        ]
+      }
+    },
     "/api/v1/admin/growth-campaigns/{id}/messages": {
       "get": {
         "summary": "Derived GET /api/v1/admin/growth-campaigns/{id}/messages",
@@ -3890,6 +3989,30 @@
             "schema": {
               "type": "string"
             }
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ],
+        "x-plan-features": [
+          "campaign_rules",
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/admin/growth-campaigns/measurement-plan": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/growth-campaigns/measurement-plan",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
           }
         ],
         "x-csrf-required": true,
