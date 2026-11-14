@@ -23,7 +23,7 @@ export function purchaseEventTime(value, source, now = new Date()) {
 // Legacy senders may continue omitting time. Replays never enrich or rewrite an
 // existing transaction; a changed explicit timestamp on recorded evidence fails.
 export function assertPurchaseTimeReplay(transaction, occurredAt) {
-  if (occurredAt && transaction.purchase_occurred_at && Date.parse(transaction.purchase_occurred_at) !== Date.parse(occurredAt)) {
+  if (occurredAt && transaction.purchase_occurred_at && new Date(transaction.purchase_occurred_at).getTime() !== Date.parse(occurredAt)) {
     throw conflict('El ID de venta ya se recibió con otra fecha de compra.');
   }
 }
