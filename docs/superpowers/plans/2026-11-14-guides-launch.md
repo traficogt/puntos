@@ -38,3 +38,5 @@ The owner requested varied random times instead of 09:00. Each saved local time 
 ## Live deployment
 
 API-only release `puntos-api:articles-launch-20261114-51a8fbf` deployed 2026-11-14T21:31:55.514910+00:00. Health check passes; worker image unchanged. 27 public HTTP checks pass: hub and first article return indexable200, all five future articles return404/noindex, documents and sitemap carry no-store, both artwork sizes load, public home/support/legal pages return200, and www redirects to the canonical host. Source commit `51a8fbfb2783b4e01e221bee5e3a37c2643c02b1` is pushed. Private deployment and rollback evidence: `/var/lib/puntos/releases/articles-launch-20261114/`.
+
+Owner-requested time change deployed in `puntos-api:articles-random-times-20261114-9c6e851` at 2026-11-14T21:36:36.883954+00:00. Saved local times: Nov21 17:11, Nov28 10:48, Dec5 14:03, Dec12 11:50, Dec19 12:39. The updated calendar passes 22 scheduling/search tests; live checks pass, and each release boundary was rechecked inside the production image. Evidence: `/var/lib/puntos/releases/articles-random-times-20261114/`.
