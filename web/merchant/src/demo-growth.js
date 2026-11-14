@@ -1,29 +1,68 @@
+import { normalizeMeasurementPlan, planCampaignExperiment, campaignContribution, campaignDecision } from '../../../src/app/services/campaign-experiment-model.js';
+import { measurementCostInput, measurementCostKeys } from './campaign-measurement-inputs.js';
 import {demoOperatingMode} from './demo-owner-operating-state.js';
 import { demoAudienceSnapshot } from "./demo-audiences.js";
 import { demoRecovery } from "./demo-recovery.js";
 const day = 86400000, now = Date.now();
-const campaigns = [{ id: "demo-growth-active", name: "Vuelve por tu café · ejemplo", status: "active", points_budget: 3000, points_committed: 1200, points_remaining: 1800, budget_exhausted: false, bonus_points: 50, minimum_purchase_q: 50, duration_days: 14, holdout_percent: 20, estimated_cost_per_point_q: 0.04, member_count: 100, treatment_count: 80, control_count: 20, starts_at: new Date(now - 7 * day).toISOString(), expires_at: new Date(now + 7 * day).toISOString() }];
-const requests = new Map(), queued = new Set(), preflights = new Map(), preparations = new Map();
+const campaigns = [{ id: "demo-growth-active", name: "Vuelve por tu café · ejemplo", status: "active", measurement_plan: null, points_budget: 3000, points_committed: 1200, points_remaining: 1800, budget_exhausted: false, bonus_points: 50, minimum_purchase_q: 50, duration_days: 14, holdout_percent: 20, estimated_cost_per_point_q: 0.04, member_count: 100, treatment_count: 80, control_count: 20, starts_at: new Date(now - 7 * day).toISOString(), expires_at: new Date(now + 7 * day).toISOString() }];
+const demoPlan={version:1,baseline_return_rate_pct:30,minimum_detectable_lift_pp:10,observation_days:30,reconciliation_days:7};
+for(const [id,name,days] of [['demo-growth-reconciling','Regreso de noviembre · por conciliar',32],['demo-growth-complete','Oferta anterior · resultado incierto',45]])campaigns.push({...campaigns[0],id,name,measurement_plan:{...demoPlan},holdout_percent:50,points_committed:1600,points_remaining:1400,member_count:200,treatment_count:100,control_count:100,starts_at:new Date(now-days*day).toISOString(),expires_at:new Date(now-(days-14)*day).toISOString()});
+const requests = new Map(), queued = new Set(), preflights = new Map(), preparations = new Map(), measurementCosts=new Map(), measurementReports=new Map(), measurementRequests=new Map();
 const blank = members => ({ members, returned_customers: 0, return_rate_pct: 0, recorded_sales_q: 0, average_sales_per_member_q: 0 });
 function results(c) {
-  const sample=c.id==='demo-growth-active';
-  const treatment=sample?{members:80,returned_customers:24,return_rate_pct:30,recorded_sales_q:2400,average_sales_per_member_q:30,return_rate_interval:{lower:0.21065,upper:0.40768}}:blank(c.treatment_count);
-  const control=sample?{members:20,returned_customers:4,return_rate_pct:20,recorded_sales_q:320,average_sales_per_member_q:16,return_rate_interval:{lower:0.08066,upper:0.41602}}:blank(c.control_count);
-  const quiet=c.offer_kind==='quiet',asOf=new Date().toISOString();
-  return {treatment,control,estimated_incremental_sales_q:sample?1120:c.status==='draft'||quiet?null:0,bonus_points_issued:sample?1200:0,estimated_incentive_cost_q:sample?48:c.estimated_cost_per_point_q==null?null:0,small_sample:true,
-    measurement_kind:quiet?'descriptive':'randomized_comparison',
-    measurement:{state:c.status==='draft'?'not_started':quiet?'descriptive':c.status==='paused'?'interrupted':'in_progress',as_of:asOf,denominator:'all_assigned',method:quiet?null:'newcombe_wilson_95',
-      return_difference:sample?{estimate_pp:10,lower_pp:-13.37685,upper_pp:26.07417,confidence_level:0.95}:null,
-      window:{starts_at:c.starts_at,ends_at:c.expires_at,observed_until:c.starts_at?asOf:null,complete:false,time_basis:'transaction_created_at'},
-      data_readiness:{state:'recorded_only',summary:'Ejemplo con compras registradas en PF; no acredita todas las ventas del negocio.'},unavailable_members:0,assignment_counts_match:true,
+  const sample=c.id==='demo-growth-active',plannedSample=['demo-growth-reconciling','demo-growth-complete'].includes(c.id);
+  const treatment=sample?{members:80,returned_customers:24,return_rate_pct:30,recorded_sales_q:2400,average_sales_per_member_q:30,return_rate_interval:{lower:0.21065,upper:0.40768}}:plannedSample?{members:100,returned_customers:32,return_rate_pct:32,recorded_sales_q:3200,average_sales_per_member_q:32,return_rate_interval:{lower:0.2367,upper:0.4166}}:blank(c.treatment_count);
+  const control=sample?{members:20,returned_customers:4,return_rate_pct:20,recorded_sales_q:320,average_sales_per_member_q:16,return_rate_interval:{lower:0.08066,upper:0.41602}}:plannedSample?{members:100,returned_customers:29,return_rate_pct:29,recorded_sales_q:2900,average_sales_per_member_q:29,return_rate_interval:{lower:0.2101,upper:0.3854}}:blank(c.control_count);
+  const quiet=c.offer_kind==='quiet',asOf=new Date().toISOString(),plan=c.measurement_plan;
+  const observationEnds=c.starts_at?plan?new Date(Date.parse(c.starts_at)+plan.observation_days*day).toISOString():c.expires_at:null;
+  const reconciliationEnds=observationEnds?new Date(Date.parse(observationEnds)+(plan?.reconciliation_days??0)*day).toISOString():null;
+  const complete=Boolean(observationEnds&&Date.now()>=Date.parse(observationEnds)),reconciling=complete&&Date.now()<Date.parse(reconciliationEnds);
+  const followupAvailable=Boolean(observationEnds&&Date.parse(observationEnds)>Date.parse(c.expires_at));
+  const followup=c.starts_at?{available:followupAvailable,state:complete?reconciling?'reconciling':'complete':'waiting',starts_at:c.expires_at,ends_at:observationEnds,reconciliation_ends_at:reconciliationEnds,treatment:plannedSample?{...blank(100),returned_customers:11,return_rate_pct:11,recorded_sales_q:1100,average_sales_per_member_q:11}:blank(c.treatment_count),control:plannedSample?{...blank(100),returned_customers:12,return_rate_pct:12,recorded_sales_q:1200,average_sales_per_member_q:12}:blank(c.control_count),return_difference:plannedSample&&followupAvailable?{estimate_pp:-1,lower_pp:-10.088,upper_pp:8.029}:null}:null;
+  treatment.baseline_purchase_rate_pct=30;control.baseline_purchase_rate_pct=29;
+  const diagnostics={assignment_counts_match:true,capture_state:plannedSample?'complete':'unknown',late_purchases:c.id==='demo-growth-reconciling'?3:0,untrusted_time_purchases:sample?2:0,missing_purchase_dates:sample?1:0,legacy_time_purchases:sample?3:0,pending_refunds:c.id==='demo-growth-reconciling'?1:0,overlap_members:0,baseline_imbalance:false,missing_preperiod_members:sample?4:0,receipt_coverage:{total:plannedSample?80:28,linked:plannedSample?80:28,unmatched:0,rejected:0},treatment:{baseline_purchase_rate_pct:30},control:{baseline_purchase_rate_pct:29}};
+  const costRecord=measurementCosts.get(c.id),costs=costRecord?.costs??null;
+  const out={treatment,control,estimated_incremental_sales_q:sample?1120:plannedSample?300:c.status==='draft'||quiet?null:0,bonus_points_issued:sample?1200:plannedSample?1600:0,estimated_incentive_cost_q:sample?48:plannedSample?64:c.estimated_cost_per_point_q==null?null:0,small_sample:!plannedSample,
+    measurement_kind:quiet?'descriptive':'randomized_comparison',planning:planCampaignExperiment({plan,holdoutPercent:c.holdout_percent,availableMembers:c.member_count}),diagnostics,followup,costs,cost_updated_at:costRecord?.updated_at??null,
+    contribution:campaignContribution({treatment,control,costs:costs?Object.fromEntries(measurementCostKeys.map(key=>[key,costs[key]])):null}),
+    measurement:{state:c.status==='draft'?'not_started':quiet?'descriptive':c.status==='paused'?'interrupted':reconciling?'reconciling':complete?'inconclusive':'in_progress',as_of:asOf,denominator:'all_assigned',method:quiet?null:'newcombe_wilson_95',sample_counts:{treatment:c.treatment_count,control:c.control_count},
+      return_difference:sample?{estimate_pp:10,lower_pp:-13.37685,upper_pp:26.07417,confidence_level:0.95}:plannedSample?{estimate_pp:3,lower_pp:-9.647,upper_pp:15.493,confidence_level:0.95}:null,
+      window:{starts_at:c.starts_at,ends_at:observationEnds??c.expires_at,observed_until:c.starts_at?complete?observationEnds:asOf:null,complete,time_basis:'purchase_occurred_at_with_recorded_fallback'},
+      data_readiness:{state:'recorded_only',summary:'Datos ficticios para explorar la medición; no son resultados de un negocio real.'},unavailable_members:0,assignment_counts_match:true,
       messages:{accepted:0,delivered:null,read:null}}};
+  out.decision=campaignDecision(out);
+  const latest=(measurementReports.get(c.id)??[]).at(-1),changed=Boolean(latest&&latest.signature!==resultSignature(out));
+  out.report_revision={latest:latest?{revision:latest.revision,created_at:latest.created_at}:null,changed,reason:changed?'Los costos o los registros cambiaron desde el último corte. El corte anterior conserva su contenido.':null};
+  return out;
+}
+function resultSignature(result){
+ const snapshot=structuredClone(result);delete snapshot.report_revision;delete snapshot.cost_updated_at;
+ delete snapshot.measurement.as_of;delete snapshot.measurement.window.observed_until;
+ return JSON.stringify(snapshot);
+}
+function measurementMutation(c,action,body){
+ if(typeof body.request_id!=='string'||!body.request_id)throw new Error('Incluye el identificador de la solicitud.');
+ const key=`${c.id}:${action}:${body.request_id}`,signature=JSON.stringify(body),old=measurementRequests.get(key);
+ if(old){if(old.signature!==signature)throw new Error('La solicitud ya se usó con otros datos.');return structuredClone(old.response);}
+ let response;
+ if(action==='measurement-costs'){
+  const costs=measurementCostInput(body),updated_at=new Date().toISOString();measurementCosts.set(c.id,{costs,updated_at});response={costs,updated_at};
+ }else{
+  const snapshot=results(c),reports=measurementReports.get(c.id)??[],revision=reports.length+1,created_at=new Date().toISOString();
+  reports.push({revision,created_at,signature:resultSignature(snapshot),snapshot:structuredClone(snapshot)});measurementReports.set(c.id,reports);response={revision,created_at};
+ }
+ measurementRequests.set(key,{signature,response:structuredClone(response)});return response;
 }
 function messages(c) {
   const count = queued.has(c.id) ? 12 : 0;
-  return { ok: true, preview: { body: `Café Jacaranda: recibe ${c.bonus_points} puntos extra en una compra desde Q${c.minimum_purchase_q}. Una vez por cliente hasta ${c.expires_at?.slice(0,10)}. Sujeta a los puntos disponibles de la campaña. Consulta tus ofertas en tu tarjeta PF. Puedes dejar de recibir promociones desde tus preferencias.`, delivery_note: "Ejemplo sin envío real. En producción se respeta el horario de 09:00 a 18:00 de Guatemala y un mensaje de campaña cada 7 días." }, eligible_count: count ? 0 : 12, counts: { queued: count, processing: 0, accepted: 0, failed: 0, uncertain: 0, suppressed: 0 }, total: count, can_queue: c.status === "active" && !count };
+  return { ok: true, preview: { body: `Café Jacaranda: recibe ${c.bonus_points} puntos extra en una compra desde Q${c.minimum_purchase_q}. Una vez por cliente hasta ${c.expires_at?.slice(0,10)}. Sujeta a los puntos disponibles de la campaña. Consulta tus ofertas en tu tarjeta PF. Puedes dejar de recibir promociones desde tus preferencias.`, delivery_note: "Ejemplo sin envío real. En producción se respeta el horario de 09:00 a 18:00 de Guatemala y un mensaje de campaña cada 7 días." }, eligible_count: count ? 0 : 12, counts: { queued: count, processing: 0, accepted: 0, failed: 0, uncertain: 0, suppressed: 0 }, total: count, can_queue: c.status === "active" && Date.parse(c.expires_at)>Date.now() && !count };
 }
 export function demoGrowth(url, options = {}) {
   const suffix = url.pathname.replace("/api/admin/growth-campaigns", ""), method = options.method || "GET", body = JSON.parse(options.body || "{}");
+  if(suffix==='/measurement-plan'&&method==='POST'){
+    const plan=normalizeMeasurementPlan(body.measurement_plan,{durationDays:body.duration_days,holdoutPercent:body.holdout_percent});
+    return {planning:planCampaignExperiment({plan,holdoutPercent:body.holdout_percent,availableMembers:body.available_members})};
+  }
   if (!suffix && method === "GET") { const limit = Number(url.searchParams.get("limit") || 20), offset = Number(url.searchParams.get("offset") || 0); return { campaigns: campaigns.slice(offset, offset + limit), total: campaigns.length, limit, offset }; }
   if (["", "/quiet", "/prepare"].includes(suffix) && method === "POST") {
     const quiet = suffix === "/quiet", bulk = suffix === "/prepare";
@@ -34,7 +73,7 @@ export function demoGrowth(url, options = {}) {
     const audience = body.audience_segment_id ? demoAudienceSnapshot(body.audience_segment_id, body.audience_segment_version, body.audience_limit, { minimum: quiet ? 1 : 10, maximum: bulk ? 5000 : 200 }) : null;
     if (!run && !audience) throw new Error("Selecciona una lista o una audiencia existente.");
     if (body.points_budget != null && (!Number.isInteger(body.points_budget) || body.points_budget < body.bonus_points || body.points_budget > 2000000)) throw new Error("Revisa el límite de puntos.");
-    const c = { ...body, offer_kind: quiet ? "quiet" : "experiment", duration_days: quiet ? null : body.duration_days, holdout_percent: quiet ? 0 : body.holdout_percent ?? 20, duration_minutes: quiet ? body.duration_minutes : null, preparation_status: bulk ? "queued" : "ready", prepared_count: 0, id: crypto.randomUUID(), status: "draft", points_budget: body.points_budget ?? null, points_committed: 0, points_remaining: body.points_budget ?? null, budget_exhausted: false, member_count: audience?.member_count ?? run.member_count, audience_snapshot: audience?.snapshot ?? null, treatment_count: 0, control_count: 0, starts_at: null, expires_at: null };
+    const c = { ...body, offer_kind: quiet ? "quiet" : "experiment", duration_days: quiet ? null : body.duration_days, holdout_percent: quiet ? 0 : body.holdout_percent ?? 50, measurement_plan: quiet ? null : normalizeMeasurementPlan(body.measurement_plan,{durationDays:body.duration_days,holdoutPercent:body.holdout_percent??50}), duration_minutes: quiet ? body.duration_minutes : null, preparation_status: bulk ? "queued" : "ready", prepared_count: 0, id: crypto.randomUUID(), status: "draft", points_budget: body.points_budget ?? null, points_committed: 0, points_remaining: body.points_budget ?? null, budget_exhausted: false, member_count: audience?.member_count ?? run.member_count, audience_snapshot: audience?.snapshot ?? null, treatment_count: 0, control_count: 0, starts_at: null, expires_at: null };
     if (bulk) {
       preparations.set(c.id, { total: c.member_count, availableAt: Date.now() + 1800 });
       c.audience_snapshot = { ...c.audience_snapshot, preparation: 'background' }; c.member_count = 0;
@@ -44,6 +83,8 @@ export function demoGrowth(url, options = {}) {
   const [, id, action, subaction] = suffix.split("/");
   const c = campaigns.find(item => item.id === id);
   if (!c) throw new Error("Campaña de ejemplo no encontrada.");
+  if(['measurement-costs','measurement-reports'].includes(action)&&method==='POST')return measurementMutation(c,action,body);
+  if(action==='measurement-reports'&&method==='GET')return {reports:(measurementReports.get(c.id)??[]).map(({revision,created_at,snapshot})=>({revision,created_at,as_of:snapshot.measurement.as_of,treatment:structuredClone(snapshot.treatment),control:structuredClone(snapshot.control),contribution:structuredClone(snapshot.contribution),decision:structuredClone(snapshot.decision)})).reverse()};
   if (!action && method === "GET") {
     const preparation = preparations.get(c.id);
     if (preparation && ['queued','preparing'].includes(c.preparation_status) && Date.now() >= preparation.availableAt) {
@@ -72,7 +113,7 @@ export function demoGrowth(url, options = {}) {
       data_readiness: { summary: 'Ejemplo con compras registradas en PF; no acredita todas las ventas del negocio.' }, reward_availability: {state:'not_applicable'}, blockers: capacityBlocked?[{code:'capacity_exceeded',message:'Los bonos pendientes y nuevos superan la capacidad de ejemplo.'}]:[], warnings: c.estimated_cost_per_point_q == null ? [{code:'cost_unknown',message:'Sin costo por punto: el costo en dinero es desconocido.'}] : [] } };
   }
   if (action === "messages" && method === "GET") return messages(c);
-  if (action === "messages" && subaction === "queue" && method === "POST") { const replayed = queued.has(c.id); if (c.status !== "active" || body.confirm !== true) throw new Error("Revisa la campaña y confirma el envío."); queued.add(c.id); return { ...messages(c), queued_count: replayed ? 0 : 12, replayed }; }
+  if (action === "messages" && subaction === "queue" && method === "POST") { const replayed = queued.has(c.id); if (c.status !== "active" || Date.parse(c.expires_at)<=Date.now() || body.confirm !== true) throw new Error("Revisa la campaña y confirma el envío."); queued.add(c.id); return { ...messages(c), queued_count: replayed ? 0 : 12, replayed }; }
   if (action === "activate" && method === "POST") {
     const mode=demoOperatingMode();if(c.status==='draft'&&c.offer_kind==='quiet'&&mode.capacity!==null&&demoOccupiedOperatingCapacity(c.id)+Math.min(c.member_count,Math.floor(c.points_budget/c.bonus_points))>mode.capacity)throw new Error('Las ofertas vigentes ya ocupan la capacidad.');
     if (c.status === "paused") throw new Error("Una campaña pausada no puede reactivarse.");
