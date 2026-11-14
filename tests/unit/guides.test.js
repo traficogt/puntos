@@ -5,7 +5,7 @@ import { request as httpRequest } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { createGuides } from '../../src/middleware/guides.js';
 import { createSearchVisibility } from '../../src/middleware/search-visibility.js';
-import { guideCatalog, parseGuideCatalog } from '../../src/content/guides/catalog.js';
+import { guideCatalog, parseGuideCatalog, getPublishedGuides } from '../../src/content/guides/catalog.js';
 
 const marketingOrigin = 'https://puntosfieles.com';
 const appOrigin = 'https://app.puntosfieles.com';
@@ -38,8 +38,17 @@ async function fixture(t, entries = []) {
   });
 }
 
-test('production guide catalog contains no articles', () => {
-  assert.deepEqual(guideCatalog, { version: 1, articles: [] });
+test('production guide catalog releases the approved series weekly at 09:00 in Guatemala', () => {
+  assert.equal(guideCatalog.articles.filter(item => item.status === 'published').length, 1);
+  const scheduled = guideCatalog.articles.filter(item => item.status === 'scheduled');
+  const releases = ['2026-11-21', '2026-11-28', '2026-12-05', '2026-12-12', '2026-12-19'];
+  assert.deepEqual(scheduled.map(item => item.datePublished), releases);
+  assert.deepEqual(scheduled.map(item => Date.parse(item.publishAt)), releases.map(day => Date.parse(`${day}T09:00:00-06:00`)));
+  releases.forEach((day, index) => {
+    const instant = Date.parse(`${day}T09:00:00-06:00`);
+    assert.equal(getPublishedGuides(guideCatalog, () => instant - 1).length, index + 1);
+    assert.equal(getPublishedGuides(guideCatalog, () => instant).length, index + 2);
+  });
 });
 
 test('empty hub is useful, canonical, and excluded from search and the sitemap', async t => {

@@ -1,0 +1,98 @@
+{
+  "slug": "cuantas-visitas-para-una-recompensa",
+  "title": "¿Cuántas visitas pedir para una recompensa?",
+  "description": "Cómo convertir una meta de visitas en tiempo de espera, calcular su costo y elegir un primer umbral para probar.",
+  "readingMinutes": 4,
+  "body": [
+    {
+      "type": "paragraph",
+      "text": "Seis visitas pueden representar unas semanas para una persona y varios meses para otra. Por eso, antes de elegir cuántos sellos lleva una tarjeta, conviene mirar el calendario. El umbral es la cantidad de compras que pide tu programa para entregar una recompensa. Su significado depende de cuánto tarda el cliente en reunirlas y de qué recibe al final."
+    },
+    {
+      "type": "heading",
+      "text": "Cuenta semanas, además de visitas"
+    },
+    {
+      "type": "paragraph",
+      "text": "Revisa las fechas de compra de los clientes a quienes quieres llegar. Separa a los habituales de quienes vienen ocasionalmente y conserva en la revisión a quienes solo compraron una vez. Calcular el ritmo únicamente con quienes regresan puede dejar fuera justamente a las personas que quieres entender."
+    },
+    {
+      "type": "paragraph",
+      "text": "Un seguimiento de una cadena de tiendas de conveniencia encontró cambios distintos según la actividad inicial: los compradores intensivos canjeaban más premios sin aumentar sus compras, mientras los de actividad baja o media sí mostraban crecimiento. Fue un estudio observacional, sin un grupo comparable de no inscritos, por lo que no permite atribuir todo el cambio al programa (Liu, 2007)."
+    },
+    {
+      "type": "paragraph",
+      "text": "Ahora hagamos un ejemplo inventado. Un café entrega el primer sello hoy y da el premio junto con la última compra requerida. Si una persona vuelve exactamente una vez por semana, completar seis compras exige cinco semanas más; completar diez exige nueve. Para alguien que compra cada dos semanas, los mismos recorridos tomarían diez y dieciocho semanas."
+    },
+    {
+      "type": "paragraph",
+      "text": "El cálculo empieza después de la primera compra: quedan cinco o nueve intervalos. Si entregaras el premio en una visita posterior, tendrías que añadir esa espera. Haz la cuenta con el ritmo observado en tu negocio y con las reglas que vas a ofrecer."
+    },
+    {
+      "type": "heading",
+      "text": "Mira qué hay al final del recorrido"
+    },
+    {
+      "type": "paragraph",
+      "text": "En una cafetería universitaria estadounidense, los clientes compraban con mayor frecuencia conforme se acercaban a reunir los sellos necesarios para el premio (Kivetz et al., 2006). El trabajo ayuda a entender la importancia de la distancia a una meta; no establece que diez compras sean el número óptimo para otros negocios ni demuestra un aumento del beneficio."
+    },
+    {
+      "type": "paragraph",
+      "text": "Nuestra propuesta es mostrar juntos el premio y el esfuerzo pendiente: «Llevas cuatro de seis; te faltan dos compras para un café regular». Antes de lanzar, presenta la recompensa a algunos clientes y escucha si la quieren y si el recorrido les parece razonable. Sus respuestas orientan el diseño; las compras posteriores permitirán comprobar qué hacen."
+    },
+    {
+      "type": "heading",
+      "text": "Ponle un costo a cada recorrido"
+    },
+    {
+      "type": "paragraph",
+      "text": "Sigamos con el café hipotético. Cada compra vale Q30 y preparar la bebida de regalo cuesta Q6. Si todos completan y canjean, ese costo se repartiría así:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        "Con seis compras: Q180 de ventas y Q6 de recompensa; Q1 por compra, aproximadamente el 3,33 % de esas ventas.",
+        "Con diez compras: Q300 de ventas y Q6 de recompensa; Q0,60 por compra, el 2 % de esas ventas."
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "Son cálculos del costo directo del premio, no del beneficio del programa. Faltan los costos de las compras pagadas y la operación adicional. También hay que revisar si el regalo sustituye algo que el cliente habría comprado. Y esas seis o diez compras pueden incluir visitas que habrían ocurrido de cualquier manera."
+    },
+    {
+      "type": "paragraph",
+      "text": "Pedir más visitas reduce el costo del regalo por compra en este ejemplo, pero prolonga la espera. Si ninguna opción resulta sostenible, revisa el premio y su costo antes de seguir alejando la meta."
+    },
+    {
+      "type": "heading",
+      "text": "Elige un punto de partida y obsérvalo"
+    },
+    {
+      "type": "paragraph",
+      "text": "Los estudios citados no ofrecen un umbral universal. Elige uno que puedas costear y deja transcurrir un plazo compatible con el ritmo de compra que calculaste. Registra cuántas personas empiezan, cuántas alcanzan la meta, cuánto tardan y qué sucede después del canje."
+    },
+    {
+      "type": "paragraph",
+      "text": "Escucha también a quienes se quedan a mitad del camino. Quizá la espera sea larga, quizá no les interese el premio o quizá cambiaron sus necesidades. Antes de modificar el número, averigua qué explicación encaja con lo que observas y conserva las condiciones de las recompensas ya ganadas."
+    }
+  ],
+  "references": [
+    {
+      "id": "kivetz-2006",
+      "citation": "Kivetz et al., 2006",
+      "apa": "Kivetz, R., Urminsky, O., & Zheng, Y. (2006). The goal-gradient hypothesis resurrected: Purchase acceleration, illusionary goal progress, and customer retention. Journal of Marketing Research, 43(1), 39–58.",
+      "href": "https://doi.org/10.1509/jmkr.43.1.39"
+    },
+    {
+      "id": "liu-2007",
+      "citation": "Liu, 2007",
+      "apa": "Liu, Y. (2007). The long-term impact of loyalty programs on consumer purchase behavior and loyalty. Journal of Marketing, 71(4), 19–35.",
+      "href": "https://doi.org/10.1509/jmkg.71.4.019"
+    }
+  ],
+  "methodNote": [
+    "Consultamos los métodos, resultados y límites relevantes de los originales de Kivetz y colaboradores y de Liu. El análisis principal del café utiliza tarjetas canjeadas y añade controles; el artículo también incluye experimentos. Liu sigue a miembros de una sola empresa durante dos años y excluye a quienes solo compraron una vez. Ninguno identifica un umbral universal ni valida un número de visitas para Guatemala.",
+    "El café, sus precios y sus ritmos de compra son hipotéticos. Las recomendaciones son propuestas de PuntosFieles, que tiene un interés comercial en el tema; estas investigaciones no evalúan PF. La selección de fuentes no es una revisión sistemática."
+  ]
+}

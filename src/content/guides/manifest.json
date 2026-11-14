@@ -1,4 +1,760 @@
 {
   "version": 1,
-  "articles": []
+  "articles": [
+    {
+      "status": "published",
+      "slug": "funcionan-los-programas-de-fidelizacion",
+      "title": "¿Funcionan los programas de fidelización?",
+      "description": "Una buena recompensa puede dar ganas de volver. La pregunta para tu negocio es si consigue visitas nuevas y si vale lo que cuesta.",
+      "category": "Fundamentos",
+      "author": {
+        "type": "Organization",
+        "name": "PuntosFieles",
+        "url": "https://puntosfieles.com/"
+      },
+      "datePublished": "2026-11-14",
+      "readingMinutes": 5,
+      "hero": {
+        "src": "/images/articles/funcionan-1152.webp",
+        "srcSmall": "/images/articles/funcionan-640.webp",
+        "width": 1152,
+        "height": 768,
+        "alt": "Ilustración editorial: un camino de terracota regresa a la puerta de un pequeño negocio, donde se encuentran el propietario y un cliente.",
+        "caption": "Dar un motivo para volver."
+      },
+      "body": [
+        {
+          "type": "paragraph",
+          "text": "Piensa en un cliente que ya visita tu negocio cada semana. Le das una tarjeta de puntos, se inscribe y sigue viniendo. ¿Funcionó el programa? Tal vez le gusta sentirse reconocido. Pero todavía no sabemos si vino una vez más gracias a la tarjeta."
+        },
+        {
+          "type": "paragraph",
+          "text": "Esa diferencia está en el centro de la pregunta. La investigación sí encuentra que los programas pueden cambiar las compras, aunque resulta más difícil cambiar el cariño o la preferencia por una marca (Belli et al., 2022). Para un propietario, lo útil es entender qué puede esperar y qué necesita comprobar."
+        },
+        {
+          "type": "heading",
+          "text": "¿Volvió por el premio o ya iba a volver?"
+        },
+        {
+          "type": "paragraph",
+          "text": "Es fácil entusiasmarse con un informe que dice «nuestros miembros compran más». El detalle es que los mejores clientes también pueden ser los primeros en inscribirse."
+        },
+        {
+          "type": "paragraph",
+          "text": "Eso ocurrió en el análisis de varios programas de supermercados: al tener en cuenta que los participantes ya eran distintos, el efecto estimado del programa se hizo mucho menor (Leenheer et al., 2007)."
+        },
+        {
+          "type": "paragraph",
+          "text": "No significa que debas dejar de premiar a tus habituales. Significa que conviene separar dos objetivos: agradecerles su preferencia y conseguir compras que no habrían ocurrido. Ambos pueden tener sentido, pero no se miden igual."
+        },
+        {
+          "type": "paragraph",
+          "text": "También importa de dónde parte cada persona. En un seguimiento de tiendas de conveniencia, los clientes que ya compraban mucho canjearon más premios sin aumentar sus compras; los menos activos sí mostraron aumentos. El estudio observó esas diferencias, aunque no podía atribuirlas por completo al programa (Liu, 2007)."
+        },
+        {
+          "type": "heading",
+          "text": "Haz que el siguiente premio se sienta alcanzable"
+        },
+        {
+          "type": "paragraph",
+          "text": "Un experimento en un lavadero de autos ayuda a entenderlo. A unos clientes les dieron una tarjeta de ocho espacios vacíos. A otros, una de diez con dos sellos de bienvenida. A todos les faltaban exactamente ocho compras."
+        },
+        {
+          "type": "figure",
+          "src": "/images/articles/progreso-1152.webp",
+          "srcSmall": "/images/articles/progreso-640.webp",
+          "width": 1152,
+          "height": 768,
+          "alt": "Ilustración conceptual de una tarjeta de sellos que se convierte en una escalera hacia un pequeño regalo.",
+          "caption": "Ver un avance puede hacer más cercano el siguiente paso."
+        },
+        {
+          "type": "paragraph",
+          "text": "La tarjeta con avance inicial se completó más: 34 % frente a 19 %. No porque exigiera menos compras, sino con el mismo esfuerzo pendiente presentado de otra forma (Nunes & Drèze, 2006)."
+        },
+        {
+          "type": "paragraph",
+          "text": "No es una receta universal ni una prueba de mayor rentabilidad. Pero ofrece una idea que vale la pena probar: que el cliente entienda cuánto lleva y qué le falta. «Te faltan dos visitas» es una propuesta más concreta que una cifra de puntos sin contexto."
+        },
+        {
+          "type": "heading",
+          "text": "Que sea fácil usarlo también cuenta"
+        },
+        {
+          "type": "paragraph",
+          "text": "Un premio atractivo sirve de poco si nadie entiende cómo conseguirlo. Y tener una buena idea no garantiza que funcione al llevarla al mostrador."
+        },
+        {
+          "type": "paragraph",
+          "text": "En un ensayo con cafeterías laborales del Reino Unido, las tarjetas y muestras gratuitas no produjeron un aumento claro de las ventas de platos vegetales. Las entrevistas sugirieron poca difusión y uso; el estudio, además, fue breve y pequeño (Food Standards Agency et al., 2024)."
+        },
+        {
+          "type": "paragraph",
+          "text": "Antes de cambiar el premio, revisa la experiencia: ¿el equipo sabe explicarlo?, ¿el cliente ve su avance?, ¿puede canjear sin una conversación complicada? Son preguntas prácticas que proponemos a partir de ese problema, no una garantía de éxito."
+        },
+        {
+          "type": "heading",
+          "text": "El premio tiene que caber en tus números"
+        },
+        {
+          "type": "paragraph",
+          "text": "No confundas una venta con lo que te queda de ella. Si cobras Q40 y gastas Q24 en atender esa compra, quedan Q16 antes de los costos fijos."
+        },
+        {
+          "type": "callout",
+          "text": "Si premios y operación adicional cuestan Q160, necesitarías 10 compras adicionales de ese tipo para cubrirlos.",
+          "note": "Ejemplo inventado: Q160 ÷ Q16 = 10. No es una tarifa ni una promesa de retorno."
+        },
+        {
+          "type": "paragraph",
+          "text": "La palabra importante es adicionales. Diez compras de miembros no bastan si esas personas habrían comprado igualmente. Y el cálculo cambia si varían los costos o el tamaño de la compra. Anota también los premios que ya prometiste y todavía faltan por entregar."
+        },
+        {
+          "type": "heading",
+          "text": "Empieza con una pregunta pequeña"
+        },
+        {
+          "type": "paragraph",
+          "text": "En lugar de pedirle al programa que «aumente la fidelidad», prueba algo concreto: que más clientes nuevos hagan una segunda visita."
+        },
+        {
+          "type": "paragraph",
+          "text": "Elige un plazo razonable para tu negocio, un premio que puedas costear y una fecha para revisar. Mira las visitas, los canjes y las dificultades que encuentra el personal. Compara con lo que ocurría antes, recordando que la temporada, los precios y otras promociones también influyen."
+        },
+        {
+          "type": "paragraph",
+          "text": "Un programa puede dar un buen motivo para regresar. Para saber si el tuyo lo está consiguiendo, necesitas una promesa fácil de entender, una experiencia que la cumpla y números que puedas interpretar con honestidad."
+        }
+      ],
+      "references": [
+        {
+          "id": "belli",
+          "citation": "Belli et al., 2022",
+          "apa": "Belli, A., O’Rourke, A.-M., Carrillat, F. A., Pupovac, L., Melnyk, V., & Napolova, E. (2022). 40 years of loyalty programs: How effective are they? Generalizations from a meta-analysis. Journal of the Academy of Marketing Science, 50(1), 147–173.",
+          "italic": [
+            "Journal of the Academy of Marketing Science, 50"
+          ],
+          "href": "https://doi.org/10.1007/s11747-021-00804-z"
+        },
+        {
+          "id": "fsa",
+          "citation": "Food Standards Agency et al., 2024",
+          "apa": "Food Standards Agency, Gold, N., Cornel, P., Zhuo, S., Thornton, K., Riddle, R., McPhedran, R., Vega, L., & Zamperetti, L. (2024). Exploring the impact of giving free food samples and loyalty cards on food choices: A stepped wedge trial in workplace food outlets. FSA Research and Evidence.",
+          "italic": [
+            "Exploring the impact of giving free food samples and loyalty cards on food choices: A stepped wedge trial in workplace food outlets"
+          ],
+          "href": "https://doi.org/10.46756/sci.fsa.paq622"
+        },
+        {
+          "id": "leenheer",
+          "citation": "Leenheer et al., 2007",
+          "apa": "Leenheer, J., van Heerde, H. J., Bijmolt, T. H. A., & Smidts, A. (2007). Do loyalty programs really enhance behavioral loyalty? An empirical analysis accounting for self-selecting members. International Journal of Research in Marketing, 24(1), 31–47.",
+          "italic": [
+            "International Journal of Research in Marketing, 24"
+          ],
+          "href": "https://doi.org/10.1016/j.ijresmar.2006.10.005"
+        },
+        {
+          "id": "liu",
+          "citation": "Liu, 2007",
+          "apa": "Liu, Y. (2007). The long-term impact of loyalty programs on consumer purchase behavior and loyalty. Journal of Marketing, 71(4), 19–35.",
+          "italic": [
+            "Journal of Marketing, 71"
+          ],
+          "href": "https://doi.org/10.1509/jmkg.71.4.019"
+        },
+        {
+          "id": "nunes",
+          "citation": "Nunes & Drèze, 2006",
+          "apa": "Nunes, J. C., & Drèze, X. (2006). The endowed progress effect: How artificial advancement increases effort. Journal of Consumer Research, 32(4), 504–512.",
+          "italic": [
+            "Journal of Consumer Research, 32"
+          ],
+          "href": "https://doi.org/10.1086/500480"
+        }
+      ],
+      "methodNote": [
+        "Esta es una selección comentada de cinco fuentes, no una revisión sistemática. Leímos los textos completos de Leenheer et al., Liu, Nunes y Drèze, y el informe de la Food Standards Agency. Para Belli et al. consultamos el resumen editorial; contiene una síntesis de 429 tamaños de efecto, no 429 estudios independientes.",
+        "Leenheer y Liu analizan datos observacionales. Nunes y Drèze asignaron 300 tarjetas al azar en un establecimiento. En el ensayo británico, 29 de 32 locales completaron el estudio; no encontrar un resultado estadísticamente significativo no demuestra un efecto exactamente nulo.",
+        "Estos trabajos no evalúan PuntosFieles ni establecen un resultado específico para Guatemala. PF tiene un interés comercial en el tema. Las recomendaciones prácticas son nuestra interpretación; el ejemplo de costos es hipotético y las ilustraciones son conceptuales."
+      ],
+      "artCredit": "Ilustraciones creadas para PuntosFieles con asistencia de IA."
+    },
+    {
+      "slug": "como-disenar-programa-fidelizacion",
+      "title": "Cómo diseñar un programa de fidelización",
+      "description": "Una guía para definir qué quieres conseguir, explicar la recompensa, ensayar con tu equipo y revisar lo que ocurre.",
+      "readingMinutes": 4,
+      "body": [
+        {
+          "type": "paragraph",
+          "text": "Imagina que mañana llega alguien a tu negocio y pregunta cómo funciona tu programa. Tendrás que explicarle qué compra cuenta, qué puede ganar y cuándo podrá recibirlo. También tendrás que saber cuánto te cuesta cumplir esa promesa. Esas decisiones forman el programa; los puntos o los sellos son la manera de llevar la cuenta."
+        },
+        {
+          "type": "paragraph",
+          "text": "Para empezar, proponemos trabajar en cuatro pasos. Puedes escribirlos en una hoja y probarlos en el mostrador antes de invitar a tus clientes."
+        },
+        {
+          "type": "heading",
+          "text": "Elige qué quieres cambiar"
+        },
+        {
+          "type": "paragraph",
+          "text": "«Que vuelvan más» es un buen deseo, pero todavía deja mucho por resolver. ¿Quieres que quienes llegaron por primera vez hagan una segunda compra? ¿Que los clientes ocasionales regresen con mayor regularidad? ¿O agradecer a quienes ya te visitan seguido? Elige una prioridad y anota a quién se dirige."
+        },
+        {
+          "type": "paragraph",
+          "text": "Imaginemos una panadería que quiere mejorar la segunda visita. Su pregunta podría ser: «De las personas que compran por primera vez esta semana, ¿cuántas vuelven durante los siguientes 30 días?». Ese plazo es parte del ejemplo, no una duración recomendada para todos los negocios. Revísalo según el tiempo que suele pasar entre compras en el tuyo."
+        },
+        {
+          "type": "heading",
+          "text": "Escribe una promesa que puedas cumplir"
+        },
+        {
+          "type": "paragraph",
+          "text": "La panadería podría ensayar esta regla: «Recibes un sello por cada compra de Q25 o más, con un máximo de uno al día. Al reunir seis sellos, puedes pedir un café regular gratis». Es una propuesta hipotética: tanto el mínimo como el premio deben pasar por los números del negocio."
+        },
+        {
+          "type": "paragraph",
+          "text": "Completa lo que esa frase todavía no dice: si puedes recibir el café junto con la sexta compra, en qué locales se entrega, si hay vencimiento y qué ocurre con una devolución. Pon las condiciones a disposición del cliente antes de que empiece a acumular."
+        },
+        {
+          "type": "paragraph",
+          "text": "Anota el costo de entregar cada café y los gastos adicionales de operar el programa. Calcula también cuánto necesitarías si se canjearan todos los premios ya ganados. Elige una recompensa que puedas sostener con ese escenario; depender de que el cliente olvide cobrarla deja una promesa sin respaldo."
+        },
+        {
+          "type": "heading",
+          "text": "Ensáyalo con todos los turnos"
+        },
+        {
+          "type": "paragraph",
+          "text": "En un ensayo con cafeterías laborales británicas, las entrevistas detectaron que un empleado explicaba mal qué comida podía canjearse: había faltado a la reunión por su horario. El ensayo no encontró un aumento estadísticamente significativo de las ventas de platos vegetales (Food Standards Agency et al., 2024). El detalle del turno recuerda algo muy concreto: hay que preparar también a quien no estuvo en la primera explicación."
+        },
+        {
+          "type": "paragraph",
+          "text": "Haz una compra ficticia con alguien del equipo. Pídele que explique la regla, registre el avance y entregue el premio. Repite con una compra que no cumple el mínimo y una devolución. Deja por escrito cómo resolver cada caso y quién puede ayudar cuando surja una duda. Este ensayo es nuestra propuesta práctica, no una intervención cuya eficacia haya medido aquel estudio."
+        },
+        {
+          "type": "heading",
+          "text": "Prepara la revisión desde el inicio"
+        },
+        {
+          "type": "paragraph",
+          "text": "Una ficha para nuestra panadería imaginaria podría contener cuatro datos:"
+        },
+        {
+          "type": "list",
+          "ordered": false,
+          "items": [
+            "Cuántos clientes compraron por primera vez durante la semana elegida.",
+            "Cuántos de ellos hicieron otra compra dentro de 30 días.",
+            "Cuánto costaron los premios y qué recompensas quedan pendientes.",
+            "Qué dificultades encontraron clientes y personal."
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Incluye a quienes no regresan. Si comparas semanas anteriores, usa el mismo plazo de seguimiento y registra cambios de precios, temporada o promociones. Esa comparación orienta, pero por sí sola no demuestra qué causó el cambio."
+        },
+        {
+          "type": "paragraph",
+          "text": "Tampoco basta con que los miembros compren más que los demás. En supermercados neerlandeses, el efecto estimado fue mucho menor al considerar que clientes ya fieles podían decidir inscribirse (Leenheer et al., 2007). Revisa la pregunta que escribiste al empezar, junto con los costos y las dificultades. Así tendrás algo concreto que corregir o seguir probando."
+        }
+      ],
+      "references": [
+        {
+          "id": "fsa-2024",
+          "citation": "Food Standards Agency et al., 2024",
+          "apa": "Food Standards Agency, Gold, N., Cornel, P., Zhuo, S., Thornton, K., Riddle, R., McPhedran, R., Vega, L., & Zamperetti, L. (2024). Exploring the impact of giving free food samples and loyalty cards on food choices: A stepped wedge trial in workplace food outlets. FSA Research and Evidence.",
+          "href": "https://doi.org/10.46756/sci.fsa.paq622",
+          "italic": [
+            "Exploring the impact of giving free food samples and loyalty cards on food choices: A stepped wedge trial in workplace food outlets"
+          ]
+        },
+        {
+          "id": "leenheer-2007",
+          "citation": "Leenheer et al., 2007",
+          "apa": "Leenheer, J., van Heerde, H. J., Bijmolt, T. H. A., & Smidts, A. (2007). Do loyalty programs really enhance behavioral loyalty? An empirical analysis accounting for self-selecting members. International Journal of Research in Marketing, 24(1), 31–47.",
+          "href": "https://doi.org/10.1016/j.ijresmar.2006.10.005",
+          "italic": [
+            "International Journal of Research in Marketing, 24"
+          ]
+        }
+      ],
+      "methodNote": [
+        "Consultamos los métodos y pasajes relevantes del informe completo de la FSA y del manuscrito de Leenheer y colaboradores depositado en Erasmus University. El primero es un ensayo aleatorizado por locales, breve y con potencia limitada; el segundo analiza datos observacionales y depende de supuestos estadísticos.",
+        "Los pasos y la panadería son propuestas de PuntosFieles, que tiene un interés comercial en el tema. Las dos investigaciones se realizaron fuera de Guatemala y no evalúan PF. Esta selección no es una revisión sistemática."
+      ],
+      "status": "scheduled",
+      "publishAt": "2026-11-21T09:00:00-06:00",
+      "datePublished": "2026-11-21",
+      "category": "Diseño",
+      "author": {
+        "type": "Organization",
+        "name": "PuntosFieles",
+        "url": "https://puntosfieles.com/"
+      },
+      "hero": {
+        "src": "/images/articles/disenar-1536.webp",
+        "srcSmall": "/images/articles/disenar-768.webp",
+        "alt": "Un relojero ajusta las piezas de un mecanismo en su mesa de trabajo.",
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "slug": "cuanto-cuesta-una-recompensa",
+      "title": "Cuánto cuesta una recompensa: la cuenta antes de ofrecerla",
+      "description": "El precio del premio, su costo de entrega y las compras necesarias para cubrirlo son cifras distintas. Un ejemplo sencillo para hacer tu propio presupuesto.",
+      "readingMinutes": 4,
+      "body": [
+        {
+          "type": "paragraph",
+          "text": "Un premio de Q30 puede costarte Q9 entregarlo. Las dos cifras son correctas, pero responden a preguntas distintas: cuánto recibe el cliente y cuánto sale de tu negocio. Antes de decidir si puedes ofrecerlo, conviene hacer una tercera pregunta: ¿qué tendría que cambiar en las compras para cubrir ese gasto?"
+        },
+        {
+          "type": "paragraph",
+          "text": "La distinción importa incluso en empresas grandes. Un estudio sobre compañías que introdujeron programas de fidelización encontró que los resultados en beneficio bruto iban por detrás de los resultados en ventas. Es evidencia sobre empresas cotizadas, no una promesa para una tienda pequeña; sirve para recordar que vender más y ganar más merecen cuentas separadas (Chaudhuri et al., 2019)."
+        },
+        {
+          "type": "heading",
+          "text": "Tres cifras para el mismo premio"
+        },
+        {
+          "type": "paragraph",
+          "text": "Imaginemos un negocio que ofrece un producto cuyo precio habitual es Q30. Prepararlo y entregarlo cuesta Q9 en materiales, empaque y otros gastos variables. Hay 80 premios ya ganados y pendientes de canje. Son cantidades inventadas para mostrar la cuenta, no datos de PuntosFieles."
+        },
+        {
+          "type": "list",
+          "items": [
+            "Valor para los clientes: 80 × Q30 = Q2,400 al precio habitual.",
+            "Costo estimado de entregar todos los premios: 80 × Q9 = Q720.",
+            "Compromiso pendiente: 80 productos que todavía debes poder entregar."
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Q720 es un presupuesto de cumplimiento bajo esos supuestos. No es una valoración contable de los puntos ni una medición de la utilidad. Tampoco incluye todo: quizás haga falta pagar más horas, enviar los premios o reponer un insumo que subió de precio. Anota cada costo adicional por separado."
+        },
+        {
+          "type": "paragraph",
+          "text": "En un servicio ocurre algo parecido. Un complemento puede usar pocos materiales y, aun así, ocupar quince minutos de una agenda llena. Si el beneficio sustituye una venta que habrías realizado, también debes considerar esa oportunidad perdida. Por eso el precio del menú, el gasto directo y el costo económico no son intercambiables."
+        },
+        {
+          "type": "heading",
+          "text": "Cuántas compras nuevas necesitas"
+        },
+        {
+          "type": "paragraph",
+          "text": "Sigamos con el ejemplo. Supón que cada compra pagada cuesta Q70 al cliente y requiere Q42 en gastos variables. Deja Q28 para cubrir otros gastos y, después, beneficio. Si entregar los 80 premios cuesta Q720 y la operación adicional del programa cuesta Q120, el total es Q840."
+        },
+        {
+          "type": "callout",
+          "text": "Q840 ÷ Q28 = 30 compras adicionales para cubrir ese costo.",
+          "note": "Ejemplo hipotético. Supone compras comparables, costos constantes y que los Q840 incluyen los incentivos y gastos adicionales del escenario."
+        },
+        {
+          "type": "paragraph",
+          "text": "Treinta compras registradas de miembros no demuestran que recuperaste la inversión. Algunas personas habrían comprado igualmente. Leenheer y sus colegas mostraron ese problema en supermercados: al considerar que los clientes más fieles podían ser quienes se inscribían, el efecto estimado del programa se reducía (Leenheer et al., 2007)."
+        },
+        {
+          "type": "paragraph",
+          "text": "La cuenta tampoco permite gastar Q840 cada mes sin revisar nada. Si baja la contribución por compra, necesitarás más compras adicionales. Si cambian los premios o su cantidad, cambia el costo. Y si no puedes distinguir compras adicionales de compras habituales, presenta el cálculo como un escenario de equilibrio, no como un retorno demostrado."
+        },
+        {
+          "type": "heading",
+          "text": "Haz la cuenta antes de prometer"
+        },
+        {
+          "type": "paragraph",
+          "text": "Una ficha sencilla puede reunir el beneficio, su precio habitual, su costo de entrega, la cantidad máxima que emitirás y lo que ya está pendiente. Añade quién puede autorizarlo y qué ocurrirá si no está disponible. Estas son herramientas prácticas que proponemos para controlar el programa, no una receta validada por los estudios."
+        },
+        {
+          "type": "paragraph",
+          "text": "Puedes explorar distintos niveles de canje. Si solo se entregaran 40 premios, el gasto directo del ejemplo sería Q360, más los costos de operación correspondientes. Pero esa posibilidad no elimina la necesidad de poder cumplir los 80 que ya prometiste. Un porcentaje supuesto de canje es un escenario, no dinero ganado por anticipado."
+        },
+        {
+          "type": "paragraph",
+          "text": "Empieza con una cantidad que puedas sostener, registra los costos reales y revisa las compras junto con los canjes. Un premio útil para el cliente y manejable para el negocio se diseña con ambas partes de la cuenta a la vista."
+        }
+      ],
+      "references": [
+        {
+          "id": "chaudhuri",
+          "citation": "Chaudhuri et al., 2019",
+          "apa": "Chaudhuri, M., Voorhees, C. M., & Beck, J. M. (2019). The effects of loyalty program introduction and design on short- and long-term sales and gross profits. Journal of the Academy of Marketing Science, 47(4), 640–658.",
+          "italic": [
+            "Journal of the Academy of Marketing Science, 47"
+          ],
+          "href": "https://doi.org/10.1007/s11747-019-00652-y"
+        },
+        {
+          "id": "leenheer",
+          "citation": "Leenheer et al., 2007",
+          "apa": "Leenheer, J., van Heerde, H. J., Bijmolt, T. H. A., & Smidts, A. (2007). Do loyalty programs really enhance behavioral loyalty? An empirical analysis accounting for self-selecting members. International Journal of Research in Marketing, 24(1), 31–47.",
+          "italic": [
+            "International Journal of Research in Marketing, 24"
+          ],
+          "href": "https://doi.org/10.1016/j.ijresmar.2006.10.005"
+        }
+      ],
+      "methodNote": [
+        "Los ejemplos y cálculos son propios e hipotéticos; no representan tarifas, resultados de PF ni una valoración contable. Chaudhuri et al. se consultó mediante su resumen editorial y notas metodológicas públicas: no se revisó el artículo completo ni se extrapolan sus magnitudes a una pyme. Para Leenheer et al. se consultó el manuscrito completo alojado por Erasmus University; analiza datos observacionales de hogares neerlandeses. Ninguno de estos trabajos evalúa PuntosFieles ni demuestra resultados para Guatemala."
+      ],
+      "status": "scheduled",
+      "publishAt": "2026-11-28T09:00:00-06:00",
+      "datePublished": "2026-11-28",
+      "category": "Costos",
+      "author": {
+        "type": "Organization",
+        "name": "PuntosFieles",
+        "url": "https://puntosfieles.com/"
+      },
+      "hero": {
+        "src": "/images/articles/costos-1536.webp",
+        "srcSmall": "/images/articles/costos-768.webp",
+        "alt": "Una balanza compara monedas con una pera y una rama de olivo.",
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "slug": "cuantas-visitas-para-una-recompensa",
+      "title": "¿Cuántas visitas pedir para una recompensa?",
+      "description": "Cómo convertir una meta de visitas en tiempo de espera, calcular su costo y elegir un primer umbral para probar.",
+      "readingMinutes": 4,
+      "body": [
+        {
+          "type": "paragraph",
+          "text": "Seis visitas pueden representar unas semanas para una persona y varios meses para otra. Por eso, antes de elegir cuántos sellos lleva una tarjeta, conviene mirar el calendario. El umbral es la cantidad de compras que pide tu programa para entregar una recompensa. Su significado depende de cuánto tarda el cliente en reunirlas y de qué recibe al final."
+        },
+        {
+          "type": "heading",
+          "text": "Cuenta semanas, además de visitas"
+        },
+        {
+          "type": "paragraph",
+          "text": "Revisa las fechas de compra de los clientes a quienes quieres llegar. Separa a los habituales de quienes vienen ocasionalmente y conserva en la revisión a quienes solo compraron una vez. Calcular el ritmo únicamente con quienes regresan puede dejar fuera justamente a las personas que quieres entender."
+        },
+        {
+          "type": "paragraph",
+          "text": "Un seguimiento de una cadena de tiendas de conveniencia encontró cambios distintos según la actividad inicial: los compradores intensivos canjeaban más premios sin aumentar sus compras, mientras los de actividad baja o media sí mostraban crecimiento. Fue un estudio observacional, sin un grupo comparable de no inscritos, por lo que no permite atribuir todo el cambio al programa (Liu, 2007)."
+        },
+        {
+          "type": "paragraph",
+          "text": "Ahora hagamos un ejemplo inventado. Un café entrega el primer sello hoy y da el premio junto con la última compra requerida. Si una persona vuelve exactamente una vez por semana, completar seis compras exige cinco semanas más; completar diez exige nueve. Para alguien que compra cada dos semanas, los mismos recorridos tomarían diez y dieciocho semanas."
+        },
+        {
+          "type": "paragraph",
+          "text": "El cálculo empieza después de la primera compra: quedan cinco o nueve intervalos. Si entregaras el premio en una visita posterior, tendrías que añadir esa espera. Haz la cuenta con el ritmo observado en tu negocio y con las reglas que vas a ofrecer."
+        },
+        {
+          "type": "heading",
+          "text": "Mira qué hay al final del recorrido"
+        },
+        {
+          "type": "paragraph",
+          "text": "En una cafetería universitaria estadounidense, los clientes compraban con mayor frecuencia conforme se acercaban a reunir los sellos necesarios para el premio (Kivetz et al., 2006). El trabajo ayuda a entender la importancia de la distancia a una meta; no establece que diez compras sean el número óptimo para otros negocios ni demuestra un aumento del beneficio."
+        },
+        {
+          "type": "paragraph",
+          "text": "Nuestra propuesta es mostrar juntos el premio y el esfuerzo pendiente: «Llevas cuatro de seis; te faltan dos compras para un café regular». Antes de lanzar, presenta la recompensa a algunos clientes y escucha si la quieren y si el recorrido les parece razonable. Sus respuestas orientan el diseño; las compras posteriores permitirán comprobar qué hacen."
+        },
+        {
+          "type": "heading",
+          "text": "Ponle un costo a cada recorrido"
+        },
+        {
+          "type": "paragraph",
+          "text": "Sigamos con el café hipotético. Cada compra vale Q30 y preparar la bebida de regalo cuesta Q6. Si todos completan y canjean, ese costo se repartiría así:"
+        },
+        {
+          "type": "list",
+          "ordered": false,
+          "items": [
+            "Con seis compras: Q180 de ventas y Q6 de recompensa; Q1 por compra, aproximadamente el 3,33 % de esas ventas.",
+            "Con diez compras: Q300 de ventas y Q6 de recompensa; Q0,60 por compra, el 2 % de esas ventas."
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Son cálculos del costo directo del premio, no del beneficio del programa. Faltan los costos de las compras pagadas y la operación adicional. También hay que revisar si el regalo sustituye algo que el cliente habría comprado. Y esas seis o diez compras pueden incluir visitas que habrían ocurrido de cualquier manera."
+        },
+        {
+          "type": "paragraph",
+          "text": "Pedir más visitas reduce el costo del regalo por compra en este ejemplo, pero prolonga la espera. Si ninguna opción resulta sostenible, revisa el premio y su costo antes de seguir alejando la meta."
+        },
+        {
+          "type": "heading",
+          "text": "Elige un punto de partida y obsérvalo"
+        },
+        {
+          "type": "paragraph",
+          "text": "Los estudios citados no ofrecen un umbral universal. Elige uno que puedas costear y deja transcurrir un plazo compatible con el ritmo de compra que calculaste. Registra cuántas personas empiezan, cuántas alcanzan la meta, cuánto tardan y qué sucede después del canje."
+        },
+        {
+          "type": "paragraph",
+          "text": "Escucha también a quienes se quedan a mitad del camino. Quizá la espera sea larga, quizá no les interese el premio o quizá cambiaron sus necesidades. Antes de modificar el número, averigua qué explicación encaja con lo que observas y conserva las condiciones de las recompensas ya ganadas."
+        }
+      ],
+      "references": [
+        {
+          "id": "kivetz-2006",
+          "citation": "Kivetz et al., 2006",
+          "apa": "Kivetz, R., Urminsky, O., & Zheng, Y. (2006). The goal-gradient hypothesis resurrected: Purchase acceleration, illusionary goal progress, and customer retention. Journal of Marketing Research, 43(1), 39–58.",
+          "href": "https://doi.org/10.1509/jmkr.43.1.39",
+          "italic": [
+            "Journal of Marketing Research, 43"
+          ]
+        },
+        {
+          "id": "liu-2007",
+          "citation": "Liu, 2007",
+          "apa": "Liu, Y. (2007). The long-term impact of loyalty programs on consumer purchase behavior and loyalty. Journal of Marketing, 71(4), 19–35.",
+          "href": "https://doi.org/10.1509/jmkg.71.4.019",
+          "italic": [
+            "Journal of Marketing, 71"
+          ]
+        }
+      ],
+      "methodNote": [
+        "Consultamos los métodos, resultados y límites relevantes de los originales de Kivetz y colaboradores y de Liu. El análisis principal del café utiliza tarjetas canjeadas y añade controles; el artículo también incluye experimentos. Liu sigue a miembros de una sola empresa durante dos años y excluye a quienes solo compraron una vez. Ninguno identifica un umbral universal ni valida un número de visitas para Guatemala.",
+        "El café, sus precios y sus ritmos de compra son hipotéticos. Las recomendaciones son propuestas de PuntosFieles, que tiene un interés comercial en el tema; estas investigaciones no evalúan PF. La selección de fuentes no es una revisión sistemática."
+      ],
+      "status": "scheduled",
+      "publishAt": "2026-12-05T09:00:00-06:00",
+      "datePublished": "2026-12-05",
+      "category": "Diseño",
+      "author": {
+        "type": "Organization",
+        "name": "PuntosFieles",
+        "url": "https://puntosfieles.com/"
+      },
+      "hero": {
+        "src": "/images/articles/visitas-1536.webp",
+        "srcSmall": "/images/articles/visitas-768.webp",
+        "alt": "Un reloj de arena de madera entre ramas con flores y frutos secos.",
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "slug": "ventaja-empezar-con-sellos",
+      "title": "La ventaja de empezar con dos sellos",
+      "description": "Una tarjeta con avance inicial puede invitar a continuar. Qué mostró el experimento clásico y cómo probar la idea con reglas claras.",
+      "readingMinutes": 3,
+      "body": [
+        {
+          "type": "paragraph",
+          "text": "Imagina que acabas de abrir una tarjeta de recompensas. Hay ocho espacios vacíos entre tú y el premio. Ahora imagina otra: tiene diez espacios, pero dos ya están marcados como regalo de bienvenida. ¿Cuál te daría más ganas de continuar?"
+        },
+        {
+          "type": "paragraph",
+          "text": "La cuenta es sencilla: en las dos faltan ocho compras. Sin embargo, una empieza desde cero y la otra muestra un camino comenzado. Esa diferencia fue el punto de partida de un experimento sobre lo que los investigadores llamaron «progreso otorgado» (Nunes & Drèze, 2006)."
+        },
+        {
+          "type": "heading",
+          "text": "Ocho compras en los dos casos"
+        },
+        {
+          "type": "paragraph",
+          "text": "En un lavadero de autos se repartieron al azar 300 tarjetas: la mitad con ocho espacios vacíos y la otra mitad con diez, dos de ellos sellados como promoción. El premio era un lavado gratis. Canjearon su tarjeta el 34 % de quienes recibieron el avance inicial, frente al 19 % del otro grupo (Nunes & Drèze, 2006)."
+        },
+        {
+          "type": "paragraph",
+          "text": "El resultado merece atención porque el esfuerzo pendiente era idéntico. También necesita contexto: ocurrió en un establecimiento, con ese premio y esos clientes. No establece cuánto aumentaría la participación en tu tienda ni cuánto dinero te dejaría."
+        },
+        {
+          "type": "paragraph",
+          "text": "Otro experimento, con 108 clientes de una cafetería universitaria, comparó diez espacios vacíos con doce y dos sellos de bonificación. Ambos grupos necesitaban diez compras; quienes recibieron los sellos completaron el recorrido más rápido (Kivetz et al., 2006). Es evidencia adicional sobre esa presentación, no una garantía para cualquier programa."
+        },
+        {
+          "type": "heading",
+          "text": "Una bienvenida que se pueda explicar"
+        },
+        {
+          "type": "paragraph",
+          "text": "Si quieres probarlo, empieza por escribir la oferta como se la dirías a alguien frente al mostrador: «Te regalamos dos sellos de bienvenida. Con ocho compras más completas los diez y recibes tu premio». El cliente debe poder hacer la cuenta sin ayuda."
+        },
+        {
+          "type": "paragraph",
+          "text": "Los sellos regalados deben aparecer como tales. Registrarlos como compras que nunca ocurrieron confundiría al cliente y también tus propios números. Nuestra propuesta es distinguir el regalo del avance ganado, aunque los dos cuenten para alcanzar la recompensa."
+        },
+        {
+          "type": "paragraph",
+          "text": "Define además qué compra da derecho a un sello y cuál es el premio. Si una visita puede incluir varias compras, aclara si entrega uno o varios. Son decisiones del negocio que conviene resolver antes de imprimir una tarjeta o mostrarla en una pantalla."
+        },
+        {
+          "type": "paragraph",
+          "text": "Hay una diferencia práctica entre regalar dos sellos dentro de una tarjeta que ya exigía diez compras y presentar diez espacios con dos de regalo en lugar de ocho vacíos. En el primer caso reduces el esfuerzo. En el segundo mantienes las ocho compras pendientes, como en el experimento del lavadero."
+        },
+        {
+          "type": "heading",
+          "text": "Mira qué ocurre después de la bienvenida"
+        },
+        {
+          "type": "paragraph",
+          "text": "Para una prueba pequeña, proponemos comparar las dos presentaciones durante el mismo período, con la misma recompensa y el mismo número de compras pendientes. Repartirlas al azar ayuda a evitar que una termine solo en manos de tus clientes más habituales."
+        },
+        {
+          "type": "paragraph",
+          "text": "Cuenta las tarjetas entregadas, cuántas vuelven a usarse y cuántas llegan al canje. Elige de antemano una fecha de revisión que permita varias visitas normales: una panadería y un taller de servicio no tienen el mismo ritmo. Anota también las dudas que recibe el personal."
+        },
+        {
+          "type": "paragraph",
+          "text": "Después revisa los costos y las compras adicionales. Completar más tarjetas significa entregar más premios; por sí solo, ese dato no demuestra mayor ganancia. Los dos sellos pueden ser una invitación a empezar. Saber si esa invitación beneficia a tu negocio requiere mirar lo que sucede después."
+        }
+      ],
+      "references": [
+        {
+          "id": "kivetz-2006",
+          "citation": "Kivetz et al., 2006",
+          "apa": "Kivetz, R., Urminsky, O., & Zheng, Y. (2006). The goal-gradient hypothesis resurrected: Purchase acceleration, illusionary goal progress, and customer retention. Journal of Marketing Research, 43(1), 39–58.",
+          "href": "https://doi.org/10.1509/jmkr.43.1.39",
+          "italic": [
+            "Journal of Marketing Research, 43"
+          ]
+        },
+        {
+          "id": "nunes-2006",
+          "citation": "Nunes & Drèze, 2006",
+          "apa": "Nunes, J. C., & Drèze, X. (2006). The endowed progress effect: How artificial advancement increases effort. Journal of Consumer Research, 32(4), 504–512.",
+          "href": "https://doi.org/10.1086/500480",
+          "italic": [
+            "Journal of Consumer Research, 32"
+          ]
+        }
+      ],
+      "methodNote": [
+        "Consultamos el manuscrito completo de Nunes y Drèze alojado en Wharton y el artículo de Kivetz y colaboradores; verificamos sus datos bibliográficos. El manuscrito no identifica la ciudad del lavadero. Estos estudios no evalúan PuntosFieles ni prueban un resultado para Guatemala. Las recomendaciones de aplicación son propuestas de PF, que tiene un interés comercial en el tema."
+      ],
+      "status": "scheduled",
+      "publishAt": "2026-12-12T09:00:00-06:00",
+      "datePublished": "2026-12-12",
+      "category": "Comportamiento",
+      "author": {
+        "type": "Organization",
+        "name": "PuntosFieles",
+        "url": "https://puntosfieles.com/"
+      },
+      "hero": {
+        "src": "/images/articles/avance-1536.webp",
+        "srcSmall": "/images/articles/avance-768.webp",
+        "alt": "Un limonero en una maceta muestra sus raíces, ramas, flores y frutos.",
+        "width": 1536,
+        "height": 1024
+      }
+    },
+    {
+      "slug": "como-mostrar-progreso-recompensas",
+      "title": "¿Mostrar lo que llevas o lo que te falta?",
+      "description": "Dos formas de explicar el mismo saldo pueden orientar la atención de maneras distintas. Cómo usar esa idea sin cambiar las reglas de tu recompensa.",
+      "readingMinutes": 3,
+      "body": [
+        {
+          "type": "paragraph",
+          "text": "Un cliente tiene dos sellos de los diez que necesita para recibir un premio. Puedes decirle «ya llevas dos» o «te faltan ocho». Las dos frases son ciertas. Ahora piensa en alguien que tiene ocho: «te faltan dos» pone la atención en otro lugar."
+        },
+        {
+          "type": "paragraph",
+          "text": "La investigación ofrece una pista para decidir qué destacar: el siguiente paso puede parecer mayor o menor según la parte del recorrido que estamos mirando (Koo & Fishbach, 2012). Veamos cómo se traduce eso a una tarjeta."
+        },
+        {
+          "type": "heading",
+          "text": "Al principio, lo ganado; al final, lo pendiente"
+        },
+        {
+          "type": "paragraph",
+          "text": "Koo y Fishbach estudiaron lo que llamaron la «hipótesis del área pequeña». Sus resultados favorecieron destacar el avance acumulado al principio y el pendiente cerca del final. La explicación propuesta es que un nuevo paso parece mayor cuando se compara con un tramo pequeño (Koo & Fishbach, 2012)."
+        },
+        {
+          "type": "paragraph",
+          "text": "Una prueba con 907 tarjetas en un restaurante de Corea del Sur comparó añadir sellos por las comidas compradas con retirar figuras para destacar las pendientes. El resultado dependió del avance inicial, que venía de las comidas pagadas; el tipo de tarjeta se asignaba al azar (Koo & Fishbach, 2012)."
+        },
+        {
+          "type": "paragraph",
+          "text": "Volvamos al ejemplo: pasar de dos sellos a tres aumenta en la mitad lo acumulado. Pasar de dos pendientes a uno reduce a la mitad lo que falta. La cuenta ayuda a entender la idea, pero no establece una frase infalible para todos tus clientes."
+        },
+        {
+          "type": "heading",
+          "text": "Estar cerca y mostrar el avance son cosas distintas"
+        },
+        {
+          "type": "paragraph",
+          "text": "En una cafetería universitaria, Kivetz y sus colaboradores observaron compras más frecuentes al acercarse el premio, considerando diferencias entre clientes y otras explicaciones (Kivetz et al., 2006). A eso se refiere el «gradiente de meta»: cómo cambia el esfuerzo con la cercanía de la recompensa."
+        },
+        {
+          "type": "paragraph",
+          "text": "La pregunta de Koo y Fishbach es distinta: con el mismo saldo, ¿qué pasa si destacamos lo acumulado o lo pendiente? Tampoco equivale a regalar sellos de bienvenida: aquí conservamos los sellos ganados y la distancia al premio."
+        },
+        {
+          "type": "paragraph",
+          "text": "Proponemos empezar con «Ya llevas dos de diez cafés». Más adelante, «Te faltan dos cafés para tu recompensa», manteniendo el saldo completo debajo: ocho de diez. Son ejemplos nuestros, no textos cuya eficacia hayan comprobado esos estudios."
+        },
+        {
+          "type": "paragraph",
+          "text": "Si usas puntos, acompáñalos de la meta: «Tienes 80 de los 100 puntos que necesitas para el premio». La cifra destacada y el detalle deben decir lo mismo."
+        },
+        {
+          "type": "paragraph",
+          "text": "La idea supone que la persona desea completar el recorrido. En una prueba con escenarios, el patrón de intención de uso se invirtió para una tarjeta prepagada cuyos beneficios se querían prolongar (Koo & Fishbach, 2012)."
+        },
+        {
+          "type": "heading",
+          "text": "Pruébalo donde el cliente consulta su saldo"
+        },
+        {
+          "type": "paragraph",
+          "text": "Puedes empezar con la tarjeta, el recibo o la pantalla que el cliente abre para ver sus puntos. Mantén a la vista qué recompensa puede obtener y las condiciones para recibirla. Destacar una cifra no requiere esconder la otra ni cambiar el tamaño de la meta."
+        },
+        {
+          "type": "paragraph",
+          "text": "Para comprobar si la presentación ayuda, compara mensajes entre clientes que estén en una etapa semejante. Comparar a quienes llevan un sello con quienes llevan nueve mezclaría el efecto del mensaje con la distancia al premio. Conserva las mismas reglas y observa nuevas compras, canjes y dudas."
+        },
+        {
+          "type": "paragraph",
+          "text": "Estos trabajos no establecen cuándo enviar recordatorios ni aseguran que cambiar una frase aumente las ganancias. Ofrecen una pregunta para probar: ¿qué necesita ver el cliente para entender su siguiente paso?"
+        }
+      ],
+      "references": [
+        {
+          "id": "kivetz-2006",
+          "citation": "Kivetz et al., 2006",
+          "apa": "Kivetz, R., Urminsky, O., & Zheng, Y. (2006). The goal-gradient hypothesis resurrected: Purchase acceleration, illusionary goal progress, and customer retention. Journal of Marketing Research, 43(1), 39–58.",
+          "href": "https://doi.org/10.1509/jmkr.43.1.39",
+          "italic": [
+            "Journal of Marketing Research, 43"
+          ]
+        },
+        {
+          "id": "koo-2012",
+          "citation": "Koo & Fishbach, 2012",
+          "apa": "Koo, M., & Fishbach, A. (2012). The small-area hypothesis: Effects of progress monitoring on goal adherence. Journal of Consumer Research, 39(3), 493–509.",
+          "href": "https://doi.org/10.1086/663827",
+          "italic": [
+            "Journal of Consumer Research, 39"
+          ]
+        }
+      ],
+      "methodNote": [
+        "Consultamos ambos textos completos, incluida la publicación anticipada de Koo y Fishbach, y verificamos los datos bibliográficos finales. En su restaurante solo 79 de las 907 tarjetas volvieron a usarse; el avance inicial era observado. Los estudios no evalúan PuntosFieles ni establecen resultados para Guatemala. Las propuestas son de PF, que tiene un interés comercial en el tema."
+      ],
+      "status": "scheduled",
+      "publishAt": "2026-12-19T09:00:00-06:00",
+      "datePublished": "2026-12-19",
+      "category": "Comportamiento",
+      "author": {
+        "type": "Organization",
+        "name": "PuntosFieles",
+        "url": "https://puntosfieles.com/"
+      },
+      "hero": {
+        "src": "/images/articles/progreso-1152.webp",
+        "srcSmall": "/images/articles/progreso-640.webp",
+        "alt": "Una tarjeta de sellos se convierte en una escalera hacia un pequeño regalo.",
+        "width": 1152,
+        "height": 768
+      }
+    }
+  ]
 }

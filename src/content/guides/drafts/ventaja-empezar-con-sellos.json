@@ -1,0 +1,85 @@
+{
+  "slug": "ventaja-empezar-con-sellos",
+  "title": "La ventaja de empezar con dos sellos",
+  "description": "Una tarjeta con avance inicial puede invitar a continuar. Qué mostró el experimento clásico y cómo probar la idea con reglas claras.",
+  "readingMinutes": 3,
+  "body": [
+    {
+      "type": "paragraph",
+      "text": "Imagina que acabas de abrir una tarjeta de recompensas. Hay ocho espacios vacíos entre tú y el premio. Ahora imagina otra: tiene diez espacios, pero dos ya están marcados como regalo de bienvenida. ¿Cuál te daría más ganas de continuar?"
+    },
+    {
+      "type": "paragraph",
+      "text": "La cuenta es sencilla: en las dos faltan ocho compras. Sin embargo, una empieza desde cero y la otra muestra un camino comenzado. Esa diferencia fue el punto de partida de un experimento sobre lo que los investigadores llamaron «progreso otorgado» (Nunes & Drèze, 2006)."
+    },
+    {
+      "type": "heading",
+      "text": "Ocho compras en los dos casos"
+    },
+    {
+      "type": "paragraph",
+      "text": "En un lavadero de autos se repartieron al azar 300 tarjetas: la mitad con ocho espacios vacíos y la otra mitad con diez, dos de ellos sellados como promoción. El premio era un lavado gratis. Canjearon su tarjeta el 34 % de quienes recibieron el avance inicial, frente al 19 % del otro grupo (Nunes & Drèze, 2006)."
+    },
+    {
+      "type": "paragraph",
+      "text": "El resultado merece atención porque el esfuerzo pendiente era idéntico. También necesita contexto: ocurrió en un establecimiento, con ese premio y esos clientes. No establece cuánto aumentaría la participación en tu tienda ni cuánto dinero te dejaría."
+    },
+    {
+      "type": "paragraph",
+      "text": "Otro experimento, con 108 clientes de una cafetería universitaria, comparó diez espacios vacíos con doce y dos sellos de bonificación. Ambos grupos necesitaban diez compras; quienes recibieron los sellos completaron el recorrido más rápido (Kivetz et al., 2006). Es evidencia adicional sobre esa presentación, no una garantía para cualquier programa."
+    },
+    {
+      "type": "heading",
+      "text": "Una bienvenida que se pueda explicar"
+    },
+    {
+      "type": "paragraph",
+      "text": "Si quieres probarlo, empieza por escribir la oferta como se la dirías a alguien frente al mostrador: «Te regalamos dos sellos de bienvenida. Con ocho compras más completas los diez y recibes tu premio». El cliente debe poder hacer la cuenta sin ayuda."
+    },
+    {
+      "type": "paragraph",
+      "text": "Los sellos regalados deben aparecer como tales. Registrarlos como compras que nunca ocurrieron confundiría al cliente y también tus propios números. Nuestra propuesta es distinguir el regalo del avance ganado, aunque los dos cuenten para alcanzar la recompensa."
+    },
+    {
+      "type": "paragraph",
+      "text": "Define además qué compra da derecho a un sello y cuál es el premio. Si una visita puede incluir varias compras, aclara si entrega uno o varios. Son decisiones del negocio que conviene resolver antes de imprimir una tarjeta o mostrarla en una pantalla."
+    },
+    {
+      "type": "paragraph",
+      "text": "Hay una diferencia práctica entre regalar dos sellos dentro de una tarjeta que ya exigía diez compras y presentar diez espacios con dos de regalo en lugar de ocho vacíos. En el primer caso reduces el esfuerzo. En el segundo mantienes las ocho compras pendientes, como en el experimento del lavadero."
+    },
+    {
+      "type": "heading",
+      "text": "Mira qué ocurre después de la bienvenida"
+    },
+    {
+      "type": "paragraph",
+      "text": "Para una prueba pequeña, proponemos comparar las dos presentaciones durante el mismo período, con la misma recompensa y el mismo número de compras pendientes. Repartirlas al azar ayuda a evitar que una termine solo en manos de tus clientes más habituales."
+    },
+    {
+      "type": "paragraph",
+      "text": "Cuenta las tarjetas entregadas, cuántas vuelven a usarse y cuántas llegan al canje. Elige de antemano una fecha de revisión que permita varias visitas normales: una panadería y un taller de servicio no tienen el mismo ritmo. Anota también las dudas que recibe el personal."
+    },
+    {
+      "type": "paragraph",
+      "text": "Después revisa los costos y las compras adicionales. Completar más tarjetas significa entregar más premios; por sí solo, ese dato no demuestra mayor ganancia. Los dos sellos pueden ser una invitación a empezar. Saber si esa invitación beneficia a tu negocio requiere mirar lo que sucede después."
+    }
+  ],
+  "references": [
+    {
+      "id": "kivetz-2006",
+      "citation": "Kivetz et al., 2006",
+      "apa": "Kivetz, R., Urminsky, O., & Zheng, Y. (2006). The goal-gradient hypothesis resurrected: Purchase acceleration, illusionary goal progress, and customer retention. Journal of Marketing Research, 43(1), 39–58.",
+      "href": "https://doi.org/10.1509/jmkr.43.1.39"
+    },
+    {
+      "id": "nunes-2006",
+      "citation": "Nunes & Drèze, 2006",
+      "apa": "Nunes, J. C., & Drèze, X. (2006). The endowed progress effect: How artificial advancement increases effort. Journal of Consumer Research, 32(4), 504–512.",
+      "href": "https://doi.org/10.1086/500480"
+    }
+  ],
+  "methodNote": [
+    "Consultamos el manuscrito completo de Nunes y Drèze alojado en Wharton y el artículo de Kivetz y colaboradores; verificamos sus datos bibliográficos. El manuscrito no identifica la ciudad del lavadero. Estos estudios no evalúan PuntosFieles ni prueban un resultado para Guatemala. Las recomendaciones de aplicación son propuestas de PF, que tiene un interés comercial en el tema."
+  ]
+}

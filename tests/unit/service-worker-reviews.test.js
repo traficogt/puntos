@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-test('temporary review documents and images bypass browser offline caching', async () => {
+test('reviews and scheduled guides bypass offline caching while ordinary assets retain it', async () => {
   const handlers = new Map();
   const responses = [];
   const cache = { put: async () => {}, match: async () => undefined };
@@ -23,8 +23,14 @@ test('temporary review documents and images bypass browser offline caching', asy
       });
     }
   }
+  for (const path of ['/guias', '/guias/', '/guias/articulo-programado', '/guias/articulo-programado/', '/sitemap.xml']) {
+    handlers.get('fetch')({
+      request: { method: 'GET', url: 'https://puntosfieles.com' + path, mode: 'navigate', destination: 'document' },
+      respondWith: result => responses.push(result)
+    });
+  }
   await Promise.all(responses);
-  assert.equal(responses.length, 0, 'Review routes must use the network directly');
+  assert.equal(responses.length, 0, 'Review routes, guides and sitemap must use the network directly');
   handlers.get('fetch')({
     request: { method: 'GET', url: 'https://puntosfieles.com/styles.css', mode: 'cors', destination: 'style' },
     respondWith: result => responses.push(result)

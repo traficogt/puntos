@@ -19,7 +19,9 @@ async function fixture(t) {
   return (url, options) => fetch(`http://127.0.0.1:${address.port}${url}`, { redirect: 'manual', ...options });
 }
 
-for (const [reviewPath, count] of [[ILLUSTRATION_REVIEW_PATH, 10], [GUATEMALA_REVIEW_PATH, 5]]) {
+/** @type {Array<[string, number]>} */
+const galleries = [[ILLUSTRATION_REVIEW_PATH, 10], [GUATEMALA_REVIEW_PATH, 5]];
+for (const [reviewPath, count] of galleries) {
   test(`${reviewPath} gallery and every linked image size stay unindexed and uncached`, async t => {
     const request = await fixture(t);
     const document = await request(reviewPath);
