@@ -155,6 +155,46 @@ describe("Apple Wallet signed passes", () => {
     assert.deepEqual(entries["icon.png"], readFileSync(new URL("../../public/images/wallet/apple-icon.png", import.meta.url)));
   });
 
+  it("signs both featured actions in priority order with business-scoped credential-free destinations", async () => {
+    const pass = JSON.parse(unzip(await createAppleProvider(config).generatePass({ ...snapshot, business_slug: "club-centro" }))["pass.json"].toString());
+    assert.deepEqual(pass.featuredActions, [
+      { identifier: "pf-offers", type: "viewOffersRewards", url: `${config.appOrigin}/ingresar/club-centro?destino=ofertas` },
+      { identifier: "pf-benefits", type: "membershipBenefits", url: `${config.appOrigin}/ingresar/club-centro?destino=beneficios` }
+    ]);
+    assert.equal(pass.serialNumber, snapshot.serial_number);
+    assert.equal(pass.authenticationToken, snapshot.authentication_token);
+    assert.equal(pass.barcodes[0].message, snapshot.barcode);
+    for (const action of pass.featuredActions) {
+      assert.equal(new URL(action.url).origin, config.appOrigin);
+      assert.doesNotMatch(action.url, /internal-pass-id|pf-serial-1/);
+      assert.ok(!action.url.includes(snapshot.authentication_token));
+      assert.ok(!action.url.includes(snapshot.barcode));
+    }
+    assert.equal(pass.storeCard.backFields.find(field => field.key === "offers_link").value, pass.featuredActions[0].url);
+    assert.equal(pass.storeCard.backFields.find(field => field.key === "benefits_link").value, pass.featuredActions[1].url);
+    assert.equal(pass.storeCard.backFields.find(field => field.key === "customer_link").value, `${config.appOrigin}/mi-tarjeta/`);
+    assert.ok(pass.storeCard.backFields.every(field => !field.changeMessage));
+  });
+
+  it("falls back to fixed authenticated account sections when the public slug is missing or unsafe", async () => {
+    for (const business_slug of [undefined, "", "../soporte", "https://other.invalid", "club?token=private", "club#fragment", "a".repeat(121)]) {
+      const pass = JSON.parse(unzip(await createAppleProvider(config).generatePass({ ...snapshot, business_slug }))["pass.json"].toString());
+      assert.deepEqual(pass.featuredActions.map(action => action.url), [
+        `${config.appOrigin}/mi-tarjeta/#ofertas`, `${config.appOrigin}/mi-tarjeta/#beneficios`
+      ]);
+    }
+  });
+
+  it("removes both actions and their older-device detail links when a pass is revoked or voided", async () => {
+    for (const state of [{ revoked_at: new Date().toISOString() }, { is_voided: true }]) {
+      const pass = JSON.parse(unzip(await createAppleProvider(config).generatePass({ ...snapshot, business_slug: "club-centro", ...state }))["pass.json"].toString());
+      assert.deepEqual(pass.featuredActions, []);
+      assert.equal(pass.storeCard.backFields.some(field => ["offers_link", "benefits_link"].includes(field.key)), false);
+      assert.equal(pass.serialNumber, snapshot.serial_number);
+      assert.equal(pass.authenticationToken, snapshot.authentication_token);
+    }
+  });
+
   it("signs scoped location and progress fields without pretending refresh is a visible alert", async () => {
     const wallet_engagement = { usage: "Los puntos pendientes aún no se pueden canjear.", progress: "Te faltan 25 puntos para Café.", earning: "2 puntos por GTQ 1.", conditions: "Canje en: Centro.", locations: [{ name: "Centro", latitude: 14.6, longitude: -90.5 }] };
     const pass = JSON.parse(unzip(await createAppleProvider(config).generatePass({ ...snapshot, wallet_engagement }))["pass.json"].toString());

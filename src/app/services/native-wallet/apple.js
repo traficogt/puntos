@@ -53,6 +53,15 @@ async function credentialsFor(config) {
   }
 }
 
+function actionDestination(appOrigin, publicSlug, destination) {
+  // This is public business context, never a customer/pass authentication token.
+  const hasSlug = typeof publicSlug === "string" && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,119}$/.test(publicSlug);
+  const url = new URL(hasSlug ? `/ingresar/${encodeURIComponent(publicSlug)}` : "/mi-tarjeta/", appOrigin);
+  if (hasSlug) url.searchParams.set("destino", destination);
+  else url.hash = destination;
+  return url.href;
+}
+
 function passProperties(config, snapshot) {
   if (typeof snapshot.serial_number !== "string" || !/^[A-Za-z0-9._-]{1,128}$/.test(snapshot.serial_number)) throw passError();
   if (typeof snapshot.authentication_token !== "string" || snapshot.authentication_token.length < 16 || snapshot.authentication_token.length > 256) throw passError();
@@ -63,6 +72,10 @@ function passProperties(config, snapshot) {
   const pendingPoints = voided ? 0 : Number(snapshot.pending_points);
   if (!Number.isFinite(points) || !Number.isFinite(pendingPoints)) throw passError();
   const business = String(snapshot.business_name || config.organizationName).slice(0, 160);
+  const actions = voided ? [] : [
+    { identifier: "pf-offers", type: "viewOffersRewards", url: actionDestination(config.appOrigin, snapshot.business_slug, "ofertas") },
+    { identifier: "pf-benefits", type: "membershipBenefits", url: actionDestination(config.appOrigin, snapshot.business_slug, "beneficios") }
+  ];
   return {
     formatVersion: 1,
     passTypeIdentifier: config.passTypeIdentifier,
@@ -80,6 +93,7 @@ function passProperties(config, snapshot) {
     labelColor: "rgb(210, 233, 220)",
     barcodes: [{ format: "PKBarcodeFormatQR", message: snapshot.barcode, messageEncoding: "iso-8859-1" }],
     userInfo: { revision: String(snapshot.revision) },
+    featuredActions: actions,
     storeCard: {
       primaryFields: [{ key: "points", label: "PUNTOS DISPONIBLES", value: points }],
       secondaryFields: [
@@ -92,6 +106,10 @@ function passProperties(config, snapshot) {
         ...(engagement?.conditions ? [{ key: "reward_conditions", label: "Condiciones del canje", value: engagement.conditions }] : []),
         ...(engagement?.earning ? [{ key: "earning_terms", label: "Cómo acumulas", value: engagement.earning }] : []),
         ...(engagement?.usage ? [{ key: "card_usage", label: "Cómo usar tu tarjeta", value: engagement.usage }] : []),
+        ...(!voided ? [
+          { key: "offers_link", label: "Ofertas y recompensas", value: actions[0].url },
+          { key: "benefits_link", label: "Beneficios de tu membresía", value: actions[1].url }
+        ] : []),
         { key: "customer_link", label: "Tu cuenta de Puntos Fieles", value: new URL("/mi-tarjeta/", config.appOrigin).href },
         { key: "support_link", label: "Soporte", value: "https://puntosfieles.com/soporte" }
       ]
