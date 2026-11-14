@@ -1,0 +1,52 @@
+{
+  "volver.png": {
+    "kind": "AI-assisted conceptual editorial illustration",
+    "tool": "built-in image_gen",
+    "created": "2026-11-14",
+    "width": 1536,
+    "height": 1024,
+    "sha256": "f7f4eaa6e5ce5579df97bf456d19dae7f273e2dc9adf795bd4238f1e90321846",
+    "prompts": "ILLUSTRATIONS.md"
+  },
+  "progreso.png": {
+    "kind": "AI-assisted conceptual editorial illustration",
+    "tool": "built-in image_gen",
+    "created": "2026-11-14",
+    "width": 1536,
+    "height": 1024,
+    "sha256": "316ea87d66de0debc291ee1cf246c47436814fd65725c9b8bc91c819b9a52183",
+    "prompts": "ILLUSTRATIONS.md"
+  },
+  "volver-640.webp": {
+    "source": "volver.png",
+    "purpose": "Responsive web delivery; same artwork, no compositional edits",
+    "encoder": "Chromium canvas WebP quality 0.90",
+    "width": 640,
+    "bytes": 55572,
+    "sha256": "880e558026a5846e776155187085032f9aa29c6ceffc4e43ba3a8a311b08351b"
+  },
+  "volver-1152.webp": {
+    "source": "volver.png",
+    "purpose": "Responsive web delivery; same artwork, no compositional edits",
+    "encoder": "Chromium canvas WebP quality 0.90",
+    "width": 1152,
+    "bytes": 174026,
+    "sha256": "095a3f95576fd36bc32ddecc5ef9c52a74cdeaf9e34240f592d8ac8d81daccb9"
+  },
+  "progreso-640.webp": {
+    "source": "progreso.png",
+    "purpose": "Responsive web delivery; same artwork, no compositional edits",
+    "encoder": "Chromium canvas WebP quality 0.90",
+    "width": 640,
+    "bytes": 39660,
+    "sha256": "8b4384584a2544bf526b3352786fec5420dd0660dd4e559b9061e5b6c9f3340d"
+  },
+  "progreso-1152.webp": {
+    "source": "progreso.png",
+    "purpose": "Responsive web delivery; same artwork, no compositional edits",
+    "encoder": "Chromium canvas WebP quality 0.90",
+    "width": 1152,
+    "bytes": 152050,
+    "sha256": "d32e7105b1c89d3c8c9ed411ba7ef0935a095ca13c51d2348f6c9e5ccd41e454"
+  }
+}
