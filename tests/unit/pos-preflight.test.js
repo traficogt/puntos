@@ -12,7 +12,7 @@ function fixture(overrides = {}) {
     getCustomer: async (id, phone) => { lookups.push([id, phone]); return { id: "customer-1", business_id: id }; },
     findTransaction: async id => { assert.equal(id, business.id); return null; },
     hasFeature: async () => true,
-    award: forbiddenOperation, saveSettings: forbiddenOperation, saveSync: forbiddenOperation,
+    award: forbiddenOperation, saveSettings: forbiddenOperation, saveSync: forbiddenOperation, recordReceipts: forbiddenOperation,
     lock: forbiddenOperation, verifyConnection: forbiddenOperation, fetchSales: forbiddenOperation, fetchRetrySales: forbiddenOperation,
     ...overrides
   });

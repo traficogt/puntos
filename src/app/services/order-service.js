@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { purchaseEventTime } from './purchase-event-time.js';
 
 import { setCurrentTenant, withTransaction } from "../database.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
@@ -108,6 +109,7 @@ async function processOrderWithClient(deps, client, input) {
 
   const status = normalizeStatus(input.status);
   if (!PROCESSABLE_STATUSES.has(status)) throw badRequest("Unsupported order status");
+  const purchaseTime = purchaseEventTime(input.occurred_at, 'order_receipt');
 
   const lineItemsJson = normalizeLineItems(input.line_items_json);
   const meta = normalizeMeta(input.meta);
@@ -213,8 +215,8 @@ async function processOrderWithClient(deps, client, input) {
 
   await client.query(
     `INSERT INTO transactions
-     (id, business_id, customer_id, amount_q, points, status, available_at, source, meta)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,'order',$8)`,
+     (id, business_id, customer_id, amount_q, points, status, available_at, source, meta, purchase_occurred_at, purchase_time_source)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,'order',$8,$9,$10)`,
     [
       transactionId,
       business.id,
@@ -226,7 +228,9 @@ async function processOrderWithClient(deps, client, input) {
       {
         external_order_id: externalOrderId,
         order_fingerprint: fingerprint
-      }
+      },
+      purchaseTime.occurredAt,
+      purchaseTime.source
     ]
   );
 

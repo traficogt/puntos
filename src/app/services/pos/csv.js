@@ -1,11 +1,12 @@
 import { badRequest } from "../../../utils/http-error.js";
 import { normalizePhone } from "../../../utils/phone.js";
+import { normalizePurchaseOccurredAt } from '../purchase-event-time.js';
 
 const MAX_BYTES = 200 * 1024;
 const MAX_ROWS = 100;
 const PAID_STATUSES = new Set(["paid", "completed", "pagado", "pagada"]);
 const REQUIRED_COLUMNS = ["saleId", "customerPhone", "amountQ"];
-const COLUMN_NAMES = [...REQUIRED_COLUMNS, "status", "items"];
+const COLUMN_NAMES = [...REQUIRED_COLUMNS, "status", "items", "occurredAt"];
 
 /** @typedef {{row: number, values: string[]}} CsvRow */
 
@@ -176,7 +177,8 @@ export function normalizePosCsv({ csv, source, columns, amountUnit = "major", as
   const issues = [];
   for (const { row, values } of rows) {
     const saleId = values[mapping.saleId].trim();
-    const issue = (code, message, status = "error") => issues.push({ row, saleId, code, message, status });
+    const issue = (code, message, status = "error") => issues.push({ row, saleId, source: stableSource,
+      ...(mapping.occurredAt === undefined ? {} : { occurredAt: values[mapping.occurredAt].trim() }), code, message, status });
     if (saleId && counts.get(saleId) > 1) {
       issue("DUPLICATE_SALE_ID", "El ID de venta aparece varias veces en este CSV; revisa todas sus filas.");
       continue;
@@ -206,7 +208,10 @@ export function normalizePosCsv({ csv, source, columns, amountUnit = "major", as
       issue("INVALID_ITEMS", "La cantidad de artículos debe ser un entero no negativo.");
       continue;
     }
-    sales.push({ row, saleId, source: stableSource, customerPhone, amountQ, currency: region.currency, visits: 1, items });
+    let occurredAt = null;
+    try { occurredAt = normalizePurchaseOccurredAt(mapping.occurredAt === undefined ? null : values[mapping.occurredAt].trim()); }
+    catch { issue('INVALID_OCCURRED_AT', 'Usa una fecha ISO válida con zona horaria que no sea futura.'); continue; }
+    sales.push({ row, saleId, source: stableSource, customerPhone, amountQ, currency: region.currency, visits: 1, items, ...(occurredAt ? { occurredAt } : {}) });
   }
   return { headers, sales, issues };
 }

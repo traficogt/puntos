@@ -86,6 +86,7 @@ before(async () => {
       createCampaignPreparation: stub("prepare"),
       retryCampaignPreparation: stub("retry"),
       cancelCampaignPreparation: stub("cancel"),
+      saveMeasurementCosts:stub("costs"), saveMeasurementReport:stub("report"), listMeasurementReports:stub("reports"),
     }),
   );
   app.use(
@@ -225,7 +226,7 @@ describe("growth API boundaries", () => {
       { minimum_purchase_q: -1 },
       { minimum_purchase_q: 1.001 },
       { duration_days: 15 },
-      { holdout_percent: 50 },
+      { holdout_percent: 40 },
       { estimated_cost_per_point_q: 101 },
       { estimated_cost_per_point_q: -1 },
       { business_id: businessId },
@@ -342,4 +343,35 @@ describe("campaign expansion boundaries", () => {
     assert.equal(calls.at(-1).args.preflightId,id);
     assert.equal((await request(`/${campaignId}/activate`,{method:"POST",body:{preflight_id:"forged"}})).status,400);
   });
+});
+
+const measurementPlan = {baseline_return_rate_pct:30,minimum_detectable_lift_pp:10,observation_days:60,reconciliation_days:7};
+it('accepts a frozen measurement plan and balanced allocation on both creation paths',async()=>{
+  const response=await request('',{method:'POST',body:{...body,holdout_percent:50,measurement_plan:measurementPlan}});
+  assert.equal(response.status,201);assert.deepEqual(calls.at(-1).args.measurementPlan,measurementPlan);
+  const prepared=await request('/prepare',{method:'POST',body:{request_id:randomUUID(),name:'Prueba',audience_segment_id:randomUUID(),audience_segment_version:1,audience_limit:1000,bonus_points:25,duration_days:14,holdout_percent:50,measurement_plan:measurementPlan}});
+  assert.equal(prepared.status,202);assert.deepEqual(calls.at(-1).args.measurementPlan,measurementPlan);
+});
+it('previews power without creating a campaign and validates the fixed horizon',async()=>{
+  const input={measurement_plan:measurementPlan,duration_days:14,holdout_percent:50,available_members:100};
+  const response=await request('/measurement-plan',{method:'POST',body:input});
+  assert.equal(response.status,200);assert.equal(response.body.planning.feasible,false);
+  assert.equal(calls.length,0);
+  for(const patch of [{available_members:-1},{holdout_percent:0},{measurement_plan:{...measurementPlan,observation_days:7}},{measurement_plan:{...measurementPlan,baseline_return_rate_pct:95}}]) assert.equal((await request('/measurement-plan',{method:'POST',body:{...input,...patch}})).status,400);
+  assert.equal((await request('/measurement-plan',{method:'POST',body:input,token:''})).status,403);
+});
+
+it('protects cost and report evidence with owner, tenant, CSRF and strict server-calculated contracts',async()=>{
+ const operations=[{path:`/${campaignId}/measurement-costs`,method:'POST',body:{request_id:randomUUID(),gross_margin_pct:40,fulfillment_cost_q:0}},{path:`/${campaignId}/measurement-reports`,method:'POST',body:{request_id:randomUUID()}},{path:`/${campaignId}/measurement-reports`,method:'GET'}];
+ for(const op of operations){assert.equal((await request(op.path,{...op,cookie:''})).status,401);}
+ role='CASHIER';for(const op of operations)assert.equal((await request(op.path,op)).status,403);role='OWNER';
+ for(const op of operations.filter(o=>o.method==='POST')){
+  assert.equal((await request(op.path,{...op,token:''})).status,403);
+  assert.equal((await request(op.path,{...op,body:{...op.body,business_id:randomUUID()}})).status,400);
+  assert.equal((await request(op.path,op)).status,201);assert.equal(calls.at(-1).args.businessId,businessId);assert.equal(calls.at(-1).args.staffId,staffId);
+ }
+ assert.equal((await request(`/${campaignId}/measurement-costs`,{method:'POST',body:{request_id:randomUUID(),gross_margin_pct:101}})).status,400);
+ assert.equal((await request(`/${campaignId}/measurement-costs`,{method:'POST',body:{request_id:randomUUID(),other_cost_q:0.001}})).status,400);
+ assert.equal((await request(`/${campaignId}/measurement-reports`,{method:'POST',body:{request_id:randomUUID(),payload:{fake:'result'}}})).status,400);
+ assert.equal((await request(`/${campaignId}/measurement-reports`)).status,200);
 });

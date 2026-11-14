@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import unittest
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 CORE = Path(__file__).parents[1] / 'pf_pos_connector' / 'core.py'
@@ -29,6 +30,14 @@ class CoreContract(unittest.TestCase):
         for field, value, reason in [('currency','GTQ','currency_mismatch'),('phone','abc55554444','customer_phone'),('amount',12.345,'amount_precision'),('quantities',[-1],'mixed_sale_refund')]:
             with self.subTest(field=field), self.assertRaisesRegex(ValueError, reason):
                 self.core.sale_payload(**{**args, field:value})
+
+    def test_sale_time_uses_odoo_utc_and_keeps_legacy_payload_unchanged(self):
+        self.assertNotIn('occurredAt', self.sale())
+        self.assertEqual(self.sale(occurred_at=datetime(2026, 1, 2, 15, 30))['occurredAt'], '2026-01-02T15:30:00.000Z')
+        self.assertEqual(self.sale(occurred_at=datetime(2026, 1, 2, 9, 30, tzinfo=timezone(timedelta(hours=-6))))['occurredAt'], '2026-01-02T15:30:00.000Z')
+        for value in ['2026-01-01', datetime(2999, 1, 1)]:
+            with self.assertRaisesRegex(ValueError, 'occurred_at'):
+                self.sale(occurred_at=value)
 
     def test_refund_full_only_with_all_lines_and_matching_amount(self):
         args = dict(source='odoo:db:1:2', receipt_id='pos.order:8', original_id='pos.order:7', amount=75, original_amount=75, currency='GTQ', expected_currency='GTQ', original_lines={1:2,2:1}, returned_lines={1:2,2:1})

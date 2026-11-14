@@ -39,6 +39,41 @@ function makeDeps({ client, customerId = "cust-1" } = {}) {
 }
 
 describe("awardFromExternalEvent", () => {
+  it("stores typed receipt time, preserves ingress time, and checks timestamp idempotency separately", async () => {
+    let transaction = null;
+    let inserts = 0;
+    const deps = makeDeps({ client: { query: async (sql, params) => {
+      if (sql.includes("meta->>'external_event_id'")) return { rows: transaction ? [transaction] : [], rowCount: transaction ? 1 : 0 };
+      if (sql.includes("INSERT INTO transactions")) {
+        assert.match(sql, /purchase_occurred_at, purchase_time_source/);
+        assert.doesNotMatch(sql, /created_at/);
+        inserts++;
+        transaction = { id: params[0], customer_id: params[2], amount_q: params[3], visits: params[4], items: params[5], points: params[6], status: params[7], meta: params[9], purchase_occurred_at: params[10], purchase_time_source: params[11] };
+      }
+      return { rows: [], rowCount: 1 };
+    } } });
+    const request = { businessSlug: "biz", apiKey: "secret", externalEventId: "timed-receipt", customerId: "cust-1", amount_q: 22,
+      purchaseOccurredAt: "2026-01-02T09:30:00-06:00", purchaseTimeSource: "pos_receipt" };
+    const first = await awardFromExternalEventWithDeps(deps, request);
+    assert.equal(transaction.purchase_occurred_at, "2026-01-02T15:30:00.000Z");
+    assert.equal(transaction.purchase_time_source, "pos_receipt");
+    assert.equal((await awardFromExternalEventWithDeps(deps, { ...request, purchaseOccurredAt: undefined })).transactionId, first.transactionId);
+    assert.equal((await awardFromExternalEventWithDeps(deps, { ...request, purchaseOccurredAt: "2026-01-02T15:30:00Z" })).replay, true);
+    await assert.rejects(awardFromExternalEventWithDeps(deps, { ...request, purchaseOccurredAt: "2026-01-02T15:31:00Z" }), { statusCode: 409 });
+    assert.equal(inserts, 1);
+  });
+
+  it("does not promote caller metadata into trusted purchase time", async () => {
+    let inserted;
+    const deps = makeDeps({ client: { query: async (sql, params) => {
+      if (sql.includes("INSERT INTO transactions")) inserted = params;
+      return { rows: [], rowCount: 1 };
+    } } });
+    await awardFromExternalEventWithDeps(deps, { businessSlug: "biz", apiKey: "secret", externalEventId: "metadata-only", customerId: "cust-1",
+      meta: { purchase_occurred_at: "2026-01-01T00:00:00Z", purchase_time_source: "pos_receipt" } });
+    assert.equal(inserted[10], null);
+    assert.equal(inserted[11], "server_recorded");
+  });
   it("rejects a prepared GTQ purchase when the locked business has changed currency", async () => {
     let inserted=false;
     const deps={...makeDeps({client:{query:async sql=>{if(sql.includes('INSERT INTO transactions'))inserted=true;return {rows:[],rowCount:1};}}}),

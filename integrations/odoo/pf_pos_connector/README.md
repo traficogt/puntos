@@ -1,6 +1,6 @@
 # Puntos Fieles para Odoo 18.0
 
-Módulo `pf_pos_connector`, versión `18.0.3.0.0`, LGPL-3. Requiere `point_of_sale` y `requests` (incluido en la distribución oficial de Odoo). Compatible con la rama **18.0**, instalada y comprobada localmente en Odoo Community 18.0. No se declara compatibilidad con Odoo 17, 19, 20 ni versiones SaaS intermedias. No instala en Odoo Online. Odoo.sh y Enterprise autohospedado requieren su propio piloto; no se han comprobado esas ediciones ni una instancia del comercio.
+Módulo `pf_pos_connector`, versión `18.0.3.0.1`, LGPL-3. Requiere `point_of_sale` y `requests` (incluido en la distribución oficial de Odoo). Admite la rama **18.0**. La versión base `18.0.3.0.0` se instaló y comprobó localmente en Odoo Community 18.0; el parche `18.0.3.0.1` tiene comprobaciones de contratos Python y distribución, sin repetir las pruebas de ejecución en Odoo. Véase [la evidencia de cada versión](../VERIFICATION.md). No se declara compatibilidad con Odoo 17, 19, 20 ni versiones SaaS intermedias. No instala en Odoo Online. Odoo.sh y Enterprise autohospedado requieren su propio piloto; no se han comprobado esas ediciones ni una instancia del comercio.
 
 ## Instalación por un administrador
 
@@ -19,6 +19,8 @@ El módulo extiende `pos.order.action_pos_order_paid`. La fila de salida se guar
 **Pause delivery** detiene entregas nuevas del servidor y continúa capturando órdenes futuras, siempre que la conexión haya sido activada al menos una vez. Una entrega que ya esté en curso puede terminar. Reanudar conserva la cola y la fecha original. No combinar con ingreso manual de las mismas compras. Antes de apagar o migrar una caja, comprobar tanto la cola offline de Odoo como la cola PF del servidor.
 
 Identidad: `source = odoo:{database_uuid}:{company_id}:{pos_config_id}` y `saleId/refundId = pos.order:{id}`. No cambia con el nombre del recibo ni con el reintento. Los destinos, caja, compañía y moneda quedan congelados tras la primera activación. Los bytes del JSON y las cantidades originales se guardan una sola vez; los reintentos vuelven a enviar exactamente ese JSON. Cambiar el teléfono del cliente después de un primer envío no cambia el recibo enviado. Los secretos sí pueden rotarse.
+
+Desde `18.0.3.0.1`, las ventas capturadas incluyen `occurredAt` con la fecha de la orden en UTC. PF conserva esa fecha por separado de la fecha de ingreso al historial. Las ventas que ya estaban en la cola conservan sus bytes originales, aunque no incluyan fecha; no se regeneran al actualizar el módulo.
 
 El cron `Puntos Fieles: deliver paid POS receipts` procesa cinco recibos por lote usando bloqueos de PostgreSQL y la API `_notify_progress` de `ir.cron`; Odoo controla ejecución y commits. Se envía a `/api/public/pos/{slug}/sales` o `/refunds` con `x-signature: sha256=HMAC_SHA256(clave, bytesJSON)`, HTTPS y verificación TLS; sin redirecciones ni proxies de variables de entorno. Hay tiempos máximos de conexión/lectura de 3/7 segundos y tope de respuesta de 64 KiB. No se realiza ninguna conexión al guardar ajustes.
 

@@ -1,6 +1,7 @@
 import { normalizePhone } from "../../../utils/phone.js";
 import { isLedgerAmount } from "../../../utils/ledger-limits.js";
 import crypto from "node:crypto";
+import { normalizePurchaseOccurredAt } from '../purchase-event-time.js';
 
 // Official contract: https://developer.loyverse.com/docs/API-Reference__v1.0.yaml
 const API_BASE = "https://api.loyverse.com/v1.0";
@@ -145,7 +146,7 @@ function inspectReceipt(receipt, storeId) {
   if (!Number.isFinite(paid) || Math.abs(paid - receipt.total_money) > 0.000001) {
     return issue("unverified_payment", "Los pagos no coinciden con el total del recibo. Revisa sus pagos en Loyverse.");
   }
-  if (!timestamp(receipt.receipt_date ?? receipt.created_at)) {
+  if (!receiptTimestamp(receipt)) {
     return issue("invalid_date", "El recibo no indica una fecha válida de venta. Revísala en Loyverse.");
   }
   if (!validId(receipt.customer_id)) {
@@ -180,9 +181,13 @@ function normalizeReceipt(receipt, merchantId, customer, region) {
       currency: region.currency,
       visits: 1,
       items,
-      occurredAt: timestamp(receipt.receipt_date ?? receipt.created_at)
+      occurredAt: receiptTimestamp(receipt)
     }
   };
+}
+
+function receiptTimestamp(receipt) {
+  try { return normalizePurchaseOccurredAt(receipt.receipt_date ?? receipt.created_at); } catch { return null; }
 }
 
 // Official Receipt schema: receipt_type=REFUND, refund_for points to the original
@@ -293,12 +298,14 @@ async function normalizeReceiptPage(receipts, merchantId, storeId, auth) {
   const sales = [];
   const issues = [...refundIssues];
   for (const { receipt, issue } of inspected) {
+    const measurementIdentity = receipt?.receipt_type === 'SALE' && validId(receipt.store_id)
+      ? { source: `loyverse:${merchantId}:${receipt.store_id}`, occurredAt: receiptTimestamp(receipt) } : {};
     if (issue) {
-      issues.push(issue);
+      issues.push({ ...issue, ...measurementIdentity });
       continue;
     }
     const normalized = normalizeReceipt(receipt, merchantId, customers.get(receipt.customer_id), auth.region);
-    if (normalized.issue) issues.push(normalized.issue);
+    if (normalized.issue) issues.push({ ...normalized.issue, ...measurementIdentity });
     else sales.push(normalized.sale);
   }
   return { sales, issues, ...(refunds.length ? { refunds } : {}) };

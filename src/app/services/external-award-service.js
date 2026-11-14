@@ -12,6 +12,7 @@ import { completeAwardEvidence } from "./transaction-rule-evidence.js";
 import { badRequest, forbidden, notFound, conflict } from "../../utils/http-error.js";
 import { timingSafeEqualString } from "../../utils/timing-safe.js";
 import { isLedgerAmount, isLedgerInteger } from "../../utils/ledger-limits.js";
+import { purchaseEventTime, assertPurchaseTimeReplay } from './purchase-event-time.js';
 
 function id() { return crypto.randomUUID(); }
 
@@ -86,6 +87,8 @@ function storedRequestFingerprint(existing) {
  *   items?: number,
  *   meta?: Record<string, unknown>,
  *   expectedCurrency?: string,
+ *   purchaseOccurredAt?: string,
+ *   purchaseTimeSource?: string,
  *   skipApiKeyCheck?: boolean
  * }} ExternalAwardInput
  */
@@ -99,7 +102,7 @@ async function lockExternalEventRequest(client, businessId, externalEventId) {
 
 async function findExistingExternalEventTransaction(client, businessId, externalEventId) {
   const { rows } = await client.query(
-    `SELECT id, customer_id, amount_q, visits, items, points, status, available_at, meta
+    `SELECT id, customer_id, amount_q, visits, items, points, status, available_at, meta, purchase_occurred_at, purchase_time_source
      FROM transactions
      WHERE business_id = $1
        AND source = 'external'
@@ -125,6 +128,8 @@ export async function awardFromExternalEventWithDeps(deps, {
   items = 0,
   meta = {},
   expectedCurrency,
+  purchaseOccurredAt,
+  purchaseTimeSource = 'server_recorded',
   skipApiKeyCheck = false
 }) {
   const publicBiz = await deps.BusinessRepo.getPublicBySlug(businessSlug);
@@ -139,6 +144,7 @@ export async function awardFromExternalEventWithDeps(deps, {
   const ext = business.program_json?.external_awards ?? {};
   if (!ext.enabled) throw forbidden("External awards are disabled");
   if (!skipApiKeyCheck && (!apiKey || !deps.timingSafeEqualString(apiKey, ext.api_key))) throw forbidden("Invalid API key");
+  const purchaseTime = purchaseEventTime(purchaseOccurredAt, purchaseTimeSource);
   if (!externalEventId || String(externalEventId).length < 4) throw badRequest("externalEventId required");
   if (!isLedgerAmount(amount_q)) {
     throw badRequest("Amount must fit the ledger money column with at most two decimal places");
@@ -172,6 +178,7 @@ export async function awardFromExternalEventWithDeps(deps, {
     await lockExternalEventRequest(client, business.id, externalEventId);
     const existing = await findExistingExternalEventTransaction(client, business.id, externalEventId);
     if (existing) {
+      assertPurchaseTimeReplay(existing, purchaseTime.occurredAt);
       const existingMeta = existing.meta && typeof existing.meta === "object" ? existing.meta : {};
       const existingFingerprint = String(existingMeta.external_request_fingerprint || "");
       const comparisonFingerprint = existingFingerprint.startsWith("v2:")
@@ -231,8 +238,8 @@ export async function awardFromExternalEventWithDeps(deps, {
     if (!isLedgerInteger(awardedPoints)) throw badRequest("Computed points must be a non-negative ledger integer");
     await client.query(
       `INSERT INTO transactions
-       (id, business_id, customer_id, amount_q, visits, items, points, status, available_at, source, meta)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'external',$10)`,
+       (id, business_id, customer_id, amount_q, visits, items, points, status, available_at, source, meta, purchase_occurred_at, purchase_time_source)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'external',$10,$11,$12)`,
       [
         txId,
         business.id,
@@ -249,7 +256,9 @@ export async function awardFromExternalEventWithDeps(deps, {
           external_event_id: String(externalEventId),
           external_request_fingerprint: requestFingerprint,
           award_evidence: completeAwardEvidence(evaluated?.evidence, { bonus, holdDays, status, availableAt, source: "external" })
-        }
+        },
+        purchaseTime.occurredAt,
+        purchaseTime.source
       ]
     );
 

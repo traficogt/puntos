@@ -7,7 +7,7 @@ const MODE_HELP = {
 };
 const COLUMN_FIELDS = {
   saleId: "posCsvSaleId", customerPhone: "posCsvPhone", amountQ: "posCsvAmount",
-  status: "posCsvStatus", items: "posCsvItems"
+  status: "posCsvStatus", items: "posCsvItems", occurredAt: "posCsvOccurredAt"
 };
 const saleExample = (currency="GTQ") => JSON.stringify({
   saleId: "venta-000123", source: "mi-pos", customerPhone: "50255551234",
@@ -244,7 +244,7 @@ export function registerPosIntegration(app) {
       csv = text;
       for (const [name, id] of Object.entries(COLUMN_FIELDS)) {
         const select = /** @type {HTMLSelectElement} */ (el(id));
-        select.replaceChildren(new Option(["status", "items"].includes(name) ? "Sin columna" : "Elige una columna", ""));
+        select.replaceChildren(new Option(["status", "items", "occurredAt"].includes(name) ? "Sin columna" : "Elige una columna", ""));
         for (const header of out.headers) select.add(new Option(String(header), String(header)));
       }
       input("posCsvUnits").value = "major";

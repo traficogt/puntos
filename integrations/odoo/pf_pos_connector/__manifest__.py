@@ -1,7 +1,7 @@
 {
     'name': 'Puntos Fieles POS Connector',
     'summary': 'Signed POS sales, refunds and verified reward receipt evidence for Puntos Fieles',
-    'version': '18.0.3.0.0',
+    'version': '18.0.3.0.1',
     'category': 'Sales/Point of Sale',
     'license': 'LGPL-3',
     'depends': ['point_of_sale'],

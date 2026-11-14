@@ -1,3 +1,4 @@
+import { normalizeMeasurementPlan } from './campaign-experiment-model.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { withTransaction, withDbClientContext } from '../database.js';
 import { AuditRepo } from '../repositories/audit-repository.js';
@@ -20,7 +21,8 @@ export async function createCampaignPreparation(options, dependencies = {}) {
     holdoutPercent = 20, pointsBudget = null, estimatedCostPerPointQ = null } = options;
   validateCampaignTerms({ name,bonusPoints,minimumPurchaseQ,durationDays,holdoutPercent,pointsBudget,estimatedCostPerPointQ });
   if (options.recoveryRunId || options.offerKind && options.offerKind !== 'experiment' || !audienceSegmentId || !Number.isInteger(audienceSegmentVersion) || audienceSegmentVersion < 1 || !Number.isInteger(audienceLimit) || audienceLimit < 10 || audienceLimit > 5000) throw badRequest('Selecciona una audiencia guardada, su versión y un máximo de 5,000 clientes.');
-  const fingerprint = createHash('sha256').update(JSON.stringify({ audienceSegmentId,audienceSegmentVersion,audienceLimit,name:name.trim(),bonusPoints,minimumPurchaseQ,durationDays,holdoutPercent,pointsBudget,estimatedCostPerPointQ })).digest('hex');
+  const measurementPlan = normalizeMeasurementPlan(options.measurementPlan ?? null,{durationDays,holdoutPercent});
+  const fingerprint = createHash('sha256').update(JSON.stringify({ audienceSegmentId,audienceSegmentVersion,audienceLimit,name:name.trim(),bonusPoints,minimumPurchaseQ,durationDays,holdoutPercent,pointsBudget,estimatedCostPerPointQ,...(measurementPlan ? {measurementPlan} : {}) })).digest('hex');
   const overrides = await getPlanFeatureOverrides();
   return transaction(async client => {
     await lockEntitledBusiness(client,businessId,overrides);
@@ -34,8 +36,8 @@ export async function createCampaignPreparation(options, dependencies = {}) {
     if (segment.archived || segment.version !== audienceSegmentVersion) throw conflict('La audiencia cambió o está archivada. Revisa su versión.');
     const campaignId = randomUUID();
     const snapshot = { segment_id: segment.id, segment_version: segment.version, name: segment.name, definition: parseAudienceDefinition(segment.definition), limit: audienceLimit, preparation:'background', generated_at:null, cutoff:null };
-    const campaign = (await client.query(`INSERT INTO growth_campaigns(id,business_id,request_id,name,bonus_points,minimum_purchase_q,duration_days,holdout_percent,points_budget,estimated_cost_per_point_q,audience_snapshot,created_by_staff_id,preparation_status)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'queued') RETURNING *`,[campaignId,businessId,requestId,name.trim(),bonusPoints,minimumPurchaseQ,durationDays,holdoutPercent,pointsBudget,estimatedCostPerPointQ,snapshot,staffId])).rows[0];
+    const campaign = (await client.query(`INSERT INTO growth_campaigns(id,business_id,request_id,name,bonus_points,minimum_purchase_q,duration_days,holdout_percent,points_budget,estimated_cost_per_point_q,audience_snapshot,created_by_staff_id,preparation_status,measurement_plan)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'queued',$13::jsonb) RETURNING *`,[campaignId,businessId,requestId,name.trim(),bonusPoints,minimumPurchaseQ,durationDays,holdoutPercent,pointsBudget,estimatedCostPerPointQ,snapshot,staffId,measurementPlan])).rows[0];
     const jobId = await enqueue(client,businessId,campaignId);
     await client.query('INSERT INTO growth_campaign_preparations(business_id,campaign_id,request_fingerprint,job_id) VALUES($1,$2,$3,$4)',[businessId,campaignId,fingerprint,jobId]);
     await auditChange(audit,'growth.campaign.preparation.queued',options,campaign);

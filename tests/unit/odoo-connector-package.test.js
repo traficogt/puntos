@@ -17,12 +17,12 @@ test('Odoo package route serves only the pinned addon, with integrity and no bus
     const result = await fetch(`${origin}/api/public/integrations/odoo/18/pf_pos_connector.zip`);
     assert.equal(result.status, 200);
     assert.match(result.headers.get('content-type'), /application\/zip/);
-    assert.match(result.headers.get('content-disposition'), /pf_pos_connector-18\.0\.3\.0\.0\.zip/);
+    assert.match(result.headers.get('content-disposition'), /pf_pos_connector-18\.0\.3\.0\.1\.zip/);
     const bytes = Buffer.from(await result.arrayBuffer());
     assert.deepEqual(bytes.subarray(0,4), Buffer.from([80,75,3,4]));
     assert.equal(result.headers.get('x-content-sha256'), crypto.createHash('sha256').update(bytes).digest('hex'));
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- Fixed fixture distribution path.
-    assert.deepEqual(bytes, await readFile(new URL('../../integrations/odoo/dist/pf_pos_connector-18.0.3.0.0.zip', import.meta.url)));
+    assert.deepEqual(bytes, await readFile(new URL('../../integrations/odoo/dist/pf_pos_connector-18.0.3.0.1.zip', import.meta.url)));
     assert.equal((await fetch(`${origin}/api/public/integrations/odoo/19/pf_pos_connector.zip`)).status, 404);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
