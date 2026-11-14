@@ -7,7 +7,7 @@ import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parent
-VERSION = '18.0.3.0.0'
+VERSION = '18.0.3.0.1'
 TARGET = ROOT / 'dist' / ('pf_pos_connector-%s.zip' % VERSION)
 stream = io.BytesIO()
 with zipfile.ZipFile(stream, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:

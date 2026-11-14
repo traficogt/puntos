@@ -40,7 +40,7 @@ Un conector puede consultar opciones, autorizar un canje, recuperar su estado y 
 
 PF conserva el flujo manual para negocios sin conector. Odoo es una implementación opcional de este contrato; otros sistemas pueden usarlo sin adoptar Odoo.
 
-## Odoo 18.0: módulo PF 18.0.3.0.0
+## Odoo 18.0: módulo PF 18.0.3.0.1
 
 Disponible en **Conectar caja** para Odoo 18.0 en Odoo.sh o servidor propio. Consulta la instalación y pruebas detalladas en [el módulo](../integrations/odoo/pf_pos_connector/README.md) y [su verificación](../integrations/odoo/VERIFICATION.md).
 

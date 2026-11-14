@@ -16,8 +16,21 @@ SHA-256: `491c272da3b782648b9863ea26bc4a605800846b1441795261ef8c56570aec59`.
 
 Los logs finales y capturas también se conservan en `/var/lib/puntos/releases/reward-workspace-20261111/odoo-evidence/`.
 
-Los ZIP anteriores se conservan como fixtures. La descarga pública ofrece `18.0.3.0.0`. El paquete incluye únicamente el addon; el adaptador de transporte simulado del navegador queda fuera del ZIP.
+Los ZIP anteriores se conservan como fixtures. En esta verificación del 2026-11-11, la descarga pública ofrecía `18.0.3.0.0`. El paquete incluye únicamente el addon; el adaptador de transporte simulado del navegador queda fuera del ZIP.
 
 Los contenedores usan red Docker `--internal`, sin puertos publicados ni llamadas a PF o comercios reales. La aplicación Odoo, PostgreSQL, ORM, OWL y navegador son reales; el transporte hacia PF se simula dentro de la prueba. Los scripts eliminan contenedores, bases, volúmenes y redes al terminar. Los contratos de bytes se contrastan aparte con los normalizadores PF reales.
 
 Límites: esto no certifica lectores físicos, cámara, caja offline, Enterprise, Odoo.sh, módulos de terceros, adquirente ni una instalación de comerciante. Las instantáneas no reservan inventario físico frente a ventas ordinarias; el adaptador vuelve a comprobar existencias locales e incluye el carrito y los intentos PF pendientes. Un recibo pagado no acredita por sí solo inventario terminado; los movimientos agrupados sin vínculo inequívoco conservan estado desconocido. No se restituyen puntos por tiempo de espera: se conserva el intento hasta confirmación o cancelación explícita autorizada. El piloto real requiere su propia aceptación. No se modificaron apps nativas ni se usaron builds de nube.
+
+## Parche 18.0.3.0.1 — 2026-11-14
+
+Las nuevas ventas capturadas incluyen `occurredAt`, tomado de `pos.order.date_order` y normalizado a UTC. Los valores Odoo sin zona se interpretan como UTC; se rechazan fechas futuras. El parámetro sigue siendo opcional en el contrato Python y las ventas ya encoladas conservan sus bytes originales. No se cambian las reglas de puntos, canjes ni devoluciones.
+
+- `python3 -m unittest discover -s integrations/odoo/tests -p test_core.py -v`: **6 casos correctos**, incluidos UTC de Odoo, zona explícita, rechazo de fecha futura y compatibilidad de los bytes/HMAC sin fecha.
+- `node --test tests/unit/odoo-connector-package.test.js`: **4 casos correctos**. La ruta HTTP sirve el nuevo ZIP, su nombre y SHA-256 coinciden, y los contratos Python continúan validándose con los normalizadores PF.
+- `python3 integrations/odoo/build_package.py --check`: correcto; el ZIP coincide byte por byte con el addon actual. ESLint de la ruta de descarga y su prueba: correcto.
+
+Archivo fijado por la ruta de descarga en esta revisión: `dist/pf_pos_connector-18.0.3.0.1.zip` (58,622 bytes).
+SHA-256: `dbccbe4ff9972b8937ee91b76bfeda2cd804b410508f4f5a1585b4103b19d263`.
+
+Se conserva sin cambios `dist/pf_pos_connector-18.0.3.0.0.zip` y su SHA-256 documentado arriba. Para este parche no se repitieron instalación, actualización, pruebas ORM ni navegador en una instancia Odoo real. Los 45 casos ORM y el recorrido HTTP/OWL anteriores corresponden exclusivamente a `18.0.3.0.0`; no se presentan como validación de ejecución de `18.0.3.0.1`. Esta preparación y comprobación local del paquete no constituye un despliegue ni una actualización de una instalación de comercio.
