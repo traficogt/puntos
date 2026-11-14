@@ -2,7 +2,7 @@
 
 Source of truth for deployed text and dates: `src/content/guides/manifest.json`. Files under `src/content/guides/drafts/` are retained research drafts and source-access audits, not separate live content. Future edits must update the manifest. The approved first article is derived from `src/content/article-review/index.html`; its original source audit remains `src/content/article-review/SOURCES.md`.
 
-Six complete Spanish articles: first published November 14, then weekly November 21–December 19 at 09:00 America/Guatemala. See `GUIDES.md` for publication/cancellation and local previews. Scheduling is request-time and needs neither cron nor an assistant turn; routes, listing and sitemap share eligibility. Native applications and build workflows are unaffected.
+Six complete Spanish articles: first published November 14, then weekly November 21–December 19 at distinct randomly chosen daytime hours in America/Guatemala, saved in the catalog. See `GUIDES.md` for publication/cancellation and local previews. Scheduling is request-time and needs neither cron nor an assistant turn; routes, listing and sitemap share eligibility. Native applications and build workflows are unaffected.
 
 Editorial checks: concise original merchant examples; author–date citations linked to APA bibliography; source accessibility documented; empirical findings distinguished from practical proposals. Hypothetical costs are neither PF pricing nor demonstrated ROI. Observational results are not presented as causal experiments. No full-text redistribution. Illustrations are conceptual, not empirical figures.
 

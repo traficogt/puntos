@@ -1,6 +1,6 @@
 # Article launch and weekly publication
 
-**Goal:** Publish the approved first article now, write five complete follow-ups with citations and APA references, and release those weekly from Saturday November 21, 2026, 09:00 America/Guatemala.
+**Goal:** Publish the approved first article now, write five complete follow-ups with citations and APA references, and release those weekly from Saturday November 21, 2026 at distinct randomly selected daytime hours in America/Guatemala (owner correction).
 
 **Authorized direction:** The owner explicitly approved launch, five additional articles, weekly publishing and the illustration style. Retain the accepted concise article voice and fonts. No extra approval gate is needed for publication. Keep native apps and build services unchanged.
 
@@ -20,13 +20,13 @@
 ## Schedule
 
 - 2026-11-14: ¿Funcionan los programas de fidelización?
-- 2026-11-21 09:00 GT: Cómo diseñar un programa de fidelización.
-- 2026-11-28 09:00 GT: Cuánto cuesta una recompensa.
-- 2026-12-05 09:00 GT: Cuántas visitas para una recompensa.
-- 2026-12-12 09:00 GT: La ventaja de empezar con sellos.
-- 2026-12-19 09:00 GT: Cómo mostrar el progreso.
+- 2026-11-21 17:11 GT: Cómo diseñar un programa de fidelización.
+- 2026-11-28 10:48 GT: Cuánto cuesta una recompensa.
+- 2026-12-05 14:03 GT: Cuántas visitas para una recompensa.
+- 2026-12-12 11:50 GT: La ventaja de empezar con sellos.
+- 2026-12-19 12:39 GT: Cómo mostrar el progreso.
 
-Each Saturday is 15:00 UTC. Static committed schedules survive restarts and require neither Codemagic nor a future assistant session. A missed request at release time does not skip publication: the next request after the instant sees it.
+The owner requested varied random times instead of 09:00. Each saved local time is UTC−06:00; times were sampled once and do not change at runtime. Static committed schedules survive restarts and require neither Codemagic nor a future assistant session. A missed request at release time does not skip publication: the next request after the instant sees it.
 
 ## Validation evidence before deployment
 

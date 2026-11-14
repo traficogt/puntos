@@ -52,15 +52,15 @@ Los enlaces de bloque pueden ser HTTPS o rutas locales que empiecen por `/`, com
 
 ## Calendario aprobado
 
-La primera guía se publica con el lanzamiento del sitio. Las cinco siguientes se programan semanalmente, los sábados a las **09:00 en `America/Guatemala` (UTC−06:00)**:
+La primera guía ya está publicada. Las cinco siguientes salen los sábados a horas diurnas distintas, elegidas al azar una sola vez y guardadas en el catálogo. La zona es **`America/Guatemala` (UTC−06:00)**. Las horas no vuelven a sortearse al reiniciar ni al recibir una petición.
 
 | Fecha local | `publishAt` | Equivalente UTC |
 | --- | --- | --- |
-| 21 de noviembre de 2026 | `2026-11-21T09:00:00-06:00` | `2026-11-21T15:00:00Z` |
-| 28 de noviembre de 2026 | `2026-11-28T09:00:00-06:00` | `2026-11-28T15:00:00Z` |
-| 5 de diciembre de 2026 | `2026-12-05T09:00:00-06:00` | `2026-12-05T15:00:00Z` |
-| 12 de diciembre de 2026 | `2026-12-12T09:00:00-06:00` | `2026-12-12T15:00:00Z` |
-| 19 de diciembre de 2026 | `2026-12-19T09:00:00-06:00` | `2026-12-19T15:00:00Z` |
+| 2026-11-21 | `2026-11-21T17:11:00-06:00` | `2026-11-21T23:11:00Z` |
+| 2026-11-28 | `2026-11-28T10:48:00-06:00` | `2026-11-28T16:48:00Z` |
+| 2026-12-05 | `2026-12-05T14:03:00-06:00` | `2026-12-05T20:03:00Z` |
+| 2026-12-12 | `2026-12-12T11:50:00-06:00` | `2026-12-12T17:50:00Z` |
+| 2026-12-19 | `2026-12-19T12:39:00-06:00` | `2026-12-19T18:39:00Z` |
 
 El catálogo y las imágenes deben estar desplegados antes del primer vencimiento. El reloj del servidor debe mantenerse sincronizado. No hace falta cron, un servicio externo, una petición de activación ni una nueva compilación cada semana. Si el servidor está detenido al vencer una fecha, la guía estará disponible en la primera petición después de volver a funcionar; conserva la fecha programada en sus metadatos.
 
@@ -92,7 +92,7 @@ Para cancelar una publicación, cambiar la entrada a `draft` y desplegar el cat�
 ## Publicar y comprobar
 
 1. Revisar texto, hechos, fuentes, autoría, fechas, referencias, ilustraciones y enlaces. Comprobar el diseño en móvil y escritorio.
-2. Usar `published` para la publicación inicial aprobada y `scheduled` con las fechas aprobadas para las siguientes. La lista respeta el orden del catálogo entre las entradas visibles.
+2. Usar `published` para la publicación inicial aprobada y `scheduled` con las fechas aprobadas para las siguientes. El índice muestra primero las publicaciones más recientes.
 3. Ejecutar `node --test tests/unit/guides.test.js tests/unit/guides-schedule.test.js tests/unit/public-search.test.js` y los controles habituales del repositorio.
 4. Seguir el proceso normal de revisión y despliegue del sitio, con reinicio del servidor para cargar el nuevo catálogo. Las fechas posteriores se cumplen sin más reinicios. No se modifican ni publican aplicaciones nativas.
 5. Comprobar la ruta inicial, canonical, respuesta 200, ausencia de noindex y presencia en `/sitemap.xml`. Comprobar 404 y ausencia de títulos de las guías futuras. La inclusión en el sitemap no garantiza indexación ni posiciones en Google.
