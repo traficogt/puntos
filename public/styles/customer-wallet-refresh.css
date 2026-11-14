@@ -6,6 +6,16 @@
   flex-wrap: wrap;
 }
 
+/* Wallet destinations remain visible below the sticky customer header. */
+.page-customer :is(#growthOffersSection, #tierSection, .cus-section-rewards, #bizName) {
+  scroll-margin-top: 6rem;
+}
+
+.page-customer :is(h1, h2)[tabindex="-1"]:focus-visible {
+  outline: 2px solid var(--focus-border);
+  outline-offset: 4px;
+}
+
 .page-customer .cus-statement {
   margin-bottom: 2rem;
   padding-bottom: 1.5rem;

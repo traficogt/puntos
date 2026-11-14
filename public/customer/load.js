@@ -6,6 +6,7 @@ import { setHidden } from "/lib.js";
 import { setOnlineBadge } from "./network.js";
 import { renderFromMe } from "./me.js";
 import { clearWalletView, getCustomerEpoch, getCustomerIdentity, invalidateCustomerIdentity, isCustomerAuthError, readCustomerStorage, rememberCustomerIdentity } from "./session.js";
+import { walletDestination } from "./wallet-navigation.js";
 
 let latestLoad = 0;
 
@@ -44,7 +45,10 @@ export async function loadAll({ api, $, toast, silent = false }) {
     if (!isCurrent()) return { status: "superseded" };
     await Promise.all([loadGrowthOffers({ api, $, isCurrent, region: me.business.region }), loadRewardEntitlements({ api, $, isCurrent })]);
     if (!isCurrent()) return { status: "superseded" };
-    loadCustomerDemand({api,$,isCurrent});
+    // This form mounts above offers and tiers. Finish its layout before a
+    // requested Wallet destination scrolls into view.
+    await loadCustomerDemand({api,$,isCurrent});
+    if (!isCurrent()) return { status: "superseded" };
     if (!silent) toast(result?.status === "partial" ? "Algunos datos no se pudieron actualizar. Intenta de nuevo." : "Tarjeta actualizada.");
     return result || { status: "live" };
   } catch (error) {
@@ -54,7 +58,8 @@ export async function loadAll({ api, $, toast, silent = false }) {
       clearWalletView($);
       await clearCustomerCache().catch(() => {});
       if (cachedSlug) {
-        location.href = `/ingresar/${encodeURIComponent(cachedSlug)}?motivo=sesion-vencida`;
+        const destination = walletDestination((location.hash || "").slice(1));
+        location.href = `/ingresar/${encodeURIComponent(cachedSlug)}?motivo=sesion-vencida${destination ? `&destino=${destination}` : ""}`;
         return { status: "auth" };
       }
       setHidden($("#needLogin"), false);

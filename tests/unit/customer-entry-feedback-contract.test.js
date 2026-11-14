@@ -27,5 +27,5 @@ test("customer return page keeps only minimal Spanish re-entry copy after removi
   assert.doesNotMatch(js, /setEntryFeedback\(\$, "#joinFeedback"/);
   assert.doesNotMatch(js, /btnGoJoin|joinFeedback|slugEl/);
   assert.match(joinJs, /mode: "register"/);
-  assert.match(loadJs, /location\.href = `\/ingresar\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=sesion-vencida`/);
+  assert.match(loadJs, /location\.href = `\/ingresar\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=sesion-vencida/);
 });

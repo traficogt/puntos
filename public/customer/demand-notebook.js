@@ -33,6 +33,7 @@ export async function loadCustomerDemand({ api, $, isCurrent }) {
         throw error;
       }
     } });
+    await mounted.ready;
   } catch {
     if (current === version && isCurrent()) container.textContent = 'No pudimos cargar tus pedidos. Actualiza la tarjeta para volver a intentar.';
   }

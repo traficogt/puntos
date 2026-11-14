@@ -2,8 +2,9 @@ import { api, $, toast, setHidden, hydrateShellLinks } from "/lib.js";
 import { enrollmentAcquisition } from "./acquisition-entry.js";
 import { applyJoinBranding } from "./customer-branding.js";
 import { clearCustomerCache } from "/idb.js";
-import { getCustomerEpoch, invalidateCustomerIdentity, isCustomerAuthError } from "./customer/session.js";
+import { getCustomerEpoch, invalidateCustomerIdentity, isCustomerAuthError, readCustomerStorage } from "./customer/session.js";
 import { renderNativeWallet } from "./customer/native-wallet.js";
+import { walletDestination } from "./customer/wallet-navigation.js";
 
 const returningSlugKey = "pf_customer_joined_slug";
 
@@ -136,6 +137,7 @@ export async function initCustomerAuthEntry({ mode }) {
   }
 
   const searchParams = new URLSearchParams(location.search);
+  const destination = walletDestination(searchParams.get("destino"));
   const entryReason = (searchParams.get("motivo") || "").trim();
   const requestPath = mode === "login"
     ? `/api/public/business/${slug}/login/request-code`
@@ -224,7 +226,13 @@ export async function initCustomerAuthEntry({ mode }) {
   async function showWallet(me) {
     if (!current() || me?.business?.id !== business.id || !me?.customer?.id
         || (customerId && customerId !== me.customer.id)) return false;
+    if (destination && readCustomerStorage("pf_customer_blocked") === "1") return false;
     customerId = me.customer.id;
+    if (destination) {
+      cooldownReset();
+      location.replace(`/mi-tarjeta/#${destination}`);
+      return true;
+    }
     showCompletion();
     setFeedback("#walletEnrollmentFeedback", "Buscando opciones para guardar tu tarjeta…");
     try {

@@ -33,6 +33,6 @@ export function mountDemandNotebook({container,source='customer',getContext=()=>
   busy=true;submit.disabled=true;notice.textContent='Guardando pedido…';
   try{const result=await request(`/api/${source}/demand-notebook`,{method:'POST',body:JSON.stringify(pending.body),signal:abort.signal});if(abort.signal.aborted)return;pending=null;form.reset();await refresh();notice.textContent=result.deduplicated?'Este cliente ya tiene un pedido de este tema. Se conserva un solo registro.':'Pedido guardado. El negocio podrá revisarlo.';}catch(error){if(error.name!=='AbortError')notice.textContent=error.message||'No pudimos guardar. Reintenta con conexión.';}finally{busy=false;submit.disabled=false;}
  },{signal:abort.signal});
- reload.addEventListener('click',refresh,{signal:abort.signal});refresh();
- return{refresh,destroy(){abort.abort();section.remove();}};
+ reload.addEventListener('click',refresh,{signal:abort.signal});const ready=refresh();
+ return{ready,refresh,destroy(){abort.abort();section.remove();}};
 }
