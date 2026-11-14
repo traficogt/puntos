@@ -2,6 +2,7 @@ import { createPublicPlans } from '../middleware/public-plans.js';
 import { createGuides } from "../middleware/guides.js";
 import { createSpanishWeb, createSpanishWebRedirects } from "../middleware/spanish-web.js";
 import { createSearchVisibility } from "../middleware/search-visibility.js";
+import { createEditorialReview } from "../middleware/editorial-review.js";
 import express from "express";
 import { createMobilePreview } from "../middleware/mobile-preview.js";
 import { processNativeWalletUpdates } from "./services/native-wallet/runtime.js";
@@ -129,6 +130,7 @@ app.use(express.json({
 app.use(defaultRequestBody, requestComplexityLimit);
 
 app.use(createSearchVisibility({ marketingOrigin: config.MARKETING_ORIGIN, appOrigin: config.APP_ORIGIN }));
+app.use(createEditorialReview());
 app.use(createGuides({ marketingOrigin: config.MARKETING_ORIGIN }));
 
 // Static (PWA)
