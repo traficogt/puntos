@@ -12,16 +12,16 @@ Checked 2026-11-14. The article is a narrative review, outside the published gui
 
 The article discloses narrative selection, access limits, PF's commercial interest, and the absence of Guatemala/PF-specific validation.
 
-## Figures and photography
+## Illustrations — revised edition
 
-- Original HTML/CSS/SVG: three-outcome concept, invented selection diagram, and experimental card structure. Captions distinguish conceptual content, invented values and the published experiment's design. No copied published figures. Mobile layouts use legible HTML/table equivalents.
-- Bhuwan Bansal, *A coffee maker sitting on top of a counter* (2024-01-20). Source: https://unsplash.com/photos/a-coffee-maker-sitting-on-top-of-a-counter-DG49wcbrl7E . Free Unsplash License checked 2026-11-14: https://unsplash.com/license . Commercial use permitted; this is not CC0. Credit and license link appear in the article. Illustrative photography, not a PF customer or endorsement.
-- Download: https://images.unsplash.com/photo-1705719418777-6ad45f437938?auto=format&fit=max&w=1400&q=82&fm=jpg . Local file `mostrador.jpg`, 1400×2100; digest in `assets.json`.
+The second review replaces the diagrams and stock photograph with two conceptual ink-and-gouache illustrations generated for this article. They do not depict data or real customers. AI assistance is disclosed in the article. Exact prompts, generation mode and file provenance are in `ILLUSTRATIONS.md`; image digests are in `assets.json`. The previous photograph's attribution remains in Git history with the first draft.
+
+The main prose is shortened and addresses owners directly. Full APA references remain visible. Additional methods/access disclosures are in a native expandable note; essential causal and profitability qualifications stay beside the relevant claims.
 
 ## Review lifecycle
 
 - Route: `/revision-editorial/7fc4175cd754b74d9ebe8791/`. The identifier limits discovery; it is not authentication.
-- Content lives outside `public`; an exact allowlist exposes only HTML, CSS and the photograph. HTTP noindex/nofollow/noarchive/noimageindex, HTML noindex, and no-store are set. Sitemap, article catalog and public navigation remain unchanged.
+- Content lives outside `public`; an exact allowlist exposes only HTML, CSS and the two illustrations. HTTP noindex/nofollow/noarchive/noimageindex, HTML noindex, and no-store are set. Sitemap, article catalog and public navigation remain unchanged.
 - To withdraw: remove the middleware mount, route and assets in a subsequent API release.
 - Publication requires the owner's editorial approval and a deliberate addition to the guide catalog. Do not remove noindex from this review URL as a shortcut.
 
@@ -29,7 +29,9 @@ The article discloses narrative selection, access limits, PF's commercial intere
 
 - 16 focused route/search/catalog tests passed, including GET/HEAD, headers, unknown files, aliases and absence from the sitemap.
 - New JavaScript passed ESLint; server and middleware syntax checks passed.
-- Chromium: 1440, 768, 390 and 320 px. No horizontal overflow, broken internal anchors, missing alternative text, unloaded images, font failures or console errors. Inspected desktop and mobile screenshots, including the decoded photograph.
-- Independent evidence/code review found small mobile SVG labels; resolved with mobile-specific readable layouts.
-- Impeccable detector run: fixed skip-link hover contrast. Retained the user-required fonts; diagram internal padding and CSS checkmark borders are false positives. Display heading verified in screenshots.
+- Chromium: 1440, 768, 390 and 320 px. No horizontal overflow, broken internal anchors, missing alternative text, unloaded images, font failures or console errors. Inspected desktop and mobile screenshots, including decoded responsive artwork and keyboard operation of the research disclosure.
+- First-draft evidence/code review found small mobile SVG labels. The second edition replaces those diagrams entirely with original editorial artwork.
+- Second-edition Impeccable detector: increased small credit text. Retained the user-required fonts and visually checked the display heading. Independent review requested image optimization; implemented 640/1152 WebP variants (about95/326KB per pair).
 - No dependency changes, database migrations, worker changes or native app work.
+
+Second edition: main prose 720 words; total body with notes and bibliography 1,041 words, compared with 2,186 previously. All five citations and APA entries retained.

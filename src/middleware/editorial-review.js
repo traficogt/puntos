@@ -8,7 +8,10 @@ const contentDirectory = fileURLToPath(new URL('../content/article-review/', imp
 const files = new Map([
   [EDITORIAL_REVIEW_PATH, 'index.html'],
   [EDITORIAL_REVIEW_PATH + 'article.css', 'article.css'],
-  [EDITORIAL_REVIEW_PATH + 'mostrador.jpg', 'mostrador.jpg']
+  [EDITORIAL_REVIEW_PATH + 'volver-640.webp', 'volver-640.webp'],
+  [EDITORIAL_REVIEW_PATH + 'volver-1152.webp', 'volver-1152.webp'],
+  [EDITORIAL_REVIEW_PATH + 'progreso-640.webp', 'progreso-640.webp'],
+  [EDITORIAL_REVIEW_PATH + 'progreso-1152.webp', 'progreso-1152.webp']
 ]);
 
 export function createEditorialReview() {

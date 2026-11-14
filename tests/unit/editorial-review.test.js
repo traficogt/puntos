@@ -21,7 +21,7 @@ async function fixture(t) {
 
 test('review document and assets are unindexed and never cached, including HEAD', async t => {
   const request = await fixture(t);
-  for (const name of ['', 'article.css', 'mostrador.jpg']) {
+  for (const name of ['', 'article.css', 'volver-640.webp', 'volver-1152.webp', 'progreso-640.webp', 'progreso-1152.webp']) {
     for (const method of ['GET', 'HEAD']) {
       const response = await request(EDITORIAL_REVIEW_PATH + name, { method });
       assert.equal(response.status, 200);
