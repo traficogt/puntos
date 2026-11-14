@@ -357,7 +357,7 @@ integrationDescribe(
         businessId,
       ]);
       await db.query(
-        "UPDATE growth_campaigns SET starts_at=now()-interval '15 days',expires_at=now()-interval '1 day' WHERE id=$1",
+        "UPDATE growth_campaigns SET starts_at=now()-interval '15 days',expires_at=now()-interval '1 day',observation_ends_at=now()-interval '1 day',reconciliation_ends_at=now()-interval '1 day' WHERE id=$1",
         [campaign.id],
       );
       assert.equal(
@@ -370,7 +370,7 @@ integrationDescribe(
         0,
       );
       await db.query(
-        "UPDATE growth_campaigns SET starts_at=now()-interval '1 day',expires_at=now()+interval '1 day' WHERE id=$1",
+        "UPDATE growth_campaigns SET starts_at=now()-interval '1 day',expires_at=now()+interval '1 day',observation_ends_at=now()+interval '1 day',reconciliation_ends_at=now()+interval '1 day' WHERE id=$1",
         [campaign.id],
       );
       await service.pauseGrowthCampaign(
@@ -427,7 +427,7 @@ integrationDescribe(
       assert.equal(report.messages.accepted, 1);
       assert.equal(report.messages.delivered, null);
       assert.equal(report.messages.read, null);
-      assert.equal(report.window.time_basis, 'transaction_created_at');
+      assert.equal(report.window.time_basis, 'purchase_occurred_at_with_recorded_fallback');
       assert.ok(Date.parse(report.window.observed_until) <= Date.parse(report.as_of));
       assert.ok(report.return_difference.lower_pp < 0);
       await assert.rejects(details(campaign.id, {businessId:otherBusiness}), {statusCode:404});
@@ -452,7 +452,7 @@ integrationDescribe(
     });
     it("excludes transactions outside the fixed window and records interrupted observation", async () => {
       const campaign = await active(), member = (await members(campaign.id))[0].customer_id;
-      await db.query("UPDATE growth_campaigns SET starts_at=now()-interval '14 days', expires_at=now()-interval '1 day' WHERE id=$1",[campaign.id]);
+      await db.query("UPDATE growth_campaigns SET starts_at=now()-interval '14 days', expires_at=now()-interval '1 day',observation_ends_at=now()-interval '1 day',reconciliation_ends_at=now()-interval '1 day' WHERE id=$1",[campaign.id]);
       await db.query("INSERT INTO transactions(id,business_id,customer_id,amount_q,created_at) VALUES($1,$2,$3,70,now()-interval '2 days'),($4,$2,$3,100,now()-interval '20 days'),($5,$2,$3,200,now())",[randomUUID(),businessId,member,randomUUID(),randomUUID()]);
       let report = (await details(campaign.id)).results;
       assert.equal(report.treatment.recorded_sales_q,70);

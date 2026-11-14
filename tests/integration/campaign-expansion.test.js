@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { before, beforeEach, after, describe, it } from 'node:test';
 import pg from 'pg';
+import { applyCampaignMeasurementFixture } from '../helpers/campaign-expansion-schema.js';
 const url = process.env.CAMPAIGN_EXPANSION_TEST_DB_URL;
 const suite = url ? describe : describe.skip;
 const businessId = randomUUID(), otherBusiness = randomUUID(), staffId = randomUUID();
@@ -32,6 +33,7 @@ suite('quiet offers, campaign preflight and durable preparation in isolated Post
     try { migration = await sqlFile('../../src/app/migrations/2026-11-11-campaign-expansion.sql'); } catch { /* missing feature asserted explicitly */ }
     assert.ok(migration, 'Quiet offers, preflight and durable campaign preparation schema must exist');
     await db.query(migration);
+    await applyCampaignMeasurementFixture(db);
     growth = await import('../../src/app/services/growth-campaign-service.js');
     prepare = await import('../../src/app/services/campaign-preparation-service.js');
     preflight = await import('../../src/app/services/campaign-preflight-service.js');
