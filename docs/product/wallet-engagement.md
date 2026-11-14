@@ -22,6 +22,19 @@ No visible field-update or promotional notification is requested: there is no `n
 
 ## Verification and remaining acceptance
 
+### Apple Featured Actions — 2026-11-14
+
+Active Apple passes use both supported Featured Action slots, in this order:
+
+1. `viewOffersRewards`: opens the business's offers and rewards.
+2. `membershipBenefits`: opens the customer's membership level and benefits.
+
+Apple supplies the localized labels and icons. The feature is documented for iOS 27; the same destinations remain in pass details for older versions. The existing `storeCard` layout, account/support links, QR, serial and authentication token remain unchanged. Revoked or voided passes omit both actions and their detail links. [Apple's Featured Actions introduction](https://developer.apple.com/videos/play/wwdc2026/209/), [Apple's metadata reference](https://developer.apple.com/documentation/walletpasses/defining-the-metadata-of-your-wallet-pass)
+
+Links contain only the public business slug and the fixed `destino=ofertas` or `destino=beneficios` selector. They never contain customer identity or authentication credentials. An authenticated account for that business continues directly; other visitors use the existing phone verification flow. Unknown destinations cannot become redirect URLs. The browser preserves an allowed destination through session expiry, waits for authenticated live content, and focuses its heading once. Offers without an active campaign fall back to the rewards catalog. Background refreshes do not repeatedly move focus.
+
+This is a server/pass and browser update. It does not require native app changes, a new App Store release, or Codemagic. The normal pass refresh protocol updates registered devices; provider acknowledgement does not prove that either action appeared or was opened on a physical iPhone. No promotional `changeMessage` is added.
+
 Local tests use disposable PostgreSQL `activation_wallet_test` only, fixture signing certificates, intercepted Google HTTP, and intercepted browser API requests. They do not contact real Wallet providers or send customer notifications. The isolated browser build writes only to `/tmp/pf-wallet-locations-browser`; native projects, release versions, binaries and cloud build workflows are untouched.
 
 Verified unit contracts include signed Apple ZIP manifests and detached signatures, Google identity/link privacy, available/pending separation, protected terms, guard/expiry selection, location bounds, revocation and owner/CSRF validation. PostgreSQL coverage includes RLS, invalidation with unchanged points, scheduled expiry/retry, concurrent ten-location enforcement, existing issuance and provider-write locking. Desktop/mobile light/dark browser checks cover coordinate validation, error recovery, save/removal, overflow and WCAG axe checks.
