@@ -1,0 +1,100 @@
+{
+  "slug": "como-disenar-programa-fidelizacion",
+  "title": "Cómo diseñar un programa de fidelización",
+  "description": "Una guía para definir qué quieres conseguir, explicar la recompensa, ensayar con tu equipo y revisar lo que ocurre.",
+  "readingMinutes": 4,
+  "body": [
+    {
+      "type": "paragraph",
+      "text": "Imagina que mañana llega alguien a tu negocio y pregunta cómo funciona tu programa. Tendrás que explicarle qué compra cuenta, qué puede ganar y cuándo podrá recibirlo. También tendrás que saber cuánto te cuesta cumplir esa promesa. Esas decisiones forman el programa; los puntos o los sellos son la manera de llevar la cuenta."
+    },
+    {
+      "type": "paragraph",
+      "text": "Para empezar, proponemos trabajar en cuatro pasos. Puedes escribirlos en una hoja y probarlos en el mostrador antes de invitar a tus clientes."
+    },
+    {
+      "type": "heading",
+      "text": "Elige qué quieres cambiar"
+    },
+    {
+      "type": "paragraph",
+      "text": "«Que vuelvan más» es un buen deseo, pero todavía deja mucho por resolver. ¿Quieres que quienes llegaron por primera vez hagan una segunda compra? ¿Que los clientes ocasionales regresen con mayor regularidad? ¿O agradecer a quienes ya te visitan seguido? Elige una prioridad y anota a quién se dirige."
+    },
+    {
+      "type": "paragraph",
+      "text": "Imaginemos una panadería que quiere mejorar la segunda visita. Su pregunta podría ser: «De las personas que compran por primera vez esta semana, ¿cuántas vuelven durante los siguientes 30 días?». Ese plazo es parte del ejemplo, no una duración recomendada para todos los negocios. Revísalo según el tiempo que suele pasar entre compras en el tuyo."
+    },
+    {
+      "type": "heading",
+      "text": "Escribe una promesa que puedas cumplir"
+    },
+    {
+      "type": "paragraph",
+      "text": "La panadería podría ensayar esta regla: «Recibes un sello por cada compra de Q25 o más, con un máximo de uno al día. Al reunir seis sellos, puedes pedir un café regular gratis». Es una propuesta hipotética: tanto el mínimo como el premio deben pasar por los números del negocio."
+    },
+    {
+      "type": "paragraph",
+      "text": "Completa lo que esa frase todavía no dice: si puedes recibir el café junto con la sexta compra, en qué locales se entrega, si hay vencimiento y qué ocurre con una devolución. Pon las condiciones a disposición del cliente antes de que empiece a acumular."
+    },
+    {
+      "type": "paragraph",
+      "text": "Anota el costo de entregar cada café y los gastos adicionales de operar el programa. Calcula también cuánto necesitarías si se canjearan todos los premios ya ganados. Elige una recompensa que puedas sostener con ese escenario; depender de que el cliente olvide cobrarla deja una promesa sin respaldo."
+    },
+    {
+      "type": "heading",
+      "text": "Ensáyalo con todos los turnos"
+    },
+    {
+      "type": "paragraph",
+      "text": "En un ensayo con cafeterías laborales británicas, las entrevistas detectaron que un empleado explicaba mal qué comida podía canjearse: había faltado a la reunión por su horario. El ensayo no encontró un aumento estadísticamente significativo de las ventas de platos vegetales (Food Standards Agency et al., 2024). El detalle del turno recuerda algo muy concreto: hay que preparar también a quien no estuvo en la primera explicación."
+    },
+    {
+      "type": "paragraph",
+      "text": "Haz una compra ficticia con alguien del equipo. Pídele que explique la regla, registre el avance y entregue el premio. Repite con una compra que no cumple el mínimo y una devolución. Deja por escrito cómo resolver cada caso y quién puede ayudar cuando surja una duda. Este ensayo es nuestra propuesta práctica, no una intervención cuya eficacia haya medido aquel estudio."
+    },
+    {
+      "type": "heading",
+      "text": "Prepara la revisión desde el inicio"
+    },
+    {
+      "type": "paragraph",
+      "text": "Una ficha para nuestra panadería imaginaria podría contener cuatro datos:"
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "items": [
+        "Cuántos clientes compraron por primera vez durante la semana elegida.",
+        "Cuántos de ellos hicieron otra compra dentro de 30 días.",
+        "Cuánto costaron los premios y qué recompensas quedan pendientes.",
+        "Qué dificultades encontraron clientes y personal."
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "Incluye a quienes no regresan. Si comparas semanas anteriores, usa el mismo plazo de seguimiento y registra cambios de precios, temporada o promociones. Esa comparación orienta, pero por sí sola no demuestra qué causó el cambio."
+    },
+    {
+      "type": "paragraph",
+      "text": "Tampoco basta con que los miembros compren más que los demás. En supermercados neerlandeses, el efecto estimado fue mucho menor al considerar que clientes ya fieles podían decidir inscribirse (Leenheer et al., 2007). Revisa la pregunta que escribiste al empezar, junto con los costos y las dificultades. Así tendrás algo concreto que corregir o seguir probando."
+    }
+  ],
+  "references": [
+    {
+      "id": "fsa-2024",
+      "citation": "Food Standards Agency et al., 2024",
+      "apa": "Food Standards Agency, Gold, N., Cornel, P., Zhuo, S., Thornton, K., Riddle, R., McPhedran, R., Vega, L., & Zamperetti, L. (2024). Exploring the impact of giving free food samples and loyalty cards on food choices: A stepped wedge trial in workplace food outlets. FSA Research and Evidence.",
+      "href": "https://doi.org/10.46756/sci.fsa.paq622"
+    },
+    {
+      "id": "leenheer-2007",
+      "citation": "Leenheer et al., 2007",
+      "apa": "Leenheer, J., van Heerde, H. J., Bijmolt, T. H. A., & Smidts, A. (2007). Do loyalty programs really enhance behavioral loyalty? An empirical analysis accounting for self-selecting members. International Journal of Research in Marketing, 24(1), 31–47.",
+      "href": "https://doi.org/10.1016/j.ijresmar.2006.10.005"
+    }
+  ],
+  "methodNote": [
+    "Consultamos los métodos y pasajes relevantes del informe completo de la FSA y del manuscrito de Leenheer y colaboradores depositado en Erasmus University. El primero es un ensayo aleatorizado por locales, breve y con potencia limitada; el segundo analiza datos observacionales y depende de supuestos estadísticos.",
+    "Los pasos y la panadería son propuestas de PuntosFieles, que tiene un interés comercial en el tema. Las dos investigaciones se realizaron fuera de Guatemala y no evalúan PF. Esta selección no es una revisión sistemática."
+  ]
+}

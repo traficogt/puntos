@@ -1,0 +1,89 @@
+{
+  "slug": "como-mostrar-progreso-recompensas",
+  "title": "¿Mostrar lo que llevas o lo que te falta?",
+  "description": "Dos formas de explicar el mismo saldo pueden orientar la atención de maneras distintas. Cómo usar esa idea sin cambiar las reglas de tu recompensa.",
+  "readingMinutes": 3,
+  "body": [
+    {
+      "type": "paragraph",
+      "text": "Un cliente tiene dos sellos de los diez que necesita para recibir un premio. Puedes decirle «ya llevas dos» o «te faltan ocho». Las dos frases son ciertas. Ahora piensa en alguien que tiene ocho: «te faltan dos» pone la atención en otro lugar."
+    },
+    {
+      "type": "paragraph",
+      "text": "La investigación ofrece una pista para decidir qué destacar: el siguiente paso puede parecer mayor o menor según la parte del recorrido que estamos mirando (Koo & Fishbach, 2012). Veamos cómo se traduce eso a una tarjeta."
+    },
+    {
+      "type": "heading",
+      "text": "Al principio, lo ganado; al final, lo pendiente"
+    },
+    {
+      "type": "paragraph",
+      "text": "Koo y Fishbach estudiaron lo que llamaron la «hipótesis del área pequeña». Sus resultados favorecieron destacar el avance acumulado al principio y el pendiente cerca del final. La explicación propuesta es que un nuevo paso parece mayor cuando se compara con un tramo pequeño (Koo & Fishbach, 2012)."
+    },
+    {
+      "type": "paragraph",
+      "text": "Una prueba con 907 tarjetas en un restaurante de Corea del Sur comparó añadir sellos por las comidas compradas con retirar figuras para destacar las pendientes. El resultado dependió del avance inicial, que venía de las comidas pagadas; el tipo de tarjeta se asignaba al azar (Koo & Fishbach, 2012)."
+    },
+    {
+      "type": "paragraph",
+      "text": "Volvamos al ejemplo: pasar de dos sellos a tres aumenta en la mitad lo acumulado. Pasar de dos pendientes a uno reduce a la mitad lo que falta. La cuenta ayuda a entender la idea, pero no establece una frase infalible para todos tus clientes."
+    },
+    {
+      "type": "heading",
+      "text": "Estar cerca y mostrar el avance son cosas distintas"
+    },
+    {
+      "type": "paragraph",
+      "text": "En una cafetería universitaria, Kivetz y sus colaboradores observaron compras más frecuentes al acercarse el premio, considerando diferencias entre clientes y otras explicaciones (Kivetz et al., 2006). A eso se refiere el «gradiente de meta»: cómo cambia el esfuerzo con la cercanía de la recompensa."
+    },
+    {
+      "type": "paragraph",
+      "text": "La pregunta de Koo y Fishbach es distinta: con el mismo saldo, ¿qué pasa si destacamos lo acumulado o lo pendiente? Tampoco equivale a regalar sellos de bienvenida: aquí conservamos los sellos ganados y la distancia al premio."
+    },
+    {
+      "type": "paragraph",
+      "text": "Proponemos empezar con «Ya llevas dos de diez cafés». Más adelante, «Te faltan dos cafés para tu recompensa», manteniendo el saldo completo debajo: ocho de diez. Son ejemplos nuestros, no textos cuya eficacia hayan comprobado esos estudios."
+    },
+    {
+      "type": "paragraph",
+      "text": "Si usas puntos, acompáñalos de la meta: «Tienes 80 de los 100 puntos que necesitas para el premio». La cifra destacada y el detalle deben decir lo mismo."
+    },
+    {
+      "type": "paragraph",
+      "text": "La idea supone que la persona desea completar el recorrido. En una prueba con escenarios, el patrón de intención de uso se invirtió para una tarjeta prepagada cuyos beneficios se querían prolongar (Koo & Fishbach, 2012)."
+    },
+    {
+      "type": "heading",
+      "text": "Pruébalo donde el cliente consulta su saldo"
+    },
+    {
+      "type": "paragraph",
+      "text": "Puedes empezar con la tarjeta, el recibo o la pantalla que el cliente abre para ver sus puntos. Mantén a la vista qué recompensa puede obtener y las condiciones para recibirla. Destacar una cifra no requiere esconder la otra ni cambiar el tamaño de la meta."
+    },
+    {
+      "type": "paragraph",
+      "text": "Para comprobar si la presentación ayuda, compara mensajes entre clientes que estén en una etapa semejante. Comparar a quienes llevan un sello con quienes llevan nueve mezclaría el efecto del mensaje con la distancia al premio. Conserva las mismas reglas y observa nuevas compras, canjes y dudas."
+    },
+    {
+      "type": "paragraph",
+      "text": "Estos trabajos no establecen cuándo enviar recordatorios ni aseguran que cambiar una frase aumente las ganancias. Ofrecen una pregunta para probar: ¿qué necesita ver el cliente para entender su siguiente paso?"
+    }
+  ],
+  "references": [
+    {
+      "id": "kivetz-2006",
+      "citation": "Kivetz et al., 2006",
+      "apa": "Kivetz, R., Urminsky, O., & Zheng, Y. (2006). The goal-gradient hypothesis resurrected: Purchase acceleration, illusionary goal progress, and customer retention. Journal of Marketing Research, 43(1), 39–58.",
+      "href": "https://doi.org/10.1509/jmkr.43.1.39"
+    },
+    {
+      "id": "koo-2012",
+      "citation": "Koo & Fishbach, 2012",
+      "apa": "Koo, M., & Fishbach, A. (2012). The small-area hypothesis: Effects of progress monitoring on goal adherence. Journal of Consumer Research, 39(3), 493–509.",
+      "href": "https://doi.org/10.1086/663827"
+    }
+  ],
+  "methodNote": [
+    "Consultamos ambos textos completos, incluida la publicación anticipada de Koo y Fishbach, y verificamos los datos bibliográficos finales. En su restaurante solo 79 de las 907 tarjetas volvieron a usarse; el avance inicial era observado. Los estudios no evalúan PuntosFieles ni establecen resultados para Guatemala. Las propuestas son de PF, que tiene un interés comercial en el tema."
+  ]
+}

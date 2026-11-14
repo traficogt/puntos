@@ -32,3 +32,43 @@ Android builds use the manual local Linux builder documented in
 requested iOS builds. Keep the website-first release cadence above: local
 build capacity does not authorize automatic Android releases during website
 work. Local verification artifacts do not authorize Google Play uploads.
+
+## Article citations and scientific rigor
+
+Owner requirement on November 14, 2026: every article must include in-text
+citations and an APA-style reference list at the end. This is mandatory for
+article drafts as well as published articles.
+
+- Use author–date citations beside the claims they support and complete APA-style
+  references, including verified DOI links or source URLs where applicable.
+- Check that every citation has a matching reference and that the reference list
+  contains the sources actually cited. Identify any further reading separately.
+- Verify source metadata and the relevant original passages. Never invent
+  references, findings, quotations, or page numbers; disclose limited access.
+- Preserve the scientific distinctions between association and causation,
+  measured outcomes and estimates, and research findings and PF's own proposals.
+  Include relevant methods, context, uncertainty, and contrary or null findings.
+- Write accessibly for business owners while retaining this scientific standard.
+  Research informing a PF design does not establish PF's commercial effectiveness.
+
+## Article prose reference
+
+Owner instruction on November 14, 2026: use the writing style of
+https://edu.tallerlumiere.com/ for article prose. Read suitable technical and
+historical articles there when preparing a draft, using the designated material
+as the style reference. Preserve original wording for PF's own subject matter;
+do not transfer the reference author's experiences or factual claims to PF.
+The mandatory author–date citations and APA-style reference list above continue
+to apply, regardless of how references are formatted on the example site.
+
+## Approved illustration style
+
+Owner decision on November 14, 2026: the approved ink-and-gouache illustrations
+are the style for future PF editorial illustrations and illustrated scenes.
+Read `docs/ILLUSTRATION_STYLE.md` and inspect its approved original images before
+creating new artwork. Keep the fine umber linework, restrained washes and warm
+paper character; verify realistic scale, perspective and geographic details.
+Guatemalan identity should come through actual places and everyday life without
+heavy-handed national decoration. Preserve source references and generation
+provenance internally. Approval of the style does not settle public AI-disclosure
+wording or authorize a native app release.

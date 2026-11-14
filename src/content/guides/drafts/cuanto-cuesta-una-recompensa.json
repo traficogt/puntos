@@ -1,0 +1,100 @@
+{
+  "slug": "cuanto-cuesta-una-recompensa",
+  "title": "Cuánto cuesta una recompensa: la cuenta antes de ofrecerla",
+  "description": "El precio del premio, su costo de entrega y las compras necesarias para cubrirlo son cifras distintas. Un ejemplo sencillo para hacer tu propio presupuesto.",
+  "readingMinutes": 4,
+  "body": [
+    {
+      "type": "paragraph",
+      "text": "Un premio de Q30 puede costarte Q9 entregarlo. Las dos cifras son correctas, pero responden a preguntas distintas: cuánto recibe el cliente y cuánto sale de tu negocio. Antes de decidir si puedes ofrecerlo, conviene hacer una tercera pregunta: ¿qué tendría que cambiar en las compras para cubrir ese gasto?"
+    },
+    {
+      "type": "paragraph",
+      "text": "La distinción importa incluso en empresas grandes. Un estudio sobre compañías que introdujeron programas de fidelización encontró que los resultados en beneficio bruto iban por detrás de los resultados en ventas. Es evidencia sobre empresas cotizadas, no una promesa para una tienda pequeña; sirve para recordar que vender más y ganar más merecen cuentas separadas (Chaudhuri et al., 2019)."
+    },
+    {
+      "type": "heading",
+      "text": "Tres cifras para el mismo premio"
+    },
+    {
+      "type": "paragraph",
+      "text": "Imaginemos un negocio que ofrece un producto cuyo precio habitual es Q30. Prepararlo y entregarlo cuesta Q9 en materiales, empaque y otros gastos variables. Hay 80 premios ya ganados y pendientes de canje. Son cantidades inventadas para mostrar la cuenta, no datos de PuntosFieles."
+    },
+    {
+      "type": "list",
+      "items": [
+        "Valor para los clientes: 80 × Q30 = Q2,400 al precio habitual.",
+        "Costo estimado de entregar todos los premios: 80 × Q9 = Q720.",
+        "Compromiso pendiente: 80 productos que todavía debes poder entregar."
+      ]
+    },
+    {
+      "type": "paragraph",
+      "text": "Q720 es un presupuesto de cumplimiento bajo esos supuestos. No es una valoración contable de los puntos ni una medición de la utilidad. Tampoco incluye todo: quizás haga falta pagar más horas, enviar los premios o reponer un insumo que subió de precio. Anota cada costo adicional por separado."
+    },
+    {
+      "type": "paragraph",
+      "text": "En un servicio ocurre algo parecido. Un complemento puede usar pocos materiales y, aun así, ocupar quince minutos de una agenda llena. Si el beneficio sustituye una venta que habrías realizado, también debes considerar esa oportunidad perdida. Por eso el precio del menú, el gasto directo y el costo económico no son intercambiables."
+    },
+    {
+      "type": "heading",
+      "text": "Cuántas compras nuevas necesitas"
+    },
+    {
+      "type": "paragraph",
+      "text": "Sigamos con el ejemplo. Supón que cada compra pagada cuesta Q70 al cliente y requiere Q42 en gastos variables. Deja Q28 para cubrir otros gastos y, después, beneficio. Si entregar los 80 premios cuesta Q720 y la operación adicional del programa cuesta Q120, el total es Q840."
+    },
+    {
+      "type": "callout",
+      "text": "Q840 ÷ Q28 = 30 compras adicionales para cubrir ese costo.",
+      "note": "Ejemplo hipotético. Supone compras comparables, costos constantes y que los Q840 incluyen los incentivos y gastos adicionales del escenario."
+    },
+    {
+      "type": "paragraph",
+      "text": "Treinta compras registradas de miembros no demuestran que recuperaste la inversión. Algunas personas habrían comprado igualmente. Leenheer y sus colegas mostraron ese problema en supermercados: al considerar que los clientes más fieles podían ser quienes se inscribían, el efecto estimado del programa se reducía (Leenheer et al., 2007)."
+    },
+    {
+      "type": "paragraph",
+      "text": "La cuenta tampoco permite gastar Q840 cada mes sin revisar nada. Si baja la contribución por compra, necesitarás más compras adicionales. Si cambian los premios o su cantidad, cambia el costo. Y si no puedes distinguir compras adicionales de compras habituales, presenta el cálculo como un escenario de equilibrio, no como un retorno demostrado."
+    },
+    {
+      "type": "heading",
+      "text": "Haz la cuenta antes de prometer"
+    },
+    {
+      "type": "paragraph",
+      "text": "Una ficha sencilla puede reunir el beneficio, su precio habitual, su costo de entrega, la cantidad máxima que emitirás y lo que ya está pendiente. Añade quién puede autorizarlo y qué ocurrirá si no está disponible. Estas son herramientas prácticas que proponemos para controlar el programa, no una receta validada por los estudios."
+    },
+    {
+      "type": "paragraph",
+      "text": "Puedes explorar distintos niveles de canje. Si solo se entregaran 40 premios, el gasto directo del ejemplo sería Q360, más los costos de operación correspondientes. Pero esa posibilidad no elimina la necesidad de poder cumplir los 80 que ya prometiste. Un porcentaje supuesto de canje es un escenario, no dinero ganado por anticipado."
+    },
+    {
+      "type": "paragraph",
+      "text": "Empieza con una cantidad que puedas sostener, registra los costos reales y revisa las compras junto con los canjes. Un premio útil para el cliente y manejable para el negocio se diseña con ambas partes de la cuenta a la vista."
+    }
+  ],
+  "references": [
+    {
+      "id": "chaudhuri",
+      "citation": "Chaudhuri et al., 2019",
+      "apa": "Chaudhuri, M., Voorhees, C. M., & Beck, J. M. (2019). The effects of loyalty program introduction and design on short- and long-term sales and gross profits. Journal of the Academy of Marketing Science, 47(4), 640–658.",
+      "italic": [
+        "Journal of the Academy of Marketing Science, 47"
+      ],
+      "href": "https://doi.org/10.1007/s11747-019-00652-y"
+    },
+    {
+      "id": "leenheer",
+      "citation": "Leenheer et al., 2007",
+      "apa": "Leenheer, J., van Heerde, H. J., Bijmolt, T. H. A., & Smidts, A. (2007). Do loyalty programs really enhance behavioral loyalty? An empirical analysis accounting for self-selecting members. International Journal of Research in Marketing, 24(1), 31–47.",
+      "italic": [
+        "International Journal of Research in Marketing, 24"
+      ],
+      "href": "https://doi.org/10.1016/j.ijresmar.2006.10.005"
+    }
+  ],
+  "methodNote": [
+    "Los ejemplos y cálculos son propios e hipotéticos; no representan tarifas, resultados de PF ni una valoración contable. Chaudhuri et al. se consultó mediante su resumen editorial y notas metodológicas públicas: no se revisó el artículo completo ni se extrapolan sus magnitudes a una pyme. Para Leenheer et al. se consultó el manuscrito completo alojado por Erasmus University; analiza datos observacionales de hogares neerlandeses. Ninguno de estos trabajos evalúa PuntosFieles ni demuestra resultados para Guatemala."
+  ]
+}

@@ -243,6 +243,10 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+  // Scheduled articles and their sitemap must always reflect server publication time.
+  if (/^\/guias(?:\/|$)/i.test(url.pathname) || url.pathname === '/sitemap.xml') return;
+  // Temporary editorial previews must not be retained or served stale offline.
+  if (/^\/(?:revision-ilustraciones|revision-editorial)(?:\/|$)/i.test(url.pathname)) return;
   if (url.pathname.startsWith("/api/")) return;
   if (["/preferencias-de-mensajes", "/preferencias-de-mensajes/", "/marketing-preferences.html"].includes(url.pathname)) return;
   // Merchant reports are online-only; keep per-response style nonces out of caches.

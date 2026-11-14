@@ -1,0 +1,167 @@
+{
+  "mode": "Built-in image_gen",
+  "created": "2026-11-14",
+  "images": [
+    {
+      "slug": "01-parque-central",
+      "ref": "parque-central.jpg",
+      "alt": "Personas junto a la fuente del Parque Central de la Ciudad de Guatemala, con el Palacio Nacional al fondo.",
+      "prompt": "Create ONE premium editorial illustration, landscape 1536 x 1024, from the two supplied references. Image 1 is ONLY the approved artistic style: remarkably fine warm umber pen line, delicate irregular crosshatching, translucent gouache washes, tactile ivory paper, restrained terracotta, ochre, olive and muted blue, hand-observed atmosphere. Match its craft and warmth, not its imaginary European architecture. Image 2 is ONLY factual visual evidence for the real Guatemalan location: preserve its actual architecture, landmark silhouettes, relative dimensions and left-right relationships. This is an ORIGINAL scene of everyday Guatemala, not a filtered photograph, tourist poster or a collage of national symbols. Keep a plausible single camera viewpoint, coherent perspective, realistic human scale, solid feet and contact shadows, anatomically credible small figures, correctly supported buildings/boats, coherent sunlight and reflections. Refine details where the image warrants them; simplify distant details honestly rather than inventing decoration. Use contemporary everyday clothing, no staged folkloric display. No captions, letters, signs, logos, watermarks or signatures. Avoid oversaturated colors, digital shine, plastic 3D, cartoon faces, watercolor splatter, ornate fantasy buildings, floating props, forced symmetry, and landmarks transplanted from other places. A complete composition with quiet soft paper margins. SCENE: Parque Central / Plaza de la Constitución, GUATEMALA CITY, looking NORTH from the south side of the fountain toward Palacio Nacional de la Cultura. This must be the CAPITAL's plaza, NOT Antigua's park. Preserve the real long, LOW, pale sage-green palace facade with its raised central block, two modest rectangular raised end pavilions, continuous rows of dark openings and flat balustraded roofline, as clearly seen in photograph 2. The building is much wider than tall; no cathedral spires, domes, clock tower, or fictitious extra wings. Preserve the dark stone tiered fountain with its large lower bowl and two smaller scalloped tiers, sitting inside the broad low basin. It is physically nearer than the palace; scale the fountain correctly against distant doors and pedestrians. Compose a slightly wider eye-level view than the reference: near basin edge crosses lower foreground, full palace well behind it across plaza and narrow street. Several small contemporary pedestrians stroll in separate directions, two casually sit on the far basin rim, a few pigeons are correctly tiny on the stone paving. Restrained daytime life, no festival, no decorated buses. The actual slender central flagpole may carry one small loosely folded blue-white-blue flag; do not emphasize it. Cathedral is east and OUTSIDE this north-facing frame. No volcano in this view. Keep the architecture recognizable rather than making generic colonial arches. Soft clear morning light from frame right; shadows go left consistently.",
+      "referencePaths": [
+        "/opt/puntos/.worktrees/article-review/src/content/illustration-review/originals/01-plaza.png",
+        "/var/lib/puntos/releases/guatemala-gallery-20261114/references/parque-central.jpg"
+      ],
+      "generatedPath": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-5a1b68a6-8a09-4b6b-893e-c3959e27d0f5.png",
+      "original": "originals/01-parque-central.png",
+      "sha256": "ab72a8cd40ceb5aae7b7e70fc7da38b1faf6f10b480151e1c2df5e97aa887843",
+      "referenceSource": {
+        "page": "https://www.beyondtheordinary.co.uk/guatemala-holidays/destinations/guatemala-city/",
+        "image": "https://www.beyondtheordinary.co.uk/wp-content/uploads/2019/06/Guatemala-City-Main-Square-Fountain.jpg",
+        "usage": "Private geographic reference only; photograph is not served or redistributed in the gallery."
+      },
+      "delivery": [
+        {
+          "file": "01-parque-central-768.webp",
+          "width": 768,
+          "bytes": 161982,
+          "sha256": "b67278b87be3cd4e43ad9ba404ee477c7b5f3b260ea9aa1c4d683c3c6b0b29ac"
+        },
+        {
+          "file": "01-parque-central-1536.webp",
+          "width": 1536,
+          "bytes": 643594,
+          "sha256": "f41c2c9e469cc0ae06142e39b5fe9bebd2cb2ecf770a53d250c90bff627304c4"
+        }
+      ]
+    },
+    {
+      "slug": "02-antigua",
+      "ref": "antigua.png",
+      "alt": "Calle empedrada de Antigua Guatemala hacia el Arco de Santa Catalina, con el volcán de Agua a lo lejos.",
+      "prompt": "Create ONE premium editorial illustration, landscape 1536 x 1024, from the two supplied references. Image 1 is ONLY the approved artistic style: remarkably fine warm umber pen line, delicate irregular crosshatching, translucent gouache washes, tactile ivory paper, restrained terracotta, ochre, olive and muted blue, hand-observed atmosphere. Match its craft and warmth, not its imaginary European architecture. Image 2 is ONLY factual visual evidence for the real Guatemalan location: preserve its actual architecture, landmark silhouettes, relative dimensions and left-right relationships. This is an ORIGINAL scene of everyday Guatemala, not a filtered photograph, tourist poster or a collage of national symbols. Keep a plausible single camera viewpoint, coherent perspective, realistic human scale, solid feet and contact shadows, anatomically credible small figures, correctly supported buildings/boats, coherent sunlight and reflections. Refine details where the image warrants them; simplify distant details honestly rather than inventing decoration. Use contemporary everyday clothing, no staged folkloric display. No captions, letters, signs, logos, watermarks or signatures. Avoid oversaturated colors, digital shine, plastic 3D, cartoon faces, watercolor splatter, ornate fantasy buildings, floating props, forced symmetry, and landmarks transplanted from other places. A complete composition with quiet soft paper margins. SCENE: Antigua Guatemala, standing on 5a Avenida Norte NORTH of the Arco de Santa Catalina, looking SOUTH toward the arch and the distant Agua volcano. Photograph 2 identifies the real arch: ochre-yellow enclosed connecting passage crossing one narrow cobblestone street, one semicircular opening, white trim and a slender central clock belfry with its small dome. Preserve that distinct form and its height relative to the ONE-STORY colonial street walls. Use a wider street-level 40mm-like composition than the tight telephoto reference: arch around middle distance, low plaster buildings receding on either side, simple black iron lanterns attached to walls. Agua is correctly BEHIND the arch to the south, distant, blue-gray with atmospheric perspective, NOT a giant mountain immediately touching the buildings and no snow or eruption. Main subject in near left foreground is a resident walking with a plain bag of bread; another person carries a normal market basket farther down the street. Show cobblestone scale shrinking convincingly with distance, sidewalks low and narrow. No streets running through solid walls, no duplicate arches. Quiet ordinary late morning, subtle rather than postcard kitsch. No flags, quetzals, marimbas, carpets or floating birds.",
+      "referencePaths": [
+        "/opt/puntos/.worktrees/article-review/src/content/illustration-review/originals/01-plaza.png",
+        "/var/lib/puntos/releases/guatemala-gallery-20261114/references/antigua.png"
+      ],
+      "generatedPath": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-9be5e19d-9c9f-410c-abcf-120eecd83a2f.png",
+      "original": "originals/02-antigua.png",
+      "sha256": "025b2de9e73d346aaf37bc32b0ca35c46f46ab9c0353ee5b7edbd5452babdcb7",
+      "referenceSource": {
+        "page": "https://www.guatemala.com/deportes/esports/participa-concurso-disenar-jersey-bicentenario-equipo-volcano-esports.html",
+        "image": "https://www.guatemala.com/fotos/2021/06/arco-antigua-guatemala.png",
+        "usage": "Private geographic reference only; photograph is not served or redistributed in the gallery."
+      },
+      "delivery": [
+        {
+          "file": "02-antigua-768.webp",
+          "width": 768,
+          "bytes": 166270,
+          "sha256": "061ab82ee4baa0c4e543e7cd5a89a44a3343081bce1a7fbc996cd2def506fbb2"
+        },
+        {
+          "file": "02-antigua-1536.webp",
+          "width": 1536,
+          "bytes": 635838,
+          "sha256": "953a292d4df47ef70991020fe80c8b01a48a0a8f411413ef9d1ed1e98e27b1dc"
+        }
+      ]
+    },
+    {
+      "slug": "03-atitlan",
+      "ref": "atitlan.jpg",
+      "alt": "Un embarcadero en Panajachel junto al lago de Atitlán, con lanchas y volcanes en el horizonte.",
+      "prompt": "Create ONE premium editorial illustration, landscape 1536 x 1024, from the two supplied references. Image 1 is ONLY the approved artistic style: remarkably fine warm umber pen line, delicate irregular crosshatching, translucent gouache washes, tactile ivory paper, restrained terracotta, ochre, olive and muted blue, hand-observed atmosphere. Match its craft and warmth, not its imaginary European architecture. Image 2 is ONLY factual visual evidence for the real Guatemalan location: preserve its actual architecture, landmark silhouettes, relative dimensions and left-right relationships. This is an ORIGINAL scene of everyday Guatemala, not a filtered photograph, tourist poster or a collage of national symbols. Keep a plausible single camera viewpoint, coherent perspective, realistic human scale, solid feet and contact shadows, anatomically credible small figures, correctly supported buildings/boats, coherent sunlight and reflections. Refine details where the image warrants them; simplify distant details honestly rather than inventing decoration. Use contemporary everyday clothing, no staged folkloric display. No captions, letters, signs, logos, watermarks or signatures. Avoid oversaturated colors, digital shine, plastic 3D, cartoon faces, watercolor splatter, ornate fantasy buildings, floating props, forced symmetry, and landmarks transplanted from other places. A complete composition with quiet soft paper margins. SCENE: A working wooden embarcadero at Panajachel on Lake Atitlán, looking SOUTH-SOUTHWEST across the lake. Use photograph 2 as the strict horizon/topography reference: the broad double-peaked Tolimán mass is LEFT of the distinct isolated San Pedro cone on the RIGHT. Preserve the wide separation and connected low shoreline, no mirroring, no fourth invented cone, no snow, no volcanic eruption. Distant ridges should be genuinely distant across a large lake, the peaks modest within the scene rather than enormous walls at the end of the dock. In the foreground a sturdy modest timber jetty enters diagonally from lower left, solid repeated posts, boards with one consistent vanishing direction, rubber tires used as bumpers. ONE small local blue-and-white fiberglass passenger lancha with canvas canopy is moored ALONGSIDE, floating at the waterline with a physically attached visible rope and outboard motor at the stern, pointed bow at the opposite end. One adult waits safely on the dock holding a fabric shopping tote; boat operator sits normally inside near the stern, correct boat/head size. No one stepping over impossible gaps. Pale turquoise/blue lake painted with fine horizontal ripple lines, sage blue-gray volcanic silhouettes, warm wood, a large quiet sky. The scene's emotional center is a calm daily crossing, not an excursion advertisement.",
+      "referencePaths": [
+        "/opt/puntos/.worktrees/article-review/src/content/illustration-review/originals/01-plaza.png",
+        "/var/lib/puntos/releases/guatemala-gallery-20261114/references/atitlan.jpg"
+      ],
+      "generatedPath": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-4669361f-42c1-4552-ae97-dc7f3d365f77.png",
+      "original": "originals/03-atitlan.png",
+      "sha256": "31c8d68b30b2313593172537004c36aba5a8461b9aa9ed873de1f9a0b8a5d556",
+      "referenceSource": {
+        "page": "https://www.pinterest.com/pin/844493665052281/",
+        "image": "https://i.pinimg.com/originals/9b/fc/8d/9bfc8d89a687e77cf3eb00df2c3ccffa.png",
+        "usage": "Private geographic reference only; photograph is not served or redistributed in the gallery."
+      },
+      "delivery": [
+        {
+          "file": "03-atitlan-768.webp",
+          "width": 768,
+          "bytes": 142218,
+          "sha256": "11789a24fcc8b82cf65c05da575c5fd9974abf5f41a7bc11758a34a5cfef87e8"
+        },
+        {
+          "file": "03-atitlan-1536.webp",
+          "width": 1536,
+          "bytes": 541498,
+          "sha256": "20a7f7146925caddd52484dae2479850209b487d4f2b5d135fc3db16868cacef"
+        }
+      ]
+    },
+    {
+      "slug": "04-xela",
+      "ref": "xela.jpg",
+      "alt": "Una mañana en el Parque Centroamérica de Xela, frente a la fachada histórica de la catedral.",
+      "prompt": "Create ONE premium editorial illustration, landscape 1536 x 1024, from the two supplied references. Image 1 is ONLY the approved artistic style: remarkably fine warm umber pen line, delicate irregular crosshatching, translucent gouache washes, tactile ivory paper, restrained terracotta, ochre, olive and muted blue, hand-observed atmosphere. Match its craft and warmth, not its imaginary European architecture. Image 2 is ONLY factual visual evidence for the real Guatemalan location: preserve its actual architecture, landmark silhouettes, relative dimensions and left-right relationships. This is an ORIGINAL scene of everyday Guatemala, not a filtered photograph, tourist poster or a collage of national symbols. Keep a plausible single camera viewpoint, coherent perspective, realistic human scale, solid feet and contact shadows, anatomically credible small figures, correctly supported buildings/boats, coherent sunlight and reflections. Refine details where the image warrants them; simplify distant details honestly rather than inventing decoration. Use contemporary everyday clothing, no staged folkloric display. No captions, letters, signs, logos, watermarks or signatures. Avoid oversaturated colors, digital shine, plastic 3D, cartoon faces, watercolor splatter, ornate fantasy buildings, floating props, forced symmetry, and landmarks transplanted from other places. A complete composition with quiet soft paper margins. SCENE: Quetzaltenango / Xela, Parque Centroamérica, looking toward the Catedral del Espíritu Santo. Factual architecture from photograph 2 is CRITICAL: asymmetric assembly, the OLD ornate stone baroque facade in the middle/left, ONE squat bell structure with two arched openings on its LEFT, and the newer large gray neoclassical cathedral facade behind and to its RIGHT with broad triangular pediment and circular window. DO NOT turn this into a symmetrical twin-towered church, do not substitute Antigua Cathedral. The real two different facades are visible as different planes. Eye-level observed scene; carved historic facade occupies upper middle, dark volcanic-stone plaza pavement in foreground with a low curved planting bed and restrained red/orange canna flowers, modest park lamps. A woman in an ordinary cardigan sits reading on a park bench off to the side; two distant pedestrians cross near the church, each the right size for the doorways. Cool highland morning, warm side-lit stone contrasting with sage trees and blue-gray shadows. No palm trees, tropical beach vegetation, generic European facade, banners or city labels. This should feel like a quiet moment in Xela, with credible street and plaza scale.",
+      "referencePaths": [
+        "/opt/puntos/.worktrees/article-review/src/content/illustration-review/originals/01-plaza.png",
+        "/var/lib/puntos/releases/guatemala-gallery-20261114/references/xela.jpg"
+      ],
+      "generatedPath": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-79d25d57-d305-464d-b162-dee008c8d3b7.png",
+      "original": "originals/04-xela.png",
+      "sha256": "10b5fb3fcfff4211e8a3fae572fc8d464d29590a635e109d43b1d064cf05bdc6",
+      "referenceSource": {
+        "page": "https://www.guatemala.com/guias/pasatiempos/lugares-turisticos-quetzaltenango-guatemala/catedral-del-espiritu-santo-quetzaltenango.html",
+        "image": "https://www.guatemala.com/fotos/201703/Catedral-de-los-Altos-Quetzaltenango1-885x500.jpg",
+        "usage": "Private geographic reference only; photograph is not served or redistributed in the gallery."
+      },
+      "delivery": [
+        {
+          "file": "04-xela-768.webp",
+          "width": 768,
+          "bytes": 187940,
+          "sha256": "c4b99bbb9cdac9b70b1256c490050fc55689fff5a0d95e2e834d5ac0998ce4df"
+        },
+        {
+          "file": "04-xela-1536.webp",
+          "width": 1536,
+          "bytes": 700310,
+          "sha256": "bc07158608fc4b6b8943cff524c2f6c71d3fb4c549e4cb312bdb814fe24e49ab"
+        }
+      ]
+    },
+    {
+      "slug": "05-flores",
+      "ref": "flores.jpg",
+      "alt": "Personas paseando por el malecón de la isla de Flores, junto al lago Petén Itzá.",
+      "prompt": "Create ONE premium editorial illustration, landscape 1536 x 1024, from the two supplied references. Image 1 is ONLY the approved artistic style: remarkably fine warm umber pen line, delicate irregular crosshatching, translucent gouache washes, tactile ivory paper, restrained terracotta, ochre, olive and muted blue, hand-observed atmosphere. Match its craft and warmth, not its imaginary European architecture. Image 2 is ONLY factual visual evidence for the real Guatemalan location: preserve its actual architecture, landmark silhouettes, relative dimensions and left-right relationships. This is an ORIGINAL scene of everyday Guatemala, not a filtered photograph, tourist poster or a collage of national symbols. Keep a plausible single camera viewpoint, coherent perspective, realistic human scale, solid feet and contact shadows, anatomically credible small figures, correctly supported buildings/boats, coherent sunlight and reflections. Refine details where the image warrants them; simplify distant details honestly rather than inventing decoration. Use contemporary everyday clothing, no staged folkloric display. No captions, letters, signs, logos, watermarks or signatures. Avoid oversaturated colors, digital shine, plastic 3D, cartoon faces, watercolor splatter, ornate fantasy buildings, floating props, forced symmetry, and landmarks transplanted from other places. A complete composition with quiet soft paper margins. SCENE: Malecón of the ISLAND OF FLORES on Lake Petén Itzá, following the waterfront perspective in photograph 2. Lake and small wooden bathing dock LEFT; narrow stone-edged promenade leading away into the middle distance; small planted strip, simple white benches and slender black lamps with groups of round globes; roadway and modest orange, faded turquoise and terracotta buildings RIGHT, receding along the actual curve. Distinctive orange waterfront building with green balcony rails, flat/parapet roofline and small repeated triangular roof forms rather than invented grand colonial architecture. In far background beyond water only low wooded Petén ridges and low lakeside settlement: absolutely NO volcanoes, Alps or ocean surf. Camera on the promenade at human eye height. A pair of adults walks away in the near middle ground, another person rests on a bench in the distance. A small moored local boat sits LEFT beyond the stone edge, correctly afloat, never on the sidewalk. Bright humid late afternoon rendered softly in ochre and pale lake blues, sparse realistic palms, correctly diminishing lamps and people. Emphasize the lived-in small-town waterfront rather than saturated tourist-resort glamour. No national symbols or conspicuous signage.",
+      "referencePaths": [
+        "/opt/puntos/.worktrees/article-review/src/content/illustration-review/originals/01-plaza.png",
+        "/var/lib/puntos/releases/guatemala-gallery-20261114/references/flores.jpg"
+      ],
+      "generatedPath": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-d047312c-9fa0-4301-b94e-41a38bdad77b.png",
+      "original": "originals/05-flores.png",
+      "sha256": "a8505d3d2ef57c1a8c23e792533c675478987023803f13af6dd31822dbbc7dfe",
+      "referenceSource": {
+        "page": "https://www.guatevalley.com/que-visitar/malecon-isla-de-flores-flores-peten",
+        "image": "https://www.guatevalley.com/photo/photo_a1/1965/7QZX7p7ZDfXygqpI3jnX.jpg",
+        "usage": "Private geographic reference only; photograph is not served or redistributed in the gallery."
+      },
+      "delivery": [
+        {
+          "file": "05-flores-768.webp",
+          "width": 768,
+          "bytes": 162656,
+          "sha256": "89565337119255313e8da4a786b4fb58f32c8bf04a6d83568069ca10b03588b8"
+        },
+        {
+          "file": "05-flores-1536.webp",
+          "width": 1536,
+          "bytes": 639214,
+          "sha256": "9f3082681b640f20b555070ea207da55da4999a42967f259e0bdc8dd89b0ffa9"
+        }
+      ]
+    }
+  ],
+  "deliveryEncoding": "Chromium canvas WebP quality0.90; same composition, source originals retained"
+}

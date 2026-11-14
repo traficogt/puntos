@@ -17,6 +17,17 @@ An open masthead leads to a large Fraunces headline and a prominent interactive 
 - Focus rings, 44px minimum primary controls, readable contrast, semantic landmarks, reduced-motion support, and visible content without JavaScript.
 - One purposeful interaction: simulate a purchase, see points increase, and reach a reward. All values are labeled as an example.
 
+## Approved illustration direction
+
+Owner-approved on November 14, 2026: use the premium ink-and-gouache editorial
+style demonstrated in the illustration review galleries. Fine umber linework,
+delicate crosshatching, warm paper and restrained color accompany realistic
+scale, perspective and place-specific detail. The full direction, accepted
+examples and production references are in [ILLUSTRATION_STYLE.md](docs/ILLUSTRATION_STYLE.md).
+
+This is the default for new editorial illustrations and illustrated scenes;
+existing photography and UI iconography retain their separate roles.
+
 ## Implementation boundary
 
 Keep homepage styles in `public/styles/marketing.css`; do not change shared application tokens. Keep the contact endpoint, field identifiers, challenge verification, and request payload compatible. Retain the existing legal links and Viasolvia credit.

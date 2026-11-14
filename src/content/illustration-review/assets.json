@@ -1,0 +1,241 @@
+{
+  "mode": "Built-in image_gen",
+  "created": "2026-11-14",
+  "styleReferences": [
+    "../article-review/volver.png",
+    "../article-review/progreso.png"
+  ],
+  "images": [
+    {
+      "slug": "01-plaza",
+      "alt": "Plaza de barrio vista desde arriba, con pequeños comercios, árboles y personas que se encuentran.",
+      "scene": "A lyrical elevated bird's-eye view of a small neighborhood plaza. Three very different independent businesses around a cobbled courtyard, terracotta roof edges, a market canopy, a bicycle, two leafy trees, and a few tiny people greeting each other. The composition feels like an exquisitely illustrated travel journal map, but with no labels. A wide architectural scene, not a shop doorway close-up. Emphasize community and the rhythms of a real neighborhood.",
+      "prompt": "Use case: illustration-story. Create ONE entirely new premium editorial illustration, landscape 3:2. The two input images are STYLE REFERENCES ONLY, not edit targets: match their refined ink-and-gouache technique, delicate expressive espresso pen contours, selective crosshatching, muted pigment, warm ivory paper texture, quiet elegance and exceptional drawing craft. Do not copy their scenes or composition. Palette: ivory #f7f5ef, espresso #302820, sage #79836a, terracotta #a43d28 and pale ochre #d5b472. Keep the subject inset within generous paper margins; make a complete standalone work, not a collage. No text, lettering, labels, numerals, logo, signature or watermark. No photographs, 3D rendering, gradients, clip art, corporate blob people, excessive noise or glossy effects. Maintain sophisticated cultural-magazine illustration quality. Specific new scene: A lyrical elevated bird's-eye view of a small neighborhood plaza. Three very different independent businesses around a cobbled courtyard, terracotta roof edges, a market canopy, a bicycle, two leafy trees, and a few tiny people greeting each other. The composition feels like an exquisitely illustrated travel journal map, but with no labels. A wide architectural scene, not a shop doorway close-up. Emphasize community and the rhythms of a real neighborhood.",
+      "source": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-3e886780-7c5d-450a-acf1-ba3e5a2aa57e.png",
+      "original": "originals/01-plaza.png",
+      "sha256": "9f6c223ac1cdacef3839ca67ab915e7201f9b08912487ab64f6c070efb795fb7",
+      "delivery": [
+        {
+          "file": "01-plaza-768.webp",
+          "width": 768,
+          "bytes": 178976,
+          "sha256": "e68715bedd32bf9fa6928eb8c2b40906b3d724b43c5d7c3bc0923d305738b420"
+        },
+        {
+          "file": "01-plaza-1536.webp",
+          "width": 1536,
+          "bytes": 696860,
+          "sha256": "75fa5791d413690ca9293576c45da9991d38812a4b2553061453079e20767538"
+        }
+      ]
+    },
+    {
+      "slug": "02-equilibrio",
+      "alt": "Balanza de latón que equilibra monedas con una pera y una rama de olivo.",
+      "scene": "A sophisticated symbolic still life: an antique brass balance scale, perfectly credible engineering and chains, one shallow pan holding three simple unmarked coins, the other holding a ripe ochre pear and an olive sprig. A folded linen cloth beneath only one corner. Slightly off-center composition, ample ivory paper around it. The scale is the sole hero, elegantly observed and quietly poetic. No shops, people, ribbons, tickets or gift boxes.",
+      "prompt": "Use case: illustration-story. Create ONE entirely new premium editorial illustration, landscape 3:2. The two input images are STYLE REFERENCES ONLY, not edit targets: match their refined ink-and-gouache technique, delicate expressive espresso pen contours, selective crosshatching, muted pigment, warm ivory paper texture, quiet elegance and exceptional drawing craft. Do not copy their scenes or composition. Palette: ivory #f7f5ef, espresso #302820, sage #79836a, terracotta #a43d28 and pale ochre #d5b472. Keep the subject inset within generous paper margins; make a complete standalone work, not a collage. No text, lettering, labels, numerals, logo, signature or watermark. No photographs, 3D rendering, gradients, clip art, corporate blob people, excessive noise or glossy effects. Maintain sophisticated cultural-magazine illustration quality. Specific new scene: A sophisticated symbolic still life: an antique brass balance scale, perfectly credible engineering and chains, one shallow pan holding three simple unmarked coins, the other holding a ripe ochre pear and an olive sprig. A folded linen cloth beneath only one corner. Slightly off-center composition, ample ivory paper around it. The scale is the sole hero, elegantly observed and quietly poetic. No shops, people, ribbons, tickets or gift boxes.",
+      "source": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-846603f6-ee64-43b8-819a-791ee6626ebf.png",
+      "original": "originals/02-equilibrio.png",
+      "sha256": "5046049a79618dae30644879ceb890f357ad9e4ab9ce0cbcd598e2c043e11aee",
+      "delivery": [
+        {
+          "file": "02-equilibrio-768.webp",
+          "width": 768,
+          "bytes": 55520,
+          "sha256": "2f173d938c33ebc174ca46c6fd6e22e08c80c0bc1a7903a5c80e6ad7367c3db3"
+        },
+        {
+          "file": "02-equilibrio-1536.webp",
+          "width": 1536,
+          "bytes": 233864,
+          "sha256": "7d2c9194e16043040bed5194f6b463a379c8768e926c8eff025e65f38a793d14"
+        }
+      ]
+    },
+    {
+      "slug": "03-barberia",
+      "alt": "Barbero atendiendo a un cliente en un salón pequeño, con espejo y herramientas ordenadas.",
+      "scene": "An intimate side-view interior of a traditional contemporary barbershop: a barber with believable hands carefully finishing a customer's haircut, a handsome sage-green leather chair, oval mirror, tidy scissors and combs, a folded towel. Show natural human rapport through restrained expression, anatomically accurate people, subtle reflection geometry. Crop as an intimate human vignette, not a facade. Avoid signs, logos, price lists or writing.",
+      "prompt": "Use case: illustration-story. Create ONE entirely new premium editorial illustration, landscape 3:2. The two input images are STYLE REFERENCES ONLY, not edit targets: match their refined ink-and-gouache technique, delicate expressive espresso pen contours, selective crosshatching, muted pigment, warm ivory paper texture, quiet elegance and exceptional drawing craft. Do not copy their scenes or composition. Palette: ivory #f7f5ef, espresso #302820, sage #79836a, terracotta #a43d28 and pale ochre #d5b472. Keep the subject inset within generous paper margins; make a complete standalone work, not a collage. No text, lettering, labels, numerals, logo, signature or watermark. No photographs, 3D rendering, gradients, clip art, corporate blob people, excessive noise or glossy effects. Maintain sophisticated cultural-magazine illustration quality. Specific new scene: An intimate side-view interior of a traditional contemporary barbershop: a barber with believable hands carefully finishing a customer's haircut, a handsome sage-green leather chair, oval mirror, tidy scissors and combs, a folded towel. Show natural human rapport through restrained expression, anatomically accurate people, subtle reflection geometry. Crop as an intimate human vignette, not a facade. Avoid signs, logos, price lists or writing.",
+      "source": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-6ee277cf-7dd3-45b1-8229-6650b853221a.png",
+      "original": "originals/03-barberia.png",
+      "sha256": "794085dcc4e230c91de3fa74d36fdd320281812bdf7b6dda02f1931e7d84260b",
+      "delivery": [
+        {
+          "file": "03-barberia-768.webp",
+          "width": 768,
+          "bytes": 119880,
+          "sha256": "a1c5e4d39018b5d15f2fad88b75555f24aef75fa6e411dbef6f4ab9185b8842a"
+        },
+        {
+          "file": "03-barberia-1536.webp",
+          "width": 1536,
+          "bytes": 483974,
+          "sha256": "47abace232b2d1b3608dd5512b1a4225926c079887755b4f08f5cfd054240b6c"
+        }
+      ]
+    },
+    {
+      "slug": "04-raices",
+      "alt": "Árbol de cítricos con raíces visibles, frutos y una regadera junto a la maceta.",
+      "scene": "A striking botanical editorial illustration: one thriving miniature citrus tree in a sculptural terracotta pot, with a graceful vertical canopy and three golden fruits; a clean conceptual cutaway reveals its delicate root system and soil strata. A small sage watering can rests nearby. An elegant natural-history plate with no labels, no chart layout, no arrows. Focus on the beauty of botanical detail and patient growth, plenty of breathing room.",
+      "prompt": "Use case: illustration-story. Create ONE entirely new premium editorial illustration, landscape 3:2. The two input images are STYLE REFERENCES ONLY, not edit targets: match their refined ink-and-gouache technique, delicate expressive espresso pen contours, selective crosshatching, muted pigment, warm ivory paper texture, quiet elegance and exceptional drawing craft. Do not copy their scenes or composition. Palette: ivory #f7f5ef, espresso #302820, sage #79836a, terracotta #a43d28 and pale ochre #d5b472. Keep the subject inset within generous paper margins; make a complete standalone work, not a collage. No text, lettering, labels, numerals, logo, signature or watermark. No photographs, 3D rendering, gradients, clip art, corporate blob people, excessive noise or glossy effects. Maintain sophisticated cultural-magazine illustration quality. Specific new scene: A striking botanical editorial illustration: one thriving miniature citrus tree in a sculptural terracotta pot, with a graceful vertical canopy and three golden fruits; a clean conceptual cutaway reveals its delicate root system and soil strata. A small sage watering can rests nearby. An elegant natural-history plate with no labels, no chart layout, no arrows. Focus on the beauty of botanical detail and patient growth, plenty of breathing room.",
+      "source": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-0d87492a-c7a8-4fbd-b1fa-8d60d5fa7802.png",
+      "original": "originals/04-raices.png",
+      "sha256": "0aaa9ef89045e55c8121853baa84bd53fdf0c8bf807479b67094e9aba5a6350b",
+      "delivery": [
+        {
+          "file": "04-raices-768.webp",
+          "width": 768,
+          "bytes": 71734,
+          "sha256": "466a9fed4122b515dd42e7b0473aa8c021c4939de6d60b3e25de2fcbad390fdb"
+        },
+        {
+          "file": "04-raices-1536.webp",
+          "width": 1536,
+          "bytes": 298338,
+          "sha256": "76f7121d952d76e177aa07efdba7df533d0b331626a5a4e4b3b21eacdeb26553"
+        }
+      ]
+    },
+    {
+      "slug": "05-relojero",
+      "alt": "Relojero trabajando con una lupa en un mecanismo sobre una mesa iluminada por una lámpara.",
+      "scene": "A close, cinematic tabletop view of a craft watch-repair bench, seen diagonally over the shoulder of an older artisan. Their two anatomically accurate hands use fine tweezers above a small open pocket watch. An articulated sage desk lamp, a loupe, three carefully placed brass gears, a worn wooden work surface. Face only partly seen at the edge; hands and craftsmanship lead. Watch dial has simple ticks with no numerals or writing. Patient attention and service, no shops or plants.",
+      "prompt": "Use case: illustration-story. Create ONE entirely new premium editorial illustration, landscape 3:2. The two input images are STYLE REFERENCES ONLY, not edit targets: match their refined ink-and-gouache technique, delicate expressive espresso pen contours, selective crosshatching, muted pigment, warm ivory paper texture, quiet elegance and exceptional drawing craft. Do not copy their scenes or composition. Palette: ivory #f7f5ef, espresso #302820, sage #79836a, terracotta #a43d28 and pale ochre #d5b472. Keep the subject inset within generous paper margins; make a complete standalone work, not a collage. No text, lettering, labels, numerals, logo, signature or watermark. No photographs, 3D rendering, gradients, clip art, corporate blob people, excessive noise or glossy effects. Maintain sophisticated cultural-magazine illustration quality. Specific new scene: A close, cinematic tabletop view of a craft watch-repair bench, seen diagonally over the shoulder of an older artisan. Their two anatomically accurate hands use fine tweezers above a small open pocket watch. An articulated sage desk lamp, a loupe, three carefully placed brass gears, a worn wooden work surface. Face only partly seen at the edge; hands and craftsmanship lead. Watch dial has simple ticks with no numerals or writing. Patient attention and service, no shops or plants.",
+      "source": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-f55a5b0d-ccdf-4e10-8aad-6cab6a037040.png",
+      "original": "originals/05-relojero.png",
+      "sha256": "710463c7a9fd7f4c8fafcf6b21fb0c37b87a78ece71d4d648e6214f70854339a",
+      "delivery": [
+        {
+          "file": "05-relojero-768.webp",
+          "width": 768,
+          "bytes": 135622,
+          "sha256": "e96ec31605ccfdcbcbb4b63582e1b48791db78b7321a78ec1f117a29180f8a5f"
+        },
+        {
+          "file": "05-relojero-1536.webp",
+          "width": 1536,
+          "bytes": 572364,
+          "sha256": "d521d37a200109844730aae46dd0a09c0ffc05c0d9bf542016907f9c2242b52d"
+        }
+      ]
+    },
+    {
+      "slug": "06-confianza",
+      "alt": "Sobre de papel cerrado con sello de cera, una llave de latón y una rama junto a él.",
+      "scene": "An elevated conceptual still life viewed directly from above: a beautiful thick ivory envelope sealed with a small unmarked terracotta wax seal; a slender antique brass key lies diagonally across it; an elegant sage ginkgo leaf and its soft etched shadow create a counterpoint. Secure, quiet, generous negative space, visually arresting asymmetry. No letters or writing anywhere, no lock icon, no computer or phone, no hands. Make materials and precise pen detail exquisite.",
+      "prompt": "Use case: illustration-story. Create ONE entirely new premium editorial illustration, landscape 3:2. The two input images are STYLE REFERENCES ONLY, not edit targets: match their refined ink-and-gouache technique, delicate expressive espresso pen contours, selective crosshatching, muted pigment, warm ivory paper texture, quiet elegance and exceptional drawing craft. Do not copy their scenes or composition. Palette: ivory #f7f5ef, espresso #302820, sage #79836a, terracotta #a43d28 and pale ochre #d5b472. Keep the subject inset within generous paper margins; make a complete standalone work, not a collage. No text, lettering, labels, numerals, logo, signature or watermark. No photographs, 3D rendering, gradients, clip art, corporate blob people, excessive noise or glossy effects. Maintain sophisticated cultural-magazine illustration quality. Specific new scene: An elevated conceptual still life viewed directly from above: a beautiful thick ivory envelope sealed with a small unmarked terracotta wax seal; a slender antique brass key lies diagonally across it; an elegant sage ginkgo leaf and its soft etched shadow create a counterpoint. Secure, quiet, generous negative space, visually arresting asymmetry. No letters or writing anywhere, no lock icon, no computer or phone, no hands. Make materials and precise pen detail exquisite.",
+      "source": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-60ddc767-6c04-4650-b6c8-d09799827087.png",
+      "original": "originals/06-confianza.png",
+      "sha256": "08a94a29bdbd016563bddb268f87373a749f57bd44d18f0dbc53d5cda9466313",
+      "delivery": [
+        {
+          "file": "06-confianza-768.webp",
+          "width": 768,
+          "bytes": 61956,
+          "sha256": "30ab74ee98a4fe0298eb2737c316905924afc5d5ce1223bf396842d048cf7373"
+        },
+        {
+          "file": "06-confianza-1536.webp",
+          "width": 1536,
+          "bytes": 282448,
+          "sha256": "7cc07ad9f6d5cef8400ec1c5fd508de588740781f30948f7950dca89bed36736"
+        }
+      ]
+    },
+    {
+      "slug": "07-puente",
+      "alt": "Puente de piedra sobre un arroyo, con dos personas caminando hacia el centro.",
+      "scene": "A spacious pastoral landscape with a single graceful low stone arch bridge over a winding stream. Two small people approach each other from opposite ends of the bridge, suggesting connection. Delicate grasses, sage shrubs and a distant ochre hillside. Architectural structure and water reflections are credible, beautifully composed open landscape with lots of warm paper sky. No buildings, no cards, no ribbons, no diagram arrows.",
+      "prompt": "Use case: illustration-story. Create ONE entirely new premium editorial illustration, landscape 3:2. The two input images are STYLE REFERENCES ONLY, not edit targets: match their refined ink-and-gouache technique, delicate expressive espresso pen contours, selective crosshatching, muted pigment, warm ivory paper texture, quiet elegance and exceptional drawing craft. Do not copy their scenes or composition. Palette: ivory #f7f5ef, espresso #302820, sage #79836a, terracotta #a43d28 and pale ochre #d5b472. Keep the subject inset within generous paper margins; make a complete standalone work, not a collage. No text, lettering, labels, numerals, logo, signature or watermark. No photographs, 3D rendering, gradients, clip art, corporate blob people, excessive noise or glossy effects. Maintain sophisticated cultural-magazine illustration quality. Specific new scene: A spacious pastoral landscape with a single graceful low stone arch bridge over a winding stream. Two small people approach each other from opposite ends of the bridge, suggesting connection. Delicate grasses, sage shrubs and a distant ochre hillside. Architectural structure and water reflections are credible, beautifully composed open landscape with lots of warm paper sky. No buildings, no cards, no ribbons, no diagram arrows.",
+      "source": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-5316838b-4c30-48f1-afe7-a596870383a9.png",
+      "original": "originals/07-puente.png",
+      "sha256": "b3e52f7e120a664a0b576ae58b9da9dd9110db1afa1d0f4b810e4ecfe7cb569a",
+      "delivery": [
+        {
+          "file": "07-puente-768.webp",
+          "width": 768,
+          "bytes": 124548,
+          "sha256": "a5a8f95f97e6b6c3efbe5bf56a076c3cd5185b4d601bd54ad7b516fc27e62296"
+        },
+        {
+          "file": "07-puente-1536.webp",
+          "width": 1536,
+          "bytes": 485916,
+          "sha256": "80bd1c278d4a9f970d5b2f56a9b63b5e019e2e27f89e4b67b811c1759719919f"
+        }
+      ]
+    },
+    {
+      "slug": "08-libreria",
+      "alt": "Persona sentada leyendo entre estantes de libros, acompañada por un gato junto a una ventana.",
+      "scene": "A quiet, richly observed bookshop reading nook: a woman in an ochre sweater seated in a sage armchair, absorbed in an open book; a curled cat on the floor; tall bookcases with blank, unlettered spines, a tall arched window admitting warm daylight, one small side table. A tactile interior vignette of belonging, books and personal ritual. Accurate small human proportions. No storefront view, no visible text, no mug, no gift, no ribbon.",
+      "prompt": "Use case: illustration-story. Create ONE entirely new premium editorial illustration, landscape 3:2. The two input images are STYLE REFERENCES ONLY, not edit targets: match their refined ink-and-gouache technique, delicate expressive espresso pen contours, selective crosshatching, muted pigment, warm ivory paper texture, quiet elegance and exceptional drawing craft. Do not copy their scenes or composition. Palette: ivory #f7f5ef, espresso #302820, sage #79836a, terracotta #a43d28 and pale ochre #d5b472. Keep the subject inset within generous paper margins; make a complete standalone work, not a collage. No text, lettering, labels, numerals, logo, signature or watermark. No photographs, 3D rendering, gradients, clip art, corporate blob people, excessive noise or glossy effects. Maintain sophisticated cultural-magazine illustration quality. Specific new scene: A quiet, richly observed bookshop reading nook: a woman in an ochre sweater seated in a sage armchair, absorbed in an open book; a curled cat on the floor; tall bookcases with blank, unlettered spines, a tall arched window admitting warm daylight, one small side table. A tactile interior vignette of belonging, books and personal ritual. Accurate small human proportions. No storefront view, no visible text, no mug, no gift, no ribbon.",
+      "source": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-87f14834-662c-4874-a307-d7ec2a5991d6.png",
+      "original": "originals/08-libreria.png",
+      "sha256": "68044aa3ec8e5709780af3ecab13af5203379f61addb7c0fda40c9ebf2517f87",
+      "delivery": [
+        {
+          "file": "08-libreria-768.webp",
+          "width": 768,
+          "bytes": 133038,
+          "sha256": "56070f131d0470ddca0d6bb686a5b76fa1e8c38feccf59d816feb8b54ea6d214"
+        },
+        {
+          "file": "08-libreria-1536.webp",
+          "width": 1536,
+          "bytes": 528010,
+          "sha256": "1ecdb72096eff8ba43de23825ded819584dab2a972e1755d32d4a3a226132e90"
+        }
+      ]
+    },
+    {
+      "slug": "09-tiempo",
+      "alt": "Reloj de arena con una rama en flor a un lado y semillas al otro.",
+      "scene": "A poetic, minimal editorial still life about timing: a tall elegant hourglass in a simple dark wooden frame, fine pale ochre sand falling through the waist; on its left a branch with sparse spring blossoms, on its right a small fan of dried seed pods. Strong vertical centerpiece within a horizontal canvas, generous blank space, fragile glass described with a few brilliant ink lines rather than glossy rendering. No numbers, text, people, ribbon or reward imagery.",
+      "prompt": "Use case: illustration-story. Create ONE entirely new premium editorial illustration, landscape 3:2. The two input images are STYLE REFERENCES ONLY, not edit targets: match their refined ink-and-gouache technique, delicate expressive espresso pen contours, selective crosshatching, muted pigment, warm ivory paper texture, quiet elegance and exceptional drawing craft. Do not copy their scenes or composition. Palette: ivory #f7f5ef, espresso #302820, sage #79836a, terracotta #a43d28 and pale ochre #d5b472. Keep the subject inset within generous paper margins; make a complete standalone work, not a collage. No text, lettering, labels, numerals, logo, signature or watermark. No photographs, 3D rendering, gradients, clip art, corporate blob people, excessive noise or glossy effects. Maintain sophisticated cultural-magazine illustration quality. Specific new scene: A poetic, minimal editorial still life about timing: a tall elegant hourglass in a simple dark wooden frame, fine pale ochre sand falling through the waist; on its left a branch with sparse spring blossoms, on its right a small fan of dried seed pods. Strong vertical centerpiece within a horizontal canvas, generous blank space, fragile glass described with a few brilliant ink lines rather than glossy rendering. No numbers, text, people, ribbon or reward imagery.",
+      "source": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-0ad0f556-b7f6-45d1-b49e-63d7db625976.png",
+      "original": "originals/09-tiempo.png",
+      "sha256": "7de0f6a5bcb0b39fd42dddebbf7d71c7610254c9a1c099f5ce46feb10fd8180f",
+      "delivery": [
+        {
+          "file": "09-tiempo-768.webp",
+          "width": 768,
+          "bytes": 60026,
+          "sha256": "a38f754f8f10655d07eb25946208c9b9378b69d6c9df549765d7cbf32bb12acf"
+        },
+        {
+          "file": "09-tiempo-1536.webp",
+          "width": 1536,
+          "bytes": 238410,
+          "sha256": "ff78d19d20fe74d3b218ab1e9492c5656cab79308ffd65fdd183b3a973a0a178"
+        }
+      ]
+    },
+    {
+      "slug": "10-ensamble",
+      "alt": "Trío de músicos con violín, violonchelo y contrabajo interpretando juntos en un espacio íntimo.",
+      "scene": "A beautifully composed intimate chamber trio practicing together: a violinist standing, a cellist seated, a double-bass player standing farther back, in a loose semicircle with a small blank music stand. Warm human concentration and coordinated gesture, carefully accurate instruments, credible bows, fingers and hands, varied ages and clothing in sage, ochre and muted terracotta. Sparse setting, subtle floor hatch marks and generous ivory backdrop. No writing on music, no audience, no stage banners, no leaf decorations.",
+      "prompt": "Use case: illustration-story. Create ONE entirely new premium editorial illustration, landscape 3:2. The two input images are STYLE REFERENCES ONLY, not edit targets: match their refined ink-and-gouache technique, delicate expressive espresso pen contours, selective crosshatching, muted pigment, warm ivory paper texture, quiet elegance and exceptional drawing craft. Do not copy their scenes or composition. Palette: ivory #f7f5ef, espresso #302820, sage #79836a, terracotta #a43d28 and pale ochre #d5b472. Keep the subject inset within generous paper margins; make a complete standalone work, not a collage. No text, lettering, labels, numerals, logo, signature or watermark. No photographs, 3D rendering, gradients, clip art, corporate blob people, excessive noise or glossy effects. Maintain sophisticated cultural-magazine illustration quality. Specific new scene: A beautifully composed intimate chamber trio practicing together: a violinist standing, a cellist seated, a double-bass player standing farther back, in a loose semicircle with a small blank music stand. Warm human concentration and coordinated gesture, carefully accurate instruments, credible bows, fingers and hands, varied ages and clothing in sage, ochre and muted terracotta. Sparse setting, subtle floor hatch marks and generous ivory backdrop. No writing on music, no audience, no stage banners, no leaf decorations.",
+      "source": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-b1ec41f6-0b29-46ec-8ff1-c5c0e0adf79c.png",
+      "original": "originals/10-ensamble.png",
+      "sha256": "d23aebc2a5d5e63b48fd8824063bfdcca03969485c09b14745c0ce8a2d6e1609",
+      "delivery": [
+        {
+          "file": "10-ensamble-768.webp",
+          "width": 768,
+          "bytes": 82788,
+          "sha256": "0dd00d5114cbb2f841e6d6fe7017d4ceee54e4c163eb6b0a7e83d296845bbf2e"
+        },
+        {
+          "file": "10-ensamble-1536.webp",
+          "width": 1536,
+          "bytes": 351170,
+          "sha256": "16a84614a5ac46a7e121070c2201ac71257360684709b8cda1e6164ef1206de8"
+        }
+      ]
+    }
+  ],
+  "deliveryEncoding": "Chromium canvas WebP quality0.90; same composition, source originals retained"
+}

@@ -7,7 +7,7 @@ import {request as httpRequest} from 'node:http';
 import { createSearchVisibility } from '../../src/middleware/search-visibility.js';
 const origin='https://puntosfieles.com';
 async function fixture(t) {
- const app=express();app.use(createSearchVisibility({marketingOrigin:origin,appOrigin:'https://app.puntosfieles.com'}));app.use((_req,res)=>res.type('html').send('<h1>Fixture</h1>'));
+ const app=express();app.use(createSearchVisibility({marketingOrigin:origin,appOrigin:'https://app.puntosfieles.com',guides:{version:1,articles:[]}}));app.use((_req,res)=>res.type('html').send('<h1>Fixture</h1>'));
  const server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));t.after(()=>new Promise(resolve=>server.close(resolve)));
  const address=server.address();if(!address||typeof address==='string')throw new Error('Missing test address');
  return (path,host='puntosfieles.com')=>new Promise((resolve,reject)=>{const request=httpRequest({hostname:'127.0.0.1',port:address.port,path,headers:{Host:host}},response=>{const chunks=[];response.on('data',chunk=>chunks.push(chunk));response.on('end',()=>resolve(new Response(Buffer.concat(chunks),{status:response.statusCode,headers:Object.fromEntries(Object.entries(response.headers).filter(([,value])=>value!==undefined).map(([key,value])=>[key,Array.isArray(value)?value.join(", "):String(value)]))})));});request.on('error',reject);request.end();});
