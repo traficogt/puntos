@@ -56,6 +56,16 @@ function fetchReceipts(api, receiptIds = ["2-1008"], overrides = {}) {
 }
 
 testRefundReceipts();
+it('preserves safe identity for anonymous receipts and rejects impossible or future receipt dates', async () => {
+  const anonymous = await fetchPage(mockApi({ receipts: [receipt({ customer_id: null })] }));
+  assert.equal(anonymous.issues[0].source, 'loyverse:merchant-1:store-1');
+  assert.equal(anonymous.issues[0].occurredAt, '2026-11-09T00:15:00.000Z');
+  for (const receipt_date of ['2026-02-30T12:00:00Z', '2999-01-01T00:00:00Z', '2026-01-01T00:00:00']) {
+    const out = await fetchPage(mockApi({ receipts: [receipt({ receipt_date })] }));
+    assert.equal(out.sales.length, 0);
+    assert.equal(out.issues[0].code, 'invalid_date');
+  }
+});
 function testRefundReceipts() {
   it("emits native refund evidence without resolving or guessing a customer", async () => {
     const api = mockApi({ receipts: [receipt({ receipt_type: "REFUND", refund_for: "2-1000", customer_id: null })] });

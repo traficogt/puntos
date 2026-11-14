@@ -73,7 +73,8 @@ describe("awardPoints", () => {
 
     assert.equal(result.pointsAwarded, 42);
     assert.ok(Array.isArray(capturedInsertParams), "transaction insert params captured");
-    assert.equal(capturedInsertParams.length, 13, "transaction insert param count");
+    assert.equal(capturedInsertParams.length, 15, "transaction insert param count");
+    assert.deepEqual(capturedInsertParams.slice(13), [null, 'server_recorded']);
     assert.deepEqual(
       capturedInsertParams.slice(0, 12),
       ["tx-1", "b1", null, "c1", "s1", 100, 2, 3, 42, "POSTED", null, "online"]

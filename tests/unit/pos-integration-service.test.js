@@ -4,11 +4,58 @@ import { createPosIntegrationService } from "../../src/app/services/pos-integrat
 
 function fixture(patch = {}) {
   const business = { id: "business-1", slug: "cafe", plan: "EMPRESA", program_type: "SPEND", program_json: { points_per_q: 1, external_awards: { enabled: true, api_key: "key" }, pos_integration: { enabled: true, mode: "api", revision: "r1", connected_at: "2026-11-09T10:00:00.000Z", loyverse: { access_token: "test-token", merchant_id: "m1" } } } };
-  const awards = [], saves = [];
+  const awards = [], saves = [], receipts = [];
   const deps = { getBusiness: async () => business, getCustomer: async () => ({ id: "customer-1", business_id: business.id }), findTransaction: async () => null, award: async (args) => { awards.push(args); return { replay: false }; }, saveSettings: async (_id, value) => { saves.push(value); Object.assign(business.program_json, value); }, saveSync: async (_id, _revision, value) => { saves.push(value); Object.assign(business.program_json.pos_integration, value); }, lock: async (_id, fn) => fn(), hasFeature: async () => true, retryRefunds: async () => [], reconcileSaleRefunds: async () => [], now: () => new Date("2026-11-09T11:00:00.000Z"), ...patch };
-  return { service: createPosIntegrationService(deps), business, awards, saves };
+  const recordReceipts = patch.recordReceipts ?? (async (_id, rows) => { receipts.push(...structuredClone(rows)); });
+  return { service: createPosIntegrationService({ ...deps, recordReceipts }), business, awards, saves, receipts };
 }
 const sale = { saleId: "000123", customerPhone: "55554444", amountQ: 40, currency: "GTQ", status: "paid" };
+
+test("captures observed receipts without customer PII, preserves unmatched evidence, and keeps previews read-only", async () => {
+  const f = fixture({ getCustomer: async () => null });
+  await f.service.ingestPosSale(f.business, { ...sale, occurredAt: '2026-11-09T10:30:00Z', dryRun: true });
+  assert.equal(f.receipts.length, 0);
+  await f.service.ingestPosSale(f.business, { ...sale, occurredAt: '2026-11-09T10:30:00Z' });
+  assert.deepEqual(f.receipts, [{ source: 'api', saleId: '000123', occurredAt: '2026-11-09T10:30:00.000Z', status: 'unmatched', transactionId: null }]);
+  assert.equal(JSON.stringify(f.receipts).includes('55554444'), false);
+});
+
+test("stores receipt evidence before awarding and settles it after success", async () => {
+  const f = fixture({ award: async () => {
+    assert.equal(f.receipts[0].status, 'unmatched', 'capture must survive a later ledger error');
+    return { transactionId: 'transaction-1' };
+  } });
+  await f.service.ingestPosSale(f.business, sale);
+  assert.equal(f.receipts.at(-1).status, 'matched');
+  assert.equal(f.receipts.at(-1).transactionId, 'transaction-1');
+});
+
+test("receipt persistence failure stops a new award so a retry can safely recover", async () => {
+  const f = fixture({ recordReceipts: async () => { throw new Error('receipt unavailable'); } });
+  await assert.rejects(f.service.ingestPosSale(f.business, sale), /receipt unavailable/);
+  assert.equal(f.awards.length, 0);
+});
+
+test('records keyed rejected API inputs without accepting invalid dates or unpaid sales', async () => {
+  const f = fixture();
+  await assert.rejects(f.service.ingestPosSale(f.business, { ...sale, status: 'unpaid' }), { statusCode: 400 });
+  await assert.rejects(f.service.ingestPosSale(f.business, { ...sale, saleId: 'bad-date', occurredAt: '2999-01-01T00:00:00Z' }), { statusCode: 400 });
+  assert.equal(f.receipts.length, 2);
+  assert.ok(f.receipts.every(receipt => receipt.status === 'rejected' && receipt.occurredAt === null));
+  assert.equal(f.awards.length, 0);
+});
+
+test("carries authenticated receipt time outside sale metadata and detects changed replay time", async () => {
+  const f = fixture();
+  await f.service.ingestPosSale(f.business, { ...sale, occurredAt: "2026-11-09T10:30:00Z" });
+  assert.equal(f.awards[0].purchaseOccurredAt, "2026-11-09T10:30:00.000Z");
+  assert.equal(f.awards[0].purchaseTimeSource, "pos_receipt");
+  assert.equal(f.awards[0].meta.pos_sale.occurredAt, undefined, "existing sale fingerprints stay unchanged");
+  const replay = fixture({ findTransaction: async () => ({ customer_id: "customer-1", points: 40, meta: f.awards[0].meta,
+    purchase_occurred_at: new Date("2026-11-09T10:30:00Z"), purchase_time_source: "pos_receipt" }) });
+  assert.equal((await replay.service.ingestPosSale(replay.business, sale)).result.duplicates, 1);
+  assert.equal((await replay.service.ingestPosSale(replay.business, { ...sale, occurredAt: "2026-11-09T10:31:00Z" })).result.errors, 1);
+});
 
 test("local refund retries support API connections and recheck enabled state and entitlement", async () => {
   const calls = [];

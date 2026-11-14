@@ -63,7 +63,7 @@ class PfPosOutbox(models.Model):
                 checkout_uuids = order._pf_intents().filtered(lambda intent: intent.state in ('authorized', 'recorded')).mapped('cart_line_id')
                 excluded = order.lines.filtered(lambda line: line.uuid in checkout_uuids or line in linked or line.product_id in mapped and order.currency_id.is_zero(line.price_subtotal) and order.currency_id.is_zero(line.price_subtotal_incl))
                 earning_lines = order.lines - excluded
-                data = sale_payload(source=connection.source, receipt_id=receipt, phone=order.partner_id.mobile or order.partner_id.phone or '', amount=order.amount_total, currency=order.currency_id.name, expected_currency=connection.expected_currency, quantities=earning_lines.mapped('qty') or [0])
+                data = sale_payload(source=connection.source, receipt_id=receipt, phone=order.partner_id.mobile or order.partner_id.phone or '', amount=order.amount_total, currency=order.currency_id.name, expected_currency=connection.expected_currency, quantities=earning_lines.mapped('qty') or [0], occurred_at=order.date_order)
                 snapshot = {str(line.id):line.qty for line in order.lines}
             else:
                 originals = order.lines.refunded_orderline_id.order_id

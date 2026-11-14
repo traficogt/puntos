@@ -15,8 +15,8 @@ for (const writer of ['staff', 'external']) for (const withCriteria of [false,tr
     if (sql.includes('SELECT id FROM customers')) return { rows: [{ id: 'customer' }] };
     if (sql.includes('INSERT INTO transactions')) {
       row = writer === 'external'
-        ? { id: params[0], business_id: params[1], customer_id: params[2], amount_q: params[3], visits: params[4], items: params[5], points: params[6], status: params[7], available_at: params[8], meta: params[9] }
-        : { id: params[0], business_id: params[1], customer_id: params[3], staff_user_id: params[4], amount_q: params[5], visits: params[6], items: params[7], points: params[8], status: params[9], available_at: params[10], meta: params[12] };
+        ? { id: params[0], business_id: params[1], customer_id: params[2], amount_q: params[3], visits: params[4], items: params[5], points: params[6], status: params[7], available_at: params[8], meta: params[9], purchase_occurred_at: params[10], purchase_time_source: params[11] }
+        : { id: params[0], business_id: params[1], customer_id: params[3], staff_user_id: params[4], amount_q: params[5], visits: params[6], items: params[7], points: params[8], status: params[9], available_at: params[10], meta: params[12], purchase_occurred_at: params[13], purchase_time_source: params[14] };
     }
     return { rows: sql.includes('customer_balances') ? [{ points: 10, pending_points: 0 }] : [], rowCount: 1 };
   } };
@@ -40,6 +40,8 @@ for (const writer of ['staff', 'external']) for (const withCriteria of [false,tr
   const award = writer === 'external' ? awardFromExternalEventWithDeps : awardPointsWithDeps;
   const result = await award(deps, args);
   assert.equal(result.pointsAwarded, 10);
+  assert.equal(row.purchase_time_source, writer === 'staff' ? 'client_reported' : 'server_recorded');
+  assert.equal(row.purchase_occurred_at, writer === 'staff' ? '2001-01-01T00:00:00.000Z' : null);
   assert.equal(row.meta.award_evidence.program_points, 5, 'persist evidence produced during computation');
   assert.equal(row.meta.award_evidence.awarded_points, 10);
   assert.equal(row.meta.award_evidence.targeted_offer.bonus_points, 5);

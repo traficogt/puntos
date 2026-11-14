@@ -5,6 +5,7 @@ import ipaddress
 import json
 import re
 from decimal import Decimal, InvalidOperation
+from datetime import datetime, timezone
 from urllib.parse import urlsplit
 
 
@@ -25,7 +26,7 @@ def check_currency(currency, expected_currency):
         raise ValueError('currency_mismatch')
 
 
-def sale_payload(*, source, receipt_id, phone, amount, currency, expected_currency, quantities):
+def sale_payload(*, source, receipt_id, phone, amount, currency, expected_currency, quantities, occurred_at=None):
     check_currency(currency, expected_currency)
     if not isinstance(phone, str) or not re.fullmatch(r'[+\d\s().-]+', phone, flags=re.ASCII):
         raise ValueError('customer_phone')
@@ -39,7 +40,16 @@ def sale_payload(*, source, receipt_id, phone, amount, currency, expected_curren
     items = int(sum(counts)) if all(q == int(q) for q in counts) else 0
     if items > 2147483647:
         raise ValueError('items_range')
-    return dict(saleId=receipt_id, source=source, customerPhone=digits, amountQ=money(amount), currency=currency, status='paid', items=items)
+    payload = dict(saleId=receipt_id, source=source, customerPhone=digits, amountQ=money(amount), currency=currency, status='paid', items=items)
+    if occurred_at is not None:
+        if not isinstance(occurred_at, datetime):
+            raise ValueError('occurred_at')
+        # Odoo Datetime values are naive UTC; timezone-aware callers normalize.
+        occurred_at = occurred_at.replace(tzinfo=timezone.utc) if occurred_at.tzinfo is None else occurred_at.astimezone(timezone.utc)
+        if occurred_at > datetime.now(timezone.utc):
+            raise ValueError('occurred_at')
+        payload['occurredAt'] = occurred_at.isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+    return payload
 
 
 def refund_payload(*, source, receipt_id, original_id, amount, original_amount, currency, expected_currency, original_lines, returned_lines):

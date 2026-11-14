@@ -16,6 +16,8 @@ import { normalizePosSale, posEventId, safePosIntegration } from "./pos/common.j
 import { normalizePosCsv } from "./pos/csv.js";
 import { fetchLoyverseSales, fetchLoyverseSalesByReceiptIds, verifyLoyverseConnection } from "./pos/loyverse.js";
 import { enqueuePosRefund, reconcilePosRefund, retryPendingPosRefunds, reconcilePendingRefundsForSale } from "./pos-refund-service.js";
+import { assertPurchaseTimeReplay } from './purchase-event-time.js';
+import { posMeasurementReceipt, recordPosMeasurementReceipts } from './pos-measurement-receipts.js';
 
 const SettingsSchema = z.object({
   enabled: z.boolean(), mode: z.enum(["api", "csv", "loyverse"]), automatic: z.boolean().optional(),
@@ -29,7 +31,8 @@ const PreflightSchema = z.object({
   amountQ: z.number().finite().min(0).max(99999999.99),
   currency: z.string().regex(/^[A-Z]{3}$/),
   status: z.enum(["paid", "completed"]),
-  items: z.number().int().min(0).max(2147483647).optional()
+  items: z.number().int().min(0).max(2147483647).optional(),
+  occurredAt: z.string().optional()
 }).strict();
 
 async function withPosLock(businessId, fn) {
@@ -45,7 +48,7 @@ const defaultDeps = {
   getBusiness: (id) => BusinessRepo.getById(id),
   getCustomer: (businessId, phone) => CustomerRepo.getByBusinessAndPhone(businessId, phone),
   findTransaction: async (businessId, eventId) => {
-    const { rows } = await dbQuery("SELECT customer_id, points, meta FROM transactions WHERE business_id=$1 AND source='external' AND meta->>'external_event_id'=$2 LIMIT 1", [businessId, eventId]);
+    const { rows } = await dbQuery("SELECT id, customer_id, points, meta, purchase_occurred_at, purchase_time_source FROM transactions WHERE business_id=$1 AND source='external' AND meta->>'external_event_id'=$2 LIMIT 1", [businessId, eventId]);
     return rows[0] ?? null;
   },
   saveSettings: async (businessId, patch, { initializeExternalKey = false } = {}) => {
@@ -72,6 +75,7 @@ const defaultDeps = {
   reconcileRefund: reconcilePosRefund,
   retryRefunds: retryPendingPosRefunds,
   reconcileSaleRefunds: reconcilePendingRefundsForSale,
+  recordReceipts: recordPosMeasurementReceipts,
   now: () => new Date()
 };
 
@@ -141,7 +145,10 @@ export function createPosIntegrationService(overrides = {}) {
   async function prepare(business, sales, issues = [], headers = []) {
     const rows = issues.map((issue) => ({ ...issue, row: issue.row ?? null, customerPhone: "", amountQ: null, points: 0, status: issue.status ?? (["refund", "cancelled", "historic_sale", "store_mismatch", "receipt_not_found"].includes(issue.code) ? "ignored" : "error") }));
     const ready = [];
+    const unmatchedCodes = new Set(['missing_customer', 'customer_not_found', 'missing_phone', 'invalid_phone']);
+    const receipts = issues.filter(issue => issue.source).map(issue => posMeasurementReceipt(issue, unmatchedCodes.has(issue.code) ? 'unmatched' : 'rejected')).filter(Boolean);
     for (const input of sales) {
+      const receipt = posMeasurementReceipt(input);
       const row = { row: input.row ?? null, saleId: input.saleId ?? "", customerPhone: input.customerPhone ?? "", amountQ: input.amountQ, points: 0, status: "ready", code: "", message: "Lista para sumar puntos." };
       try {
         const sale = normalizePosSale(input,business);
@@ -150,39 +157,50 @@ export function createPosIntegrationService(overrides = {}) {
         const meta = { pos_sale: { saleId: sale.saleId, source: sale.source, customerPhone: sale.customerPhone, amountQ: sale.amountQ, items: sale.items, ...(sale.currency!=="GTQ"?{currency:sale.currency}:{}) } };
         const existing = await deps.findTransaction(business.id, posEventId(sale));
         if (existing) {
+          assertPurchaseTimeReplay(existing, sale.occurredAt);
           if (existing.customer_id !== customer.id || !Object.entries(meta.pos_sale).every(([key, value]) => existing.meta?.pos_sale?.[key] === value)) throw conflict("Este ID de venta ya se usó con otros datos. Revisa la venta antes de ajustar sus puntos.");
           Object.assign(row, { status: "duplicate", points: Number(existing.points), message: "Esta venta ya fue procesada; no se sumará otra vez." });
+          if (receipt) Object.assign(receipt, { status: 'matched', transactionId: existing.id ?? null });
         } else {
           if (business.program_type === "ITEM" && sale.items < 1) throw badRequest("Este programa requiere la cantidad entera de artículos vendidos.");
           row.points = computePoints(business, { amount_q: sale.amountQ, visits: 1, items: sale.items });
           if (!isLedgerInteger(row.points)) throw badRequest("Revisa las reglas de puntos de este programa; el resultado supera el límite permitido.");
-          ready.push({ row, sale, meta });
+          ready.push({ row, sale, meta, receipt });
         }
         row.customerPhone = sale.customerPhone;
       } catch (error) {
         if (!error.statusCode || error.statusCode >= 500) throw error;
         Object.assign(row, { status: "error", code: `SALE_${error.statusCode}`, message: error.message });
+        if (receipt) receipt.status = error.statusCode === 404 ? 'unmatched' : 'rejected';
       }
+      if (receipt) receipts.push(receipt);
       rows.push(row);
     }
     rows.sort((a, b) => (a.row ?? 0) - (b.row ?? 0));
     const summary = { total: rows.length, ready: 0, errors: 0, ignored: 0, duplicates: 0 };
     for (const row of rows) summary[{ ready: "ready", error: "errors", ignored: "ignored", duplicate: "duplicates" }[row.status]] += 1;
-    return { preview: { ok: true, headers, rows, summary }, ready };
+    return { preview: { ok: true, headers, rows, summary }, ready, receipts };
   }
 
   async function apply(business, prepared) {
     const result = resultFromPreview(prepared.preview);
-    for (const { sale, meta, row } of prepared.ready) {
+    // Commit input evidence before attempting awards, so a ledger failure cannot
+    // erase the fact that this adapter sent a receipt. Previews never call apply.
+    await deps.recordReceipts(business.id, prepared.receipts);
+    for (const { sale, meta, row, receipt } of prepared.ready) {
       try {
-        const award = await deps.award({ businessSlug: business.slug, externalEventId: posEventId(sale), customerPhone: sale.customerPhone, amount_q: sale.amountQ, expectedCurrency: sale.currency, visits: 1, items: sale.items, meta });
+        const award = await deps.award({ businessSlug: business.slug, externalEventId: posEventId(sale), customerPhone: sale.customerPhone, amount_q: sale.amountQ, expectedCurrency: sale.currency, visits: 1, items: sale.items, meta,
+          purchaseOccurredAt: sale.occurredAt, purchaseTimeSource: 'pos_receipt' });
         if (award.replay) result.duplicates += 1;
         else result.awarded += 1;
+        if (receipt) Object.assign(receipt, { status: 'matched', transactionId: award.transactionId ?? null });
       } catch (error) {
         if (!error.statusCode || error.statusCode >= 500) throw error;
         result.errors += 1;
         result.issues.push({ row: row.row, saleId: sale.saleId, code: `SALE_${error.statusCode}`, message: error.statusCode === 409 ? "La venta ya existe con otros datos; revisa el registro." : "No se pudo registrar esta venta. Revisa el cliente y la conexión." });
+        if (receipt) receipt.status = error.statusCode === 404 ? 'unmatched' : 'rejected';
       }
+      if (receipt) await deps.recordReceipts(business.id, [receipt]);
     }
     return result;
   }
@@ -214,9 +232,19 @@ export function createPosIntegrationService(overrides = {}) {
   }
   async function ingestPosSale(business, input) {
     await requireEnabled(business, "api");
-    if (!input || !["paid", "completed"].includes(input.status)) throw badRequest("Solo se aceptan ventas pagadas: status debe ser paid o completed.");
-    if (input.dryRun !== undefined && typeof input.dryRun !== "boolean") throw badRequest("dryRun debe ser true o false.");
-    const sale = normalizePosSale(input,business);
+    if (input?.dryRun !== undefined && typeof input.dryRun !== "boolean") throw badRequest("dryRun debe ser true o false.");
+    if (!input || !["paid", "completed"].includes(input.status)) {
+      const receipt = posMeasurementReceipt(input, 'rejected');
+      if (input?.dryRun !== true && receipt) await deps.recordReceipts(business.id, [receipt]);
+      throw badRequest("Solo se aceptan ventas pagadas: status debe ser paid o completed.");
+    }
+    let sale;
+    try { sale = normalizePosSale(input,business); }
+    catch (error) {
+      const receipt = posMeasurementReceipt(input, 'rejected');
+      if (input.dryRun !== true && receipt) await deps.recordReceipts(business.id, [receipt]);
+      throw error;
+    }
     if (input.dryRun === true) return { ...(await prepare(business, [sale])).preview, dryRun: true };
     return deps.lock(business.id, async () => {
       const current = await getBusiness(business.id);
@@ -245,7 +273,7 @@ export function createPosIntegrationService(overrides = {}) {
     }
     const sales = [], issues = [...page.issues];
     for (const sale of page.sales) {
-      if (!sale.occurredAt || !Number.isFinite(Date.parse(sale.occurredAt)) || Date.parse(sale.occurredAt) < Date.parse(cfg.connected_at)) issues.push({ saleId: sale.saleId, code: "historic_sale", message: "Venta anterior a la activación; no se importó automáticamente." });
+      if (!sale.occurredAt || !Number.isFinite(Date.parse(sale.occurredAt)) || Date.parse(sale.occurredAt) < Date.parse(cfg.connected_at)) issues.push({ saleId: sale.saleId, source: sale.source, occurredAt: sale.occurredAt, code: "historic_sale", message: "Venta anterior a la activación; no se importó automáticamente." });
       else sales.push(sale);
     }
     return { sales, issues, refunds: page.refunds ?? [], nextCursor: page.nextCursor, window, attemptedIds: [...retryIds, ...page.sales.map((sale) => sale.saleId), ...page.issues.map((issue) => issue.saleId), ...(page.refunds ?? []).map(refund => refund.refundId)] };

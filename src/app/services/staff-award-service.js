@@ -1,5 +1,6 @@
 import { assertRegionAmount, regionCurrency } from "./regional-settings.js";
 import crypto from "node:crypto";
+import { purchaseEventTime, assertPurchaseTimeReplay } from './purchase-event-time.js';
 
 import { BusinessRepo } from "../repositories/business-repository.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
@@ -133,6 +134,7 @@ export async function awardPointsWithDeps(
   const normalizedItems = Number.isFinite(Number(items)) ? Math.max(0, Math.floor(Number(items))) : 0;
   const normalizedAmountQ = Number(amount_q ?? 0);
   if (!isLedgerAmount(normalizedAmountQ) || !isLedgerInteger(normalizedVisits) || !isLedgerInteger(normalizedItems)) throw badRequest("El monto o las cantidades no son válidos.");
+  const purchaseTime = purchaseEventTime(source === 'offline' ? meta.client_ts : null, 'client_reported');
 
   let decoded;
   let authorizationError = null;
@@ -162,9 +164,10 @@ export async function awardPointsWithDeps(
   const requestFingerprint = crypto.createHash("sha256")
     .update(JSON.stringify([bid, cid, staff.id, jti, normalizedAmountQ, normalizedVisits, normalizedItems])).digest("hex");
   async function existingAward(client) {
-    const found = await client.query(`SELECT id, business_id, customer_id, staff_user_id, amount_q, visits, items, points, status, available_at, meta FROM transactions WHERE id=$1 AND business_id=$2`, [txId, bid]);
+    const found = await client.query(`SELECT id, business_id, customer_id, staff_user_id, amount_q, visits, items, points, status, available_at, meta, purchase_occurred_at, purchase_time_source FROM transactions WHERE id=$1 AND business_id=$2`, [txId, bid]);
     const t = found.rows[0];
     if (!t) return null;
+    assertPurchaseTimeReplay(t, purchaseTime.occurredAt);
     const fingerprint = t.meta?.staff_request_fingerprint;
     if (t.business_id !== bid || t.customer_id !== cid || t.staff_user_id !== staff.id || Number(t.amount_q) !== normalizedAmountQ || Number(t.visits) !== normalizedVisits || Number(t.items) !== normalizedItems || ((nativeWallet || fingerprint) && fingerprint !== requestFingerprint)) throw conflict("txId already used for a different transaction payload");
     const bal = await client.query(`SELECT points, pending_points FROM customer_balances WHERE customer_id=$1`, [cid]);
@@ -296,8 +299,8 @@ export async function awardPointsWithDeps(
     });
 
     await client.query(
-      `INSERT INTO transactions (id, business_id, branch_id, customer_id, staff_user_id, amount_q, visits, items, points, status, available_at, source, meta)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      `INSERT INTO transactions (id, business_id, branch_id, customer_id, staff_user_id, amount_q, visits, items, points, status, available_at, source, meta, purchase_occurred_at, purchase_time_source)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
       [
         transactionId,
         bid,
@@ -311,7 +314,9 @@ export async function awardPointsWithDeps(
         awardStatus,
         availableAt,
         source,
-        metaForInsert
+        metaForInsert,
+        purchaseTime.occurredAt,
+        purchaseTime.source
       ]
     );
 

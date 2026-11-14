@@ -19,6 +19,14 @@ test("normalizes sale identity without losing leading zeroes", () => {
   assert.notEqual(posEventId(out), posEventId({ ...out, source: "other-register" }));
 });
 
+test("preserves a receipt time with an explicit timezone and rejects ambiguous or future dates", () => {
+  assert.equal(normalizePosSale({ ...sale, occurredAt: "2026-01-02T09:30:00-06:00" }).occurredAt, "2026-01-02T15:30:00.000Z");
+  assert.equal(normalizePosSale(sale).occurredAt, undefined, "old adapters may omit receipt time");
+  for (const occurredAt of ["2026-02-30T12:00:00Z", "2026-01-02T12:00:00", "not-a-date", "2999-01-01T00:00:00Z", 123, ""]) {
+    assert.throws(() => normalizePosSale({ ...sale, occurredAt }), { statusCode: 400 });
+  }
+});
+
 test("rejects ambiguous amounts, foreign currency, and missing customer identity", () => {
   for (const patch of [{ amountQ: -1 }, { amountQ: "48.5" }, { amountQ: Infinity }, { amountQ: 1.001 }, { currency: "USD" }, { customerPhone: "" }, { saleId: "" }]) {
     assert.throws(() => normalizePosSale({ ...sale, ...patch }));

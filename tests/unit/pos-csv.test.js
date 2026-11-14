@@ -69,6 +69,13 @@ describe("POS CSV parser", () => {
 });
 
 describe("POS CSV normalization", () => {
+  it("preserves optional receipt dates and rejects invalid dates without importing their rows", () => {
+    const out = normalizePosCsv({ source: "Caja 01", columns: { ...columns, occurredAt: "Fecha" },
+      csv: `${header},Fecha\n001,12345678,10,paid,2026-01-02T09:30:00-06:00\n002,12345678,10,paid,2026-02-30T12:00:00Z\n003,12345678,10,paid,2999-01-01T00:00:00Z` });
+    assert.equal(out.sales.length, 1);
+    assert.equal(out.sales[0].occurredAt, "2026-01-02T15:30:00.000Z");
+    assert.deepEqual(out.issues.map(row => row.code), ["INVALID_OCCURRED_AT", "INVALID_OCCURRED_AT"]);
+  });
   it("returns only headers and empty results for an unmapped inspection", () => {
     assert.deepEqual(normalizePosCsv({ csv: `${header}\n001,12345678,10,paid` }), {
       headers: ["Venta", "Telefono", "Total", "Estado"], sales: [], issues: []
