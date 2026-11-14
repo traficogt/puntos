@@ -36,12 +36,25 @@ test("receipt persistence failure stops a new award so a retry can safely recove
   assert.equal(f.awards.length, 0);
 });
 
-test('records keyed rejected API inputs without accepting invalid dates or unpaid sales', async () => {
+test('purchase coverage records invalid paid API receipts and excludes nonpurchase statuses', async () => {
   const f = fixture();
   await assert.rejects(f.service.ingestPosSale(f.business, { ...sale, status: 'unpaid' }), { statusCode: 400 });
   await assert.rejects(f.service.ingestPosSale(f.business, { ...sale, saleId: 'bad-date', occurredAt: '2999-01-01T00:00:00Z' }), { statusCode: 400 });
-  assert.equal(f.receipts.length, 2);
+  assert.equal(f.receipts.length, 1);
+  assert.equal(f.receipts[0].saleId, 'bad-date');
   assert.ok(f.receipts.every(receipt => receipt.status === 'rejected' && receipt.occurredAt === null));
+  assert.equal(f.awards.length, 0);
+});
+
+test('purchase coverage excludes known nonpurchase and out-of-scope issues but retains unidentified paid receipts', async () => {
+  const ignoredCodes = ['refund', 'cancelled', 'historic_sale', 'store_mismatch', 'receipt_not_found', 'unsupported_receipt', 'UNPAID_STATUS'];
+  const issue = code => ({ saleId: `receipt-${code}`, source: 'loyverse:m1:s1', occurredAt: '2026-11-09T10:30:00Z', code, message: code });
+  const f = fixture({ fetchSales: async () => ({ sales: [], issues: [...ignoredCodes, 'missing_customer', 'invalid_amount'].map(issue), nextCursor: null }) });
+  f.business.program_json.pos_integration.mode = 'loyverse';
+  await f.service.syncLoyverseBusiness(f.business.id);
+  assert.deepEqual(f.receipts.map(({saleId,status}) => ({saleId,status})), [
+    {saleId:'receipt-missing_customer',status:'unmatched'}, {saleId:'receipt-invalid_amount',status:'rejected'}
+  ]);
   assert.equal(f.awards.length, 0);
 });
 

@@ -146,7 +146,10 @@ export function createPosIntegrationService(overrides = {}) {
     const rows = issues.map((issue) => ({ ...issue, row: issue.row ?? null, customerPhone: "", amountQ: null, points: 0, status: issue.status ?? (["refund", "cancelled", "historic_sale", "store_mismatch", "receipt_not_found"].includes(issue.code) ? "ignored" : "error") }));
     const ready = [];
     const unmatchedCodes = new Set(['missing_customer', 'customer_not_found', 'missing_phone', 'invalid_phone']);
-    const receipts = issues.filter(issue => issue.source).map(issue => posMeasurementReceipt(issue, unmatchedCodes.has(issue.code) ? 'unmatched' : 'rejected')).filter(Boolean);
+    // Cancelled/refund/nonpaid records and receipts outside this import's scope
+    // do not establish a missing purchase. Keep genuine sale failures visible.
+    const nonPurchaseCodes = new Set(['refund', 'cancelled', 'historic_sale', 'store_mismatch', 'receipt_not_found', 'unsupported_receipt', 'UNPAID_STATUS']);
+    const receipts = issues.filter(issue => issue.source && !nonPurchaseCodes.has(issue.code)).map(issue => posMeasurementReceipt(issue, unmatchedCodes.has(issue.code) ? 'unmatched' : 'rejected')).filter(Boolean);
     for (const input of sales) {
       const receipt = posMeasurementReceipt(input);
       const row = { row: input.row ?? null, saleId: input.saleId ?? "", customerPhone: input.customerPhone ?? "", amountQ: input.amountQ, points: 0, status: "ready", code: "", message: "Lista para sumar puntos." };
@@ -234,8 +237,6 @@ export function createPosIntegrationService(overrides = {}) {
     await requireEnabled(business, "api");
     if (input?.dryRun !== undefined && typeof input.dryRun !== "boolean") throw badRequest("dryRun debe ser true o false.");
     if (!input || !["paid", "completed"].includes(input.status)) {
-      const receipt = posMeasurementReceipt(input, 'rejected');
-      if (input?.dryRun !== true && receipt) await deps.recordReceipts(business.id, [receipt]);
       throw badRequest("Solo se aceptan ventas pagadas: status debe ser paid o completed.");
     }
     let sale;

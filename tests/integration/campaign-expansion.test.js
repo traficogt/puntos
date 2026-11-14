@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { before, beforeEach, after, describe, it } from 'node:test';
 import pg from 'pg';
@@ -159,6 +159,40 @@ suite('quiet offers, campaign preflight and durable preparation in isolated Post
     assert.equal((await db.query('SELECT count(*)::int AS n FROM growth_campaign_members WHERE campaign_id=$1',[first.campaign.id])).rows[0].n,5000);
     assert.equal((await prepare.runCampaignPreparationJob({businessId,campaignId:first.campaign.id},deps)).prepared,5000);
     const active=(await activate(first.campaign.id)).campaign; assert.equal(active.member_count,5000); assert.equal(active.control_count,1000);
+  });
+  it('replays legacy preparation hashes when the measurement plan is omitted or explicitly null', async () => {
+    const options = input({ audienceLimit: 1000 }), campaignId = randomUUID(), jobId = randomUUID();
+    const legacyPayload = { audienceSegmentId: options.audienceSegmentId, audienceSegmentVersion: options.audienceSegmentVersion,
+      audienceLimit: options.audienceLimit, name: options.name.trim(), bonusPoints: options.bonusPoints,
+      minimumPurchaseQ: options.minimumPurchaseQ, durationDays: options.durationDays, holdoutPercent: options.holdoutPercent,
+      pointsBudget: null, estimatedCostPerPointQ: options.estimatedCostPerPointQ };
+    const legacyHash = createHash('sha256').update(JSON.stringify(legacyPayload)).digest('hex');
+    await db.query(`INSERT INTO growth_campaigns(id,business_id,request_id,name,bonus_points,minimum_purchase_q,duration_days,holdout_percent,
+      points_budget,estimated_cost_per_point_q,created_by_staff_id,preparation_status,measurement_plan)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,NULL,$9,$10,'queued',NULL)`, [campaignId,businessId,options.requestId,options.name,options.bonusPoints,
+      options.minimumPurchaseQ,options.durationDays,options.holdoutPercent,options.estimatedCostPerPointQ,staffId]);
+    await db.query("INSERT INTO background_jobs(id,business_id,job_type,payload) VALUES($1,$2,'growth.campaign.prepare',$3)", [jobId,businessId,{businessId,campaignId}]);
+    await db.query('INSERT INTO growth_campaign_preparations(business_id,campaign_id,request_fingerprint,job_id) VALUES($1,$2,$3,$4)', [businessId,campaignId,legacyHash,jobId]);
+    assert.equal((await prepare.createCampaignPreparation(options,deps)).campaign.id, campaignId);
+    assert.equal((await prepare.createCampaignPreparation({...options,measurementPlan:null},deps)).campaign.id, campaignId);
+    assert.equal((await db.query('SELECT count(*)::int AS count FROM background_jobs')).rows[0].count, 1);
+    assert.equal(audits.length, 0);
+    assert.equal((await db.query('SELECT request_fingerprint FROM growth_campaign_preparations WHERE campaign_id=$1',[campaignId])).rows[0].request_fingerprint, legacyHash);
+  });
+  it('keeps a planned preparation in its new request hash and rejects a changed or removed plan', async () => {
+    const measurementPlan = { baseline_return_rate_pct: 20, minimum_detectable_lift_pp: 10, observation_days: 30, reconciliation_days: 7 };
+    const options = input({ audienceLimit: 1000, measurementPlan });
+    const first = await prepare.createCampaignPreparation(options,deps);
+    const normalized = {version:1,...measurementPlan};
+    const payload = { audienceSegmentId: options.audienceSegmentId, audienceSegmentVersion: options.audienceSegmentVersion,
+      audienceLimit: options.audienceLimit, name: options.name.trim(), bonusPoints: options.bonusPoints,
+      minimumPurchaseQ: options.minimumPurchaseQ, durationDays: options.durationDays, holdoutPercent: options.holdoutPercent,
+      pointsBudget: null, estimatedCostPerPointQ: options.estimatedCostPerPointQ, measurementPlan: normalized };
+    const hash = createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+    assert.equal((await db.query('SELECT request_fingerprint FROM growth_campaign_preparations WHERE campaign_id=$1',[first.campaign.id])).rows[0].request_fingerprint, hash);
+    assert.equal((await prepare.createCampaignPreparation({...options,measurementPlan:Object.fromEntries(Object.entries(measurementPlan).reverse())},deps)).campaign.id, first.campaign.id);
+    await assert.rejects(prepare.createCampaignPreparation({...options,measurementPlan:null},deps),{statusCode:409});
+    await assert.rejects(prepare.createCampaignPreparation({...options,measurementPlan:{...measurementPlan,observation_days:45}},deps),{statusCode:409});
   });
   it('cancels partial preparation permanently, retains progress and never activates it', async () => {
     const {campaign}=await prepare.createCampaignPreparation(input({audienceLimit:1000}),deps);
