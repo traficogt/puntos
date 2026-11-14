@@ -60,3 +60,15 @@ as the style reference. Preserve original wording for PF's own subject matter;
 do not transfer the reference author's experiences or factual claims to PF.
 The mandatory author–date citations and APA-style reference list above continue
 to apply, regardless of how references are formatted on the example site.
+
+## Approved illustration style
+
+Owner decision on November 14, 2026: the approved ink-and-gouache illustrations
+are the style for future PF editorial illustrations and illustrated scenes.
+Read `docs/ILLUSTRATION_STYLE.md` and inspect its approved original images before
+creating new artwork. Keep the fine umber linework, restrained washes and warm
+paper character; verify realistic scale, perspective and geographic details.
+Guatemalan identity should come through actual places and everyday life without
+heavy-handed national decoration. Preserve source references and generation
+provenance internally. Approval of the style does not settle public AI-disclosure
+wording or authorize a native app release.
