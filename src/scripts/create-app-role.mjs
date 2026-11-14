@@ -118,6 +118,9 @@ export const APP_TABLE_PRIVILEGES = {
   recovery_runs: ["SELECT", "INSERT", "UPDATE"],
   recovery_members: ["SELECT", "INSERT", "UPDATE"],
   growth_campaigns: ["SELECT", "INSERT", "UPDATE"],
+  growth_measurement_costs: ["SELECT", "INSERT"],
+  growth_measurement_reports: ["SELECT", "INSERT"],
+  pos_measurement_receipts: ["SELECT", "INSERT", "UPDATE"],
   // Activation removes members whose customer was deleted after the snapshot.
   growth_campaign_members: ["SELECT", "INSERT", "UPDATE", "DELETE"],
   customer_marketing_preferences: ["SELECT", "INSERT", "UPDATE"],

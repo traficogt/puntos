@@ -26,8 +26,10 @@ function stamp(value) { const ms = value == null ? NaN : Date.parse(value); retu
 function validGroup(group) {
   return Number.isSafeInteger(group.members) && group.members >= 0 && Number.isSafeInteger(group.returned_customers) && group.returned_customers >= 0 && group.returned_customers <= group.members && group.observed_members === group.members && group.unavailable_members === 0;
 }
-export function campaignMeasurement({ campaign, treatment, control, asOf, business = {}, messageCounts = {} }) {
-  const now = stamp(asOf), start = stamp(campaign.starts_at), end = stamp(campaign.expires_at);
+/** @param {{campaign:any,treatment:any,control:any,asOf:any,business?:any,messageCounts?:any,planning?:any,diagnostics?:any}} input */
+export function campaignMeasurement({ campaign, treatment, control, asOf, business = {}, messageCounts = {}, planning = null, diagnostics = {} }) {
+  const now = stamp(asOf), start = stamp(campaign.starts_at), end = stamp(campaign.observation_ends_at ?? campaign.expires_at);
+  const reconciliationEnd=stamp(campaign.reconciliation_ends_at) ?? end;
   const validWindow = now != null && start != null && end != null && end > start && now >= start;
   const complete = validWindow && now >= end;
   const quiet = campaign.offer_kind === 'quiet';
@@ -36,13 +38,15 @@ export function campaignMeasurement({ campaign, treatment, control, asOf, busine
   const missing = !validGroup(treatment) || !validGroup(control);
   let state;
   if (campaign.status === 'draft' && start == null) state = 'not_started';
-  else if (!validWindow || missing || readiness.state === 'blocked' || !quiet && !difference) state = 'incomplete_data';
+  else if (!validWindow || missing || readiness.state === 'blocked' || diagnostics.capture_state === 'incomplete' || diagnostics.pending_refunds > 0 || diagnostics.untrusted_time_purchases > 0 || diagnostics.missing_purchase_dates > 0 || !quiet && !difference) state = 'incomplete_data';
   else if (quiet) state = 'descriptive';
   else if (campaign.paused_at || campaign.status === 'paused') state = 'interrupted';
   else if (!complete) state = 'in_progress';
+  else if (reconciliationEnd != null && now < reconciliationEnd) state = 'reconciling';
+  else if (planning && (treatment.members < planning.required_treatment || control.members < planning.required_control)) state = 'insufficient_sample';
   // This is a conservative display guard, not a power calculation or a promise
   // that 30 participants is sufficient. The interval is retained either way.
-  else if (treatment.members < 30 || control.members < 30) state = 'insufficient_sample';
+  else if (!planning && (treatment.members < 30 || control.members < 30)) state = 'insufficient_sample';
   else if (difference.lower_pp > 0) state = 'positive_difference';
   else if (difference.upper_pp < 0) state = 'negative_difference';
   else state = 'inconclusive';
@@ -51,7 +55,8 @@ export function campaignMeasurement({ campaign, treatment, control, asOf, busine
   return {
     state, as_of: now == null ? null : new Date(now).toISOString(), denominator: 'all_assigned',
     method: quiet ? null : 'newcombe_wilson_95', return_difference: difference,
-    window: { starts_at: campaign.starts_at, ends_at: campaign.expires_at, observed_until: validWindow ? new Date(Math.min(now, end)).toISOString() : null, complete, time_basis: 'transaction_created_at' },
+    sample_counts: {treatment:treatment.members,control:control.members},
+    window: { starts_at: campaign.starts_at, ends_at: campaign.observation_ends_at ?? campaign.expires_at, offer_ends_at:campaign.expires_at, reconciliation_ends_at:campaign.reconciliation_ends_at ?? campaign.expires_at, observed_until: validWindow ? new Date(Math.min(now, end)).toISOString() : null, complete, time_basis: 'purchase_occurred_at_with_recorded_fallback' },
     data_readiness: readiness,
     unavailable_members: Number(treatment.unavailable_members || 0) + Number(control.unavailable_members || 0),
     assignment_counts_match: treatment.observed_members === treatment.members && control.observed_members === control.members,

@@ -245,3 +245,11 @@ test('draft and descriptive campaigns do not get a completed experiment verdict'
   assert.equal(decision({ measurement: { ...measurement, state: 'not_started' } }).code, 'not_started');
   assert.equal(decision({ measurement: { ...measurement, state: 'descriptive' } }).code, 'descriptive');
 });
+
+// Unknown source coverage must not hide the action for the current phase.
+test('unknown coverage preserves phase and specific data-repair decisions',()=>{
+ const input={measurement:{...measurement,state:'in_progress',window:{complete:false}},planning:planning(),diagnostics:{...diagnostics,capture_state:'unknown'},contribution:contribution(),followup:{state:'waiting'}};
+ assert.equal(model.campaignDecision(input).code,'waiting');
+ assert.equal(model.campaignDecision({...input,measurement:{...input.measurement,state:'incomplete_data'},diagnostics:{...input.diagnostics,pending_refunds:1}}).code,'pending_refunds');
+ assert.equal(model.campaignDecision({...input,measurement:{...input.measurement,state:'incomplete_data'},diagnostics:{...input.diagnostics,untrusted_time_purchases:1}}).code,'untrusted_time');
+});

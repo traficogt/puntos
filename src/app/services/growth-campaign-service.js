@@ -1,4 +1,5 @@
-import { campaignMeasurement, wilsonInterval } from './campaign-measurement.js';
+import { normalizeMeasurementPlan } from './campaign-experiment-model.js';
+import { readCampaignReport } from './campaign-report-service.js';
 import { reportingPurchase } from './reporting-purchase.js';
 import { randomInt, randomUUID } from "node:crypto";
 import { dbQuery, withTransaction } from "../database.js";
@@ -44,6 +45,9 @@ export function publicGrowthCampaign(row) {
     starts_at: row.starts_at ? new Date(row.starts_at).toISOString() : null,
     expires_at: row.expires_at ? new Date(row.expires_at).toISOString() : null,
     paused_at: row.paused_at ? new Date(row.paused_at).toISOString() : null,
+    measurement_plan: row.measurement_plan ?? null,
+    observation_ends_at: row.observation_ends_at ? new Date(row.observation_ends_at).toISOString() : null,
+    reconciliation_ends_at: row.reconciliation_ends_at ? new Date(row.reconciliation_ends_at).toISOString() : null,
     created_at: new Date(row.created_at).toISOString(),
   };
 }
@@ -95,7 +99,7 @@ export function validateCampaignTerms({ name, bonusPoints, pointsBudget = null, 
   if (estimatedCostPerPointQ !== null && (!Number.isFinite(estimatedCostPerPointQ) || estimatedCostPerPointQ < 0 || estimatedCostPerPointQ > 100)) throw badRequest("Revisa el costo estimado de cada punto.");
   if (offerKind === "quiet") {
     if (durationDays !== null || !Number.isInteger(durationMinutes) || durationMinutes < 30 || durationMinutes > 240 || holdoutPercent !== 0 || pointsBudget === null) throw badRequest("La oferta breve necesita 30 a 240 minutos, un límite de puntos y ningún grupo de comparación.");
-  } else if (offerKind !== "experiment" || ![7,14,30].includes(durationDays) || durationMinutes !== null || ![10,20,30].includes(holdoutPercent)) throw badRequest("Revisa la vigencia y el grupo de comparación de la campaña.");
+  } else if (offerKind !== "experiment" || ![7,14,30].includes(durationDays) || durationMinutes !== null || ![10,20,30,50].includes(holdoutPercent)) throw badRequest("Revisa la vigencia y el grupo de comparación de la campaña.");
 }
 
 export async function createGrowthCampaign(
@@ -124,6 +128,7 @@ export async function createGrowthCampaign(
     durationMinutes = null,
     holdoutPercent = 20,
     estimatedCostPerPointQ = null,
+    measurementPlan: requestedPlan = null,
   } = options;
   validateCampaignTerms({ name, bonusPoints, pointsBudget, minimumPurchaseQ, durationDays, offerKind, durationMinutes, holdoutPercent, estimatedCostPerPointQ });
   if (Boolean(recoveryRunId) === Boolean(audienceSegmentId)) throw badRequest("Elige una lista de recuperación o una audiencia guardada.");
@@ -132,6 +137,8 @@ export async function createGrowthCampaign(
   if (recoveryRunId && (audienceSegmentVersion !== null || audienceLimit !== null)) throw badRequest("Los ajustes de audiencia no corresponden a una lista de recuperación.");
   if (pointsBudget !== null && (!Number.isInteger(pointsBudget) || pointsBudget < bonusPoints || pointsBudget < 1 || pointsBudget > 2000000))
     throw badRequest("El límite debe cubrir al menos un bono y no superar 2,000,000 puntos.");
+  if (offerKind === 'quiet' && requestedPlan != null) throw badRequest('Una oferta breve no admite un plan experimental.');
+  const measurementPlan = normalizeMeasurementPlan(requestedPlan, {durationDays,holdoutPercent});
   const normalizedName = name.trim();
   // Shared plan settings use their own database transaction. Resolve them before
   // holding a purchase/campaign transaction so a busy pool cannot wait on itself.
@@ -157,6 +164,7 @@ export async function createGrowthCampaign(
         Number(c.minimum_purchase_q) !== minimumPurchaseQ ||
         c.duration_days !== durationDays ||
         c.holdout_percent !== holdoutPercent ||
+        JSON.stringify(normalizeMeasurementPlan(c.measurement_plan ?? null,{durationDays:c.duration_days,holdoutPercent:c.holdout_percent})) !== JSON.stringify(measurementPlan) ||
         (c.estimated_cost_per_point_q == null
           ? null
           : Number(c.estimated_cost_per_point_q)) !== estimatedCostPerPointQ
@@ -185,8 +193,8 @@ export async function createGrowthCampaign(
       throw badRequest("No hay clientes activos en esta lista.");
     const campaignId = randomUUID();
     const inserted = await client.query(
-      `INSERT INTO growth_campaigns(id,business_id,request_id,recovery_run_id,name,bonus_points,minimum_purchase_q,duration_days,holdout_percent,estimated_cost_per_point_q,member_count,created_by_staff_id,points_budget,audience_snapshot,offer_kind,duration_minutes)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16) RETURNING *`,
+      `INSERT INTO growth_campaigns(id,business_id,request_id,recovery_run_id,name,bonus_points,minimum_purchase_q,duration_days,holdout_percent,estimated_cost_per_point_q,member_count,created_by_staff_id,points_budget,audience_snapshot,offer_kind,duration_minutes,measurement_plan)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16,$17::jsonb) RETURNING *`,
       [
         campaignId,
         businessId,
@@ -204,6 +212,7 @@ export async function createGrowthCampaign(
         audienceSnapshot ? JSON.stringify(audienceSnapshot) : null,
         offerKind,
         durationMinutes,
+        measurementPlan ? JSON.stringify(measurementPlan) : null,
       ],
     );
     for (const customer of audience.rows)
@@ -272,9 +281,19 @@ export async function activateGrowthCampaign(
     const updated = await client.query(
       `WITH activation AS MATERIALIZED (SELECT clock_timestamp() AS at)
       UPDATE growth_campaigns SET status='active',member_count=$3,control_count=$4,treatment_count=$3::int-$4::int,
+      observation_ends_at=CASE WHEN measurement_plan IS NOT NULL THEN activation.at+(measurement_plan->>'observation_days')::int*interval '24 hours' END,
+      reconciliation_ends_at=CASE WHEN measurement_plan IS NOT NULL THEN activation.at+((measurement_plan->>'observation_days')::int+(measurement_plan->>'reconciliation_days')::int)*interval '24 hours' END,
       starts_at=activation.at,expires_at=activation.at+CASE WHEN offer_kind='quiet' THEN duration_minutes*interval '1 minute' ELSE duration_days*interval '24 hours' END FROM activation WHERE business_id=$1::uuid AND id=$2::uuid RETURNING growth_campaigns.*`,
       [businessId, campaignId, ids.length, controls],
     );
+    if (campaign.offer_kind !== "quiet") await client.query(`UPDATE growth_campaign_members m SET measurement_baseline=(
+      SELECT jsonb_build_object('as_of',g.starts_at,'window_days',COALESCE((g.measurement_plan->>'observation_days')::int,g.duration_days),
+        'purchases',count(t.id),'sales_q',COALESCE(sum(t.amount_q),0))
+      FROM growth_campaigns g LEFT JOIN transactions t ON t.business_id=g.business_id AND t.customer_id=m.customer_id
+        AND COALESCE(t.purchase_occurred_at,t.created_at)>=g.starts_at-COALESCE((g.measurement_plan->>'observation_days')::int,g.duration_days)*interval '24 hours'
+        AND COALESCE(t.purchase_occurred_at,t.created_at)<g.starts_at AND t.created_at<=g.starts_at AND ${reportingPurchase('t')}
+      WHERE g.business_id=m.business_id AND g.id=m.campaign_id GROUP BY g.starts_at,g.measurement_plan,g.duration_days)
+      WHERE m.business_id=$1 AND m.campaign_id=$2 AND m.allocation IS NOT NULL AND m.measurement_baseline IS NULL`,[businessId,campaignId]);
     await client.query(
       "UPDATE businesses SET program_json=jsonb_set(COALESCE(program_json,'{}'::jsonb),'{targeted_offers_enabled}','true'::jsonb,true) WHERE id=$1::uuid",
       [businessId],
@@ -347,74 +366,7 @@ export async function listGrowthCampaigns(
   return { campaigns: rows[0].campaigns.map(publicGrowthCampaign), total: rows[0].total, limit, offset };
 }
 
-// Recorded purchases survive point expiry. Bonus-point accounting below keeps
-// its existing ledger statuses; it is separate from observed purchase activity.
-export async function getGrowthCampaign(
-  { businessId, campaignId },
-  { query = dbQuery } = {},
-) {
-  const { rows } = await query(
-    `WITH campaign AS (SELECT * FROM growth_campaigns WHERE business_id=$1::uuid AND id=$2::uuid),
-    outcomes AS (
-      SELECT m.allocation,m.id,(customer.id IS NULL OR customer.deleted_at IS NOT NULL) AS unavailable,COALESCE(s.sales,0) AS sales,COALESCE(s.purchases,0) AS purchases,
-        CASE WHEN bonus.id IS NOT NULL THEN m.bonus_points_awarded ELSE 0 END AS bonus_points
-      FROM growth_campaign_members m JOIN campaign g ON g.id=m.campaign_id AND g.business_id=m.business_id
-      LEFT JOIN customers customer ON customer.id=m.customer_id AND customer.business_id=m.business_id
-      LEFT JOIN LATERAL (SELECT SUM(t.amount_q) AS sales,COUNT(*) AS purchases FROM transactions t
-        WHERE t.business_id=m.business_id AND t.customer_id=m.customer_id
-        AND t.created_at>=g.starts_at AND t.created_at<g.expires_at AND t.created_at<=statement_timestamp() AND ${reportingPurchase('t')}) s ON true
-      LEFT JOIN transactions bonus ON bonus.id=m.bonus_transaction_id AND bonus.business_id=m.business_id
-        AND bonus.status IN ('POSTED','PENDING') AND bonus.original_transaction_id IS NULL AND bonus.reversed_transaction_id IS NULL
-      WHERE m.business_id=$1::uuid AND m.allocation IS NOT NULL
-    ) SELECT to_jsonb(g) AS campaign,statement_timestamp() AS as_of,b.program_json AS measurement_program,
-      COALESCE((SELECT jsonb_object_agg(status,total) FROM (SELECT status,COUNT(*)::int AS total FROM growth_message_outbox WHERE business_id=$1::uuid AND campaign_id=$2::uuid GROUP BY status) delivery),'{}'::jsonb) AS message_counts,
-      COALESCE((SELECT jsonb_agg(stats) FROM (
-      SELECT allocation,COUNT(*)::int AS observed_members,COUNT(*) FILTER(WHERE unavailable)::int AS unavailable_members,COUNT(*) FILTER(WHERE purchases>0)::int AS returned_customers,SUM(sales) AS recorded_sales_q,SUM(bonus_points) AS bonus_points
-      FROM outcomes GROUP BY allocation) stats),'[]'::jsonb) AS groups FROM campaign g JOIN businesses b ON b.id=g.business_id`,
-    [businessId, campaignId],
-  );
-  if (!rows.length) throw notFound("No se encontró esta campaña.");
-  const campaign = publicGrowthCampaign(rows[0].campaign);
-  function group(allocation, count) {
-    const row = rows[0].groups.find((item) => item.allocation === allocation);
-    const sales = Number(row?.recorded_sales_q ?? 0),
-      returned = Number(row?.returned_customers ?? 0);
-    return {
-      members: count,
-      observed_members: Number(row?.observed_members ?? 0),
-      unavailable_members: Number(row?.unavailable_members ?? 0),
-      return_rate_interval: wilsonInterval(returned, count),
-      returned_customers: returned,
-      return_rate_pct: count ? (returned / count) * 100 : 0,
-      recorded_sales_q: sales,
-      average_sales_per_member_q: count ? sales / count : 0,
-    };
-  }
-  const treatment = group("treatment", campaign.treatment_count),
-    control = group("control", campaign.control_count);
-  const bonusPoints = rows[0].groups.reduce(
-    (sum, row) => sum + Number(row.bonus_points ?? 0),
-    0,
-  );
-  return {
-    campaign,
-    results: {
-      treatment,
-      control,
-      measurement: campaignMeasurement({ campaign, treatment, control, asOf: new Date(rows[0].as_of).toISOString(), business: {program_json:rows[0].measurement_program}, messageCounts:rows[0].message_counts }),
-      estimated_incremental_sales_q:
-        treatment.members && control.members
-          ? (treatment.average_sales_per_member_q -
-              control.average_sales_per_member_q) *
-            treatment.members
-          : null,
-      bonus_points_issued: bonusPoints,
-      estimated_incentive_cost_q:
-        campaign.estimated_cost_per_point_q == null
-          ? null
-          : bonusPoints * campaign.estimated_cost_per_point_q,
-      measurement_kind: campaign.offer_kind === "quiet" ? "descriptive" : "randomized_comparison",
-      small_sample: campaign.offer_kind !== "quiet" && (treatment.members < 30 || control.members < 30),
-    },
-  };
+// Additive report contract preserves all existing result fields.
+export async function getGrowthCampaign(options, dependencies = {}) {
+  return readCampaignReport(options, dependencies);
 }

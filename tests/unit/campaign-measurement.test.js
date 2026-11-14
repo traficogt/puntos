@@ -56,3 +56,15 @@ test('unequal assigned groups match the fixed Newcombe example',()=>{
  const out=model.returnDifference({members:80,returned_customers:24},{members:20,returned_customers:4});
  near(out.estimate_pp,10);near(out.lower_pp,-13.37685,0.00001);near(out.upper_pp,26.07417,0.00001);
 });
+test('planned observation and reconciliation are separate from offer validity',()=>{
+ const planned={...campaign,measurement_plan:{version:1},observation_ends_at:'2026-11-20T00:00:00Z',reconciliation_ends_at:'2026-11-27T00:00:00Z'};
+ assert.equal(evidence({campaign:planned}).state,'in_progress');
+ assert.equal(evidence({campaign:planned,asOf:'2026-11-23T00:00:00Z'}).state,'reconciling');
+ const done=evidence({campaign:planned,asOf:'2026-11-28T00:00:00Z',planning:{required_treatment:120,required_control:120}});
+ assert.equal(done.state,'insufficient_sample');
+ assert.equal(done.window.ends_at,planned.observation_ends_at);assert.equal(done.window.offer_ends_at,campaign.expires_at);
+});
+test('unresolved refunds and lost assignment capture prevent a favorable result',()=>{
+ assert.equal(evidence({diagnostics:{pending_refunds:1}}).state,'incomplete_data');
+ assert.equal(evidence({diagnostics:{untrusted_time_purchases:1}}).state,'incomplete_data');
+});

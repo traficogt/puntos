@@ -52,6 +52,7 @@ describe("create-app-role grant plan", () => {
       recovery_runs: ["SELECT", "INSERT", "UPDATE"],
       recovery_members: ["SELECT", "INSERT", "UPDATE"],
       growth_campaigns: ["SELECT", "INSERT", "UPDATE"],
+      growth_measurement_costs:["SELECT","INSERT"],growth_measurement_reports:["SELECT","INSERT"],pos_measurement_receipts:["SELECT","INSERT","UPDATE"],
       growth_campaign_members: ["SELECT", "INSERT", "UPDATE", "DELETE"],
       customer_marketing_preferences: ["SELECT", "INSERT", "UPDATE"],
       marketing_unsubscribe_tokens: ["SELECT", "INSERT"],
