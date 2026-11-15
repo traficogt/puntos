@@ -58,7 +58,7 @@ integrationDescribe("Super + Gift Cards Integration", () => {
     return { response, data, status: response.status };
   }
 
-  it("toggles plan feature and enforces gift card permissions", async () => {
+  it("toggles plan feature and enforces gift card permissions", async (t) => {
     if (!superEmail || !superPassword) {
       throw new Error("SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD are required for this integration test");
     }
@@ -78,6 +78,14 @@ integrationDescribe("Super + Gift Cards Integration", () => {
     assert.equal(plans.status, 200);
     const emprendedor = (plans.data?.plans || []).find((p) => p.plan === "EMPRENDEDOR");
     assert.ok(emprendedor, "expected EMPRENDEDOR plan");
+    t.after(async () => {
+      const restored = await request(superJar, "/api/super/plans/EMPRENDEDOR/features", {
+        method: "PUT",
+        csrf: true,
+        body: JSON.stringify({ features: emprendedor.features || {} })
+      });
+      assert.equal(restored.status, 200, "restore the fixture plan for subsequent suites");
+    });
     const featurePatch = { ...(emprendedor.features || {}), gift_cards: true };
     const updateFeatures = await request(superJar, "/api/super/plans/EMPRENDEDOR/features", {
       method: "PUT",
