@@ -115,8 +115,10 @@ export const NativeWalletRepo = {
   },
 
   async markFailed(id, lockToken = null) {
+    // Provider calls can keep the transaction open longer than the backoff.
+    // Schedule from this failure statement, not the transaction's start time.
     return one(`UPDATE native_wallet_passes SET attempts=LEAST(attempts, 1000000)+1,
-      next_attempt_at=now()+(LEAST(3600, 15 * power(2, LEAST(attempts, 8))) * interval '1 second'),
+      next_attempt_at=statement_timestamp()+(LEAST(3600, 15 * power(2, LEAST(attempts, 8))) * interval '1 second'),
       locked_until=NULL, lock_token=NULL
       WHERE id=$1 AND ($2::uuid IS NULL OR lock_token=$2) RETURNING ${publicColumns}`, [id, lockToken]);
   }

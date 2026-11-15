@@ -286,6 +286,29 @@ test("native Wallet storage, tenant isolation and durable updates", { skip: !dat
       assert.ok(row.next_attempt_at.getTime() - Date.now() > 59 * 60 * 1000);
     });
 
+    await t.test("delivery backoff starts when failure is recorded, not when the provider transaction began", async () => {
+      await admin.query("UPDATE native_wallet_passes SET attempts=0,next_attempt_at=now()-interval '1 second',locked_until=NULL,lock_token=NULL WHERE id=$1", [apple.id]);
+      const claim = (await context(null, () => repo.claimDue(1, ["apple"]), client, true))[0];
+      assert.equal(claim.id, apple.id);
+      await client.query("BEGIN");
+      try {
+        // Keep the transaction open as APNs delivery does. A short real delay
+        // separates transaction and failure times without waiting for backoff.
+        await client.query("SELECT pg_sleep(0.05)");
+        const failureAt = (await client.query("SELECT clock_timestamp() AS failed_at")).rows[0].failed_at;
+        const failed = await context(null, () => repo.markFailed(claim.id, claim.lock_token), client, true);
+        const recordedAt = (await client.query("SELECT clock_timestamp() AS recorded_at")).rows[0].recorded_at;
+        assert.equal(failed.attempts, 1);
+        assert.ok(failed.next_attempt_at.getTime() >= failureAt.getTime() + 15000,
+          "the entire first 15-second backoff must remain after delivery fails");
+        assert.ok(failed.next_attempt_at.getTime() <= recordedAt.getTime() + 15000);
+        assert.equal(failed.locked_until, null);
+        assert.equal(failed.lock_token, null);
+        await client.query("COMMIT");
+      } finally { await client.query("ROLLBACK"); }
+      assert.deepEqual(await context(null, () => repo.claimDue(1, ["apple"]), peer, true), []);
+    });
+
     await t.test("revocation permits a fresh pass while old devices receive a voided update", async () => {
       await context(businessId, () => repo.revokeCustomerPasses(businessId, customerId));
       const revoked = await context(businessId, () => repo.getSnapshot(apple.id));
