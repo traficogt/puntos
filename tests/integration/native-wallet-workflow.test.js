@@ -97,7 +97,7 @@ test("native Wallet service workflows with real RLS, provider locks and durable 
       const staff = { id: staffId, business_id: businessId, branch_id: null, role: "CASHIER" };
       const tenant = fn => db.withDbClientContext({ tenantId: businessId, platformAdmin: false }, fn);
       const objects = new Map(), classes = new Map(), writes = [], applePasses = [], pushes = [];
-      const controls = { saveHook: null, failUpdates: 0 };
+      const controls = { saveHook: null, applePushHook: null, failUpdates: 0 };
       const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
       const google = createGoogleProvider({ issuerId: "1234567890", serviceAccountEmail: "wallet@workflow.iam.gserviceaccount.com", privateKey, appOrigin: "https://wallet.puntosfieles.com" }, {
         fetchImpl: async (address, request) => {
@@ -133,7 +133,10 @@ test("native Wallet service workflows with real RLS, provider locks and durable 
             applePasses.push(pass);
             return Buffer.from(JSON.stringify(pass));
           },
-          pushUpdate: async token => { pushes.push(token); return { invalidToken: false }; }
+          pushUpdate: async token => {
+            pushes.push(token);
+            return controls.applePushHook ? controls.applePushHook(token) : { invalidToken: false };
+          }
         }
       };
       const settings = { apple: { ready: true, config: { passTypeIdentifier: "pass.com.puntos.workflow" } }, google: { ready: true, config: {} } };
@@ -257,6 +260,47 @@ test("native Wallet service workflows with real RLS, provider locks and durable 
       assert.equal(recovered.attempts, 0);
       assert.equal(recovered.synced_revision, recovered.revision);
       assert.equal(f.pushes.length, 2);
+    });
+
+    await t.test("partial Apple delivery commits invalid-device cleanup and retry state before recovering", async st => {
+      const f = await fixture(st);
+      await f.tenant(() => f.service.issue(f.auth, "apple"));
+      const pass = (await f.passes())[0];
+      const invalid = "a".repeat(33), transient = "bb".repeat(32), healthy = "cc".repeat(32);
+      for (const [deviceId, pushToken] of [["device-a", invalid], ["device-b", transient], ["device-c", healthy]]) {
+        await f.tenant(() => repo.registerDevice({ passId: pass.id, deviceId, pushToken }));
+      }
+      f.controls.applePushHook = async token => {
+        if (token === transient) throw new Error("simulated transient APNs failure");
+        return { invalidToken: token === invalid };
+      };
+      assert.deepEqual(await f.service.processDue(), { delivered: 0, failed: 1 });
+      assert.deepEqual(f.pushes, [invalid, transient, healthy], "a failed device must not prevent later delivery");
+      const registered = () => f.tenant(() => repo.listRegistrations(pass.id));
+      assert.deepEqual((await registered()).map(row => row.push_token), [transient, healthy],
+        "invalid-device deletion must survive the transaction's partial delivery failure");
+      const failed = await f.snapshot(pass.id);
+      assert.equal(failed.attempts, 1);
+      assert.ok(BigInt(failed.revision) > BigInt(failed.synced_revision));
+      assert.ok(failed.next_attempt_at.getTime() > Date.now());
+      assert.equal(failed.locked_until, null);
+      assert.equal(failed.lock_token, null);
+      assert.deepEqual(await f.service.processDue(), { delivered: 0, failed: 0 });
+      assert.deepEqual(f.pushes, [invalid, transient, healthy]);
+
+      // The next APNs response establishes that the formerly failing device is
+      // unregistered. The healthy device still receives the pending revision.
+      f.controls.applePushHook = async token => ({ invalidToken: token === transient });
+      await admin.query("UPDATE native_wallet_passes SET next_attempt_at=now()-interval '1 second' WHERE id=$1", [pass.id]);
+      assert.deepEqual(await f.service.processDue(), { delivered: 1, failed: 0 });
+      assert.deepEqual(f.pushes, [invalid, transient, healthy, transient, healthy]);
+      assert.deepEqual((await registered()).map(row => row.push_token), [healthy]);
+      const recovered = await f.snapshot(pass.id);
+      assert.equal(recovered.attempts, 0);
+      assert.equal(recovered.synced_revision, recovered.revision);
+      assert.equal(recovered.locked_until, null);
+      assert.equal(recovered.lock_token, null);
+      assert.deepEqual(await f.service.processDue(), { delivered: 0, failed: 0 });
     });
 
     await t.test("installing an older Apple download queues a refresh even after a no-device delivery was acknowledged", async st => {
