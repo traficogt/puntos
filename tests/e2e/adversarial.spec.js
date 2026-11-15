@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { apiPost, expectOk } from "./lib.js";
 
+// Service-worker lifecycle assertions run in the dedicated required PWA suite.
+test.use({ serviceWorkers: "block" });
 test.describe.configure({ mode: "serial" });
 
 function rand(len = 6) {
@@ -52,7 +54,9 @@ test("adversarial: same QR token cannot be replayed", async ({ page }) => {
   expect(code.length >= 4).toBeTruthy();
   await page.fill("#code", code);
   await page.click("#btnVerify");
-  await page.waitForURL(/\/c$/);
+  await page.getByRole("link", { name: "Ver mi tarjeta y mis puntos", exact: true }).click();
+  await page.waitForURL(/\/mi-tarjeta\/$/);
+  await expect(page.locator("#main")).toBeVisible();
 
   await page.goto("/staff/login", { waitUntil: "domcontentloaded" });
   await page.fill("#email", out.email);
@@ -63,9 +67,11 @@ test("adversarial: same QR token cannot be replayed", async ({ page }) => {
   await page.click("#btnLogin");
   const loginResp = await loginRespPromise;
   expect(loginResp.ok(), "staff login should succeed").toBeTruthy();
-  await page.waitForURL(/\/admin-dashboard(?:\.html)?$/);
-  await page.goto("/staff", { waitUntil: "domcontentloaded" });
-  await page.goto("/c", { waitUntil: "domcontentloaded" });
+  await page.waitForURL(/\/negocio\/$/);
+  await page.goto("/equipo/escaner/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("#btnStaffReauth")).toBeVisible();
+  await page.goto("/mi-tarjeta/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("#main")).toBeVisible();
 
   const qr = await apiPost(page, "/api/public/customer/qr", {}, { csrf: true });
   expectOk(qr, "qr token should be issued");

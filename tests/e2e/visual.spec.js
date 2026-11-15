@@ -27,6 +27,7 @@ async function createBusinessAndOpenDashboard(page) {
   await expect(page.locator("#result")).toBeVisible();
   await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
   await expect(page.locator("#main")).toBeVisible();
+  await expect(page.getByText("Sin transacciones sospechosas.", { exact: true })).toHaveCount(1);
 }
 
 test("visual: super login shell", async ({ page }) => {
@@ -54,10 +55,11 @@ test("visual: super dashboard logged-in", async ({ page }, _testInfo) => {
   await page.fill("#email", superEmail);
   await page.fill("#password", superPassword);
   await page.click("#btnLogin");
-  await expect(page.locator("#mainCard")).toBeVisible();
-  await expect(page.locator("#businessCard")).toBeVisible();
+  await expect(page.locator("#planes")).toBeVisible();
+  await expect(page.locator("#planMatrix h3")).toHaveCount(3);
+  await expect(page.locator("#negocios")).toBeVisible();
   await expect(page.locator("#toast")).toBeHidden();
-  await expect(page.locator("#mainCard")).toHaveScreenshot("super-dashboard-maincard-desktop.png", { animations: "disabled" });
+  await expect(page.locator("#planes")).toHaveScreenshot("super-dashboard-plans-desktop.png", { animations: "disabled" });
 });
 
 test("visual: admin dashboard shell desktop", async ({ page }) => {

@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { apiDelete, apiGet, apiPost, apiPut, expectOk } from "./lib.js";
+// PWA installation/updates have their own required suite. Keep these workflows
+// on a stable document while they switch between customer and staff screens.
+test.use({ serviceWorkers: "block" });
 test.describe.configure({ mode: "serial" });
 
 function rand(len = 6) {
@@ -69,7 +72,8 @@ test("customer can join business with OTP and open card", async ({ page }) => {
   await page.fill("#code", code);
   await page.click("#btnVerify");
 
-  await page.waitForURL(/\/c$/);
+  await page.getByRole("link", { name: "Ver mi tarjeta y mis puntos", exact: true }).click();
+  await page.waitForURL(/\/mi-tarjeta\/$/);
   await expect(page.locator("#main")).toBeVisible();
   await expect(page.locator("#bizName")).toContainText(out.businessName);
 });
@@ -93,7 +97,9 @@ test("staff can award points using customer QR token", async ({ page }) => {
   expect(code.length >= 4).toBeTruthy();
   await page.fill("#code", code);
   await page.click("#btnVerify");
-  await page.waitForURL(/\/c$/);
+  await page.getByRole("link", { name: "Ver mi tarjeta y mis puntos", exact: true }).click();
+  await page.waitForURL(/\/mi-tarjeta\/$/);
+  await expect(page.locator("#main")).toBeVisible();
 
   await page.goto("/staff/login", { waitUntil: "domcontentloaded" });
   await page.fill("#email", out.email);
@@ -104,9 +110,11 @@ test("staff can award points using customer QR token", async ({ page }) => {
   await page.click("#btnLogin");
   const loginResp = await loginRespPromise;
   expect(loginResp.ok(), "staff login should succeed").toBeTruthy();
-  await page.waitForURL(/\/admin-dashboard(?:\.html)?$/);
-  await page.goto("/staff", { waitUntil: "domcontentloaded" });
-  await page.goto("/c", { waitUntil: "domcontentloaded" });
+  await page.waitForURL(/\/negocio\/$/);
+  await page.goto("/equipo/escaner/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("#btnStaffReauth")).toBeVisible();
+  await page.goto("/mi-tarjeta/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("#main")).toBeVisible();
 
   const qr = await apiPost(page, "/api/public/customer/qr", {}, { csrf: true });
   expectOk(qr, "qr token should be issued");
@@ -182,7 +190,9 @@ test("staff can redeem reward for customer after points award", async ({ page })
   expect(code.length >= 4).toBeTruthy();
   await page.fill("#code", code);
   await page.click("#btnVerify");
-  await page.waitForURL(/\/c$/);
+  await page.getByRole("link", { name: "Ver mi tarjeta y mis puntos", exact: true }).click();
+  await page.waitForURL(/\/mi-tarjeta\/$/);
+  await expect(page.locator("#main")).toBeVisible();
 
   await page.goto("/staff/login", { waitUntil: "domcontentloaded" });
   await page.fill("#email", out.email);
@@ -193,9 +203,11 @@ test("staff can redeem reward for customer after points award", async ({ page })
   await page.click("#btnLogin");
   const loginResp = await loginRespPromise;
   expect(loginResp.ok(), "staff login should succeed").toBeTruthy();
-  await page.waitForURL(/\/admin-dashboard(?:\.html)?$/);
-  await page.goto("/staff", { waitUntil: "domcontentloaded" });
-  await page.goto("/c", { waitUntil: "domcontentloaded" });
+  await page.waitForURL(/\/negocio\/$/);
+  await page.goto("/equipo/escaner/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("#btnStaffReauth")).toBeVisible();
+  await page.goto("/mi-tarjeta/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("#main")).toBeVisible();
 
   const rewardName = `Canje ${rand(5)}`;
   const plan = await apiGet(page, "/api/admin/plan");
@@ -316,7 +328,7 @@ test("rbac: cashier cannot refund while manager can reach refund validation", as
   await page.click("#btnLogin");
   const mgrLoginResp = await mgrLoginRespPromise;
   expect(mgrLoginResp.ok(), "manager login should succeed").toBeTruthy();
-  await page.waitForURL(/\/staff$/);
+  await page.waitForURL(/\/administracion\/$/);
   const managerStatus = await postRefundAndGetStatus();
 
   const logout = await apiPost(page, "/api/staff/logout", {}, { csrf: true });
@@ -331,7 +343,7 @@ test("rbac: cashier cannot refund while manager can reach refund validation", as
   await page.click("#btnLogin");
   const cashLoginResp = await cashLoginRespPromise;
   expect(cashLoginResp.ok(), "cashier login should succeed").toBeTruthy();
-  await page.waitForURL(/\/staff$/);
+  await page.waitForURL(/\/equipo\/escaner\/$/);
   const cashierStatus = await postRefundAndGetStatus();
 
   expect(managerStatus).not.toBe(403);
@@ -348,7 +360,7 @@ test("super admin plan update is reflected in admin feature tabs", async ({ page
   await page.fill("#email", superEmail);
   await page.fill("#password", superPassword);
   await page.click("#btnLogin");
-  await expect(page.locator("#mainCard")).toBeVisible();
+  await expect(page.locator("#planes")).toBeVisible();
 
   const plansOut = await apiGet(page, "/api/super/plans");
   expectOk(plansOut, "super plans should be readable");
@@ -422,7 +434,7 @@ test("gift cards enforce role permissions (manager/cashier)", async ({ page }) =
   await page.fill("#email", superEmail);
   await page.fill("#password", superPassword);
   await page.click("#btnLogin");
-  await expect(page.locator("#mainCard")).toBeVisible();
+  await expect(page.locator("#planes")).toBeVisible();
 
   const plansOut = await apiGet(page, "/api/super/plans");
   expectOk(plansOut, "super plans should be readable");
@@ -537,7 +549,9 @@ test("suspicious awards are flagged when guard threshold is exceeded", async ({ 
   expect(code.length >= 4).toBeTruthy();
   await page.fill("#code", code);
   await page.click("#btnVerify");
-  await page.waitForURL(/\/c$/);
+  await page.getByRole("link", { name: "Ver mi tarjeta y mis puntos", exact: true }).click();
+  await page.waitForURL(/\/mi-tarjeta\/$/);
+  await expect(page.locator("#main")).toBeVisible();
 
   await page.goto("/staff/login", { waitUntil: "domcontentloaded" });
   await page.fill("#email", out.email);
@@ -548,8 +562,9 @@ test("suspicious awards are flagged when guard threshold is exceeded", async ({ 
   await page.click("#btnLogin");
   const loginResp = await loginRespPromise;
   expect(loginResp.ok(), "staff login should succeed").toBeTruthy();
-  await page.waitForURL(/\/admin-dashboard(?:\.html)?$/);
-  await page.goto("/staff", { waitUntil: "domcontentloaded" });
+  await page.waitForURL(/\/negocio\/$/);
+  await page.goto("/equipo/escaner/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("#btnStaffReauth")).toBeVisible();
 
   const qr = await apiPost(page, "/api/public/customer/qr", {}, { csrf: true });
   expectOk(qr, "qr token should be issued");
@@ -585,7 +600,9 @@ test("customer export works and delete disables profile access", async ({ page }
   expect(code.length >= 4).toBeTruthy();
   await page.fill("#code", code);
   await page.click("#btnVerify");
-  await page.waitForURL(/\/c$/);
+  await page.getByRole("link", { name: "Ver mi tarjeta y mis puntos", exact: true }).click();
+  await page.waitForURL(/\/mi-tarjeta\/$/);
+  await expect(page.locator("#main")).toBeVisible();
 
   const exportResp = await apiGet(page, "/api/customer/export");
   expectOk(exportResp, "customer export should succeed");
@@ -594,6 +611,8 @@ test("customer export works and delete disables profile access", async ({ page }
   const deleteResp = await apiDelete(page, "/api/customer/me");
   expectOk(deleteResp, "customer deletion should succeed");
 
-  const meAfterDelete = await apiGet(page, "/api/customer/me");
-  expect([401, 404]).toContain(meAfterDelete.status);
+  // Deletion can navigate the UI to sign-in; use the same browser cookie jar
+  // without depending on the document's execution context surviving that move.
+  const meAfterDelete = await page.request.get("/api/customer/me");
+  expect([401, 404]).toContain(meAfterDelete.status());
 });
