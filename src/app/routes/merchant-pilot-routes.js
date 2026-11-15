@@ -7,7 +7,7 @@ import { csrfProtect } from '../../middleware/csrf.js';
 import { asyncRoute } from '../../middleware/common.js';
 import * as services from '../services/merchant-pilot-service.js';
 const uuid=z.guid().transform(v=>v.toLowerCase()),empty=z.object({}).strict();
-const create=z.object({request_id:uuid,name:z.string().trim().min(1).max(100),duration_days:z.union([z.literal(14),z.literal(30),z.literal(60)]),pos_profile:services.PilotPosProfile.nullable().optional()}).strict();
+const create=z.object({request_id:uuid,name:z.string().trim().min(1).max(100),duration_days:z.union([z.literal(14),z.literal(30),z.literal(60)]),pos_profile:services.PilotPosProfile.nullable().optional(),capabilities:services.PilotCapabilities.optional()}).strict().refine(v=>!v.capabilities||v.capabilities.pos===!!v.pos_profile);
 const evidence=z.object({status:z.enum(['pending','passed','failed','not_applicable']),note:z.string().trim().max(500)}).strict();
 const close=z.object({outcome:z.enum(['completed','stopped']),note:z.string().trim().max(500)}).strict().refine(v=>v.outcome!=='stopped'||v.note.length>0);
 const params=z.object({id:uuid}).strict();
@@ -18,7 +18,7 @@ export function createMerchantPilotRoutes(deps={}){
  const s={...services,...deps},router=Router(),base='/admin/pilots';
  router.use(base,(_req,res,next)=>{res.set('Cache-Control','no-store');next();},requireStaff,tenantContext,requireOwner,requirePlanFeature('analytics'));
  router.get(base,asyncRoute(async(req,res)=>{const p=list.safeParse(req.query);if(!p.success)return invalid(res);return res.json(await s.listPilots({businessId:req.tenantId,offset:p.data.offset}));}));
- router.post(base,csrfProtect,asyncRoute(async(req,res)=>{const p=create.safeParse(req.body);if(!p.success||!empty.safeParse(req.query).success)return invalid(res);return res.status(201).json(await s.createPilot({...actor(req),requestId:p.data.request_id,name:p.data.name,durationDays:p.data.duration_days,...(p.data.pos_profile!==undefined?{posProfile:p.data.pos_profile}:{})}));}));
+ router.post(base,csrfProtect,asyncRoute(async(req,res)=>{const p=create.safeParse(req.body);if(!p.success||!empty.safeParse(req.query).success)return invalid(res);return res.status(201).json(await s.createPilot({...actor(req),requestId:p.data.request_id,name:p.data.name,durationDays:p.data.duration_days,...(p.data.pos_profile!==undefined?{posProfile:p.data.pos_profile}:{}),...(p.data.capabilities!==undefined?{capabilities:p.data.capabilities}:{})}));}));
  router.get(`${base}/:id`,asyncRoute(async(req,res)=>{const p=params.safeParse(req.params);if(!p.success||!empty.safeParse(req.query).success)return invalid(res);return res.json(await s.getPilot({businessId:req.tenantId,pilotId:p.data.id}));}));
  router.put(`${base}/:id/checks/:key`,csrfProtect,asyncRoute(async(req,res)=>{
   const id=uuid.safeParse(req.params.id),p=evidence.safeParse(req.body),key=req.params.key;

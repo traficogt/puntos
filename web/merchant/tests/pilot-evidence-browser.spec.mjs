@@ -6,9 +6,11 @@ import express from 'express';
 import helmet from 'helmet';
 import {chromium,expect} from '@playwright/test';
 import {build} from 'vite';
-const merchant=path.resolve(import.meta.dirname,'..'),project=path.resolve(merchant,'../..'),artifacts='/tmp/puntos-pilot-evidence-browser',outDir=path.join(artifacts,'build');
+const merchant=path.resolve(import.meta.dirname,'..'),project=path.resolve(merchant,'../..'),artifacts=path.join(process.env.TMPDIR||'/tmp','puntos-pilot-evidence-browser'),outDir=path.join(artifacts,'build');
+// The artifact directory is derived only from the local runner's temporary directory.
+// eslint-disable-next-line security/detect-non-literal-fs-filename
 await fs.mkdir(artifacts,{recursive:true});
-await build({root:merchant,configFile:path.join(merchant,'vite.config.js'),build:{outDir,emptyOutDir:true},logLevel:'warn'});
+await build({root:merchant,configFile:path.join(merchant,'vite.config.js'),configLoader:'runner',build:{outDir,emptyOutDir:true},logLevel:'warn'});
 const app=express();app.use(helmet({contentSecurityPolicy:{directives:{upgradeInsecureRequests:null}}}));
 app.get('/demostracion/',(_q,res)=>res.sendFile(path.join(outDir,'index.html')));
 app.get('/equipo/ingresar/',(_q,res)=>res.sendFile(path.join(project,'public/staff-login.html')));
@@ -27,6 +29,9 @@ try{
   await expect(page.getByRole('button',{name:'Descargar informe histórico'})).toBeVisible();
   await page.getByRole('link',{name:'Revisar el historial en Mi piloto',exact:true}).click();
   await page.getByLabel('Nombre del piloto').fill('Aceptación Odoo · fixture');
+  await expect(page.getByRole('group',{name:'Canales que vas a probar',exact:true})).toBeVisible();
+  await page.getByLabel('Este piloto incluye Wallet',{exact:true}).check();
+  await page.getByLabel('Este piloto incluye mensajes promocionales',{exact:true}).check();
   await page.getByLabel('Este piloto incluye un sistema POS',{exact:true}).check();
   await page.getByLabel('Sistema POS probado').fill('Odoo');
   await page.getByRole('button',{name:'Iniciar piloto',exact:true}).click();
@@ -35,28 +40,40 @@ try{
   await page.getByLabel('Versión exacta del POS').fill('18.0');
   await page.getByLabel('Versión del módulo o adaptador',{exact:true}).fill('18.0.2.0.0');
   await page.getByRole('combobox',{name:'Alojamiento del POS',exact:true}).click();await page.getByRole('option',{name:'Servidor propio',exact:true}).click();
-  await page.screenshot({path:path.join(artifacts,`profile-${width}.png`),fullPage:true});
+  await page.getByRole('group',{name:'Canales que vas a probar',exact:true}).scrollIntoViewIfNeeded();
+  const setupCapture=await page.screenshot({path:path.join(artifacts,`profile-${width}.png`)});
+  if(process.env.PF_EMIT_ARTIFACTS==='1'){assert.ok(setupCapture.byteLength<=1024*1024);console.log('PF_ARTIFACT '+JSON.stringify({name:width===390?'pilot-mobile.png':'pilot-desktop.png',encoding:'base64',data:setupCapture.toString('base64')}));}
   await page.getByRole('button',{name:'Iniciar piloto',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Aceptación Odoo · fixture',exact:true})).toBeVisible();
-  await expect(page.getByText(/Lista de pruebas · versión 2.*POS 18.0.*módulo 18.0.2.0.0/)).toBeVisible();
+  await expect(page.getByText(/Lista de pruebas · versión 3.*POS 18.0.*módulo 18.0.2.0.0/)).toBeVisible();
+  await expect(page.getByText('Canales elegidos: Wallet, mensajes promocionales y POS.',{exact:true})).toBeVisible();
+  await expect(page.getByText(/Cálculo de ejemplo: 0 de 14/)).toBeVisible();
   await expect(page.getByRole('button',{name:'Finalizar pruebas',exact:true})).toBeDisabled();
-  const actions=await page.getByRole('button',{name:/^Registrar prueba:/}).allTextContents();assert.equal(actions.length,13);
+  const actions=await page.getByRole('button',{name:/^Registrar prueba:/}).allTextContents();assert.equal(actions.length,14);
   const labels=await page.getByRole('button',{name:/^Registrar prueba:/}).evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-label')));
   for(const label of labels){
    await page.getByRole('button',{name:label,exact:true}).click();
-   await page.getByRole('combobox',{name:'Resultado de la prueba',exact:true}).click();await page.getByRole('option',{name:'Comprobado por el responsable',exact:true}).click();
+   await page.getByRole('combobox',{name:'Resultado de la prueba',exact:true}).click();await expect(page.getByRole('option',{name:'No aplica',exact:true})).toHaveCount(0);await page.getByRole('option',{name:'Comprobado por el responsable',exact:true}).click();
    await page.getByLabel('Qué comprobaste',{exact:true}).fill('Comprobación ficticia; no acredita una instalación real.');
    await page.getByRole('button',{name:'Guardar prueba',exact:true}).click();await expect(page.getByRole('button',{name:'Guardar prueba',exact:true})).toHaveCount(0);
   }
   await expect(page.getByRole('button',{name:'Finalizar pruebas',exact:true})).toBeEnabled();
+  await expect(page.getByText(/Cálculo de ejemplo: 14 de 14/)).toBeVisible();
   page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Finalizar pruebas',exact:true}).click();
   await expect(page.getByRole('button',{name:'Finalizar pruebas',exact:true})).toHaveCount(0);
   for(const mode of ['light','dark']){
    if(mode==='dark')await page.getByRole('button',{name:'Tema oscuro',exact:true}).click();
    await page.addScriptTag({url:`${origin}/test-axe.js`});
    const violations=await page.evaluate(async()=>(await window.axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21aa']})).violations);
+   // eslint-disable-next-line security/detect-non-literal-fs-filename
    await fs.writeFile(path.join(artifacts,`axe-pilot-${width}-${mode}.json`),JSON.stringify(violations,null,2));assert.deepEqual(violations,[]);
-   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:path.join(artifacts,`pilot-${width}-${mode}.png`),fullPage:true});
+   console.log(JSON.stringify({width,mode,document:await page.evaluate(()=>({width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight})),axe_violations:violations.length}));
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+   await page.getByRole('heading',{name:'Alcance de este piloto',exact:true}).evaluate(element=>element.scrollIntoView({block:'start'}));
+   await page.evaluate(()=>scrollBy(0,-100));
+   const capture=await page.screenshot({path:path.join(artifacts,`pilot-${width}-${mode}.png`)});
+   console.log(JSON.stringify({width,mode,axe_violations:violations.length}));
+   if(mode==='light'&&width===390&&process.env.PF_EMIT_ARTIFACTS==='1'){assert.ok(capture.byteLength<=1024*1024);console.log('PF_ARTIFACT '+JSON.stringify({name:'pilot-evidence.png',encoding:'base64',data:capture.toString('base64')}));}
   }
   await page.getByRole('button',{name:'Primer piloto de cafetería · ejemplo',exact:true}).click();await expect(page.getByText(/Lista de pruebas · versión 1/)).toBeVisible();
   const legacyRows=page.getByRole('region',{name:'Pruebas del piloto',exact:true}).getByRole('row');await expect(legacyRows).toHaveCount(10);
@@ -84,5 +101,5 @@ try{
   }
   await context.close();
  }
- console.log('Pilot/access browser: historical launch, versioned profile, 13 checks and closure, legacy 9 checks, desktop/mobile/light/dark accessibility, role guidance and owner sign-in return passed. Synthetic data only.');
+ console.log('Pilot/access browser: historical launch, frozen channels, versioned profile, 14 mandatory checks and closure, legacy 9 checks, desktop/mobile/light/dark accessibility, role guidance and owner sign-in return passed. Synthetic data only.');
 }finally{await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r));}

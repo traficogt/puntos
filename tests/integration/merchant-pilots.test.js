@@ -18,6 +18,8 @@ suite('merchant pilots in disposable PostgreSQL',()=>{
   await db.query(await readFile(new URL('../../src/app/migrations/2026-11-10-merchant-pilots.sql',import.meta.url),'utf8'));
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   await db.query(await readFile(new URL('../../src/app/migrations/2026-11-11-pilot-evidence.sql',import.meta.url),'utf8'));
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  await db.query(await readFile(new URL('../../src/app/migrations/2026-11-15-pilot-capabilities.sql',import.meta.url),'utf8'));
   service=await import('../../src/app/services/merchant-pilot-service.js');
   deps={query:db.query.bind(db),getPlanFeatureOverrides:async()=>({}),audit:async()=>{},now:()=>new Date('2026-11-10T18:00:00Z'),transaction:async fn=>{const c=await db.connect();try{await c.query('BEGIN');const result=await fn(c);await c.query('COMMIT');return result;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}}};
  });
@@ -36,7 +38,8 @@ suite('merchant pilots in disposable PostgreSQL',()=>{
   const {pilot}=await start();await assert.rejects(service.getPilot({businessId:otherBusiness,pilotId:pilot.id},deps),/encontr/i);
   await assert.rejects(service.closePilot({businessId,staffId,pilotId:pilot.id,outcome:'completed',note:''},deps),/pruebas/i);
   for(const check of (await service.getPilot({businessId,pilotId:pilot.id},deps)).checks)await service.updatePilotCheck({businessId,staffId,pilotId:pilot.id,key:check.key,status:check.required?'passed':'not_applicable',note:'Revisado por responsable'},deps);
-  const detail=await service.getPilot({businessId,pilotId:pilot.id},deps);assert.equal(detail.checks.length,13);assert.equal(detail.checks.filter(c=>c.status==='passed').length,10);
+  const detail=await service.getPilot({businessId,pilotId:pilot.id},deps);assert.equal(detail.checks.length,11);assert.equal(detail.checks.filter(c=>c.status==='passed').length,11);
+  assert.equal(detail.checklist_evidence.evidence_type,'server_computed');assert.equal(detail.checklist_evidence.complete,true);assert.ok(detail.checks.every(c=>c.evidence_type==='owner_reported'));
   assert.equal((await service.closePilot({businessId,staffId,pilotId:pilot.id,outcome:'completed',note:'Prueba concluida'},deps)).pilot.status,'completed');
   await assert.rejects(service.updatePilotCheck({businessId,staffId,pilotId:pilot.id,key:'purchase',status:'failed',note:'late'},deps),/cerrado/i);
  });
@@ -57,7 +60,8 @@ suite('merchant pilots in disposable PostgreSQL',()=>{
   const requestId=randomUUID(),posProfile={vendor:'Odoo',pos_version:'18.0',module_version:'18.0.2.0.0',deployment:'self_hosted'};
   const options={businessId,staffId,requestId,name:'Odoo acceptance',durationDays:14,posProfile};
   const {pilot}=await service.createPilot(options,deps);
-  assert.equal(pilot.checklist_version,2);assert.deepEqual(pilot.pos_profile,posProfile);
+  assert.equal(pilot.checklist_version,3);assert.deepEqual(pilot.pos_profile,posProfile);
+  assert.deepEqual(pilot.capabilities,{wallet:false,promotional_messaging:false,pos:true});
   assert.deepEqual((await service.createPilot(options,deps)).pilot.pos_profile,posProfile);
   await assert.rejects(service.createPilot({...options,posProfile:{...posProfile,module_version:'18.0.3.0.0'}},deps),/solicitud/i);
   const detail=await service.getPilot({businessId,pilotId:pilot.id},deps);
@@ -83,6 +87,52 @@ suite('merchant pilots in disposable PostgreSQL',()=>{
   const {pilot}=await start();
   await db.query("DELETE FROM merchant_pilot_checks WHERE pilot_id=$1 AND check_key='purchase'",[pilot.id]);
   await assert.rejects(service.updatePilotCheck({businessId,staffId,pilotId:pilot.id,key:'purchase',status:'passed',note:'No stored row'},deps),/prueba|registro/i);
+  const detail=await service.getPilot({businessId,pilotId:pilot.id},deps);
+  assert.equal(detail.checklist_evidence.complete,false);assert.ok(detail.checklist_evidence.unresolved_checks.includes('purchase'));
+ });
+ it('selected capabilities are immutable, mandatory and part of idempotency',async()=>{
+  const capabilities={wallet:true,promotional_messaging:true,pos:false};
+  const options={businessId,staffId,requestId:randomUUID(),name:'Selected channels',durationDays:14,capabilities};
+  const {pilot}=await service.createPilot(options,deps);
+  assert.deepEqual(pilot.capabilities,capabilities);
+  assert.equal((await service.createPilot(options,deps)).pilot.id,pilot.id);
+  await assert.rejects(service.createPilot({...options,capabilities:{...capabilities,wallet:false}},deps),/solicitud/i);
+  await assert.rejects(db.query("UPDATE merchant_pilots SET capabilities=jsonb_set(capabilities,'{wallet}','false') WHERE id=$1",[pilot.id]),/immutable/i);
+  for(const key of ['wallet_installation','message_delivery'])await assert.rejects(service.updatePilotCheck({businessId,staffId,pilotId:pilot.id,key,status:'not_applicable',note:'Skip selected'},deps),/obligatoria/i);
+  await assert.rejects(service.updatePilotCheck({businessId,staffId,pilotId:pilot.id,key:'pos_installation',status:'passed',note:'Not selected'},deps),/prueba|configuración|versión/i);
+  const detail=await service.getPilot({businessId,pilotId:pilot.id},deps);
+  assert.equal(detail.checks.length,13);assert.equal(detail.checklist_evidence.complete,false);
+  for(const check of detail.checks.filter(c=>c.key!=='message_delivery'))await service.updatePilotCheck({businessId,staffId,pilotId:pilot.id,key:check.key,status:'passed',note:'Owner observation'},deps);
+  const pending=await service.getPilot({businessId,pilotId:pilot.id},deps);
+  assert.deepEqual(pending.checklist_evidence.unresolved_checks,['message_delivery']);
+  await assert.rejects(service.closePilot({businessId,staffId,pilotId:pilot.id,outcome:'completed',note:''},deps),/pruebas/i);
+  await service.updatePilotCheck({businessId,staffId,pilotId:pilot.id,key:'message_delivery',status:'passed',note:'Received by opted-in test account'},deps);
+  await service.closePilot({businessId,staffId,pilotId:pilot.id,outcome:'completed',note:'Done'},deps);
+  assert.equal((await service.getPilot({businessId,pilotId:pilot.id},deps)).checklist_evidence.complete,true);
+ });
+ it('legacy API omissions are explicit and a supplied POS profile conservatively selects POS',async()=>{
+  const {pilot}=await start();assert.deepEqual(pilot.capabilities,{wallet:false,promotional_messaging:false,pos:false});
+  const detail=await service.getPilot({businessId,pilotId:pilot.id},deps);
+  assert.equal(detail.checks.some(c=>['wallet_installation','message_delivery','pos_installation'].includes(c.key)),false);
+  await assert.rejects(service.createPilot({businessId,staffId,requestId:randomUUID(),name:'Invalid',durationDays:14,capabilities:{wallet:false,promotional_messaging:false,pos:true}},deps),/POS/i);
+  await assert.rejects(service.createPilot({businessId,staffId,requestId:randomUUID(),name:'Invalid',durationDays:14,capabilities:{wallet:false,promotional_messaging:false,pos:false},posProfile:{vendor:'Odoo',pos_version:'18',deployment:'unknown'}},deps),/POS/i);
+ });
+ it('version 2 history and request retries retain optional integration semantics',async()=>{
+  const id=randomUUID(),requestId=randomUUID();
+  await db.query("INSERT INTO merchant_pilots(id,business_id,request_id,name,duration_days,started_at,planned_end_at,checklist_version) VALUES($1,$2,$3,'Legacy v2',14,'2026-11-01','2026-11-15',2)",[id,businessId,requestId]);
+  const {pilotChecksForVersion}=await import('../../public/pilot-checklists.js');
+  for(const check of pilotChecksForVersion(2))await db.query('INSERT INTO merchant_pilot_checks(business_id,pilot_id,check_key) VALUES($1,$2,$3)',[businessId,id,check.key]);
+  assert.equal((await service.createPilot({businessId,staffId,requestId,name:'Legacy v2',durationDays:14},deps)).pilot.id,id);
+  const detail=await service.getPilot({businessId,pilotId:id},deps);
+  assert.equal(detail.pilot.capabilities,null);assert.equal(detail.checks.length,13);
+  for(const check of detail.checks)await service.updatePilotCheck({businessId,staffId,pilotId:id,key:check.key,status:check.required?'passed':'not_applicable',note:'Historical owner evidence'},deps);
+  await service.closePilot({businessId,staffId,pilotId:id,outcome:'completed',note:'Done'},deps);
+  assert.equal((await service.getPilot({businessId,pilotId:id},deps)).checklist_evidence.complete,true);
+ });
+ it('storage rejects incomplete or misleading version 3 configuration without rewriting historical rows',async()=>{
+  const insert=value=>db.query("INSERT INTO merchant_pilots(id,business_id,request_id,name,duration_days,started_at,planned_end_at,checklist_version,capabilities) VALUES($1,$2,$3,'Invalid scope',14,'2026-11-01','2026-11-15',3,$4)",[randomUUID(),businessId,randomUUID(),value]);
+  for(const value of [null,{},[],{wallet:false,promotional_messaging:false,pos:null},{wallet:'false',promotional_messaging:false,pos:false},{wallet:false,promotional_messaging:false,pos:true},{wallet:false,promotional_messaging:false,pos:false,other:true}])await assert.rejects(insert(value),error=>error instanceof Error&&'code' in error&&error.code==='23514');
+  const {pilot}=await start();assert.equal(pilot.checklist_version,3);
  });
  it('list keeps the latest completed pilot available outside the current history page',async()=>{
   const completed=randomUUID();

@@ -17,6 +17,7 @@ const businessId = randomUUID(), otherBusinessId = randomUUID(), staffId = rando
 const pilotId = randomUUID(), otherPilotId = randomUUID(), requestId = randomUUID();
 const base = '/api/admin/pilots', csrf = 'fixture-pilot-csrf';
 const creation = { request_id: requestId, name: ' Piloto de prueba ', duration_days: 30 };
+const capabilities = { wallet: true, promotional_messaging: false, pos: false };
 const evidence = { status: 'passed', note: ' Revisado por el responsable ' };
 const closure = { outcome: 'stopped', note: ' Repetir después de corregir ' };
 const operations = [
@@ -193,6 +194,24 @@ it('accepts only supported checklist statuses, bounded notes and known check key
   for (const status of ['pending', 'passed', 'failed']) assert.equal((await request(path, { method: 'PUT', body: { status, note: 'Recorded by owner' } })).status, 200);
   assert.equal((await request(`/${pilotId}/checks/wallet_installation`, { method: 'PUT', body: { status: 'not_applicable', note: 'No Wallet in this pilot' } })).status, 200);
   assert.equal((await request(path, { method: 'PUT', body: { status: 'pending', note: '' } })).status, 200);
+});
+
+it('accepts explicit capability booleans and rejects ambiguous or fabricated configuration', async () => {
+ const accepted = await request('', { method: 'POST', body: { ...creation, capabilities } });
+ assert.equal(accepted.status, 201);
+ assert.deepEqual(calls.at(-1).input.capabilities, capabilities);
+ for (const value of [null, [], {}, {...capabilities, wallet:'true'}, {...capabilities, pos:1}, {...capabilities, automatic:true}]) {
+  assert.equal((await request('', { method:'POST', body:{...creation, capabilities:value} })).status, 400);
+ }
+ const profile={vendor:'Odoo',pos_version:'18',module_version:null,deployment:'self_hosted'};
+ assert.equal((await request('', {method:'POST',body:{...creation,capabilities:{...capabilities,pos:true}}})).status,400);
+ assert.equal((await request('', {method:'POST',body:{...creation,capabilities,pos_profile:profile}})).status,400);
+ assert.equal((await request('', {method:'POST',body:{...creation,capabilities:{...capabilities,pos:true},pos_profile:profile}})).status,201);
+ assert.equal((await request(`/${pilotId}/checks/phone_ownership`, { method:'PUT', body:evidence })).status, 200);
+ const count = calls.length;
+ assert.equal((await request(`/${pilotId}/checks/purchase`, { method:'PUT', body:{...evidence,capabilities} })).status,400);
+ assert.equal((await request(`/${pilotId}/close`, {method:'POST',body:{...closure,capabilities}})).status,400);
+ assert.equal(calls.length,count);
 });
 
 it('requires explicit completion or stop outcome and a nonempty bounded stop reason', async () => {

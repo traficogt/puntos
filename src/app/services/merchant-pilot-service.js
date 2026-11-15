@@ -1,5 +1,5 @@
 import {z} from 'zod';
-import {currentPilotChecklistVersion,pilotChecksForVersion} from '../../../public/pilot-checklists.js';
+import {allPilotCapabilities,currentPilotChecklistVersion,pilotChecksForVersion,pilotChecklistCompleteness} from '../../../public/pilot-checklists.js';
 import { randomUUID } from 'node:crypto';
 import { dbQuery, withTransaction } from '../database.js';
 import { AuditRepo } from '../repositories/audit-repository.js';
@@ -7,14 +7,22 @@ import { PlanConfigService } from './plan-config-service.js';
 import { hasPlanFeature } from '../../utils/plan.js';
 import { badRequest, conflict, forbidden, notFound } from '../../utils/http-error.js';
 import { reportingPurchase } from './reporting-purchase.js';
-export const PILOT_CHECKS = pilotChecksForVersion(currentPilotChecklistVersion);
+export const PILOT_CHECKS = pilotChecksForVersion(currentPilotChecklistVersion,allPilotCapabilities);
+export const PilotCapabilities=z.object({wallet:z.boolean(),promotional_messaging:z.boolean(),pos:z.boolean()}).strict();
 const profileText=z.string().trim().min(1).max(64).regex(/^[^\u0000-\u001f\u007f]+$/u);
 export const PilotPosProfile=z.object({vendor:profileText,pos_version:profileText,module_version:profileText.nullable().default(null),deployment:z.enum(['unknown','online','odoo_sh','self_hosted','cloud','other'])}).strict();
 function normalizedProfile(value){const parsed=PilotPosProfile.nullable().safeParse(value??null);if(!parsed.success)throw badRequest('Revisa el sistema, sus versiones y el alojamiento del piloto.');return parsed.data;}
 const profileSignature=value=>JSON.stringify(normalizedProfile(value));
+function normalizedCapabilities(value,posProfile){
+ const parsed=PilotCapabilities.safeParse(value===undefined?{wallet:false,promotional_messaging:false,pos:!!posProfile}:value);
+ if(!parsed.success)throw badRequest('Selecciona los canales del piloto con valores válidos.');
+ if(parsed.data.pos!==!!posProfile)throw badRequest('La selección de POS debe coincidir con su sistema y sus versiones.');
+ return parsed.data;
+}
+const sameCapabilities=(a,b)=>Object.keys(allPilotCapabilities).every(key=>a?.[key]===b?.[key]);
 const defaults={query:dbQuery,transaction:withTransaction,audit:AuditRepo.log,getPlanFeatureOverrides:()=>PlanConfigService.getPlanFeatureOverrides(),now:()=>new Date()};
 const iso=v=>v?new Date(v).toISOString():null;
-function publicPilot(p){return {id:p.id,checklist_version:p.checklist_version,pos_profile:p.pos_profile,name:p.name,duration_days:p.duration_days,status:p.status,started_at:iso(p.started_at),planned_end_at:iso(p.planned_end_at),closed_at:iso(p.closed_at),close_note:p.close_note};}
+function publicPilot(p){return {id:p.id,checklist_version:p.checklist_version,pos_profile:p.pos_profile,capabilities:p.capabilities??null,name:p.name,duration_days:p.duration_days,status:p.status,started_at:iso(p.started_at),planned_end_at:iso(p.planned_end_at),closed_at:iso(p.closed_at),close_note:p.close_note};}
 async function entitled(client,businessId,overrides){
  const {rows}=await client.query('SELECT id,plan FROM businesses WHERE id=$1 FOR UPDATE',[businessId]);
  if(!rows[0])throw notFound('Negocio no encontrado.');
@@ -24,15 +32,15 @@ async function auditChange(deps,actor,pilot,action){await deps.audit({id:randomU
 async function lockedPilot(client,businessId,pilotId){const {rows}=await client.query('SELECT * FROM merchant_pilots WHERE business_id=$1 AND id=$2 FOR UPDATE',[businessId,pilotId]);if(!rows[0])throw notFound('Piloto no encontrado.');return rows[0];}
 export async function createPilot(options,injected={}){
  const d={...defaults,...injected},overrides=await d.getPlanFeatureOverrides();
- const {businessId,staffId,requestId,durationDays}=options,name=options.name.trim(),posProfile=normalizedProfile(options.posProfile);
+ const {businessId,staffId,requestId,durationDays}=options,name=options.name.trim(),posProfile=normalizedProfile(options.posProfile),capabilities=normalizedCapabilities(options.capabilities,posProfile);
  return d.transaction(async client=>{
   await entitled(client,businessId,overrides);
   const old=await client.query('SELECT * FROM merchant_pilots WHERE business_id=$1 AND request_id=$2',[businessId,requestId]);
-  if(old.rows[0]){if(old.rows[0].name!==name||old.rows[0].duration_days!==durationDays||profileSignature(old.rows[0].pos_profile)!==profileSignature(posProfile))throw conflict('Esta solicitud ya se usó con otros datos.');return {pilot:publicPilot(old.rows[0])};}
+  if(old.rows[0]){const prior=old.rows[0],sameScope=prior.checklist_version<3?options.capabilities===undefined:sameCapabilities(prior.capabilities,capabilities);if(prior.name!==name||prior.duration_days!==durationDays||profileSignature(prior.pos_profile)!==profileSignature(posProfile)||!sameScope)throw conflict('Esta solicitud ya se usó con otros datos.');return {pilot:publicPilot(prior)};}
   const active=await client.query("SELECT id FROM merchant_pilots WHERE business_id=$1 AND status='active'",[businessId]);if(active.rows.length)throw conflict('Ya tienes un piloto activo. Ciérralo antes de iniciar otro.');
   const id=randomUUID(),start=d.now();
-  const {rows}=await client.query("INSERT INTO merchant_pilots(id,business_id,request_id,name,duration_days,started_at,planned_end_at,created_by_staff_id,checklist_version,pos_profile) VALUES($1,$2,$3,$4,$5,$6,$6::timestamptz+make_interval(days=>$5::int),$7,$8,$9) RETURNING *",[id,businessId,requestId,name,durationDays,start,staffId,currentPilotChecklistVersion,posProfile]);
-  for(const check of PILOT_CHECKS)await client.query('INSERT INTO merchant_pilot_checks(business_id,pilot_id,check_key) VALUES($1,$2,$3)',[businessId,id,check.key]);
+  const {rows}=await client.query("INSERT INTO merchant_pilots(id,business_id,request_id,name,duration_days,started_at,planned_end_at,created_by_staff_id,checklist_version,pos_profile,capabilities) VALUES($1,$2,$3,$4,$5,$6,$6::timestamptz+make_interval(days=>$5::int),$7,$8,$9,$10) RETURNING *",[id,businessId,requestId,name,durationDays,start,staffId,currentPilotChecklistVersion,posProfile,capabilities]);
+  for(const check of pilotChecksForVersion(currentPilotChecklistVersion,capabilities))await client.query('INSERT INTO merchant_pilot_checks(business_id,pilot_id,check_key) VALUES($1,$2,$3)',[businessId,id,check.key]);
   await auditChange(d,options,rows[0],'merchant.pilot.created');return {pilot:publicPilot(rows[0])};
  });
 }
@@ -47,7 +55,7 @@ export async function updatePilotCheck(options,injected={}){
  return d.transaction(async client=>{
   await entitled(client,options.businessId,overrides);const p=await lockedPilot(client,options.businessId,options.pilotId);
   if(p.status!=='active')throw conflict('El piloto está cerrado. Conservamos sus registros.');
-  const definition=pilotChecksForVersion(p.checklist_version).find(c=>c.key===options.key);
+  const definition=pilotChecksForVersion(p.checklist_version,p.capabilities).find(c=>c.key===options.key);
   if(!definition)throw badRequest('Esta prueba no pertenece a la versión del piloto.');
   if(options.status==='not_applicable'&&definition.required)throw badRequest('Esta prueba es obligatoria.');
   const updated=await client.query('UPDATE merchant_pilot_checks SET status=$4,note=$5,updated_at=$6,updated_by_staff_id=$7 WHERE business_id=$1 AND pilot_id=$2 AND check_key=$3',[options.businessId,options.pilotId,options.key,options.status,note,d.now(),options.staffId]);
@@ -62,7 +70,7 @@ export async function closePilot(options,injected={}){
   if(p.status!=='active'){if(p.status!==options.outcome||p.close_note!==options.note.trim())throw conflict('El piloto está cerrado.');return {pilot:publicPilot(p)};}
   if(options.outcome==='completed'){
    const {rows}=await client.query('SELECT check_key,status FROM merchant_pilot_checks WHERE business_id=$1 AND pilot_id=$2',[options.businessId,options.pilotId]);
-   if(pilotChecksForVersion(p.checklist_version).some(c=>!rows.some(r=>r.check_key===c.key&&(r.status==='passed'||(!c.required&&r.status==='not_applicable')))))throw conflict('Completa las pruebas obligatorias y revisa las opcionales antes de finalizar.');
+   if(!pilotChecklistCompleteness(p.checklist_version,p.capabilities,rows).complete)throw conflict('Completa las pruebas obligatorias y revisa las opcionales antes de finalizar.');
   }
   const {rows}=await client.query('UPDATE merchant_pilots SET status=$3,closed_at=$4,close_note=$5 WHERE business_id=$1 AND id=$2 RETURNING *',[options.businessId,options.pilotId,options.outcome,d.now(),options.note.trim()]);
   await auditChange(d,options,rows[0],'merchant.pilot.closed');return {pilot:publicPilot(rows[0])};
@@ -92,7 +100,9 @@ export async function getPilot({businessId,pilotId},injected={}){
  FROM pilot p CROSS JOIN bounds b`,[businessId,pilotId,d.now()]);
  if(!rows[0])throw notFound('Piloto no encontrado.');
  const row=rows[0],start=new Date(row.bounds.start_at),end=new Date(row.bounds.end_at);
- return {pilot:publicPilot(row.pilot),checks:pilotChecksForVersion(row.pilot.checklist_version).map(c=>({...c,...row.checks.find(s=>s.key===c.key),evidence_type:'owner_reported'})),results:{
+ return {pilot:publicPilot(row.pilot),checks:pilotChecksForVersion(row.pilot.checklist_version,row.pilot.capabilities).map(c=>({...c,status:'pending',note:'',updated_at:null,...row.checks.find(s=>s.key===c.key),evidence_type:'owner_reported'})),
+ checklist_evidence:{evidence_type:'server_computed',scope:'recorded_checklist_completeness',computed_at:iso(d.now()),...pilotChecklistCompleteness(row.pilot.checklist_version,row.pilot.capabilities,row.checks),limitation:'PF calcula si las declaraciones guardadas cubren la lista del piloto. No comprueba dispositivos, recepción de mensajes ni proveedores; no certifica integraciones.'},
+ results:{provenance:{evidence_type:'server_computed',source:'pf_recorded_activity'},
   period:{start:iso(start),end:iso(end),previous_start:iso(new Date(start.getTime()-(end.getTime()-start.getTime()))),previous_end:iso(start)},
   current:row.metrics.current,previous:row.metrics.previous,
   limitation:'Comparación observada entre períodos de igual duración. No demuestra que el piloto causó el cambio. Solo incluye actividad registrada en PF y excluye compras revertidas y clientes eliminados. Los clientes importados no cuentan como altas nuevas y los saldos iniciales no cuentan como compras.'

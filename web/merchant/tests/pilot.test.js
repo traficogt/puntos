@@ -8,21 +8,24 @@ const send=(url,method,body)=>demoApi(url,{method,body:JSON.stringify(body)});
 test('pilot preview completes the full checklist locally with stable create retries and equal comparison windows',async()=>{
  const oldFetch=globalThis.fetch;globalThis.fetch=()=>{throw new Error('Unexpected real request');};
  try{
- const body={request_id:crypto.randomUUID(),name:'Piloto ficticio',duration_days:14,pos_profile:{vendor:'Odoo',pos_version:'18.0',module_version:'18.0.2.0.0',deployment:'self_hosted'}};
+ const body={request_id:crypto.randomUUID(),name:'Piloto ficticio',duration_days:14,capabilities:{wallet:true,promotional_messaging:true,pos:true},pos_profile:{vendor:'Odoo',pos_version:'18.0',module_version:'18.0.2.0.0',deployment:'self_hosted'}};
  const first=await send(base,'POST',body),id=first.pilot.id;
  assert.equal((await send(base,'POST',body)).pilot.id,id);
  await assert.rejects(send(base,'POST',{...body,name:'Different'}),/otros datos/);
+ await assert.rejects(send(base,'POST',{...body,capabilities:{...body.capabilities,wallet:false}}),/otros datos/);
  await assert.rejects(send(base,'POST',{...body,request_id:crypto.randomUUID()}),/activo/);
  await assert.rejects(send(`${base}/${id}/close`,'POST',{outcome:'completed',note:''}),/pruebas/);
  await assert.rejects(send(`${base}/${id}/checks/purchase`,'PUT',{status:'not_applicable',note:'Not used'}),/prueba/);
+ await assert.rejects(send(`${base}/${id}/checks/wallet_installation`,'PUT',{status:'not_applicable',note:'Selected channel'}),/prueba/);
  for(const c of (await demoApi(`${base}/${id}`)).checks)await send(`${base}/${id}/checks/${c.key}`,'PUT',{status:c.required?'passed':'not_applicable',note:'Comprobación ficticia sin datos personales.'});
  await send(`${base}/${id}/close`,'POST',{outcome:'completed',note:'Conclusión ficticia'});
  const detail=await demoApi(`${base}/${id}`),p=detail.results.period;
- assert.equal(detail.pilot.status,'completed');assert.equal(detail.pilot.checklist_version,2);assert.deepEqual(detail.pilot.pos_profile,body.pos_profile);assert.equal(detail.checks.length,13);assert.equal(Date.parse(p.end)-Date.parse(p.start),Date.parse(p.previous_end)-Date.parse(p.previous_start));
+ assert.equal(detail.pilot.status,'completed');assert.equal(detail.pilot.checklist_version,3);assert.deepEqual(detail.pilot.capabilities,body.capabilities);assert.deepEqual(detail.pilot.pos_profile,body.pos_profile);assert.equal(detail.checks.length,14);assert.equal(Date.parse(p.end)-Date.parse(p.start),Date.parse(p.previous_end)-Date.parse(p.previous_start));
+ assert.equal(detail.checklist_evidence.evidence_type,'demo_computed');assert.equal(detail.checklist_evidence.complete,true);assert.equal(detail.results.provenance.evidence_type,'fictional_demo');
  assert.equal(detail.results.current.purchases,0);
  await assert.rejects(send(`${base}/${id}/checks/purchase`,'PUT',{status:'failed',note:'Change'}),/cerrado/);
  const report=pilotReport({...detail,pilot:{...detail.pilot,business_id:'private-business',created_by_staff_id:'private-staff'},checks:detail.checks.map(c=>({...c,updated_by_staff_id:'private-staff'}))});
- assert.equal(report.pilot.checklist_version,2);assert.deepEqual(report.pilot.pos_profile,body.pos_profile);assert.doesNotMatch(JSON.stringify(report),/private-business|private-staff/);assert.ok(report.checks.every(c=>c.evidence_type==='owner_reported'));assert.match(report.notice,/no certifican/);
+ assert.equal(report.pilot.checklist_version,3);assert.deepEqual(report.pilot.pos_profile,body.pos_profile);assert.doesNotMatch(JSON.stringify(report),/private-business|private-staff/);assert.ok(report.checks.every(c=>c.evidence_type==='owner_reported'));assert.match(report.notice,/no certifican/);
  }finally{globalThis.fetch=oldFetch;}
 });
 test('stopping a failed pilot requires a conclusion and allows a new trial',async()=>{

@@ -18,8 +18,28 @@ const fulfillment = [
  ['fulfillment_retry','Reintento sin duplicar la entrega',true,'Repite la misma solicitud de registro: debe conservar un solo resultado y la misma referencia. Comprueba que otro registro no pueda reutilizar la entrega.'],
  ['fulfillment_cancellation','Cancelación y revisión del canje',true,'Comprueba una devolución o cancelación y su revisión. El estado del registro no restaura puntos ni inventario; verifica por separado el procedimiento de recuperación.'],
 ];
-export const currentPilotChecklistVersion = 2;
-export function pilotChecksForVersion(version) {
-  if (version !== 1 && version !== 2) throw new Error('Versión de pruebas no reconocida.');
-  return [...original, ...(version === 2 ? fulfillment : [])].map(([key,label,required,instruction])=>({key,label,required,...(instruction?{instruction}:{})}));
+export const currentPilotChecklistVersion = 3;
+export const allPilotCapabilities = Object.freeze({wallet:true,promotional_messaging:true,pos:true});
+const capabilityChecks={wallet_installation:'wallet',message_delivery:'promotional_messaging',pos_installation:'pos'};
+const capabilityInstructions={
+ wallet_installation:'Instala y actualiza la tarjeta en un dispositivo compatible. Registra lo que observaste en el dispositivo; la lista no comprueba esta instalación automáticamente.',
+ message_delivery:'Comprueba la recepción de un mensaje promocional en una cuenta de prueba con consentimiento promocional vigente. La aceptación del envío por PF o el proveedor no demuestra la recepción. Verificar el teléfono no concede consentimiento promocional.',
+ pos_installation:'Registra una venta desde el POS y comprueba el resultado en PF con el sistema y las versiones indicados en este piloto.'
+};
+export function pilotChecksForVersion(version,capabilities=null) {
+  if (![1,2,3].includes(version)) throw new Error('Versión de pruebas no reconocida.');
+  const checks=[...original, ...(version >= 2 ? fulfillment : [])].map(([key,label,required,instruction])=>({key,label,required,...(instruction?{instruction}:{})}));
+  if(version<3)return checks;
+  if(!capabilities||Object.keys(allPilotCapabilities).some(key=>typeof capabilities[key]!=='boolean'))throw new Error('Falta la configuración de canales del piloto.');
+  const selected=checks.filter(c=>!capabilityChecks[c.key]||capabilities[capabilityChecks[c.key]]).map(c=>({...c,required:true,...(capabilityChecks[c.key]?{instruction:capabilityInstructions[c.key]}:{}),...(c.key==='message_delivery'?{label:'Mensaje promocional recibido con consentimiento'}:{})}));
+  selected.splice(1,0,{key:'phone_ownership',label:'Titularidad del teléfono del cliente',required:true,instruction:'Completa la verificación del teléfono con una cuenta de prueba y comprueba el rechazo de un código incorrecto o vencido. Esta verificación no concede consentimiento promocional.'});
+  return selected;
+}
+// Counts stored declarations only. It does not verify a device, provider or integration.
+export function pilotChecklistCompleteness(version,capabilities,records){
+ const definitions=pilotChecksForVersion(version,capabilities);
+ const passed=key=>records.some(r=>(r.key??r.check_key)===key&&r.status==='passed');
+ return {required_total:definitions.filter(c=>c.required).length,required_passed:definitions.filter(c=>c.required&&passed(c.key)).length,
+  unresolved_checks:definitions.filter(c=>!passed(c.key)&&!(!c.required&&records.some(r=>(r.key??r.check_key)===c.key&&r.status==='not_applicable'))).map(c=>c.key),
+  complete:definitions.every(c=>passed(c.key)||(!c.required&&records.some(r=>(r.key??r.check_key)===c.key&&r.status==='not_applicable')))};
 }
