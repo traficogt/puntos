@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-14T22:24:25.223Z",
+  "generated_at": "2026-11-15T18:08:38.552070Z",
   "files": {
     "001_add_transactions_type.sql": "34e119c91fa5c744920b65a77dedeb89276bfd86a1b45e9a7edd59d73e8ffefc",
     "002_reward_branch_scope.sql": "5a076cc3a0b4df04031c5dc6d8ec26f75ebf44e648ca14a234dd8dfea08af401",
@@ -80,6 +80,7 @@
     "2026-11-13-service-completion.sql": "2ec39f04f9554efc0dbe922073a1a5794315f07b6e724797506552a17b4090a3",
     "2026-11-13-z-operations-runtime-grants.sql": "f6b032169bfaec07d3c180d11fcd2a4b307296e7d573f0cea32a2f576d3da827",
     "2026-11-14-a-purchase-event-time.sql": "255fcbef2d6373c3152f79b354629962fe6223d18b691ad34cfd518f1518440b",
-    "2026-11-14-b-campaign-measurement.sql": "3b17f973250cf27a4db93635bd621a985d2d5452dcd04c362d83fa4caf56ad15"
+    "2026-11-14-b-campaign-measurement.sql": "3b17f973250cf27a4db93635bd621a985d2d5452dcd04c362d83fa4caf56ad15",
+    "2026-11-15-pilot-capabilities.sql": "f6722b1cb20040c7c07adaece0ad2d432cb08661d2caf5e2d3145483e70c0461"
   }
 }
