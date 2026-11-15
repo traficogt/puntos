@@ -103,17 +103,42 @@ test("Wallet destinations do not continue a stale authenticated response", async
   assert.equal(location.href, "");
 });
 
-test("Wallet continuation waits for fresh verification after a pending or failed logout", async t => {
+for (const mode of ["login", "register"]) {
+  for (const destination of ["", "ofertas", "beneficios"]) {
+    test(`${mode} ${destination || "entry"} waits for fresh verification after a pending or failed logout`, async t => {
+      const { h, events, saved } = setup(t);
+      h.authenticated = true;
+      saved.set("pf_customer_blocked", "1");
+      location.pathname = `/${mode === "login" ? "ingresar" : "registro"}/cafe`;
+      location.search = destination ? `?destino=${destination}` : mode === "login" ? "?motivo=salida" : "";
+      await initCustomerAuthEntry({ mode });
+      assert.equal(location.href, "");
+      assert.equal(h.$("#joinForms").hidden, false);
+      assert.equal(h.calls.some(call => call.path === "/api/customer/wallet"), false);
+      await events["#btnVerify:click"]();
+      assert.equal(saved.has("pf_customer_blocked"), false);
+      if (destination) assert.equal(h.replaced, `/mi-tarjeta/#${destination}`);
+      else {
+        assert.equal(h.$("#done").hidden, false);
+        assert.equal(h.$("#btnAppleWallet").hidden, false);
+      }
+    });
+  }
+}
+
+test("a failed verification request cannot recover the matching session from a pending logout", async t => {
   const { h, events, saved } = setup(t);
   h.authenticated = true;
+  h.verifyError = new Error("Failed to fetch");
   saved.set("pf_customer_blocked", "1");
   location.search = "?destino=ofertas";
   await initCustomerAuthEntry({ mode: "login" });
+  await events["#btnVerify:click"]();
+  assert.equal(saved.get("pf_customer_blocked"), "1");
   assert.equal(location.href, "");
   assert.equal(h.$("#joinForms").hidden, false);
-  await events["#btnVerify:click"]();
-  assert.equal(saved.has("pf_customer_blocked"), false);
-  assert.equal(h.replaced, "/mi-tarjeta/#ofertas");
+  assert.equal(h.calls.some(call => call.path === "/api/customer/wallet"), false);
+  assert.match(h.$("#joinVerifyFeedback").textContent, /Failed to fetch/);
 });
 
 // eslint-disable-next-line no-script-url -- Deliberately hostile destination verifies the fixed allowlist.

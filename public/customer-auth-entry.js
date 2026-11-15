@@ -226,7 +226,7 @@ export async function initCustomerAuthEntry({ mode }) {
   async function showWallet(me) {
     if (!current() || me?.business?.id !== business.id || !me?.customer?.id
         || (customerId && customerId !== me.customer.id)) return false;
-    if (destination && readCustomerStorage("pf_customer_blocked") === "1") return false;
+    if (readCustomerStorage("pf_customer_blocked") === "1") return false;
     customerId = me.customer.id;
     if (destination) {
       cooldownReset();
@@ -382,7 +382,8 @@ export async function initCustomerAuthEntry({ mode }) {
       }
       // A dropped response may still have set the session cookie. Recover only
       // the intended business AND verified phone, never an unrelated session.
-      if (!e?.status && active) {
+      // A pending logout can leave that same cookie active without a new verification.
+      if (!e?.status && active && readCustomerStorage("pf_customer_blocked") !== "1") {
         try {
           const me = await api("/api/customer/me");
           if (!active || verificationEpoch !== getCustomerEpoch()) return;
