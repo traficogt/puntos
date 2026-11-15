@@ -5,13 +5,14 @@ import {
 } from '../../src/scripts/run-domain-integration-isolated.mjs';
 
 test('domain filters select only registered suites and reject unknown paths', () => {
-  assert.equal(domainSuites.length, 53);
-  assert.equal(new Set(domainSuites.map(suite => suite.name)).size, 53);
+  assert.equal(domainSuites.length, 54);
+  assert.equal(new Set(domainSuites.map(suite => suite.name)).size, 54);
+  assert.equal(selectSuites(['campaign-consent-race'])[0].env, 'CAMPAIGN_CONSENT_TEST_DB_URL');
   assert.deepEqual(selectSuites(['native-wallet-storage', 'operations-runtime-role.test.js']).map(suite => suite.database),
     ['native_wallet_test_storage', 'operations_completion_test']);
   assert.throws(() => selectSuites(['../../production.sql']), /Unknown domain suite/);
   assert.throws(() => selectSuites(['native-wallet-storage', 'typo']), /Unknown domain suite/);
-  assert.equal(selectSuites([]).length, 53);
+  assert.equal(selectSuites([]).length, 54);
 });
 
 test('test environment does not inherit production credentials, opt-ins or Node preload hooks', () => {

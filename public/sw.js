@@ -1,4 +1,5 @@
-const CACHE = "pf-v51";
+// Rotate the generation to remove private API responses cached by older workers.
+const CACHE = "pf-v52";
 const CORE_ASSETS = [
   "/crear-negocio/", "/equipo/ingresar/", "/equipo/escaner/",
   "/mi-tarjeta/", "/administracion/", "/plataforma/", "/registro/", "/ingresar/",
@@ -149,7 +150,9 @@ const NAVIGATION_FALLBACKS = new Map([
 ]);
 
 function isCacheable(response) {
-  return response.ok && (response.type === "basic" || response.type === "default");
+  const cacheControl = response.headers.get("Cache-Control") || "";
+  const privateResponse = cacheControl.split(",").some((directive) => /^\s*(?:private|no-store)\s*(?:=|$)/i.test(directive));
+  return response.ok && !privateResponse && (response.type === "basic" || response.type === "default");
 }
 
 async function openCache() {
@@ -262,7 +265,8 @@ self.addEventListener("fetch", (event) => {
   if (/^\/guias(?:\/|$)/i.test(url.pathname) || url.pathname === '/sitemap.xml') return;
   // Temporary editorial previews must not be retained or served stale offline.
   if (/^\/(?:revision-ilustraciones|revision-editorial)(?:\/|$)/i.test(url.pathname)) return;
-  if (url.pathname.startsWith("/api/")) return;
+  // Express accepts case-insensitive API mounts, including versioned routes.
+  if (/^\/api(?:\/|$)/i.test(url.pathname)) return;
   if (["/preferencias-de-mensajes", "/preferencias-de-mensajes/", "/marketing-preferences.html"].includes(url.pathname)) return;
   // Merchant reports are online-only; keep per-response style nonces out of caches.
   if (["/merchant", "/merchant/", "/merchant/index.html", "/negocio", "/negocio/", "/demostracion", "/demostracion/", "/negocio/index.html", "/demostracion/index.html"].includes(url.pathname)) return;

@@ -32,6 +32,7 @@ export const domainSuites = [
   { name: 'automation-controls', env: 'AUTOMATION_TEST_DB_URL', database: 'automation_test' },
   { name: 'automation-legacy-entrypoints', env: 'AUTOMATION_ENTRYPOINTS_TEST_DB_URL', database: 'automation_entrypoints_test' },
   { name: 'automation-legacy-program', env: 'AUTOMATION_LEGACY_TEST_DATABASE_URL', database: 'automation_legacy_test' },
+  { name: 'campaign-consent-race', env: 'CAMPAIGN_CONSENT_TEST_DB_URL', database: 'campaign_consent_test' },
   { name: 'campaign-expansion', env: 'CAMPAIGN_EXPANSION_TEST_DB_URL', database: 'campaign_expansion_test' },
   { name: 'campaign-measurement-completion', env: 'MEASUREMENT_TEST_DB_URL', database: 'measurement_completion_test', fullSchema: true },
   { name: 'campaign-point-budgets', env: 'CAMPAIGN_LIMITS_TEST_DB_URL', database: 'campaign_limits_test' },
