@@ -10,6 +10,13 @@ useDefault = true
 id = "generic-api-key"
 
 [[rules.allowlists]]
+description = "Synthetic JWT fixture used only by the isolated consent-race test"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)tests/integration/campaign\-consent\-race\.test\.js$''']
+regexes = ['''^\s*\QJWT_SECRET_FILE: '', JWT_SECRET: 'fixture-campaign-consent-secret-12345678',\E\s*$''']
+
+[[rules.allowlists]]
 description = "Compatibility prose; no credential material"
 condition = "AND"
 regexTarget = "line"
