@@ -158,18 +158,23 @@ export async function processCampaignMessagesOnce({businessId=null,limit=25,now=
           const configuredDays=latestBusiness?.program_json?.lifecycle?.minimum_contact_days;
           const latestContactDays=Number.isInteger(configuredDays)?Math.max(7,Math.min(90,configuredDays)):7;
           const current=await campaignById(bid,item.campaign_id,'share');
+          // Match opt-out's customer -> preference order. Keep both locks through
+          // provider I/O so a completed revocation/deletion cannot precede a new
+          // submission, including sendMessage's awaited authorization checks.
+          const customer=(await client.query(`SELECT phone FROM customers
+            WHERE business_id=$1 AND id=$2 AND deleted_at IS NULL FOR SHARE`,[bid,item.customer_id])).rows[0];
           const check=await client.query(`SELECT 1 FROM customer_marketing_preferences p JOIN customers c ON c.business_id=p.business_id AND c.id=p.customer_id
             JOIN growth_campaign_members m ON m.business_id=p.business_id AND m.customer_id=p.customer_id AND m.campaign_id=$3
             WHERE p.business_id=$1 AND p.customer_id=$2 AND p.marketing_opt_in=true AND c.deleted_at IS NULL
-            AND m.allocation='treatment' AND m.claimed_at IS NULL`,[bid,item.customer_id,item.campaign_id]);
+            AND m.allocation='treatment' AND m.claimed_at IS NULL FOR SHARE OF p`,[bid,item.customer_id,item.campaign_id]);
           const dispatchDelay=promotionDelay({business:latestBusiness,campaign:current,now:now()});
           const secondVisitAllowed=await secondVisitMessageAllowed(client,{business:latestBusiness,campaign:current,customerId:item.customer_id,now:now()});
-          if(!secondVisitAllowed||!check.rowCount||!activeCampaign(current,now())||!campaignBudgetAvailable(current)||!allowedPlan(current.plan,dispatchOverrides)) result={ok:false,suppressed:true};
+          if(!customer||!secondVisitAllowed||!check.rowCount||!activeCampaign(current,now())||!campaignBudgetAvailable(current)||!allowedPlan(current.plan,dispatchOverrides)) result={ok:false,suppressed:true};
           else if(dispatchDelay)result={deferred:dispatchDelay};
           else {
             const last=await recentMarketingContact(client,{businessId:bid,customerId:item.customer_id,excludeId:item.id,now:now(),days:latestContactDays});
             if(last||!marketingWindow(now(),latestBusiness).allowed)result={ok:false,suppressed:true};
-            else result=await send({businessId:bid,customerId:item.customer_id,channel:'campaign',to:item.phone||item.email,destinations:{phone:item.phone,email:item.email},body:campaignMessageBody(current,unsubscribeUrl),subject:`${current.business_name}: oferta de puntos`});
+            else result=await send({businessId:bid,customerId:item.customer_id,channel:'campaign',to:customer.phone,destinations:{phone:customer.phone,email:null},body:campaignMessageBody(current,unsubscribeUrl),subject:`${current.business_name}: oferta de puntos`});
           }
           await client.query('COMMIT');
         } catch(error) {
