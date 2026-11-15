@@ -1,5 +1,5 @@
 // Rotate the generation to remove private API responses cached by older workers.
-const CACHE = "pf-v52";
+const CACHE = "pf-v53";
 const CORE_ASSETS = [
   "/crear-negocio/", "/equipo/ingresar/", "/equipo/escaner/",
   "/mi-tarjeta/", "/administracion/", "/plataforma/", "/registro/", "/ingresar/",
@@ -25,11 +25,12 @@ const CORE_ASSETS = [
   "/styles/admin-panels.css",
   "/styles/analytics-visuals.css",
   "/styles/responsive.css",
-  "/styles/marketing.css?v=4",
+  "/styles/marketing.css?v=5",
   "/styles/customer-modern.css?v=1",
   "/styles/operations-modern.css?v=1",
   "/styles/pos-integration.css?v=1",
   "/images/coffee-gathering.webp",
+  "/images/merchant-recovery-preview.jpg",
   "/lib.js",
   "/theme.js",
   "/idb.js",
