@@ -238,6 +238,7 @@ export async function executeCheck(check, { cwd, output, env, signal }) {
   const applicationBase = env.E2E_BASE_URL || 'http://127.0.0.1:3001';
   const childEnv = { ...env, NODE_ENV: 'test', ...check.env,
     ...(check.requiresApplicationIdentity ? { E2E_BASE_URL: applicationBase } : {}),
+    ...(check.requiresApplicationIdentity && check.bindTestApi ? { TEST_API_URL: applicationBase } : {}),
     ...(check.category === 'browser' ? { PLAYWRIGHT_BROWSERS_PATH: env.PLAYWRIGHT_BROWSERS_PATH || '0' } : {}) };
   const applicationBefore = check.requiresApplicationIdentity ? await applicationRevision(applicationBase) : null;
   const result = check.requiresApplicationIdentity && applicationBefore !== sourceBefore.commit ?

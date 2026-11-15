@@ -316,3 +316,30 @@ test('browser application revision must match before and after execution', async
   assert.equal(hits, 2);
   assert.equal(readiness.evaluateEvidence({ ...result, check: appCheck, source: identity, revision: identity.commit }).status, 'not_tested');
 });
+
+import { checksFor } from '../../src/scripts/release-readiness.mjs';
+test('core gate enables live tests and binds TEST_API_URL to its verified local application', async t => {
+  const dir = await fixtureRepo(t), output = await fixtureDirectory(t);
+  const identity = await readiness.inspectSource(dir);
+  let hits = 0;
+  const server = createServer((_req, res) => {
+    hits++;
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ build_sha: identity.commit }));
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(() => new Promise(resolve => server.close(() => resolve(undefined))));
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+  const target = `http://127.0.0.1:${address.port}`;
+  const core = (await checksFor(fileURLToPath(new URL('../..', import.meta.url)))).find(row => row.id === 'core');
+  assert.ok(core);
+  const fixture = { ...core, format: 'exit', command: ['node', '-e',
+    'console.log(JSON.stringify({run:process.env.RUN_INTEGRATION,test:process.env.TEST_API_URL,e2e:process.env.E2E_BASE_URL}))'] };
+  const result = await readiness.executeCheck(fixture, { cwd: dir, output,
+    env: { PATH: process.env.PATH, RUN_INTEGRATION: 'false', TEST_API_URL: 'http://unrelated.invalid:3001', E2E_BASE_URL: target } });
+  assert.equal(result.receipt.exitCode, 0);
+  assert.deepEqual(JSON.parse(result.stdout.toString()), { run: 'true', test: target, e2e: target });
+  assert.equal(hits, 2);
+  assert.equal(readiness.evaluateEvidence({ ...result, check: fixture, source: identity, revision: identity.commit }).status, 'passed');
+});
