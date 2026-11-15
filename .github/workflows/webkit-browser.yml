@@ -1,0 +1,51 @@
+name: WebKit customer browser
+
+on:
+  push:
+    paths:
+      - 'public/**'
+      - 'src/**'
+      - 'tests/e2e/**'
+      - 'tests/unit/webkit-runner.test.js'
+      - 'playwright.config.mjs'
+      - 'package*.json'
+      - '.github/workflows/webkit-browser.yml'
+  pull_request:
+    paths:
+      - 'public/**'
+      - 'src/**'
+      - 'tests/e2e/**'
+      - 'tests/unit/webkit-runner.test.js'
+      - 'playwright.config.mjs'
+      - 'package*.json'
+      - '.github/workflows/webkit-browser.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  webkit-customer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.3'
+          cache: npm
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts
+      - name: Install Linux WebKit
+        run: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps webkit
+      - name: Check WebKit runner contract
+        run: node --test tests/unit/webkit-runner.test.js
+      - name: Run all focused WebKit flows in disposable fixtures
+        run: node src/scripts/run-webkit-isolated.mjs
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: webkit-customer-browser
+          path: test-results/webkit/
+          retention-days: 7

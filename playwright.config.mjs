@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -17,24 +17,30 @@ export default defineConfig({
     navigationTimeout: 30_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    video: "retain-on-failure",
-    launchOptions: {
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
-    }
+    video: "retain-on-failure"
   },
   projects: [
     {
       name: "firefox",
+      testIgnore: "**/webkit-customer.spec.js",
       use: { ...devices["Desktop Firefox"] }
     },
     {
       name: "chromium",
+      testIgnore: "**/webkit-customer.spec.js",
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
           args: ["--no-sandbox", "--disable-setuid-sandbox"]
         }
       }
-    }
+    },
+    ...(process.env.E2E_WEBKIT === "1" ? [{
+      name: "webkit",
+      testMatch: "**/webkit-customer.spec.js",
+      timeout: 120_000,
+      retries: 0,
+      use: { ...devices["Desktop Safari"], browserName: "webkit", serviceWorkers: "block" }
+    }] : [])
   ]
 });
