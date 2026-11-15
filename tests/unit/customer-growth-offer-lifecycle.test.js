@@ -388,7 +388,7 @@ test("the service worker installs every new static offer dependency needed by an
     Request: class { url; constructor(value) { this.url = new URL(value, origin).href; } },
     self: { location: { origin }, addEventListener: (event, handler) => handlers.set(event, handler), skipWaiting: async () => {}, clients: { claim: async () => {} } },
     caches: { open: async () => ({ put: async (request, response) => cached.set(key(request), response), match: async request => cached.get(key(request)) }) },
-    fetch: async request => { if (!online) throw new TypeError("Failed to fetch"); return { ok: true, type: "basic", url: key(request), clone() { return this; } }; },
+    fetch: async request => { if (!online) throw new TypeError("Failed to fetch"); return { ok: true, type: "basic", headers: new Headers(), url: key(request), clone() { return this; } }; },
   });
   vm.runInContext(source, context);
   let install = Promise.resolve();
