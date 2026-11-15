@@ -7,6 +7,7 @@ import { rateLimitByIp } from '../../middleware/rate-limit.js';
 import { badRequest, notFound, tooManyRequests } from '../../utils/http-error.js';
 import { nativeWalletService, walletSettings, walletGlobalContext } from '../services/native-wallet/runtime.js';
 import { NativeWalletRepo } from '../repositories/native-wallet-repository.js';
+import { isApplePushToken } from '../services/native-wallet/apple-push-token.js';
 
 const opaque = /^[A-Za-z0-9_-]{8,256}$/;
 const serial = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -37,7 +38,7 @@ export function createNativeWalletRoutes({service=nativeWalletService,repo=Nativ
   const registration=`${prefix}/devices/:device/registrations/:passType/:serial`;
   router.post(registration,asyncRoute(async(req,res)=>{
     const pass=await authenticated(req);
-    if (!opaque.test(req.params.device) || typeof req.body?.pushToken!=='string' || !/^[0-9a-f]{32,256}$/i.test(req.body.pushToken)) throw badRequest('Invalid registration');
+    if (!opaque.test(req.params.device) || !isApplePushToken(req.body?.pushToken)) throw badRequest('Invalid registration');
     let registered;
     try { registered=await globalContext(()=>repo.registerDevice({passId:pass.id,deviceId:req.params.device,pushToken:req.body.pushToken})); }
     catch(e) { if(e?.constraint==='native_wallet_device_limit') throw tooManyRequests('Device registration limit reached'); throw e; }

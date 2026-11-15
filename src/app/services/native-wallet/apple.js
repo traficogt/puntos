@@ -2,6 +2,7 @@ import { createPrivateKey, X509Certificate } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { connect as http2Connect } from "node:http2";
 import { PKPass } from "passkit-generator";
+import { isApplePushToken } from "./apple-push-token.js";
 
 /**
  * @typedef {object} AppleConfig
@@ -183,7 +184,9 @@ export function createAppleProvider(config, { connect = http2Connect, timeoutMs 
     },
 
     async pushUpdate(pushToken) {
-      if (typeof pushToken !== "string" || !/^[a-fA-F0-9]{32,1024}$/.test(pushToken) || pushToken.length % 2 !== 0) throw pushError();
+      // Old registrations may predate ingress validation. Remove those through
+      // the same path as an APNs-invalid token instead of retrying them forever.
+      if (!isApplePushToken(pushToken)) return { invalidToken: true };
       if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 60000) throw pushError();
       const certificates = await credentialsFor(config);
       return new Promise((resolve, reject) => {

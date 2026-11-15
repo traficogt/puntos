@@ -5,8 +5,8 @@ const auth = {id:'c1',business_id:'b1'};
 function fixture() {
   const pass = {id:'p1',provider:'apple',serial_number:'p1',authentication_token:'a'.repeat(43),membership_token:'m'.repeat(43),business_id:'b1',customer_id:'c1',revision:'2'};
   const calls=[];
-  const repo={ensurePass:async x=>{calls.push(['ensure',x]);return pass;}, getSnapshot:async()=>pass,getBySerial:async()=>pass,getCustomerPasses:async()=>[pass], revokeCustomerPasses:async()=>{},claimDue:async()=>[{...pass,lock_token:'lease'}],listRegistrations:async()=>[{push_token:'device'}],deletePushToken:async()=>{},markSynced:async(...x)=>calls.push(['synced',...x]),markFailed:async(...x)=>calls.push(['failed',...x])};
-  const providers={apple:{generatePass:async()=>Buffer.from('pkpass'),pushUpdate:async()=>({invalidToken:false})},google:{savePass:async()=> 'https://pay.google.com/gp/v/save/signed',updatePass:async()=>{}}};
+  const repo={ensurePass:async x=>{calls.push(['ensure',x]);return pass;}, getSnapshot:async()=>pass,getBySerial:async()=>pass,getCustomerPasses:async()=>[pass], revokeCustomerPasses:async()=>{},claimDue:async()=>[{...pass,lock_token:'lease'}],listRegistrations:async()=>[{push_token:'device'}],deletePushToken:async _token=>{},markSynced:async(...x)=>calls.push(['synced',...x]),markFailed:async(...x)=>calls.push(['failed',...x])};
+  const providers={apple:{generatePass:async()=>Buffer.from('pkpass'),pushUpdate:async _token=>({invalidToken:false})},google:{savePass:async()=> 'https://pay.google.com/gp/v/save/signed',updatePass:async()=>{}}};
   const settings={apple:{ready:true,config:{passTypeIdentifier:'pass.com.pf'}},google:{ready:true,config:{}}};
   const deps={repo,providers,settings,customerRepo:{getById:async()=>({id:'c1',business_id:'b1'})},globalContext:async fn=>fn()};
   return {deps,pass,calls};
@@ -36,6 +36,47 @@ test('worker acknowledges delivered revision and retains failed jobs without lea
   assert.deepEqual(await svc.processDue(),{delivered:1,failed:0});assert.deepEqual(calls.at(-1),['synced','p1','2','lease',null]);
   deps.providers.apple.pushUpdate=async()=>{throw Error('private credential');};
   assert.deepEqual(await svc.processDue(),{delivered:0,failed:1});assert.deepEqual(calls.at(-1),['failed','p1','lease']);
+});
+
+test('one transient device failure does not prevent later devices from updating and keeps the pass retryable',async()=>{
+  const {deps,calls}=fixture();
+  const attempted=[];
+  let fail=true;
+  deps.repo.listRegistrations=async()=>[{push_token:'first'},{push_token:'second'}];
+  deps.providers.apple.pushUpdate=async token=>{
+    attempted.push(token);
+    if (token==='first' && fail) throw Error('temporary provider failure');
+    return {invalidToken:false};
+  };
+  const service=createNativeWalletService(deps);
+  assert.deepEqual(await service.processDue(),{delivered:0,failed:1});
+  assert.deepEqual(attempted,['first','second']);
+  assert.deepEqual(calls,[['failed','p1','lease']]);
+  fail=false;
+  assert.deepEqual(await service.processDue(),{delivered:1,failed:0});
+  assert.deepEqual(attempted,['first','second','first','second']);
+  assert.deepEqual(calls.at(-1),['synced','p1','2','lease',null]);
+});
+
+test('invalid-token cleanup commits even when another device needs a delivery retry',async()=>{
+  const {deps,calls}=fixture();
+  const attempted=[];
+  let registrations=[{push_token:'invalid'},{push_token:'unavailable'},{push_token:'healthy'}];
+  deps.repo.listRegistrations=async()=>registrations;
+  deps.repo.deletePushToken=async token=>{registrations=registrations.filter(row=>row.push_token!==token);};
+  deps.providers.apple.pushUpdate=async token=>{
+    attempted.push(token);
+    if (token==='unavailable') throw Error('temporary provider failure');
+    return {invalidToken:token==='invalid'};
+  };
+  const service=createNativeWalletService({...deps,withPassLock:async(_id,fn)=>{
+    const before=[...registrations];
+    try {return await fn();} catch(error) {registrations=before;throw error;}
+  }});
+  assert.deepEqual(await service.processDue(),{delivered:0,failed:1});
+  assert.deepEqual(attempted,['invalid','unavailable','healthy']);
+  assert.deepEqual(registrations.map(row=>row.push_token),['unavailable','healthy']);
+  assert.deepEqual(calls,[['failed','p1','lease']]);
 });
 
 test('existing cards remain revocable when issuance providers are disabled',async()=>{

@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { inflateRawSync } from "node:zlib";
 import { createAppleProvider } from "../../src/app/services/native-wallet/apple.js";
+import { createNativeWalletService } from "../../src/app/services/native-wallet/service.js";
 
 let fixtureDir;
 let config;
@@ -362,13 +363,36 @@ describe("Apple Wallet APNs update delivery", () => {
     }
   });
 
-  it("bounds response bodies and rejects malformed tokens before opening a connection", async () => {
+  it("bounds response bodies and identifies malformed tokens before opening a connection", async () => {
     const wire = transport({ status: 503, body: "x".repeat(8193) });
     await assert.rejects(createAppleProvider(config, { connect: wire.connect }).pushUpdate(token), { code: "APPLE_WALLET_PUSH_FAILED" });
-    for (const malformed of ["", "token/with-path", "a\r\nheader", "ab".repeat(513)]) {
+    for (const malformed of ["", "token/with-path", "a\r\nheader", "f".repeat(33), "ab".repeat(513)]) {
       const invalidWire = transport();
-      await assert.rejects(createAppleProvider(config, { connect: invalidWire.connect }).pushUpdate(malformed), { code: "APPLE_WALLET_PUSH_FAILED" });
+      assert.deepEqual(await createAppleProvider(config, { connect: invalidWire.connect }).pushUpdate(malformed), { invalidToken: true });
       assert.equal(invalidWire.calls.length, 0);
     }
+  });
+
+  it("removes a previously stored malformed token and still delivers to the next device", async () => {
+    const wire = transport();
+    const provider = createAppleProvider(config, { connect: wire.connect });
+    const malformed = "f".repeat(33);
+    const removed = [], synced = [];
+    const repo = {
+      claimDue: async () => [{ id: "pass", provider: "apple", lock_token: "lease" }],
+      getSnapshot: async () => ({ id: "pass", revision: "7" }),
+      listRegistrations: async () => [{ push_token: malformed }, { push_token: token }],
+      deletePushToken: async value => removed.push(value),
+      markSynced: async (...args) => synced.push(args),
+      markFailed: async () => assert.fail("a malformed token must not keep the pass retrying")
+    };
+    const service = createNativeWalletService({ repo, customerRepo: {}, providers: { apple: provider },
+      settings: { apple: { ready: true } }, globalContext: fn => fn() });
+    try {
+      assert.deepEqual(await service.processDue(), { delivered: 1, failed: 0 });
+      assert.deepEqual(removed, [malformed]);
+      assert.deepEqual(synced, [["pass", "7", "lease", null]]);
+      assert.deepEqual(wire.calls.filter(call => call.headers).map(call => call.headers[":path"]), [`/3/device/${token}`]);
+    } finally { provider.close(); }
   });
 });
