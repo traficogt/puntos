@@ -29,7 +29,7 @@ suite('protected reward cycles and bounded hospitality',()=>{
  CREATE TABLE IF NOT EXISTS qr_tokens(jti uuid PRIMARY KEY,business_id uuid,customer_id uuid,expires_at timestamptz);
  CREATE TABLE IF NOT EXISTS audit_logs(id uuid PRIMARY KEY,business_id uuid,actor_type text,actor_id uuid,action text,ip text,ua text,meta jsonb,created_at timestamptz DEFAULT now());
  DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='reward_promise_test_app') THEN CREATE ROLE reward_promise_test_app NOLOGIN; END IF; END $$;`);
- for(const file of ['2026-11-10-reward-economics.sql','2026-11-11-reward-promises-hospitality.sql']){
+ for(const file of ['2026-11-10-reward-economics.sql','2026-11-11-reward-promises-hospitality.sql','2026-11-14-a-purchase-event-time.sql']){
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const sql=await readFile(new URL(`../../src/app/migrations/${file}`,import.meta.url),'utf8').catch(()=>null);assert.ok(sql,`${file} must exist`);await pool.query(sql);
  }

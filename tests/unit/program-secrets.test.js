@@ -48,9 +48,10 @@ test("POS access tokens are encrypted without mutating settings and can be decry
   assert.deepEqual(decryptProgramSecrets(encrypted), input);
 });
 
-test("program sanitizer removes the POS connection and API key without mutating stored settings", () => {
+test("program sanitizer removes connections, credentials and private owner briefing settings without mutating storage", () => {
   const input = {
     points_per_q: 2,
+    weekly_owner_brief: { owner_id: "fixture-owner", destination: "private-owner@example.invalid", channel: "email", settings: { enabled: true } },
     external_awards: { enabled: true, api_key: TEST_PROGRAM_TOKEN_A },
     pos_integration: { automatic: true, loyverse: { access_token: "sandbox-pos-token" }, last_sync: { errors: 1 } }
   };

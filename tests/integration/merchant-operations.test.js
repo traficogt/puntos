@@ -76,7 +76,8 @@ suite('merchant operations on disposable PostgreSQL', () => {
     const parsed = new URL(url);
     assert.equal(process.env.NODE_ENV, 'test');
     assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname));
-    assert.ok((parsed.pathname === '/merchant_operations_test' && parsed.port === '55443') || (parsed.pathname === '/operations_readiness_test' && parsed.port === '55453'));
+    assert.ok(['/merchant_operations_test', '/operations_readiness_test'].includes(parsed.pathname));
+    assert.ok(parsed.port && parsed.port !== '5432', 'Use an explicit non-default PostgreSQL port for the disposable test database');
     Object.assign(process.env, {
       DB_HOST: parsed.hostname, DB_PORT: parsed.port, DB_NAME: parsed.pathname.slice(1),
       DB_USER: decodeURIComponent(parsed.username), DB_PASSWORD: decodeURIComponent(parsed.password), DB_PASSWORD_FILE: '',

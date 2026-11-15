@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-const baseUrl = process.env.PWA_BASE_URL || "http://127.0.0.1:3001";
+const baseUrl = process.env.PWA_BASE_URL || process.env.E2E_BASE_URL || "http://127.0.0.1:3001";
 
 function appUrl(pathname = "/") {
   return `${baseUrl}${pathname}${pathname.includes("?") ? "&" : "?"}sw=noreload`;
@@ -54,6 +54,24 @@ async function waitForServiceWorker(page) {
 }
 
 test.describe("PWA coverage", () => {
+  test("offline documents support canonical Spanish paths and legacy redirect aliases", async ({ page, context }) => {
+    await waitForServiceWorker(page);
+    await context.setOffline(true);
+    for (const [pathname, title] of [
+      ["/mi-tarjeta/?return=keep%2Bme&sw=noreload", /Mi tarjeta/],
+      ["/c?return=keep%2Bme&sw=noreload", /Mi tarjeta/],
+      ["/customer.html", /Mi tarjeta/],
+      ["/equipo/ingresar/?return=keep%2Bme&sw=noreload", /Ingreso del equipo/],
+      ["/staff/login?return=keep%2Bme&sw=noreload", /Ingreso del equipo/],
+      ["/staff-login.html", /Ingreso del equipo/]
+    ]) {
+      const target = `${baseUrl}${pathname}`;
+      await gotoStable(page, target, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      await expect(page).toHaveTitle(title);
+      expect(page.url()).toBe(target);
+    }
+  });
+
   test("offline runtime caches keep customer and staff flows usable", async ({ page, context }) => {
     test.slow();
 

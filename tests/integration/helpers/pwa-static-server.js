@@ -1,6 +1,7 @@
 import express from "express";
 import path from "node:path";
 import { once } from "node:events";
+import { createSpanishWeb, createSpanishWebRedirects } from "../../../src/middleware/spanish-web.js";
 
 function publicFile(publicDir, filename) {
   return path.join(publicDir, filename);
@@ -16,13 +17,19 @@ export async function startPwaStaticServer() {
     next();
   });
 
-  app.use(express.static(publicDir, { extensions: ["html"] }));
+  // Match production document redirects: cached redirect-followed responses
+  // behave differently from directly served HTML during offline navigation.
+  app.use(createSpanishWebRedirects());
+  app.use(createSpanishWeb(publicDir));
+  app.use(express.static(publicDir, { extensions: ["html"], redirect: false }));
 
   app.get("/", (req, res) => res.sendFile(publicFile(publicDir, "index.html")));
   app.get("/admin", (req, res) => res.sendFile(publicFile(publicDir, "admin.html")));
   app.get("/staff/login", (req, res) => res.sendFile(publicFile(publicDir, "staff-login.html")));
   app.get("/staff", (req, res) => res.sendFile(publicFile(publicDir, "staff.html")));
   app.get("/join/:slug", (req, res) => res.sendFile(publicFile(publicDir, "join.html")));
+  app.get("/registro/:slug", (req, res) => res.sendFile(publicFile(publicDir, "join.html")));
+  app.get("/ingresar/:slug", (req, res) => res.sendFile(publicFile(publicDir, "ingresar.html")));
   app.get("/c", (req, res) => res.sendFile(publicFile(publicDir, "customer.html")));
   app.get("/super", (req, res) => res.sendFile(publicFile(publicDir, "super.html")));
 

@@ -6,7 +6,7 @@ import pg from 'pg';
 import {Router} from 'express';
 const url=process.env.AUTOMATION_LEGACY_TEST_DATABASE_URL;
 test('legacy writes preserve guided automation controls atomically', {skip:!url,timeout:30000},async t=>{
-  const parsed=new URL(url);assert.ok(['127.0.0.1','localhost'].includes(parsed.hostname));assert.equal(parsed.port,'55452');assert.equal(parsed.pathname,'/automation_legacy_test');
+  const parsed=new URL(url);assert.ok(['127.0.0.1','localhost'].includes(parsed.hostname));assert.ok(parsed.port && parsed.port !== '5432', 'Use an explicit non-default PostgreSQL port for the disposable test database');assert.equal(parsed.pathname,'/automation_legacy_test');
   Object.assign(process.env,{NODE_ENV:'test',DB_HOST:parsed.hostname,DB_PORT:parsed.port,DB_NAME:'automation_legacy_test',DB_USER:decodeURIComponent(parsed.username),DB_PASSWORD:decodeURIComponent(parsed.password),DB_PASSWORD_FILE:'',DB_MIGRATIONS_PASSWORD_FILE:'',JWT_SECRET_FILE:'',JWT_SECRET:'legacy-automation-test-123456789'});
   const db=new pg.Client({connectionString:url});await db.connect();
   const database=await import('../../src/app/database.js');
@@ -22,8 +22,9 @@ test('legacy writes preserve guided automation controls atomically', {skip:!url,
   const bid=crypto.randomUUID(),other=crypto.randomUUID();
   const managed={birthday_monthly_points_cap:200,winback_monthly_points_cap:300,minimum_contact_days:14};
   const settings={...managed,birthday_enabled:true,birthday_points:20,winback_enabled:false,winback_days:30,winback_points:10,scheduler_hour_local:9,scheduler_tz:'America/Guatemala'};
-  const initial=encryptProgramSecrets({points_per_q:1,round:'floor',other:{preserve:true},lifecycle:{...settings,suspicious_digest_enabled:true},pos_integration:{revision:7,enabled:true,loyverse:{access_token:'sandbox-legacy-pos-token'}},external_awards:{enabled:true,api_key:'sandbox-legacy-award-key'}});
-  const concurrentPatch=encryptProgramSecrets({other:{preserve:true,revision:8},pos_integration:{revision:8,enabled:true,loyverse:{access_token:'sandbox-rotated-pos-token'}},external_awards:{enabled:true,api_key:'sandbox-rotated-award-key'}});
+  const weeklyBrief={owner_id:crypto.randomUUID(),destination:'private-owner@example.invalid',channel:'email',settings:{enabled:true,weekday:1,hour:9}};
+  const initial=encryptProgramSecrets({points_per_q:1,round:'floor',other:{preserve:true},weekly_owner_brief:weeklyBrief,lifecycle:{...settings,suspicious_digest_enabled:true},pos_integration:{revision:7,enabled:true,loyverse:{access_token:'sandbox-legacy-pos-token'}},external_awards:{enabled:true,api_key:'sandbox-legacy-award-key'}});
+  const concurrentPatch=encryptProgramSecrets({other:{preserve:true,revision:8},weekly_owner_brief:{...weeklyBrief,destination:'updated-private-owner@example.invalid',settings:{enabled:false,weekday:2,hour:10}},pos_integration:{revision:8,enabled:true,loyverse:{access_token:'sandbox-rotated-pos-token'}},external_awards:{enabled:true,api_key:'sandbox-rotated-award-key'}});
   const ctx=fn=>database.withDbClientContext({tenantId:bid,platformAdmin:false},fn);
   /** @param {Record<string, any>} [program] */
   const reset=(program=initial)=>db.query("UPDATE businesses SET program_type='SPEND',program_json=$2 WHERE id=$1",[bid,program]);
@@ -68,6 +69,17 @@ test('legacy writes preserve guided automation controls atomically', {skip:!url,
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     await db.query(await fs.readFile(new URL('../../src/app/migrations/2026-11-10-automation-controls.sql',import.meta.url),'utf8'));
     await db.query("INSERT INTO businesses(id,name,slug,email,password_hash,plan,program_json) VALUES($1,'Fixture','legacy-one','legacy-one@example.test','unused','NEGOCIO',$3),($2,'Other','legacy-other','legacy-other@example.test','unused','NEGOCIO','{}')",[bid,other,initial]);
+    await t.test('ordinary program saves preserve private owner briefing settings and ignore injected destinations',async()=>{
+      for(const submitted of [undefined,null,{...weeklyBrief,destination:'injected@example.invalid'}]){
+        await reset();
+        const result=await handler('/admin/program','post',{program_type:'VISIT',program_json:{points_per_visit:2,...(submitted===undefined?{}:{weekly_owner_brief:submitted})}});
+        assert.deepEqual((await read()).program_json.weekly_owner_brief,weeklyBrief);
+        assert.equal(result.business.program_json.weekly_owner_brief,undefined);
+      }
+      await reset({points_per_q:1});
+      await ctx(()=>BusinessRepo.updateProgram(bid,{program_type:'SPEND',program_json:{points_per_q:4,weekly_owner_brief:weeklyBrief},preserveIntegrations:false}));
+      assert.equal((await read()).program_json.weekly_owner_brief,undefined,'Generic writes cannot create an unverified briefing subscription');
+    });
     await t.test('program POST retains omitted controls for object, missing and null lifecycle',async()=>{
       for(const lifecycle of [{birthday_points:5},undefined,null]){
         await reset();await handler('/admin/program','post',{program_type:'VISIT',program_json:{points_per_visit:2,...(lifecycle===undefined?{}:{lifecycle})}});
@@ -103,6 +115,7 @@ test('legacy writes preserve guided automation controls atomically', {skip:!url,
       const stored=(await db.query('SELECT program_json FROM businesses WHERE id=$1',[bid])).rows[0].program_json;
       assert.deepEqual(stored.pos_integration,concurrentPatch.pos_integration,'latest POS state and ciphertext survive the legacy write');
       assert.deepEqual(stored.external_awards,concurrentPatch.external_awards,'latest API credential ciphertext survives the legacy write');
+      assert.deepEqual(stored.weekly_owner_brief,concurrentPatch.weekly_owner_brief,'latest verified owner briefing settings survive the legacy write');
       if(label==='program')assert.equal(row.program_json.points_per_q,9);
       else {assert.equal(row.program_type,'ITEM');assert.deepEqual(row.program_json.other,concurrentPatch.other);}
       if(label==='template'){assert.equal(row.program_json.lifecycle.birthday_points,50);assert.equal(row.program_json.lifecycle.suspicious_digest_enabled,true);}

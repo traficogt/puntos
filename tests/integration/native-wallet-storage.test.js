@@ -13,8 +13,9 @@ test("native Wallet storage, tenant isolation and durable updates", { skip: !dat
   const url = new URL(databaseUrl);
   assert.equal(process.env.NODE_ENV, "test");
   assert.ok(["localhost", "127.0.0.1", "[::1]"].includes(url.hostname));
+  assert.ok(url.port && url.port !== "5432", "Use an explicit non-default PostgreSQL port for the disposable test database");
   if (process.env.WALLET_ENGAGEMENT_TEST_DATABASE_URL && !process.env.NATIVE_WALLET_TEST_DATABASE_URL) {
-    assert.equal(url.pathname, "/activation_wallet_test"); assert.equal(url.port, "55451");
+    assert.equal(url.pathname, "/activation_wallet_test");
   } else assert.match(url.pathname, /^\/native_wallet_test(?:_[a-z0-9_]+)?$/);
   const migration = await readFile(new URL("../../src/app/migrations/2026-11-09-native-wallet.sql", import.meta.url), "utf8")
     .catch(() => "");

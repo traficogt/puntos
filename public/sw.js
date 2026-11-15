@@ -1,4 +1,4 @@
-const CACHE = "pf-v50";
+const CACHE = "pf-v51";
 const CORE_ASSETS = [
   "/crear-negocio/", "/equipo/ingresar/", "/equipo/escaner/",
   "/mi-tarjeta/", "/administracion/", "/plataforma/", "/registro/", "/ingresar/",
@@ -164,6 +164,20 @@ async function precacheAsset(cache, asset) {
   }
 }
 
+function cachedResponseFor(request, response) {
+  // Precache follows canonical document redirects. Navigations use redirect
+  // mode "manual", which rejects replaying that redirected response. Preserve
+  // its document and security headers without replaying the redirect history.
+  if (request.mode === "navigate" && response.redirected) {
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers
+    });
+  }
+  return response;
+}
+
 async function networkFirst(request, fallbackPath = "") {
   const cache = await openCache();
 
@@ -175,10 +189,10 @@ async function networkFirst(request, fallbackPath = "") {
     return response;
   } catch {
     const cached = await cache.match(request);
-    if (cached) return cached;
+    if (cached) return cachedResponseFor(request, cached);
     if (fallbackPath) {
       const fallback = await cache.match(fallbackPath);
-      if (fallback) return fallback;
+      if (fallback) return cachedResponseFor(request, fallback);
     }
     throw new Error(`Offline and no cached asset for ${request.url}`);
   }

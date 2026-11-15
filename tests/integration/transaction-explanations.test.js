@@ -36,11 +36,11 @@ suite('transaction explanations on disposable PostgreSQL', () => {
     const parsed = new URL(url);
     assert.equal(process.env.NODE_ENV, 'test');
     assert.ok(['localhost', '127.0.0.1'].includes(parsed.hostname));
-    assert.equal(parsed.pathname, '/transaction_explanation_test'); assert.ok(['55451','55470'].includes(parsed.port));
+    assert.equal(parsed.pathname, '/transaction_explanation_test'); assert.ok(parsed.port && parsed.port !== '5432', 'Use an explicit non-default PostgreSQL port for the disposable test database');
     Object.assign(process.env, { DB_HOST: parsed.hostname, DB_PORT: parsed.port, DB_NAME: parsed.pathname.slice(1), DB_USER: decodeURIComponent(parsed.username), DB_PASSWORD: decodeURIComponent(parsed.password), DB_PASSWORD_FILE: '', DB_MIGRATIONS_PASSWORD_FILE: '', JWT_SECRET_FILE: '', JWT_SECRET: 'fixture-transaction-explanations-12345678' });
     admin = new pg.Pool({ connectionString: url });
     await admin.query('DROP SCHEMA public CASCADE; DROP SCHEMA IF EXISTS app CASCADE; CREATE SCHEMA public');
-    for (const path of ['../../src/app/schema.sql','../../src/app/migrations/2026-03-08-ledger-reconciliation.sql','../../src/app/migrations/2026-03-08-ledger-corrections.sql','../../src/app/migrations/2026-03-08-ledger-balance-adjustments.sql','../../src/app/migrations/2026-02-27-tenant-rls_canonical.sql','../../src/app/migrations/2026-11-10-customer-recovery.sql','../../src/app/migrations/2026-11-10-growth-campaigns.sql','../../src/app/migrations/2026-11-10-growth-limits.sql','../../src/app/migrations/2026-11-11-reward-promises-hospitality.sql','../../src/app/migrations/2026-11-11-service-recovery.sql','../../src/app/migrations/2026-11-13-evidence-health.sql']) {
+    for (const path of ['../../src/app/schema.sql','../../src/app/migrations/2026-03-08-ledger-reconciliation.sql','../../src/app/migrations/2026-03-08-ledger-corrections.sql','../../src/app/migrations/2026-03-08-ledger-balance-adjustments.sql','../../src/app/migrations/2026-02-27-tenant-rls_canonical.sql','../../src/app/migrations/2026-11-10-customer-recovery.sql','../../src/app/migrations/2026-11-10-growth-campaigns.sql','../../src/app/migrations/2026-11-10-growth-limits.sql','../../src/app/migrations/2026-11-11-reward-promises-hospitality.sql','../../src/app/migrations/2026-11-11-service-recovery.sql','../../src/app/migrations/2026-11-13-evidence-health.sql','../../src/app/migrations/2026-11-14-a-purchase-event-time.sql']) {
       // Repository-owned fixture paths only.
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       await admin.query(await readFile(new URL(path, import.meta.url),'utf8'));

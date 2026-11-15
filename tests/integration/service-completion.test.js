@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import {before,after,describe,it} from 'node:test';
 import pg from 'pg';
 import * as authority from '../../src/app/services/staff-delegation-service.js';
@@ -95,8 +95,8 @@ suite('completed staff operations with real isolated PostgreSQL',()=>{
   await assert.rejects(completion.acknowledgeAutomaticBriefing({businessId:b,staff,briefingId:before.briefing.id,version:before.briefing.version},deps),{statusCode:409});
  });
  it('rechecks delegation expiration after waiting for the locked grant and isolates frequency from total caps',async()=>{
-  const g=await grant({action:'assigned_decision',endsAt:new Date(Date.now()+350).toISOString()});const locker=await pool.connect();try{await locker.query('BEGIN');await locker.query('SELECT id FROM staff_service_grants WHERE id=$1 FOR UPDATE',[g.grant.id]);const attempt=assert.rejects(consume({action:'assigned_decision'}),{statusCode:403});await locker.query('SELECT pg_sleep(0.45)');await locker.query('COMMIT');await attempt;}finally{await locker.query('ROLLBACK');locker.release();}
-  await grant({action:'assigned_decision',maxActions:10,frequencyLimit:1,totalCost:100});await consume({action:'assigned_decision'});await assert.rejects(consume({action:'assigned_decision'}),{statusCode:403});
+  const g=await grant({action:'restore_redemption',endsAt:new Date(Date.now()+350).toISOString()});const locker=await pool.connect();try{await locker.query('BEGIN');await locker.query('SELECT id FROM staff_service_grants WHERE id=$1 FOR UPDATE',[g.grant.id]);const attempt=assert.rejects(consume({action:'restore_redemption'}),{statusCode:403});await locker.query('SELECT pg_sleep(0.45)');await locker.query('COMMIT');await attempt;}finally{await locker.query('ROLLBACK');locker.release();}
+  await grant({action:'restore_redemption',maxActions:10,frequencyLimit:1,totalCost:100});await consume({action:'restore_redemption'});await assert.rejects(consume({action:'restore_redemption'}),{statusCode:403});
  });
  it('never reads case counts from other branches into an unassigned cashier briefing',async()=>{
   const unassigned=randomUUID();await pool.query("INSERT INTO staff_users(id,business_id,name,role,password_hash) VALUES($1,$2,'Unassigned','CASHIER','test')",[unassigned,b]);
@@ -107,6 +107,30 @@ suite('completed staff operations with real isolated PostgreSQL',()=>{
   const row=(await recovery.createServiceCase({businessId:b,staff,customerId:c,rewardId:r,kind:'unavailable',reason:'Historical support case',requestId:randomUUID()},deps)).case;
   await pool.query('UPDATE customers SET deleted_at=clock_timestamp() WHERE id=$1',[c]);
   const detail=await recovery.getServiceCase({businessId:b,staff:owner,caseId:row.id},deps);assert.equal(detail.case.id,row.id);assert.equal(detail.events[0].event_type,'reported');assert.deepEqual(detail.promises,[]);assert.equal(detail.customer_active,false);
+ });
+ it('keeps owner configuration out of new and historical rehearsal responses, including retries',async()=>{
+  const secret='fixture-private-integration-key';
+  const original=(await pool.query('SELECT program_json FROM businesses WHERE id=$1',[b])).rows[0].program_json;
+  await pool.query("UPDATE businesses SET program_json=program_json||$2::jsonb WHERE id=$1",[b,{external_awards:{api_key:secret},owner_brief:{email:'private@example.invalid'}}]);
+  try{
+   const fresh=await completion.startRehearsal({businessId:b,staff,requestId:randomUUID()},deps);
+   assert.equal(JSON.stringify(fresh).includes(secret),false,'New rehearsal must not contain integration credentials');
+   const legacyId=randomUUID(),legacyState={...fresh.session.state,config:{...fresh.session.state.config,program_json:{points_per_visit:10,external_awards:{api_key:secret}}}};
+   await pool.query('INSERT INTO staff_rehearsals(id,business_id,staff_id,config_fingerprint,state,created_at) VALUES($1,$2,$3,$4,$5,clock_timestamp()+interval \'1 second\')',[legacyId,b,s,'legacy',legacyState]);
+   const read=await completion.getRehearsal({businessId:b,staff},deps);
+   assert.equal(read.session.id,legacyId);assert.equal(JSON.stringify(read).includes(secret),false,'Read must sanitize old stored sessions');
+   const replay=await completion.startRehearsal({businessId:b,staff,requestId:legacyId},deps);
+   assert.equal(replay.replay,true);assert.equal(JSON.stringify(replay).includes(secret),false,'Start replay must sanitize old stored sessions');
+   const requestId=randomUUID(),result={...fresh.session,id:legacyId,state:legacyState};
+   const fingerprint=createHash('sha256').update(JSON.stringify({staffId:s,rehearsalId:legacyId,version:1,action:'signup'})).digest('hex');
+   await pool.query('INSERT INTO staff_rehearsal_events(id,business_id,rehearsal_id,request_id,payload_fingerprint,result) VALUES($1,$2,$3,$4,$5,$6)',[randomUUID(),b,legacyId,requestId,fingerprint,result]);
+   const repeated=await completion.advanceRehearsal({businessId:b,staff,rehearsalId:legacyId,version:1,requestId,action:'signup'},deps);
+   assert.equal(repeated.replay,true);assert.equal(JSON.stringify(repeated).includes(secret),false,'Event replay must sanitize historical results');
+   const advanced=await completion.advanceRehearsal({businessId:b,staff,rehearsalId:legacyId,version:1,requestId:randomUUID(),action:'signup'},deps);
+   assert.equal(JSON.stringify(advanced).includes(secret),false,'Advancing a legacy session must not copy secrets into new events');
+   const stored=(await pool.query('SELECT state FROM staff_rehearsals WHERE id=$1',[legacyId])).rows[0];
+   assert.equal(JSON.stringify(stored).includes(secret),false);
+  }finally{await pool.query('UPDATE businesses SET program_json=$2 WHERE id=$1',[b,original]);}
  });
  it('imports paper progress with owner-approved evidence and preserves duplicate preview',async()=>{
   const source={type:'paper_card',label:'Counter cards',evidence:'Owner verified numbered register',conversion:{points_per_unit:10,approved:true}};

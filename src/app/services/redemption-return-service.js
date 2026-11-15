@@ -48,10 +48,11 @@ WITH bounds AS (
       SELECT 1 FROM transactions t
       WHERE t.business_id = $1::uuid AND t.customer_id = f.customer_id
         AND ($2::uuid IS NULL OR t.branch_id = $2::uuid)
-        AND t.created_at > f.redeemed_at
-        AND t.created_at < f.redeemed_at + interval '720 hours'
+        AND COALESCE(t.purchase_occurred_at, t.created_at) > f.redeemed_at
+        AND COALESCE(t.purchase_occurred_at, t.created_at) < f.redeemed_at + interval '720 hours'
+        AND COALESCE(t.purchase_occurred_at, t.created_at) < b.end_at
         AND t.created_at < b.end_at
-        AND (t.created_at AT TIME ZONE $4)::date > (f.redeemed_at AT TIME ZONE $4)::date
+        AND (COALESCE(t.purchase_occurred_at, t.created_at) AT TIME ZONE $4)::date > (f.redeemed_at AT TIME ZONE $4)::date
         AND ${reportingPurchase('t')}
     ) AS returned
   FROM first_redemption f CROSS JOIN bounds b
@@ -81,6 +82,8 @@ FROM bounds b CROSS JOIN totals t`;
  * with returns restricted to later business-local dates. Completed cohorts use
  * every fully observed customer, including those with no return, as denominator.
  * Branch selection applies to both redemptions and subsequent purchases.
+ * Purchase time uses recorded event evidence with a receipt-time fallback;
+ * receipts must also precede the snapshot even when their purchase was earlier.
  *
  * @param {{ businessId: string, branchId?: string | null, days?: number, now?: Date }} options
  * @param {typeof dbQuery} query
@@ -113,6 +116,7 @@ export async function getRedemptionReturns({ businessId, branchId = null, days =
     notes: [
       'Cada cliente entra una vez, en su primer canje válido dentro del período elegido; no necesariamente es su primer canje histórico.',
       'Volver significa una compra registrada en una fecha local posterior al canje y antes de que transcurran 30 días exactos (720 horas).',
+      'Se usa la fecha de compra cuando está disponible; si falta, se usa la fecha de registro en PF.',
       'El porcentaje usa a todos los clientes que ya completaron los 30 días, incluso si no volvieron. Los clientes en seguimiento se muestran aparte.',
       'Se excluyen canjes cancelados, restituidos, corregidos o con devoluciones registradas. Las autorizaciones de caja pendientes no cuentan como entrega.',
       'Las compras incluyen puntos pendientes o posteriormente vencidos y excluyen devoluciones completas, ajustes, bonos y saldos iniciales importados. El vencimiento de puntos no anula una compra.',

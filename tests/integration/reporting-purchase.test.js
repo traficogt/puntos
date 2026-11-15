@@ -42,9 +42,14 @@ suite('reporting purchases against dedicated disposable PostgreSQL', () => {
       CREATE TEMP TABLE growth_campaigns(id uuid PRIMARY KEY,business_id uuid,name text DEFAULT 'Test',status text DEFAULT 'active',bonus_points int DEFAULT 10,
         minimum_purchase_q numeric DEFAULT 0,duration_days int DEFAULT 30,holdout_percent int DEFAULT 20,
         member_count int DEFAULT 2,treatment_count int DEFAULT 1,control_count int DEFAULT 1,created_at timestamptz DEFAULT now(),
-        starts_at timestamptz DEFAULT '2020-10-01T18:00:00Z',expires_at timestamptz DEFAULT '2020-10-31T18:00:00Z');
+        starts_at timestamptz DEFAULT '2020-10-01T18:00:00Z',expires_at timestamptz DEFAULT '2020-10-31T18:00:00Z',
+        measurement_plan jsonb,observation_ends_at timestamptz,reconciliation_ends_at timestamptz,paused_at timestamptz);
       CREATE TEMP TABLE growth_campaign_members(id uuid PRIMARY KEY,business_id uuid,campaign_id uuid,customer_id uuid,allocation text,
-        bonus_transaction_id uuid,bonus_points_awarded int DEFAULT 0);
+        bonus_transaction_id uuid,bonus_points_awarded int DEFAULT 0,measurement_baseline jsonb);
+      CREATE TEMP TABLE growth_measurement_costs(business_id uuid,campaign_id uuid,revision int,inputs jsonb,created_at timestamptz);
+      CREATE TEMP TABLE growth_measurement_reports(id uuid,business_id uuid,campaign_id uuid,revision int,fingerprint text,payload jsonb,created_at timestamptz);
+      CREATE TEMP TABLE pos_refund_receipts(business_id uuid,original_transaction_id uuid,amount_q numeric,reason text,status text,created_at timestamptz);
+      CREATE TEMP TABLE pos_measurement_receipts(business_id uuid,transaction_id uuid,occurred_at timestamptz,first_seen_at timestamptz,status text);
       CREATE TEMP TABLE growth_message_outbox(business_id uuid,campaign_id uuid,status text);
       ALTER TABLE businesses ADD COLUMN plan text DEFAULT 'NEGOCIO',ADD COLUMN program_type text DEFAULT 'SPEND';
       ALTER TABLE branches ADD COLUMN name text DEFAULT 'Sucursal';
@@ -56,7 +61,7 @@ suite('reporting purchases against dedicated disposable PostgreSQL', () => {
       CREATE TEMP TABLE referrals(id uuid,business_id uuid,referred_customer_id uuid,referrer_customer_id uuid,status text DEFAULT 'pending',created_at timestamptz DEFAULT '2020-10-01T18:00:00Z',
         referrer_rewarded_at timestamptz,referrer_reward_points int,referred_rewarded_at timestamptz,referred_reward_points int);
       CREATE TEMP TABLE redemption_cost_snapshots(redemption_id uuid,business_id uuid,reward_id uuid,points_cost int,unit_cost_q numeric,redeemed_at timestamptz);
-      CREATE TEMP TABLE reward_unit_costs(business_id uuid,reward_id uuid,unit_cost_q numeric);
+      CREATE TEMP TABLE reward_unit_costs(business_id uuid,reward_id uuid,unit_cost_q numeric,retail_value_q numeric);
       CREATE TEMP TABLE customer_balances(customer_id uuid,points int DEFAULT 0,pending_points int DEFAULT 0);
       CREATE TEMP TABLE reward_economics_settings(business_id uuid,gross_margin_pct numeric,cost_per_point_q numeric);
       CREATE TEMP TABLE merchant_pilots(id uuid,business_id uuid,name text DEFAULT 'Piloto',status text DEFAULT 'active',checklist_version int DEFAULT 1,

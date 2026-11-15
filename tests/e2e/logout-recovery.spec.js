@@ -34,7 +34,7 @@ test("admin logout hides both tabs offline and revokes the session on reconnect"
   const revoked = page.waitForResponse(response => response.request().method() === "POST" && response.url().includes("/api/staff/logout"));
   await context.setOffline(false);
   expect([200, 401]).toContain((await revoked).status());
-  await page.waitForURL(/\/staff\/login$/);
+  await page.waitForURL(/\/equipo\/ingresar\/$/);
   expect((await page.request.get("/api/staff/me")).status()).toBe(401);
   expect(await page.evaluate(() => localStorage.getItem("pf_staff_logout_pending"))).toBeNull();
 });
@@ -48,17 +48,18 @@ test("super logout hides both tabs offline and revokes the session on reconnect"
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(password);
   await page.locator("#btnLogin").click();
-  await expect(page.locator("#mainCard")).toBeVisible();
+  await expect(page.locator("#planes")).toBeVisible();
   const sibling = await context.newPage();
   await sibling.goto("/super", { waitUntil: "domcontentloaded" });
-  await expect(sibling.locator("#mainCard")).toBeVisible();
+  await expect(sibling.locator("#planes")).toBeVisible();
 
   await context.setOffline(true);
   await page.locator("#btnLogout").click();
-  await expect(page.locator("#mainCard")).toBeHidden();
-  await expect(page.locator("#securityCard")).toBeHidden();
-  await expect(page.locator("#businessCard")).toBeHidden();
-  await expect(sibling.locator("#mainCard")).toBeHidden();
+  await expect(page.locator("#planes")).toBeHidden();
+  await expect(page.locator("#seguridad")).toBeHidden();
+  await expect(page.locator("#negocios")).toBeHidden();
+  await expect(page.locator("#salud")).toBeHidden();
+  await expect(sibling.locator("#planes")).toBeHidden();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("pf_super_logout_pending"))).toBe("1");
   await expect(page.locator("#toast")).toContainText("No se pudo cerrar");
 

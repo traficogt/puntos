@@ -47,9 +47,9 @@ suite('redemption return cohorts against isolated PostgreSQL', () => {
     return r.id;
   }
   async function purchase(customerId, options = {}) {
-    const t = { id: randomUUID(), businessId, branchId: branchA, amount: 10, points: 0, visits: 0, items: 0, type: 'PURCHASE', source: 'online', status: 'POSTED', original: null, reversed: null, at: '2026-09-11T18:00:00Z', meta: {}, ...options };
-    await db.query(`INSERT INTO transactions(id,business_id,branch_id,customer_id,type,amount_q,points,visits,items,status,source,original_transaction_id,reversed_transaction_id,created_at,meta)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, [t.id, t.businessId, t.branchId, customerId, t.type, t.amount, t.points, t.visits, t.items, t.status, t.source, t.original, t.reversed, t.at, t.meta]);
+    const t = { id: randomUUID(), businessId, branchId: branchA, amount: 10, points: 0, visits: 0, items: 0, type: 'PURCHASE', source: 'online', status: 'POSTED', original: null, reversed: null, at: '2026-09-11T18:00:00Z', meta: {}, occurredAt: null, timeSource: null, ...options };
+    await db.query(`INSERT INTO transactions(id,business_id,branch_id,customer_id,type,amount_q,points,visits,items,status,source,original_transaction_id,reversed_transaction_id,created_at,meta,purchase_occurred_at,purchase_time_source)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`, [t.id, t.businessId, t.branchId, customerId, t.type, t.amount, t.points, t.visits, t.items, t.status, t.source, t.original, t.reversed, t.at, t.meta, t.occurredAt, t.timeSource]);
   }
 
   it('uses every matured customer as denominator and separates ongoing customers even if already returned', async () => {
@@ -103,6 +103,41 @@ suite('redemption return cohorts against isolated PostgreSQL', () => {
     assert.equal(out.completed.returned_customers, 1);
     assert.equal(out.ongoing.customers, 1);
     await db.query("SET TIME ZONE 'UTC'");
+  });
+
+  it('does not mistake older purchases synchronized after redemption for returns', async () => {
+    for (const values of [
+      { source: 'external', timeSource: 'pos_receipt', occurredAt: '2026-09-09T18:00:00Z' },
+      { source: 'offline', timeSource: 'client_reported', occurredAt: '2026-09-10T18:00:00Z' },
+      { source: 'order', timeSource: 'order_receipt', occurredAt: '2026-09-11T05:59:59.999Z' }
+    ]) {
+      const id = await customer();
+      await redeem(id);
+      await purchase(id, values);
+    }
+    const out = await report();
+    assert.equal(out.completed.customers, 3);
+    assert.equal(out.completed.returned_customers, 0);
+  });
+
+  it('counts actual returns synchronized after follow-up while retaining its half-open purchase-time end', async () => {
+    const returned = await customer(), boundary = await customer();
+    await redeem(returned); await redeem(boundary);
+    await purchase(returned, { source: 'external', timeSource: 'pos_receipt', occurredAt: '2026-10-10T17:59:59.999Z', at: '2026-10-12T18:00:00Z' });
+    await purchase(boundary, { source: 'offline', timeSource: 'client_reported', occurredAt: '2026-10-10T18:00:00Z', at: '2026-10-12T18:00:00Z' });
+    const out = await report();
+    assert.equal(out.completed.customers, 2);
+    assert.equal(out.completed.returned_customers, 1);
+  });
+
+  it('requires the purchase and its server receipt to precede the report snapshot', async () => {
+    const atSnapshot = await customer(), afterSnapshot = await customer(), futurePurchase = await customer();
+    for (const id of [atSnapshot, afterSnapshot, futurePurchase]) await redeem(id, { at: '2026-11-01T18:00:00Z' });
+    await purchase(atSnapshot, { source: 'external', timeSource: 'pos_receipt', occurredAt: '2026-11-02T18:00:00Z', at: now.toISOString() });
+    await purchase(afterSnapshot, { source: 'offline', timeSource: 'client_reported', occurredAt: '2026-11-02T18:00:00Z', at: '2026-11-12T18:00:00Z' });
+    await purchase(futurePurchase, { source: 'order', timeSource: 'order_receipt', occurredAt: now.toISOString(), at: '2026-11-10T18:00:00Z' });
+    assert.equal((await report()).ongoing.returned_customers, 0);
+    assert.equal((await report({ now: new Date('2026-11-12T18:00:00.001Z') })).ongoing.returned_customers, 3);
   });
 
   it('uses saved business timezone across DST and applies local cohort boundaries', async () => {

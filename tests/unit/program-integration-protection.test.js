@@ -12,6 +12,7 @@ import { PlanConfigService } from "../../src/app/services/plan-config-service.js
 
 const program = {
   points_per_q: 1,
+  weekly_owner_brief: { owner_id: "owner-1", destination: "private-owner@example.invalid", channel: "email", settings: { enabled: true, weekday: 1, hour: 9 } },
   external_awards: { enabled: true, api_key: "sandbox-api-secret" },
   pos_integration: { mode: "loyverse", loyverse: { access_token: "sandbox-pos-secret" }, last_sync: { cursor: "internal-cursor" } }
 };
@@ -38,7 +39,7 @@ for (const [label, router, path] of [
   ["staff", staffRoutes, "/staff/program"],
   ["admin", adminRoutes, "/admin/program"]
 ]) {
-  test(`${label} program responses omit all connection details and API credentials`, async t => {
+  test(`${label} program responses omit connection details, credentials and private owner briefing destinations`, async t => {
     t.mock.method(BusinessRepo, "getById", async () => structuredClone(business));
     t.mock.method(BusinessRepo, "getPublicBySlug", async () => structuredClone(business));
     const res = await runHandler(router, path, "get", { tenantId: "biz-1", params: { slug: "shop" } });
@@ -80,9 +81,12 @@ test("repository preservation merges current integration keys inside the UPDATE 
   assert.match(calls[0].sql, /^UPDATE businesses/);
   assert.match(calls[0].sql, /program_json\s*->\s*'pos_integration'/);
   assert.match(calls[0].sql, /program_json\s*->\s*'external_awards'/);
+  assert.match(calls[0].sql, /program_json\s*->\s*'weekly_owner_brief'/);
   assert.match(calls[0].sql, /\|\|/);
   assert.equal(calls[0].params[2].pos_integration, undefined);
   assert.equal(calls[0].params[2].external_awards, undefined);
+  assert.equal(calls[0].params[2].weekly_owner_brief, undefined);
+  assert.equal(program.weekly_owner_brief.destination, "private-owner@example.invalid");
   assert.equal(program.pos_integration.loyverse.access_token, "sandbox-pos-secret");
 });
 
@@ -108,6 +112,8 @@ test("explicit external-setting updates still cannot replace POS synchronization
   assert.match(calls[0].sql, /program_json\s*->\s*'pos_integration'/);
   assert.doesNotMatch(calls[0].sql, /program_json\s*->\s*'external_awards'/);
   assert.equal(calls[0].params[2].pos_integration, undefined);
+  assert.equal(calls[0].params[2].weekly_owner_brief, undefined);
+  assert.match(calls[0].sql, /program_json\s*->\s*'weekly_owner_brief'/);
   assert.equal(calls[0].params[2].external_awards.enabled, true);
   assert.match(calls[0].params[2].external_awards.api_key, /^enc:v2:/);
 });

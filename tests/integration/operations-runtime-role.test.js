@@ -24,7 +24,7 @@ async function denied(query,values=[]){
 }
 suite('integrated operations least-privilege runtime role',()=>{
  before(async()=>{
-  const parsed=new URL(url);assert.ok(['127.0.0.1','localhost'].includes(parsed.hostname));assert.equal(parsed.port,'55470');assert.equal(parsed.pathname,'/operations_completion_test');
+  const parsed=new URL(url);assert.ok(['127.0.0.1','localhost'].includes(parsed.hostname));assert.ok(parsed.port && parsed.port !== '5432', 'Use an explicit non-default PostgreSQL port for the disposable test database');assert.equal(parsed.pathname,'/operations_completion_test');
   client=new pg.Client({connectionString:url});await client.connect();
   await client.query(`CREATE ROLE ${ident(role)} NOLOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT`);roleCreated=true;
   const plan=buildGrantPlan({appDbUser:role,dbName:'operations_completion_test'});

@@ -13,7 +13,7 @@ suite('purchase time and observed receipt evidence in disposable PostgreSQL', ()
   before(async () => {
     const target = new URL(url);
     assert.equal(target.hostname, '127.0.0.1');
-    assert.equal(target.port, '55461');
+    assert.ok(target.port && target.port !== '5432', 'Use an explicit non-default PostgreSQL port for the disposable test database');
     assert.equal(target.pathname, '/measurement_ingestion_test');
     db = new pg.Client({ connectionString: url });
     await db.connect();

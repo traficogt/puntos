@@ -2,6 +2,13 @@ import assert from 'node:assert/strict';
 import {it} from 'node:test';
 import * as completion from '../../src/app/services/service-completion-service.js';
 import {normalizeCustomerMigration} from '../../src/app/services/customer-migration-csv.js';
+it('practice configuration exposes only earning terms, never integration or owner settings',async()=>{
+ const program={points_per_visit:10,round:'floor',external_awards:{api_key:'fixture-private-key'},pos_integration:{loyverse:{access_token:'fixture-private-token'}},owner_brief:{email:'owner@example.invalid'}};
+ const client={query:async sql=>({rows:sql.includes('FROM businesses')?[{program_type:'VISIT',program_json:program}]:[]})};
+ const config=await completion.readPracticeConfiguration(client,'fixture-business');
+ assert.deepEqual(config.program_json,{points_per_visit:10,round:'floor'});
+ assert.equal(program.external_awards.api_key,'fixture-private-key','Sanitization must not modify the stored object');
+});
 it('rehearsal starts with signup and demonstrates insufficient points before earning from real rules',()=>{
  assert.equal(typeof completion.initialRehearsal,'function','persistent rehearsal engine exists');
  const config={program_type:'VISIT',program_json:{points_per_visit:10},rewards:[{id:'coffee',name:'Café',points_cost:20,active:true,stock:2,available:true,description:'Un café'}]};

@@ -17,7 +17,8 @@ CREATE TEMP TABLE transactions (
   visits integer NOT NULL DEFAULT 0, items integer NOT NULL DEFAULT 0,
   status text NOT NULL DEFAULT 'POSTED', source text NOT NULL DEFAULT 'online',
   original_transaction_id uuid, reversed_transaction_id uuid,
-  created_at timestamptz NOT NULL, meta jsonb DEFAULT '{}'
+  created_at timestamptz NOT NULL, meta jsonb DEFAULT '{}',
+  purchase_occurred_at timestamptz, purchase_time_source text
 );
 CREATE TEMP TABLE service_redemption_restorations (business_id uuid NOT NULL, redemption_id uuid NOT NULL);
 CREATE TEMP TABLE pos_checkout_intents (business_id uuid NOT NULL, redemption_id uuid, status text NOT NULL, recorded_at timestamptz);

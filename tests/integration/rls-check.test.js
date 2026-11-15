@@ -46,7 +46,8 @@ test("RLS smoke completes the full migrated balance-trigger chain and rolls back
       (SELECT count(*)::int FROM pg_roles WHERE rolname='rls_smoke') AS smoke_roles`;
     const before = (await client.query(snapshotSql)).rows[0];
     const result = spawnSync(process.execPath, [fileURLToPath(new URL("../../src/scripts/rls-check.mjs", import.meta.url))], {
-      cwd: fileURLToPath(new URL("../../", import.meta.url)),
+      // Preserve the runner's temporary cwd so nested config cannot load .env.
+      cwd: process.cwd(),
       env: {
         ...process.env,
         DB_HOST: url.hostname,

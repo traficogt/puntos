@@ -20,6 +20,7 @@ const manualReadiness = {
   reason: null,
   last_completed_at: null,
   checked_at: now.toISOString(),
+  sources: [],
   summary: "El análisis usa únicamente las compras registradas en PF. Este método no tiene un plazo automático de sincronización.",
   action: { label: "Revisar conexión de caja", href: "#conectar-caja" }
 };
@@ -68,9 +69,9 @@ integrationDescribe("customer recovery against disposable PostgreSQL", () => {
     await db.query("INSERT INTO customers VALUES ($1,$2,'Ana','50255550001',NULL),($3,$2,'Beto','50255550002',NULL),($4,$5,'Other','50255550003',NULL)", [customerA, businessId, customerB, otherCustomer, otherBusiness]);
   });
   async function purchase(values = {}) {
-    const tx = { id: randomUUID(), businessId, customerId: customerA, amount: 10, points: 0, visits: 0, items: 0, type: "PURCHASE", source: "online", status: "POSTED", at: daysAgo(40), original: null, reversed: null, ...values };
-    await db.query(`INSERT INTO transactions (id,business_id,customer_id,amount_q,points,type,source,status,created_at,original_transaction_id,reversed_transaction_id,visits,items)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`, [tx.id, tx.businessId, tx.customerId, tx.amount, tx.points, tx.type, tx.source, tx.status, tx.at, tx.original, tx.reversed, tx.visits, tx.items]);
+    const tx = { id: randomUUID(), businessId, customerId: customerA, amount: 10, points: 0, visits: 0, items: 0, type: "PURCHASE", source: "online", status: "POSTED", at: daysAgo(40), original: null, reversed: null, occurredAt: null, timeSource: null, ...values };
+    await db.query(`INSERT INTO transactions (id,business_id,customer_id,amount_q,points,type,source,status,created_at,original_transaction_id,reversed_transaction_id,visits,items,purchase_occurred_at,purchase_time_source)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, [tx.id, tx.businessId, tx.customerId, tx.amount, tx.points, tx.type, tx.source, tx.status, tx.at, tx.original, tx.reversed, tx.visits, tx.items, tx.occurredAt, tx.timeSource]);
     return tx.id;
   }
   function audience(options = {}) {
@@ -234,6 +235,52 @@ integrationDescribe("customer recovery against disposable PostgreSQL", () => {
     const futureBound = await details(run.id);
     assert.equal(futureBound.run.recorded_sales_after_contact_q, 1049); // prior 999 one millisecond after the new contact + today's 50
     assert.equal(futureBound.run.returned_count, 1);
+  });
+
+  it("does not attribute old purchases synchronized after manual contact to that contact", async () => {
+    await purchase();
+    const { run } = await create();
+    await update(run.id, customerA);
+    await db.query("UPDATE recovery_members SET contacted_at=$1 WHERE run_id=$2", [daysAgo(10), run.id]);
+    await purchase({ source: "external", timeSource: "pos_receipt", occurredAt: daysAgo(11), at: daysAgo(9), amount: 100 });
+    await purchase({ source: "offline", timeSource: "client_reported", occurredAt: daysAgo(10), at: daysAgo(9), amount: 200 });
+    const result = await details(run.id);
+    assert.equal(result.run.contacted_count, 1);
+    assert.equal(result.run.returned_count, 0);
+    assert.equal(result.run.recorded_sales_after_contact_q, 0);
+    assert.equal(result.members[0].returned_at, null);
+    assert.deepEqual((await recovery.listRecoveryRuns({ businessId, now }, deps)).runs, [result.run]);
+  });
+
+  it("measures actual return time and sales when receipts arrive after the contact follow-up window", async () => {
+    await purchase();
+    const { run } = await create();
+    await update(run.id, customerA);
+    await db.query("UPDATE recovery_members SET contacted_at=$1 WHERE run_id=$2", [daysAgo(31), run.id]);
+    await purchase({ source: "external", timeSource: "pos_receipt", occurredAt: daysAgo(30), at: now.toISOString(), amount: 10 });
+    await purchase({ source: "order", timeSource: "order_receipt", occurredAt: daysAgo(1), at: now.toISOString(), amount: 20 });
+    await purchase({ source: "offline", timeSource: "client_reported", occurredAt: new Date(Date.parse(daysAgo(1)) + 1).toISOString(), at: now.toISOString(), amount: 999 });
+    const result = await details(run.id);
+    assert.equal(result.run.returned_count, 1);
+    assert.equal(result.run.recorded_sales_after_contact_q, 30);
+    assert.equal(result.members[0].returned_at, daysAgo(30));
+    assert.deepEqual((await recovery.listRecoveryRuns({ businessId, now }, deps)).runs, [result.run]);
+  });
+
+  it("bounds actual recovery purchases and receipt visibility by the requested snapshot", async () => {
+    await purchase();
+    const { run } = await create();
+    await update(run.id, customerA);
+    await db.query("UPDATE recovery_members SET contacted_at=$1 WHERE run_id=$2", [daysAgo(10), run.id]);
+    await purchase({ source: "external", timeSource: "pos_receipt", occurredAt: daysAgo(2), at: daysAgo(-1), amount: 100 });
+    await purchase({ source: "offline", timeSource: "client_reported", occurredAt: daysAgo(-1), at: daysAgo(1), amount: 200 });
+    const before = await details(run.id);
+    assert.equal(before.run.returned_count, 0);
+    assert.equal(before.run.recorded_sales_after_contact_q, 0);
+    const after = await details(run.id, { now: new Date(daysAgo(-1)) });
+    assert.equal(after.run.returned_count, 1);
+    assert.equal(after.run.recorded_sales_after_contact_q, 300);
+    assert.equal(after.members[0].returned_at, daysAgo(2));
   });
 
   it("excludes deleted members from PII, contact counts and results while retaining the original snapshot count", async () => {

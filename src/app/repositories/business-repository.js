@@ -77,6 +77,8 @@ export const BusinessRepo = {
     const submittedProgram = { ...(program_json ?? {}) };
     // POS state belongs to the connection service, never to ordinary program saves.
     delete submittedProgram.pos_integration;
+    // The owner briefing service alone verifies its recipient and changes consent.
+    delete submittedProgram.weekly_owner_brief;
     if (preserveIntegrations) {
       delete submittedProgram.external_awards;
     }
@@ -94,6 +96,8 @@ export const BusinessRepo = {
     const sql = `UPDATE businesses SET program_type=$2, program_json=$3::jsonb
        || CASE WHEN program_json ? 'pos_integration'
             THEN jsonb_build_object('pos_integration', program_json->'pos_integration') ELSE '{}'::jsonb END
+       || CASE WHEN program_json ? 'weekly_owner_brief'
+            THEN jsonb_build_object('weekly_owner_brief', program_json->'weekly_owner_brief') ELSE '{}'::jsonb END
        ${externalAwardsSql}
        || CASE WHEN NOT ($3::jsonb ? 'lifecycle') AND program_json ? 'lifecycle'
           THEN jsonb_build_object('lifecycle', program_json->'lifecycle')

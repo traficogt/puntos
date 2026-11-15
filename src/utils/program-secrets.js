@@ -43,6 +43,9 @@ export function decryptProgramSecrets(programJson) {
 export function sanitizeProgramForClient(programJson) {
   const next = cloneProgramJson(programJson);
   delete next.pos_integration;
+  // The weekly summary contains the owner's verified email or private phone.
+  // Its dedicated owner controls read it directly; public/client programs do not.
+  delete next.weekly_owner_brief;
   if (next.external_awards && typeof next.external_awards === "object") {
     next.external_awards = { ...next.external_awards };
     delete next.external_awards.api_key;

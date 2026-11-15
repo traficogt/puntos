@@ -99,6 +99,8 @@ export async function createRecoveryRun({ businessId, staffId, requestId, name, 
 
 // Results are observed sales after manual contact, never causal attribution.
 // Deleted customers disappear from PII and all live result/count calculations.
+// Use purchase time with a legacy receipt-time fallback, while requiring every
+// receipt to be visible at the snapshot. Preserve the inclusive 30-day endpoint.
 const RESULTS_CTE = `member_results AS (
   SELECT m.run_id,m.customer_id,c.name,c.phone,m.last_purchase_at,m.recorded_sales_q,
     m.status,m.contacted_at,outcome.returned_at,outcome.recorded_sales_after_contact_q
@@ -106,11 +108,12 @@ const RESULTS_CTE = `member_results AS (
   JOIN selected_runs r ON r.id=m.run_id
   JOIN customers c ON c.id=m.customer_id AND c.business_id=$1::uuid AND c.deleted_at IS NULL
   LEFT JOIN LATERAL (
-    SELECT MIN(t.created_at) AS returned_at,COALESCE(SUM(t.amount_q),0) AS recorded_sales_after_contact_q
+    SELECT MIN(COALESCE(t.purchase_occurred_at,t.created_at)) AS returned_at,COALESCE(SUM(t.amount_q),0) AS recorded_sales_after_contact_q
     FROM transactions t
     WHERE t.business_id=$1::uuid AND t.customer_id=m.customer_id AND m.status='contacted'
-      AND t.created_at > m.contacted_at
-      AND t.created_at <= m.contacted_at + interval '720 hours'
+      AND COALESCE(t.purchase_occurred_at,t.created_at) > m.contacted_at
+      AND COALESCE(t.purchase_occurred_at,t.created_at) <= m.contacted_at + interval '720 hours'
+      AND COALESCE(t.purchase_occurred_at,t.created_at) <= $2::timestamptz
       AND t.created_at <= $2::timestamptz AND ${reportingPurchase('t')}
   ) outcome ON true
   WHERE m.business_id=$1::uuid

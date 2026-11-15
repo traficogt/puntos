@@ -16,7 +16,7 @@ test('installed mobile rewards and push use customer-scoped PostgreSQL eligibili
   const url = new URL(databaseUrl);
   assert.equal(process.env.NODE_ENV, 'test');
   assert.equal(url.hostname, '127.0.0.1');
-  assert.equal(url.port, '55461');
+  assert.ok(url.port && url.port !== '5432', 'Use an explicit non-default PostgreSQL port for the disposable test database');
   assert.equal(url.pathname, '/mobile_reward_refresh_test');
   const admin = new pg.Client({ connectionString: databaseUrl });
   const client = new pg.Client({ connectionString: databaseUrl });

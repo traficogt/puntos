@@ -6,7 +6,7 @@ import {readFile} from 'node:fs/promises';
 import pg from 'pg';
 const url=process.env.WALLET_ENGAGEMENT_TEST_DATABASE_URL;
 test('authoritative Wallet engagement and independent refresh on isolated PostgreSQL',{skip:!url},async t=>{
- const parsed=new URL(url);assert.equal(process.env.NODE_ENV,'test');assert.equal(parsed.hostname,'127.0.0.1');assert.equal(parsed.port,'55451');assert.equal(parsed.pathname,'/activation_wallet_test');
+ const parsed=new URL(url);assert.equal(process.env.NODE_ENV,'test');assert.equal(parsed.hostname,'127.0.0.1');assert.ok(parsed.port && parsed.port !== '5432', 'Use an explicit non-default PostgreSQL port for the disposable test database');assert.equal(parsed.pathname,'/activation_wallet_test');
  const db=new pg.Client({connectionString:url});await db.connect();
  const {NativeWalletRepo:repo}=await import('../../src/app/repositories/native-wallet-repository.js');
  const {runWithDbContext}=await import('../../src/app/database.js');

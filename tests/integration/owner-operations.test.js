@@ -29,6 +29,9 @@ suite('complete owner workflows in isolated PostgreSQL',()=>{
   // Static migration URL.
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const migration=await readFile(new URL('../../src/app/migrations/2026-11-13-owner-operations.sql',import.meta.url),'utf8').catch(()=>null);assert.ok(migration,'owner completion migration must exist');await db.query(migration);
+  // Activation uses the additive measurement columns for every offer kind.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  await db.query(await readFile(new URL('../../src/app/migrations/2026-11-14-b-campaign-measurement.sql',import.meta.url),'utf8'));
   decisions=await import('../../src/app/services/merchant-decisions-service.js');economics=await import('../../src/app/services/reward-commitment-service.js');operating=await import('../../src/app/services/operating-template-service.js');
   deps={query:db.query.bind(db),getPlanFeatureOverrides:async()=>({}),getOperationsHealth:async()=>operations,getOwnerOutcomeEvidence:async()=>null,now:()=>new Date(),transaction:async fn=>{const c=await db.connect();try{await c.query('BEGIN');const out=await fn(c);await c.query('COMMIT');return out;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}}};
  });

@@ -22,7 +22,7 @@ const check=()=>scoped().transaction(client=>inventory.getRewardInventory(client
 suite('generic catalog and inventory in restricted PostgreSQL',()=>{
  before(async()=>{
   assert.equal(typeof catalog.syncMerchantCatalog,'function');assert.equal(typeof inventory.getRewardInventory,'function');
-  const parsed=new URL(url);assert.equal(parsed.hostname,'127.0.0.1');assert.equal(parsed.port,'55454');assert.equal(parsed.pathname,'/postgres');
+  const parsed=new URL(url);assert.equal(parsed.hostname,'127.0.0.1');assert.ok(parsed.port && parsed.port !== '5432', 'Use an explicit non-default PostgreSQL port for the disposable test database');assert.equal(parsed.pathname,'/postgres');
   databaseName=`reward_catalog_test_${process.pid}_${Date.now()}`;assert.match(databaseName,/^reward_catalog_test_[0-9_]+$/);
   admin=new pg.Pool({connectionString:url});await admin.query(`CREATE DATABASE ${databaseName}`);parsed.pathname=`/${databaseName}`;db=new pg.Pool({connectionString:parsed.toString(),max:10});
   await db.query(await readFile(new URL('../fixtures/reward-economics.sql',import.meta.url),'utf8'));

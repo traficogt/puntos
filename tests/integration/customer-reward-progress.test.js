@@ -11,7 +11,7 @@ test('customer progress uses one tenant-scoped PostgreSQL snapshot without needi
   const parsed = new URL(url);
   assert.equal(process.env.NODE_ENV, 'test');
   assert.equal(parsed.hostname, '127.0.0.1');
-  assert.equal(parsed.port, '55451');
+  assert.ok(parsed.port && parsed.port !== '5432', 'Use an explicit non-default PostgreSQL port for the disposable test database');
   assert.equal(parsed.pathname, '/customer_progress_test');
   const db = new pg.Client({ connectionString: url });
   await db.connect();
