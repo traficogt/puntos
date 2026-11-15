@@ -23,13 +23,16 @@ test('pattern scan checks maintained merchant source rather than generated React
   const result = scan(t, {
     'public/merchant/assets/index-example.js': 'element.innerHTML = value;',
     'public/merchant/recursos/index-example.js': 'element.innerHTML = value;',
+    'public/revision-astryx/9b72f5a1/assets/index-example.js': 'element.innerHTML = value;',
+    'web/astryx-prototype/src/Screen.jsx': 'element.textContent = value;',
     'web/merchant/src/Screen.jsx': 'element.textContent = value;'
   });
   assert.equal(result.status, 0, result.stderr);
 });
 
 test('pattern scan still blocks DOM sinks outside the exact generated directories', t => {
-  for (const file of ['public/staff/screen.js', 'public/merchant/screen.js', 'web/merchant/src/Screen.jsx']) {
+  for (const file of ['public/staff/screen.js', 'public/merchant/screen.js', 'web/merchant/src/Screen.jsx',
+    'public/revision-astryx/9b72f5a1/screen.js', 'web/astryx-prototype/src/Screen.jsx']) {
     const result = scan(t, { [file]: 'element.innerHTML = value;' });
     assert.equal(result.status, 1, file);
     assert.match(result.stderr, /dangerous-dom-sink/);

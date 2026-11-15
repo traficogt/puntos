@@ -3,14 +3,15 @@ import path from "node:path";
 /* eslint security/detect-non-literal-fs-filename: off */
 
 const ROOT = process.cwd();
-const TARGET_DIRS = ["src/app", "public", "src/middleware", "src/utils", "src/scripts", "web/merchant/src"];
+const TARGET_DIRS = ["src/app", "public", "src/middleware", "src/utils", "src/scripts", "web/merchant/src", "web/astryx-prototype/src"];
 const SKIP_FILES = new Set([path.join(ROOT, "src", "scripts", "security-scan.mjs")]);
 const SKIP_DIRS = new Set(["node_modules", ".git", "playwright-report", "test-results"]);
 // React's compiled runtime contains DOM primitives. Check the maintained JSX
 // above; dependency/container scanners continue to cover bundled libraries.
 const GENERATED_DIRS = new Set([
   path.join(ROOT, "public", "merchant", "assets"),
-  path.join(ROOT, "public", "merchant", "recursos")
+  path.join(ROOT, "public", "merchant", "recursos"),
+  path.join(ROOT, "public", "revision-astryx", "9b72f5a1", "assets")
 ]);
 const JS_EXT = new Set([".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx"]);
 
