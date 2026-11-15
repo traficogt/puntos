@@ -189,7 +189,9 @@ async function main() {
     const port = portMatch[1];
     let ready = false;
     for (let attempt = 0; attempt < 60; attempt++) {
-      if ((await docker(['exec', containerId, 'pg_isready', '-U', 'postgres', '-d', 'postgres'], false)).code === 0) { ready = true; break; }
+      // The image briefly runs a socket-only server during initialization. Wait
+      // for TCP so that server's shutdown cannot race the first createdb call.
+      if ((await docker(['exec', containerId, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres', '-d', 'postgres'], false)).code === 0) { ready = true; break; }
       if (abort.signal.aborted) throw new Error('Interrupted');
       await delay(500);
     }

@@ -19,6 +19,8 @@ Added `npm run test:integration:domains` and a CI job for 53 domain suites. The 
 
 Updated stale fixture schemas, retired action names, route/element selectors and fixed-port assumptions. These were test defects, not production outages. Preserved explicit disposable database-name and loopback guards, with non-default ports. The PWA test helper now exercises the production Spanish routing layer.
 
+The first GitHub run also exposed a PostgreSQL startup race in the new runner: its socket probe could accept the image's temporary initialization server just before shutdown. Readiness now requires TCP, which becomes available on the final server.
+
 ## Verification and limits
 
 - 1,435 unit tests pass with no skips; full TypeScript and ESLint checks pass.
