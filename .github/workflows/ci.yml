@@ -56,6 +56,8 @@ jobs:
         run: npm run lint
       - name: Install Playwright Chromium for PWA tests
         run: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps chromium
+      - name: Merchant navigation browser checks
+        run: PLAYWRIGHT_BROWSERS_PATH=0 npm run test:merchant:navigation
       - name: Tests
         run: npm test
       - name: OpenAPI generation is current

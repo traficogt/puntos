@@ -62,7 +62,11 @@
     "ops:rls-check": "node src/scripts/rls-check.mjs",
     "ops:staff-ledger:check": "node src/scripts/live-staff-ledger-check.mjs",
     "ops:wallet:doctor": "node src/scripts/wallet-doctor.mjs",
-    "test:wallet": "NODE_ENV=test node --test tests/unit/native-wallet*.test.js"
+    "test:wallet": "NODE_ENV=test node --test tests/unit/native-wallet*.test.js",
+    "test:e2e:webkit": "node src/scripts/run-webkit-isolated.mjs",
+    "test:e2e:install:webkit": "PLAYWRIGHT_BROWSERS_PATH=0 playwright install --with-deps webkit",
+    "test:workload:isolated": "node src/scripts/run-workload-isolated.mjs --run",
+    "test:merchant:navigation": "node web/merchant/tests/navigation-browser.spec.mjs"
   },
   "license": "MIT",
   "dependencies": {
