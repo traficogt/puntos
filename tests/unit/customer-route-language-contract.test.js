@@ -21,7 +21,7 @@ test("customer-facing routes use /registro while preserving temporary compatibil
   const adminJs = fs.readFileSync(new URL("../../public/admin.js", import.meta.url), "utf8");
 
   assert.match(customerHtml, /Pide al negocio su enlace de acceso/);
-  assert.match(customerLoadJs, /location\.href = `\/ingresar\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=sesion-vencida`/);
+  assert.match(customerLoadJs, /location\.href = `\/ingresar\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=sesion-vencida/);
   assert.match(customerJs, /location\.href = `\/ingresar\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=salida`/);
   assert.match(joinJs, /mode: "register"/);
   assert.match(loginJs, /mode: "login"/);

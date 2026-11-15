@@ -18,6 +18,7 @@ const growthModule = dataModule(growthSource.replace("'/lib.js'", JSON.stringify
 const entitlementSource = await fs.readFile(new URL("../../public/customer/reward-entitlements.js", import.meta.url), "utf8");
 const entitlementModule = dataModule(entitlementSource.replace("'/lib.js'", JSON.stringify(libStub)).replace("'./session.js'", JSON.stringify(sessionUrl)));
 const { loadAll } = await import(dataModule(source.replace("'./demand-notebook.js'", JSON.stringify(new URL('../../public/customer/demand-notebook.js', import.meta.url).href)).replace('"./reward-entitlements.js"', JSON.stringify(entitlementModule)).replace('"./growth-offers.js"', JSON.stringify(growthModule)).replace('"/idb.js"', JSON.stringify(idbStub)).replace('"/lib.js"', JSON.stringify(libStub))
+  .replace('"./wallet-navigation.js"', JSON.stringify(new URL("../../public/customer/wallet-navigation.js", import.meta.url).href))
   .replace('"./me.js"', JSON.stringify(meStub)).replace('"./network.js"', JSON.stringify(networkStub)).replace('"./session.js"', JSON.stringify(sessionUrl))));
 
 const me = { business: { id: "biz-a", slug: "cafe" }, customer: { id: "customer-a", points: 10 } };
@@ -99,6 +100,27 @@ test("a response started before logout cannot restore private cached or rendered
   await pending;
   assert.equal(h.state.writes.length, 0);
   assert.equal(h.state.renders.length, 0);
+});
+
+test("quota failure cannot let a response that predates logout restore the wallet", async t => {
+  const h = harness(t);
+  const { invalidateCustomerIdentity, clearWalletView } = await import(sessionUrl);
+  let finish = /** @type {(value: typeof me) => void} */ (() => {});
+  let first = true;
+  const api = () => {
+    if (!first) return Promise.resolve({});
+    first = false;
+    return new Promise(resolve => { finish = resolve; });
+  };
+  const pending = loadAll({ ...h, api });
+  t.mock.method(localStorage, "setItem", () => { throw new Error("QuotaExceededError"); });
+  invalidateCustomerIdentity({ block: true });
+  clearWalletView(h.$);
+  finish(me);
+  await pending;
+  assert.equal(h.state.writes.length, 0);
+  assert.equal(h.state.renders.length, 0);
+  assert.equal(h.elements["#main"].hidden, true);
 });
 
 test("another tab cannot reopen a wallet while logout is pending or failed", async t => {

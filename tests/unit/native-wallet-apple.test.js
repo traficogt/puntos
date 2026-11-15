@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { inflateRawSync } from "node:zlib";
 import { createAppleProvider } from "../../src/app/services/native-wallet/apple.js";
+import { createNativeWalletService } from "../../src/app/services/native-wallet/service.js";
 
 let fixtureDir;
 let config;
@@ -153,6 +154,46 @@ describe("Apple Wallet signed passes", () => {
     assert.equal(fields.find((field) => field.key === "support_link").value, "https://puntosfieles.com/soporte");
     assert.doesNotMatch(entries["pass.json"].toString(), /55555555|private@example|internal-pass-id/);
     assert.deepEqual(entries["icon.png"], readFileSync(new URL("../../public/images/wallet/apple-icon.png", import.meta.url)));
+  });
+
+  it("signs both featured actions in priority order with business-scoped credential-free destinations", async () => {
+    const pass = JSON.parse(unzip(await createAppleProvider(config).generatePass({ ...snapshot, business_slug: "club-centro" }))["pass.json"].toString());
+    assert.deepEqual(pass.featuredActions, [
+      { identifier: "pf-offers", type: "viewOffersRewards", url: `${config.appOrigin}/ingresar/club-centro?destino=ofertas` },
+      { identifier: "pf-benefits", type: "membershipBenefits", url: `${config.appOrigin}/ingresar/club-centro?destino=beneficios` }
+    ]);
+    assert.equal(pass.serialNumber, snapshot.serial_number);
+    assert.equal(pass.authenticationToken, snapshot.authentication_token);
+    assert.equal(pass.barcodes[0].message, snapshot.barcode);
+    for (const action of pass.featuredActions) {
+      assert.equal(new URL(action.url).origin, config.appOrigin);
+      assert.doesNotMatch(action.url, /internal-pass-id|pf-serial-1/);
+      assert.ok(!action.url.includes(snapshot.authentication_token));
+      assert.ok(!action.url.includes(snapshot.barcode));
+    }
+    assert.equal(pass.storeCard.backFields.find(field => field.key === "offers_link").value, pass.featuredActions[0].url);
+    assert.equal(pass.storeCard.backFields.find(field => field.key === "benefits_link").value, pass.featuredActions[1].url);
+    assert.equal(pass.storeCard.backFields.find(field => field.key === "customer_link").value, `${config.appOrigin}/mi-tarjeta/`);
+    assert.ok(pass.storeCard.backFields.every(field => !field.changeMessage));
+  });
+
+  it("falls back to fixed authenticated account sections when the public slug is missing or unsafe", async () => {
+    for (const business_slug of [undefined, "", "../soporte", "https://other.invalid", "club?token=private", "club#fragment", "a".repeat(121)]) {
+      const pass = JSON.parse(unzip(await createAppleProvider(config).generatePass({ ...snapshot, business_slug }))["pass.json"].toString());
+      assert.deepEqual(pass.featuredActions.map(action => action.url), [
+        `${config.appOrigin}/mi-tarjeta/#ofertas`, `${config.appOrigin}/mi-tarjeta/#beneficios`
+      ]);
+    }
+  });
+
+  it("removes both actions and their older-device detail links when a pass is revoked or voided", async () => {
+    for (const state of [{ revoked_at: new Date().toISOString() }, { is_voided: true }]) {
+      const pass = JSON.parse(unzip(await createAppleProvider(config).generatePass({ ...snapshot, business_slug: "club-centro", ...state }))["pass.json"].toString());
+      assert.deepEqual(pass.featuredActions, []);
+      assert.equal(pass.storeCard.backFields.some(field => ["offers_link", "benefits_link"].includes(field.key)), false);
+      assert.equal(pass.serialNumber, snapshot.serial_number);
+      assert.equal(pass.authenticationToken, snapshot.authentication_token);
+    }
   });
 
   it("signs scoped location and progress fields without pretending refresh is a visible alert", async () => {
@@ -322,13 +363,36 @@ describe("Apple Wallet APNs update delivery", () => {
     }
   });
 
-  it("bounds response bodies and rejects malformed tokens before opening a connection", async () => {
+  it("bounds response bodies and identifies malformed tokens before opening a connection", async () => {
     const wire = transport({ status: 503, body: "x".repeat(8193) });
     await assert.rejects(createAppleProvider(config, { connect: wire.connect }).pushUpdate(token), { code: "APPLE_WALLET_PUSH_FAILED" });
-    for (const malformed of ["", "token/with-path", "a\r\nheader", "ab".repeat(513)]) {
+    for (const malformed of ["", "token/with-path", "a\r\nheader", "f".repeat(33), "ab".repeat(513)]) {
       const invalidWire = transport();
-      await assert.rejects(createAppleProvider(config, { connect: invalidWire.connect }).pushUpdate(malformed), { code: "APPLE_WALLET_PUSH_FAILED" });
+      assert.deepEqual(await createAppleProvider(config, { connect: invalidWire.connect }).pushUpdate(malformed), { invalidToken: true });
       assert.equal(invalidWire.calls.length, 0);
     }
+  });
+
+  it("removes a previously stored malformed token and still delivers to the next device", async () => {
+    const wire = transport();
+    const provider = createAppleProvider(config, { connect: wire.connect });
+    const malformed = "f".repeat(33);
+    const removed = [], synced = [];
+    const repo = {
+      claimDue: async () => [{ id: "pass", provider: "apple", lock_token: "lease" }],
+      getSnapshot: async () => ({ id: "pass", revision: "7" }),
+      listRegistrations: async () => [{ push_token: malformed }, { push_token: token }],
+      deletePushToken: async value => removed.push(value),
+      markSynced: async (...args) => synced.push(args),
+      markFailed: async () => assert.fail("a malformed token must not keep the pass retrying")
+    };
+    const service = createNativeWalletService({ repo, customerRepo: {}, providers: { apple: provider },
+      settings: { apple: { ready: true } }, globalContext: fn => fn() });
+    try {
+      assert.deepEqual(await service.processDue(), { delivered: 1, failed: 0 });
+      assert.deepEqual(removed, [malformed]);
+      assert.deepEqual(synced, [["pass", "7", "lease", null]]);
+      assert.deepEqual(wire.calls.filter(call => call.headers).map(call => call.headers[":path"]), [`/3/device/${token}`]);
+    } finally { provider.close(); }
   });
 });

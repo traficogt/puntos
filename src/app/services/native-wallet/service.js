@@ -77,21 +77,31 @@ export function createNativeWalletService({repo, customerRepo, settings, provide
     const jobs = await globalContext(()=>repo.claimDue(20,names));
     for (const job of jobs) {
       try {
-        await globalContext(()=>withPassLock(job.id,async()=>{
+        const delivered = await globalContext(()=>withPassLock(job.id,async()=>{
           const snapshot = await repo.getSnapshot(job.id);
           if (!snapshot) throw Error('Missing pass');
           const provider = requireProvider(job.provider);
           if (job.provider === 'google') await provider.updatePass(snapshot);
           else {
             const registrations = await repo.listRegistrations(job.id);
+            let deliveryFailed = false;
             for (const registration of registrations) {
-              const response = await provider.pushUpdate(registration.push_token);
+              let response;
+              try { response = await provider.pushUpdate(registration.push_token); }
+              catch { deliveryFailed = true; continue; }
               if (response.invalidToken) await repo.deletePushToken(registration.push_token);
+            }
+            if (deliveryFailed) {
+              // Commit invalid-token cleanup while retaining retry work. Throwing
+              // here would roll back those deletions with the provider lock.
+              await repo.markFailed(job.id,job.lock_token);
+              return false;
             }
           }
           await repo.markSynced(job.id,snapshot.revision,job.lock_token,snapshot.next_refresh_at??null);
+          return true;
         }));
-        result.delivered++;
+        if (delivered) result.delivered++; else result.failed++;
       } catch {
         await globalContext(()=>repo.markFailed(job.id,job.lock_token));
         result.failed++;

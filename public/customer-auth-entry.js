@@ -2,8 +2,9 @@ import { api, $, toast, setHidden, hydrateShellLinks } from "/lib.js";
 import { enrollmentAcquisition } from "./acquisition-entry.js";
 import { applyJoinBranding } from "./customer-branding.js";
 import { clearCustomerCache } from "/idb.js";
-import { getCustomerEpoch, invalidateCustomerIdentity, isCustomerAuthError } from "./customer/session.js";
+import { getCustomerEpoch, invalidateCustomerIdentity, isCustomerAuthError, readCustomerStorage } from "./customer/session.js";
 import { renderNativeWallet } from "./customer/native-wallet.js";
+import { walletDestination } from "./customer/wallet-navigation.js";
 
 const returningSlugKey = "pf_customer_joined_slug";
 
@@ -136,6 +137,7 @@ export async function initCustomerAuthEntry({ mode }) {
   }
 
   const searchParams = new URLSearchParams(location.search);
+  const destination = walletDestination(searchParams.get("destino"));
   const entryReason = (searchParams.get("motivo") || "").trim();
   const requestPath = mode === "login"
     ? `/api/public/business/${slug}/login/request-code`
@@ -224,7 +226,13 @@ export async function initCustomerAuthEntry({ mode }) {
   async function showWallet(me) {
     if (!current() || me?.business?.id !== business.id || !me?.customer?.id
         || (customerId && customerId !== me.customer.id)) return false;
+    if (readCustomerStorage("pf_customer_blocked") === "1") return false;
     customerId = me.customer.id;
+    if (destination) {
+      cooldownReset();
+      location.replace(`/mi-tarjeta/#${destination}`);
+      return true;
+    }
     showCompletion();
     setFeedback("#walletEnrollmentFeedback", "Buscando opciones para guardar tu tarjeta…");
     try {
@@ -374,7 +382,8 @@ export async function initCustomerAuthEntry({ mode }) {
       }
       // A dropped response may still have set the session cookie. Recover only
       // the intended business AND verified phone, never an unrelated session.
-      if (!e?.status && active) {
+      // A pending logout can leave that same cookie active without a new verification.
+      if (!e?.status && active && readCustomerStorage("pf_customer_blocked") !== "1") {
         try {
           const me = await api("/api/customer/me");
           if (!active || verificationEpoch !== getCustomerEpoch()) return;

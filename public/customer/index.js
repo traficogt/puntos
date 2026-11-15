@@ -6,6 +6,7 @@ import { setOnlineBadge } from "./network.js";
 import { createQrController } from "./qr.js";
 import { registerServiceWorker } from "/lib.js";
 import { clearWalletView, invalidateCustomerIdentity, isCustomerAuthError, readCustomerStorage } from "./session.js";
+import { createWalletNavigation, walletDestination } from "./wallet-navigation.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
 
@@ -46,7 +47,8 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     invalidateCustomerIdentity();
     await clearCustomerCache().catch(() => {});
     entryParams.delete("sesion");
-    window.history?.replaceState(null, "", `${location.pathname}${entryParams.size ? `?${entryParams}` : ""}`);
+    const destination = walletDestination((location.hash || "").slice(1));
+    window.history?.replaceState(null, "", `${location.pathname}${entryParams.size ? `?${entryParams}` : ""}${destination ? `#${destination}` : ""}`);
   }
   let refreshInFlight = false;
   let refreshTimer = null;
@@ -54,11 +56,13 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   let refreshPending = false;
 
   const { generateQR, dispose } = createQrController({ $, toast });
+  const destinationNavigation = createWalletNavigation({ $ });
 
   async function refreshWallet({ silent = true } = {}) {
     if (loggingOut) return;
     if (refreshInFlight) { refreshPending = true; return; }
     refreshInFlight = true;
+    destinationNavigation.pause();
     const btn = /** @type {HTMLButtonElement | null} */ (safeEl($, "#btnRefreshWallet"));
     const previousText = btn?.textContent || "Actualizar tarjeta";
     if (btn) {
@@ -67,6 +71,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     }
     try {
       const result = await loadAll({ api, $, toast, silent });
+      destinationNavigation.afterLoad(result);
       if (result?.status === "auth" || result?.status === "error") dispose();
     } finally {
       refreshInFlight = false;
@@ -84,6 +89,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   $("#btnLogout")?.addEventListener("click", async () => {
     if (loggingOut) return;
     loggingOut = true;
+    destinationNavigation.pause();
     const cachedSlug = readCustomerStorage("pf_customer_slug").trim();
     invalidateCustomerIdentity({ block: true });
     clearWalletView($);
@@ -155,10 +161,12 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
       $("#btnLogout")?.dispatchEvent(new Event("click"));
     } else ignore(refreshWallet({ silent: true }));
   });
-  window.addEventListener("offline", () => { setOnlineBadge($); clearGrowthOffers($); clearRewardEntitlements($); });
+  window.addEventListener("offline", () => { destinationNavigation.pause(); setOnlineBadge($); clearGrowthOffers($); clearRewardEntitlements($); });
   window.addEventListener("focus", () => ignore(refreshWallet({ silent: true })));
+  window.addEventListener("hashchange", () => destinationNavigation.navigate());
   window.addEventListener("storage", event => {
     if (event.key !== "pf_customer_epoch" && event.key !== "pf_customer_identity" && event.key !== "pf_customer_blocked" && event.key !== null) return;
+    destinationNavigation.pause();
     clearWalletView($);
     dispose();
     // Removing identity means logout or verification is still in progress.
@@ -170,7 +178,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   });
 
   mountIosInstallHint();
-  await loadAll({ api, $, toast, silent: true });
+  destinationNavigation.afterLoad(await loadAll({ api, $, toast, silent: true }));
   setOnlineBadge($);
 
   refreshTimer = window.setInterval(() => {
@@ -182,6 +190,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   }, 15000);
 
   window.addEventListener("beforeunload", () => {
+    destinationNavigation.pause();
     if (refreshTimer) window.clearInterval(refreshTimer);
     dispose();
   }, { once: true });

@@ -45,6 +45,21 @@ test('Wallet protocol and customer routes enforce separate authorization boundar
       assert.equal(res.status,201);assert.equal(calls.length,1);assert.equal(calls[0].passId,serial);
       assert.equal((await fetch(base+path,{method:'DELETE',headers:{Authorization:`ApplePass ${token}`}})).status,200);
     });
+    await t.test('Apple registration rejects incomplete hexadecimal push tokens without storing them',async()=>{
+      const before=calls.length;
+      for (const pushToken of ['f'.repeat(33),'f'.repeat(255),'f'.repeat(1025),'f'.repeat(30),'not-hex'.repeat(8)]) {
+        const response=await fetch(base+path,{method:'POST',headers:{'content-type':'application/json',Authorization:`ApplePass ${token}`},body:JSON.stringify({pushToken})});
+        assert.equal(response.status,400,`invalid token length ${pushToken.length}`);
+      }
+      assert.equal(calls.length,before);
+    });
+    await t.test('Apple registration accepts complete hexadecimal tokens within the provider bounds',async()=>{
+      for (const pushToken of ['a'.repeat(32),'AB'.repeat(128),'f'.repeat(1024)]) {
+        const response=await fetch(base+path,{method:'POST',headers:{'content-type':'application/json',Authorization:`ApplePass ${token}`},body:JSON.stringify({pushToken})});
+        assert.equal(response.status,201,`valid token length ${pushToken.length}`);
+        assert.equal(calls.at(-1).pushToken,pushToken);
+      }
+    });
     await t.test('Apple updates use opaque device capability, validate tag and produce native JSON',async()=>{
       const list=path.slice(0,-37);
       assert.deepEqual(await(await fetch(base+list)).json(),{serialNumbers:[serial],lastUpdated:'8'});

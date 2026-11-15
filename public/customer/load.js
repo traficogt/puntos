@@ -1,4 +1,4 @@
-import {clearCustomerDemand,loadCustomerDemand} from './demand-notebook.js';
+import {pauseCustomerDemand,loadCustomerDemand} from './demand-notebook.js';
 import { clearRewardEntitlements, loadRewardEntitlements } from "./reward-entitlements.js";
 import { clearGrowthOffers, loadGrowthOffers } from "./growth-offers.js";
 import { clearCustomerCache, getCustomerCacheSnapshot, putCustomerCache } from "/idb.js";
@@ -6,6 +6,7 @@ import { setHidden } from "/lib.js";
 import { setOnlineBadge } from "./network.js";
 import { renderFromMe } from "./me.js";
 import { clearWalletView, getCustomerEpoch, getCustomerIdentity, invalidateCustomerIdentity, isCustomerAuthError, readCustomerStorage, rememberCustomerIdentity } from "./session.js";
+import { walletDestination } from "./wallet-navigation.js";
 
 let latestLoad = 0;
 
@@ -19,7 +20,7 @@ export async function loadAll({ api, $, toast, silent = false }) {
   let epoch = getCustomerEpoch();
   const isCurrent = () => loadId === latestLoad && epoch === getCustomerEpoch();
   setOnlineBadge($);
-  clearCustomerDemand();
+  pauseCustomerDemand();
   clearGrowthOffers($);
   clearRewardEntitlements($);
   const identity = getCustomerIdentity();
@@ -36,6 +37,7 @@ export async function loadAll({ api, $, toast, silent = false }) {
     if (!me?.business?.id || !me?.customer?.id) throw new Error("Respuesta de tarjeta inválida");
     const currentIdentity = rememberCustomerIdentity(me);
     epoch = getCustomerEpoch();
+    pauseCustomerDemand(currentIdentity);
     await putCustomerCache("me", me, currentIdentity).catch(() => {});
     if (!isCurrent()) return { status: "superseded" };
     const snapshot = await getCustomerCacheSnapshot(currentIdentity).catch(() => null);
@@ -44,7 +46,10 @@ export async function loadAll({ api, $, toast, silent = false }) {
     if (!isCurrent()) return { status: "superseded" };
     await Promise.all([loadGrowthOffers({ api, $, isCurrent, region: me.business.region }), loadRewardEntitlements({ api, $, isCurrent })]);
     if (!isCurrent()) return { status: "superseded" };
-    loadCustomerDemand({api,$,isCurrent});
+    // This form mounts above offers and tiers. Finish its layout before a
+    // requested Wallet destination scrolls into view.
+    await loadCustomerDemand({api,$,isCurrent,identity:currentIdentity});
+    if (!isCurrent()) return { status: "superseded" };
     if (!silent) toast(result?.status === "partial" ? "Algunos datos no se pudieron actualizar. Intenta de nuevo." : "Tarjeta actualizada.");
     return result || { status: "live" };
   } catch (error) {
@@ -54,7 +59,8 @@ export async function loadAll({ api, $, toast, silent = false }) {
       clearWalletView($);
       await clearCustomerCache().catch(() => {});
       if (cachedSlug) {
-        location.href = `/ingresar/${encodeURIComponent(cachedSlug)}?motivo=sesion-vencida`;
+        const destination = walletDestination((location.hash || "").slice(1));
+        location.href = `/ingresar/${encodeURIComponent(cachedSlug)}?motivo=sesion-vencida${destination ? `&destino=${destination}` : ""}`;
         return { status: "auth" };
       }
       setHidden($("#needLogin"), false);

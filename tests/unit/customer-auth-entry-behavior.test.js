@@ -11,6 +11,7 @@ const { initCustomerAuthEntry } = await import(data(source
   .replace('"./customer-branding.js"', JSON.stringify(data("export const applyJoinBranding=()=>({businessName:'Cafe'});")))
   .replace('"/idb.js"', JSON.stringify(data("export const clearCustomerCache=async()=>{globalThis.__entry.clears++;};")))
   .replace('"./customer/native-wallet.js"', JSON.stringify(new URL("../../public/customer/native-wallet.js", import.meta.url).href))
+  .replace('"./customer/wallet-navigation.js"', JSON.stringify(new URL("../../public/customer/wallet-navigation.js", import.meta.url).href))
   .replace('"./customer/session.js"', JSON.stringify(new URL("../../public/customer/session.js", import.meta.url).href))));
 
 function setup(t, restricted = false) {
@@ -38,7 +39,7 @@ function setup(t, restricted = false) {
     },
     $: key => elements[key] ||= { value: key === "#phone" ? "12345678" : key === "#code" ? "123456" : "", hidden: true, dataset: {}, setAttribute() {}, classList: { toggle() {}, remove() {} }, focus() {}, addEventListener: (event, callback) => { events[`${key}:${event}`] = callback; } }
   };
-  for (const [key, value] of Object.entries({ __entry: h, location: { pathname: "/ingresar/cafe", search: "", href: "", assign(url) { globalThis.location.href = url; } }, navigator: { onLine: true },
+  for (const [key, value] of Object.entries({ __entry: h, location: { pathname: "/ingresar/cafe", search: "", href: "", assign(url) { globalThis.location.href = url; }, replace(url) { h.replaced = url; globalThis.location.href = url; } }, navigator: { onLine: true },
     document: { title: "", getElementById: id => h.$(`#${id}`), addEventListener: (event, callback) => { events[`document:${event}`] = callback; } }, window: { addEventListener: (event, callback) => { events[`window:${event}`] = callback; } },
     localStorage: { getItem: key => { if (restricted) throw new Error("SecurityError"); return saved.get(key) || null; },
       setItem: (key, value) => { if (restricted) throw new Error("SecurityError"); saved.set(key, value); }, removeItem: key => saved.delete(key) } })) {
@@ -49,6 +50,108 @@ function setup(t, restricted = false) {
   t.mock.method(globalThis, "setTimeout", /** @type {any} */ (fn => { fn(); return 1; }));
   t.mock.method(globalThis, "setInterval", /** @type {any} */ (() => 1));
   return { h, events, elements, saved };
+}
+
+for (const destination of ["ofertas", "beneficios"]) {
+  test(`Wallet ${destination} continues a matching authenticated session without requesting another pass`, async t => {
+    const { h } = setup(t);
+    h.authenticated = true;
+    location.search = `?destino=${destination}`;
+    await initCustomerAuthEntry({ mode: "login" });
+    assert.equal(h.replaced, `/mi-tarjeta/#${destination}`);
+    assert.equal(h.calls.some(call => call.path === "/api/customer/wallet" || call.options?.method === "POST"), false);
+    assert.equal(h.$("#done").hidden, true);
+  });
+
+  test(`Wallet ${destination} waits for verification when signed out`, async t => {
+    const { h, events } = setup(t);
+    location.search = `?destino=${destination}`;
+    await initCustomerAuthEntry({ mode: "login" });
+    assert.equal(location.href, "");
+    assert.equal(h.$("#joinForms").hidden, false);
+    await events["#btnVerify:click"]();
+    assert.equal(h.replaced, `/mi-tarjeta/#${destination}`);
+    assert.equal(h.calls.filter(call => call.path.endsWith("/verify")).length, 1);
+    assert.equal(h.calls.some(call => call.path === "/api/customer/wallet"), false);
+  });
+}
+
+test("Wallet destinations never continue a session for another business", async t => {
+  const { h, events } = setup(t);
+  location.search = "?destino=ofertas";
+  h.authenticated = true;
+  h.businessId = "other-business";
+  await initCustomerAuthEntry({ mode: "login" });
+  assert.equal(location.href, "");
+  assert.equal(h.$("#joinForms").hidden, false);
+  await events["#btnVerify:click"]();
+  assert.equal(location.href, "");
+  assert.equal(h.$("#joinForms").hidden, false);
+});
+
+test("Wallet destinations do not continue a stale authenticated response", async t => {
+  const { h, saved } = setup(t);
+  location.search = "?destino=beneficios";
+  h.authenticated = true;
+  const api = h.api;
+  h.api = async (...args) => {
+    const result = await api(...args);
+    if (args[0] === "/api/customer/me") saved.set("pf_customer_epoch", "other-tab");
+    return result;
+  };
+  await initCustomerAuthEntry({ mode: "login" });
+  assert.equal(location.href, "");
+});
+
+for (const mode of ["login", "register"]) {
+  for (const destination of ["", "ofertas", "beneficios"]) {
+    test(`${mode} ${destination || "entry"} waits for fresh verification after a pending or failed logout`, async t => {
+      const { h, events, saved } = setup(t);
+      h.authenticated = true;
+      saved.set("pf_customer_blocked", "1");
+      location.pathname = `/${mode === "login" ? "ingresar" : "registro"}/cafe`;
+      location.search = destination ? `?destino=${destination}` : mode === "login" ? "?motivo=salida" : "";
+      await initCustomerAuthEntry({ mode });
+      assert.equal(location.href, "");
+      assert.equal(h.$("#joinForms").hidden, false);
+      assert.equal(h.calls.some(call => call.path === "/api/customer/wallet"), false);
+      await events["#btnVerify:click"]();
+      assert.equal(saved.has("pf_customer_blocked"), false);
+      if (destination) assert.equal(h.replaced, `/mi-tarjeta/#${destination}`);
+      else {
+        assert.equal(h.$("#done").hidden, false);
+        assert.equal(h.$("#btnAppleWallet").hidden, false);
+      }
+    });
+  }
+}
+
+test("a failed verification request cannot recover the matching session from a pending logout", async t => {
+  const { h, events, saved } = setup(t);
+  h.authenticated = true;
+  h.verifyError = new Error("Failed to fetch");
+  saved.set("pf_customer_blocked", "1");
+  location.search = "?destino=ofertas";
+  await initCustomerAuthEntry({ mode: "login" });
+  await events["#btnVerify:click"]();
+  assert.equal(saved.get("pf_customer_blocked"), "1");
+  assert.equal(location.href, "");
+  assert.equal(h.$("#joinForms").hidden, false);
+  assert.equal(h.calls.some(call => call.path === "/api/customer/wallet"), false);
+  assert.match(h.$("#joinVerifyFeedback").textContent, /Failed to fetch/);
+});
+
+// eslint-disable-next-line no-script-url -- Deliberately hostile destination verifies the fixed allowlist.
+for (const destination of ["https://evil.example/", "//evil.example/", "javascript:alert(1)", "ofertas/../admin", "OFERTAS", "unknown"]) {
+  test(`unknown Wallet destination ${destination} preserves normal enrollment`, async t => {
+    const { h } = setup(t);
+    h.authenticated = true;
+    location.search = `?destino=${encodeURIComponent(destination)}`;
+    await initCustomerAuthEntry({ mode: "login" });
+    assert.equal(location.href, "");
+    assert.equal(h.$("#done").hidden, false);
+    assert.equal(h.calls.some(call => call.path === "/api/customer/wallet"), true);
+  });
 }
 
 test("login entry still works when browser local storage is unavailable", async t => {
