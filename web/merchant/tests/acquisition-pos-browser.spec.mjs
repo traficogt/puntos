@@ -4,6 +4,7 @@ import path from "node:path";
 import express from "express";
 import helmet from "helmet";
 import { chromium } from "playwright";
+import { navigateMerchant } from "./helpers/navigation.mjs";
 import { createSpanishWeb, createSpanishWebRedirects } from "../../../src/middleware/spanish-web.js";
 const app = express();
 app.use(
@@ -38,7 +39,7 @@ try {
   await page.getByRole("button",{name:"Guardar incentivos",exact:true}).click();
   await page.getByRole("button",{name:"Guardar incentivos",exact:true}).waitFor();
   await page.waitForFunction(()=>Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Guardar incentivos' && b.disabled));
-  await page.getByRole("button",{name:"Conectar caja",exact:true}).click();
+  await navigateMerchant(page, "Conectar caja");
   await page.getByRole("heading",{name:"Conectar caja",exact:true}).waitFor();
   await page.getByLabel("ID de la venta",{exact:false}).fill("venta-prueba-1");
   await page.getByLabel("Origen de la venta",{exact:false}).fill("caja-demo");

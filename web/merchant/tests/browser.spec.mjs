@@ -7,6 +7,7 @@ import { createSpanishWeb, createSpanishWebRedirects } from "../../../src/middle
 import { chromium } from "playwright";
 import { demoActivationInsights } from "../src/demo-activation-insights.js";
 import { demoRedemptionReturns } from "../src/demo-redemption-returns.js";
+import { navigateMerchant as navigate } from "./helpers/navigation.mjs";
 const output = "/var/lib/puntos/releases/spanish-growth-20261110";
 const app = express();
 app.use(
@@ -92,11 +93,6 @@ async function check(label, fn) {
   await fn();
   checks++;
   console.log(`PASS ${label}`);
-}
-async function navigate(page, name) {
-  const menu = page.getByRole("button", { name: "Cambiar sección del negocio", exact: true });
-  if (await menu.isVisible()) await menu.click();
-  await page.getByRole("navigation", { name: "Tu negocio" }).getByRole("button", { name, exact: true }).click();
 }
 async function session({
   width = 1440,

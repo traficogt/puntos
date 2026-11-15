@@ -3,6 +3,7 @@ import path from "node:path";
 import express from "express";
 import helmet from "helmet";
 import { chromium } from "playwright";
+import { navigateMerchant } from "./helpers/navigation.mjs";
 import { createSpanishWeb, createSpanishWebRedirects } from "../../../src/middleware/spanish-web.js";
 const app = express();
 app.use(
@@ -37,9 +38,7 @@ try {
     .getByText("Vista previa · datos de ejemplo", { exact: true })
     .waitFor();
   await page.getByText("Café Jacaranda · demo", { exact: true }).waitFor();
-  await page
-    .getByRole("button", { name: "Preparar mi programa", exact: true })
-    .click();
+  await navigateMerchant(page, "Preparar mi programa");
   await page.getByRole("tab", { name: "4. QR y revisión", exact: true }).click();
   await page.getByRole("heading", { name: "QR de demostración" }).waitFor();
   assert.ok(
@@ -49,7 +48,7 @@ try {
   await page.getByRole("heading", { name: "Una regla fácil de explicar en caja", exact: true }).waitFor();
   assert.ok(page.url().includes("/demostracion/"));
   assert.equal(await page.locator('a[href^="/administracion/"],a[href^="/equipo/"]').count(),0);
-  await page.getByRole("button", { name: "Reglas de puntos", exact: true }).click();
+  await navigateMerchant(page, "Reglas de puntos");
   await page.getByRole("button", { name: "Preparar bono por compra" }).click();
   await page.getByRole("button", { name: "Guardar campañas" }).click();
   await page

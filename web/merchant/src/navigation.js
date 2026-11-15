@@ -26,6 +26,7 @@ const fragments = {
   rewards: "recompensas",
   automations: "automatizaciones",
 };
+export const merchantPages = Object.keys(fragments);
 export function pageFromHash(hash) {
   const value = hash.replace(/^#/, "");
   return (

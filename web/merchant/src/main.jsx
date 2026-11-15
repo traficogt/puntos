@@ -2,7 +2,7 @@ import {staffLoginHref} from "../../../public/staff-return-path.js";
 import {startDemoAnalytics,trackDemoEvent} from './demo-analytics.js';
 import ActivationSetup from './ActivationSetup.jsx';
 import { useMediaQuery } from '@mantine/hooks';
-import React, { useEffect, useState, Suspense, lazy } from "react";
+import React, { useEffect, useRef, useState, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import {
   MantineProvider,
@@ -23,6 +23,7 @@ import "@mantine/charts/styles.css";
 import "./styles.css";
 import { isDemo, useResource, sessionEvent, stored, logout } from "./api.js";
 import { pageFromHash, hashForPage } from "./navigation.js";
+import MerchantNavigation from "./MerchantNavigation.jsx";
 import { Loading, Failure, BusinessLink } from "./ui.jsx";
 import { setMerchantRegion } from './region.js';
 const RewardsWorkspace = lazy(() => import('./RewardsWorkspace.jsx'));
@@ -188,6 +189,8 @@ function App() {
 function Merchant({ staff }) {
   const compactNavigation = useMediaQuery("(max-width: 760px)");
   const [navigationOpen,setNavigationOpen] = useState(false);
+  const navigationToggle = useRef(null);
+  const content = useRef(null);
   const [page, setPage] = useState(pageFromHash(location.hash) || "overview");
   const [dirty, setDirty] = useState(false);
   const [refresh, setRefresh] = useState(0);
@@ -231,12 +234,17 @@ function Merchant({ staff }) {
     return () => window.removeEventListener("beforeunload", before);
   }, [dirty]);
   function navigate(next) {
-    if (next === page) return;
+    if (next === page) {
+      setNavigationOpen(false);
+      if (compactNavigation) content.current?.focus({ preventScroll: true });
+      return;
+    }
     if (dirty && !confirm("Tienes cambios sin guardar. ¿Quieres descartarlos?"))
       return;
     setDirty(false);
     setPage(next);
     setNavigationOpen(false);
+    if (compactNavigation) content.current?.focus({ preventScroll: true });
     history.pushState(null, "", hashForPage(next));
   }
   async function signOut() {
@@ -284,56 +292,18 @@ function Merchant({ staff }) {
       </AppShell.Header>
       <AppShell.Main component="div">
         <div className="workspace">
-          <aside className="sidebar">
+          <aside className="sidebar" onKeyDown={event => {
+            if (compactNavigation && navigationOpen && event.key === "Escape") {
+              setNavigationOpen(false);
+              navigationToggle.current?.focus();
+            }
+          }}>
             <Text className="business-name" fw={600}>
               {name || "Mi negocio"}
             </Text>
-            {compactNavigation && <Button variant="outline" fullWidth aria-expanded={navigationOpen} aria-controls="merchant-navigation" onClick={() => setNavigationOpen(v => !v)}>{navigationOpen ? "Cerrar menú del negocio" : "Cambiar sección del negocio"}</Button>}
+            {compactNavigation && <Button ref={navigationToggle} variant="outline" fullWidth aria-expanded={navigationOpen} aria-controls="merchant-navigation" onClick={() => setNavigationOpen(v => !v)}>{navigationOpen ? "Cerrar menú del negocio" : "Cambiar sección del negocio"}</Button>}
             <div id="merchant-navigation" hidden={compactNavigation && !navigationOpen}>
-            <nav aria-label="Tu negocio">
-              <Stack gap={4}>
-                {[
-                  ["overview", "Resumen"],
-                  ["decisions", "Decisiones"],
-                  ["cases", "Atención al cliente"],
-                  ["demand", "Pedidos de clientes"],
-                  ["funding", "Financiamiento de proveedores"],
-                  ["authority", "Equipo y permisos"],
-                  ["hospitality", "Cortesías del equipo"],
-                  ["promises", "Promesas de recompensa"],
-                  ["rewards", "Recompensas y catálogo"],
-                  ["transactions", "Movimientos"],
-                  ["launch", "Preparar mi programa"],
-                  ["migration", "Importar clientes"],
-                  ["audiences", "Audiencias"],
-                  ["campaigns", "Reglas de puntos"],
-                  ["growth", "Campañas dirigidas"],
-                  ["brand", "Marca y QR"],
-                  ["acquisition", "Origen de clientes"],
-                  ["economics", "Costos y margen"],
-                  ["automations", "Automatizaciones"],
-                  ["recovery", "Recuperar clientes"],
-                  ["referrals", "Recomendaciones"],
-                  ["pos", "Conectar caja"],
-                  ["fulfillment", "Canjes y caja"],
-                  ["operations", "Estado de la operación"],
-                  ["pilot", "Mi piloto"],
-                  ["region", "Región del negocio"],
-                ].map(([key, label]) => (
-                  <Button
-                    key={key}
-                    justify="start"
-                    styles={{root:{height:"auto",minHeight:36,paddingBlock:8},label:{whiteSpace:"normal",textAlign:"left",lineHeight:1.35}}}
-                    variant={page === key ? "light" : "subtle"}
-                    color={page === key ? "terra" : "gray"}
-                    aria-current={page === key ? "page" : undefined}
-                    onClick={() => navigate(key)}
-                  >
-                    {label}
-                  </Button>
-                ))}
-              </Stack>
-            </nav>
+            <MerchantNavigation page={page} visible={!compactNavigation || navigationOpen} onNavigate={navigate} />
             <div className="sidebar-secondary">
               <BusinessLink href="/administracion/?seccion=clientes">
                 Clientes
@@ -351,7 +321,7 @@ function Merchant({ staff }) {
             </Text>
             </div>
           </aside>
-          <main id="contenido" tabIndex={-1} className="content">
+          <main ref={content} id="contenido" tabIndex={-1} className="content">
             {isDemo && (
               <Alert
                 mb="xl"

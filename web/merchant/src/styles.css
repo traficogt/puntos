@@ -69,6 +69,39 @@ a {
   margin: 0 0 24px;
   overflow-wrap: anywhere;
 }
+.merchant-nav-label {
+  padding: 0 12px 8px;
+  color: var(--pf-muted);
+}
+.merchant-nav-item {
+  height: auto;
+  min-height: 44px;
+  padding-block: 8px;
+}
+.merchant-nav-item .mantine-Button-label {
+  white-space: normal;
+  text-align: left;
+  line-height: 1.35;
+}
+.merchant-nav-group {
+  margin-top: 12px;
+  border-top: 1px solid var(--pf-line);
+}
+.merchant-nav-group summary {
+  min-height: 44px;
+  padding: 12px 4px;
+  color: var(--pf-ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.merchant-nav-group summary:hover {
+  background: var(--mantine-color-default-hover);
+}
+.merchant-nav-group > .mantine-Stack-root {
+  padding-bottom: 4px;
+}
 .sidebar-secondary {
   display: flex;
   flex-direction: column;
@@ -244,10 +277,8 @@ footer {
     border-right: 0;
     border-bottom: 1px solid var(--pf-line);
   }
-  .sidebar nav .mantine-Stack-root {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 6px;
+  .merchant-navigation {
+    margin-top: 16px;
   }
   .business-name {
     margin-bottom: 12px;
