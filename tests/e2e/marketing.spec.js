@@ -55,7 +55,7 @@ test("demo request validates missing fields and submits existing payload", async
 test("mobile navigation and FAQ work without horizontal overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/?sw=off", { waitUntil: "domcontentloaded" });
-  await page.getByRole("link", { name: "Solicitar demo", exact: true }).first().click();
+  await page.getByRole("link", { name: "Hablar con nosotros", exact: true }).first().click();
   await expect(page).toHaveURL(/#contacto$/);
   await page.getByText("¿Mis clientes tienen que descargar una app?", { exact: true }).click();
   await expect(page.locator("#preguntas details").first()).toContainText("desde el navegador");
@@ -73,5 +73,28 @@ test("content and demo request remain visible without JavaScript", async ({ brow
   await expect(page.locator("#contactForm")).toBeVisible();
   await expect(page.locator("#contacto h2")).toBeVisible();
   await expect(page.locator("#contactSubmit")).toBeDisabled();
+  await expect(page.locator("#tu-negocio")).toContainText("Una muestra de lo que puedes hacer");
+  await expect(page.locator("#tu-negocio a[href='/precios']")).toBeVisible();
   await context.close();
+});
+
+test("selected capabilities open the matching interactive example", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/?sw=off", { waitUntil: "domcontentloaded" });
+  await page.getByRole("link", { name: "Funciones", exact: true }).click();
+  await expect(page).toHaveURL(/#tu-negocio$/);
+  const section = page.locator("#tu-negocio");
+  await expect(section).toContainText("Estas son cinco de sus funciones");
+  await expect(section).toContainText("dependen del plan");
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(section.getByRole("link", { name: "Explora más funciones" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  await section.getByRole("link", { name: "Explorar Recuperar clientes en la demostración" }).click();
+  await expect(page).toHaveURL(/\/demostracion\/#recuperar-clientes$/);
+  await expect(page.getByRole("heading", { name: "Recuperar clientes", exact: true })).toBeVisible();
+  await expect(page.getByText("Vista previa · datos de ejemplo", { exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
 });

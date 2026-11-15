@@ -111,10 +111,20 @@ progress::-moz-progress-bar { background: var(--accent-hover); }
 .journey-steps h3 { font-size: 23px; line-height: 1.2; letter-spacing: -.025em; }
 .journey-steps p { font-size: 14px; color: var(--muted); margin-top: 14px; }
 .step-detail { display: inline-block; margin-top: 24px; font-size: 12px; font-weight: 500; color: var(--accent); }
-.business-section { padding-block: 100px 32px; background: #302820; color: #f8f2e7; }
-.business-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 100px; }
-.business-intro h2 { color: var(--gold); }
-.business-intro > p { max-width: 39ch; margin-top: 27px; font-size: 15px; color: #d1c6b7; }
+.business-section { padding-block: 88px 48px; background: #302820; color: #f8f2e7; }
+.business-heading { display: grid; grid-template-columns: 1.1fr 1fr; align-items: end; gap: 80px; margin-bottom: 56px; }
+.business-heading h2 { color: var(--gold); }
+.business-heading p { max-width: 48ch; font-size: 15px; color: #d1c6b7; }
+.business-heading strong { display: block; font-weight: 500; color: #f8f2e7; margin-bottom: 10px; }
+.business-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 80px; }
+.business-intro h3 { font-size: clamp(25px, 2.4vw, 32px); font-weight: 500; line-height: 1.2; letter-spacing: -.025em; }
+.business-intro > p { max-width: 52ch; margin-top: 18px; font-size: 15px; color: #d1c6b7; }
+.business-preview { margin: 28px 0 0; }
+.business-preview > a { display: block; border-radius: 12px; }
+.business-preview img { width: 100%; height: auto; border-radius: 12px; }
+.business-preview figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; margin-top: 12px; font-size: 12px; line-height: 1.7; color: #d1c6b7; }
+.business-preview figcaption a { display: inline-flex; align-items: center; gap: 6px; color: var(--gold); text-decoration: underline; }
+.business-preview figcaption svg { width: 14px; height: 14px; }
 .text-link-light { margin-top: 27px; color: #f8f2e7; text-decoration-color: #887c6f; font-size: 13px; }
 .text-link-light:hover { color: var(--gold); }
 .business-section :focus-visible { outline-color: var(--gold); }
@@ -123,6 +133,12 @@ progress::-moz-progress-bar { background: var(--accent-hover); }
 .capabilities > div:last-child { border-bottom: 1px solid #695b4e; }
 .capabilities dt { font: 500 23px/1.2 var(--brand-font); letter-spacing: -.025em; }
 .capabilities dd { margin: 10px 0 0; font-size: 13px; line-height: 1.7; max-width: 40ch; color: #d1c6b7; }
+.business-next { display: flex; justify-content: space-between; align-items: center; gap: 32px; margin-top: 48px; padding-top: 28px; border-top: 1px solid #695b4e; }
+.business-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; }
+.business-actions .text-link-light { margin-top: 0; }
+.button-business { background: var(--gold); color: var(--ink); }
+.button-business:hover { background: #e7cc87; color: var(--ink); }
+.business-next > p { max-width: 39ch; font-size: 12px; color: #d1c6b7; }
 .offline-note { display: flex; gap: 15px; align-items: center; border-top: 1px solid #695b4e; margin-top: 65px; padding-top: 27px; }
 .offline-note svg { color: var(--gold); }
 .offline-note p { font-size: 12px; color: #d1c6b7; }
@@ -192,7 +208,7 @@ progress::-moz-progress-bar { background: var(--accent-hover); }
   h1 { font-size: clamp(54px, 7vw, 80px); }
   .hero-visual { min-height: 560px; }
   .loyalty-demo { width: 315px; padding: 23px; }
-  .business-grid, .contact-layout { gap: 65px; }
+  .business-grid, .business-heading, .contact-layout { gap: 48px; }
   .faq-section { gap: 55px; }
   .main-nav { gap: 24px; }
   .journey-steps { gap: 28px; }
@@ -270,8 +286,11 @@ progress::-moz-progress-bar { background: var(--accent-hover); }
   .step-detail { margin-top: 14px; }
   .business-section { padding-block: 62px 26px; }
   .business-grid { grid-template-columns: 1fr; gap: 40px; }
-  .business-intro h2 { font-size: 53px; }
+  .business-heading { grid-template-columns: 1fr; gap: 22px; margin-bottom: 36px; }
+  .business-heading h2 { font-size: 48px; }
+  .business-heading p { font-size: 14px; }
   .business-intro > p { max-width: 42ch; font-size: 14px; }
+  .business-next { align-items: flex-start; flex-direction: column; gap: 20px; margin-top: 32px; }
   .capabilities dt { font-size: 22px; }
   .capabilities > div { padding-block: 23px; }
   .offline-note { margin-top: 30px; align-items: flex-start; }
