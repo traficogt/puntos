@@ -134,12 +134,12 @@ function main() {
   checkCriticalTests();
   checkMigrationLock();
   checkWorkflowGates();
-  console.log("Release checklist: OK");
+  console.log("Static release checklist: OK (files, scripts, workflow text and migration checksums only; no functional tests executed)");
 }
 
 try {
   main();
 } catch (error) {
-  console.error(`Release checklist: FAIL: ${error?.message || error}`);
+  console.error(`Static release checklist: FAIL: ${error?.message || error}`);
   process.exit(1);
 }
