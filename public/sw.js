@@ -1,4 +1,4 @@
-const CACHE = "pf-v49";
+const CACHE = "pf-v50";
 const CORE_ASSETS = [
   "/crear-negocio/", "/equipo/ingresar/", "/equipo/escaner/",
   "/mi-tarjeta/", "/administracion/", "/plataforma/", "/registro/", "/ingresar/",

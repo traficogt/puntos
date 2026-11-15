@@ -11,7 +11,7 @@ const idbStub = dataModule("export const clearCustomerCache=async()=>{globalThis
 const meStub = dataModule("export const renderFromMe=async({$},me,online)=>{globalThis.__growthLifecycle.renders.push({me,online});$('#main').hidden=false;$('#main').classList.toggle('is-hidden',false);$('#tierSection').hidden=!globalThis.__growthLifecycle.hasTier;$('#tierSection').classList.toggle('is-hidden',!globalThis.__growthLifecycle.hasTier);return {status:online?'live':'offline'};};");
 const networkStub = dataModule("export const setOnlineBadge=()=>{};");
 const qrStub = dataModule("export const createQrController=()=>({generateQR:async()=>{},dispose:()=>{globalThis.__growthLifecycle.disposed++;}});");
-const demandStub = dataModule("export const clearCustomerDemand=()=>{};export const loadCustomerDemand=async()=>{globalThis.__growthLifecycle.demandStarted=true;await globalThis.__growthLifecycle.demandGate;};");
+const demandStub = dataModule("export const pauseCustomerDemand=()=>{};export const loadCustomerDemand=async()=>{globalThis.__growthLifecycle.demandStarted=true;await globalThis.__growthLifecycle.demandGate;};");
 // All module sources are fixed repository fixtures; only browser-only imports are replaced.
 // eslint-disable-next-line security/detect-non-literal-fs-filename
 const offerSource = await readFile(new URL("../../public/customer/growth-offers.js", import.meta.url), "utf8");

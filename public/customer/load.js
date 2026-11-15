@@ -1,4 +1,4 @@
-import {clearCustomerDemand,loadCustomerDemand} from './demand-notebook.js';
+import {pauseCustomerDemand,loadCustomerDemand} from './demand-notebook.js';
 import { clearRewardEntitlements, loadRewardEntitlements } from "./reward-entitlements.js";
 import { clearGrowthOffers, loadGrowthOffers } from "./growth-offers.js";
 import { clearCustomerCache, getCustomerCacheSnapshot, putCustomerCache } from "/idb.js";
@@ -20,7 +20,7 @@ export async function loadAll({ api, $, toast, silent = false }) {
   let epoch = getCustomerEpoch();
   const isCurrent = () => loadId === latestLoad && epoch === getCustomerEpoch();
   setOnlineBadge($);
-  clearCustomerDemand();
+  pauseCustomerDemand();
   clearGrowthOffers($);
   clearRewardEntitlements($);
   const identity = getCustomerIdentity();
@@ -37,6 +37,7 @@ export async function loadAll({ api, $, toast, silent = false }) {
     if (!me?.business?.id || !me?.customer?.id) throw new Error("Respuesta de tarjeta inválida");
     const currentIdentity = rememberCustomerIdentity(me);
     epoch = getCustomerEpoch();
+    pauseCustomerDemand(currentIdentity);
     await putCustomerCache("me", me, currentIdentity).catch(() => {});
     if (!isCurrent()) return { status: "superseded" };
     const snapshot = await getCustomerCacheSnapshot(currentIdentity).catch(() => null);
@@ -47,7 +48,7 @@ export async function loadAll({ api, $, toast, silent = false }) {
     if (!isCurrent()) return { status: "superseded" };
     // This form mounts above offers and tiers. Finish its layout before a
     // requested Wallet destination scrolls into view.
-    await loadCustomerDemand({api,$,isCurrent});
+    await loadCustomerDemand({api,$,isCurrent,identity:currentIdentity});
     if (!isCurrent()) return { status: "superseded" };
     if (!silent) toast(result?.status === "partial" ? "Algunos datos no se pudieron actualizar. Intenta de nuevo." : "Tarjeta actualizada.");
     return result || { status: "live" };

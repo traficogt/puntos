@@ -5,7 +5,7 @@ const states={new:'Recibida',reviewing:'En revisión',planned:'Planificada',avai
 export function mountDemandNotebook({container,source='customer',getContext=()=>({}),request=api}){
  if(!container||!['staff','customer'].includes(source))return{destroy(){},refresh:async()=>{}};
  if(!document.getElementById('pf-demand-notebook-style')){const link=document.createElement('link');link.id='pf-demand-notebook-style';link.rel='stylesheet';link.href='/styles/demand-notebook.css';document.head.append(link);}
- const prefix=`demand-${crypto.randomUUID()}`,abort=new AbortController();let busy=false,pending=null;
+ const prefix=`demand-${crypto.randomUUID()}`,abort=new AbortController();let busy=false,pending=null,paused=false,refreshError='';
  const make=(tag,text)=>{const element=document.createElement(tag);if(text)element.textContent=text;return element;};
  const section=make('section');section.className='demand-notebook';section.setAttribute('aria-labelledby',`${prefix}-title`);
  const title=make('h2',source==='staff'?'Anotar un pedido':'¿Qué te gustaría encontrar?');title.id=`${prefix}-title`;section.append(title,make('p',source==='staff'?'Registra lo que pidió una persona. Si seleccionaste un cliente, su pedido contará una sola vez por tema.':'Comparte una idea con este negocio. Es un pedido para revisar, sin compromiso de compra ni garantía de disponibilidad.'));
@@ -20,19 +20,30 @@ export function mountDemandNotebook({container,source='customer',getContext=()=>
  const submit=make('button','Guardar pedido');submit.type='submit';submit.className='btn btn-primary';
  const reload=make('button','Actualizar pedidos');reload.type='button';reload.className='btn btn-secondary';
  const history=make('div');form.append(submit);section.append(form,notice,reload,history);container.append(section);
+ function setPaused(value){paused=Boolean(value);submit.disabled=paused||busy;reload.disabled=paused;}
  async function refresh(){
+  if(paused||abort.signal.aborted)return;
   try{const data=await request(`/api/${source}/demand-notebook`,{cache:'no-store',signal:abort.signal});if(abort.signal.aborted)return;
-   reward.replaceChildren(none);for(const row of data.rewards??[]){const option=make('option',row.name);option.value=row.id;reward.append(option);}const selected=getContext();if(selected.rewardId)reward.value=selected.rewardId;
+   if(refreshError&&notice.textContent===refreshError)notice.textContent='';refreshError='';
+   const selectedReward=reward.value||getContext().rewardId;
+   const previousLabel=[...reward.children].find(option=>option.value===selectedReward)?.textContent;
+   reward.replaceChildren(none);for(const row of data.rewards??[]){const option=make('option',row.name);option.value=row.id;reward.append(option);}
+   if((data.rewards??[]).some(row=>row.id===selectedReward))reward.value=selectedReward;
+   else if(selectedReward&&pending?.body.reward_id===selectedReward){
+    // A catalog change must not change the body/key of an uncertain retry.
+    const label=previousLabel?.endsWith(' (envío pendiente)')?previousLabel:`${previousLabel||'Recompensa'} (envío pendiente)`;
+    const option=make('option',label);option.value=selectedReward;option.disabled=true;reward.append(option);reward.value=selectedReward;
+   }
    history.replaceChildren();if(source==='customer'&&data.requests?.length){history.append(make('h3','Tus pedidos'));const list=make('ul');for(const row of data.requests){const item=make('li',`${row.topic} · ${states[row.status]??row.status}`);list.append(item);}history.append(list);}
-  }catch(error){if(error.name!=='AbortError')notice.textContent=error.message||'No pudimos cargar los pedidos. Actualiza para intentar otra vez.';}
+  }catch(error){if(error.name!=='AbortError'){refreshError=error.message||'No pudimos cargar los pedidos. Actualiza para intentar otra vez.';notice.textContent=refreshError;}}
  }
  form.addEventListener('submit',async event=>{
-  event.preventDefault();if(busy||!form.reportValidity())return;
+  event.preventDefault();if(busy||paused||abort.signal.aborted||!form.reportValidity())return;
   const selected=getContext(),body={category:category.value,topic:topic.value.trim(),note:note.value.trim(),reward_id:reward.value||null,product_context:context.value.trim()||null,...(source==='staff'?{customer_id:selected.customerId??null}:{})},key=JSON.stringify(body);
   if(pending?.key!==key)pending={key,body:{...body,request_id:crypto.randomUUID()}};
   busy=true;submit.disabled=true;notice.textContent='Guardando pedido…';
-  try{const result=await request(`/api/${source}/demand-notebook`,{method:'POST',body:JSON.stringify(pending.body),signal:abort.signal});if(abort.signal.aborted)return;pending=null;form.reset();await refresh();notice.textContent=result.deduplicated?'Este cliente ya tiene un pedido de este tema. Se conserva un solo registro.':'Pedido guardado. El negocio podrá revisarlo.';}catch(error){if(error.name!=='AbortError')notice.textContent=error.message||'No pudimos guardar. Reintenta con conexión.';}finally{busy=false;submit.disabled=false;}
+  try{const result=await request(`/api/${source}/demand-notebook`,{method:'POST',body:JSON.stringify(pending.body),signal:abort.signal});if(abort.signal.aborted)return;pending=null;form.reset();await refresh();notice.textContent=result.deduplicated?'Este cliente ya tiene un pedido de este tema. Se conserva un solo registro.':'Pedido guardado. El negocio podrá revisarlo.';}catch(error){if(error.name!=='AbortError')notice.textContent=error.message||'No pudimos guardar. Reintenta con conexión.';}finally{busy=false;setPaused(paused);}
  },{signal:abort.signal});
  reload.addEventListener('click',refresh,{signal:abort.signal});const ready=refresh();
- return{ready,refresh,destroy(){abort.abort();section.remove();}};
+ return{ready,refresh,setPaused,destroy(){abort.abort();section.remove();}};
 }
