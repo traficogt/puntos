@@ -5,14 +5,41 @@ export function onCustomerViewClear(callback) {
 }
 const IDENTITY_KEY = "pf_customer_identity";
 const EPOCH_KEY = "pf_customer_epoch";
-let memoryEpoch = "";
+const memoryStorage = new Map();
+let observedStorageEpoch;
 
 export function readCustomerStorage(key) {
-  try { return localStorage.getItem(key) || ""; } catch { return ""; }
+  try {
+    const epoch = localStorage.getItem(EPOCH_KEY) || "";
+    // A different tab's session supersedes local fallbacks, even when this tab
+    // could not persist its own logout or verification.
+    if (observedStorageEpoch !== undefined && epoch !== observedStorageEpoch) memoryStorage.clear();
+    observedStorageEpoch = epoch;
+    const stored = key === EPOCH_KEY ? epoch : localStorage.getItem(key) || "";
+    const memory = memoryStorage.get(key);
+    if (memory && (memory.stored === undefined || memory.stored === stored)) {
+      memory.stored = stored;
+      return memory.value;
+    }
+    memoryStorage.delete(key);
+    return stored;
+  } catch { return memoryStorage.get(key)?.value || ""; }
+}
+
+function writeCustomerStorage(key, value) {
+  let stored;
+  try { stored = localStorage.getItem(key) || ""; } catch { /* Reads may also be restricted. */ }
+  try {
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+    stored = value;
+  } catch { /* Keep this tab's session state when storage is full or restricted. */ }
+  memoryStorage.set(key, { value, stored });
+  if (key === EPOCH_KEY && stored !== undefined) observedStorageEpoch = stored;
 }
 
 export function getCustomerEpoch() {
-  try { return localStorage.getItem(EPOCH_KEY) || ""; } catch { return memoryEpoch; }
+  return readCustomerStorage(EPOCH_KEY);
 }
 
 export function getCustomerIdentity() {
@@ -24,24 +51,19 @@ export function getCustomerIdentity() {
 }
 
 export function invalidateCustomerIdentity({ block = false } = {}) {
-  memoryEpoch = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
-  try {
-    localStorage.setItem(EPOCH_KEY, memoryEpoch);
-    localStorage.removeItem(IDENTITY_KEY);
-    localStorage.removeItem("pf_phone");
-    if (block) localStorage.setItem("pf_customer_blocked", "1");
-    else localStorage.removeItem("pf_customer_blocked");
-  } catch { /* Restricted storage disables offline identity recovery. */ }
+  getCustomerEpoch();
+  writeCustomerStorage(EPOCH_KEY, globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
+  writeCustomerStorage(IDENTITY_KEY, "");
+  writeCustomerStorage("pf_phone", "");
+  writeCustomerStorage("pf_customer_blocked", block ? "1" : "");
 }
 
 export function rememberCustomerIdentity(me) {
   const identity = { businessId: String(me.business.id), customerId: String(me.customer.id), slug: String(me.business.slug || "") };
   const previous = getCustomerIdentity();
   if (previous && (previous.businessId !== identity.businessId || previous.customerId !== identity.customerId)) invalidateCustomerIdentity();
-  try {
-    localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
-    localStorage.setItem("pf_customer_slug", identity.slug);
-  } catch { /* A valid online wallet does not depend on local storage. */ }
+  writeCustomerStorage(IDENTITY_KEY, JSON.stringify(identity));
+  writeCustomerStorage("pf_customer_slug", identity.slug);
   return identity;
 }
 

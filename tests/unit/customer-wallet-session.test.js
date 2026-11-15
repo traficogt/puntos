@@ -102,6 +102,27 @@ test("a response started before logout cannot restore private cached or rendered
   assert.equal(h.state.renders.length, 0);
 });
 
+test("quota failure cannot let a response that predates logout restore the wallet", async t => {
+  const h = harness(t);
+  const { invalidateCustomerIdentity, clearWalletView } = await import(sessionUrl);
+  let finish = /** @type {(value: typeof me) => void} */ (() => {});
+  let first = true;
+  const api = () => {
+    if (!first) return Promise.resolve({});
+    first = false;
+    return new Promise(resolve => { finish = resolve; });
+  };
+  const pending = loadAll({ ...h, api });
+  t.mock.method(localStorage, "setItem", () => { throw new Error("QuotaExceededError"); });
+  invalidateCustomerIdentity({ block: true });
+  clearWalletView(h.$);
+  finish(me);
+  await pending;
+  assert.equal(h.state.writes.length, 0);
+  assert.equal(h.state.renders.length, 0);
+  assert.equal(h.elements["#main"].hidden, true);
+});
+
 test("another tab cannot reopen a wallet while logout is pending or failed", async t => {
   const h = harness(t);
   h.saved.set("pf_customer_blocked", "1");
