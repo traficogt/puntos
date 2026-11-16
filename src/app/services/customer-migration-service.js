@@ -88,10 +88,13 @@ export async function commitCustomerMigration({ businessId, staffId, requestId, 
         skipped += 1;
         continue;
       }
-      await client.query(`INSERT INTO customer_balances(customer_id,points,pending_points,lifetime_points)
-        VALUES($1,$2,0,$2)`, [customerId, row.points]);
-      await client.query(`INSERT INTO transactions(id,business_id,customer_id,staff_user_id,type,source,status,points,amount_q,visits,items,meta)
-        VALUES($1,$2,$3,$4,'OPENING_BALANCE','migration','POSTED',$5,0,0,0,$6::jsonb)`,
+      // Keep customer creation in its own statement: balance RLS must see it.
+      // The RETURNING dependency orders these two writes in one round trip.
+      await client.query(`WITH opening_balance AS (
+        INSERT INTO customer_balances(customer_id,points,pending_points,lifetime_points)
+        VALUES($3,$5,0,$5) RETURNING customer_id,points
+      ) INSERT INTO transactions(id,business_id,customer_id,staff_user_id,type,source,status,points,amount_q,visits,items,meta)
+        SELECT $1,$2,customer_id,$4,'OPENING_BALANCE','migration','POSTED',points,0,0,0,$6::jsonb FROM opening_balance`,
       [randomUUID(), businessId, customerId, staffId, row.points, JSON.stringify(withImpersonationMeta({ migration_batch_id: batchId, csv_row: row.row,...(source?{source_evidence:{...source,approved_by_staff_id:staffId},source_units:row.source_units??row.points}:{} ) }, { impersonated_by }))]);
       imported += 1;
       openingPoints += row.points;

@@ -52,6 +52,9 @@ integration('customer migration against restricted tenant role in disposable Pos
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     await db.query(await readFile(new URL('../../src/app/migrations/2026-11-11-pilot-evidence.sql', import.meta.url), 'utf8'));
     await db.query('ALTER TABLE customer_migration_batches ADD COLUMN IF NOT EXISTS source_evidence jsonb');
+    await db.query("ALTER TABLE staff_users ADD COLUMN active boolean NOT NULL DEFAULT true, ADD COLUMN role text NOT NULL DEFAULT 'OWNER'");
+    // Source evidence checks the owner FOR SHARE, which requires UPDATE privilege.
+    await db.query('GRANT UPDATE ON staff_users TO migration_launch_tenant');
     await db.query('GRANT SELECT,INSERT ON customer_migration_batches TO migration_launch_tenant; GRANT SELECT ON merchant_pilots,merchant_pilot_checks TO migration_launch_tenant');
     migration = await import('../../src/app/services/customer-migration-service.js');
   });
@@ -92,6 +95,56 @@ integration('customer migration against restricted tenant role in disposable Pos
     assert.equal(audit[0].meta.opening_points, 100);
     assert.ok(!JSON.stringify(audit[0].meta).includes('55550001'));
     assert.equal((await db.query('SELECT * FROM customer_marketing_preferences')).rowCount, 0);
+  });
+
+  it('imports a full chunk with at most three service statements per customer while preserving exact balances', async () => {
+    let statements = 0;
+    const counted = { ...deps(), transaction: fn => scoped(businessId)(client => fn({ query: (sql, values) => {
+      statements++;
+      return client.query(sql, values);
+    } })) };
+    const full = 'Teléfono,Nombre,Saldo\n' + Array.from({ length: 100 }, (_, index) => `${55551000 + index},Fictional ${index},2`).join('\n');
+    const { batch } = await commit({ csv: full }, counted);
+    assert.equal(batch.imported_count, 100); assert.equal(batch.opening_points, 200);
+    const rows = (await db.query(`SELECT c.id,c.phone,b.points,b.pending_points,b.lifetime_points,t.points AS ledger_points,t.meta
+      FROM customers c JOIN customer_balances b ON b.customer_id=c.id
+      JOIN transactions t ON t.customer_id=c.id WHERE c.business_id=$1`, [businessId])).rows;
+    assert.equal(rows.length, 100); assert.equal(new Set(rows.map(row => row.id)).size, 100);
+    assert.equal(new Set(rows.map(row => row.phone)).size, 100);
+    assert.ok(rows.every(row => row.points === 2 && row.pending_points === 0 && row.lifetime_points === 2 && row.ledger_points === 2 && row.meta.migration_batch_id === batch.id));
+    assert.ok(statements <= 305, `Expected at most 305 service SQL calls for 100 customers; observed ${statements}`);
+  });
+
+  it('mixed duplicate rows preserve source evidence, reject atomically, and replay without additional balances', async () => {
+    await commit({ csv: 'Teléfono,Nombre,Saldo\n55550002,Original fictional name,77' });
+    const snapshot = async () => (await db.query(`SELECT c.id,c.phone,c.name,b.points,b.pending_points,b.lifetime_points,
+      t.id AS transaction_id,t.points AS ledger_points,t.meta
+      FROM customers c JOIN customer_balances b ON b.customer_id=c.id
+      JOIN transactions t ON t.customer_id=c.id ORDER BY c.phone`)).rows;
+    const before = await snapshot();
+    const mixed = 'Teléfono,Nombre,Saldo\n55550003,Zero fictional balance,0\n55550002,Must not replace,999\n55550001,New fictional balance,10';
+    const source = { type: 'csv_balance', label: 'Fictional register', evidence: 'Owner reviewed fictional records' };
+    const request = { requestId: randomUUID(), csv: mixed, source, impersonated_by: 'fixture-support@example.invalid' };
+    await assert.rejects(commit({ ...request, existingPolicy: 'reject' }), { statusCode: 409 });
+    assert.deepEqual(await snapshot(), before, 'A conflict after the first sorted new row rolls back all its effects');
+    assert.equal((await db.query('SELECT * FROM customer_migration_batches')).rowCount, 1);
+    assert.equal((await db.query('SELECT * FROM audit_logs')).rowCount, 1);
+    const result = await commit(request), saved = await snapshot();
+    assert.equal(result.batch.imported_count, 2); assert.equal(result.batch.skipped_count, 1); assert.equal(result.batch.opening_points, 10);
+    assert.deepEqual(saved.find(row => row.phone === '50255550002'), before[0]);
+    assert.deepEqual(saved.map(row => [row.phone, row.points, row.pending_points, row.lifetime_points, row.ledger_points]), [
+      ['50255550001', 10, 0, 10, 10], ['50255550002', 77, 0, 77, 77], ['50255550003', 0, 0, 0, 0]
+    ]);
+    for (const row of saved.filter(row => row.phone !== '50255550002')) {
+      assert.deepEqual(row.meta.source_evidence, { ...source, approved_by_staff_id: staffId });
+      assert.equal(row.meta.impersonated_by_super_admin_email, request.impersonated_by);
+      assert.equal(row.meta.csv_row, row.phone === '50255550001' ? 4 : 2);
+    }
+    assert.deepEqual(await commit(request), result);
+    assert.deepEqual(await snapshot(), saved);
+    assert.equal((await db.query('SELECT * FROM customer_migration_batches')).rowCount, 2);
+    const audits = (await db.query("SELECT meta FROM audit_logs WHERE meta->>'batch_id'=$1", [result.batch.id])).rows;
+    assert.equal(audits.length, 1); assert.equal(audits[0].meta.impersonated_by_super_admin_email, request.impersonated_by);
   });
 
   it('preview is bounded and read-only; normalized existing and deleted identities are never overwritten', async () => {
