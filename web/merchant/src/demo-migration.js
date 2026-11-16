@@ -1,7 +1,9 @@
 import { normalizeCustomerMigration, summarizeCustomerMigration } from '../../../src/app/services/customer-migration-csv.js';
 
+import {demoCustomerStore} from './demo-customer-store.js';
+
 // Synthetic state lives in this page only; this module has no network or persistence API.
-export const demoImportedPhones = new Set();
+export const demoImportedPhones = demoCustomerStore.phones;
 const phones = demoImportedPhones;
 const batches = [];
 const requests = new Map();
@@ -26,7 +28,7 @@ export function demoMigration(url, options = {}) {
       row_count: preview.summary.total, imported_count: preview.summary.new_customers, skipped_count: preview.summary.existing_customers,
       opening_points: preview.summary.opening_points,source_evidence:body.source??null, created_at: new Date().toISOString()
     };
-    for (const row of preview.rows) if (row.status === 'new') phones.add(row.phone);
+    for (const row of preview.rows) if (row.status === 'new') demoCustomerStore.importCustomer(row);
     batches.unshift(batch);
     const result = { batch };
     requests.set(body.request_id, { signature, result });

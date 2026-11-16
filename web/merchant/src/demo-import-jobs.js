@@ -1,12 +1,13 @@
 import {normalizeCustomerMigration,summarizeCustomerMigration} from '../../../src/app/services/customer-migration-csv.js';
-import {demoImportedPhones} from './demo-migration.js';
+import {demoCustomerStore} from './demo-customer-store.js';
+const demoImportedPhones = demoCustomerStore.phones;
 const jobs=[],requests=new Map(),pending=new Map();
 function processJob(job){
  setTimeout(()=>{
   if(job.status!=='queued')return;
   const work=pending.get(job.id),out=summarizeCustomerMigration(work.normalized,demoImportedPhones,work.existingPolicy);
   if(!out.can_commit){Object.assign(job,{status:'failed',last_error:'El lote se detuvo por un conflicto. Revisa los teléfonos existentes.'});return;}
-  for(const row of out.rows)if(row.status==='new')demoImportedPhones.add(row.phone);
+  for(const row of out.rows)if(row.status==='new')demoCustomerStore.importCustomer(row);
   Object.assign(job,{status:'completed',processed:job.total,imported:out.summary.new_customers,skipped:out.summary.existing_customers,opening_points:out.summary.opening_points});
   pending.delete(job.id);
  },1200);

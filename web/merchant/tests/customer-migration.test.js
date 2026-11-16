@@ -18,7 +18,7 @@ test('migration payload requires a mapped phone, explicit confirmation and bound
 test('demo is isolated, previews real CSV errors and keeps batch retries and existing balances safe', () => {
   assert.equal(typeof demo.demoMigration, 'function');
   const invoke = (suffix, body) => demo.demoMigration(new URL(`https://demo.test/api/admin/customer-migrations${suffix}`), body ? { method: 'POST', body: JSON.stringify(body) } : {});
-  const payload = { csv: 'Teléfono,Nombre,Saldo\n55550001,Ana,100\n55550002,Beto,0', columns: { phone: 'Teléfono', name: 'Nombre', points: 'Saldo' }, existing_policy: 'skip' };
+  const payload = { csv: 'Teléfono,Nombre,Saldo\n55550861,Ana,100\n55550862,Beto,0', columns: { phone: 'Teléfono', name: 'Nombre', points: 'Saldo' }, existing_policy: 'skip' };
   assert.equal(invoke('/preview', payload).summary.new_customers, 2);
   const body = { ...payload, request_id: 'same-request', label: 'Anterior', confirmed: true };
   assert.throws(() => invoke('/commit', { ...body, confirmed: false }));
