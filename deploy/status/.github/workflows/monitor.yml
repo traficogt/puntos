@@ -1,0 +1,48 @@
+name: Comprobaciones externas
+on:
+  schedule:
+    - cron: '2-57/5 * * * *'
+  workflow_dispatch:
+concurrency:
+  group: public-status-monitor
+  cancel-in-progress: false
+permissions:
+  contents: write
+  issues: write
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24.22.3'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Comprobar y conservar cada observación
+        id: upptime
+        continue-on-error: true
+        uses: upptime/uptime-monitor@74f0683383384927e064d76a5f21f340d6af36fc # v1.46.5
+        with:
+          command: response-time
+        env:
+          GH_PAT: ${{ github.token }}
+      - name: Preparar estado público sin datos privados
+        run: node build-snapshot.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          UPPTIME_OUTCOME: ${{ steps.upptime.outcome }}
+      - name: Guardar resultado observable
+        run: |
+          git config user.name 'PuntosFieles status'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add status.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Actualizar comprobación pública [skip ci]'
+            git push origin HEAD:main
+          fi
+      - name: Informar fallo del monitor
+        if: steps.upptime.outcome != 'success'
+        run: exit 1

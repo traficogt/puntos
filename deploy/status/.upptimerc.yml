@@ -1,0 +1,38 @@
+owner: traficogt
+repo: puntos-estado
+user-agent: PuntosFieles-Status
+skipDeleteIssues: true
+skipDescriptionUpdate: true
+skipTopicsUpdate: true
+skipHomepageUpdate: true
+sites:
+  - name: Sitio web
+    slug: sitio
+    url: https://puntosfieles.com/
+    expectedStatusCodes: [200]
+    __dangerous__body_down_if_text_missing: PuntosFieles
+  - name: Acceso a la aplicación
+    slug: acceso
+    url: https://app.puntosfieles.com/equipo/ingresar/
+    expectedStatusCodes: [200]
+    __dangerous__body_down_if_text_missing: PuntosFieles
+  - name: Conexión con el sistema
+    slug: sistema
+    url: https://puntosfieles.com/api/ready
+    expectedStatusCodes: [200]
+    __dangerous__body_down_if_text_missing: '"ready":true'
+  - name: Centro de ayuda
+    slug: ayuda
+    url: https://puntosfieles.com/ayuda/
+    expectedStatusCodes: [200]
+    __dangerous__body_down_if_text_missing: PuntosFieles
+  - name: Formulario de soporte
+    slug: soporte
+    url: https://puntosfieles.com/api/public/support/config
+    expectedStatusCodes: [200]
+status-website:
+  name: PuntosFieles
+  baseUrl: /puntos-estado
+commitMessages:
+  commitAuthorName: PuntosFieles status
+  commitAuthorEmail: 41898282+github-actions[bot]@users.noreply.github.com

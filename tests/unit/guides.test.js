@@ -68,7 +68,7 @@ test('empty hub is useful, canonical, and excluded from search and the sitemap',
   assert.equal((response.text.match(/<h1\b/g) || []).length, 1);
   assert.doesNotMatch(response.text, /"@type":"Article"|<article\b|Lorem ipsum/i);
   const sitemap = await request('/sitemap.xml');
-  assert.equal((sitemap.text.match(/<loc>/g) || []).length, 5);
+  assert.equal((sitemap.text.match(/<loc>/g) || []).length, 7);
   assert.doesNotMatch(sitemap.text, /guias/);
 });
 

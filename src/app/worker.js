@@ -1,4 +1,5 @@
 import {runSecondVisitAutomationsOnce} from './services/second-visit-service.js';
+import { purgeExpiredSupportAttachments } from './services/support-case-maintenance.js';
 import {processWeeklyOwnerBriefsOnce} from './services/weekly-owner-brief-service.js';
 import express from "express";
 import { processNativeWalletUpdates } from "./services/native-wallet/runtime.js";
@@ -30,8 +31,18 @@ let mobilePushInterval;
 let cronTask;
 let server;
 
+async function purgeSupportImages() {
+  try {
+    const { deleted } = await purgeExpiredSupportAttachments();
+    logger.info({ deleted }, 'Worker: expired support screenshots removed');
+  } catch {
+    logger.warn('Worker: support screenshot maintenance did not complete');
+  }
+}
+
 async function startWorkers() {
   await initDatabase();
+  await purgeSupportImages();
 
   // Ensure secrets are rotated before processing jobs/webhooks
   try {
@@ -85,6 +96,7 @@ async function startWorkers() {
   }, 300_000);
   const hour = String(config.CHURN_SEND_HOUR_LOCAL).padStart(2, "0");
   cronTask = cron.schedule(`0 ${hour} * * *`, async () => {
+    await purgeSupportImages();
     try { await runLifecycleOnce(); }
     catch { logger.warn("Worker: daily lifecycle maintenance did not complete"); }
     try {

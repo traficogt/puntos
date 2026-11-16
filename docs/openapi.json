@@ -9287,6 +9287,60 @@
         }
       }
     },
+    "/api/v1/public/support/attachment": {
+      "post": {
+        "summary": "Derived POST /api/v1/public/support/attachment",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-csrf-required": true
+      }
+    },
+    "/api/v1/public/support/cases": {
+      "post": {
+        "summary": "Derived POST /api/v1/public/support/cases",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-csrf-required": true
+      }
+    },
+    "/api/v1/public/support/config": {
+      "get": {
+        "summary": "Derived GET /api/v1/public/support/config",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/v1/public/support/reply": {
+      "post": {
+        "summary": "Derived POST /api/v1/public/support/reply",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-csrf-required": true
+      }
+    },
+    "/api/v1/public/support/track": {
+      "post": {
+        "summary": "Derived POST /api/v1/public/support/track",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-csrf-required": true
+      }
+    },
     "/api/v1/ready": {
       "get": {
         "summary": "Readiness probe",
@@ -11143,6 +11197,114 @@
     "/api/v1/super/security/rotate-secrets": {
       "post": {
         "summary": "Derived POST /api/v1/super/security/rotate-secrets",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "superAuth": []
+          }
+        ],
+        "x-csrf-required": true
+      }
+    },
+    "/api/v1/super/support/cases": {
+      "get": {
+        "summary": "Derived GET /api/v1/super/support/cases",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "superAuth": []
+          }
+        ],
+        "x-csrf-required": true
+      }
+    },
+    "/api/v1/super/support/cases/{id}": {
+      "get": {
+        "summary": "Derived GET /api/v1/super/support/cases/{id}",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "superAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true
+      },
+      "patch": {
+        "summary": "Derived PATCH /api/v1/super/support/cases/{id}",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "superAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true
+      }
+    },
+    "/api/v1/super/support/cases/{id}/attachment": {
+      "get": {
+        "summary": "Derived GET /api/v1/super/support/cases/{id}/attachment",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "superAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true
+      }
+    },
+    "/api/v1/super/support/search": {
+      "post": {
+        "summary": "Derived POST /api/v1/super/support/search",
         "responses": {
           "200": {
             "description": "Success"

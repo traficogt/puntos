@@ -81,7 +81,8 @@ export const domainSuites = [
   { name: 'service-completion', env: 'SERVICE_COMPLETION_TEST_DB_URL', database: 'service_completion_test', fullSchema: true },
   { name: 'service-recovery', env: 'SERVICE_RECOVERY_TEST_DB_URL', database: 'service_recovery_test' },
   { name: 'staff-delegation', env: 'STAFF_DELEGATION_TEST_DB_URL', database: 'staff_delegation_test' },
-  { name: 'transaction-explanations', env: 'TRANSACTION_EXPLANATION_TEST_DB_URL', database: 'transaction_explanation_test' }
+  { name: 'transaction-explanations', env: 'TRANSACTION_EXPLANATION_TEST_DB_URL', database: 'transaction_explanation_test' },
+  { name: 'support-cases', env: 'SUPPORT_CASES_TEST_DB_URL', database: 'support_cases_test' }
 ];
 
 /** @param {string[]} filters */
@@ -96,7 +97,7 @@ export function selectSuites(filters) {
 
 /** @param {NodeJS.ProcessEnv} inherited */
 function operatingEnvironment(inherited) {
-  return Object.fromEntries(['PATH', 'HOME', 'USER', 'TMPDIR', 'LANG', 'LC_ALL', 'CI'].filter(key => inherited[key] !== undefined).map(key => [key, inherited[key]]));
+  return Object.fromEntries(['PATH', 'HOME', 'USER', 'TMPDIR', 'LANG', 'LC_ALL', 'CI', 'PLAYWRIGHT_BROWSERS_PATH'].filter(key => inherited[key] !== undefined).map(key => [key, inherited[key]]));
 }
 
 /** @param {NodeJS.ProcessEnv} inherited

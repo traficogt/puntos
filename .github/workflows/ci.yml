@@ -62,6 +62,8 @@ jobs:
         run: PLAYWRIGHT_BROWSERS_PATH=0 node --test tests/integration/merchant-browser-gate.test.js
       - name: Customer offline wallet shell regression
         run: PLAYWRIGHT_BROWSERS_PATH=0 node --test tests/integration/customer-offline-shell.browser.test.js
+      - name: Public calculator, status and article illustrations
+        run: PLAYWRIGHT_BROWSERS_PATH=0 node --test tests/integration/loyalty-calculator.browser.test.js tests/integration/self-service-web.browser.test.js tests/integration/guides-editorial.browser.test.js
       - name: Staff offline and customer selection regressions
         run: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright test tests/e2e/staff-offline.spec.js --project=chromium --project=firefox --retries=0 --reporter=line
       - name: Tests
@@ -212,8 +214,23 @@ jobs:
           cache: npm
       - name: Install root dependencies
         run: npm ci --ignore-scripts
+      - name: Install Chromium for the support-case lifecycle
+        run: npx playwright install --with-deps chromium
       - name: Run all domain database suites in isolated PostgreSQL
         run: npm run test:integration:domains
+
+  help-center:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.13'
+      - name: Install pinned documentation dependencies
+        run: python -m pip install -r help/requirements.txt
+      - name: Validate links, source review and reproducible help
+        run: python help/scripts/build.py --check
 
   live-gamification-integration:
     runs-on: ubuntu-latest

@@ -438,7 +438,9 @@ function Merchant({ staff }) {
             )}
             <footer>
               ¿Necesitas ayuda?{" "}
-              <Anchor href="/soporte">Centro de soporte</Anchor>
+              <Anchor href="/ayuda/negocio/" target="_blank" rel="noopener noreferrer">Ayuda para tu negocio</Anchor>
+              {" · "}<Anchor href="/soporte" target="_blank" rel="noopener noreferrer">Contactar soporte</Anchor>
+              {" · "}<Anchor href="https://traficogt.github.io/puntos-estado/" target="_blank" rel="noopener noreferrer">Estado del servicio</Anchor>
             </footer>
           </main>
         </div>

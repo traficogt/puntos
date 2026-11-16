@@ -100,26 +100,55 @@
     },
     {
       "slug": "05-relojero",
-      "alt": "Relojero trabajando con una lupa en un mecanismo sobre una mesa iluminada por una lámpara.",
-      "scene": "A close, cinematic tabletop view of a craft watch-repair bench, seen diagonally over the shoulder of an older artisan. Their two anatomically accurate hands use fine tweezers above a small open pocket watch. An articulated sage desk lamp, a loupe, three carefully placed brass gears, a worn wooden work surface. Face only partly seen at the edge; hands and craftsmanship lead. Watch dial has simple ticks with no numerals or writing. Patient attention and service, no shops or plants.",
-      "prompt": "Use case: illustration-story. Create ONE entirely new premium editorial illustration, landscape 3:2. The two input images are STYLE REFERENCES ONLY, not edit targets: match their refined ink-and-gouache technique, delicate expressive espresso pen contours, selective crosshatching, muted pigment, warm ivory paper texture, quiet elegance and exceptional drawing craft. Do not copy their scenes or composition. Palette: ivory #f7f5ef, espresso #302820, sage #79836a, terracotta #a43d28 and pale ochre #d5b472. Keep the subject inset within generous paper margins; make a complete standalone work, not a collage. No text, lettering, labels, numerals, logo, signature or watermark. No photographs, 3D rendering, gradients, clip art, corporate blob people, excessive noise or glossy effects. Maintain sophisticated cultural-magazine illustration quality. Specific new scene: A close, cinematic tabletop view of a craft watch-repair bench, seen diagonally over the shoulder of an older artisan. Their two anatomically accurate hands use fine tweezers above a small open pocket watch. An articulated sage desk lamp, a loupe, three carefully placed brass gears, a worn wooden work surface. Face only partly seen at the edge; hands and craftsmanship lead. Watch dial has simple ticks with no numerals or writing. Patient attention and service, no shops or plants.",
-      "source": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-f55a5b0d-ccdf-4e10-8aad-6cab6a037040.png",
-      "original": "originals/05-relojero.png",
-      "sha256": "710463c7a9fd7f4c8fafcf6b21fb0c37b87a78ece71d4d648e6214f70854339a",
+      "alt": "Relojero examinando la parte posterior de un reloj de bolsillo, con la tapa abierta junto a la caja.",
+      "scene": "Corrección: reloj visto desde atrás, tapa a escala de la caja, esfera oculta y movimiento simplificado.",
+      "prompt": "Use case: precise-object-edit. EDIT TARGET: the supplied original PF watchmaker illustration. Keep its premium fine umber ink-and-gouache technique, warm ivory paper, sage lamp, restrained pigments, believable older artisan, over-shoulder viewpoint and landscape composition. Correct the watch construction and proportions; the original is mechanically unconvincing. Draw a conventional small mechanical pocket watch from its BACK, face down on a clean soft watchmaker mat beneath the hands, with the dial and hands completely hidden underneath, never a little off-center clock dial mixed with exposed gears. Its rear cover is open to the left, unfolded almost flat at about 170 degrees, a circular shallow brass case-back attached by ONE plausible small hinge at the case rim. Watch body and cover have the SAME external diameter, around 50mm; at nearly the same tilt and distance their projected widths and ellipses must clearly match, and the cover rim must visibly be able to close over the entire watch case. The watch body remains truly circular, not oval except for coherent perspective. Use a restrained, credible visible movement: a broad metal bridge/plate covering most of it, a few correctly seated screw heads, one brass winding wheel, one smaller engaging wheel and a clearly distinct balance wheel near the edge. Suggest fine functional structure rather than decorative meaningless gears. The crown/stem and bow must connect naturally to the case on the opposite side from its hinge. The left hand steadies ONLY the outer case rim; the right hand holds delicate tweezers poised just above a small screw, not jammed through a wheel. Correct all hand/tool contact and anatomy. REMOVE the three grossly oversized loose gears from the bench; show a very small shallow parts tray containing two tiny watch screws instead, realistically tiny relative to fingers and the 50mm watch. Preserve coherent lamp light and tabletop perspective, keep the loupe and screwdriver at plausible watchmaker scale. No lettering, numbers, logos, watermarks, detached floating pieces, extra fingers, impossible gear assemblies or watch dial visible on the back. The cover fitting its case is the primary accuracy requirement. This is an editorial scene, not an exploded technical diagram.",
+      "source": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-8167b4a9-3c36-41b8-b9ec-ca76fc8b2785.png",
+      "original": "originals/05-relojero-corregido.png",
+      "sha256": "7cb17f0ef0c1abe04d912e3ca6251f24cd20eef8dd5964b132d99835209cff32",
       "delivery": [
         {
           "file": "05-relojero-768.webp",
           "width": 768,
-          "bytes": 135622,
-          "sha256": "e96ec31605ccfdcbcbb4b63582e1b48791db78b7321a78ec1f117a29180f8a5f"
+          "bytes": 122998,
+          "sha256": "4d1e18c123f9ce35b27a691c71169597a79ba72db9659d812f7a2f151febc628"
         },
         {
           "file": "05-relojero-1536.webp",
           "width": 1536,
-          "bytes": 572364,
-          "sha256": "d521d37a200109844730aae46dd0a09c0ffc05c0d9bf542016907f9c2242b52d"
+          "bytes": 503500,
+          "sha256": "ca97e32748bd01e6a58a9628de1b514af37e6958592300016d528136fe9929b2"
         }
-      ]
+      ],
+      "previousVersion": {
+        "slug": "05-relojero",
+        "alt": "Relojero trabajando con una lupa en un mecanismo sobre una mesa iluminada por una lámpara.",
+        "scene": "A close, cinematic tabletop view of a craft watch-repair bench, seen diagonally over the shoulder of an older artisan. Their two anatomically accurate hands use fine tweezers above a small open pocket watch. An articulated sage desk lamp, a loupe, three carefully placed brass gears, a worn wooden work surface. Face only partly seen at the edge; hands and craftsmanship lead. Watch dial has simple ticks with no numerals or writing. Patient attention and service, no shops or plants.",
+        "prompt": "Use case: illustration-story. Create ONE entirely new premium editorial illustration, landscape 3:2. The two input images are STYLE REFERENCES ONLY, not edit targets: match their refined ink-and-gouache technique, delicate expressive espresso pen contours, selective crosshatching, muted pigment, warm ivory paper texture, quiet elegance and exceptional drawing craft. Do not copy their scenes or composition. Palette: ivory #f7f5ef, espresso #302820, sage #79836a, terracotta #a43d28 and pale ochre #d5b472. Keep the subject inset within generous paper margins; make a complete standalone work, not a collage. No text, lettering, labels, numerals, logo, signature or watermark. No photographs, 3D rendering, gradients, clip art, corporate blob people, excessive noise or glossy effects. Maintain sophisticated cultural-magazine illustration quality. Specific new scene: A close, cinematic tabletop view of a craft watch-repair bench, seen diagonally over the shoulder of an older artisan. Their two anatomically accurate hands use fine tweezers above a small open pocket watch. An articulated sage desk lamp, a loupe, three carefully placed brass gears, a worn wooden work surface. Face only partly seen at the edge; hands and craftsmanship lead. Watch dial has simple ticks with no numerals or writing. Patient attention and service, no shops or plants.",
+        "source": "/root/.codex/generated_images/01a1c08a-7fa5-71b0-8084-989fc23f5d80/exec-f55a5b0d-ccdf-4e10-8aad-6cab6a037040.png",
+        "original": "originals/05-relojero.png",
+        "sha256": "710463c7a9fd7f4c8fafcf6b21fb0c37b87a78ece71d4d648e6214f70854339a",
+        "delivery": [
+          {
+            "file": "05-relojero-768.webp",
+            "width": 768,
+            "bytes": 135622,
+            "sha256": "e96ec31605ccfdcbcbb4b63582e1b48791db78b7321a78ec1f117a29180f8a5f"
+          },
+          {
+            "file": "05-relojero-1536.webp",
+            "width": 1536,
+            "bytes": 572364,
+            "sha256": "d521d37a200109844730aae46dd0a09c0ffc05c0d9bf542016907f9c2242b52d"
+          }
+        ]
+      },
+      "corrected": "2026-11-16",
+      "references": [
+        "https://www.patek.com/en/service/frequently-asked-questions/watch-authenticity",
+        "https://www.patek.com/en/collection/pocket-watches/980R-001"
+      ],
+      "deliveryEncoding": "Sharp 0.35.5 WebP quality 90; original retained"
     },
     {
       "slug": "06-confianza",

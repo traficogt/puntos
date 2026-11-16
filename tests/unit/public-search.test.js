@@ -14,13 +14,15 @@ async function fixture(t) {
 }
 test('sitemap has only canonical public pages and never trusts request host',async t=>{
  const request=await fixture(t),response=await request('/sitemap.xml');assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/xml/);
- const xml=await response.text();assert.deepEqual([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map(x=>x[1]),[origin+'/',origin+'/soporte',origin+'/privacidad',origin+'/terminos',origin+'/precios']);assert.doesNotMatch(xml,/lastmod|priority|changefreq/);
+ const xml=await response.text();assert.deepEqual([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map(x=>x[1]),[origin+'/',origin+'/soporte',origin+'/privacidad',origin+'/terminos',origin+'/precios',origin+'/calculadora',origin+'/ayuda/']);assert.doesNotMatch(xml,/lastmod|priority|changefreq/);
  for(const host of ['app.puntosfieles.com','unknown.example'])assert.equal((await request('/sitemap.xml',host)).status,404);
 });
 test('applications carry noindex while public pages stay indexable',async t=>{
  const request=await fixture(t);
  for(const [path,host] of [['/c','puntosfieles.com'],['/staff/login','puntosfieles.com'],['/admin.html','puntosfieles.com'],['/staff-login','puntosfieles.com'],['/join','puntosfieles.com'],['/ingresar','puntosfieles.com'],['/customer','puntosfieles.com'],['/admin-dashboard/fragments/branding.html','puntosfieles.com'],['/api/mobile/customer','puntosfieles.com'],['/app-preview/','puntosfieles.com'],['/soporte','app.puntosfieles.com'],['/','unknown.example']])assert.match((await request(path,host)).headers.get('x-robots-tag'),/noindex/);
- for(const path of ['/','/soporte','/privacidad','/terminos','/precios'])assert.equal((await request(path)).headers.get('x-robots-tag'),null);
+ for(const path of ['/','/soporte','/privacidad','/terminos','/precios','/calculadora','/ayuda/','/ayuda/caja/escanear/'])assert.equal((await request(path)).headers.get('x-robots-tag'),null);
+ assert.match((await request('/estado')).headers.get('x-robots-tag'),/noindex/);
+ assert.match(await(await request('/robots.txt')).text(),/Sitemap: https:\/\/puntosfieles.com\/ayuda\/sitemap.xml/);
  const robots=await(await request('/robots.txt')).text();assert.match(robots,/Sitemap: https:\/\/puntosfieles.com\/sitemap.xml/);assert.doesNotMatch(robots,/Disallow: \/(?:$|\n)/);
  const appRobots=await(await request('/robots.txt','app.puntosfieles.com')).text();assert.doesNotMatch(appRobots,/Sitemap:|Disallow: \//);
 });

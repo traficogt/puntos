@@ -1,4 +1,5 @@
 import {serviceCompletionRoutes} from './service-completion-routes.js';
+import { supportCaseRoutes } from './support-case-routes.js';
 import {createDemandFundingRoutes} from './demand-funding-routes.js';
 import {dataHealthRoutes} from './data-health-routes.js';
 import {rewardWorkspaceRoutes} from './reward-workspace-routes.js';
@@ -76,6 +77,7 @@ function mountApiRoute(basePath, router) {
 }
 
 const mountRoutes = (basePath) => {
+  mountApiRoute(basePath, supportCaseRoutes);
   mountApiRoute(basePath, dataHealthRoutes);
   mountApiRoute(basePath, demandFundingRoutes);
   mountApiRoute(basePath, serviceCompletionRoutes);

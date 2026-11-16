@@ -1,4 +1,5 @@
 import { createPublicPlans } from '../middleware/public-plans.js';
+import { createSelfServiceWeb } from '../middleware/self-service-web.js';
 import { createGuides } from "../middleware/guides.js";
 import { createSpanishWeb, createSpanishWebRedirects } from "../middleware/spanish-web.js";
 import { createSearchVisibility } from "../middleware/search-visibility.js";
@@ -91,8 +92,8 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "https://privatrack.com", "https://static.cloudflareinsights.com", "https://challenges.cloudflare.com"],
       styleSrc: ["'self'", "https://fonts.googleapis.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://privatrack.com", "https://cloudflareinsights.com", "https://challenges.cloudflare.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      connectSrc: ["'self'", "https://privatrack.com", "https://cloudflareinsights.com", "https://challenges.cloudflare.com", "https://raw.githubusercontent.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
@@ -186,6 +187,7 @@ app.get("/sw.js", (req, res, next) => {
 });
 app.use("/app-preview", createMobilePreview(publicDir));
 app.use(createSpanishWeb(publicDir));
+app.use(createSelfServiceWeb(publicDir));
 app.use(express.static(publicDir, { extensions: ["html"], redirect: false }));
 
 // Friendly routes

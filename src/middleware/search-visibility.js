@@ -1,7 +1,7 @@
 import { normalizeHostHeader, isAppRoutePath } from '../utils/app-host-routing.js';
 import { guideCatalog, getPublishedGuides, parseGuideCatalog } from '../content/guides/catalog.js';
 
-const publicPaths = ['/', '/soporte', '/privacidad', '/terminos', '/precios'];
+const publicPaths = ['/', '/soporte', '/privacidad', '/terminos', '/precios', '/calculadora', '/ayuda/'];
 const aliases = new Map([['/index.html', '/'], ['/soporte.html', '/soporte'], ['/privacidad.html', '/privacidad'], ['/terminos.html', '/terminos']]);
 const xmlEscape = value => value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
@@ -20,7 +20,7 @@ export function createSearchVisibility({ marketingOrigin, appOrigin, guides = gu
     const host = normalizeHostHeader(req.get('host'));
     const publicHost = host === marketingHost;
     const appOnlyHost = host === appHost && appHost !== marketingHost;
-    const publicPage = searchablePaths.includes(req.path) || aliases.has(req.path);
+    const publicPage = searchablePaths.includes(req.path) || aliases.has(req.path) || req.path.startsWith('/ayuda/');
     // Static extension fallback also serves /customer, /staff-login and HTML fragments.
     const htmlPage = !/\.[^/]+$/.test(req.path) || /\.html$/i.test(req.path);
     const privatePath = (htmlPage && !publicPage) || isAppRoutePath(req.path) || /^\/(?:api|app-preview)(?:\/|$)/i.test(req.path);
@@ -29,7 +29,7 @@ export function createSearchVisibility({ marketingOrigin, appOrigin, guides = gu
     if (req.path === '/robots.txt') {
       // Allow crawling of the login shells so crawlers can actually read noindex.
       res.set('Cache-Control', 'public, max-age=3600');
-      return res.type('text/plain').send(`User-agent: *\nAllow: /\n${publicHost && !appOnlyHost ? `\nSitemap: ${marketing.origin}/sitemap.xml\n` : ''}`);
+      return res.type('text/plain').send(`User-agent: *\nAllow: /\n${publicHost && !appOnlyHost ? `\nSitemap: ${marketing.origin}/sitemap.xml\nSitemap: ${marketing.origin}/ayuda/sitemap.xml\n` : ''}`);
     }
     if (req.path === '/sitemap.xml') {
       res.set('Cache-Control', 'no-store');
