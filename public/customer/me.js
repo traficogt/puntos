@@ -72,7 +72,7 @@ function renderOfflineSections($, snapshot) {
   if (hasHistory) {
     renderHistory($, sections.history.transactions, sections.history.redemptions, sections.me?.business?.region);
   }
-  if (sections.tier) {
+  if (sections.me?.business?.features?.tiers && sections.tier) {
     renderTier($, sections.tier.tier);
   } else {
     const tierSection = safeEl($, "#tierSection");

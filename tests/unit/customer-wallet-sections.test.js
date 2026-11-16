@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 const data = source => `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
 // eslint-disable-next-line security/detect-non-literal-fs-filename -- Fixed repository fixture URL.
 const source = await fs.readFile(new URL("../../public/customer/me.js", import.meta.url), "utf8");
-const rendered = data("export const renderRewards=(...a)=>globalThis.__sections.events.push(['rewards',...a]);export const renderHistory=(...a)=>globalThis.__sections.events.push(['history',...a]);export const renderTier=()=>{};export const renderAchievements=()=>{};export const renderReferralCode=()=>{};export const renderReferralStats=()=>{};export const renderOfflineStub=()=>{};");
+const rendered = data("export const renderRewards=(...a)=>globalThis.__sections.events.push(['rewards',...a]);export const renderHistory=(...a)=>globalThis.__sections.events.push(['history',...a]);export const renderTier=(...a)=>globalThis.__sections.events.push(['tier',...a]);export const renderAchievements=()=>{};export const renderReferralCode=()=>{};export const renderReferralStats=()=>{};export const renderOfflineStub=()=>{};");
 const mod = source.replace('"/idb.js"', JSON.stringify(data("export const putCustomerCache=(...a)=>globalThis.__sections.writes.push(a);")))
   .replace('"/lib.js"', JSON.stringify(data("export const setHidden=(el,hidden)=>{if(el)el.hidden=hidden;};")))
   .replace('"../customer-branding.js"', JSON.stringify(data("export const applyWalletBranding=()=>({walletHeadline:'Wallet',programName:'Cafe'});")))
@@ -58,6 +58,17 @@ test("offline snapshots missing history remove the previous customer's activity"
   assert.notEqual(h.$("#tx").textContent, "old data");
   assert.notEqual(h.$("#red").textContent, "old data");
 });
+
+for (const tiers of [true, false]) {
+  test(`offline wallet ${tiers ? 'retains enabled' : 'hides disabled'} tiers when older tier data remains cached`, async t => {
+    const h = setup(t);
+    const currentMe = { ...me, business: { ...me.business, features: { tiers } } };
+    const tier = { name: 'Oro', points_multiplier: 2 };
+    await renderFromMe({ ...h, api: async () => null }, currentMe, false, { sections: { me: currentMe, tier: { tier } } });
+    assert.equal(h.events.some(event => event[0] === 'tier'), tiers);
+    if (!tiers) assert.equal(h.$('#tierSection').hidden, true);
+  });
+}
 
 test('live reward sections pass authoritative progress and its matching balances to the renderer', async t => {
   const h = setup(t), progress = { available_points: 40, pending_points: 100, reward: { name: 'Café original' } };

@@ -27,6 +27,7 @@ const CORE_ASSETS = [
   "/styles/responsive.css",
   "/styles/marketing.css?v=5",
   "/styles/customer-modern.css?v=1",
+  "/styles/customer-wallet-refresh.css",
   "/styles/operations-modern.css?v=1",
   "/styles/pos-integration.css?v=1",
   "/images/coffee-gathering.webp",

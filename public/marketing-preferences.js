@@ -11,8 +11,13 @@ let optedIn = false;
 let generation = 0;
 let loadedEpoch = '';
 let controller;
+let suspendedDraft = null;
 function message(text, error = false) { status.textContent = text; status.dataset.error = String(error); }
-function clearView() {
+function clearView({ preserveDraft = false } = {}) {
+  if (!preserveDraft || saving) suspendedDraft = null;
+  else if (!token && dirty && loadedEpoch === getCustomerEpoch()) {
+    suspendedDraft = { epoch: loadedEpoch, checked: byId('marketingOptIn').checked };
+  }
   generation++; controller?.abort(); busy=false; saving=false; dirty=false;
   byId('preferencesContent').hidden=true;
   byId('preferencesBusiness').textContent=''; byId('preferencesCurrent').textContent='';
@@ -33,8 +38,8 @@ function render(data) {
 async function request(options = {}) {
   return api(new URL(endpoint,location.origin).toString(),{credentials:'same-origin',cache:'no-store',redirect:'error',referrerPolicy:'no-referrer',signal:controller.signal,...options});
 }
-async function load() {
-  clearView();
+async function load({ preserveDraft = false } = {}) {
+  clearView({ preserveDraft });
   if(!token&&readCustomerStorage('pf_customer_blocked')==='1') {
     message('Ingresa para consultar tus preferencias.');byId('preferencesSignin').hidden=false;return;
   }
@@ -46,6 +51,11 @@ async function load() {
   try {
     const data=await request();if(!current())return;
     render(data);loadedEpoch=epoch;
+    if (!token && suspendedDraft?.epoch === epoch) {
+      byId('marketingOptIn').checked = suspendedDraft.checked;
+      dirty = suspendedDraft.checked !== optedIn;
+    }
+    suspendedDraft = null;
     message(token ? 'Abrir este enlace no cambia tus preferencias.' : 'Tu elección se aplica únicamente a este negocio.');
   } catch (error) {
     if(!current())return;
@@ -66,16 +76,19 @@ async function save(event) {
     if(!current())return;
     render(data);dirty=false;
     message(data.marketing_opt_in ? 'Preferencia guardada. Aceptaste recibir promociones.' : 'Preferencia guardada. No recibirás nuevas promociones de este negocio.');
-  } catch {if(current())message('No pudimos confirmar tu elección. Vuelve a consultar tus preferencias antes de intentar de nuevo.',true);}
+  } catch {if(current()){
+    message('No pudimos confirmar tu elección. Vuelve a consultar tus preferencias antes de intentar de nuevo.',true);
+    byId('preferencesRetry').hidden=false;
+  }}
   finally {if(current()){busy=false;saving=false;byId('preferencesSave').disabled=false;byId('unsubscribeButton').disabled=false;byId('marketingOptIn').disabled=false;}}
 }
 byId('preferencesForm').addEventListener('submit',save);
 byId('unsubscribeButton').addEventListener('click',save);
 byId('preferencesRetry').addEventListener('click',load);
 byId('marketingOptIn').addEventListener('change',()=>{dirty=byId('marketingOptIn').checked!==optedIn;});
-window.addEventListener('beforeunload',event=>{if(dirty||saving){event.preventDefault();event.returnValue='';}});
+window.addEventListener('beforeunload',event=>{if(dirty||saving||suspendedDraft?.epoch===getCustomerEpoch()){event.preventDefault();event.returnValue='';}});
 window.addEventListener('pagehide',clearView);
 window.addEventListener('pageshow',event=>{if(event.persisted)load();});
 window.addEventListener('storage',event=>{if(!token&&['pf_customer_epoch','pf_customer_identity','pf_customer_blocked',null].includes(event.key))load();});
-document.addEventListener('visibilitychange',()=>{if(document.hidden)clearView();else load();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)clearView({preserveDraft:true});else load({preserveDraft:true});});
 load();
