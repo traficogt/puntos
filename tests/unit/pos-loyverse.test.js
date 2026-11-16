@@ -97,6 +97,26 @@ function testRefundReceipts() {
       assert.equal(result.refunds[0].scope, "partial");
     }
   });
+  it("recognizes full weighted-item refunds despite binary floating-point scaling", async () => {
+    for (const quantity of [1.001, 1.000001, 2.007, 0.000123]) {
+      const line_items = [{ item_id: "item-1", variant_id: "variant-1", quantity }];
+      const result = await fetchPage(mockApi({
+        receipts: [receipt({ receipt_type: "REFUND", refund_for: "2-1000", line_items })],
+        originals: [receipt({ receipt_number: "2-1000", line_items })]
+      }));
+      assert.equal(result.refunds[0].scope, "full", `quantity ${quantity}`);
+    }
+  });
+  it("keeps quantities beyond supported precision or safe integer scaling unverified", async () => {
+    for (const quantity of [1.0000001, 0.0000001, 9007199254.740992]) {
+      const line_items = [{ item_id: "item-1", variant_id: "variant-1", quantity }];
+      const result = await fetchPage(mockApi({
+        receipts: [receipt({ receipt_type: "REFUND", refund_for: "2-1000", line_items })],
+        originals: [receipt({ receipt_number: "2-1000", line_items })]
+      }));
+      assert.equal(result.refunds[0].scope, "unknown", `quantity ${quantity}`);
+    }
+  });
   it("missing original, wrong store and unknown item identity keep refund scope unverified", async () => {
     for (const originals of [[], [receipt({ receipt_number: "2-1000", store_id: "another-store" })], [receipt({ receipt_number: "2-1000", line_items: [{ quantity: 3 }] })]]) {
       const result = await fetchPage(mockApi({ receipts: [receipt({ receipt_type: "REFUND", refund_for: "2-1000" })], originals }));

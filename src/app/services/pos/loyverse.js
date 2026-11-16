@@ -213,8 +213,8 @@ function receiptQuantities(receipt) {
   for (const line of receipt.line_items) {
     if (!validId(line?.item_id) || !validId(line?.variant_id) || typeof line.quantity !== "number" || !Number.isFinite(line.quantity) || line.quantity <= 0) return null;
     // Exact fixed precision comparison; unsupported precision remains unverified.
-    const units = line.quantity * 1000000;
-    if (!Number.isSafeInteger(units)) return null;
+    const units = Math.round(line.quantity * 1000000);
+    if (!Number.isSafeInteger(units) || units / 1000000 !== line.quantity) return null;
     const key = JSON.stringify([line.item_id, line.variant_id]);
     const total = (quantities.get(key) ?? 0) + units;
     if (!Number.isSafeInteger(total)) return null;
