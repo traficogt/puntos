@@ -10,10 +10,19 @@ test('status distinguishes live failures from stale data and renders safe incide
   const root = fileURLToPath(new URL('../../public', import.meta.url));
   const app = express(); app.use(createSelfServiceWeb(root)); app.use(express.static(root));
   const server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
+  let browser;
+  t.after(async () => {
+    try { await browser?.close(); }
+    finally {
+      await new Promise((resolve, reject) => {
+        server.close(error => error ? reject(error) : resolve(undefined));
+        server.closeAllConnections();
+      });
+    }
+  });
   const address = server.address(); assert.ok(address && typeof address !== 'string');
   const origin = `http://127.0.0.1:${address.port}`;
-  const browser = await chromium.launch({args:['--no-sandbox','--disable-dev-shm-usage']}); t.after(() => browser.close());
+  browser = await chromium.launch({args:['--no-sandbox','--disable-dev-shm-usage']});
   const page = await browser.newPage({viewport:{width:390,height:844}});
   const errors=[]; page.on('pageerror', e=>errors.push(e.message));
   const ids=['sitio','acceso','sistema','ayuda','soporte']; let mode='up';

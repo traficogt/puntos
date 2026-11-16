@@ -13,9 +13,18 @@ test('simple calculator starts with two numbers and reveals return only on reque
   app.get('/__calculator-axe.js', (_req, res) => res.sendFile('axe.min.js', { root: fileURLToPath(new URL('../../web/merchant/node_modules/axe-core/', import.meta.url)) }));
   app.use(createSelfServiceWeb(root)); app.use(express.static(root));
   const server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
+  let browser;
+  t.after(async () => {
+    try { await browser?.close(); }
+    finally {
+      await new Promise((resolve, reject) => {
+        server.close(error => error ? reject(error) : resolve(undefined));
+        server.closeAllConnections();
+      });
+    }
+  });
   const address = server.address(); assert.ok(address && typeof address !== 'string');
-  const browser = await chromium.launch({ args: ['--no-sandbox'] }); t.after(() => browser.close());
+  browser = await chromium.launch({ args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const errors = [], writes = [];
   page.on('pageerror', error => errors.push(error.message));
