@@ -58,6 +58,8 @@ jobs:
         run: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps chromium
       - name: Merchant navigation browser checks
         run: PLAYWRIGHT_BROWSERS_PATH=0 npm run test:merchant:navigation
+      - name: Customer offline wallet shell regression
+        run: PLAYWRIGHT_BROWSERS_PATH=0 node --test tests/integration/customer-offline-shell.browser.test.js
       - name: Tests
         run: npm test
       - name: OpenAPI generation is current
