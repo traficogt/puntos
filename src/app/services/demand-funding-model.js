@@ -16,7 +16,8 @@ export function validateClaimTransition(row,input){
  const reference=demandText(input.reference,3,200);
  if(input.status==='paid'){
   if(!Number.isSafeInteger(input.paid_minor)||input.paid_minor!==Number(row.amount_minor))throw badRequest('El importe recibido debe coincidir con el aprobado. Registra la diferencia con el proveedor antes de conciliar.');
-  if(typeof input.paid_at!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(input.paid_at)||new Date(`${input.paid_at}T00:00:00Z`).toISOString().slice(0,10)!==input.paid_at||input.paid_at>new Date().toISOString().slice(0,10))throw badRequest('Registra una fecha real de pago, sin fechas futuras.');
+  const paidAt=typeof input.paid_at==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(input.paid_at)?new Date(`${input.paid_at}T00:00:00Z`):null;
+  if(!paidAt||!Number.isFinite(paidAt.getTime())||paidAt.toISOString().slice(0,10)!==input.paid_at||input.paid_at>new Date().toISOString().slice(0,10))throw badRequest('Registra una fecha real de pago, sin fechas futuras.');
  }
  return{status:input.status,reference,paid_minor:input.status==='paid'?input.paid_minor:null,paid_at:input.status==='paid'?input.paid_at:null};
 }

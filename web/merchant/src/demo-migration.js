@@ -1,7 +1,8 @@
 import { normalizeCustomerMigration, summarizeCustomerMigration } from '../../../src/app/services/customer-migration-csv.js';
 
 // Synthetic state lives in this page only; this module has no network or persistence API.
-const phones = new Set();
+export const demoImportedPhones = new Set();
+const phones = demoImportedPhones;
 const batches = [];
 const requests = new Map();
 export function demoMigration(url, options = {}) {

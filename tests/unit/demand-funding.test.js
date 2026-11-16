@@ -14,6 +14,13 @@ test('supplier transitions require recorded supplier response and exact reconcil
  assert.throws(()=>validateClaimTransition({status:'submitted',amount_minor:500},{status:'approved',reference:''}),{statusCode:400});
  assert.equal(validateClaimTransition({status:'approved',amount_minor:500},{status:'paid',reference:'Transferencia 123',paid_minor:500,paid_at:'2026-11-12'}).reference,'Transferencia 123');
 });
+test('supplier payment rejects impossible calendar dates as input errors',async()=>{
+ const {validateClaimTransition}=await import('../../src/app/services/demand-funding-model.js');
+ for(const paid_at of ['2026-00-12','2026-13-12','2026-11-00','2026-11-32','2025-02-29']){
+  assert.throws(()=>validateClaimTransition({status:'approved',amount_minor:500},{status:'paid',reference:'Transferencia 123',paid_minor:500,paid_at}),{statusCode:400},paid_at);
+ }
+ assert.equal(validateClaimTransition({status:'approved',amount_minor:500},{status:'paid',reference:'Transferencia 123',paid_minor:500,paid_at:'2024-02-29'}).paid_at,'2024-02-29');
+});
 test('supplier export has a fixed privacy allowlist and escapes spreadsheet formulas',async()=>{
  const {supplierExport}=await import('../../src/app/services/demand-funding-model.js');
  const csv=supplierExport([{id:'claim',supplier_name:'=CMD()',agreement_title:'Coffee',reward_name:'Café',amount_minor:500,currency:'GTQ',status:'paid',fulfilled_at:'2026-11-12',customer_id:'secret-id',customer_name:'Secret person',evidence:{customer_id:'secret'}}]);
