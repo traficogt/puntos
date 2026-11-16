@@ -1,4 +1,5 @@
 import { describe, it } from "node:test";
+import { EventEmitter } from "node:events";
 import assert from "node:assert/strict";
 
 const { GamificationService } = await import("../../src/app/services/gamification-service.js");
@@ -142,7 +143,7 @@ describe("recurring challenge state transitions", () => {
     const completions = [];
     let transactionInsertCount = 0;
 
-    const fakeClient = {
+    const fakeClient = Object.assign(new EventEmitter(), {
       async query(sql, _params) {
         const text = String(sql);
         if (text === "BEGIN" || text === "COMMIT" || text === "ROLLBACK") return { rows: [], rowCount: 0 };
@@ -161,7 +162,7 @@ describe("recurring challenge state transitions", () => {
         throw new Error(`Unexpected SQL in recurring challenge test: ${text}`);
       },
       release() {}
-    };
+    });
 
     transactionPool.connect = async () => fakeClient;
     GamificationRepository.listActiveChallenges = async () => [challenge];

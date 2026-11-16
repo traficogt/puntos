@@ -3,6 +3,7 @@ process.env.JWT_SECRET_FILE = "";
 process.env.JWT_SECRET = "test-jwt-secret-abcdefghijklmnopqrstuvwxyz";
 
 import { describe, it } from "node:test";
+import { EventEmitter } from "node:events";
 import assert from "node:assert/strict";
 import bcrypt from "bcryptjs";
 
@@ -33,7 +34,7 @@ describe("customer service tenant context", () => {
     const seenTenants = [];
     const seenPlatforms = [];
 
-    pool.connect = async () => ({
+    pool.connect = async () => Object.assign(new EventEmitter(), {
       query: async () => ({ rows: [] }),
       release() {}
     });

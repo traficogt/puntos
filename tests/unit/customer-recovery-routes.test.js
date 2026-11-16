@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { EventEmitter } from "node:events";
 import { before, beforeEach, after, describe, it } from "node:test";
 import express from "express";
 import cookieParser from "cookie-parser";
@@ -49,7 +50,7 @@ before(async () => {
     return { rows: [], rowCount: 0 };
   };
   pool.query = /** @type {any} */ (query);
-  transactionPool.connect = /** @type {any} */ (async () => ({ query, release() {} }));
+  transactionPool.connect = /** @type {any} */ (async () => Object.assign(new EventEmitter(), { query, release() {} }));
   const session = await createBrowserSession({ actorType: "STAFF", actorId: staffId, businessId, role: "OWNER" });
   cookie = `${config.STAFF_COOKIE_NAME}=${session.token}; pf_csrf=${csrf}`;
   const app = express();

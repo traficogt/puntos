@@ -59,6 +59,12 @@ security audit. The fault is specifically a lost response **after commit**, then
 an API process restart. It does not establish behavior for a database crash,
 mid-transaction power loss, provider outage, native devices or production scale.
 
+The separate [isolated failure simulations](FAILURE_SIMULATIONS.md) add active
+database-session loss, interrupted worker lease recovery, an injected queue
+enqueue outage, provider event replays and overlapping writers after rollback.
+Those simulations document their own fault boundaries and do not change the
+claims of this workload.
+
 ## Limits and reporting
 
 | Option | Default | Allowed range |
