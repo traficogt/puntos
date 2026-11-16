@@ -57,13 +57,25 @@ staffRoutes.post("/staff/login", strictRateLimit, asyncRoute(async (req, res) =>
 staffRoutes.post("/staff/security/reauth", requireStaff, csrfProtect, asyncRoute(async (req, res) => {
   const v = validate(StaffReauthSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
-  const out = await reauthenticateStaffSession({
-    staff: req.staff,
-    password: v.data.password,
-    mfaCode: v.data.mfaCode,
-    sessionId: req.authSession?.id
-  });
-  res.json(out);
+  try {
+    const out = await reauthenticateStaffSession({
+      staff: req.staff,
+      password: v.data.password,
+      mfaCode: v.data.mfaCode,
+      sessionId: req.authSession?.id
+    });
+    return res.json(out);
+  } catch (error) {
+    // A failed proof does not mean the existing browser session expired.
+    // requireStaff above still returns 401 for a missing or invalid session.
+    if (error.statusCode === 401 && ["Invalid credentials", "Invalid MFA code"].includes(error.message)) {
+      return res.status(400).json({
+        error: "No pudimos verificar tu identidad. Revisa la contraseña y el código de verificación.",
+        code: "REAUTH_VERIFICATION_FAILED"
+      });
+    }
+    throw error;
+  }
 }));
 
 staffRoutes.post("/staff/security/mfa/enroll", requireStaff, csrfProtect, requireRecentReauth(), asyncRoute(async (req, res) => {
