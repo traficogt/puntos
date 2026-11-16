@@ -380,3 +380,19 @@ footer {
 .demo-contact-link{color:inherit;display:inline-block;margin-inline-start:1rem;font-weight:600;text-decoration:underline;text-underline-offset:3px}
 
 #owner-brief-heading,#second-visit-heading{scroll-margin-top:100px}
+
+/* The optional walkthrough uses the same workspace and working controls. */
+.demo-welcome { padding-block: 12px 48px; }
+.demo-welcome .intro { max-width: 62ch; }
+.demo-outline { display: flex; flex-wrap: wrap; gap: 16px 44px; padding-left: 24px; margin-block: 32px; }
+.demo-outline li { padding-left: 4px; font-weight: 600; }
+.demo-outline li::marker { color: var(--mantine-primary-color-filled); }
+.demo-guide { padding-block: 4px 24px; margin-bottom: 32px; border-bottom: 1px solid var(--pf-line); }
+.demo-guide-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 24px; flex-wrap: wrap; }
+.demo-guide .mantine-Button-root, .demo-welcome .mantine-Button-root { height: auto; padding-block: 12px; }
+.demo-guide .mantine-Button-label, .demo-welcome .mantine-Button-label { white-space: normal; text-align: left; line-height: 1.4; }
+.content { scroll-margin-top: 96px; }
+@media (max-width: 600px) {
+  .demo-outline { display: grid; gap: 16px; }
+  .demo-guide-heading h2 { font-size: 22px !important; }
+}

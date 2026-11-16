@@ -66,6 +66,69 @@ async function finish(session) {
 
 try {
   browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, args: ["--no-sandbox"] });
+  await check("guided entry, three steps, free exploration and history preserve real screens", async () => {
+    const current = await session();
+    const page = current.page;
+    await page.goto(`${origin}/negocio/?demo=1`);
+    await expect(page.getByRole("heading", { name: "Conoce PF con un ejemplo" })).toBeVisible();
+    await page.screenshot({ path: path.join(artifacts, "guide-welcome-desktop.png") });
+    await page.getByRole("button", { name: "Ver un ejemplo", exact: true }).click();
+    await expect(page.locator("h1")).toHaveText("Recuperar clientes");
+    await expect(page.getByRole("region", { name: "Recorrido de ejemplo" })).toContainText("Paso 1 de 3");
+    await page.screenshot({ path: path.join(artifacts, "guide-step-desktop.png") });
+    const draft = page.getByLabel("Nombre de la lista", { exact: true });
+    await draft.fill("Conservar mi ejemplo");
+    page.once("dialog", dialog => dialog.dismiss());
+    await page.getByRole("button", { name: "Siguiente: preparar una oferta" }).click();
+    await expect(draft).toHaveValue("Conservar mi ejemplo");
+    await expect(page).toHaveURL(/vista=guia#recuperar-clientes$/);
+    page.once("dialog", dialog => dialog.accept());
+    await page.getByRole("button", { name: "Siguiente: preparar una oferta" }).click();
+    await expect(page.locator("h1")).toHaveText("Campañas dirigidas");
+    await expect(page.locator("#contenido")).toBeFocused();
+    await page.getByRole("button", { name: "Siguiente: revisar los costos" }).click();
+    await expect(page.getByRole("region", { name: "Recorrido de ejemplo" })).toContainText("Paso 3 de 3");
+    await page.goBack();
+    await expect(page.locator("h1")).toHaveText("Campañas dirigidas");
+    await expect(page.getByRole("region", { name: "Recorrido de ejemplo" })).toContainText("Paso 2 de 3");
+    await page.getByRole("button", { name: "Siguiente: revisar los costos" }).click();
+    await page.getByRole("button", { name: "Terminar y explorar", exact: true }).click();
+    await expect(page).toHaveURL(/vista=libre#resumen$/);
+    await page.goBack();
+    await page.goBack();
+    await page.getByRole("button", { name: "Explorar libremente", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Recorrido de ejemplo" })).toHaveCount(0);
+    await expect(page.locator("h1")).toHaveText("Campañas dirigidas");
+    await page.goBack();
+    await expect(page.getByRole("region", { name: "Recorrido de ejemplo" })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("region", { name: "Recorrido de ejemplo" })).toContainText("Paso 2 de 3");
+    await page.getByRole("button", { name: "Explorar libremente", exact: true }).click();
+    await page.getByRole("button", { name: "Ver el recorrido", exact: true }).click();
+    await expect(page.locator("h1")).toHaveText("Recuperar clientes");
+    await goto(page, "costos");
+    await expect(page.getByRole("region", { name: "Recorrido de ejemplo" })).toHaveCount(0);
+    await expect(page.getByText("Funciones según el plan", { exact: true })).toBeVisible();
+    await finish(current);
+  });
+  await check("narrow dark-theme entry supports keyboard and free exploration", async () => {
+    const current = await session(390, "dark");
+    const page = current.page;
+    await page.goto(`${origin}/negocio/?demo=1`);
+    const explore = page.getByRole("button", { name: "Explorar todas las funciones", exact: true });
+    await explore.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("h1")).toBeVisible();
+    await expect(page).toHaveURL(/vista=libre#resumen$/);
+    await page.getByRole("button", { name: "Ver el recorrido", exact: true }).click();
+    await expect(page.locator("h1")).toHaveText("Recuperar clientes");
+    await page.screenshot({ path: path.join(artifacts, "guide-step-mobile-dark.png") });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await page.addScriptTag({ url: `${origin}/test-axe.js` });
+    const result = await page.evaluate(() => axe.run(document.querySelector('[aria-label="Recorrido de ejemplo"]')));
+    assert.deepEqual(result.violations.map(v => v.id), []);
+    await finish(current);
+  });
   const desktop = await session();
   const { page } = desktop;
   await goto(page);
@@ -223,7 +286,7 @@ try {
     });
     await finish(current);
   }
-  assert.equal(checks, 9, "All navigation checks ran; none were skipped");
+  assert.equal(checks, 11, "All navigation checks ran; none were skipped");
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- Fixed filename inside the generated test-only temp directory.
   await fs.writeFile(path.join(artifacts, "result.json"), JSON.stringify({ checks, passed: true, artifacts }, null, 2));
   console.log(`${checks} navigation browser checks passed. Artifacts: ${artifacts}`);

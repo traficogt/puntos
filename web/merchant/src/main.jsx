@@ -24,6 +24,8 @@ import "./styles.css";
 import { isDemo, useResource, sessionEvent, stored, logout } from "./api.js";
 import { pageFromHash, hashForPage } from "./navigation.js";
 import MerchantNavigation from "./MerchantNavigation.jsx";
+import DemoGuide, { DemoWelcome } from "./DemoGuide.jsx";
+import { demoView, demoLocation } from "./demo-guide.js";
 import { Loading, Failure, BusinessLink } from "./ui.jsx";
 import { setMerchantRegion } from './region.js';
 const RewardsWorkspace = lazy(() => import('./RewardsWorkspace.jsx'));
@@ -192,6 +194,8 @@ function Merchant({ staff }) {
   const navigationToggle = useRef(null);
   const content = useRef(null);
   const [page, setPage] = useState(pageFromHash(location.hash) || "overview");
+  const [demoMode, setDemoMode] = useState(() => isDemo ? demoView(new URL(location.href)) : null);
+  const focusAfterNavigation = useRef(false);
   const [dirty, setDirty] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [focusSection,setFocusSection]=useState(null);
@@ -201,28 +205,41 @@ function Merchant({ staff }) {
   const enrollment = useResource("/api/admin/customer-enrollment");
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   useEffect(() => {
-    history.replaceState(null, "", hashForPage(page));
+    const currentLocation = () => isDemo ? demoLocation(new URL(location.href), page, demoMode) : hashForPage(page);
+    history.replaceState(null, "", currentLocation());
+    let handled = location.href;
     const handler = () => {
+      if (handled === location.href) return;
+      handled = location.href;
       const value = pageFromHash(location.hash);
       if (!value) return;
-      if (value === page) {
-        history.replaceState(null, "", hashForPage(page));
+      const mode = isDemo ? demoView(new URL(location.href)) : null;
+      const leavesForm = value !== page || mode === "inicio";
+      if (leavesForm && dirty && !confirm("Tienes cambios sin guardar. ¿Quieres descartarlos?")) {
+        history.replaceState(null, "", currentLocation());
+        handled = location.href;
         return;
       }
-      if (
-        dirty &&
-        !confirm("Tienes cambios sin guardar. ¿Quieres descartarlos?")
-      ) {
-        history.replaceState(null, "", hashForPage(page));
-        return;
-      }
-      setDirty(false);
+      if (leavesForm) setDirty(false);
       setPage(value);
-      history.replaceState(null, "", hashForPage(value));
+      setDemoMode(mode);
+      history.replaceState(null, "", isDemo ? demoLocation(new URL(location.href), value, mode) : hashForPage(value));
+      handled = location.href;
     };
     window.addEventListener("hashchange", handler);
-    return () => window.removeEventListener("hashchange", handler);
-  }, [dirty, page]);
+    window.addEventListener("popstate", handler);
+    return () => {
+      window.removeEventListener("hashchange", handler);
+      window.removeEventListener("popstate", handler);
+    };
+  }, [dirty, page, demoMode]);
+  useEffect(() => {
+    if (focusAfterNavigation.current) {
+      content.current?.focus({ preventScroll: true });
+      content.current?.scrollIntoView({ block: "start" });
+      focusAfterNavigation.current = false;
+    }
+  }, [page, demoMode]);
   useEffect(() => {
     const before = (event) => {
       if (dirty) {
@@ -233,19 +250,20 @@ function Merchant({ staff }) {
     window.addEventListener("beforeunload", before);
     return () => window.removeEventListener("beforeunload", before);
   }, [dirty]);
-  function navigate(next) {
-    if (next === page) {
+  function navigate(next, nextMode = isDemo ? "libre" : null) {
+    if (next === page && nextMode === demoMode) {
       setNavigationOpen(false);
       if (compactNavigation) content.current?.focus({ preventScroll: true });
       return;
     }
-    if (dirty && !confirm("Tienes cambios sin guardar. ¿Quieres descartarlos?"))
-      return;
-    setDirty(false);
+    const leavesForm = next !== page || nextMode === "inicio";
+    if (leavesForm && dirty && !confirm("Tienes cambios sin guardar. ¿Quieres descartarlos?")) return;
+    if (leavesForm) setDirty(false);
+    focusAfterNavigation.current = compactNavigation || nextMode === "guia" || demoMode === "inicio";
     setPage(next);
+    setDemoMode(nextMode);
     setNavigationOpen(false);
-    if (compactNavigation) content.current?.focus({ preventScroll: true });
-    history.pushState(null, "", hashForPage(next));
+    history.pushState(null, "", isDemo ? demoLocation(new URL(location.href), next, nextMode) : hashForPage(next));
   }
   async function signOut() {
     if (
@@ -329,14 +347,15 @@ function Merchant({ staff }) {
                 title="Vista previa · datos de ejemplo"
               >
                 <Text size="sm">
-                  Explora resultados, recomendaciones, recuperación de clientes y
-                  conexión de caja sin iniciar sesión. Los cambios se guardan solo en esta pestaña y
-                  no afectan a ningún negocio real.
+                  Todo lo que ves es ficticio. Puedes probar las herramientas sin iniciar sesión;
+                  los cambios se descartan al recargar y no afectan a ningún negocio real.
                   <a className="demo-contact-link" href="https://puntosfieles.com/#contacto" onClick={()=>trackDemoEvent('demo_contact_open')}>Hablar con nosotros</a>
                 </Text>
+                <Text size="sm" mt="xs"><strong>Funciones según el plan</strong>. Esta demo muestra el plan Empresa. Recuperación, campañas y costos están disponibles desde Negocio. <a href="/planes/">Comparar planes</a></Text>
               </Alert>
             )}
-            {plan.loading || region.loading ? (
+            {isDemo && <DemoGuide page={page} mode={demoMode} onNavigate={navigate} />}
+            {isDemo && demoMode === "inicio" ? <DemoWelcome onNavigate={navigate} /> : plan.loading || region.loading ? (
               <Loading />
             ) : plan.error || region.error ? (
               <Failure

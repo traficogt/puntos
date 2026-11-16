@@ -93,7 +93,7 @@ test("selected capabilities open the matching interactive example", async ({ pag
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
   await section.getByRole("link", { name: "Explorar Recuperar clientes en la demostración" }).click();
-  await expect(page).toHaveURL(/\/demostracion\/#recuperar-clientes$/);
+  await expect(page).toHaveURL(/\/demostracion\/(?:\?vista=libre)?#recuperar-clientes$/);
   await expect(page.getByRole("heading", { name: "Recuperar clientes", exact: true })).toBeVisible();
   await expect(page.getByText("Vista previa · datos de ejemplo", { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
