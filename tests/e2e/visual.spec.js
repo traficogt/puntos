@@ -3,6 +3,16 @@ import { test, expect } from "@playwright/test";
 test.describe("Visual regression (chromium baseline)", () => {
 test.skip(({ browserName }) => browserName !== "chromium", "Visual snapshots are maintained on Chromium only.");
 
+test.beforeEach(async ({ page, baseURL }) => {
+  // Legacy screens request these same faces from Google. Keep visual evidence
+  // independent of CDN availability, using PF's checked-in, licensed fonts.
+  const fonts = new URL("/styles/fonts.css?v=1", baseURL).href;
+  await page.route("https://fonts.googleapis.com/**", route => route.fulfill({
+    contentType: "text/css", body: `@import url("${fonts}");`
+  }));
+  await page.route("https://fonts.gstatic.com/**", route => route.abort());
+});
+
 function token() {
   return Math.random().toString(36).slice(2, 8);
 }
@@ -12,9 +22,16 @@ async function useRandomClientIp(page) {
   await page.setExtraHTTPHeaders({ "x-forwarded-for": ip });
 }
 
+async function expectLocalFonts(page) {
+  await expect.poll(() => page.evaluate(() => [...document.fonts].some(
+    face => face.family.includes("Inter") && face.status === "loaded"
+  )), { message: "Use PF's checked-in Inter face rather than a fallback font" }).toBe(true);
+}
+
 async function gotoStable(page, url, readySelector) {
   await page.goto(url, { waitUntil: "domcontentloaded" });
   await page.waitForSelector(readySelector, { state: "visible", timeout: 20_000 });
+  await expectLocalFonts(page);
 }
 
 async function createBusinessAndOpenDashboard(page) {
@@ -28,6 +45,7 @@ async function createBusinessAndOpenDashboard(page) {
   await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
   await expect(page.locator("#main")).toBeVisible();
   await expect(page.getByText("Sin transacciones sospechosas.", { exact: true })).toHaveCount(1);
+  await expectLocalFonts(page);
 }
 
 test("visual: super login shell", async ({ page }) => {
