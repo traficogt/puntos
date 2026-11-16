@@ -12,6 +12,7 @@ export const navigationGroups = [
     id: "customers",
     label: "Clientes y ventas",
     items: [
+      { page: "customers", label: "Clientes" },
       { page: "recovery", label: "Recuperar clientes" },
       { page: "audiences", label: "Audiencias" },
       { page: "growth", label: "Campañas dirigidas" },
@@ -46,6 +47,9 @@ export const navigationGroups = [
     id: "settings",
     label: "Configuración y equipo",
     items: [
+      { page: "settings", label: "Configuración" },
+      { page: "team", label: "Personal" },
+      { page: "branches", label: "Sucursales" },
       { page: "authority", label: "Equipo y permisos" },
       { page: "brand", label: "Marca y QR" },
       { page: "pos", label: "Conectar caja" },

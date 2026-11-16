@@ -8,6 +8,15 @@ test('release readiness exposes evidence validation instead of trusting status c
   assert.equal(typeof readiness?.evaluateEvidence, 'function');
 });
 
+test('browser completion requires one receipt with the exact positive check count', () => {
+  const receipt = JSON.stringify({kind:'owner-workspace-browser',checks:28,passed:true});
+  assert.equal(readiness.hasBrowserCompletion(receipt,'owner-workspace-browser',28),true);
+  for (const value of [receipt.replace('28','0'),receipt.replace('28','27'),receipt.replace('true','false'),receipt+'\n'+receipt,'']) {
+    assert.equal(readiness.hasBrowserCompletion(value,'owner-workspace-browser',28),false);
+  }
+  assert.equal(readiness.hasBrowserCompletion(receipt,'owner-workspace-browser',0),false);
+});
+
 const tap = 'TAP version 13\n# Subtest: fixture\nok 1 - fixture\n  ---\n  duration_ms: 0.1\n  ...\n1..1\n# tests 1\n# suites 0\n# pass 1\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 12.1\n';
 const playwright = JSON.stringify({ errors: [], suites: [{ specs: [{ tests: [{ expectedStatus: 'passed', status: 'expected', results: [{ status: 'passed' }] }] }] }], stats: { expected: 1, unexpected: 0, flaky: 0, skipped: 0 } });
 const domain = JSON.stringify({ file: 'fixture.test.js', exit: 0, tests: 1, pass: 1, fail: 0, cancelled: 0, skipped: 0, todo: 0, ok: true }) + '\n' + JSON.stringify({ suites: 1, expectedSuites: 1, tests: 1, pass: 1, failedSuites: 0 });
@@ -342,4 +351,65 @@ test('core gate enables live tests and binds TEST_API_URL to its verified local 
   assert.deepEqual(JSON.parse(result.stdout.toString()), { run: 'true', test: target, e2e: target });
   assert.equal(hits, 2);
   assert.equal(readiness.evaluateEvidence({ ...result, check: fixture, source: identity, revision: identity.commit }).status, 'passed');
+});
+
+
+test('Playwright project requirements bind every required file to every required engine', () => {
+  const report = JSON.parse(playwright);
+  const spec = report.suites[0].specs[0];
+  spec.file = 'staff-offline.spec.js';
+  spec.tests[0].projectName = 'chromium';
+  const validate = () => readiness.parsePlaywright(JSON.stringify(report), ['staff-offline.spec.js'], ['chromium', 'firefox']);
+  assert.equal(validate().valid, false, 'Chromium cannot stand in for Firefox');
+  spec.tests.push({ ...spec.tests[0], projectName: 'firefox' }); report.stats.expected = 2;
+  assert.equal(validate().valid, true);
+  report.suites[0].specs.push({ file: 'other.spec.js', tests: [spec.tests.pop()] });
+  assert.equal(validate().valid, false, 'An engine on an unrelated file is insufficient');
+});
+
+test('release catalog includes merchant source checking and every browser regression family', async () => {
+  const { checksFor } = await import('../../src/scripts/release-readiness.mjs');
+  const checks = await checksFor(process.cwd());
+  for (const id of ['merchant-typecheck', 'merchant-browser', 'customer-offline', 'staff-offline']) {
+    assert.ok(checks.some(check => check.id === id), `Missing required check ${id}`);
+  }
+  assert.deepEqual(checks.find(check => check.id === 'staff-offline').expectedProjects, ['chromium', 'firefox']);
+  for (const file of ['failure-simulations.test.js', 'merchant-scale.test.js']) {
+    assert.ok(checks.find(check => check.id === 'domains').expectedFiles.includes(file));
+  }
+});
+
+test('a cancelled wrapper forwards termination to its detached subprocess', async t => {
+  const dir = await fixtureDirectory(t);
+  const library = new URL('../../src/scripts/release-readiness-lib.mjs', import.meta.url).href;
+  await writeFile(join(dir,'wrapper.mjs'), `
+    import {capture,withProcessCancellation} from ${JSON.stringify(library)};
+    const result = await withProcessCancellation(signal => capture(process.execPath,
+      ['-e', 'console.log(process.pid); setInterval(()=>{},1000)'],
+      {cwd:process.cwd(),env:{PATH:process.env.PATH},signal,graceMs:100}));
+    console.log(JSON.stringify({pid:Number(result.stdout.toString().trim()),cancelled:result.cancelled}));
+  `);
+  const result = await readiness.capture(process.execPath,['wrapper.mjs'],{cwd:dir,env:{PATH:process.env.PATH},timeoutMs:600});
+  assert.equal(result.timedOut,true);
+  const evidence = JSON.parse(result.stdout.toString());
+  assert.equal(evidence.cancelled,true);
+  assert.ok(Number.isSafeInteger(evidence.pid) && evidence.pid>0);
+  assert.throws(() => process.kill(evidence.pid,0),{code:'ESRCH'},'The nested runner must not remain alive');
+});
+
+test('termination still kills surviving group descendants after the runner exits', async t => {
+  const dir = await fixtureDirectory(t);
+  await writeFile(join(dir,'parent.mjs'), `
+    import {spawn} from 'node:child_process';
+    const child=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],{stdio:'ignore'});
+    setTimeout(()=>console.log(child.pid),100);setInterval(()=>{},1000);
+  `);
+  const result=await readiness.capture(process.execPath,['parent.mjs'],{cwd:dir,env:{PATH:process.env.PATH},timeoutMs:500,graceMs:100});
+  const pid=Number(result.stdout.toString().trim());assert.ok(Number.isSafeInteger(pid)&&pid>0);
+  t.after(()=>{try{process.kill(pid,'SIGKILL');}catch{/* fixture already stopped */}});
+  const {setTimeout:delay}=await import('node:timers/promises');
+  let alive=true;
+  for(let i=0;i<20;i++){try{process.kill(pid,0);}catch{alive=false;break;}await delay(25);}
+  assert.equal(result.timedOut,true);
+  assert.equal(alive,false,'A closed runner must not cancel cleanup of its surviving descendants');
 });

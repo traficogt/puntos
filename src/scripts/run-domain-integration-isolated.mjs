@@ -23,7 +23,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const postgresImage = 'postgres:16.15-alpine@sha256:aa6cb33cf4c19c765cefcf48d96176258800870a9a1e930ad126200f9d825139';
 const template = 'domain_integration_template';
 
-/** @typedef {{name: string, env: string|null, database: string, fullSchema?: boolean, admin?: boolean}} DomainSuite */
+/** @typedef {{name: string, env: string|null, database: string, fullSchema?: boolean, admin?: boolean, timeoutMs?: number}} DomainSuite */
 /** @type {DomainSuite[]} */
 export const domainSuites = [
   { name: 'acquisition-db', env: 'ACQUISITION_TEST_DATABASE_URL', database: 'acquisition_test' },
@@ -41,6 +41,8 @@ export const domainSuites = [
   { name: 'customer-recovery', env: 'CUSTOMER_RECOVERY_TEST_DB_URL', database: 'customer_recovery_test' },
   { name: 'customer-reward-progress', env: 'CUSTOMER_PROGRESS_TEST_DATABASE_URL', database: 'customer_progress_test' },
   { name: 'customer-statement', env: 'CUSTOMER_STATEMENT_TEST_DB_URL', database: 'customer_statement_test' },
+  { name: 'failure-simulations', env: 'FAILURE_SIMULATIONS_TEST_DB_URL', database: 'failure_simulations_test', fullSchema: true },
+  { name: 'merchant-scale', env: 'MERCHANT_SCALE_TEST_DB_URL', database: 'merchant_scale_test', fullSchema: true, timeoutMs: 360000 },
   { name: 'demand-funding', env: 'DEMAND_FUNDING_TEST_DB_URL', database: 'demand_funding_test' },
   { name: 'growth-campaigns', env: 'GROWTH_CAMPAIGNS_TEST_DB_URL', database: 'growth_campaigns_test' },
   { name: 'growth-messaging', env: 'GROWTH_MESSAGING_TEST_DB_URL', database: 'growth_messaging_test' },
@@ -102,7 +104,7 @@ function operatingEnvironment(inherited) {
  * @returns {NodeJS.ProcessEnv} */
 export function isolatedEnvironment(inherited, { port, password, database }) {
   return {
-    ...operatingEnvironment(inherited), NODE_ENV: 'test', TZ: 'UTC',
+    ...operatingEnvironment(inherited), NODE_ENV: 'test', TZ: 'UTC', PF_DOMAIN_ISOLATED: '1',
     DB_HOST: '127.0.0.1', DB_PORT: port, DB_NAME: database, DB_USER: 'postgres', DB_PASSWORD: password,
     DB_MIGRATIONS_USER: 'postgres', DB_MIGRATIONS_PASSWORD: password,
     JWT_SECRET: `domain-test-${password}`, MESSAGE_PROVIDER: 'dev', RATE_LIMIT_DRIVER: 'memory'
@@ -179,7 +181,7 @@ async function main() {
     for (const directory of ['src', 'tests', 'public', 'web', 'node_modules']) await symlink(join(root, directory), join(workdir, directory), 'dir');
     await symlink(join(root, 'package.json'), join(workdir, 'package.json'), 'file');
     console.log(`[domains] Starting isolated PostgreSQL for ${suites.length} suites`);
-    const created = await docker(['create', '--name', containerName, '--publish', '127.0.0.1::5432',
+    const created = await docker(['create', '--name', containerName, '--cpus', '1', '--memory', '1g', '--pids-limit', '128', '--publish', '127.0.0.1::5432',
       '--env', 'POSTGRES_PASSWORD', '--env', 'POSTGRES_USER=postgres', '--env', 'POSTGRES_DB=postgres', postgresImage]);
     containerId = created.stdout.trim();
     if (!/^[a-f0-9]{64}$/.test(containerId)) throw new Error('Docker did not return the created container ID');
@@ -217,13 +219,21 @@ async function main() {
       if (suite.env) env[suite.env] = `postgres://postgres:${password}@127.0.0.1:${port}/${suite.database}`;
       console.log(`[domains] Running ${suite.name}`);
       const start = Date.now();
-      const result = await runCommand(process.execPath, ['--test', '--test-reporter=tap', '--test-timeout=120000', join(root, `tests/integration/${suite.name}.test.js`)], {
-        cwd: workdir, env, timeoutMs: 150000, signal: abort.signal
+      const result = await runCommand(process.execPath, ['--test', '--test-reporter=tap', `--test-timeout=${suite.timeoutMs ?? 120000}`, join(root, `tests/integration/${suite.name}.test.js`)], {
+        cwd: workdir, env, timeoutMs: (suite.timeoutMs ?? 120000) + 30000, signal: abort.signal
       });
       const summary = summarizeTap(result.output);
       const code = result.code || (summary.ok ? 0 : 1);
       if (code) { console.error(redact(result.output)); exitCode ||= code; }
       const report = { file: `${suite.name}.test.js`, exit: code, seconds: Number(((Date.now() - start) / 1000).toFixed(1)), ...summary, ok: code === 0 };
+      // Retain bounded, explicit synthetic benchmark/fault diagnostics on success.
+      // These are descriptive evidence; TAP counts and exit status still decide the gate.
+      for (const line of result.stdout.split('\n')) {
+        const diagnostic = line.match(/^\s*# (\{"kind":"(?:merchant-scale-benchmark|failure-simulation-coverage)".*\})$/);
+        if (diagnostic && diagnostic[1].length < 32768) {
+          try { console.log(JSON.stringify(JSON.parse(diagnostic[1]))); } catch { /* Ignore malformed diagnostics. */ }
+        }
+      }
       results.push(report);
       console.log(JSON.stringify(report));
     }

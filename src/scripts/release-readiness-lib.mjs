@@ -7,6 +7,16 @@ const emptyCounts = () => ({ tests: 0, pass: 0, fail: 0, cancelled: 0, skipped: 
 const integer = value => Number.isSafeInteger(value) && value >= 0;
 export const digest = value => createHash('sha256').update(value).digest('hex');
 
+export function hasBrowserCompletion(output, kind, expectedChecks) {
+  const records = [];
+  for (const line of output.split('\n')) {
+    try { const value = JSON.parse(line); if (value?.kind === kind) records.push(value); }
+    catch { /* Ordinary runner output is not a completion receipt. */ }
+  }
+  return Number.isSafeInteger(expectedChecks) && expectedChecks > 0 && records.length === 1 &&
+    records[0].checks === expectedChecks && records[0].passed === true;
+}
+
 function validCounts(counts) {
   return countKeys.every(key => integer(counts[key])) && counts.tests > 0 &&
     counts.pass + counts.fail + counts.cancelled + counts.skipped + counts.todo === counts.tests;
@@ -29,19 +39,24 @@ export function parseTap(output) {
   return counts;
 }
 
-export function parsePlaywright(output, expectedFiles = []) {
+export function parsePlaywright(output, expectedFiles = [], expectedProjects = []) {
   const counts = emptyCounts();
   try {
     const report = JSON.parse(output);
     if (!Array.isArray(report.suites) || !Array.isArray(report.errors) || report.errors.length || !report.stats) return counts;
     let expected = 0, unexpected = 0, flaky = 0, skipped = 0;
     const observedFiles = new Set();
+    const observedProjects = new Set();
     function visit(suites) {
       for (const suite of suites) {
         for (const spec of suite.specs || []) {
           for (const test of spec.tests || []) {
             counts.tests++;
-            if (typeof spec.file === 'string') observedFiles.add(spec.file.replaceAll('\\', '/'));
+            if (typeof spec.file === 'string') {
+              const file = spec.file.replaceAll('\\', '/');
+              observedFiles.add(file);
+              if (typeof test.projectName === 'string') observedProjects.add(`${file}:${test.projectName}`);
+            }
             if (!Array.isArray(test.results) || !test.results.length) throw new Error('Missing results');
             if (test.status === 'expected') expected++;
             else if (test.status === 'unexpected') unexpected++;
@@ -59,7 +74,7 @@ export function parsePlaywright(output, expectedFiles = []) {
     }
     visit(report.suites);
     counts.valid = validCounts(counts) && expected === report.stats.expected && unexpected === report.stats.unexpected &&
-      flaky === report.stats.flaky && skipped === report.stats.skipped && expectedFiles.every(file => observedFiles.has(file));
+      flaky === report.stats.flaky && skipped === report.stats.skipped && expectedFiles.every(file => observedFiles.has(file) && expectedProjects.every(project => observedProjects.has(`${file}:${project}`)));
   } catch (_error) { counts.valid = false; }
   return counts;
 }
@@ -118,7 +133,7 @@ export function evaluateEvidence({ check, receipt, stdout, stderr, source, revis
     signal: ['SIGTERM', 'SIGINT', 'SIGKILL', 'SIGABRT', 'SIGSEGV'].includes(receipt.signal) ? receipt.signal : null,
     artifacts: { stdout: { sha256: digest(stdout), bytes: stdout.length }, stderr: { sha256: digest(stderr), bytes: stderr.length } } };
   const output = stdout.toString('utf8');
-  const counts = check.format === 'tap' ? parseTap(output) : check.format === 'playwright' ? parsePlaywright(output, check.expectedFiles) :
+  const counts = check.format === 'tap' ? parseTap(output) : check.format === 'playwright' ? parsePlaywright(output, check.expectedFiles, check.expectedProjects) :
     check.format === 'domains' ? parseDomains(output, check.expectedFiles) : null;
   if (source.commit !== revision || !sameSource(source, receipt.sourceBefore) || !sameSource(source, receipt.sourceAfter)) return { ...result, counts, status: 'not_tested', reason: 'source_mismatch_or_dirty' };
   if (check.requiresApplicationIdentity) {
@@ -204,11 +219,28 @@ export function capture(executable, args, { cwd, env, timeoutMs = 180000, maxByt
     child.stderr.on('data', chunk => collect(stderr, chunk));
     child.on('error', () => { spawnFailed = true; });
     child.on('close', (code, childSignal) => {
+      // A leader can exit while a stdio-detached descendant ignores SIGTERM.
+      // Finish group cleanup before cancelling the escalation timer.
+      if (forcedKill && child.pid) {
+        try { process.kill(-child.pid, 'SIGKILL'); } catch (_error) { /* Group already exited. */ }
+      }
       clearTimeout(timer); clearTimeout(forcedKill); signal?.removeEventListener('abort', stop);
       resolve({ stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr), exitCode: spawnFailed ? 127 : code,
         signal: childSignal, timedOut, truncated, cancelled: signal?.aborted === true });
     });
   });
+}
+
+/** Forward wrapper termination to its detached child group before exiting.
+ * @template T
+ * @param {(signal: AbortSignal) => Promise<T>} operation
+ * @returns {Promise<T>} */
+export async function withProcessCancellation(operation) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  process.on('SIGTERM', abort); process.on('SIGINT', abort);
+  try { return await operation(controller.signal); }
+  finally { process.off('SIGTERM', abort); process.off('SIGINT', abort); }
 }
 
 

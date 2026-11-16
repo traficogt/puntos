@@ -1,3 +1,4 @@
+import {demoOwnerWorkspace} from './demo-owner-workspace.ts';
 import {demoServiceCompletion} from './demo-service-completion.js';
 import {demoDemandFunding} from './demo-demand-funding.js';
 import {demoEvidenceHealth} from './demo-evidence-health.js';
@@ -119,6 +120,8 @@ function overview(url) {
 export async function demoApi(path, options = {}) {
   if (options.signal?.aborted) throw new DOMException("Aborted", "AbortError");
   const url = new URL(path, "https://preview.invalid");
+  const ownerResponse = demoOwnerWorkspace(url, options);
+  if (ownerResponse !== undefined) return structuredClone(ownerResponse);
   if(url.pathname==='/api/admin/data-health'||url.pathname==='/api/admin/transaction-rejections'||url.pathname.startsWith('/api/admin/analytics/ledger-corrections'))return demoEvidenceHealth(url,options);
   if (['/api/admin/demand-notebook','/api/admin/supplier-funding'].some(prefix=>url.pathname.startsWith(prefix))) return demoDemandFunding(url,options);
   if (url.pathname.startsWith('/api/admin/service-operations')) return demoServiceCompletion(url,options);
@@ -166,7 +169,11 @@ export async function demoApi(path, options = {}) {
       case "/api/admin/plan":
         result = {
           plan: "NEGOCIO",
+          limits: { branches: 3 },
           features: {
+            staff_management: true,
+            customer_export: true,
+            gift_cards: true,
             analytics: true,
             program_rules: true,
             lifecycle_automation: true,

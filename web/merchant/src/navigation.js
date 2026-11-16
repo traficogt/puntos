@@ -1,5 +1,9 @@
 const fragments = {
   overview: "resumen",
+  customers: "clientes",
+  team: "personal",
+  branches: "sucursales",
+  settings: "configuracion",
   decisions: "decisiones",
   cases: "casos",
   demand: "pedidos-de-clientes",

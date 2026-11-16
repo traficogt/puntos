@@ -1937,6 +1937,19 @@ paths:
       x-required-roles:
         - OWNER
       parameters: undefined
+  /api/v1/admin/customers:
+    get:
+      summary: "Derived GET /api/v1/admin/customers"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
   /api/v1/admin/customers.csv:
     get:
       summary: "Derived GET /api/v1/admin/customers.csv"
@@ -1952,6 +1965,42 @@ paths:
       x-plan-features:
         - customer_export
       parameters: undefined
+  /api/v1/admin/customers/{id}:
+    get:
+      summary: "Derived GET /api/v1/admin/customers/{id}"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+    patch:
+      summary: "Derived PATCH /api/v1/admin/customers/{id}"
+      responses:
+        200:
+          description: Success
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
   /api/v1/admin/data-health:
     get:
       summary: "Derived GET /api/v1/admin/data-health"

@@ -52,18 +52,18 @@ jobs:
         run: npm run ops:migrate:lock-check
       - name: Typecheck
         run: npm run typecheck
+      - name: Merchant production types and strict contracts
+        run: npm --prefix web/merchant run typecheck
       - name: Lint
         run: npm run lint
-      - name: Install Playwright Chromium for PWA tests
-        run: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps chromium
-      - name: Merchant navigation browser checks
-        run: PLAYWRIGHT_BROWSERS_PATH=0 npm run test:merchant:navigation
+      - name: Install Playwright Chromium and Firefox for browser regressions
+        run: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps chromium firefox
+      - name: Consolidated merchant browser regression gate
+        run: PLAYWRIGHT_BROWSERS_PATH=0 node --test tests/integration/merchant-browser-gate.test.js
       - name: Customer offline wallet shell regression
         run: PLAYWRIGHT_BROWSERS_PATH=0 node --test tests/integration/customer-offline-shell.browser.test.js
-      - name: Merchant import preview regression
-        run: PLAYWRIGHT_BROWSERS_PATH=0 node web/merchant/tests/customer-migration-pending-browser.spec.mjs
       - name: Staff offline and customer selection regressions
-        run: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright test tests/e2e/staff-offline.spec.js --project=chromium --retries=0 --reporter=line
+        run: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright test tests/e2e/staff-offline.spec.js --project=chromium --project=firefox --retries=0 --reporter=line
       - name: Tests
         run: npm test
       - name: OpenAPI generation is current

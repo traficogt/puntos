@@ -145,7 +145,7 @@ try {
     await expect(nav(page).getByRole("button", { name: "Recuperar clientes", exact: true })).toBeHidden();
     await expect(summary).toBeFocused();
   });
-  await check("all 26 routes are reachable through the grouped menu", async () => {
+  await check("all 30 routes are reachable through the grouped menu", async () => {
     const { dailyNavigation, navigationGroups } = await import("../src/merchant-navigation.js");
     const { hashForPage } = await import("../src/navigation.js");
     for (const section of [{ items: dailyNavigation }, ...navigationGroups]) {
@@ -221,7 +221,7 @@ try {
     await current.page.goto(`${origin}/negocio/#campanas`);
     await expect(nav(current.page).getByRole("button", { name: "Reglas de puntos", exact: true })).toBeVisible();
     await expect(current.page.getByText("Esta función no está incluida en el plan actual de tu negocio.", { exact: true })).toBeVisible();
-    assert.equal(await nav(current.page).getByRole("button", { includeHidden: true }).count(), 26);
+    assert.equal(await nav(current.page).getByRole("button", { includeHidden: true }).count(), 30);
     assert.equal(requests.includes("/api/admin/campaign-rules"), false);
     await finish(current);
   });

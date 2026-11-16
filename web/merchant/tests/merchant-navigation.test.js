@@ -4,6 +4,7 @@ import { pageFromHash, hashForPage, merchantPages } from "../src/navigation.js";
 import { dailyNavigation, navigationGroups } from "../src/merchant-navigation.js";
 
 const existingRoutes = {
+  customers: "clientes", team: "personal", branches: "sucursales", settings: "configuracion",
   overview: "resumen", decisions: "decisiones", cases: "casos",
   demand: "pedidos-de-clientes", funding: "proveedores", authority: "equipo",
   hospitality: "cortesias", promises: "promesas", region: "region",

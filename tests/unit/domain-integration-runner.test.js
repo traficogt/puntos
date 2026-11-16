@@ -5,25 +5,25 @@ import {
 } from '../../src/scripts/run-domain-integration-isolated.mjs';
 
 test('domain filters select only registered suites and reject unknown paths', () => {
-  assert.equal(domainSuites.length, 54);
-  assert.equal(new Set(domainSuites.map(suite => suite.name)).size, 54);
+  assert.equal(domainSuites.length, 56);
+  assert.equal(new Set(domainSuites.map(suite => suite.name)).size, 56);
   assert.equal(selectSuites(['campaign-consent-race'])[0].env, 'CAMPAIGN_CONSENT_TEST_DB_URL');
   assert.deepEqual(selectSuites(['native-wallet-storage', 'operations-runtime-role.test.js']).map(suite => suite.database),
     ['native_wallet_test_storage', 'operations_completion_test']);
   assert.throws(() => selectSuites(['../../production.sql']), /Unknown domain suite/);
   assert.throws(() => selectSuites(['native-wallet-storage', 'typo']), /Unknown domain suite/);
-  assert.equal(selectSuites([]).length, 54);
+  assert.equal(selectSuites([]).length, 56);
 });
 
 test('test environment does not inherit production credentials, opt-ins or Node preload hooks', () => {
   const env = isolatedEnvironment({ PATH: '/usr/bin', HOME: '/home/test', CI: 'true', DB_HOST: 'production',
     DB_PASSWORD_FILE: '/run/secrets/database', JWT_SECRET: 'production-secret', SMTP_PASSWORD: 'private',
     NATIVE_WALLET_TEST_DATABASE_URL: 'postgres://production/db', NODE_OPTIONS: '--import=unsafe.mjs',
-    DOCKER_HOST: 'tcp://remote:2375', PGHOST: 'production' }, { port: '55480', password: 'fixture-password', database: 'fixture_test' });
+    DOCKER_HOST: 'tcp://remote:2375', PGHOST: 'production' }, { port: '55680', password: 'fixture-password', database: 'fixture_test' });
   assert.equal(env.PATH, '/usr/bin');
   assert.equal(env.HOME, '/home/test');
   assert.equal(env.DB_HOST, '127.0.0.1');
-  assert.equal(env.DB_PORT, '55480');
+  assert.equal(env.DB_PORT, '55680');
   assert.equal(env.DB_NAME, 'fixture_test');
   assert.equal(env.DB_PASSWORD, 'fixture-password');
   assert.equal(env.NODE_ENV, 'test');

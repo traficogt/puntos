@@ -29,6 +29,10 @@ import DemoGuide, { DemoWelcome } from "./DemoGuide.jsx";
 import { demoView, demoLocation } from "./demo-guide.js";
 import { Loading, Failure, BusinessLink } from "./ui.jsx";
 import { setMerchantRegion } from './region.js';
+const OwnerCustomers = lazy(() => import('./OwnerCustomers.tsx'));
+const OwnerTeam = lazy(() => import('./OwnerTeam.tsx'));
+const OwnerBranches = lazy(() => import('./OwnerBranches.tsx'));
+const OwnerSettings = lazy(() => import('./OwnerSettings.tsx'));
 const RewardsWorkspace = lazy(() => import('./RewardsWorkspace.jsx'));
 const Fulfillment = lazy(() => import('./Fulfillment.jsx'));
 const RegionSettings = lazy(() => import('./RegionSettings.jsx'));
@@ -325,13 +329,9 @@ function Merchant({ staff }) {
             <div id="merchant-navigation" hidden={compactNavigation && !navigationOpen}>
             <MerchantNavigation page={page} visible={!compactNavigation || navigationOpen} onNavigate={navigate} />
             <div className="sidebar-secondary">
-              <BusinessLink href="/administracion/?seccion=clientes">
-                Clientes
-              </BusinessLink>
               <BusinessLink href="/administracion/?seccion=analisis">
                 Informes detallados
               </BusinessLink>
-              <BusinessLink href="/administracion/">Configuración</BusinessLink>
               <BusinessLink href="/equipo/escaner/">Abrir escáner</BusinessLink>
             </div>
             <Text size="xs" c="dimmed" className="plan-name">
@@ -369,6 +369,14 @@ function Merchant({ staff }) {
                 {page === "overview" ? (
                   <><ActivationSetup region={region.data} features={plan.data?.features||{}} onNavigate={navigate} onConfigure={section=>{setFocusSection(section);navigate('automations');}}/>
                   <Overview features={plan.data?.features || {}} onNavigate={navigate}/></>
+                ) : page === "customers" ? (
+                  <OwnerCustomers staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                ) : page === "team" ? (
+                  <OwnerTeam staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                ) : page === "branches" ? (
+                  <OwnerBranches staff={staff} features={plan.data?.features || {}} limits={plan.data?.limits || {}} onDirty={setDirty} onNavigate={navigate} />
+                ) : page === "settings" ? (
+                  <OwnerSettings staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "decisions" ? (
                   <Decisions />
                 ) : page === "cases" ? (
