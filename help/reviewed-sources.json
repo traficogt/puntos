@@ -1,0 +1,213 @@
+{
+  "reviewed": "2026-11-16",
+  "sources": {
+    "public/customer-auth-entry.js": "2b636a9032a0622af107b2799f4b4b69203b496858bd9a6b2f3482fe058bfec5",
+    "public/customer.html": "4385394e53562a8c0b70863af6558c2cfa816649b43e0e42cce9bfd399c0147a",
+    "public/customer/demand-notebook.js": "a67b266a87555ee4e8b2599784263a3b1fa5decc41802db48ae3a0e0b58ad788",
+    "public/customer/growth-offers.js": "c9d76b845bce276f5e4836a12465318467592cb3df7863646233e109b92334c8",
+    "public/customer/index.js": "95cf1b9d507cb7472c3703261eef53deff378063f89d694c1e2628ba4cd4233d",
+    "public/customer/load.js": "459c852ab0e6467ec720be25f81eaadd3991b19b6ec20cf454d4606ec78cc979",
+    "public/customer/native-wallet.js": "b09daf17871baa08dd6d27b4bee904f312346e373af83af1810db756f2318cc9",
+    "public/customer/qr.js": "0d0633f47fc696a211b31401181f0559ab61648e90829697403e0fb75c769c02",
+    "public/customer/render.js": "bbb1b18ea8765ae9e803e3073f88519f77c728c1a66489e649cdbd49c0f555ad",
+    "public/customer/reward-entitlements.js": "a9f3833f96b9e7ce8db3cfbe71268cf1113cd7f59cb21f28dda78ba70a384be5",
+    "public/customer/rewards.js": "4405e14bc2f528a3c464a5b85dc709b1ef45a678724e4eb065c6ac6138182b1e",
+    "public/customer/session.js": "c22c9034a50456922233971a9bd0d678579e9a5d8247da0a83453a091d9e9c2e",
+    "public/customer/statement.js": "cb71ea7ac103556c54433965c85ea4f8d0d952e3a88426352b65a18ebe4396af",
+    "public/demand-notebook.js": "e5a3ffadc4dab306a4b49b5aa454f89c1132766a40158655943509281ddf96a9",
+    "public/idb.js": "b5760c95126bd86aeda9c7ceb35320fa300bfe0d02b5076f8724d86144888d74",
+    "public/ingresar.html": "b7d224d5852382fa5bea24aacd9b4e4b2af3f97e8473d6b673cfa0d1f6f8a690",
+    "public/ingresar.js": "412d22323cdc917c4bf811b11fe6dd9dafb04d25034307aa937cb5832ee3cf0e",
+    "public/join.html": "bc8809838d55dae2e43806f4369d25fe3b19ee1af7511eccffda408f9ae0cffc",
+    "public/join.js": "06ba109b2c6373488cbb202f906208f12d15f222d7f2856889ea2c0ce8db8e59",
+    "public/marketing-preferences.html": "152d260ea584a46acd6b0f7bfa1ac1d83bcc135dcba237345bf064016735893b",
+    "public/marketing-preferences.js": "412c04da2a69aef70b583d53c54f9598dfe8fe93d2aa7077b8a7b3c6cd714ae2",
+    "public/privacidad.html": "540e6861304232d258e1209ef9e46b0e29472aeb81361613249a2682a842bf66",
+    "public/soporte.html": "b60671d756fad9eb3a117fbfa3420e7cfa061f420f2d2da89caef8aca12cc80f",
+    "public/staff-login.html": "ec31e8c9d7355f9301e4fa3fe43385921c790dd1cb2c3d7f647d5b2b52168a69",
+    "public/staff-login.js": "56dfe585f0529bfb5c3f53b75fa43155ffceaabc18a3faad505f7f19157c4786",
+    "public/staff.html": "e0745f2ab3e46b1f4ee202a3467fc8723d5160ceaf4bf67f56204b386c03ba32",
+    "public/staff/award-queue.js": "147145135b02f84f2601ec6b30bcd842dd5f443e76253e77b53ceb6869463772",
+    "public/staff/index.js": "ec9653bd152a1636e72f72a23b5f0a3cbc575eba434b2bb6570cb74c8827e06c",
+    "public/staff/pos-recording.js": "562572b47aafaef8951ad7e5314d8f1ae0a915e11cd1026fbdc39874dd2b51b4",
+    "public/staff/reward-entitlements.js": "6a30563732e7399a256e9fc095f16ab3f31504c3a3808323524c70080594135d",
+    "public/staff/service-briefing.js": "f9e3334678d2cb5996171a3db0bfb609d561f1762f9f2381c17f765354fc4d2d",
+    "public/staff/service-cases.js": "bf19ecb4b520e949444c1720e2913f4aae0977aa380b30b41c14a88fee2224d4",
+    "public/staff/service-operations.js": "edc22d63b3c03c7b3c644a1b0625ad5785d9b17b7ade661c472d0eed9c8a8aaa",
+    "web/merchant/src/Acquisition.jsx": "9238ab230471696da941c6df85ecce4b03c9749232dec6d1abad4630f96a5027",
+    "web/merchant/src/AudienceRules.jsx": "b9bdd93eb46122c6061158e0740f9d3c028b290a5d7a363c4a89a889813c8fa3",
+    "web/merchant/src/Audiences.jsx": "30c0fa22a24f6d7824d8941e5d3d1aea4402e4fa689727fe223c02a817ec7885",
+    "web/merchant/src/Automations.jsx": "57ecc174e925265a1fd2090ad1482f05eef2fdbc17c71f964efcf1c2ed202e1f",
+    "web/merchant/src/BrandedQr.jsx": "8338f7f8ae8676497248c343095a7c904eed4552e17a792a9e50700f92324600",
+    "web/merchant/src/BulkCampaignPreparation.jsx": "4bfe6d410ba23469e1cd232e4e252fbdebb6413aa536ffd5f42b0b938f11f807",
+    "web/merchant/src/CampaignMeasurementControls.jsx": "51500d48428be076240f127c6cbc53b94bd368e7a19c5ef045e655aa30352de2",
+    "web/merchant/src/CampaignMeasurementPlan.jsx": "9a6805a95a8ad871566151b869df65828b6de7c09587c550836f20d56e41e0ab",
+    "web/merchant/src/CampaignPreflight.jsx": "e33e88703aa398f477f1bf22d69d41316fdc80672604e88dacf883570250e4d4",
+    "web/merchant/src/CampaignResults.jsx": "955921be8ad28b3b55167d9036c9a39178ca67531b42ecb6b49faaa0971f2e6b",
+    "web/merchant/src/Campaigns.jsx": "a740d860e560488be24c61072155a94f6080cc6958909980b6e701367c1aaea6",
+    "web/merchant/src/CommitmentScenarios.jsx": "55372da39d5da0e03bd558030bf2ed61ca75c93200aae7b1d48f82b06a052f3e",
+    "web/merchant/src/CustomerMigration.jsx": "abb65b2e1d56a8588988da1167aa451460632dea4a5691587034b19adf851f43",
+    "web/merchant/src/DataHealth.jsx": "7c55e56dcebdbdbce046190e1aba265dce8a24f39d253ee43efcf0b3c206afc2",
+    "web/merchant/src/DecisionActions.jsx": "e330d1b0fdf38a5683d8ff9c9fc38680a313c2d090cedcb1ca95c6f5cd3e757e",
+    "web/merchant/src/Decisions.jsx": "f2f278b020052ead1d42a973bc18603c0695644ea13ec00d58d4a7d056442bdb",
+    "web/merchant/src/DemandNotebook.jsx": "55ff52630a1366a576f8f5007aeba415b3cdaf31a09342cd97bd73b14475c93b",
+    "web/merchant/src/Economics.jsx": "dc0f65aaaf5ae61cb11012eb20503aee0f779d63b30be693f4e6499db45558c1",
+    "web/merchant/src/Fulfillment.jsx": "9fbf8e098fd92c71d0197f48675af9c1ef8a210126867870936644ea0d37582e",
+    "web/merchant/src/GrowthCampaigns.jsx": "79a327b2ffe65e91cb060a3a0062f304237cbc04d1984dec1f20e3afc4c9a01a",
+    "web/merchant/src/Hospitality.jsx": "794795848274384fdae736bb995b5903089ecf247081b751904754f05eeb29ad",
+    "web/merchant/src/ImportJobs.jsx": "00f44e3ad0ea533b6bf95da2deeac2748ba9d3158b0657db0eb42106e4b7a1de",
+    "web/merchant/src/Launch.jsx": "e5c0d2a82767f66921e4c18bd535501e6ec76f42adf8ceabb35d27b47ee5561d",
+    "web/merchant/src/LaunchEnrollment.jsx": "33d94278dac8cb73171f72034ca96e74b67ebd3175f47b8bdeb2d7b23ad6327e",
+    "web/merchant/src/LaunchPractice.jsx": "41ecf6771af6273402ed66a403643c82ec332617b8da22f9d3ce5d95382c4030",
+    "web/merchant/src/LaunchProgramEditor.jsx": "b7458dd590d22121ada5cb6a0286b443e6a749f13cc251109d6506cadde23bb0",
+    "web/merchant/src/OfferCostPreview.jsx": "e32e09d260f7b3fdc8fcfc01215710b4774a7eec1d67d3a164e2180dd6e3e885",
+    "web/merchant/src/Operations.jsx": "3b1eea217df7d74edc03dc242483abc65d59e966f0fd04168bd8548c2d87977e",
+    "web/merchant/src/Overview.jsx": "15045d3ebaca110c5dbd1518c8b23901e5e1426d92d9072a254fdaa0b64c7b12",
+    "web/merchant/src/OwnerBranches.tsx": "b5d2f4724390e7fdcb6060865aabd6a6e6c4e48a2c5ffaa716b9dafd3cc1142b",
+    "web/merchant/src/OwnerCustomers.tsx": "9dc02bf87ad9d10d4c9ed28a5f30147fbf7796e03d0e73b9f91efb52816763cb",
+    "web/merchant/src/OwnerSettings.tsx": "07da5ab04d3ae01160e33e2c8f3a9c526720aaae6fef5ce7092faf0af9019cec",
+    "web/merchant/src/OwnerTeam.tsx": "a57fb2de2a253a3e06cd01a852c2b2fca06e75b9c36f49842454ae4e81eda62f",
+    "web/merchant/src/Pilot.jsx": "6e16d1aab0147f6cc40fb9eea9438f448a9317a1ba70347446c951416cf1263d",
+    "web/merchant/src/PosConnect.jsx": "bac199cae27b4ef35009bcdbdae5384c970b3968e5bd2d6f53742f0b81156607",
+    "web/merchant/src/PosInstallation.jsx": "1b8c91f446b2c9538508574d7eea1331568d1fbfd9bec36b9368e132a9e8a951",
+    "web/merchant/src/PosRefunds.jsx": "2264fe6dfc2d4e17cc73ec00ca3e9cea54471dea6fa72326ad458343903e0ac9",
+    "web/merchant/src/Recovery.jsx": "94eef94a07b94a669cd2b62f4d3b30cf546f786b3ea2a7f97624fd7b3a8d2c0a",
+    "web/merchant/src/RedemptionReturns.jsx": "c8933a2317c5d35a0e9ba8d6e5c054dcc418f03cb559c8586bc455c79800b164",
+    "web/merchant/src/Referrals.jsx": "bb505de7b3773e58273447555217644a705f7a0d9078f6f24cc2a61f61b50e46",
+    "web/merchant/src/RegionSettings.jsx": "a7b2d03ad17d8377a47eaae0988625336545d16d81c1c5b8aac7891156d5f468",
+    "web/merchant/src/RewardPromises.jsx": "2b96a58103e5470fb27846b252a3066233b0321b2c6c64e1965bd66d66699384",
+    "web/merchant/src/RewardsWorkspace.jsx": "740fa231c69f4339a359353a7bad8a0dbe71fef11571286b85eae0c9de0a8444",
+    "web/merchant/src/SecondVisitControls.jsx": "5312899840d14d329c547f88f0f72d6db9ead8f7d2f19425196fa9b7606ec43c",
+    "web/merchant/src/ServiceCases.jsx": "17cdd2698c2a794b47fd9c50a6590be97b7e4a76bf046b550845f1578e134c64",
+    "web/merchant/src/StaffAuthority.jsx": "89a3f146062133b4fc3f5a33fcad107638ee1ffa7182cea56869cfab1c8917b5",
+    "web/merchant/src/SupplierFunding.jsx": "200ffab5d52f1d2816763161fe7e715e93bbbba2338e6fa47a295fda72129bca",
+    "web/merchant/src/TransactionHistory.jsx": "c0ace7a339767494ff84c8df69f6f52fd09b800177321dc57bffb2db61a0523a",
+    "web/merchant/src/WeeklyOwnerBrief.jsx": "7b425087dd27a291487c1ab9861f05297a7e9438ef04512cd24819a18c1e7ed9",
+    "web/merchant/src/audience-model.js": "6e8cee6960c3092f8cb6500fe9d8c81099ba5470d6d2252ba34d38365b72d42e",
+    "web/merchant/src/branded-qr-model.js": "0e07743f258974685925f7d68ca4e621a44e1ae579f60c8581f1460879a2c552",
+    "web/merchant/src/campaign-model.js": "a2b3b39c97bd146e816c3e04249b36c81a21839ebdb0f031cf9588b9314480ef",
+    "web/merchant/src/fulfillment-model.js": "8abb7187dac2409a8456a9e84e5a6bc5004775e8d59f132a9ce51825947b7596",
+    "web/merchant/src/hospitality-pilot.js": "b7aa82a5266554553cb06e1ad48f1a2e676645a3383d68710b6730f8a4b10a12",
+    "web/merchant/src/launch-model.js": "2e62514e6a05475e44b9a9b5801b49fab8f1a0011a458ce959a543360bb0443b",
+    "web/merchant/src/merchant-navigation.js": "f10072505f7777062a9bc2cc55196482d8114bf41fa68874515f96e423d9c776",
+    "web/merchant/src/migration-model.js": "354b622b9c9f6ca4d5d3256ea6eee4a100a59e1cf36aea625af1da2588072d4d",
+    "web/merchant/src/navigation.js": "c71aab9f88f3ac92f4cfe9d1d76a7685c49e2095cf4c5530744ee3b0e755fb72",
+    "web/merchant/src/owner-workspace.tsx": "c6a27306a0e2a7c9091802d2c11d1484ba563f429f40bdf441346b9530838374",
+    "web/merchant/src/pos-installation-model.js": "9ef60ba05972a015631f58715977dda4e47904e63ef8663e3eba4a6a0ddfabf8",
+    "web/merchant/src/region.js": "340c7be860f34d4069478020639552a136c683011a43309b5c2aa1423b15cd75",
+    "web/merchant/src/reward-workspace-model.js": "3fcf33d4d9138868ddff127d3ae92dbfed5115d6ab0c71659f7fd535fb14091e",
+    "web/merchant/src/second-visit-model.js": "cd4c8cc57554121df6e5115e421ec581923b65f9e9e8e6580768abd8cd38143f"
+  },
+  "button_contracts": [
+    {
+      "page": "caja/iniciar-turno.md",
+      "source": "public/staff-login.html",
+      "text": "Entrar al equipo"
+    },
+    {
+      "page": "caja/practicar.md",
+      "source": "public/staff/service-operations.js",
+      "text": "Iniciar práctica guardada"
+    },
+    {
+      "page": "caja/practicar.md",
+      "source": "public/staff/service-operations.js",
+      "text": "Simular inscripción"
+    },
+    {
+      "page": "caja/practicar.md",
+      "source": "public/staff/service-operations.js",
+      "text": "Comprobar intento no elegible"
+    },
+    {
+      "page": "caja/practicar.md",
+      "source": "public/staff/service-operations.js",
+      "text": "Registrar compra ficticia"
+    },
+    {
+      "page": "caja/practicar.md",
+      "source": "public/staff/service-operations.js",
+      "text": "Devolver canje ficticio"
+    },
+    {
+      "page": "caja/recibo.md",
+      "source": "public/staff/pos-recording.js",
+      "text": "Guardar comprobación en PF"
+    },
+    {
+      "page": "caja/incidencia.md",
+      "source": "public/staff/service-cases.js",
+      "text": "Escalar al dueño"
+    },
+    {
+      "page": "clientes/mostrar-qr.md",
+      "source": "public/customer.html",
+      "text": "Generar QR"
+    },
+    {
+      "page": "clientes/promociones.md",
+      "source": "public/marketing-preferences.html",
+      "text": "Guardar preferencia"
+    },
+    {
+      "page": "negocio/clientes.md",
+      "source": "web/merchant/src/OwnerCustomers.tsx",
+      "text": "Guardar nombre"
+    },
+    {
+      "page": "negocio/personal.md",
+      "source": "web/merchant/src/OwnerTeam.tsx",
+      "text": "Crear cuenta"
+    },
+    {
+      "page": "negocio/cambiar-acceso.md",
+      "source": "web/merchant/src/OwnerTeam.tsx",
+      "text": "Confirmar cambios"
+    },
+    {
+      "page": "negocio/sucursales.md",
+      "source": "web/merchant/src/OwnerBranches.tsx",
+      "text": "Crear sucursal"
+    },
+    {
+      "page": "negocio/recompensas.md",
+      "source": "web/merchant/src/RewardsWorkspace.jsx",
+      "text": "Guardar recompensa"
+    },
+    {
+      "page": "negocio/catalogo.md",
+      "source": "web/merchant/src/RewardsWorkspace.jsx",
+      "text": "Guardar artículo y elegir"
+    },
+    {
+      "page": "negocio/permisos.md",
+      "source": "web/merchant/src/StaffAuthority.jsx",
+      "text": "Guardar autorización"
+    },
+    {
+      "page": "negocio/avisos.md",
+      "source": "web/merchant/src/StaffAuthority.jsx",
+      "text": "Publicar nueva versión"
+    },
+    {
+      "page": "negocio/pedidos-clientes.md",
+      "source": "web/merchant/src/DemandNotebook.jsx",
+      "text": "Guardar seguimiento"
+    },
+    {
+      "page": "negocio/proveedores.md",
+      "source": "web/merchant/src/SupplierFunding.jsx",
+      "text": "Conciliar pago"
+    },
+    {
+      "page": "negocio/segunda-visita.md",
+      "source": "web/merchant/src/SecondVisitControls.jsx",
+      "text": "Confirmar y activar segunda visita"
+    },
+    {
+      "page": "negocio/mensajes-campana.md",
+      "source": "web/merchant/src/GrowthCampaigns.jsx",
+      "text": "Poner mensajes en cola"
+    }
+  ]
+}

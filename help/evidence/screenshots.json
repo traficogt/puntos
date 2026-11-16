@@ -1,0 +1,42 @@
+[
+  {
+    "file": "docs/assets/screenshots/recompensas.webp",
+    "origin": "/negocio/?demo=1&vista=libre#recompensas",
+    "description": "Actual PF interface with built-in fictional demonstration data; crop excludes navigation and blank layout space.",
+    "width": 1100,
+    "height": 630,
+    "source_sha256": "16d3764968f3df9b81689e06cf1bacbbb8075c9aaeb2b52f6a665d53247ed2b7",
+    "sha256": "68574325490c44d60816d28aaef573ac94312bd8fc781260e699075e278cda1a",
+    "reviewed": "2026-11-16"
+  },
+  {
+    "file": "docs/assets/screenshots/clientes.webp",
+    "origin": "/negocio/?demo=1&vista=libre#clientes",
+    "description": "Actual PF interface with built-in fictional demonstration data; crop excludes navigation and blank layout space.",
+    "width": 1100,
+    "height": 630,
+    "source_sha256": "7396811767c05db2b2d58ae846b546c56ac4b27b0fd2f7e4dcbacb834016f0d9",
+    "sha256": "09727d25a306fc8aec09a2a1b4677c8169a0a3be87278249f9c1593cdb5c77a5",
+    "reviewed": "2026-11-16"
+  },
+  {
+    "file": "docs/assets/screenshots/personal.webp",
+    "origin": "/negocio/?demo=1&vista=libre#personal",
+    "description": "Actual PF interface with built-in fictional demonstration data; crop excludes navigation and blank layout space.",
+    "width": 1100,
+    "height": 460,
+    "source_sha256": "d0575ce6026462d5b5fc27dd31b80b15fefedc7388c602d6d54833729e213f7d",
+    "sha256": "3e4bfe36fd378a769f765a3baacef1981a78431d5879c860f2e20dc964b35061",
+    "reviewed": "2026-11-16"
+  },
+  {
+    "file": "docs/assets/screenshots/practica.webp",
+    "origin": "public/staff/service-operations.js + public/staff/rehearsal-model.js",
+    "description": "Actual saved-practice component rendered with a local in-memory API fixture; fictional customer, no real network or storage operations.",
+    "width": 1100,
+    "height": 789,
+    "source_sha256": "cdd44b1fe7b28215e8c1693ac6928b34d5213c3f2a72a0d94f7a299a89601863",
+    "sha256": "a2674d9f6559d36915486fa070d09bfbb6ccc4e9921e5665d121b642cd94c16e",
+    "reviewed": "2026-11-16"
+  }
+]

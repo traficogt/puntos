@@ -1,0 +1,2 @@
+# Optional screenshot optimization only; not required for the MkDocs build.
+Pillow==11.3.0

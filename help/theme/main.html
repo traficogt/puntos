@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% if page and page.title %}{{ page.title }} · {% endif %}Ayuda PF</title>
+  <meta name="description" content="{{ page.meta.description if page and page.meta.description else config.site_description }}">
+{% if page and page.canonical_url %}<link rel="canonical" href="{{ page.canonical_url }}">{% endif %}
+  <meta name="theme-color" content="#f7f5ef"><link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/ayuda/assets/help.css"><script src="/ayuda/assets/help.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<header class="site-header"><a class="brand" href="/ayuda/" aria-label="PF Ayuda, inicio"><img src="/icon.svg" width="32" height="32" alt=""><span>PF <span class="brand-section">Ayuda</span></span></a><nav aria-label="Enlaces principales"><a href="/">Sitio PF</a><a href="/equipo/ingresar/">Entrar al equipo</a></nav></header>
+<div class="page-layout">
+<aside class="sidebar"><details class="guide-menu" open><summary>Guías por tarea</summary><nav aria-label="Guías de ayuda">
+<a href="/ayuda/" {% if page and page.is_homepage %}aria-current="page"{% endif %}>Inicio de ayuda</a>
+{% for item in nav %}{% if item.children %}<details {% if item.active %}open{% endif %}><summary>{{ item.title }}</summary><ul>{% for child in item.children %}<li><a href="/ayuda/{{ child.url }}" {% if child.active %}aria-current="page"{% endif %}>{{ child.title }}</a></li>{% endfor %}</ul></details>{% endif %}{% endfor %}
+</nav></details><div class="sidebar-support"><a href="/soporte">Pedir ayuda a PF</a><a href="/estado">Estado del servicio</a></div></aside>
+<main id="contenido" tabindex="-1">
+{% if page and not page.is_homepage %}<nav class="breadcrumbs" aria-label="Ubicación"><a href="/ayuda/">Ayuda</a>{% if page.parent %}<span aria-hidden="true">/</span><a href="/ayuda/{{ page.parent.children[0].url }}">{{ page.parent.title }}</a>{% endif %}</nav>{% endif %}
+<section class="search" aria-label="Buscar en la ayuda"><form action="/ayuda/" method="get" role="search"><label for="help-query">Busca una tarea o un problema</label><div class="search-field"><input type="search" id="help-query" name="q" placeholder="Por ejemplo: QR, puntos o contraseña" autocomplete="off" aria-describedby="search-status" aria-controls="search-results"><button type="submit">Buscar</button></div></form><p class="search-status" id="search-status" role="status" aria-live="polite">También puedes elegir una guía por tarea.</p><div id="search-results" hidden></div><button type="button" id="close-search" hidden>Cerrar resultados</button><noscript><p>La búsqueda necesita JavaScript. Puedes recorrer todas las guías en el menú.</p></noscript></section>
+<article>
+{{ page.content if page else '<h1>No encontramos esta guía</h1><p>Abre el <a href="/ayuda/">inicio de ayuda</a> para encontrar la tarea.</p>' }}
+</article>
+{% if page and page.meta.reviewed %}<div class="page-review"><p>Última revisión: <time datetime="{{ page.meta.reviewed }}">{{ page.meta.reviewed }}</time>.<br>Aplica a la versión web de PF. Las funciones dependen del plan, la configuración y tus permisos.</p><button type="button" class="print-page">Imprimir esta guía</button></div>{% endif %}
+<section class="next-help" aria-label="Ayuda adicional"><h2>Si todavía necesitas ayuda</h2><p>Para una compra o una recompensa, consulta primero al responsable del negocio. Para un problema técnico, incluye la pantalla, la hora y el mensaje que apareció.</p><div><a href="/ayuda/problemas/pedir-ayuda/">Qué datos conviene enviar</a><a href="/soporte">Contactar a PF</a><a href="/estado">Estado del servicio</a></div></section>
+</main></div>
+<footer class="site-footer"><a href="/ayuda/">Ayuda PF</a><span>Instrucciones para tu trabajo de cada día.</span><a href="/guias/">Lecturas para tu negocio</a><a href="/privacidad">Privacidad</a><span>Hecho por Viasolvia</span></footer>
+</body></html>

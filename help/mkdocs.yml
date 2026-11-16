@@ -1,0 +1,118 @@
+site_name: Ayuda PF
+site_url: https://puntosfieles.com/ayuda/
+site_description: Guías por tarea para el equipo de caja, dueños y clientes de PuntosFieles.
+docs_dir: docs
+site_dir: ../public/ayuda
+use_directory_urls: true
+theme:
+  name: mkdocs
+  custom_dir: theme
+  locale: es
+  highlightjs: false
+plugins:
+- search:
+    lang:
+    - es
+    min_search_length: 2
+    indexing: full
+markdown_extensions:
+- tables
+- attr_list
+- toc:
+    permalink: false
+nav:
+- Inicio: index.md
+- Equipo de caja:
+  - Empezar aquí: caja/index.md
+  - Preparar el turno e ingresar: caja/iniciar-turno.md
+  - Practicar el recorrido completo: caja/practicar.md
+  - Seleccionar al cliente con su QR: caja/seleccionar-cliente.md
+  - Registrar puntos de una compra: caja/registrar-puntos.md
+  - Canjear una recompensa: caja/canjear.md
+  - Comprobar el recibo después del canje: caja/recibo.md
+  - Qué puedes hacer sin internet: caja/sin-conexion.md
+  - Enviar pendientes y revisar fallidos: caja/sincronizar.md
+  - Reportar una recompensa no entregada: caja/incidencia.md
+  - Entregar una recompensa protegida: caja/beneficios-protegidos.md
+  - Emitir y entregar una cortesía aprobada: caja/cortesias.md
+  - Descontar saldo de una tarjeta de regalo: caja/gift-cards.md
+  - Cerrar el turno y entregar pendientes: caja/cerrar-turno.md
+  - Anotar una solicitud del cliente: caja/anotar-pedido.md
+  - Lista imprimible para el turno: caja/lista-del-turno.md
+- Dueños y administración:
+  - Empezar aquí: negocio/index.md
+  - Preparar el programa antes de invitar clientes: negocio/empezar.md
+  - Guardar la regla base de puntos: negocio/regla-puntos.md
+  - Crear o editar una recompensa: negocio/recompensas.md
+  - Vincular un artículo a una recompensa: negocio/catalogo.md
+  - Buscar un cliente y corregir su nombre: negocio/clientes.md
+  - Crear una cuenta para el equipo: negocio/personal.md
+  - Cambiar permisos o desactivar una cuenta: negocio/cambiar-acceso.md
+  - Agregar una sucursal: negocio/sucursales.md
+  - Encontrar los ajustes del negocio: negocio/configuracion.md
+  - Revisar moneda, horario y ubicaciones de Wallet: negocio/region.md
+  - Preparar e imprimir el QR del negocio: negocio/marca-qr.md
+  - Preparar doble puntos o un bono por compra: negocio/reglas-adicionales.md
+  - Guardar una lista de clientes para seguimiento: negocio/recuperar-clientes.md
+  - Crear una audiencia con condiciones: negocio/audiencias.md
+  - Preparar y activar una campaña dirigida: negocio/campanas.md
+  - Preparar mensajes de una campaña: negocio/mensajes-campana.md
+  - Leer los resultados de una campaña: negocio/resultados-campana.md
+  - Configurar cumpleaños y recuperación automática: negocio/automatizaciones.md
+  - Invitar a una segunda compra: negocio/segunda-visita.md
+  - Recibir el resumen semanal por correo: negocio/resumen-semanal.md
+  - Configurar recomendaciones entre clientes: negocio/referidos.md
+  - Crear enlaces por mostrador, mesa o canal: negocio/origenes.md
+  - Dar seguimiento a lo que piden los clientes: negocio/pedidos-clientes.md
+  - Importar clientes y saldos anteriores: negocio/importar-clientes.md
+  - Seguir una importación grande por lotes: negocio/importacion-grande.md
+  - Leer el resumen del negocio: negocio/resumen.md
+  - Atender una decisión pendiente: negocio/decisiones.md
+  - Cambiar el ritmo y aprobar ofertas del equipo: negocio/ritmo.md
+  - Buscar y explicar un movimiento: negocio/movimientos.md
+  - Revisar canjes y su registro en caja: negocio/canjes.md
+  - Asignar y resolver un caso de atención: negocio/casos.md
+  - Restituir puntos de un canje no entregado: negocio/restituir-puntos.md
+  - Autorizar acciones con límites: negocio/permisos.md
+  - Publicar y confirmar avisos del turno: negocio/avisos.md
+  - Pausar una recompensa y aprobar alternativas: negocio/promesas.md
+  - Autorizar cortesías para el equipo: negocio/cortesias.md
+  - Registrar costos y leer las estimaciones: negocio/costos.md
+  - Registrar un aporte de proveedor y conciliarlo: negocio/proveedores.md
+  - Preparar la conexión de tu caja: negocio/conectar-caja.md
+  - Autorizar canjes desde una caja compatible: negocio/canjes-pos.md
+  - Revisar devoluciones de caja y sus puntos: negocio/devoluciones.md
+  - Revisar pendientes y datos atrasados: negocio/estado-operacion.md
+  - Organizar y documentar una prueba real: negocio/piloto.md
+  - Lista imprimible antes de invitar clientes: negocio/lista-de-lanzamiento.md
+- Clientes:
+  - Empezar aquí: clientes/index.md
+  - Crear mi tarjeta del negocio: clientes/registrarme.md
+  - Volver a entrar a mi tarjeta: clientes/ingresar.md
+  - Mostrar mi QR en caja: clientes/mostrar-qr.md
+  - Consultar puntos disponibles y pendientes: clientes/puntos.md
+  - Pedir una recompensa en el negocio: clientes/canjear.md
+  - Guardar mi tarjeta en Wallet: clientes/wallet.md
+  - Entender beneficios protegidos, ofertas y cortesías: clientes/beneficios.md
+  - Elegir si quiero recibir promociones: clientes/promociones.md
+  - Proteger mi cuenta y mis datos: clientes/privacidad.md
+  - Compartir mi código de recomendación: clientes/invitar-amigos.md
+  - Compartir una idea o un pedido: clientes/pedir-producto.md
+- Problemas frecuentes:
+  - Empezar aquí: problemas/index.md
+  - Recuperar la contraseña del equipo: problemas/acceso-equipo.md
+  - El código de ingreso no llega: problemas/codigo-cliente.md
+  - El QR no se puede leer: problemas/qr.md
+  - La compra o los puntos no aparecen: problemas/puntos.md
+  - Una pantalla no carga o no permite guardar: problemas/pantalla-bloqueada.md
+  - Pedir ayuda con la información correcta: problemas/pedir-ayuda.md
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: ignore
+  links:
+    not_found: warn
+    unrecognized_links: warn
+    absolute_links: ignore
+    anchors: warn
