@@ -1,0 +1,27 @@
+.support-admin main { padding-block:48px 80px; }
+.support-admin h1 { font-size:clamp(40px,5vw,60px); }
+.support-queue-filters { display:grid;grid-template-columns:1fr 2fr auto;gap:20px;align-items:end;border-block:1px solid var(--line);padding-block:10px 28px; }
+.support-queue-filters .button { margin-bottom:8px; }
+.support-admin-grid { display:grid;grid-template-columns:320px 1fr;gap:48px;margin-top:30px; }
+#support-queue { list-style:none;padding:0;margin-block:16px; }
+#support-queue li { border-bottom:1px solid var(--line); }
+#support-queue button { width:100%;text-align:left;background:none;border:0;padding:18px 10px;cursor:pointer;color:var(--ink);font:14px/1.6 Inter,sans-serif; }
+#support-queue button:hover,#support-queue button[aria-current=true] { background:var(--gold); }
+#support-queue strong,#support-queue span { display:block;overflow-wrap:anywhere; }
+#support-queue span { color:var(--muted);font-size:12px; }
+#queue-count { font-size:13px;color:var(--muted); }
+.support-page-buttons { display:flex;justify-content:space-between;gap:20px; }
+#admin-case h2 { font-size:32px; }
+#admin-case-meta { display:grid;grid-template-columns:120px 1fr;gap:10px;margin-block:24px;font-size:14px; }
+#admin-case-meta dd { margin:0;overflow-wrap:anywhere; }
+#admin-description { margin-block:20px; }
+#admin-attachment { display:inline-block;padding-block:12px;text-decoration:underline; }
+#admin-case details { margin-block:20px;font-size:13px; }
+#admin-case summary { padding-block:12px;cursor:pointer; }
+#admin-diagnostics { white-space:pre-wrap;overflow-wrap:anywhere; }
+#admin-events li[data-internal=true] { background:#ece8de;padding-inline:16px; }
+#admin-feedback { margin-block:20px;color:#7d291e; }
+#admin-login a { text-decoration:underline; }
+#case-update { border-top:1px solid var(--line);margin-top:24px; }
+#case-update .support-sensitive { margin-top:16px; }
+@media(max-width:900px) { .support-admin-grid { grid-template-columns:1fr;gap:32px; } .support-queue-filters { grid-template-columns:1fr;gap:4px; } }

@@ -21,13 +21,15 @@
   <meta name="twitter:description" content="Resuelve dudas sobre tu tarjeta digital, puntos, recompensas y acceso a PuntosFieles. Consulta la ayuda o escribe a soporte@puntosfieles.com."/>
   <meta name="twitter:image" content="https://puntosfieles.com/images/coffee-gathering.webp"/>
   <meta name="twitter:image:alt" content="Tres personas comparten un café alrededor de una mesa."/>
+  <meta name="referrer" content="no-referrer"/>
+  <script type="module" src="/support-cases.js?v=1"></script>
   <meta name="theme-color" content="#f7f5ef"/>
   <title>Ayuda con tarjetas, puntos y acceso | PuntosFieles</title>
   <link rel="icon" href="/icon.svg?v=4" type="image/svg+xml"/>
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=4"/>
   <link href="/styles/fonts.css?v=1" rel="stylesheet"/>
   <link rel="stylesheet" href="/styles/marketing.css?v=2"/>
-  <link rel="stylesheet" href="/styles/soporte.css?v=1"/>
+  <link rel="stylesheet" href="/styles/soporte.css?v=2"/>
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -63,26 +65,58 @@
     <section class="container support-intro" aria-labelledby="support-title">
       <div class="support-welcome">
         <h1 id="support-title">Un poco de ayuda.<br/><span>Y seguimos.</span></h1>
-        <p>Soporte de PuntosFieles para clientes y negocios. Resuelve una duda sobre tu tarjeta, tus puntos o el acceso a tu cuenta.</p>
+        <p>Soporte de PuntosFieles para clientes y negocios. Resuelve una duda sobre tu tarjeta, tus puntos o el acceso a tu cuenta.</p><p class="support-direct">También puedes escribir a <a href="mailto:soporte@puntosfieles.com">soporte@puntosfieles.com</a>.</p><a class="text-link" href="#seguimiento">Ya tengo un reporte</a>
         <a class="text-link" href="#preguntas">Encuentra una respuesta <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-6-6 6 6 6-6"/></svg></a>
       </div>
-      <aside class="support-contact" aria-labelledby="contact-title">
-        <h2 id="contact-title">Cuéntanos qué pasó.</h2>
-        <p>Para ayuda con PuntosFieles, escríbenos a:</p>
-        <a class="support-email" href="mailto:soporte@puntosfieles.com?subject=Ayuda%20con%20PuntosFieles"><span>soporte@<wbr/>puntosfieles.com</span> <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
-        <p class="support-mail-note">El enlace abre tu aplicación de correo. También puedes copiar la dirección y escribirnos desde tu correo habitual.</p>
-        <div class="support-message-guide">
-          <h3>Para revisar tu caso, incluye:</h3>
-          <ul><li>El nombre del negocio y la sucursal.</li><li>Qué intentabas hacer y qué ocurrió.</li><li>La fecha y el mensaje de error, si aparece.</li></ul>
-          <p>No envíes contraseñas, códigos de acceso ni datos de tarjetas bancarias.</p>
-        </div>
-      </aside>
+      <section class="support-report" aria-labelledby="report-title" id="report-section">
+        <h2 id="report-title">Cuéntanos qué pasó.</h2>
+        <p class="support-lead">Tu reporte queda guardado con una referencia y un enlace privado para darle seguimiento. No necesitas iniciar sesión.</p>
+        <p class="support-sensitive">No envíes contraseñas, códigos de verificación, QR completos ni datos de tarjetas bancarias.</p>
+        <noscript><p>Activa JavaScript para guardar un reporte o escribe a <a href="mailto:soporte@puntosfieles.com">soporte@puntosfieles.com</a>.</p></noscript>
+        <form id="support-form" method="post" action="/api/public/support/cases">
+          <div class="support-fields">
+            <label>Tu nombre<input name="name" autocomplete="name" maxlength="100" required/></label>
+            <label>Correo de contacto<input name="email" type="email" autocomplete="email" maxlength="254" required/></label>
+          </div>
+          <label>Negocio y sucursal <span class="support-optional">(opcional)</span><input name="business" maxlength="160" autocomplete="organization"/></label>
+          <label for="support-category">Categoría</label><select name="category" id="support-category" required><option value="">Selecciona una opción</option><option value="access">No puedo entrar</option><option value="points">Mis puntos</option><option value="reward">Canje o recompensa</option><option value="scan">Problema con el escaneo</option><option value="business">Configuración del negocio</option><option value="privacy">Privacidad o seguridad</option><option value="other">Otra consulta</option></select>
+          <label>Descripción<textarea name="description" rows="5" minlength="15" maxlength="4000" required aria-describedby="description-help"></textarea></label>
+          <p id="description-help" class="support-help">Cuéntanos qué intentabas hacer, qué ocurrió y a qué hora. Incluye el mensaje de error si aparece.</p>
+          <label>Captura <span class="support-optional">(opcional)</span><input id="support-file" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="attachment-help"/></label>
+          <p id="attachment-help" class="support-help">PNG, JPEG o WebP, hasta 600 KB y 4096 píxeles por lado. Oculta los datos sensibles antes de adjuntarla. Solo tú y soporte pueden verla; se elimina después de 90 días.</p>
+          <div id="attachment-preview" hidden><img id="support-preview" alt="Vista previa de la captura que se adjuntará"/><button id="remove-attachment" type="button" class="support-text-button">Quitar captura</button></div>
+          <label class="support-check"><input name="includeAccount" type="checkbox"/><span>Vincular mi sesión activa, si tengo una. Esto ayuda a identificar mi negocio.</span></label>
+          <label class="support-check"><input name="includeDiagnostics" type="checkbox"/><span>Incluir datos básicos del navegador y conexión.</span></label>
+          <details class="support-diagnostics"><summary>Revisar los datos de diagnóstico</summary><dl id="diagnostics-preview"></dl><p class="support-help">Solo se incluyen estos datos si marcas la casilla. No leemos contraseñas, códigos, historial, almacenamiento ni otras pantallas.</p></details>
+          <div class="support-trap" aria-hidden="true"><label>Sitio web<input name="website" tabindex="-1" autocomplete="off"/></label></div>
+          <div id="support-challenge"></div>
+          <p id="support-feedback" role="status" aria-live="polite"></p>
+          <button class="button" id="send-report" type="submit" disabled>Enviar reporte</button>
+          <p class="support-help">Usaremos estos datos para atender tu caso. <a href="/privacidad">Aviso de privacidad</a>. Las respuestas aparecen en tu enlace de seguimiento; no se envía una confirmación automática por correo.</p>
+        </form>
+      </section>
     </section>
 
+    <section class="container support-tracking" id="seguimiento" aria-labelledby="tracking-title">
+      <div><h2 id="tracking-title">Sigamos tu caso.</h2><p>Abre el enlace privado que guardaste al enviar tu reporte, o pégalo aquí. Quien tenga ese enlace puede ver el caso y responder.</p><a class="text-link" href="/soporte">Abrir otro reporte</a></div>
+      <div>
+        <form id="track-form" method="post" action="/api/public/support/track"><label>Enlace privado de seguimiento<input name="tracking" type="password" autocomplete="off" required spellcheck="false"/></label><button type="submit" class="button button-secondary">Consultar caso</button></form>
+        <p id="track-feedback" role="status" aria-live="polite"></p>
+        <section id="case-receipt" hidden aria-labelledby="case-heading" tabindex="-1">
+          <h3 id="case-heading"></h3><p id="case-state"></p>
+          <p id="case-save-note">Guarda este enlace privado para consultar las respuestas. No lo publiques ni lo compartas con otras personas.</p>
+          <a id="case-link" class="support-private-link"></a><button type="button" id="copy-case-link" class="support-text-button">Copiar enlace privado</button>
+          <p id="case-description" class="support-preserve"></p><button type="button" id="show-attachment" class="support-text-button" hidden>Ver captura adjunta</button><img id="case-attachment" alt="Captura adjunta al caso" hidden/>
+          <ol id="case-events" class="support-events"></ol>
+          <form id="reply-form" method="post" action="/api/public/support/reply"><label>Añadir información<textarea name="message" rows="3" minlength="5" maxlength="4000" required></textarea></label><p class="support-help">No incluyas contraseñas, códigos ni QR.</p><button type="submit" class="button">Enviar al caso</button></form>
+          <button type="button" id="refresh-case" class="support-text-button">Actualizar respuestas</button>
+        </section>
+      </div>
+    </section>
     <section class="container support-answers" id="preguntas" aria-labelledby="questions-title">
       <div class="support-section-intro">
         <h2 id="questions-title">Tu tarjeta,<br/> sin dudas.</h2>
-        <p>Empieza por aquí. Si el problema continúa, nuestro correo de soporte está arriba.</p>
+        <p>Empieza por aquí. Si el problema continúa, puedes abrir un reporte arriba.</p>
       </div>
       <div class="faq-list support-faq">
         <details>

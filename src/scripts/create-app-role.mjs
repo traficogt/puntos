@@ -24,6 +24,9 @@ const {
 } = process.env;
 
 export const APP_TABLE_PRIVILEGES = {
+  support_cases: ["SELECT", "INSERT"],
+  support_case_events: ["SELECT", "INSERT"],
+  support_case_attachments: ["SELECT", "INSERT", "DELETE"],
   businesses: ["SELECT", "INSERT", "UPDATE"],
   business_public: ["SELECT"],
   branches: ["SELECT", "INSERT"],
@@ -215,8 +218,10 @@ export function buildGrantPlan({ appDbUser, dbName }) {
       `REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM ${appDbUserIdent}`,
       `REVOKE UPDATE (wallet_location_enabled, wallet_latitude, wallet_longitude) ON TABLE public."branches" FROM ${appDbUserIdent}`,
       `REVOKE UPDATE (status) ON TABLE public."redemptions" FROM ${appDbUserIdent}`,
+      `REVOKE UPDATE (status, assigned_to, version, updated_at) ON TABLE public."support_cases" FROM ${appDbUserIdent}`,
       ...grantStatements,
       `GRANT UPDATE (status) ON TABLE public."redemptions" TO ${appDbUserIdent}`,
+      `GRANT UPDATE (status, assigned_to, version, updated_at) ON TABLE public."support_cases" TO ${appDbUserIdent}`,
       `GRANT UPDATE (wallet_location_enabled, wallet_latitude, wallet_longitude) ON TABLE public."branches" TO ${appDbUserIdent}`,
       `GRANT USAGE, SELECT ON SEQUENCE public.native_wallet_revision_seq TO ${appDbUserIdent}`,
       "CREATE SCHEMA IF NOT EXISTS app",
