@@ -51,6 +51,57 @@ async function selectCustomer(page) {
   await expect(page.locator("#btnAward")).toBeEnabled();
 }
 
+for (const status of [200, 404]) {
+  test(`a delayed customer lookup (${status}) cannot replace the newer selection`, async ({ page }) => {
+    await setup(page); await openStaff(page);
+    let firstLookup;
+    await page.route("**/api/staff/customer/lookup", async route => {
+      const token = route.request().postDataJSON().customerQrToken;
+      if (token === "customer-first") { firstLookup = route; return; }
+      await route.fulfill({ json: { customer: { id: "customer-second", name: "Segundo", points: 30 } } });
+    });
+    await page.fill("#token", "customer-first");
+    await page.click("#btnSelectCustomer");
+    await expect.poll(() => Boolean(firstLookup)).toBe(true);
+    await page.fill("#token", "customer-second");
+    await page.click("#btnSelectCustomer");
+    await expect(page.locator("#lastCustomer")).toHaveText("customer-second");
+    const completed = page.waitForResponse(response => response.url().endsWith("/customer/lookup") && response.request().postDataJSON().customerQrToken === "customer-first");
+    await firstLookup.fulfill({ status, json: status === 200
+      ? { customer: { id: "customer-first", name: "Primero", points: 100 } }
+      : { error: "Cliente anterior no disponible" } });
+    await (await completed).finished();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(page.locator("#lastCustomer")).toHaveText("customer-second");
+    await expect(page.locator("#lastCustomerName")).toHaveText("Segundo");
+    await expect(page.locator("#lastBalance")).toHaveText("30");
+  });
+}
+
+test("an award completed for the previous customer does not overwrite the new selection", async ({ page }) => {
+  const state = await setup(page); await openStaff(page); await selectCustomer(page);
+  let awardRequest;
+  await page.route("**/api/staff/award", route => { awardRequest = route; });
+  await page.click("#btnAward");
+  await expect.poll(() => Boolean(awardRequest)).toBe(true);
+  await page.route("**/api/staff/customer/lookup", route => route.fulfill({ json: {
+    customer: { id: "customer-b", name: "Segundo", phone: "50255558888", points: 30 }
+  } }));
+  await page.fill("#token", "customer-b-token");
+  await page.click("#btnSelectCustomer");
+  await expect(page.locator("#lastCustomer")).toHaveText("customer-b");
+  await awardRequest.fulfill({ json: { customerId: "customer-a", pointsAwarded: 10, newBalance: 110 } });
+  await expect(page.locator("#queueBadge")).toHaveText("Cola: 0");
+  await expect(page.locator("#btnAward")).toBeEnabled();
+  await expect(page.locator("#lastCustomer")).toHaveText("customer-b");
+  await expect(page.locator("#lastCustomerName")).toHaveText("Segundo");
+  await expect(page.locator("#lastBalance")).toHaveText("30");
+  await page.unroute("**/api/staff/award");
+  await page.click("#btnAward");
+  await expect.poll(() => state.awards.length).toBe(1);
+  expect(state.awards[0].customerQrToken).toBe("customer-b-token");
+});
+
 test("online award is persisted before sending and double clicks cannot create another UUID", async ({ page }) => {
   const state = await setup(page); await openStaff(page); await selectCustomer(page);
   await page.locator("#btnAward").evaluate((button) => { button.dispatchEvent(new Event("click")); button.dispatchEvent(new Event("click")); });

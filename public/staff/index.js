@@ -32,6 +32,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   let lastCustomerId = null;
   let lastCustomerToken = "";
   let lastCustomerPoints = 0;
+  let customerSelectionRevision = 0;
   let detector = null;
   let lastScannedToken = "";
   let lastScannedAt = 0;
@@ -540,6 +541,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   }
 
   function clearSelectedCustomer() {
+    customerSelectionRevision += 1;
     applySelectedCustomer(null, "", { silent: true });
     element("#redeemCode").textContent = "—";
   }
@@ -550,6 +552,11 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       toast(selectionPromptCopy);
       return false;
     }
+
+    const selectionAtRequest = ++customerSelectionRevision;
+    const scopeAtRequest = JSON.stringify([currentScope(), staff?.branch_id ?? null]);
+    const selectionIsCurrent = () => !sessionEnded && selectionAtRequest === customerSelectionRevision
+      && scopeAtRequest === JSON.stringify([currentScope(), staff?.branch_id ?? null]);
 
     if (!navigator.onLine || !sessionOnline) {
       if (!hasOfflineGrant()) { toast("Conéctate y valida tu sesión antes de capturar ventas sin conexión."); return false; }
@@ -566,9 +573,11 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
         method: "POST",
         body: JSON.stringify({ customerQrToken: trimmed })
       }));
+      if (!selectionIsCurrent()) return false;
       applySelectedCustomer(out.customer, trimmed, { silent });
       return true;
     }, (error) => {
+      if (!selectionIsCurrent()) return false;
       clearSelectedCustomer();
       updateCustomerSurfaceState();
       toast(error.message);
@@ -627,6 +636,10 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   }
 
   async function award(token, scope) {
+    const selectionAtRequest = customerSelectionRevision;
+    const scopeAtRequest = JSON.stringify([scope, staff?.branch_id ?? null]);
+    const selectionIsCurrent = () => !sessionEnded && selectionAtRequest === customerSelectionRevision
+      && token === lastCustomerToken && scopeAtRequest === JSON.stringify([currentScope(), staff?.branch_id ?? null]);
     const payload = {
       customerQrToken: token,
       amount_q: Number(input("#amount").value || 0),
@@ -651,11 +664,15 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     return run(async () => {
       const sent = await queue.submit(payload, scope);
       if (sent.queued) {
-        updateCustomerSurfaceState("Guardado sin conexión. Pendiente de verificar y sumar puntos al sincronizar.");
+        if (selectionIsCurrent()) updateCustomerSurfaceState("Guardado sin conexión. Pendiente de verificar y sumar puntos al sincronizar.");
         toast("Venta guardada en este dispositivo; los puntos aún no se han confirmado.");
         return true;
       }
       const out = /** @type {StaffAwardResponse} */ (sent.response);
+      if (!selectionIsCurrent()) {
+        toast("Venta anterior confirmada. Se conserva el cliente seleccionado actualmente.");
+        return true;
+      }
       unverifiedSelection = false;
       element("#lastCustomer").textContent = out.customerId;
       const selectionStatus = element("#selectionStatus");
@@ -688,7 +705,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
         return false;
       }
       if (isNetworkFailure(error)) {
-        updateCustomerSurfaceState("Guardado y pendiente de confirmación. Se reintentará automáticamente; no registres esta venta otra vez.");
+        if (selectionIsCurrent()) updateCustomerSurfaceState("Guardado y pendiente de confirmación. Se reintentará automáticamente; no registres esta venta otra vez.");
         toast("Venta pendiente de confirmación. No la registres otra vez.");
         return true;
       }
