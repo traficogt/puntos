@@ -1,8 +1,9 @@
+import { Select } from './inputs';
 import DecisionActions from './DecisionActions.jsx';
 import OperatingControls from './OperatingControls.jsx';
 import {merchantRegion} from './region.js';
 import React,{useState} from 'react';
-import {Accordion,Alert,Badge,Button,Group,Menu,Select,Stack,Table,Text,Title} from '@mantine/core';
+import {Accordion,Alert,Badge,Button,Group,Menu,Stack,Table,Text,Title} from '@mantine/core';
 import {api,useResource} from './api.js';import {Failure,Loading,number} from './ui.jsx';
 const date=value=>value&&Number.isFinite(Date.parse(value))?new Intl.DateTimeFormat(merchantRegion().locale,{dateStyle:'medium',timeStyle:'short',timeZone:merchantRegion().timezone}).format(new Date(value)):'Sin registro';
 export default function Decisions(){

@@ -1,9 +1,9 @@
+import { Select } from './inputs';
 import { useState } from "react";
 import {
   Alert,
   Button,
   Group,
-  Select,
   Stack,
   Table,
   Text,
@@ -72,6 +72,7 @@ export default function Overview({ features, onNavigate }) {
   const data = result.data,
     current = data?.current,
     previous = data?.previous;
+  /** @type {[string, string, (value: number) => string, boolean?][]} */
   const metrics = [
     ["recorded_sales_q", "Ventas registradas", money, false],
     ["active_customers", "Clientes con compras", number, false],
@@ -233,10 +234,8 @@ export default function Overview({ features, onNavigate }) {
                 valueFormatter={money}
                 xAxisProps={{ tickFormatter: (date) => date.slice(5) }}
                 yAxisProps={{ width: 65 }}
-                lineChartProps={{
-                  "aria-label":
-                    "Ventas registradas por día; los mismos datos están disponibles en la tabla.",
-                }}
+                role="img"
+                aria-label="Ventas registradas por día; los mismos datos están disponibles en la tabla."
               />
               <Accordion variant="default" mt="md">
                 <Accordion.Item value="daily">

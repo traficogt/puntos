@@ -1,5 +1,6 @@
+import { NumberInput, Select } from './inputs';
 import {merchantRegion} from './region.js';
-import {Button,Group,NumberInput,Select,SimpleGrid,Stack,Text,Title} from '@mantine/core';
+import {Button,Group,SimpleGrid,Stack,Text,Title} from '@mantine/core';
 import {audienceFields} from './audience-model.js';
 export default function AudienceRules({label,group,onChange,minimum,disabled}){
  function update(index,patch){onChange({...group,rules:group.rules.map((rule,i)=>i===index?{...rule,...patch}:rule)});}

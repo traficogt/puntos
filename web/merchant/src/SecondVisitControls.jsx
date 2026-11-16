@@ -1,6 +1,7 @@
+import { NumberInput } from './inputs';
 import {useEffect,useRef,useState} from 'react';
 import {useForm} from '@mantine/form';
-import {Alert,Anchor,Button,Group,NumberInput,SimpleGrid,Stack,Switch,Text,Title} from '@mantine/core';
+import {Alert,Anchor,Button,Group,SimpleGrid,Stack,Switch,Text,Title} from '@mantine/core';
 import {api,useResource,isDemo} from './api.js';
 import {Failure,Loading,number} from './ui.jsx';
 import {merchantRegion} from './region.js';

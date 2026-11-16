@@ -1,3 +1,4 @@
+import { NumberInput, Select } from './inputs';
 import {merchantRegion} from './region.js';
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "@mantine/form";
@@ -8,8 +9,6 @@ import {
   Button,
   Checkbox,
   Group,
-  NumberInput,
-  Select,
   SimpleGrid,
   Stack,
   Switch,

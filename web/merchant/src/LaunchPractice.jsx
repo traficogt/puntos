@@ -1,10 +1,12 @@
+import { NumberInput } from './inputs';
 import {useEffect,useRef,useState} from 'react';
-import {Alert,Button,Group,List,NativeSelect,NumberInput,Stack,Text,Title} from '@mantine/core';
+import {Alert,Button,Group,List,NativeSelect,Stack,Text,Title} from '@mantine/core';
 import {api,useResource} from './api.js';
 import {Failure,Loading,number} from './ui.jsx';
 const labels={signup:'Inscripción ficticia',ineligibility:'Intento no elegible',earn:'Compra ficticia',unlock:'Recompensa desbloqueada',redeem:'Canje ficticio',refund:'Devolución ficticia'};
+/** @param {{onComplete: (complete: boolean) => void, program?: unknown, rewards?: unknown[]}} props */
 export default function LaunchPractice({onComplete}){
- const base='/api/admin/service-operations/rehearsal',[revision,setRevision]=useState(0),resource=useResource(base,revision),[saved,setSaved]=useState(null),[quantity,setQuantity]=useState(1),[rewardId,setRewardId]=useState(''),[busy,setBusy]=useState(''),[error,setError]=useState('');
+ const base='/api/admin/service-operations/rehearsal',[revision,setRevision]=useState(0),resource=useResource(base,revision),[saved,setSaved]=useState(null),[quantity,setQuantity]=useState(/** @type {number | string} */ (1)),[rewardId,setRewardId]=useState(''),[busy,setBusy]=useState(''),[error,setError]=useState('');
  const pending=useRef(null),session=saved??resource.data?.session,state=session?.state,config=state?.config??resource.data?.config,rewards=config?.rewards??[],selected=rewardId||rewards.find(r=>r.active&&r.available)?.id||rewards[0]?.id||'';
  useEffect(()=>{onComplete?.(!!state?.complete&&resource.data?.current!==false);},[state?.complete,resource.data?.current,onComplete]);
  async function act(action){if(busy)return;setBusy(action);setError('');const input=action==='start'?{}:{version:session.version,action,...(['ineligibility','unlock','redeem'].includes(action)?{rewardId:selected}:{}),...(action==='earn'?{quantity}:{})},key=JSON.stringify([session?.id,action,input]);if(pending.current?.key!==key)pending.current={key,requestId:crypto.randomUUID()};

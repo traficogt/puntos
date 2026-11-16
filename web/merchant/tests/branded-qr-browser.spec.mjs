@@ -21,7 +21,8 @@ await build({
 });
 const app = express();
 app.use(helmet({ contentSecurityPolicy: { directives: { upgradeInsecureRequests: null, imgSrc: ["'self'", "data:", "blob:"] } } }));
-app.get("/test-axe.js", (_req, res) => res.sendFile(path.join(merchant, "node_modules/axe-core/axe.min.js")));
+const axeSource = await fs.readFile(path.join(merchant, "node_modules/axe-core/axe.min.js"), "utf8");
+app.get("/test-axe.js", (_req, res) => res.type("js").send(axeSource));
 app.get("/negocio/qr-test", (_req, res) => res.sendFile(path.join(outDir, "tests/fixtures/branded-qr.html")));
 app.use("/negocio", express.static(outDir));
 app.use(express.static(path.join(project, "public")));

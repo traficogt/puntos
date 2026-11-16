@@ -1,3 +1,4 @@
+import { NumberInput, Select } from './inputs';
 import {merchantRegion} from './region.js';
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "@mantine/form";
@@ -9,8 +10,6 @@ import {
   Button,
   Fieldset,
   Group,
-  NumberInput,
-  Select,
   SimpleGrid,
   Stack,
   Switch,
@@ -44,6 +43,7 @@ const rewardLabels = {
   rewarded: "Premio registrado",
 };
 
+/** @param {{onDirty?: (dirty: boolean) => void, features: Record<string, boolean>, staff: {business_id: string}}} props */
 export default function Referrals({ features, staff, onDirty = noop }) {
   const [refresh, setRefresh] = useState(0);
   const settings = useResource(

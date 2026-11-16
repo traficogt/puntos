@@ -1,7 +1,8 @@
+import { Select } from './inputs';
 import { readActivityFilters, activityFiltersHref, activitySourceLabels } from './activity-drilldown.js';
 import {merchantRegion} from './region.js';
 import { useEffect, useRef, useState } from 'react';
-import { Accordion, Alert, Badge, Button, Group, List, Select, SimpleGrid, Stack, Table, Text, TextInput, Title } from '@mantine/core';
+import { Accordion, Alert, Badge, Button, Group, List, SimpleGrid, Stack, Table, Text, TextInput, Title } from '@mantine/core';
 import { isDemo, useResource } from './api.js';
 import { Failure, Loading } from './ui.jsx';
 import {HistoricalReplay,RejectedAttempts,SafeCorrections} from './TransactionEvidence.jsx';

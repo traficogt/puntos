@@ -1,15 +1,17 @@
+import { NumberInput, Select } from './inputs';
 import {merchantRegion} from './region.js';
 import SecondVisitControls from "./SecondVisitControls.jsx";
 import WeeklyOwnerBrief from "./WeeklyOwnerBrief.jsx";
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {useForm} from '@mantine/form';
-import {Alert,Badge,Button,Fieldset,Group,NumberInput,Progress,Select,SimpleGrid,Stack,Switch,Table,Text,Title} from '@mantine/core';
+import {Alert,Badge,Button,Fieldset,Group,Progress,SimpleGrid,Stack,Switch,Table,Text,Title} from '@mantine/core';
 import {api,useResource,isDemo} from './api.js';
 import {Failure,Loading,Locked,number,periodDate} from './ui.jsx';
 const noop=()=>{};
 const titles={birthday:'Cumpleaños',winback:'Recuperar clientes'};
 const statuses={queued:'En cola',processing:'En proceso',accepted:'Aceptado por el proveedor',failed:'Falló el envío',uncertain:'Entrega incierta',suppressed:'No enviado'};
 const reasons={automation_paused:'Automatización pausada',consent_revoked:'Cliente retiró su consentimiento',customer_unavailable:'Cliente no disponible',message_expired:'Mensaje vencido',frequency_cap:'Límite de frecuencia',quiet_hours:'Fuera del horario de envío',plan_unavailable:'Plan sin acceso',provider_rejected:'Proveedor rechazó el envío',delivery_uncertain:'Sin respuesta concluyente; no se reenvía',processing_lease_expired:'Proceso interrumpido; no se reenvía',dispatch_suppressed:'No cumplía los requisitos al enviar'};
+/** @param {{onDirty?: (dirty: boolean) => void, features: Record<string, boolean>, focusSection?: string}} props */
 export default function Automations({features,onDirty=noop,focusSection=null}) {
   useEffect(()=>{
     if(!['owner-brief','second-visit'].includes(focusSection))return;

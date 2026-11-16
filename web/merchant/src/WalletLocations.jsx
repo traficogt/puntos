@@ -1,9 +1,11 @@
+import { NumberInput, Select } from './inputs';
 import {useEffect,useState} from 'react';
-import {Alert,Button,Checkbox,Group,NumberInput,Select,SimpleGrid,Stack,Text,Title} from '@mantine/core';
+import {Alert,Button,Checkbox,Group,SimpleGrid,Stack,Text,Title} from '@mantine/core';
 import {api,useResource} from './api.js';
 import {Failure,Loading} from './ui.jsx';
 const draftFor=branch=>({enabled:Boolean(branch.wallet_location_enabled),latitude:branch.wallet_latitude??'',longitude:branch.wallet_longitude??''});
 const noop=()=>{};
+/** @param {{onDirty?: (dirty: boolean) => void}} props */
 export default function WalletLocations({onDirty=noop}){
  const [revision,setRevision]=useState(0),resource=useResource('/api/admin/branches/wallet-locations',revision);
  const [selected,setSelected]=useState(null),[draft,setDraft]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[saved,setSaved]=useState(false);

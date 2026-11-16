@@ -1,6 +1,7 @@
+import { Select } from './inputs';
 import {merchantRegion} from './region.js';
 import {useEffect,useRef,useState} from 'react';
-import {Alert,Anchor,Badge,Button,Group,Select,SimpleGrid,Stack,Table,Text,TextInput,Title} from '@mantine/core';
+import {Alert,Anchor,Badge,Button,Group,SimpleGrid,Stack,Table,Text,TextInput,Title} from '@mantine/core';
 import {useForm} from '@mantine/form';
 import {api,useResource} from './api.js';
 import {Failure,Loading,Locked,money,number} from './ui.jsx';

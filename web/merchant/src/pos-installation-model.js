@@ -36,6 +36,7 @@ function odooVersionNote(version = "") {
   return `Odoo ${value || "sin versión confirmada"}: confirmar la API y los modelos en la documentación de esa versión antes de desarrollar el adaptador.`;
 }
 
+/** @returns {import('./types/models').InstallationPlan} */
 export function installationPlan(profile = {}) {
   const { vendor = "other", capability = "unknown", deployment = "unknown", plan = "unknown", version = "" } = profile;
   if (vendor === "loyverse") return {

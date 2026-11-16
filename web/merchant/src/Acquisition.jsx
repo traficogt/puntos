@@ -1,10 +1,12 @@
+import { Select } from './inputs';
 import {merchantRegion} from './region.js';
 import { useEffect, useRef, useState } from 'react';
-import { Accordion, Alert, Anchor, Button, Group, Pagination, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, Title } from '@mantine/core';
+import { Accordion, Alert, Anchor, Button, Group, Pagination, Paper, SimpleGrid, Stack, Table, Text, TextInput, Title } from '@mantine/core';
 import { api, isDemo, useResource } from './api.js';
 import { Failure, Loading, Locked, money, number } from './ui.jsx';
 const noop=()=>{};
 
+/** @param {{onDirty?: (dirty: boolean) => void, features: Record<string, boolean>, staff: {role: string}}} props */
 export default function Acquisition({features,staff,onDirty=noop}) {
   if(staff?.role!=='OWNER')return <Stack><Title order={1}>Orígenes de clientes</Title><Text>El dueño del negocio puede crear enlaces y revisar sus resultados.</Text></Stack>;
   if(!features?.analytics)return <Locked feature="Orígenes de clientes"/>;

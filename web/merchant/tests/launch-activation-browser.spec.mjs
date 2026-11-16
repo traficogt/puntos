@@ -10,8 +10,9 @@ import {chromium,expect} from '@playwright/test';
 const root=path.resolve(import.meta.dirname,'..'),source=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
 const theme=source.slice(source.indexOf('const theme = createTheme('),source.indexOf('class ErrorBoundary'));
 const entry=`import React from 'react';import {createRoot} from 'react-dom/client';import {MantineProvider,Container,createTheme} from '@mantine/core';${theme}
-import '@mantine/core/styles.css';import '/src/styles.css';import Launch from '/src/Launch.jsx';import {demoRewardWorkspace} from '/src/demo-reward-workspace.js';import {demoLaunchProgram} from '/src/demo-launch.js';
-const params=new URLSearchParams(location.search);window.__calls=[];window.__empty=params.has('empty');window.__fail=params.has('fail');window.__api=async(path,options={})=>{window.__calls.push({path,method:options.method||'GET'});
+import '@mantine/core/styles.css';import '/src/styles.css';import Launch from '/src/Launch.jsx';import {demoRewardWorkspace} from '/src/demo-reward-workspace.js';import {demoLaunchProgram} from '/src/demo-launch.js';import {demoServiceCompletion} from '/src/demo-service-completion.js';
+const params=new URLSearchParams(location.search);window.__calls=[];window.__empty=params.has('empty');window.__fail=params.has('fail');window.__api=async(path,options={})=>{window.__calls.push({path,method:options.method||'GET',body:options.body?JSON.parse(options.body):null});
+if(path.startsWith('/api/admin/service-operations/rehearsal'))return demoServiceCompletion(new URL(path,location.origin),options);
 if(path==='/api/admin/launch/program'){if(params.has('delay')&&!window.__released)await new Promise(resolve=>window.__release=()=>{window.__released=true;resolve();});const result=demoLaunchProgram(options);if(params.has('invalid')&&!options.method)result.program.rate=0;return result;}
 if(path==='/api/admin/reward-workspace'){if(params.has('delayRewards')&&!window.__releasedRewards)await new Promise(resolve=>window.__releaseRewards=()=>{window.__releasedRewards=true;resolve();});if(window.__fail)throw Error('Sin conexión');const result=demoRewardWorkspace(new URL(path,location.origin),options);if(window.__empty&&!options.method)result.rewards=[];if(params.has('branches')){const [a,b]=result.branches;const mode=params.get('branches'),mapping=(branch_id,state)=>({branch_id,enabled:true,inventory_required:true,quantity:1,inventory:{state,quantity:1,observedAt:new Date(Date.now()-1000).toISOString()}});result.rewards[0].branch_ids=mode==='scoped'?[a.id]:[a.id,b.id];result.rewards[0].mappings=mode==='unchecked'?[mapping(a.id,'stale')]:[mapping(a.id,mode==='scoped'?'stale':'available'),mapping(b.id,mode==='scoped'?'available':'stale')];}return result;}
 if(path==='/api/admin/rewards')return {rewards:[]};
@@ -39,19 +40,36 @@ try{
  await page.goto(origin+'/negocio/?invalid=1');await expect(page.getByRole('tab',{name:'1. Puntos',exact:true})).toHaveAttribute('aria-selected','true');
  await page.goto(origin+'/negocio/?delay=1');await page.getByRole('tab',{name:'Tu marca (opcional)',exact:true}).click();await page.evaluate(()=>window.__release());await expect(page.getByRole('tab',{name:'Tu marca (opcional)',exact:true})).toHaveAttribute('aria-selected','true');
  await page.goto(origin+'/negocio/?delayRewards=1');await page.getByLabel('Puntos por GTQ',{exact:true}).fill('0.2');await expect.poll(()=>page.evaluate(()=>window.__dirty)).toBe(true);await page.evaluate(()=>window.__releaseRewards());await expect(page.getByRole('button',{name:'Preparar tu primera recompensa',exact:true})).toBeVisible();await expect(page.getByLabel('Puntos por GTQ',{exact:true})).toHaveValue('0.2');
+ await page.getByRole('button',{name:'Guardar regla de puntos',exact:true}).click();
+ await expect(page.getByText('Regla guardada.',{exact:true})).toBeVisible();
+ const savedProgram=await page.evaluate(()=>window.__calls.find(call=>call.path==='/api/admin/launch/program'&&call.method==='PUT'));
+ assert.equal(savedProgram.body.rate,0.2);assert.equal(savedProgram.body.program_type,'SPEND');assert.equal(typeof savedProgram.body.version,'string');
  for(const mode of ['light','dark'])for(const width of [1280,390]){
   await page.setViewportSize({width,height:950});await page.goto(origin+'/negocio/?theme='+mode);
   await expect(page.getByRole('tab',{name:'3. Equipo y práctica',exact:true})).toHaveAttribute('aria-selected','true');
   await expect(page.getByRole('link',{name:'Crear accesos para mi equipo',exact:true})).toHaveAttribute('href','/administracion/?seccion=equipo');
-  await expect(page.getByLabel('Recompensa para practicar')).toContainText('Café de la casa');await expect(page.getByLabel('Recompensa para practicar')).not.toContainText('Postre del día');
+  await page.getByRole('button',{name:'Iniciar práctica guardada',exact:true}).click();
+  await expect(page.getByLabel('Recompensa de práctica')).toContainText('Café (ficticio)');
   const before=await page.evaluate(()=>window.__calls.length);
-  await page.getByLabel('Compra de práctica (GTQ)',{exact:true}).fill('100');await page.getByRole('button',{name:'Registrar puntos ficticios',exact:true}).click();
-  await expect(page.getByText('Cliente ficticio · 210 puntos',{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Canjear en práctica',exact:true}).click();await expect(page.getByText('Cliente ficticio · 160 puntos',{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Corregir canje ficticio',exact:true}).click();await expect(page.getByText('Cliente ficticio · 210 puntos',{exact:true})).toBeVisible();
-  await expect(page.getByText('Práctica ficticia completada en esta sesión.',{exact:true})).toBeVisible();assert.equal(await page.evaluate(()=>window.__calls.length),before,'practice must make no API calls');
-  await audit('practice-'+width+'-'+mode);await page.getByRole('button',{name:'Reiniciar práctica',exact:true}).click();await expect(page.getByText('Cliente ficticio · 200 puntos',{exact:true})).toBeVisible();
-  await expect(page.getByText('Práctica ficticia completada en esta sesión.',{exact:true})).not.toBeVisible();
+  await page.getByRole('button',{name:'Simular inscripción',exact:true}).click();
+  await page.getByRole('button',{name:'Comprobar intento no elegible',exact:true}).click();
+  await expect(page.getByText('Intento no elegible · saldo insuficiente',{exact:true})).toBeVisible();
+  await page.getByLabel('Visitas ficticias',{exact:true}).fill('8');
+  await page.getByRole('button',{name:'Registrar compra ficticia',exact:true}).click();
+  await expect(page.getByText('Cliente ficticio · 80 puntos · versión 4',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Comprobar desbloqueo',exact:true}).click();
+  await page.getByRole('button',{name:'Canjear en práctica',exact:true}).click();
+  await expect(page.getByText('Cliente ficticio · 0 puntos · versión 6',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Devolver canje ficticio',exact:true}).click();
+  await expect(page.getByText('Cliente ficticio · 80 puntos · versión 7',{exact:true})).toBeVisible();
+  await expect(page.getByRole('status').filter({hasText:'Recorrido ficticio completo guardado'})).toBeVisible();
+  assert.ok((await page.evaluate(index=>window.__calls.slice(index),before)).every(call=>call.path.startsWith('/api/admin/service-operations/rehearsal')),'practice only calls the isolated rehearsal API');
+  await audit('practice-'+width+'-'+mode);
+  await page.getByRole('button',{name:'Recargar configuración',exact:true}).click();
+  await expect(page.getByRole('status').filter({hasText:'Recorrido ficticio completo guardado'})).toBeVisible();
+  await page.getByRole('button',{name:'Iniciar otra práctica',exact:true}).click();
+  await expect(page.getByText('Cliente ficticio · 0 puntos · versión 1',{exact:true})).toBeVisible();
+  await expect(page.getByRole('status').filter({hasText:'Recorrido ficticio completo guardado'})).not.toBeVisible();
   await page.getByRole('tab',{name:'2. Recompensas',exact:true}).click();await expect(page.getByText('Recompensas preparadas según la configuración consultada: 1.',{exact:true})).toBeVisible();
   await audit('rewards-'+width+'-'+mode);await page.getByRole('tab',{name:'4. QR y revisión',exact:true}).click();await expect(page.getByLabel('Enlace de inscripción')).toHaveValue(origin+'/registro/cafe-practica');await expect(page.getByRole('link',{name:'Registrar las pruebas en Mi piloto',exact:true})).toHaveCount(0);
  }
@@ -61,5 +79,5 @@ try{
  await page.getByRole('button',{name:'Recargar configuración',exact:true}).click();await expect(page.getByText('Primer premio guardado',{exact:true})).toBeVisible();await expect(page.getByText('Recompensas preparadas según la configuración consultada: 2.',{exact:true})).toBeVisible();
  await expect(page.getByText('Costo de entrega desconocido en 1 recompensa preparada. No equivale a cero ni confirma rentabilidad.',{exact:true})).toBeVisible();
  assert.equal(await page.evaluate(()=>window.__calls.some(call=>call.path==='/api/admin/rewards')),false,'launch must read the same reward workspace that saves use');assert.deepEqual(errors,[]);
- console.log('Launch activation: saved prerequisite navigation, deliberate tab choice, shared reward fixture, paused exclusion, zero-call fictional practice/reset, error recovery, desktop/mobile light/dark and zero axe violations passed.');
+ console.log('Launch activation: saved prerequisite navigation, deliberate tab choice, shared reward fixture, paused exclusion, isolated persisted fictional rehearsal/reset and numeric program payload, error recovery, desktop/mobile light/dark and zero axe violations passed.');
 }finally{await browser.close();await vite.close();}

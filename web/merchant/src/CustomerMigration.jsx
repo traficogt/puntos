@@ -1,7 +1,8 @@
+import { NumberInput, Select } from './inputs';
 import ImportJobs from './ImportJobs.jsx';
 import {regionalDate,merchantRegion} from './region.js';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Badge, Button, Checkbox, FileInput, Group, NumberInput, Textarea, Select, SimpleGrid, Stack, Table, Text, TextInput, Title } from '@mantine/core';
+import { Alert, Badge, Button, Checkbox, FileInput, Group, Textarea, SimpleGrid, Stack, Table, Text, TextInput, Title } from '@mantine/core';
 import { api, isDemo, useResource } from './api.js';
 import { Failure, Loading, number } from './ui.jsx';
 import { migrationLimits, migrationPayload, migrationTemplate, suggestMigrationColumns } from './migration-model.js';
@@ -11,8 +12,9 @@ const noop = () => {};
 const date = regionalDate;
 const blankColumns = { phone: '', name: '', points: '' };
 
+/** @param {{onDirty?: (dirty: boolean) => void}} props */
 export default function CustomerMigration({ onDirty = noop }) {
-  const [sourceType,setSourceType]=useState('csv_balance'),[sourceLabel,setSourceLabel]=useState(''),[evidence,setEvidence]=useState(''),[conversion,setConversion]=useState(10),[conversionApproved,setConversionApproved]=useState(false);
+  const [sourceType,setSourceType]=useState('csv_balance'),[sourceLabel,setSourceLabel]=useState(''),[evidence,setEvidence]=useState(''),[conversion,setConversion]=useState(/** @type {number | string} */ (10)),[conversionApproved,setConversionApproved]=useState(false);
   const source=sourceType==='csv_balance'?undefined:{type:sourceType,label:sourceLabel,evidence,evidence_type:'owner_attestation',conversion:{points_per_unit:conversion,approved:conversionApproved}};
   const [queued,setQueued]=useState(false),[queuedMessage,setQueuedMessage]=useState('');
   const previewBase=queued?'/api/admin/customer-import-jobs':base;

@@ -1,10 +1,11 @@
+import { NumberInput, Select } from './inputs';
 import {useEffect,useRef,useState} from 'react';
-import {Alert,Button,Group,NumberInput,Select,Stack,Table,Text,Title} from '@mantine/core';
+import {Alert,Button,Group,Stack,Table,Text,Title} from '@mantine/core';
 import {api,useResource} from './api.js';
 import {Failure,Loading,number} from './ui.jsx';
 import {merchantRegion} from './region.js';
 export default function OperatingControls({onChanged=()=>{}}){
- const [revision,setRevision]=useState(0),[mode,setMode]=useState('normal'),[minutes,setMinutes]=useState('60'),[capacity,setCapacity]=useState(10),[draft,setDraft]=useState(null),[runs,setRuns]=useState(1),[days,setDays]=useState(7),[busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[error,setError]=useState('');
+ const [revision,setRevision]=useState(0),[mode,setMode]=useState('normal'),[minutes,setMinutes]=useState('60'),[capacity,setCapacity]=useState(/** @type {number | string} */ (10)),[draft,setDraft]=useState(null),[runs,setRuns]=useState(/** @type {number | string} */ (1)),[days,setDays]=useState(/** @type {number | string} */ (7)),[busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[error,setError]=useState('');
  const pendingRequest=useRef(null);
  const resource=useResource('/api/admin/decisions/templates',revision),data=resource.data;
  useEffect(()=>{if(data?.operating_mode){setMode(data.operating_mode.mode);setCapacity(data.operating_mode.capacity??10);}},[data?.operating_mode?.version]);

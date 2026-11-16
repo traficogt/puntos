@@ -8,7 +8,7 @@ export function suggestMigrationColumns(headers) {
   return result;
 }
 
-export function migrationPayload({ csv, columns, existingPolicy, label, confirmed, source }, requestId = null) {
+export function migrationPayload({ csv, columns, existingPolicy, label = undefined, confirmed = undefined, source }, requestId = null) {
   if (!columns?.phone) throw new Error('Selecciona la columna de teléfono.');
   const mapping = { phone: columns.phone };
   for (const key of ['name', 'points']) if (columns[key]) mapping[key] = columns[key];

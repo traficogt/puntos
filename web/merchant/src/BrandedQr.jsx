@@ -1,6 +1,7 @@
+import { Select } from './inputs';
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Alert, Anchor, Badge, Button, ColorInput, FileInput, Group, Select, SimpleGrid, Stack, Text, TextInput, Title } from "@mantine/core";
+import { Alert, Anchor, Badge, Button, ColorInput, FileInput, Group, SimpleGrid, Stack, Text, TextInput, Title } from "@mantine/core";
 import { api, isDemo } from "./api.js";
 import { BusinessLink, Failure, Loading } from "./ui.jsx";
 import { brandedQrPath, qrEnrollmentUrl, qrSourceEnrollmentUrl, validateQrForeground } from "./branded-qr-model.js";
@@ -42,7 +43,7 @@ function BrandedQrEditor({ staff }) {
   const [color, setColor] = useState("");
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [appliedColor, setAppliedColor] = useState("");
-  const [preview, setPreview] = useState({ url: "", color: "", error: null, loading: true });
+  const [preview, setPreview] = useState(/** @type {{url: string, color: string, error: import('./types/api').ApiError | null, loading: boolean, key?: string}} */ ({ url: "", color: "", error: null, loading: true }));
   const [status, setStatus] = useState("");
   const registrationUrl = resource.data ? isDemo ? resource.data.registration_url : qrSourceEnrollmentUrl(resource.data, staff, sourceId) : "";
   const previewKey = JSON.stringify([staff.business_id, sourceId, registrationUrl, appliedColor, logoPosition, upload.dataUrl ?? null]);
@@ -158,7 +159,6 @@ function BrandedQrEditor({ staff }) {
                 popoverProps={{ opened: colorPickerOpen, onDismiss: () => setColorPickerOpen(false) }}
                 format="hex" withEyeDropper={false} closeOnColorSwatchClick
                 swatches={[data.defaults.foreground, "#302820", "#204030", "#173B59", "#000000"]}
-                swatchesLabel="Colores con contraste suficiente"
                 error={invalidColor || undefined}
                 size="md"
               />

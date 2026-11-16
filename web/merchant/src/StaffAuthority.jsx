@@ -1,7 +1,8 @@
+import { NumberInput } from './inputs';
 import AutomaticBriefing from './AutomaticBriefing.jsx';
 import {merchantRegion} from './region.js';
 import { useRef, useState } from 'react';
-import { Alert, Badge, Button, Group, NativeSelect, NumberInput, Stack, Table, Text, Textarea, TextInput, Title } from '@mantine/core';
+import { Alert, Badge, Button, Group, NativeSelect, Stack, Table, Text, Textarea, TextInput, Title } from '@mantine/core';
 import { api, isDemo, useResource } from './api.js';
 import { BusinessLink, Failure, Loading, number } from './ui.jsx';
 const actionLabels={restore_redemption:'Restituir puntos',extend_promise:'Ampliar vencimiento de promesa',fulfill_promise:'Entregar promesa en un caso',operating_mode:'Cambiar ritmo de operación',offer_template:'Activar oferta preaprobada'};
@@ -12,8 +13,8 @@ export default function StaffAuthority(){
  const pendingGrant=useRef(null);
  const [version,setVersion]=useState(0),[offset,setOffset]=useState(0),authority=useResource(`/api/admin/staff-authority?offset=${offset}`,version),briefing=useResource('/api/admin/shift-notices',version);
  const [grantOpen,setGrantOpen]=useState(false),[noticeOpen,setNoticeOpen]=useState(false),[busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState('');
- const [action,setAction]=useState('restore_redemption'),[maxActions,setMaxActions]=useState(10),[frequency,setFrequency]=useState(3),[minutes,setMinutes]=useState(60),[cost,setCost]=useState(0),[totalCost,setTotalCost]=useState(0);
- const [person,setPerson]=useState(''),[branch,setBranch]=useState(''),[perAction,setPerAction]=useState(50),[total,setTotal]=useState(200),[hours,setHours]=useState('8');
+ const [action,setAction]=useState('restore_redemption'),[maxActions,setMaxActions]=useState(/** @type {number | string} */ (10)),[frequency,setFrequency]=useState(/** @type {number | string} */ (3)),[minutes,setMinutes]=useState(/** @type {number | string} */ (60)),[cost,setCost]=useState(/** @type {number | string} */ (0)),[totalCost,setTotalCost]=useState(/** @type {number | string} */ (0));
+ const [person,setPerson]=useState(''),[branch,setBranch]=useState(''),[perAction,setPerAction]=useState(/** @type {number | string} */ (50)),[total,setTotal]=useState(/** @type {number | string} */ (200)),[hours,setHours]=useState('8');
  const [noticeId,setNoticeId]=useState(null),[noticeVersion,setNoticeVersion]=useState(1),[title,setTitle]=useState(''),[body,setBody]=useState(''),[noticeBranch,setNoticeBranch]=useState(''),[noticeHours,setNoticeHours]=useState('24');
  const refresh=()=>setVersion(value=>value+1),data=authority.data,staff=data?.staff||[],branches=data?.branches||[];
  async function mutate(key,fn,success){if(busy)return;setBusy(key);setError('');setMessage('');try{await fn();setMessage(success);refresh();}catch(failure){setError(failure.message||'No pudimos guardar. Revisa tu conexión y vuelve a intentar.');}finally{setBusy('');}}

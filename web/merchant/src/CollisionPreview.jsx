@@ -1,5 +1,6 @@
+import { NumberInput, Select } from './inputs';
 import {useState} from 'react';
-import {Alert,Button,Group,NumberInput,Select,Stack,Table,Text,Title} from '@mantine/core';
+import {Alert,Button,Group,Stack,Table,Text,Title} from '@mantine/core';
 import {api} from './api.js';
 import {number} from './ui.jsx';
 export default function CollisionPreview({campaign}){

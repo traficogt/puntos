@@ -1,5 +1,6 @@
+import { NumberInput } from './inputs';
 import React,{useRef,useState} from 'react';
-import {Alert,Badge,Button,Group,MultiSelect,NativeSelect,NumberInput,SimpleGrid,Stack,Table,Text,TextInput,Title} from '@mantine/core';
+import {Alert,Badge,Button,Group,MultiSelect,NativeSelect,SimpleGrid,Stack,Table,Text,TextInput,Title} from '@mantine/core';
 import {api,isDemo,useResource} from './api.js';
 import {Failure,Loading} from './ui.jsx';
 import {regionalDate,merchantRegion} from './region.js';
@@ -9,7 +10,7 @@ const actionLabels={submitted:'Registrar envío',approved:'Registrar aprobación
 const money=(minor,currency,units=currency==='CLP'?0:2)=>new Intl.NumberFormat(merchantRegion().locale,{style:'currency',currency}).format(Number(minor??0)/10**units);
 function ClaimDetail({id,refresh,onSaved,offline}){
  const resource=useResource(`/api/admin/supplier-funding/claims/${id}`,refresh),pending=useRef(null);
- const [status,setStatus]=useState(''),[reference,setReference]=useState(''),[amount,setAmount]=useState(''),[date,setDate]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const [status,setStatus]=useState(''),[reference,setReference]=useState(''),[amount,setAmount]=useState(/** @type {number | string} */ ('')),[date,setDate]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
  if(resource.loading)return <Loading/>;if(resource.error)return <Failure error={resource.error} retry={onSaved}/>;
  const {claim,events}=resource.data,units=claim.currency==='CLP'?0:2,allowed=choices[claim.status],next=allowed.includes(status)?status:allowed[0]??'';
  async function save(event){event.preventDefault();const body={version:claim.version,status:next,reference,...(next==='paid'?{paid_minor:Math.round(Number(amount)*10**units),paid_at:date}:{})},key=JSON.stringify(body);if(pending.current?.key!==key)pending.current={key,body:{...body,request_id:crypto.randomUUID()}};setBusy(true);setError('');try{await api(`/api/admin/supplier-funding/claims/${id}/transition`,{method:'POST',body:JSON.stringify(pending.current.body)});pending.current=null;setReference('');setStatus('');onSaved();}catch(e){setError(e.message);}finally{setBusy(false);}}
@@ -38,7 +39,7 @@ function EligibleClaims({agreement,refresh,onSaved,offline}){
  </Stack>;
 }
 export function SupplierFunding({offline=false}){
- const [refresh,setRefresh]=useState(0),[offset,setOffset]=useState(0),[open,setOpen]=useState(false),[supplier,setSupplier]=useState(''),[title,setTitle]=useState(''),[rewards,setRewards]=useState([]),[starts,setStarts]=useState(''),[ends,setEnds]=useState(''),[unit,setUnit]=useState(''),[cap,setCap]=useState(''),[selected,setSelected]=useState(''),[claimId,setClaimId]=useState(null),[busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState(''),pending=useRef(null);
+ const [refresh,setRefresh]=useState(0),[offset,setOffset]=useState(0),[open,setOpen]=useState(false),[supplier,setSupplier]=useState(''),[title,setTitle]=useState(''),[rewards,setRewards]=useState([]),[starts,setStarts]=useState(''),[ends,setEnds]=useState(''),[unit,setUnit]=useState(/** @type {number | string} */ ('')),[cap,setCap]=useState(/** @type {number | string} */ ('')),[selected,setSelected]=useState(''),[claimId,setClaimId]=useState(null),[busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState(''),pending=useRef(null);
  const reload=()=>setRefresh(v=>v+1),resource=useResource(`/api/admin/supplier-funding?offset=${offset}`,refresh),data=resource.data,region=data?.region,disabled=offline||!!busy;
  async function mutate(key,fn,success){setBusy(key);setError('');setMessage('');try{await fn();setMessage(success);reload();}catch(e){setError(e.message);}finally{setBusy('');}}
  async function create(event){event.preventDefault();const body={supplier_name:supplier,title,reward_ids:rewards,starts_on:starts,ends_on:ends,currency:region.currency,unit_amount:Number(unit),cap_amount:Number(cap)},key=JSON.stringify(body);if(pending.current?.key!==key)pending.current={key,body:{...body,request_id:crypto.randomUUID()}};await mutate('agreement',async()=>{const result=await api('/api/admin/supplier-funding/agreements',{method:'POST',body:JSON.stringify(pending.current.body)});pending.current=null;setSelected(result.agreement.id);setOpen(false);},'Acuerdo guardado. Puedes preparar reclamaciones elegibles.');}

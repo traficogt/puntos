@@ -1,8 +1,9 @@
+import { NumberInput, Select } from './inputs';
 import {merchantRegion} from './region.js';
 import PosInstallation from "./PosInstallation.jsx";
 import PosRefunds from "./PosRefunds.jsx";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Badge, Button, Checkbox, Divider, Group, NumberInput, Select, SimpleGrid, Stack, Text, TextInput, Title } from "@mantine/core";
+import { Alert, Badge, Button, Checkbox, Divider, Group, SimpleGrid, Stack, Text, TextInput, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { api, isDemo, useResource } from "./api.js";
 import { BusinessLink, Failure, Loading, Locked, money, number } from "./ui.jsx";

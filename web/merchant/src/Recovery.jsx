@@ -1,3 +1,4 @@
+import { NumberInput, Select } from './inputs';
 import {merchantRegion} from './region.js';
 import { useEffect, useRef, useState } from "react";
 import {
@@ -6,8 +7,6 @@ import {
   Button,
   Checkbox,
   Group,
-  NumberInput,
-  Select,
   Stack,
   Table,
   Text,

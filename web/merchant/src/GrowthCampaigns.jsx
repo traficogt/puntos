@@ -1,3 +1,4 @@
+import { NumberInput, Select } from './inputs';
 import CampaignMeasurementPlan, { PlanningSummary } from './CampaignMeasurementPlan.jsx';
 import CampaignMeasurementControls from './CampaignMeasurementControls.jsx';
 import { defaultMeasurementPlan, measurementPlanInput } from './campaign-measurement-inputs.js';
@@ -10,7 +11,7 @@ import CampaignAudiencePreview from "./CampaignAudiencePreview.jsx";
 import OfferCostPreview from "./OfferCostPreview.jsx";
 import { audienceDescription } from "./audience-model.js";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Anchor, Badge, Button, Checkbox, Group, NumberInput, Select, SimpleGrid, Stack, Table, Text, TextInput, Title } from "@mantine/core";
+import { Alert, Anchor, Badge, Button, Checkbox, Group, SimpleGrid, Stack, Table, Text, TextInput, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { api, isDemo, useResource } from "./api.js";
 import { Failure, Loading, Locked, money, number } from "./ui.jsx";
@@ -25,14 +26,14 @@ function Workspace({ onDirty }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const alive = useRef(true), request = useRef({ signature: "", id: crypto.randomUUID() });
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  const form = useForm({ initialValues: { offer_kind: "experiment", duration_minutes: "60", name: "", audience_source: "recovery", audience_segment_id: "", audience_limit: 200, recovery_run_id: "", bonus_points: 50, minimum_purchase_q: 50, duration_days: "14", holdout_percent: "50", measurement_plan: { ...defaultMeasurementPlan }, estimated_cost_per_point_q: "", points_budget: "" }, validate: {
+  const form = useForm({ initialValues: { offer_kind: "experiment", duration_minutes: "60", name: "", audience_source: "recovery", audience_segment_id: "", audience_limit: 200, recovery_run_id: "", bonus_points: 50, minimum_purchase_q: 50, duration_days: "14", holdout_percent: "50", measurement_plan: { ...defaultMeasurementPlan }, estimated_cost_per_point_q: "", points_budget: /** @type {number | string} */ ("") }, validate: {
     measurement_plan: (v, values) => values.offer_kind === "quiet" || measurementPlanInput(values, null) ? null : "Revisa los supuestos y los plazos del plan de medición.",
     name: v => v.trim().length > 0 && v.trim().length <= 100 ? null : "Escribe un nombre de hasta 100 caracteres.",
     recovery_run_id: (v, values) => values.audience_source !== "recovery" || v ? null : "Selecciona una lista guardada.",
     audience_segment_id: (v, values) => values.audience_source !== "segment" || v ? null : "Selecciona una audiencia guardada.",
     audience_limit: (v, values) => values.audience_source !== "segment" || (Number.isInteger(v) && v >= (values.offer_kind === "quiet" ? 1 : 10) && v <= (values.offer_kind === "quiet" ? 200 : 5000)) ? null : "Revisa el límite: hasta 200 clientes en una oferta breve o 5,000 en una campaña.",
     bonus_points: v => Number.isInteger(v) && v >= 1 && v <= 10000 ? null : "Usa entre 1 y 10,000 puntos enteros.",
-    points_budget: (v, values) => (v === "" && values.offer_kind !== "quiet") || (Number.isInteger(v) && v >= values.bonus_points && v <= 2000000) ? null : "El límite debe cubrir al menos una bonificación y no superar 2,000,000 de puntos.",
+    points_budget: (v, values) => (v === "" && values.offer_kind !== "quiet") || (typeof v === "number" && Number.isInteger(v) && v >= values.bonus_points && v <= 2000000) ? null : "El límite debe cubrir al menos una bonificación y no superar 2,000,000 de puntos.",
     minimum_purchase_q: v => typeof v === "number" && v >= 0 && v <= 999999.99 ? null : "Escribe un monto válido.",
     estimated_cost_per_point_q: v => v === "" || (typeof v === "number" && v >= 0 && v <= 100) ? null : "Usa un costo entre 0 y 100 en la moneda del negocio."
   }});

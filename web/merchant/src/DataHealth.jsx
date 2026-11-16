@@ -1,5 +1,6 @@
+import { NumberInput, Select } from './inputs';
 import {useEffect,useState} from 'react';
-import {Accordion,Alert,Badge,Button,Code,Group,NumberInput,Select,Stack,Switch,Text,TextInput,Title} from '@mantine/core';
+import {Accordion,Alert,Badge,Button,Code,Group,Stack,Switch,Text,TextInput,Title} from '@mantine/core';
 import {api,useResource} from './api.js';
 import {Failure,Loading} from './ui.jsx';
 import {merchantRegion} from './region.js';

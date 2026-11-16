@@ -1,6 +1,7 @@
+import { Select } from './inputs';
 import {merchantRegion} from './region.js';
 import { useEffect, useState } from "react";
-import { Accordion, Alert, Anchor, Button, Group, List, Select, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
+import { Accordion, Alert, Anchor, Button, Group, List, SimpleGrid, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
 import { BusinessLink } from "./ui.jsx";
 import { connectionModes } from "./pos-model.js";
 import { buildPosHandoff } from "./pos-handoff-model.js";

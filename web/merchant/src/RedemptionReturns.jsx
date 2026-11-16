@@ -1,5 +1,6 @@
+import { Select } from './inputs';
 import { useEffect, useRef, useState } from 'react';
-import { Accordion, Alert, Button, Group, Select, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Accordion, Alert, Button, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { isDemo, useResource } from './api.js';
 import { Failure, Loading, number, periodDate } from './ui.jsx';
 

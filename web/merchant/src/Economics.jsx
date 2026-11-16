@@ -1,6 +1,7 @@
+import { NumberInput, Select } from './inputs';
 import IssuedCommitments from './IssuedCommitments.jsx';
 import { useState } from 'react';
-import { Accordion, Alert, Badge, Button, Group, Modal, NumberInput, Select, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
+import { Accordion, Alert, Badge, Button, Group, Modal, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
 import { api, isDemo, useResource } from './api.js';
 import { BusinessLink, Failure, Loading, Locked, money, number, periodDate } from './ui.jsx';
 import { merchantRegion } from './region.js';

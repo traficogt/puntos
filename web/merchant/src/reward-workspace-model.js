@@ -26,6 +26,7 @@ export function rewardPayload(draft,{minorUnits=2,includeCost=true}={}){
   if(draft.validUntil===localDateTime(draft.originalValidUntil))expiry=draft.originalValidUntil;
   else {const parsed=new Date(draft.validUntil);if(!Number.isFinite(parsed.getTime()))throw new Error('Revisa la fecha y hora de vencimiento.');expiry=parsed.toISOString();}
  }
+ /** @type {import('./types/models').RewardPayload} */
  const result={...(draft.id?{rewardId:draft.id,version:draft.version}:{}),reward:{name:draft.name.trim(),description:draft.description===(draft.originalDescription??'')?draft.originalDescription:draft.description.trim()||null,points_cost:points,active:!!draft.active,stock:quota,valid_until:expiry,branch_ids:draft.allBranches?[]:draft.branchIds},...(includeCost?{unitCostQ:cost}:{}),available:!!draft.available};
  if(draft.mappingDirty){
   if(!draft.catalogItem?.id)throw new Error('Selecciona un artículo del catálogo para guardar el vínculo.');
@@ -39,6 +40,7 @@ export function rewardPayload(draft,{minorUnits=2,includeCost=true}={}){
  }
  return result;
 }
+/** @param {{state?: string, quantity?: number | string}} inventory @param {number | string} [requiredQuantity] */
 export function inventoryDescription(inventory,requiredQuantity=1){
  const state=inventory?.state==='available'&&Number(inventory.quantity)<Number(requiredQuantity)?'unavailable':inventory?.state;
  return ({available:{label:'Existencias suficientes en la última comprobación',color:'teal'},unavailable:{label:'Existencias insuficientes',color:'yellow'},stale:{label:'Comprobación desactualizada',color:'yellow'},not_applicable:{label:'Servicio: no requiere existencias',color:'gray'},not_required:{label:'Comprobación de existencias desactivada',color:'gray'}})[state]??{label:'Sin comprobación reciente de existencias',color:'gray'};

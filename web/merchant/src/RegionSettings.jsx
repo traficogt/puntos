@@ -1,21 +1,23 @@
+import { Select } from './inputs';
 import {REGIONAL_COUNTRIES,REGIONAL_CURRENCIES} from '../../../public/regional-catalog.js';
 import WalletLocations from './WalletLocations.jsx';
 import {useEffect,useState} from 'react';
-import {Alert,Button,Checkbox,Group,Select,Stack,Text,Title} from '@mantine/core';
-import {api,useResource} from './api.js';
+import {Alert,Button,Checkbox,Group,Stack,Text,Title} from '@mantine/core';
+import {merchantApi,useMerchantResource} from './typed-api';
 import {Failure,Loading} from './ui.jsx';
 import {setMerchantRegion} from './region.js';
+/** @param {{onDirty?: (dirty: boolean) => void, onSaved?: () => void}} props */
 export default function RegionSettings({onDirty=()=>{},onSaved=()=>{}}){
  const [locationDirty,setLocationDirty]=useState(false);
- const [revision,setRevision]=useState(0),resource=useResource('/api/admin/region',revision);
- const [value,setValue]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[saved,setSaved]=useState(false),[confirmed,setConfirmed]=useState(false);
+ const [revision,setRevision]=useState(0),resource=useMerchantResource('/api/admin/region',revision);
+ const [value,setValue]=useState(/** @type {import('./types/api').RegionDraft | null} */ (null)),[error,setError]=useState(''),[busy,setBusy]=useState(false),[saved,setSaved]=useState(false),[confirmed,setConfirmed]=useState(false);
  useEffect(()=>{if(resource.data){setValue({country:resource.data.region.country,currency:resource.data.region.currency,timezone:resource.data.region.timezone});setConfirmed(false);}},[resource.data]);
  const dirty=Boolean(value&&resource.data&&Object.keys(value).some(k=>value[k]!==resource.data.region[k]));
  useEffect(()=>{onDirty(dirty||confirmed||locationDirty);return()=>onDirty(false);},[dirty,confirmed,locationDirty,onDirty]);
  if(resource.loading||!value&&!resource.error)return <Loading/>;
  if(resource.error)return <Failure error={resource.error} retry={()=>setRevision(v=>v+1)}/>;
  const change=patch=>{setValue(v=>({...v,...patch}));setSaved(false);setConfirmed(false);setError('');};
- async function save(){setBusy(true);setError('');try{const out=await api('/api/admin/region',{method:'PUT',body:JSON.stringify({...value,version:resource.data.version,confirmed_currency:value.currency})});setMerchantRegion(out.region);setSaved(true);onDirty(false);setRevision(v=>v+1);onSaved();}catch(e){setError(e.message);}finally{setBusy(false);}}
+ async function save(){setBusy(true);setError('');try{const out=await merchantApi.put('/api/admin/region',{...value,version:resource.data.version,confirmed_currency:value.currency});setMerchantRegion(out.region);setSaved(true);onDirty(false);setRevision(v=>v+1);onSaved();}catch(e){setError(e.message);}finally{setBusy(false);}}
  return <Stack gap="xl" maw={780}><div><Title order={1}>Región del negocio</Title><Text mt="sm" c="dimmed">Define la moneda de tus operaciones y el horario local que usan las reglas y comunicaciones del programa.</Text></div>
  {error&&<Alert color="red" role="alert" title="No se pudo guardar">{error}</Alert>}{saved&&<Alert color="green" role="status" title="Configuración guardada">Las próximas operaciones usarán esta configuración.</Alert>}
  <Select label="País" searchable data={Object.keys(resource.data.countries).map(code=>({value:code,label:resource.data.countries[code].name||REGIONAL_COUNTRIES[code]?.name||code}))} value={value.country} allowDeselect={false} disabled={busy} onChange={country=>{const defaults=resource.data.countries[country];change({country,timezone:defaults.timezone,...(!resource.data.currency_locked?{currency:defaults.currency}:{})});}}/>

@@ -1,5 +1,6 @@
+import { NumberInput } from './inputs';
 import {useEffect,useRef,useState} from 'react';
-import {Alert,Badge,Button,Group,NativeSelect,NumberInput,SimpleGrid,Stack,Table,Text,TextInput,Title} from '@mantine/core';
+import {Alert,Badge,Button,Group,NativeSelect,SimpleGrid,Stack,Table,Text,TextInput,Title} from '@mantine/core';
 import {api,isDemo,useResource} from './api.js';
 import {Failure,Loading,number} from './ui.jsx';
 import {hospitalityCapacity,hospitalityPreset} from './hospitality-pilot.js';
@@ -7,7 +8,7 @@ import {hospitalityCapacity,hospitalityPreset} from './hospitality-pilot.js';
 export default function Hospitality(){
  const pending=useRef(null),[version,setVersion]=useState(0),resource=useResource('/api/admin/hospitality',version);
  const [open,setOpen]=useState(false),[busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState(''),[online,setOnline]=useState(()=>navigator.onLine);
- const [person,setPerson]=useState(''),[branch,setBranch]=useState(''),[reward,setReward]=useState(''),[title,setTitle]=useState(''),[units,setUnits]=useState(5),[budget,setBudget]=useState(25),[unitCost,setUnitCost]=useState(5),[hours,setHours]=useState('8'),[validHours,setValidHours]=useState('48');
+ const [person,setPerson]=useState(''),[branch,setBranch]=useState(''),[reward,setReward]=useState(''),[title,setTitle]=useState(''),[units,setUnits]=useState(/** @type {number | string} */ (5)),[budget,setBudget]=useState(/** @type {number | string} */ (25)),[unitCost,setUnitCost]=useState(/** @type {number | string} */ (5)),[hours,setHours]=useState('8'),[validHours,setValidHours]=useState('48');
  useEffect(()=>{const update=()=>setOnline(navigator.onLine);window.addEventListener('online',update);window.addEventListener('offline',update);return()=>{window.removeEventListener('online',update);window.removeEventListener('offline',update);};},[]);
  const refresh=()=>setVersion(v=>v+1),data=resource.data,region=data?.region,currency=region?.currency||'',offline=!isDemo&&!online,disabled=!!busy||offline;
  const format=value=>new Intl.NumberFormat(region?.locale,{style:'currency',currency:currency||'GTQ'}).format(Number(value));

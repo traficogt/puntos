@@ -4,6 +4,7 @@ export function basePointsPreview(program,quantity){
  if(!['VISIT','ITEM'].includes(program.program_type))return null;
  return Math.floor(Math.max(1,Math.floor(quantity))*program.rate);
 }
+/** @param {import('./types/models').LaunchReadinessInput} [input] */
 export function launchReadiness({program,rewards,pilot,branches}={},now=Date.now()){
  const required=pilot?.checks?.filter(c=>c.required)||[];
  const readyRewards=Array.isArray(rewards)?rewards.flatMap(reward=>{

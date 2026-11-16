@@ -1,5 +1,6 @@
+import { Select } from './inputs';
 import { useEffect, useRef, useState } from "react";
-import { Alert, Badge, Button, Group, Modal, Paper, Select, SimpleGrid, Stack, Text, Title } from "@mantine/core";
+import { Alert, Badge, Button, Group, Modal, Paper, SimpleGrid, Stack, Text, Title } from "@mantine/core";
 import { api, isDemo, useResource } from "./api.js";
 import { BusinessLink, Failure, Loading, money, number } from "./ui.jsx";
 

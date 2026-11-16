@@ -9,6 +9,7 @@ import {canCheckInventory,catalogPreviewIssues,inventoryDescription,manualItemPa
 const base='/api/admin/reward-workspace',catalogBase='/api/admin/merchant-catalog';
 function Pending({label='Consultando recompensas…'}){return <Stack role="status" aria-label={label} gap="md"><Text size="sm">{label}</Text><Skeleton height={24} width="65%"/><Skeleton height={76}/><Skeleton height={76}/></Stack>;}
 function useAlive(){const alive=useRef(true);useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);return alive;}
+/** @param {{inventory?: import('./types/models').InventoryEvidence, requiredQuantity?: number | string}} props */
 function Evidence({inventory,requiredQuantity=1}){const status=inventoryDescription(inventory,requiredQuantity);return <Stack gap={4}><Text size="sm" fw={600}>{status.label}</Text>{inventory?.quantity!=null&&<Text size="sm">Última cantidad informada: {number(inventory.quantity)}</Text>}{inventory?.observedAt&&<Text size="sm" c="dimmed">Comprobado: {regionalDate(inventory.observedAt)}</Text>}</Stack>;}
 function ItemDetails({item}){return <><Text fw={600} style={{overflowWrap:'anywhere'}}>{item.name}</Text><Text size="sm" c="dimmed" style={{overflowWrap:'anywhere'}}>{item.itemKind==='service'?'Servicio':'Producto'}{item.sku?` · SKU: ${item.sku}`:''} · {sourceLabel(item)}</Text></>;}
 

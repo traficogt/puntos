@@ -2,7 +2,7 @@ const keys = ['staff_id', 'source_group', 'branch_id', 'start', 'end'];
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const activitySourceLabels = { staff: 'Equipo identificado', pos: 'Caja o integración', orders: 'Pedidos', unmapped: 'Sin persona identificada', other: 'Otros orígenes' };
 export function readActivityFilters(search) {
-  const params = new URLSearchParams(search), result = {};
+  const params = new URLSearchParams(search), result = /** @type {Partial<Record<'staff_id' | 'source_group' | 'branch_id' | 'start' | 'end', string>>} */ ({});
   for (const key of ['staff_id', 'branch_id']) if (uuid.test(params.get(key) || '')) result[key] = params.get(key).toLowerCase();
   if (Object.hasOwn(activitySourceLabels, params.get('source_group'))) result.source_group = params.get('source_group');
   const start = params.get('start'), end = params.get('end');

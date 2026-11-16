@@ -1,5 +1,6 @@
+import { NumberInput } from './inputs';
 import { useEffect, useState } from 'react';
-import { Alert, NumberInput, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Alert, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { api } from './api.js';
 import { number } from './ui.jsx';
 import { measurementPlanInput } from './campaign-measurement-inputs.js';

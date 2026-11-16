@@ -1,5 +1,6 @@
+import { Select } from './inputs';
 import { useEffect, useState } from 'react';
-import { Button, Select, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
+import { Button, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
 import { downloadPosHandoff } from './pos-handoff-model.js';
 export default function PosHandoff({onDirty}){
  const [values,setValues]=useState({vendor:'',version:'',deployment:'Por confirmar',capability:'Por confirmar'}),[dirty,setDirty]=useState(false),[notice,setNotice]=useState('');

@@ -71,6 +71,7 @@ window.addEventListener("pageshow", (event) => {
     location.reload();
   }
 });
+/** @param {string | null} path @param {string | number} [refresh] */
 export function useResource(path, refresh = 0) {
   const [state, setState] = useState({
     path: null,

@@ -8,6 +8,7 @@ export const audienceFields=[
  {value:'points_balance',label:'Saldo de puntos disponible',kind:'integer'},
  {value:'marketing_opt_in',label:'Acepta mensajes promocionales',kind:'boolean'}
 ];
+/** @returns {{window_days: number, include: {match: string, rules: {field: string, operator: string, value: number | boolean}[]}, exclude: {match: string, rules: {field: string, operator: string, value: number | boolean}[]}}} */
 export const emptyAudience=()=>({window_days:90,include:{match:'all',rules:[{field:'purchase_count',operator:'gte',value:2}]},exclude:{match:'any',rules:[]}});
 export const audiencePresets={
  frequent:{label:'Clientes frecuentes',definition:()=>({...emptyAudience(),include:{match:'all',rules:[{field:'purchase_count',operator:'gte',value:3}]}})},

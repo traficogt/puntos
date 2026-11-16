@@ -1,6 +1,7 @@
+import { Select } from './inputs';
 import {useEffect,useRef,useState} from 'react';
 import {useForm} from '@mantine/form';
-import {Alert,Anchor,Badge,Button,Group,Select,SimpleGrid,Stack,Switch,Text,TextInput,Title} from '@mantine/core';
+import {Alert,Anchor,Badge,Button,Group,SimpleGrid,Stack,Switch,Text,TextInput,Title} from '@mantine/core';
 import {api,useResource,isDemo} from './api.js';
 import {Failure,Loading} from './ui.jsx';
 import {regionalDate} from './region.js';

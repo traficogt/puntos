@@ -3,14 +3,15 @@ import {downloadPilotReport} from './pilot-model.js';
 import {useCallback,useEffect,useState} from 'react';
 import {Alert,Anchor,Badge,Button,Group,SimpleGrid,Stack,Tabs,Text,Title} from '@mantine/core';
 import {useResource} from './api.js';
+import {useMerchantResource} from './typed-api';
 import {Failure,Loading,number,BusinessLink} from './ui.jsx';
 import LaunchProgramEditor from './LaunchProgramEditor.jsx';
 import LaunchEnrollment from './LaunchEnrollment.jsx';
 import LaunchPractice from './LaunchPractice.jsx';
 import {firstLaunchStep,launchReadiness,launchPilot} from './launch-model.js';
-export default function Launch({staff,features={},onDirty}){
+export default function Launch({staff,features=/** @type {Record<string, boolean>} */ ({}),onDirty}){
  const [refresh,setRefresh]=useState(0),[step,setStep]=useState(null),[dirty,setDirty]=useState(false),[savedProgram,setSavedProgram]=useState(null),[practiceComplete,setPracticeComplete]=useState(false);
- const program=useResource('/api/admin/launch/program',refresh),rewards=useResource('/api/admin/reward-workspace',refresh),invite=useResource('/api/admin/customer-enrollment',refresh),operations=useResource('/api/admin/operations-health',refresh);
+ const program=useMerchantResource('/api/admin/launch/program',refresh),rewards=useResource('/api/admin/reward-workspace',refresh),invite=useResource('/api/admin/customer-enrollment',refresh),operations=useResource('/api/admin/operations-health',refresh);
  const persistedPractice=useResource('/api/admin/service-operations/rehearsal',refresh);
  const pilots=useResource(features.analytics?'/api/admin/pilots':null,refresh);
  const selectedPilot=launchPilot([...(pilots.data?.pilots||[]),...(pilots.data?.latest_completed?[pilots.data.latest_completed]:[])]);

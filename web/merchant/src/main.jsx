@@ -441,7 +441,7 @@ function Merchant({ staff }) {
 createRoot(document.getElementById("root")).render(
   <MantineProvider
     getStyleNonce={() =>
-      document.querySelector('meta[name="pf-style-nonce"]')?.content
+      /** @type {HTMLMetaElement | null} */ (document.querySelector('meta[name="pf-style-nonce"]'))?.content
     }
     theme={theme}
     defaultColorScheme="auto"

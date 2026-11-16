@@ -1,5 +1,6 @@
+import { NumberInput } from './inputs';
 import { useState } from 'react';
-import { Accordion, Alert, Anchor, Button, NumberInput, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Accordion, Alert, Anchor, Button, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { useResource } from './api.js';
 import { merchantRegion } from './region.js';
 import { Failure, Loading, number } from './ui.jsx';
@@ -8,8 +9,8 @@ import { budgetFromAllowance, marginIllustration, offerCostPreview } from './off
 const emptyAsNull = value => value === '' ? null : value;
 export default function OfferCostPreview({ values, audienceCount, busy, onCostChange, onBudgetChange }) {
   const region = merchantRegion();
-  const [allowance, setAllowance] = useState(''), [percent, setPercent] = useState(100);
-  const [sale, setSale] = useState(''), [margin, setMargin] = useState('');
+  const [allowance, setAllowance] = useState(/** @type {number | string} */ ('')), [percent, setPercent] = useState(/** @type {number | string} */ (100));
+  const [sale, setSale] = useState(/** @type {number | string} */ ('')), [margin, setMargin] = useState(/** @type {number | string} */ (''));
   const [lookup, setLookup] = useState(false), [revision, setRevision] = useState(0), [applied, setApplied] = useState(null);
   const saved = useResource(lookup ? '/api/admin/reward-economics' : null, revision);
   const pointCost = emptyAsNull(values.estimated_cost_per_point_q);
