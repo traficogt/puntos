@@ -60,6 +60,10 @@ jobs:
         run: PLAYWRIGHT_BROWSERS_PATH=0 npm run test:merchant:navigation
       - name: Customer offline wallet shell regression
         run: PLAYWRIGHT_BROWSERS_PATH=0 node --test tests/integration/customer-offline-shell.browser.test.js
+      - name: Merchant import preview regression
+        run: PLAYWRIGHT_BROWSERS_PATH=0 node web/merchant/tests/customer-migration-pending-browser.spec.mjs
+      - name: Staff offline and customer selection regressions
+        run: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright test tests/e2e/staff-offline.spec.js --project=chromium --retries=0 --reporter=line
       - name: Tests
         run: npm test
       - name: OpenAPI generation is current
