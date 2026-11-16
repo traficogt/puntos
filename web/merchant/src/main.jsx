@@ -351,7 +351,7 @@ function Merchant({ staff }) {
                   los cambios se descartan al recargar y no afectan a ningún negocio real.
                   <a className="demo-contact-link" href="https://puntosfieles.com/#contacto" onClick={()=>trackDemoEvent('demo_contact_open')}>Hablar con nosotros</a>
                 </Text>
-                <Text size="sm" mt="xs"><strong>Funciones según el plan</strong>. Esta demo muestra el plan Empresa. Recuperación, campañas y costos están disponibles desde Negocio. <a href="/planes/">Comparar planes</a></Text>
+                <Text size="sm" mt="xs"><strong>Funciones según el plan</strong>. La demo incluye herramientas de distintos planes. Recuperación, campañas y costos: desde Negocio. <Anchor href="/precios">Comparar planes</Anchor></Text>
               </Alert>
             )}
             {isDemo && <DemoGuide page={page} mode={demoMode} onNavigate={navigate} />}

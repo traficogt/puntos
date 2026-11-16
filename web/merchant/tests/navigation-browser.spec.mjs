@@ -109,6 +109,7 @@ try {
     await goto(page, "costos");
     await expect(page.getByRole("region", { name: "Recorrido de ejemplo" })).toHaveCount(0);
     await expect(page.getByText("Funciones según el plan", { exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Comparar planes", exact: true })).toHaveAttribute("href", "/precios");
     await finish(current);
   });
   await check("narrow dark-theme entry supports keyboard and free exploration", async () => {

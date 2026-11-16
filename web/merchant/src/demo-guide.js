@@ -2,7 +2,7 @@ import { hashForPage } from './navigation.js';
 
 export const guideSteps = [
   { page: 'recovery', title: 'Encuentra a quién dar seguimiento', next: 'preparar una oferta',
-    description: 'Revisa la lista de clientes sin compras recientes. Puedes cambiar el plazo o guardar una lista de prueba. Más abajo, abre el seguimiento de ejemplo para ver contactos y compras posteriores: una compra posterior no demuestra que el contacto la causó.' },
+    description: 'Cambia el plazo para encontrar clientes sin compras recientes. Más abajo puedes guardar una lista de prueba o revisar un seguimiento anterior. Sus compras posteriores son observaciones, no ventas atribuidas al contacto.' },
   { page: 'growth', title: 'Ponle límites a una oferta', next: 'revisar los costos',
     description: 'Elige una lista, un bono y un límite de puntos. La vista de costo usa tus supuestos; los resultados de las campañas de ejemplo se consultan más abajo. No son resultados de tu borrador ni una promesa de ventas.' },
   { page: 'economics', title: 'Entiende el costo de cumplir',
