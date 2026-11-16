@@ -131,7 +131,7 @@ app.use(express.json({
 app.use(defaultRequestBody, requestComplexityLimit);
 
 app.use(createSearchVisibility({ marketingOrigin: config.MARKETING_ORIGIN, appOrigin: config.APP_ORIGIN }));
-app.use(createEditorialReview());
+app.use(createEditorialReview({ marketingOrigin: config.MARKETING_ORIGIN }));
 app.use(createIllustrationReview());
 app.use(createGuides({ marketingOrigin: config.MARKETING_ORIGIN }));
 

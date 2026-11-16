@@ -8,8 +8,8 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('es-GT', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function shell({ title, description, canonical, content, indexable, articleSchema = null, hub = false, hero = null }) {
-  const robots = indexable ? 'index, follow, max-image-preview:large' : 'noindex, follow, noarchive';
+function shell({ title, description, canonical, content, indexable, articleSchema = null, hub = false, hero = null, preview = false, guidesPath = '/guias/' }) {
+  const robots = preview ? 'noindex, nofollow, noarchive, noimageindex' : indexable ? 'index, follow, max-image-preview:large' : 'noindex, follow, noarchive';
   const image = new URL(hero?.src || '/images/coffee-gathering.webp', canonical).href;
   const imageAlt = hero?.alt || 'Tres personas comparten un café alrededor de una mesa.';
   const structured = articleSchema ? `<script type="application/ld+json">${JSON.stringify(articleSchema).replaceAll('<', '\\u003c')}</script>` : '';
@@ -47,13 +47,13 @@ function shell({ title, description, canonical, content, indexable, articleSchem
   <header class="site-header">
     <div class="container header-inner">
       <a class="brand" href="/" aria-label="PuntosFieles, inicio"><img src="/icon.svg?v=4" alt="" width="36" height="36"/><span>PuntosFieles<span class="brand-period">.</span></span></a>
-      <nav class="guides-nav" aria-label="Navegación principal"><a href="/guias/"${hub ? ' aria-current="page"' : ''}>Guías</a><a href="/#contacto">Solicitar demo ${arrow}</a></nav>
+      <nav class="guides-nav" aria-label="Navegación principal"><a href="${escapeHtml(guidesPath)}"${hub ? ' aria-current="page"' : ''}>${preview ? 'Vistas previas' : 'Guías'}</a><a href="/#contacto">Solicitar demo ${arrow}</a></nav>
     </div>
   </header>
   <main id="contenido" tabindex="-1">${content}</main>
   <footer class="site-footer guides-footer">
     <div class="container footer-top"><a href="/" class="brand" aria-label="PuntosFieles, inicio"><img src="/icon.svg?v=4" alt="" width="32" height="32"/><span>PuntosFieles<span class="brand-period">.</span></span></a><p>Lealtad que sí se siente.</p><a class="back-top" href="#contenido">Volver arriba <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></a></div>
-    <div class="container footer-bottom"><span>Creado por <a href="https://viasolvia.com" target="_blank" rel="noopener noreferrer">Viasolvia</a></span><nav aria-label="Información y ayuda"><a href="/guias/"${hub ? ' aria-current="page"' : ''}>Guías</a><a href="/soporte">Soporte</a><a href="/privacidad">Privacidad</a><a href="/terminos">Términos</a></nav></div>
+    <div class="container footer-bottom"><span>Creado por <a href="https://viasolvia.com" target="_blank" rel="noopener noreferrer">Viasolvia</a></span><nav aria-label="Información y ayuda"><a href="${escapeHtml(guidesPath)}"${hub ? ' aria-current="page"' : ''}>${preview ? 'Vistas previas' : 'Guías'}</a><a href="/soporte">Soporte</a><a href="/privacidad">Privacidad</a><a href="/terminos">Términos</a></nav></div>
   </footer>
 </body>
 </html>`;
@@ -86,12 +86,13 @@ function imageMarkup(image, { eager = false, sizes = '(max-width: 680px) calc(10
   return `<img src="${escapeHtml(image.src)}"${srcset} width="${image.width}" height="${image.height}" alt="${escapeHtml(image.alt)}" decoding="async"${eager ? ' fetchpriority="high"' : ' loading="lazy"'}/>`;
 }
 
-export function renderGuidesHub({ origin, articles }) {
+export function renderGuidesHub({ origin, articles, previewPath = null }) {
+  const articlePath = slug => `${previewPath || '/guias/'}${slug}`;
   articles = [...articles].sort((a, b) => (b.datePublished || '').localeCompare(a.datePublished || ''));
-  const intro = `<div class="guides-intro"><h1>Guías para<br/><span>tu negocio.</span></h1><p>Investigación, ejemplos y preguntas útiles para diseñar recompensas y entender por qué tus clientes vuelven.</p></div>`;
+  const intro = previewPath ? '<div class="guides-intro"><h1>Artículos para<br/><span>revisar.</span></h1><p>Vista previa de cinco artículos. Las fechas indican su publicación prevista; el contenido y las ilustraciones se presentan para revisión.</p></div>' : `<div class="guides-intro"><h1>Guías para<br/><span>tu negocio.</span></h1><p>Investigación, ejemplos y preguntas útiles para diseñar recompensas y entender por qué tus clientes vuelven.</p></div>`;
   const empty = `<section class="guides-empty" aria-labelledby="guides-empty-title"><h2 id="guides-empty-title">Las primeras guías<br/> están en camino.</h2><p>Todavía no hay artículos publicados. Mientras tanto, conoce cómo funciona PuntosFieles o conversemos sobre tu negocio.</p><div class="guides-actions"><a class="button" href="/#como-funciona">Conocer PuntosFieles ${arrow}</a><a class="text-link" href="/#contacto">Conversar sobre mi negocio ${arrow}</a></div></section>`;
-  const listing = `<section class="guides-library" aria-label="Artículos publicados"><ul class="guides-list">${articles.map((article, index) => `<li><article class="guide-listing"><div class="guide-listing-copy"><h2><a href="/guias/${escapeHtml(article.slug)}">${escapeHtml(article.title)}</a></h2><p>${escapeHtml(article.description)}</p><div class="guide-listing-meta">${article.datePublished ? `<time datetime="${article.datePublished}">${formatDate(article.datePublished)}</time>` : ''}${article.readingMinutes ? `<span>${article.readingMinutes} min de lectura</span>` : ''}</div><a class="text-link" href="/guias/${escapeHtml(article.slug)}">Leer el artículo ${arrow}<span class="sr-only">: ${escapeHtml(article.title)}</span></a></div>${article.hero ? `<a class="guide-listing-art" href="/guias/${escapeHtml(article.slug)}" tabindex="-1" aria-hidden="true">${imageMarkup({ ...article.hero, alt: '' }, { eager: index === 0 })}</a>` : ''}</article></li>`).join('')}</ul></section>`;
-  return shell({ title: 'Guías de lealtad y recompensas para negocios', description: 'Artículos de PuntosFieles sobre programas de fidelización, recompensas y decisiones para tu negocio. Con ejemplos propios, citas y referencias de investigación.', canonical: new URL('/guias/', origin).href, indexable: articles.length > 0, hub: true, hero: articles[0]?.hero, content: `<div class="container guides-hub">${intro}${articles.length ? listing : empty}</div>` });
+  const listing = `<section class="guides-library" aria-label="${previewPath ? 'Artículos para revisar' : 'Artículos publicados'}"><ul class="guides-list">${articles.map((article, index) => `<li><article class="guide-listing"><div class="guide-listing-copy"><h2><a href="${escapeHtml(articlePath(article.slug))}">${escapeHtml(article.title)}</a></h2><p>${escapeHtml(article.description)}</p><div class="guide-listing-meta">${article.datePublished ? `${previewPath ? 'Publicación prevista: ' : ''}<time datetime="${article.datePublished}">${formatDate(article.datePublished)}</time>` : ''}${article.readingMinutes ? `<span>${article.readingMinutes} min de lectura</span>` : ''}</div><a class="text-link" href="${escapeHtml(articlePath(article.slug))}">Leer el artículo ${arrow}<span class="sr-only">: ${escapeHtml(article.title)}</span></a></div>${article.hero ? `<a class="guide-listing-art" href="${escapeHtml(articlePath(article.slug))}" tabindex="-1" aria-hidden="true">${imageMarkup({ ...article.hero, alt: '' }, { eager: index === 0 })}</a>` : ''}</article></li>`).join('')}</ul></section>`;
+  return shell({ title: previewPath ? 'Artículos para revisar' : 'Guías de lealtad y recompensas para negocios', description: 'Artículos de PuntosFieles sobre programas de fidelización, recompensas y decisiones para tu negocio. Con ejemplos propios, citas y referencias de investigación.', canonical: new URL(previewPath || '/guias/', origin).href, indexable: !previewPath && articles.length > 0, preview: Boolean(previewPath), guidesPath: previewPath || '/guias/', hub: true, hero: articles[0]?.hero, content: `<div class="container guides-hub">${intro}${articles.length ? listing : empty}</div>` });
 }
 
 function renderBlocks(body, references) {
@@ -114,8 +115,9 @@ function renderReferences(references = []) {
   return `<section class="guide-references" aria-labelledby="referencias"><h2 id="referencias">Referencias</h2><p>Para quien quiera seguir leyendo, estas son las fuentes.</p><ol>${references.map(reference => `<li id="ref-${escapeHtml(reference.id)}">${decoratedText(reference.apa, (reference.italic || []).map(label => ({ label, render: escaped => `<em>${escaped}</em>` })))} <a href="${escapeHtml(reference.href)}">${escapeHtml(reference.href)}</a></li>`).join('')}</ol></section>`;
 }
 
-export function renderGuideArticle({ origin, article }) {
-  const canonical = new URL(`/guias/${article.slug}`, origin).href;
+export function renderGuideArticle({ origin, article, preview = null }) {
+  const guidesPath = preview?.indexPath || '/guias/';
+  const canonical = new URL(`${guidesPath}${article.slug}`, origin).href;
   const schema = {
     '@context': 'https://schema.org', '@type': 'Article', headline: article.title,
     description: article.description, inLanguage: 'es', mainEntityOfPage: canonical, url: canonical,
@@ -128,12 +130,13 @@ export function renderGuideArticle({ origin, article }) {
   if (article.category) schema.articleSection = article.category;
   if (article.references?.length) schema.citation = article.references.map(reference => reference.href);
   const author = article.author ? `<span>Por ${article.author.url ? `<a href="${escapeHtml(article.author.url)}">${escapeHtml(article.author.name)}</a>` : escapeHtml(article.author.name)}</span>` : '';
-  const published = article.datePublished ? `<span>Publicado el <time datetime="${article.datePublished}">${formatDate(article.datePublished)}</time></span>` : '';
+  const published = article.datePublished ? `<span>${preview ? 'Publicación prevista: ' : 'Publicado el '}<time datetime="${article.datePublished}">${formatDate(article.datePublished)}</time></span>` : '';
   const updated = article.dateModified ? `<span>Actualizado el <time datetime="${article.dateModified}">${formatDate(article.dateModified)}</time></span>` : '';
   const reading = article.readingMinutes ? `<span>${article.readingMinutes} min de lectura</span>` : '';
   const methods = article.methodNote?.length ? `<details class="guide-methods"><summary>Sobre la investigación y sus límites</summary><div>${article.methodNote.map(note => `<p>${escapeHtml(note)}</p>`).join('')}</div></details>` : '';
-  const content = `<article class="container guide-article${article.hero ? ' guide-illustrated' : ''}"><nav class="guides-breadcrumb" aria-label="Ruta de navegación"><a href="/">Inicio</a><span aria-hidden="true">/</span><a href="/guias/">Guías</a></nav><header class="guide-heading"><div><h1>${escapeHtml(article.title)}</h1><p class="guide-description">${escapeHtml(article.description)}</p>${author || published || updated || reading ? `<div class="guide-meta">${author}${published}${updated}${reading}</div>` : ''}${article.references?.length ? '<a class="guide-source-link" href="#referencias">Consultar las fuentes</a>' : ''}</div>${article.hero ? `<figure class="guide-hero">${imageMarkup(article.hero, { eager: true })}${article.hero.caption ? `<figcaption>${escapeHtml(article.hero.caption)}</figcaption>` : ''}</figure>` : ''}</header><div class="guide-body">${renderBlocks(article.body, article.references)}${methods}${renderReferences(article.references)}${article.artCredit ? `<p class="guide-art-credit">${escapeHtml(article.artCredit)}</p>` : ''}</div><footer class="guide-end"><a class="text-link" href="/guias/">Ver todas las guías ${arrow}</a><p>¿Quieres poner tu programa de lealtad en marcha? <a href="/#contacto">Conversemos sobre tu negocio.</a></p></footer></article>`;
-  return shell({ title: article.title, description: article.description, canonical, content, indexable: true, articleSchema: schema, hero: article.hero });
+  const reviewLinks = preview ? `<nav aria-label="Otros artículos para revisar">${preview.articles.filter(item => item.slug !== article.slug).map(item => `<p><a href="${escapeHtml(guidesPath + item.slug)}">${escapeHtml(item.title)}</a></p>`).join('')}</nav>` : '';
+  const content = `<article class="container guide-article${article.hero ? ' guide-illustrated' : ''}"><nav class="guides-breadcrumb" aria-label="Ruta de navegación"><a href="/">Inicio</a><span aria-hidden="true">/</span><a href="${escapeHtml(guidesPath)}">${preview ? 'Vistas previas' : 'Guías'}</a></nav><header class="guide-heading"><div><h1>${escapeHtml(article.title)}</h1><p class="guide-description">${escapeHtml(article.description)}</p>${author || published || updated || reading ? `<div class="guide-meta">${author}${published}${updated}${reading}</div>` : ''}${article.references?.length ? '<a class="guide-source-link" href="#referencias">Consultar las fuentes</a>' : ''}</div>${article.hero ? `<figure class="guide-hero">${imageMarkup(article.hero, { eager: true })}${article.hero.caption ? `<figcaption>${escapeHtml(article.hero.caption)}</figcaption>` : ''}</figure>` : ''}</header><div class="guide-body">${renderBlocks(article.body, article.references)}${methods}${renderReferences(article.references)}${article.artCredit ? `<p class="guide-art-credit">${escapeHtml(article.artCredit)}</p>` : ''}</div><footer class="guide-end"><a class="text-link" href="${escapeHtml(guidesPath)}">${preview ? 'Ver los cinco artículos' : 'Ver todas las guías'} ${arrow}</a>${reviewLinks}<p>¿Quieres poner tu programa de lealtad en marcha? <a href="/#contacto">Conversemos sobre tu negocio.</a></p></footer></article>`;
+  return shell({ title: article.title, description: article.description, canonical, content, indexable: !preview, preview: Boolean(preview), guidesPath, articleSchema: preview ? null : schema, hero: article.hero });
 }
 
 export function renderGuideNotFound({ origin }) {
