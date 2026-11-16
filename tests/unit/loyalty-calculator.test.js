@@ -159,3 +159,23 @@ test('confirmed zero units need no reward cost and zero budget requires zero add
   assert.equal(calculateLoyalty(input).fullBudget, 0);
   assert.equal(calculateLoyalty(input).breakEven, 0);
 });
+
+test('exact percentage boundaries never invent another complete redemption', () => {
+  for (const [units, redemptionPercent, expected] of [[250, 64.4, 161], [375, 8.8, 33], [10000, 0.07, 7], [1000000, 99.99, 999900]]) {
+    const result = calculateLoyalty(base({ rewards: [{ kind: 'product', units, unitCost: 10 }], redemptionPercent, costs: {} }));
+    assert.deepEqual(result.errors, []);
+    assert.equal(result.rewards[0].scenarioUnits, expected);
+    assert.equal(result.scenarioRewardCost, expected * 10);
+  }
+  assert.equal(calculateLoyalty(base({ rewards: [{ kind: 'product', units: 251, unitCost: 10 }], redemptionPercent: 64.4 })).rewards[0].scenarioUnits, 162);
+});
+
+test('the total bound applies to combined budgets and gross contribution even with incomplete inputs', () => {
+  const combined = calculateLoyalty(base({ rewards: [{ kind: 'product', units: 1000, unitCost: 1_000_000_000 }], costs: { subscription: 1 }, purchase: { mode: 'margin' } }));
+  assert.ok(combined.errors.some(error => error.field === 'calculation'));
+  const gross = calculateLoyalty(base({ rewards: [{ kind: 'product', units: 1, unitCost: null }], purchase: { mode: 'variable', average: 0, variableCost: 1_000_000_000, additional: 1_000_000 } }));
+  assert.ok(gross.errors.some(error => error.field === 'calculation'));
+  const atLimit = calculateLoyalty(base({ rewards: [{ kind: 'product', units: 1000, unitCost: 1_000_000_000 }], costs: {}, purchase: { mode: 'margin' } }));
+  assert.deepEqual(atLimit.errors, []);
+  assert.equal(atLimit.fullBudget, 1_000_000_000_000);
+});

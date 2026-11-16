@@ -54,7 +54,9 @@ export function calculateLoyalty(input) {
     const unitCost = read(reward.unitCost, field('unitCost'), { optional: true });
     const opportunityCost = reward.kind === 'service' ? read(reward.opportunityCost, field('opportunityCost'), { optional: true }) : 0;
     const retailPrice = reward.kind !== 'discount' ? read(reward.retailPrice, field('retailPrice'), { optional: true }) : null;
-    const scenarioUnits = Math.ceil(units * percent / 100);
+    // Both operands are bounded integers after validation. Basis points avoid
+    // a floating product turning an exact whole redemption into an extra unit.
+    const scenarioUnits = Math.ceil(units * Math.round(percent * 100) / 10000);
     const totalCost = unitCost === null ? null : unitCost + (opportunityCost ?? 0);
     const cost = count => count === 0 ? 0 : totalCost === null ? null : count * totalCost;
     return { name: String(reward.name || `Premio ${index + 1}`).slice(0, 80), kind: reward.kind, units, unitCost, retailPrice,
@@ -110,7 +112,8 @@ export function calculateLoyalty(input) {
   const grossContribution = additional === null || contributionPerPurchase === null ? null : additional * contributionPerPurchase;
   const net = additional === null || availablePerPurchase === null || scenarioBudget === null ? null : additional * availablePerPurchase - scenarioBudget;
   const netContribution = net !== null && Math.abs(net) < Number.EPSILON * Math.max(1, scenarioBudget) * 8 ? 0 : net;
-  const totals = [knownFullRewardCost, monthlyCosts, additionalRevenue, incrementalRewardCost, netContribution];
+  const totals = [knownFullRewardCost, knownScenarioRewardCost, monthlyCosts, fullBudget, scenarioBudget,
+    additionalRevenue, grossContribution, incrementalRewardCost, netContribution];
   if (totals.some(value => value !== null && (!Number.isFinite(value) || Math.abs(value) > LIMITS.total))) {
     return { errors: [{ field: 'calculation', message: 'El total supera el límite de un billón. Reduce las cantidades o los importes para este escenario mensual.' }] };
   }
