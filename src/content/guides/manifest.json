@@ -260,14 +260,14 @@
         },
         {
           "type": "paragraph",
-          "text": "Para nuestra panadería imaginaria, prepara una hoja de seguimiento por cliente, con la fecha de la primera compra registrada y la siguiente. Esta ficha es un ejercicio aparte; PF todavía no reúne este seguimiento semanal de primeras compras y regreso en 30 días en un informe. Anota:"
+          "text": "Para nuestra panadería imaginaria, reúne estas observaciones antes de revisar la regla:"
         },
         {
           "type": "list",
           "ordered": false,
           "items": [
             "Cuántos clientes tienen su primera compra registrada durante la semana elegida.",
-            "Cuántos de ellos hicieron otra compra dentro de 30 días.",
+            "Cuántos de ellos hicieron otra compra en una fecha posterior y antes de completar 30 días desde la primera.",
             "Cuánto costaron los premios y qué recompensas quedan pendientes.",
             "Qué dificultades encontraron clientes y personal."
           ]
@@ -303,10 +303,10 @@
         {
           "id": "pf-help",
           "citation": "PuntosFieles, 2026",
-          "apa": "PuntosFieles. (2026, 16 de noviembre). Practicar el recorrido completo [Documentación de software].",
-          "href": "https://puntosfieles.com/ayuda/caja/practicar/",
+          "apa": "PuntosFieles. (2026, 16 de noviembre). Leer el resumen del negocio [Documentación de software].",
+          "href": "https://puntosfieles.com/ayuda/negocio/resumen/",
           "italic": [
-            "Practicar el recorrido completo"
+            "Leer el resumen del negocio"
           ]
         }
       ],
@@ -331,9 +331,9 @@
         "height": 1024
       },
       "productNote": {
-        "text": "En la aplicación web, el equipo puede practicar la inscripción, una compra, un rechazo, el canje y su devolución con un cliente ficticio, sin cambiar saldos ni existencias reales. Necesita conexión, una regla y una recompensa configuradas. La práctica no comprueba el punto de venta, Wallet ni la entrega de mensajes (PuntosFieles, 2026).",
-        "href": "/ayuda/caja/practicar/",
-        "linkText": "Cómo practicar el recorrido con tu equipo"
+        "text": "En «Resumen», el informe «De la primera compra a la segunda» reúne primeras compras registradas por semana y regresos en otra fecha local, antes de 30 días. Separa a quienes completaron el plazo de quienes siguen en seguimiento e incluye a quienes no regresaron. Requiere la cuenta del dueño y acceso al análisis; solo describe compras registradas, sin demostrar que el programa causó el regreso (PuntosFieles, 2026).",
+        "href": "/ayuda/negocio/resumen/",
+        "linkText": "Cómo leer el seguimiento de primeras compras"
       }
     },
     {
@@ -658,6 +658,10 @@
         },
         {
           "type": "paragraph",
+          "text": "La tarjeta web de PF distingue compras y bonos cuando conoce su origen, y puede indicar que una compra incluye un bono aunque no detalle cuánto corresponde a cada parte. Si un registro antiguo no permite saberlo, conserva esa incertidumbre. Los bonos disponibles también cuentan para el saldo; identificarlos no crea una regla general de bienvenida (PuntosFieles, 2026)."
+        },
+        {
+          "type": "paragraph",
           "text": "El taller tendría que definir qué servicio pagado da derecho a un sello, qué incluye el kit y si varias reparaciones en una misma visita entregan uno o varios sellos. Son decisiones del ejemplo que conviene resolver antes de imprimir una tarjeta o mostrarla en una pantalla."
         },
         {
@@ -712,6 +716,15 @@
           "href": "https://doi.org/10.1086/500480",
           "italic": [
             "Journal of Consumer Research, 32"
+          ]
+        },
+        {
+          "id": "pf-help",
+          "citation": "PuntosFieles, 2026",
+          "apa": "PuntosFieles. (2026, 16 de noviembre). Consultar puntos disponibles y pendientes [Documentación de software].",
+          "href": "https://puntosfieles.com/ayuda/clientes/puntos/",
+          "italic": [
+            "Consultar puntos disponibles y pendientes"
           ]
         }
       ],
@@ -864,7 +877,7 @@
         "height": 768
       },
       "productNote": {
-        "text": "La tarjeta web muestra el saldo disponible, la siguiente recompensa y los puntos que faltan para alcanzarla. Mantiene visibles las condiciones; los puntos pendientes aún no sirven para canjear. PF no alterna automáticamente entre «lo ganado» y «lo que falta», ni realiza la comparación de mensajes propuesta aquí (PuntosFieles, 2026).",
+        "text": "La tarjeta web usa el saldo disponible: con saldo positivo menor que la mitad del precio, «Ya tienes X de Y puntos para…»; desde la mitad, si aún no alcanza, «Te faltan N puntos para…»; si alcanza, «Tienes los puntos para…». Con cero presenta la meta sin atribuir avance. Mantiene precio y condiciones; los pendientes no cuentan. El cambio en la mitad es una regla de presentación, no un óptimo validado ni una prueba entre mensajes (PuntosFieles, 2026).",
         "href": "/ayuda/clientes/puntos/",
         "linkText": "Cómo consultar el saldo y la siguiente recompensa"
       }

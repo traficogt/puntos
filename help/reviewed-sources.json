@@ -9,11 +9,11 @@
     "public/customer/load.js": "459c852ab0e6467ec720be25f81eaadd3991b19b6ec20cf454d4606ec78cc979",
     "public/customer/native-wallet.js": "b09daf17871baa08dd6d27b4bee904f312346e373af83af1810db756f2318cc9",
     "public/customer/qr.js": "0d0633f47fc696a211b31401181f0559ab61648e90829697403e0fb75c769c02",
-    "public/customer/render.js": "bbb1b18ea8765ae9e803e3073f88519f77c728c1a66489e649cdbd49c0f555ad",
+    "public/customer/render.js": "a40c8665a5bd9e9403bc47ef9992ba18ca3fe56f84749930545e1e8b45d8e03d",
     "public/customer/reward-entitlements.js": "a9f3833f96b9e7ce8db3cfbe71268cf1113cd7f59cb21f28dda78ba70a384be5",
-    "public/customer/rewards.js": "4405e14bc2f528a3c464a5b85dc709b1ef45a678724e4eb065c6ac6138182b1e",
+    "public/customer/rewards.js": "6bd36db696a34c940faed89a06723715c8f7b04221998b6770a7a46c52ebf195",
     "public/customer/session.js": "c22c9034a50456922233971a9bd0d678579e9a5d8247da0a83453a091d9e9c2e",
-    "public/customer/statement.js": "cb71ea7ac103556c54433965c85ea4f8d0d952e3a88426352b65a18ebe4396af",
+    "public/customer/statement.js": "c1a8b63892e6b4f828a732f111b4492ed7aebdfa94822a92873bd8b4ab00d230",
     "public/demand-notebook.js": "e5a3ffadc4dab306a4b49b5aa454f89c1132766a40158655943509281ddf96a9",
     "public/idb.js": "b5760c95126bd86aeda9c7ceb35320fa300bfe0d02b5076f8724d86144888d74",
     "public/ingresar.html": "b7d224d5852382fa5bea24aacd9b4e4b2af3f97e8473d6b673cfa0d1f6f8a690",
@@ -34,6 +34,9 @@
     "public/staff/service-briefing.js": "f9e3334678d2cb5996171a3db0bfb609d561f1762f9f2381c17f765354fc4d2d",
     "public/staff/service-cases.js": "bf19ecb4b520e949444c1720e2913f4aae0977aa380b30b41c14a88fee2224d4",
     "public/staff/service-operations.js": "edc22d63b3c03c7b3c644a1b0625ad5785d9b17b7ade661c472d0eed9c8a8aaa",
+    "src/app/routes/analytics/first-purchase-returns.js": "1f0c85815ae9f3795938cc530905f4791eedea0c5c7526f650558019ab51ebee",
+    "src/app/services/customer-history-provenance.js": "25bff7d22d54997e67392942b48b8229cd36cd36bbc3bb0551e85936b7949b5c",
+    "src/app/services/first-purchase-return-service.js": "5fdb8b1369cd21525fcc10e35ffcfdc1b09647575daf55f8e97988790ff4327e",
     "web/merchant/src/Acquisition.jsx": "9238ab230471696da941c6df85ecce4b03c9749232dec6d1abad4630f96a5027",
     "web/merchant/src/AudienceRules.jsx": "b9bdd93eb46122c6061158e0740f9d3c028b290a5d7a363c4a89a889813c8fa3",
     "web/merchant/src/Audiences.jsx": "30c0fa22a24f6d7824d8941e5d3d1aea4402e4fa689727fe223c02a817ec7885",
@@ -52,6 +55,7 @@
     "web/merchant/src/Decisions.jsx": "f2f278b020052ead1d42a973bc18603c0695644ea13ec00d58d4a7d056442bdb",
     "web/merchant/src/DemandNotebook.jsx": "55ff52630a1366a576f8f5007aeba415b3cdaf31a09342cd97bd73b14475c93b",
     "web/merchant/src/Economics.jsx": "dc0f65aaaf5ae61cb11012eb20503aee0f779d63b30be693f4e6499db45558c1",
+    "web/merchant/src/FirstPurchaseReturns.jsx": "91f67d779de7d6a22898d6ca674a271c2858a67e399a030f6952db3d456dc24b",
     "web/merchant/src/Fulfillment.jsx": "9fbf8e098fd92c71d0197f48675af9c1ef8a210126867870936644ea0d37582e",
     "web/merchant/src/GrowthCampaigns.jsx": "79a327b2ffe65e91cb060a3a0062f304237cbc04d1984dec1f20e3afc4c9a01a",
     "web/merchant/src/Hospitality.jsx": "794795848274384fdae736bb995b5903089ecf247081b751904754f05eeb29ad",
@@ -62,7 +66,7 @@
     "web/merchant/src/LaunchProgramEditor.jsx": "b7458dd590d22121ada5cb6a0286b443e6a749f13cc251109d6506cadde23bb0",
     "web/merchant/src/OfferCostPreview.jsx": "e32e09d260f7b3fdc8fcfc01215710b4774a7eec1d67d3a164e2180dd6e3e885",
     "web/merchant/src/Operations.jsx": "3b1eea217df7d74edc03dc242483abc65d59e966f0fd04168bd8548c2d87977e",
-    "web/merchant/src/Overview.jsx": "15045d3ebaca110c5dbd1518c8b23901e5e1426d92d9072a254fdaa0b64c7b12",
+    "web/merchant/src/Overview.jsx": "3d4521b7d231b6a949136a3d8df59d55c8e298b4bfb8fc505d1be37d8d29e218",
     "web/merchant/src/OwnerBranches.tsx": "b5d2f4724390e7fdcb6060865aabd6a6e6c4e48a2c5ffaa716b9dafd3cc1142b",
     "web/merchant/src/OwnerCustomers.tsx": "9dc02bf87ad9d10d4c9ed28a5f30147fbf7796e03d0e73b9f91efb52816763cb",
     "web/merchant/src/OwnerSettings.tsx": "07da5ab04d3ae01160e33e2c8f3a9c526720aaae6fef5ce7092faf0af9019cec",
@@ -208,6 +212,26 @@
       "page": "negocio/mensajes-campana.md",
       "source": "web/merchant/src/GrowthCampaigns.jsx",
       "text": "Poner mensajes en cola"
+    },
+    {
+      "page": "negocio/resumen.md",
+      "source": "web/merchant/src/FirstPurchaseReturns.jsx",
+      "text": "Semana de la primera compra"
+    },
+    {
+      "page": "negocio/resumen.md",
+      "source": "web/merchant/src/FirstPurchaseReturns.jsx",
+      "text": "Actualizar primeras compras"
+    },
+    {
+      "page": "clientes/puntos.md",
+      "source": "public/customer/statement.js",
+      "text": "Puntos sumados"
+    },
+    {
+      "page": "clientes/puntos.md",
+      "source": "public/customer/render.js",
+      "text": "Origen no documentado"
     }
   ]
 }

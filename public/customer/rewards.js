@@ -37,16 +37,18 @@ export function nextInventoryRefresh(rewards,now=Date.now()){
  * @param {CustomerReward} reward
  */
 export function getRewardViewModel(points, reward, now=Date.now()) {
-  const normalizedPoints = Number(points || 0);
-  const cost = Number(reward?.points_cost || 0);
+  const normalizedPoints = Number(points);
+  const cost = Number(reward?.points_cost);
+  const validBalance = typeof points === 'number' && Number.isSafeInteger(points) && points >= 0;
   const remainingPoints = Math.max(0, cost - normalizedPoints);
   const inventory=inventoryView(reward?.inventory,now);
-  const unavailable = reward?.active === false ? "Recompensa no disponible"
+  const unavailable = !validBalance ? "Actualiza la tarjeta para confirmar tu saldo"
+    : reward?.active === false ? "Recompensa no disponible"
     : !inventory.available ? inventory.label
     : reward?.available === false ? "Entrega temporalmente no disponible"
     : reward?.stock != null && Number(reward.stock) <= 0 ? "Recompensa agotada"
       : reward?.valid_until && Date.parse(reward.valid_until) <= now ? "Recompensa vencida"
-        : !Number.isFinite(cost) || cost < 0 ? "Recompensa no disponible" : "";
+        : reward?.points_cost == null || !Number.isSafeInteger(cost) || cost < 0 ? "Recompensa no disponible" : "";
   const available = !unavailable;
   const canRedeem = available && remainingPoints === 0;
 
@@ -60,6 +62,17 @@ export function getRewardViewModel(points, reward, now=Date.now()) {
       ? "Tienes los puntos necesarios"
       : `Te faltan ${remainingPoints} puntos para canjear`)
   };
+}
+
+/** Midpoint changes only the wording, never the target or redemption rules. */
+export function rewardProgressText(points, reward) {
+  const cost = Number(reward.points_cost);
+  const number = value => new Intl.NumberFormat('es').format(value);
+  if (points === 0) return `Tu próxima recompensa: “${reward.name}”.`;
+  if (points >= cost) return `Tienes los puntos para “${reward.name}”.`;
+  if (points < cost / 2) return `Ya tienes ${number(points)} de ${number(cost)} puntos para “${reward.name}”.`;
+  const remaining = cost - points;
+  return `Te ${remaining === 1 ? 'falta' : 'faltan'} ${number(remaining)} ${remaining === 1 ? 'punto' : 'puntos'} para “${reward.name}”.`;
 }
 
 /**

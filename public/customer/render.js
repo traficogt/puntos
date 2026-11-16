@@ -1,5 +1,5 @@
 import { setHidden } from "/lib.js";
-import { rewardsWithState, nextInventoryRefresh } from "./rewards.js";
+import { rewardsWithState, nextInventoryRefresh, getRewardViewModel, rewardProgressText } from "./rewards.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
 /** @typedef {import("../types.js").CustomerReferralCodeData} CustomerReferralCodeData */
@@ -41,16 +41,16 @@ export function renderRewards($, points, rewards, options = {}) {
   const stale = !isLive || Number.isFinite(deadline) && deadline <= now;
   const savedMessage = !isLive ? "Datos guardados. Actualiza la tarjeta para consultar tu recompensa." : "Actualiza la tarjeta para confirmar la disponibilidad de tu recompensa.";
   rewards = progress?.choices ?? rewards;
-  points = progress?.available_points ?? points;
+  points = progress ? progress.available_points : points;
   const { sorted, eligible, next, remain } = rewardsWithState(points, rewards, now);
   const target = progress ? progress.reward : next ? { ...next, remaining_points: remain } : null;
-  const selected = !stale ? target : null;
+  const targetChoice = target && sorted.find(entry => entry.reward.id === target.id);
+  const selected = !stale && target && getRewardViewModel(points, target, now).available &&
+    (!targetChoice || targetChoice.available) ? target : null;
   const number = value => new Intl.NumberFormat("es").format(value);
   const date = value => new Intl.DateTimeFormat(options.region?.locale || "es-GT", { dateStyle: "medium", timeStyle: "short", timeZone: options.region?.timezone || "America/Guatemala" }).format(new Date(value));
   const text = (id, value) => { const element = safeEl($, id); if (element) element.textContent = value; };
-  text("#nextReward", stale ? savedMessage : selected ? selected.remaining_points === 0
-    ? `Tienes los puntos para “${selected.name}”.`
-    : `Te faltan ${number(selected.remaining_points)} puntos para “${selected.name}”.`
+  text("#nextReward", stale ? savedMessage : selected ? rewardProgressText(points, selected)
     : "No hay una recompensa disponible ahora. Consulta las opciones en caja.");
   text("#nextRewardBalance", selected ? `${number(points)} puntos disponibles · ${number(selected.points_cost)} puntos de costo` : "");
   text("#nextRewardConditions", selected ? (progress?.conditions || "Sujeto a disponibilidad al canjear.").replace(/\d{4}-\d{2}-\d{2}T[\d:.]+Z/g, date) + " En caja se confirman las condiciones del canje." : "");
@@ -133,15 +133,30 @@ export function renderHistory($, transactions, redemptions, region = undefined) 
   const txText = (transactions || []).slice(0, 12).map((t) => {
     const when = whenInRegion(t.created_at);
     const pts = t.points_delta >= 0 ? `+${t.points_delta}` : String(t.points_delta);
-    const amt = t.amount_q != null ? ` ${moneyInRegion(t.amount_q)}` : "";
-    return `${when}  ${pts} pts${amt}`;
-  }).join("\n") || "(sin registros)";
+    const kinds = new Map([
+      ['purchase', 'Compra'], ['referral_bonus', 'Bono por referido'], ['achievement_bonus', 'Bono por logro'],
+      ['challenge_bonus', 'Bono por reto'], ['birthday_bonus', 'Bono de cumpleaños'], ['other_bonus', 'Bonificación'],
+      ['redemption', 'Canje'], ['expiry', 'Vencimiento de puntos'], ['adjustment', 'Corrección de puntos'],
+      ['reversal', 'Reversión de puntos'], ['opening_balance', 'Saldo inicial importado']
+    ]);
+    const statuses = new Map([
+      ['POSTED', 'Registrado'], ['PENDING', 'Pendiente de confirmar; no disponible'],
+      ['REVERSED', 'Revertido; no disponible'], ['EXPIRED', 'Vencido; no disponible']
+    ]);
+    const kind = t.provenance?.kind;
+    const label = kinds.get(kind) || 'Origen no documentado';
+    const bonus = kind === 'purchase' && t.provenance?.includes_bonus === true ? ' · Incluye bonificación' : '';
+    const status = statuses.get(t.provenance?.status) || 'Estado no documentado';
+    const amt = kind === 'purchase' && t.amount_q != null && Number(t.amount_q) > 0 ? ` · Compra: ${moneyInRegion(t.amount_q)}` : "";
+    return `${label}${bonus} · ${status}\n${when} · ${pts} pts${amt}`;
+  }).join("\n\n") || "(sin registros)";
 
   const rdText = (redemptions || []).slice(0, 12).map((r) => {
     const when = whenInRegion(r.created_at);
-    const status = r.redeemed_at ? "✅" : "⏳";
-    return `${when}  ${status} ${r.reward_name}  (-${r.points_cost} pts)  Código: ${r.code}`;
-  }).join("\n") || "(sin canjes)";
+    const status = new Map([['REDEEMED', 'Completado'], ['PENDING', 'Pendiente'], ['CANCELLED', 'Cancelado'], ['CANCELED', 'Cancelado'], ['REVERSED', 'Revertido'], ['EXPIRED', 'Vencido']]).get(r.status)
+      || (r.status ? 'Estado no documentado' : r.redeemed_at ? 'Completado' : 'Pendiente');
+    return `${r.reward_name || 'Recompensa'} · ${status}\n${when} · Costo registrado: ${r.points_cost} pts · Código: ${r.code}`;
+  }).join("\n\n") || "(sin canjes)";
 
   const txEl = safeEl($, "#tx");
   const rdEl = safeEl($, "#red");

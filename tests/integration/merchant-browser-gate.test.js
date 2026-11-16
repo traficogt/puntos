@@ -14,6 +14,7 @@ const runners = [
   ['typed boundaries', 'typecheck-boundaries-browser.spec.mjs', /PASS: accessible chart, typed region save and demo isolation/],
   ['launch activation', 'launch-activation-browser.spec.mjs', /Launch activation:.*zero axe violations passed\./],
   ['branded QR', 'branded-qr-browser.spec.mjs', /6 branded QR browser scenarios passed:/],
+  ['first-purchase returns', 'first-purchase-returns-browser.spec.mjs', /First purchase report:.*light\/dark and axe passed\./],
 ];
 
 for (const [name, file, completion] of runners) {

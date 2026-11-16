@@ -24,7 +24,7 @@ export function renderStatement($, statement, { isLive = false, region = undefin
   const list = document.createElement('dl');
   list.className = 'cus-statement-totals';
   for (const [label, value, signed] of [
-    ['Ganados', statement.points.earned, false],
+    ['Puntos sumados', statement.points.earned, false],
     ['Usados en canjes', statement.points.redeemed, false],
     ['Vencidos', statement.points.expired, false],
     ['Ajustes y restituciones', statement.points.adjustments, true]
@@ -40,6 +40,6 @@ export function renderStatement($, statement, { isLive = false, region = undefin
   root.appendChild(list);
   const completed = statement.rewards.completed;
   append('p', `${number(completed)} canje${completed === 1 ? '' : 's'} completado${completed === 1 ? '' : 's'} en el período. ${number(statement.balance.pending)} puntos pendientes de confirmar al consultar.`, 'small');
-  append('p', 'Ganados incluye puntos de operaciones registradas en este período que ya están confirmadas. Las devoluciones, correcciones y saldos transferidos aparecen en Ajustes. El saldo de tu tarjeta también incluye actividad anterior.', 'small');
+  append('p', 'Puntos sumados incluye compras, bonificaciones y otros abonos confirmados registrados en este período; no significa que todos provengan de compras ni que sigan disponibles. Las devoluciones, correcciones y saldos transferidos aparecen en Ajustes. El saldo de tu tarjeta también incluye actividad anterior.', 'small');
   append('p', 'Estos puntos no tienen una equivalencia en dinero en este resumen.', 'small');
 }

@@ -25,6 +25,7 @@ import { demoReferrals } from "./demo-referrals.js";
 import { demoPos } from "./demo-pos.js";
 import { demoRecovery } from "./demo-recovery.js";
 import { demoRedemptionReturns } from "./demo-redemption-returns.js";
+import { demoFirstPurchaseReturns } from "./demo-first-purchase-returns.js";
 // Synthetic, browser-only preview. No request in this module reaches a PF API.
 const businessId = "11111111-1111-4111-8111-111111111111";
 const branchId = "22222222-2222-4222-8222-222222222222";
@@ -200,6 +201,9 @@ export async function demoApi(path, options = {}) {
         break;
       case "/api/admin/analytics/redemption-returns":
         result = demoRedemptionReturns(url);
+        break;
+      case "/api/admin/analytics/first-purchase-returns":
+        result = demoFirstPurchaseReturns(url);
         break;
       case "/api/admin/program":
         result = { program_type: "SPEND", program_json: { points_per_q: 0.1 } };

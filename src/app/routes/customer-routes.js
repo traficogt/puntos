@@ -74,11 +74,13 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
 }));
 
 customerRoutes.get("/customer/history", requireCustomer, tenantContext, asyncRoute(async (req, res) => {
+  res.setHeader("Cache-Control", "private, no-store");
   const auth = req.customerAuth;
+  if (!req.tenantId || req.tenantId !== auth.business_id) return rejectMissingCustomer(req, res);
   const customer = await CustomerRepo.getById(auth.id);
   if (!customer || customer.business_id !== auth.business_id) return rejectMissingCustomer(req, res);
-  const tx = await TxnRepo.listByCustomer(auth.id, 50);
-  const red = await RedemptionRepo.listByCustomer(auth.id, 50);
+  const tx = await TxnRepo.listCustomerHistory(auth.business_id, auth.id, 50);
+  const red = await RedemptionRepo.listCustomerHistory(auth.business_id, auth.id, 50);
   res.json({ ok: true, transactions: tx, redemptions: red });
 }));
 

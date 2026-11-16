@@ -14,6 +14,7 @@ import {
 import { LineChart } from "@mantine/charts";
 import {RewardExposurePanel,StaffActivityPanel} from "./ActivationInsights.jsx";
 import RedemptionReturns from "./RedemptionReturns.jsx";
+import FirstPurchaseReturns from "./FirstPurchaseReturns.jsx";
 import { isDemo, useResource } from "./api.js";
 import { BusinessLink, Failure, Loading, Locked, number, money, periodDate } from "./ui.jsx";
 function Comparison({ current, previous, rate = false }) {
@@ -189,6 +190,12 @@ export default function Overview({ features, onNavigate }) {
                 </div>
               ))}
             </SimpleGrid>
+          </>
+        )
+      )}
+      <FirstPurchaseReturns branchId={branch||null} refresh={refresh}/>
+      {!result.loading && !result.error && data && (
+          <>
             <RewardExposurePanel branchId={branch||null} refresh={refresh}/>
             <StaffActivityPanel branchId={branch||null} refresh={refresh}/>
             <RedemptionReturns branchId={branch||null} refresh={refresh}/>
@@ -404,7 +411,6 @@ export default function Overview({ features, onNavigate }) {
               </Accordion.Item>
             </Accordion>
           </>
-        )
       )}
     </Stack>
   );

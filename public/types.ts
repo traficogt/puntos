@@ -120,6 +120,11 @@ export interface CustomerTransaction {
   created_at: string;
   points_delta: number;
   amount_q?: number | null;
+  provenance?: {
+    kind: 'purchase' | 'referral_bonus' | 'achievement_bonus' | 'challenge_bonus' | 'birthday_bonus' | 'other_bonus' | 'redemption' | 'expiry' | 'adjustment' | 'reversal' | 'opening_balance' | 'unknown';
+    status: 'POSTED' | 'PENDING' | 'REVERSED' | 'EXPIRED' | 'UNKNOWN';
+    includes_bonus: boolean;
+  };
 }
 
 export interface CustomerRedemption {
@@ -128,6 +133,7 @@ export interface CustomerRedemption {
   reward_name?: string;
   points_cost?: number;
   code?: string;
+  status?: string;
 }
 
 export interface CustomerHistoryResponse {

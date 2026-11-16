@@ -39,6 +39,7 @@ const {
   CohortRetentionQuerySchema,
   TopCustomersQuerySchema
 } = await import("../app/routes/analytics/cohorts.js");
+const { FirstPurchaseReturnQuery } = await import("../app/routes/analytics/first-purchase-returns.js");
 const {
   CreateSegmentSchema,
   SegmentCustomersQuerySchema
@@ -395,6 +396,21 @@ const schemas = {
   GiftCardListQuery: GiftCardListQuerySchema,
   AnalyticsSegmentCustomersQuery: SegmentCustomersQuerySchema,
   AnalyticsCohortsQuery: CohortRetentionQuerySchema,
+  FirstPurchaseReturnQuery,
+  FirstPurchaseReturnResponse: okEnvelope({
+    generated_at: TimestampSchema,
+    timezone: z.string(),
+    scope: z.object({ branch_id: z.guid().nullable(), first_purchase_scope: z.literal('business'), return_scope: z.literal('business') }),
+    available_weeks: z.array(z.string().date()),
+    cohort: z.object({ week_start: z.string().date(), week_end: z.string().date(), start: TimestampSchema, end: TimestampSchema,
+      customers: z.number().int().nonnegative(), legacy_timestamp_customers: z.number().int().nonnegative() }),
+    follow_up: z.object({ days: z.literal(30), definition: z.literal('later_local_day_within_720_hours') }),
+    completed: z.object({ customers: z.number().int().nonnegative(), returned_customers: z.number().int().nonnegative(),
+      without_return_customers: z.number().int().nonnegative(), return_rate_pct: z.number().min(0).max(100).nullable() }),
+    ongoing: z.object({ customers: z.number().int().nonnegative(), returned_customers: z.number().int().nonnegative() }),
+    data_readiness: z.object({ state: z.string(), inactivity_allowed: z.boolean(), summary: z.string() }).passthrough(),
+    notes: z.array(z.string())
+  }),
   AnalyticsTopCustomersQuery: TopCustomersQuerySchema,
   PaymentWebhookListQuery: PaymentWebhookListQuerySchema,
   ErrorResponse: ErrorResponseSchema,
@@ -664,6 +680,9 @@ const routeSchemaBindings = {
   },
   "/api/v1/admin/analytics/cohorts": {
     get: { query: "AnalyticsCohortsQuery" }
+  },
+  "/api/v1/admin/analytics/first-purchase-returns": {
+    get: { query: "FirstPurchaseReturnQuery", responses: { "200": "FirstPurchaseReturnResponse" } }
   },
   "/api/v1/admin/analytics/top-customers": {
     get: { query: "AnalyticsTopCustomersQuery" }
@@ -1882,6 +1901,20 @@ const curatedPaths = {
         "200": { description: "Analytics dashboard" },
         "401": { description: "Not authenticated" },
         "403": { description: "Analytics feature required" }
+      }
+    }
+  },
+  "/api/v1/admin/analytics/first-purchase-returns": {
+    get: {
+      summary: "Track second purchases within 30 days of first recorded purchase",
+      description: "Weekly cohort starts Monday in the business timezone; defaults to the previous complete calendar week. Choose among 52 weeks including the current week. First purchase is identified across all available business history before filtering its week and optional branch. A return at any branch must be on a later local date and less than 720 hours later. Complete observation windows form the rate denominator; ongoing windows are separate. Includes only genuine recorded purchases received by the snapshot. Late synchronization and refunds can change results. This is not causal lift or ROI. Responses are private, no-store.",
+      security: [{ staffAuth: [] }],
+      responses: {
+        "200": { description: "Weekly first-purchase cohort, complete and ongoing follow-up, data readiness" },
+        "400": { description: "Invalid date, non-Monday, out-of-range week, duplicate or unknown filter, or branch outside the current business" },
+        "401": { description: "Not authenticated" },
+        "403": { description: "Owner role and analytics feature required" },
+        "404": { description: "Business not found" }
       }
     }
   },

@@ -32,6 +32,8 @@ Revisa regla, recompensa, compra mínima y presupuesto. La propuesta inicial es 
 
 La regla puede crear una invitación por cliente. La compra siguiente debe cumplir el mínimo antes de vencer; si coincide otra oferta dirigida, se aplica la que vence primero.
 
+Para seguir a todos los clientes de una semana de primeras compras, consulta **De la primera compra a la segunda** en **Resumen**. Ese informe tiene un plazo fijo de treinta días y muestra comportamiento registrado; no exige activar esta invitación ni cambia su bono, mínimo o plazo.
+
 ## Si algo no funciona
 
 **No alcanza el presupuesto:** cada oferta reserva su bono completo; vencer o devolver una compra no repone ese límite. **Pausas la regla:** se detienen nuevas invitaciones y se conservan bonos ya prometidos. **Hay regresos observados:** no equivalen a ventas adicionales causadas por el bono.
@@ -39,6 +41,7 @@ La regla puede crear una invitación por cliente. La compra siguiente debe cumpl
 ## Continúa con otra tarea
 
 - [Controlar costos](/ayuda/negocio/costos/)
+- [Leer el resumen del negocio](/ayuda/negocio/resumen/)
 
 ## Referencia
 

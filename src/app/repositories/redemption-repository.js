@@ -24,5 +24,13 @@ export const RedemptionRepo = {
        LIMIT $2`,
       [customerId, limit]
     );
+  },
+
+  async listCustomerHistory(businessId, customerId, limit = 50) {
+    return many(`SELECT r.id,r.business_id,r.branch_id,r.reward_id,r.customer_id,
+      r.code,r.points_cost,r.status,r.created_at,r.redeemed_at,w.name AS reward_name
+      FROM redemptions r JOIN rewards w ON w.id=r.reward_id AND w.business_id=r.business_id
+      WHERE r.business_id=$1 AND r.customer_id=$2
+      ORDER BY r.created_at DESC,r.id DESC LIMIT $3`, [businessId, customerId, limit]);
   }
 };

@@ -10,7 +10,9 @@ const statement = {
   points: { earned: 140, redeemed: 30, expired: 9, adjustments: -20 },
   balance: { available: 42, pending: 7 }, rewards: { completed: 2 }
 };
-test('customer statement is readable, honest about saved data and cleared on logout', async ({ page }) => {
+test('customer statement is readable, honest about saved data and cleared on logout', async ({ page }, testInfo) => {
+  // Exercise rendering and clearWalletView without racing the signed-out bootstrap.
+  await page.route('**/customer.js', route => route.fulfill({ contentType: 'application/javascript', body: '' }));
   await page.route('**/api/**', route => route.fulfill({ status: 401, json: { code: 'AUTH_REQUIRED' } }));
   await page.goto(`${server.baseUrl}/c?sw=noreload`);
   await page.evaluate(() => {
@@ -39,7 +41,7 @@ test('customer statement is readable, honest about saved data and cleared on log
     expect(await section.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
     const violations = await page.evaluate(async () => (await window['axe'].run({ include: ['#customerStatement'] }, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(v => v.id));
     expect(violations).toEqual([]);
-    await section.screenshot({ path: `/var/lib/puntos/releases/member-value-20261111/statement-${width}-${theme}.png` });
+    await section.screenshot({ path: testInfo.outputPath(`statement-${width}-${theme}.png`) });
   }
   await page.evaluate(async data => {
     const path = '/customer/statement.js';

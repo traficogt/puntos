@@ -1,4 +1,5 @@
 import { one, many, exec } from "./base.js";
+import { publicCustomerTransaction } from '../services/customer-history-provenance.js';
 
 export const TxnRepo = {
   async create({ id, business_id, branch_id, customer_id, staff_user_id, amount_q, points, source, meta }) {
@@ -40,6 +41,18 @@ export const TxnRepo = {
        LIMIT $2`,
       [customerId, limit]
     );
+  },
+
+  async listCustomerHistory(businessId, customerId, limit = 50) {
+    const rows = await many(`SELECT t.id,t.business_id,t.branch_id,t.customer_id,
+      t.amount_q,t.points AS points_delta,t.source,t.type,t.status,t.reversed_transaction_id,
+      t.visits,t.items,t.meta,t.created_at,r.name AS reward_name,
+      EXISTS(SELECT 1 FROM transactions original WHERE original.id=t.original_transaction_id
+        AND original.business_id=t.business_id AND original.customer_id=t.customer_id) AS has_original_transaction
+      FROM transactions t LEFT JOIN rewards r ON r.business_id=t.business_id AND r.id::text=t.meta->>'reward_id'
+      WHERE t.business_id=$1 AND t.customer_id=$2
+      ORDER BY t.created_at DESC,t.id DESC LIMIT $3`, [businessId, customerId, limit]);
+    return rows.map(publicCustomerTransaction);
   },
 
   async summaryByBusiness(businessId, days = 30, branchId = null) {

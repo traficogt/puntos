@@ -66,7 +66,7 @@ jobs:
         timeout-minutes: 10
         run: PLAYWRIGHT_BROWSERS_PATH=0 node --test tests/integration/loyalty-calculator.browser.test.js tests/integration/self-service-web.browser.test.js tests/integration/guides-editorial.browser.test.js
       - name: Staff offline and customer selection regressions
-        run: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright test tests/e2e/staff-offline.spec.js --project=chromium --project=firefox --retries=0 --reporter=line
+        run: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright test tests/e2e/staff-offline.spec.js tests/e2e/customer-point-clarity.spec.js tests/e2e/customer-statement.spec.js --project=chromium --project=firefox --retries=0 --reporter=line
       - name: Tests
         run: npm test
       - name: OpenAPI generation is current
