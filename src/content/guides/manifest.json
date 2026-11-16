@@ -98,16 +98,21 @@
         },
         {
           "type": "paragraph",
-          "text": "No confundas una venta con lo que te queda de ella. Si cobras Q40 y gastas Q24 en atender esa compra, quedan Q16 antes de los costos fijos."
+          "text": "No confundas una venta con lo que te queda de ella. Imaginemos una lavandería que cobra Q40 por un servicio y gasta Q24 en atenderlo. Quedan Q16 antes de los costos fijos y del programa. Son importes inventados para seguir la cuenta."
         },
         {
           "type": "callout",
-          "text": "Si premios y operación adicional cuestan Q160, necesitarías 10 compras adicionales de ese tipo para cubrirlos.",
-          "note": "Ejemplo inventado: Q160 ÷ Q16 = 10. No es una tarifa ni una promesa de retorno."
+          "text": "Con Q160 de premios y operación adicional, y una reserva de Q2 para los premios de cada nueva compra, harían falta 12 compras adicionales de ese tipo para cubrirlos.",
+          "note": "Ejemplo inventado: Q160 ÷ (Q16 − Q2) = 11,43; se redondea hacia arriba a 12 compras completas. Supone costos constantes y cumplimiento de todos los premios. No es una tarifa ni una promesa de retorno."
         },
         {
           "type": "paragraph",
-          "text": "La palabra importante es adicionales. Diez compras de miembros no bastan si esas personas habrían comprado igualmente. Y el cálculo cambia si varían los costos o el tamaño de la compra. Anota también los premios que ya prometiste y todavía faltan por entregar."
+          "text": "La palabra importante es adicionales. Doce compras de miembros no bastan si esas personas habrían comprado igualmente. Y el cálculo cambia si varían los costos o el tamaño de la compra. Anota también los premios que ya prometiste y todavía faltan por entregar."
+        },
+        {
+          "type": "link",
+          "text": "Explora tus costos y compras adicionales en la calculadora de recompensas.",
+          "href": "/calculadora"
         },
         {
           "type": "heading",
@@ -212,15 +217,20 @@
         },
         {
           "type": "paragraph",
-          "text": "La panadería podría ensayar esta regla: «Recibes un sello por cada compra de Q25 o más, con un máximo de uno al día. Al reunir seis sellos, puedes pedir un café regular gratis». Es una propuesta hipotética: tanto el mínimo como el premio deben pasar por los números del negocio."
+          "text": "La panadería podría ensayar esta regla: «Recibes un sello por cada compra de Q25 o más, con un máximo de uno al día. Al reunir seis sellos, puedes pedir una pieza de pan integral gratis». Es una propuesta hipotética: tanto el mínimo como el premio deben pasar por los números del negocio."
         },
         {
           "type": "paragraph",
-          "text": "Completa lo que esa frase todavía no dice: si puedes recibir el café junto con la sexta compra, en qué locales se entrega, si hay vencimiento y qué ocurre con una devolución. Pon las condiciones a disposición del cliente antes de que empiece a acumular."
+          "text": "Completa lo que esa frase todavía no dice: si puedes recibir el pan junto con la sexta compra, en qué locales se entrega, si hay vencimiento y qué ocurre con una devolución. Pon las condiciones a disposición del cliente antes de que empiece a acumular."
         },
         {
           "type": "paragraph",
-          "text": "Anota el costo de entregar cada café y los gastos adicionales de operar el programa. Calcula también cuánto necesitarías si se canjearan todos los premios ya ganados. Elige una recompensa que puedas sostener con ese escenario; depender de que el cliente olvide cobrarla deja una promesa sin respaldo."
+          "text": "Anota el costo de entregar cada pieza de pan y los gastos adicionales de operar el programa. Calcula también cuánto necesitarías si se canjearan todos los premios ya ganados. Elige una recompensa que puedas sostener con ese escenario; depender de que el cliente olvide cobrarla deja una promesa sin respaldo."
+        },
+        {
+          "type": "link",
+          "text": "Calcula cuánto costaría cumplir tus premios, incluida la operación del programa.",
+          "href": "/calculadora"
         },
         {
           "type": "heading",
@@ -233,6 +243,15 @@
         {
           "type": "paragraph",
           "text": "Haz una compra ficticia con alguien del equipo. Pídele que explique la regla, registre el avance y entregue el premio. Repite con una compra que no cumple el mínimo y una devolución. Deja por escrito cómo resolver cada caso y quién puede ayudar cuando surja una duda. Este ensayo es nuestra propuesta práctica, no una intervención cuya eficacia haya medido aquel estudio."
+        },
+        {
+          "type": "figure",
+          "src": "/images/articles/disenar-ensayo-1536.webp",
+          "srcSmall": "/images/articles/disenar-ensayo-768.webp",
+          "width": 1536,
+          "height": 1024,
+          "alt": "Tres músicos ensayan con un violín, un violonchelo y un contrabajo.",
+          "caption": "Ensayar juntos permite revisar cómo se enlazan las tareas antes de atender al cliente. Ilustración conceptual."
         },
         {
           "type": "heading",
@@ -295,9 +314,9 @@
         "url": "https://puntosfieles.com/"
       },
       "hero": {
-        "src": "/images/articles/disenar-1536.webp",
-        "srcSmall": "/images/articles/disenar-768.webp",
-        "alt": "Un relojero ajusta las piezas de un mecanismo en su mesa de trabajo.",
+        "src": "/images/articles/disenar-v2-1536.webp",
+        "srcSmall": "/images/articles/disenar-v2-768.webp",
+        "alt": "Relojero revisando el mecanismo de un reloj de bolsillo abierto por detrás.",
         "width": 1536,
         "height": 1024
       }
@@ -322,14 +341,14 @@
         },
         {
           "type": "paragraph",
-          "text": "Imaginemos un negocio que ofrece un producto cuyo precio habitual es Q30. Prepararlo y entregarlo cuesta Q9 en materiales, empaque y otros gastos variables. Hay 80 premios ya ganados y pendientes de canje. Son cantidades inventadas para mostrar la cuenta, no datos de PuntosFieles."
+          "text": "Imaginemos una librería que ofrece una libreta cuyo precio habitual es Q30. Comprarla, empacarla y entregarla cuesta Q9. Hay 80 premios ya ganados y pendientes de canje. Son cantidades inventadas para mostrar la cuenta, no datos de PuntosFieles."
         },
         {
           "type": "list",
           "items": [
             "Valor para los clientes: 80 × Q30 = Q2,400 al precio habitual.",
             "Costo estimado de entregar todos los premios: 80 × Q9 = Q720.",
-            "Compromiso pendiente: 80 productos que todavía debes poder entregar."
+            "Compromiso pendiente: 80 libretas que todavía debes poder entregar."
           ]
         },
         {
@@ -337,8 +356,17 @@
           "text": "Q720 es un presupuesto de cumplimiento bajo esos supuestos. No es una valoración contable de los puntos ni una medición de la utilidad. Tampoco incluye todo: quizás haga falta pagar más horas, enviar los premios o reponer un insumo que subió de precio. Anota cada costo adicional por separado."
         },
         {
+          "type": "figure",
+          "src": "/images/articles/costos-libreria-1536.webp",
+          "srcSmall": "/images/articles/costos-libreria-768.webp",
+          "width": 1536,
+          "height": 1024,
+          "alt": "Una lectora sostiene un libro en un sillón junto a estanterías y un gato dormido.",
+          "caption": "En nuestra librería imaginaria, el precio de la libreta y el costo de entregarla son dos datos distintos. La escena es ilustrativa."
+        },
+        {
           "type": "paragraph",
-          "text": "En un servicio ocurre algo parecido. Un complemento puede usar pocos materiales y, aun así, ocupar quince minutos de una agenda llena. Si el beneficio sustituye una venta que habrías realizado, también debes considerar esa oportunidad perdida. Por eso el precio del menú, el gasto directo y el costo económico no son intercambiables."
+          "text": "En un salón de belleza ocurre algo parecido. Un tratamiento adicional puede usar pocos materiales y, aun así, ocupar quince minutos de una agenda llena. Si el beneficio sustituye una venta que habrías realizado, también debes considerar esa oportunidad perdida. Por eso el precio del menú, el gasto directo y el costo económico no son intercambiables."
         },
         {
           "type": "heading",
@@ -346,16 +374,16 @@
         },
         {
           "type": "paragraph",
-          "text": "Sigamos con el ejemplo. Supón que cada compra pagada cuesta Q70 al cliente y requiere Q42 en gastos variables. Deja Q28 para cubrir otros gastos y, después, beneficio. Si entregar los 80 premios cuesta Q720 y la operación adicional del programa cuesta Q120, el total es Q840."
+          "text": "Sigamos con la librería del ejemplo. Supón que cada compra pagada cuesta Q70 al cliente y requiere Q42 en gastos variables. Deja Q28 para cubrir otros gastos y, después, beneficio. Si entregar las 80 libretas cuesta Q720 y la operación adicional del programa cuesta Q120, el presupuesto base es Q840. Falta considerar los premios que ganarían las compras adicionales: si se obtiene una libreta de Q9 de costo cada tres compras, hay que reservar Q3 por compra. Quedan Q25 de contribución disponible."
         },
         {
           "type": "callout",
-          "text": "Q840 ÷ Q28 = 30 compras adicionales para cubrir ese costo.",
-          "note": "Ejemplo hipotético. Supone compras comparables, costos constantes y que los Q840 incluyen los incentivos y gastos adicionales del escenario."
+          "text": "Q840 ÷ (Q28 − Q3) = 33,6: hacen falta 34 compras adicionales completas para cubrir ese costo.",
+          "note": "Ejemplo hipotético. Supone compras comparables, costos constantes y una reserva que cubre el 100% de los nuevos premios. Las 80 libretas del presupuesto base no incluyen las generadas por esas compras adicionales."
         },
         {
           "type": "paragraph",
-          "text": "Treinta compras registradas de miembros no demuestran que recuperaste la inversión. Algunas personas habrían comprado igualmente. Leenheer y sus colegas mostraron ese problema en supermercados: al considerar que los clientes más fieles podían ser quienes se inscribían, el efecto estimado del programa se reducía (Leenheer et al., 2007)."
+          "text": "Treinta y cuatro compras registradas de miembros no demuestran que recuperaste la inversión. Algunas personas habrían comprado igualmente. Leenheer y sus colegas mostraron ese problema en supermercados: al considerar que los clientes más fieles podían ser quienes se inscribían, el efecto estimado del programa se reducía (Leenheer et al., 2007)."
         },
         {
           "type": "paragraph",
@@ -376,6 +404,11 @@
         {
           "type": "paragraph",
           "text": "Empieza con una cantidad que puedas sostener, registra los costos reales y revisa las compras junto con los canjes. Un premio útil para el cliente y manejable para el negocio se diseña con ambas partes de la cuenta a la vista."
+        },
+        {
+          "type": "link",
+          "text": "Haz tu presupuesto con la calculadora: premios, gastos del mes y compras adicionales.",
+          "href": "/calculadora"
         }
       ],
       "references": [
@@ -442,11 +475,20 @@
         },
         {
           "type": "paragraph",
-          "text": "Ahora hagamos un ejemplo inventado. Un café entrega el primer sello hoy y da el premio junto con la última compra requerida. Si una persona vuelve exactamente una vez por semana, completar seis compras exige cinco semanas más; completar diez exige nueve. Para alguien que compra cada dos semanas, los mismos recorridos tomarían diez y dieciocho semanas."
+          "text": "Ahora hagamos un ejemplo inventado. Una barbería entrega el primer sello hoy y da el premio junto con el último corte requerido. Si una persona vuelve exactamente cada cuatro semanas, completar seis compras exige veinte semanas más; completar diez exige treinta y seis. Para alguien que vuelve cada ocho semanas, los mismos recorridos tomarían cuarenta y setenta y dos semanas. Estos ritmos sirven para seguir la cuenta, no son una frecuencia recomendada."
         },
         {
           "type": "paragraph",
           "text": "El cálculo empieza después de la primera compra: quedan cinco o nueve intervalos. Si entregaras el premio en una visita posterior, tendrías que añadir esa espera. Haz la cuenta con el ritmo observado en tu negocio y con las reglas que vas a ofrecer."
+        },
+        {
+          "type": "figure",
+          "src": "/images/articles/visitas-comercios-1536.webp",
+          "srcSmall": "/images/articles/visitas-comercios-768.webp",
+          "width": 1536,
+          "height": 1024,
+          "alt": "Personas que se saludan en una plaza imaginaria rodeada de pequeños comercios.",
+          "caption": "Cada negocio tiene su propio ritmo de visitas. En el ejemplo de la barbería, conviene contar las semanas entre una compra y la siguiente. Escena conceptual."
         },
         {
           "type": "heading",
@@ -458,7 +500,7 @@
         },
         {
           "type": "paragraph",
-          "text": "Nuestra propuesta es mostrar juntos el premio y el esfuerzo pendiente: «Llevas cuatro de seis; te faltan dos compras para un café regular». Antes de lanzar, presenta la recompensa a algunos clientes y escucha si la quieren y si el recorrido les parece razonable. Sus respuestas orientan el diseño; las compras posteriores permitirán comprobar qué hacen."
+          "text": "Nuestra propuesta es mostrar juntos el premio y el esfuerzo pendiente: «Llevas cuatro de seis cortes; te faltan dos para un cuidado de barba de regalo». Antes de lanzar, presenta la recompensa a algunos clientes y escucha si la quieren y si el recorrido les parece razonable. Sus respuestas orientan el diseño; las compras posteriores permitirán comprobar qué hacen."
         },
         {
           "type": "heading",
@@ -466,14 +508,14 @@
         },
         {
           "type": "paragraph",
-          "text": "Sigamos con el café hipotético. Cada compra vale Q30 y preparar la bebida de regalo cuesta Q6. Si todos completan y canjean, ese costo se repartiría así:"
+          "text": "Sigamos con la barbería hipotética. Cada corte vale Q80 y prestar el servicio de regalo cuesta Q12 en trabajo adicional e insumos. Si todos completan y canjean, ese costo se repartiría así:"
         },
         {
           "type": "list",
           "ordered": false,
           "items": [
-            "Con seis compras: Q180 de ventas y Q6 de recompensa; Q1 por compra, aproximadamente el 3,33 % de esas ventas.",
-            "Con diez compras: Q300 de ventas y Q6 de recompensa; Q0,60 por compra, el 2 % de esas ventas."
+            "Con seis compras: Q480 de ventas y Q12 de recompensa; Q2 por compra, el 2,5 % de esas ventas.",
+            "Con diez compras: Q800 de ventas y Q12 de recompensa; Q1,20 por compra, el 1,5 % de esas ventas."
           ]
         },
         {
@@ -483,6 +525,11 @@
         {
           "type": "paragraph",
           "text": "Pedir más visitas reduce el costo del regalo por compra en este ejemplo, pero prolonga la espera. Si ninguna opción resulta sostenible, revisa el premio y su costo antes de seguir alejando la meta."
+        },
+        {
+          "type": "link",
+          "text": "Compara el costo de tus premios y la reserva por compra en la calculadora.",
+          "href": "/calculadora"
         },
         {
           "type": "heading",
@@ -519,7 +566,7 @@
       ],
       "methodNote": [
         "Consultamos los métodos, resultados y límites relevantes de los originales de Kivetz y colaboradores y de Liu. El análisis principal del café utiliza tarjetas canjeadas y añade controles; el artículo también incluye experimentos. Liu sigue a miembros de una sola empresa durante dos años y excluye a quienes solo compraron una vez. Ninguno identifica un umbral universal ni valida un número de visitas para Guatemala.",
-        "El café, sus precios y sus ritmos de compra son hipotéticos. Las recomendaciones son propuestas de PuntosFieles, que tiene un interés comercial en el tema; estas investigaciones no evalúan PF. La selección de fuentes no es una revisión sistemática."
+        "La barbería, sus precios y sus ritmos de compra son hipotéticos. Las recomendaciones son propuestas de PuntosFieles, que tiene un interés comercial en el tema; estas investigaciones no evalúan PF. La selección de fuentes no es una revisión sistemática."
       ],
       "status": "scheduled",
       "publishAt": "2026-12-05T14:03:00-06:00",
@@ -574,7 +621,7 @@
         },
         {
           "type": "paragraph",
-          "text": "Si quieres probarlo, empieza por escribir la oferta como se la dirías a alguien frente al mostrador: «Te regalamos dos sellos de bienvenida. Con ocho compras más completas los diez y recibes tu premio». El cliente debe poder hacer la cuenta sin ayuda."
+          "text": "Imaginemos un taller de bicicletas que quiere probar esta presentación. Podría explicarla así: «Te regalamos dos sellos de bienvenida. Con ocho servicios pagados más completas los diez y recibes un kit de parches». Es un ejemplo de PF, no el premio que se ofreció en el estudio. El cliente debe poder hacer la cuenta sin ayuda."
         },
         {
           "type": "paragraph",
@@ -582,11 +629,20 @@
         },
         {
           "type": "paragraph",
-          "text": "Define además qué compra da derecho a un sello y cuál es el premio. Si una visita puede incluir varias compras, aclara si entrega uno o varios. Son decisiones del negocio que conviene resolver antes de imprimir una tarjeta o mostrarla en una pantalla."
+          "text": "El taller tendría que definir qué servicio pagado da derecho a un sello, qué incluye el kit y si varias reparaciones en una misma visita entregan uno o varios sellos. Son decisiones del ejemplo que conviene resolver antes de imprimir una tarjeta o mostrarla en una pantalla."
         },
         {
           "type": "paragraph",
           "text": "Hay una diferencia práctica entre regalar dos sellos dentro de una tarjeta que ya exigía diez compras y presentar diez espacios con dos de regalo en lugar de ocho vacíos. En el primer caso reduces el esfuerzo. En el segundo mantienes las ocho compras pendientes, como en el experimento del lavadero."
+        },
+        {
+          "type": "figure",
+          "src": "/images/articles/avance-bienvenida-1536.webp",
+          "srcSmall": "/images/articles/avance-bienvenida-768.webp",
+          "width": 1536,
+          "height": 1024,
+          "alt": "Un sobre cerrado con un sello de cera, una llave de latón y una hoja de ginkgo.",
+          "caption": "La bienvenida lleva una promesa: explicar qué se regala y qué compras faltan para recibir el premio. Ilustración conceptual."
         },
         {
           "type": "heading",
@@ -603,6 +659,11 @@
         {
           "type": "paragraph",
           "text": "Después revisa los costos y las compras adicionales. Completar más tarjetas significa entregar más premios; por sí solo, ese dato no demuestra mayor ganancia. Los dos sellos pueden ser una invitación a empezar. Saber si esa invitación beneficia a tu negocio requiere mirar lo que sucede después."
+        },
+        {
+          "type": "link",
+          "text": "Calcula el costo de cumplir los premios, incluidos los que generarían nuevas compras.",
+          "href": "/calculadora"
         }
       ],
       "references": [
@@ -653,7 +714,7 @@
       "body": [
         {
           "type": "paragraph",
-          "text": "Un cliente tiene dos sellos de los diez que necesita para recibir un premio. Puedes decirle «ya llevas dos» o «te faltan ocho». Las dos frases son ciertas. Ahora piensa en alguien que tiene ocho: «te faltan dos» pone la atención en otro lugar."
+          "text": "Imaginemos una tienda de plantas que regala una maceta al completar diez compras válidas. Un cliente tiene dos sellos. Puedes decirle «ya llevas dos» o «te faltan ocho». Las dos frases son ciertas. Ahora piensa en alguien que tiene ocho: «te faltan dos» pone la atención en otro lugar."
         },
         {
           "type": "paragraph",
@@ -689,11 +750,20 @@
         },
         {
           "type": "paragraph",
-          "text": "Proponemos empezar con «Ya llevas dos de diez cafés». Más adelante, «Te faltan dos cafés para tu recompensa», manteniendo el saldo completo debajo: ocho de diez. Son ejemplos nuestros, no textos cuya eficacia hayan comprobado esos estudios."
+          "text": "En nuestra tienda de plantas, proponemos empezar con «Ya llevas dos de diez compras». Más adelante, «Te faltan dos compras para tu maceta», manteniendo el saldo completo debajo: ocho de diez. Son ejemplos nuestros, no textos cuya eficacia hayan comprobado esos estudios."
         },
         {
           "type": "paragraph",
           "text": "Si usas puntos, acompáñalos de la meta: «Tienes 80 de los 100 puntos que necesitas para el premio». La cifra destacada y el detalle deben decir lo mismo."
+        },
+        {
+          "type": "figure",
+          "src": "/images/articles/progreso-puente-1536.webp",
+          "srcSmall": "/images/articles/progreso-puente-768.webp",
+          "width": 1536,
+          "height": 1024,
+          "alt": "Dos personas se aproximan desde extremos opuestos de un puente de piedra sobre un arroyo.",
+          "caption": "Lo recorrido y lo que falta describen el mismo trayecto. Cambiar qué parte destacas no debe cambiar la meta. Ilustración conceptual."
         },
         {
           "type": "paragraph",
