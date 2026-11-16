@@ -30,8 +30,23 @@ function rawRewards() {
   return Array.from({ length: rewardCount }, (_, index) => Object.fromEntries(
     ['name', 'kind', 'units', 'unitCost', 'retailPrice', 'opportunityCost'].map(key => [key, input(`reward-${index}-${key}`).value])));
 }
-function field(id, label, help = '', mode = 'decimal') {
-  return `<div class="field"><label for="${id}">${label}</label><input id="${id}" type="text" inputmode="${mode}" maxlength="24" aria-describedby="${id}-help ${id}-error"><p class="field-help" id="${id}-help">${help}</p><p class="field-error" id="${id}-error" hidden></p></div>`;
+function element(tag, className = '', text = '') {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text) node.textContent = text;
+  return node;
+}
+function field(id, labelText, help = '', mode = 'decimal', currency = false) {
+  const wrapper = element('div', 'field');
+  const label = element('label', '', labelText); label.setAttribute('for', id);
+  if (currency) label.append(document.createTextNode(' '), element('span', 'currency-code'));
+  const control = element('input'); control.id = id;
+  control.setAttribute('type', 'text'); control.setAttribute('inputmode', mode); control.setAttribute('maxlength', '24');
+  control.setAttribute('aria-describedby', `${id}-help ${id}-error`);
+  const hint = element('p', 'field-help', help); hint.id = `${id}-help`;
+  const error = element('p', 'field-error'); error.id = `${id}-error`; error.hidden = true;
+  wrapper.append(label, control, hint, error);
+  return wrapper;
 }
 function renderRewards(rewards) {
   byId('rewards').replaceChildren();
@@ -41,15 +56,34 @@ function renderRewards(rewards) {
     const section = document.createElement('section');
     section.className = 'reward';
     section.setAttribute('aria-labelledby', `${prefix}-title`);
-    section.innerHTML = `<div class="reward-header"><h3 id="${prefix}-title">Premio ${index + 1}</h3><button class="text-button" type="button" data-remove="${index}" aria-label="Quitar premio ${index + 1}" ${rewards.length === 1 ? 'hidden' : ''}>Quitar</button></div>
-      <div class="reward-grid"><div class="field reward-name"><label for="${prefix}-name">Nombre del premio <span class="optional">(opcional)</span></label><input id="${prefix}-name" type="text" maxlength="80" autocomplete="off"></div>
-      <div class="field reward-type"><label for="${prefix}-kind">Tipo</label><select id="${prefix}-kind"><option value="product">Producto</option><option value="service">Servicio</option><option value="discount">Descuento</option></select></div>
-      ${field(`${prefix}-units`, 'Unidades del mes', 'Premios completos. De 0 a 1,000,000.', 'numeric')}
-      ${field(`${prefix}-unitCost`, `Costo por unidad <span class="currency-code"></span>`, 'En blanco: sin dato. Un 0 escrito confirma costo cero.')}</div>
-      <p class="reward-kind-note" id="${prefix}-kind-note"></p>
-      <details id="${prefix}-details"><summary>Precio habitual y capacidad (opcionales)</summary><div class="form-grid">
-      ${field(`${prefix}-retailPrice`, `Precio habitual de venta <span class="currency-code"></span>`, 'Solo referencia: no se resta como costo ni se suma como ingreso.')}
-      <div id="${prefix}-opportunity-field">${field(`${prefix}-opportunityCost`, `Contribución perdida por unidad <span class="currency-code"></span>`, 'Si este servicio desplaza una venta, agrega lo que habría quedado de ella tras sus costos variables. En blanco se excluye; 0 confirma capacidad disponible.')}</div></div></details>`;
+    const header = element('div', 'reward-header');
+    const heading = element('h3', '', `Premio ${index + 1}`); heading.id = `${prefix}-title`;
+    const remove = element('button', 'text-button', 'Quitar'); remove.setAttribute('type', 'button'); remove.dataset.remove = String(index);
+    remove.setAttribute('aria-label', `Quitar premio ${index + 1}`); remove.hidden = rewards.length === 1;
+    header.append(heading, remove);
+    const grid = element('div', 'reward-grid');
+    const nameField = element('div', 'field reward-name');
+    const nameLabel = element('label', '', 'Nombre del premio '); nameLabel.setAttribute('for', `${prefix}-name`); nameLabel.append(element('span', 'optional', '(opcional)'));
+    const nameInput = element('input'); nameInput.id = `${prefix}-name`; nameInput.setAttribute('type', 'text'); nameInput.setAttribute('maxlength', '80'); nameInput.setAttribute('autocomplete', 'off');
+    nameField.append(nameLabel, nameInput);
+    const typeField = element('div', 'field reward-type');
+    const typeLabel = element('label', '', 'Tipo'); typeLabel.setAttribute('for', `${prefix}-kind`);
+    const select = element('select'); select.id = `${prefix}-kind`;
+    for (const [key, title] of [['product', 'Producto'], ['service', 'Servicio'], ['discount', 'Descuento']]) {
+      const option = element('option', '', title); option.setAttribute('value', key); select.append(option);
+    }
+    typeField.append(typeLabel, select);
+    grid.append(nameField, typeField,
+      field(`${prefix}-units`, 'Unidades del mes', 'Premios completos. De 0 a 1,000,000.', 'numeric'),
+      field(`${prefix}-unitCost`, 'Costo por unidad', 'En blanco: sin dato. Un 0 escrito confirma costo cero.', 'decimal', true));
+    const note = element('p', 'reward-kind-note'); note.id = `${prefix}-kind-note`;
+    const details = element('details'); details.id = `${prefix}-details`;
+    const detailGrid = element('div', 'form-grid');
+    const opportunity = element('div'); opportunity.id = `${prefix}-opportunity-field`;
+    opportunity.append(field(`${prefix}-opportunityCost`, 'Contribución perdida por unidad', 'Si este servicio desplaza una venta, agrega lo que habría quedado de ella tras sus costos variables. En blanco se excluye; 0 confirma capacidad disponible.', 'decimal', true));
+    detailGrid.append(field(`${prefix}-retailPrice`, 'Precio habitual de venta', 'Solo referencia: no se resta como costo ni se suma como ingreso.', 'decimal', true), opportunity);
+    details.append(element('summary', '', 'Precio habitual y capacidad (opcionales)'), detailGrid);
+    section.append(header, grid, note, details);
     byId('rewards').append(section);
     for (const key of ['name', 'kind', 'units', 'unitCost', 'retailPrice', 'opportunityCost']) input(`${prefix}-${key}`).value = String(reward[key] ?? '');
     input(`${prefix}-kind`).addEventListener('change', () => syncRewardKind(index));
@@ -68,7 +102,7 @@ function syncRewardKind(index) {
   const prefix = `reward-${index}`;
   const kind = input(`${prefix}-kind`).value;
   const label = document.querySelector(`label[for="${prefix}-unitCost"]`);
-  label.innerHTML = `${kind === 'discount' ? 'Descuento por canje' : 'Costo de entregar una unidad'} <span class="currency-code"></span>`;
+  label.replaceChildren(document.createTextNode(`${kind === 'discount' ? 'Descuento por canje' : 'Costo de entregar una unidad'} `), element('span', 'currency-code'));
   byId(`${prefix}-details`).hidden = kind === 'discount';
   byId(`${prefix}-opportunity-field`).hidden = kind !== 'service';
   byId(`${prefix}-kind-note`).textContent = kind === 'discount'
