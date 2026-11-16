@@ -34,6 +34,27 @@ El documento tiene `version: 1` y `articles: []`. Cada entrada admite:
 | `methodNote` | Opcional: lista de párrafos breves sobre métodos, alcance y límites de la evidencia. |
 | `readingMinutes` | Opcional: estimación de lectura en minutos enteros positivos. |
 | `artCredit` | Opcional: crédito o aclaración editorial ya aprobado para esa ilustración. No establece una política general de divulgación. |
+| `productNote` | Opcional: `{ "text", "href", "linkText" }`. Una sola nota breve «En PuntosFieles», después del cuerpo y antes de las fuentes. Texto de hasta 560 caracteres y etiqueta de enlace de hasta 120; `href` admite únicamente una tarea pública bajo `/ayuda/`, sin parámetros. |
+
+## Investigación y referencias al producto
+
+La investigación y los consejos deben ser útiles aunque el lector no use PF.
+Distinguir resultados de estudios, ejemplos hipotéticos, ejercicios manuales y
+funciones verificadas. No cambiar los hallazgos para hacerlos coincidir con lo
+que vende el producto ni presentar una función pendiente como disponible.
+
+Usar `productNote` solo si una función ayuda directamente con la tarea del
+artículo. Verificar la pantalla, el cálculo del servidor y la ayuda; incluir
+requisitos de plan, datos o configuración que afecten a la afirmación. Añadir
+una cita autor–fecha y su referencia APA a la documentación de software, sin
+mezclarla con evidencia científica de eficacia. El renderer enlaza esas citas.
+La nota no lleva botón de compra, superlativos ni promesas de resultados. No es
+obligatoria en todos los artículos y no se repite una invitación comercial al
+final. El registro de la primera revisión completa está en
+[ARTICLE_CAPABILITY_AUDIT_20261116.md](ARTICLE_CAPABILITY_AUDIT_20261116.md).
+
+Los JSON de `drafts/` conservan versiones históricas y notas de investigación.
+Para publicar o revisar la versión actual, usar siempre `manifest.json`.
 
 Los bloques admitidos son:
 

@@ -74,7 +74,7 @@
         },
         {
           "type": "paragraph",
-          "text": "No es una receta universal ni una prueba de mayor rentabilidad. Pero ofrece una idea que vale la pena probar: que el cliente entienda cuánto lleva y qué le falta. «Te faltan dos visitas» es una propuesta más concreta que una cifra de puntos sin contexto."
+          "text": "No es una receta universal ni una prueba de mayor rentabilidad. Pero ofrece una idea que vale la pena probar: que el cliente entienda cuánto lleva y qué le falta. Si cada visita suma lo mismo, «te faltan dos visitas» es más concreto que una cifra de puntos sin contexto."
         },
         {
           "type": "heading",
@@ -183,7 +183,8 @@
         "Leenheer y Liu analizan datos observacionales. Nunes y Drèze asignaron 300 tarjetas al azar en un establecimiento. En el ensayo británico, 29 de 32 locales completaron el estudio; no encontrar un resultado estadísticamente significativo no demuestra un efecto exactamente nulo.",
         "Estos trabajos no evalúan PuntosFieles ni establecen un resultado específico para Guatemala. PF tiene un interés comercial en el tema. Las recomendaciones prácticas son nuestra interpretación; el ejemplo de costos es hipotético y las ilustraciones son conceptuales."
       ],
-      "artCredit": "Ilustraciones creadas para PuntosFieles con asistencia de IA."
+      "artCredit": "Ilustraciones creadas para PuntosFieles con asistencia de IA.",
+      "dateModified": "2026-11-15"
     },
     {
       "slug": "como-disenar-programa-fidelizacion",
@@ -209,7 +210,7 @@
         },
         {
           "type": "paragraph",
-          "text": "Imaginemos una panadería que quiere mejorar la segunda visita. Su pregunta podría ser: «De las personas que compran por primera vez esta semana, ¿cuántas vuelven durante los siguientes 30 días?». Ese plazo es parte del ejemplo, no una duración recomendada para todos los negocios. Revísalo según el tiempo que suele pasar entre compras en el tuyo."
+          "text": "Imaginemos una panadería que quiere mejorar la segunda visita. Su pregunta podría ser: «De las personas cuya primera compra registramos esta semana, ¿cuántas vuelven durante los siguientes 30 días?». Primera compra registrada no siempre significa primera visita al negocio. El plazo pertenece al ejemplo; revísalo según el tiempo que suele pasar entre compras en el tuyo."
         },
         {
           "type": "heading",
@@ -217,7 +218,7 @@
         },
         {
           "type": "paragraph",
-          "text": "La panadería podría ensayar esta regla: «Recibes un sello por cada compra de Q25 o más, con un máximo de uno al día. Al reunir seis sellos, puedes pedir una pieza de pan integral gratis». Es una propuesta hipotética: tanto el mínimo como el premio deben pasar por los números del negocio."
+          "text": "La panadería podría ensayar esta regla: «Recibes un punto por cada visita con compra. Al reunir seis puntos, puedes pedir una pieza de pan integral gratis». Es una propuesta hipotética: la frecuencia de compra y el costo del premio deben pasar por los números del negocio."
         },
         {
           "type": "paragraph",
@@ -242,7 +243,7 @@
         },
         {
           "type": "paragraph",
-          "text": "Haz una compra ficticia con alguien del equipo. Pídele que explique la regla, registre el avance y entregue el premio. Repite con una compra que no cumple el mínimo y una devolución. Deja por escrito cómo resolver cada caso y quién puede ayudar cuando surja una duda. Este ensayo es nuestra propuesta práctica, no una intervención cuya eficacia haya medido aquel estudio."
+          "text": "Haz una compra ficticia con alguien del equipo. Pídele que explique la regla, registre el avance y entregue el premio. Prueba también un intento de canje sin puntos suficientes y la devolución de un canje ficticio. Deja por escrito cómo resolver cada caso y quién puede ayudar. Este ensayo es nuestra propuesta práctica, no una intervención cuya eficacia haya medido aquel estudio."
         },
         {
           "type": "figure",
@@ -259,13 +260,13 @@
         },
         {
           "type": "paragraph",
-          "text": "Una ficha para nuestra panadería imaginaria podría contener cuatro datos:"
+          "text": "Para nuestra panadería imaginaria, prepara una hoja de seguimiento por cliente, con la fecha de la primera compra registrada y la siguiente. Esta ficha es un ejercicio aparte; PF todavía no reúne este seguimiento semanal de primeras compras y regreso en 30 días en un informe. Anota:"
         },
         {
           "type": "list",
           "ordered": false,
           "items": [
-            "Cuántos clientes compraron por primera vez durante la semana elegida.",
+            "Cuántos clientes tienen su primera compra registrada durante la semana elegida.",
             "Cuántos de ellos hicieron otra compra dentro de 30 días.",
             "Cuánto costaron los premios y qué recompensas quedan pendientes.",
             "Qué dificultades encontraron clientes y personal."
@@ -273,7 +274,7 @@
         },
         {
           "type": "paragraph",
-          "text": "Incluye a quienes no regresan. Si comparas semanas anteriores, usa el mismo plazo de seguimiento y registra cambios de precios, temporada o promociones. Esa comparación orienta, pero por sí sola no demuestra qué causó el cambio."
+          "text": "Incluye a quienes no regresan y muestra aparte a quienes aún no completan sus 30 días. Contar dos compras dentro del mismo mes no responde la misma pregunta. Si comparas semanas, usa el mismo plazo de seguimiento y registra cambios de precios, temporada o promociones. Esa comparación orienta, pero por sí sola no demuestra qué causó el cambio."
         },
         {
           "type": "paragraph",
@@ -298,6 +299,15 @@
           "italic": [
             "International Journal of Research in Marketing, 24"
           ]
+        },
+        {
+          "id": "pf-help",
+          "citation": "PuntosFieles, 2026",
+          "apa": "PuntosFieles. (2026, 16 de noviembre). Practicar el recorrido completo [Documentación de software].",
+          "href": "https://puntosfieles.com/ayuda/caja/practicar/",
+          "italic": [
+            "Practicar el recorrido completo"
+          ]
         }
       ],
       "methodNote": [
@@ -319,6 +329,11 @@
         "alt": "Relojero revisando el mecanismo de un reloj de bolsillo abierto por detrás.",
         "width": 1536,
         "height": 1024
+      },
+      "productNote": {
+        "text": "En la aplicación web, el equipo puede practicar la inscripción, una compra, un rechazo, el canje y su devolución con un cliente ficticio, sin cambiar saldos ni existencias reales. Necesita conexión, una regla y una recompensa configuradas. La práctica no comprueba el punto de venta, Wallet ni la entrega de mensajes (PuntosFieles, 2026).",
+        "href": "/ayuda/caja/practicar/",
+        "linkText": "Cómo practicar el recorrido con tu equipo"
       }
     },
     {
@@ -429,6 +444,15 @@
             "International Journal of Research in Marketing, 24"
           ],
           "href": "https://doi.org/10.1016/j.ijresmar.2006.10.005"
+        },
+        {
+          "id": "pf-help",
+          "citation": "PuntosFieles, 2026",
+          "apa": "PuntosFieles. (2026, 16 de noviembre). Registrar costos y leer las estimaciones [Documentación de software].",
+          "href": "https://puntosfieles.com/ayuda/negocio/costos/",
+          "italic": [
+            "Registrar costos y leer las estimaciones"
+          ]
         }
       ],
       "methodNote": [
@@ -449,6 +473,11 @@
         "alt": "Una balanza compara monedas con una pera y una rama de olivo.",
         "width": 1536,
         "height": 1024
+      },
+      "productNote": {
+        "text": "En la aplicación web, «Costos y margen» muestra costos registrados de canjes y separa los beneficios emitidos de los escenarios de puntos. Requiere un plan con análisis y los costos que ingreses. Las opciones de un mismo ciclo no son premios independientes; los costos históricos faltantes siguen siendo desconocidos (PuntosFieles, 2026).",
+        "href": "/ayuda/negocio/costos/",
+        "linkText": "Cómo registrar costos y leer estos importes"
       }
     },
     {
@@ -475,7 +504,7 @@
         },
         {
           "type": "paragraph",
-          "text": "Ahora hagamos un ejemplo inventado. Una barbería entrega el primer sello hoy y da el premio junto con el último corte requerido. Si una persona vuelve exactamente cada cuatro semanas, completar seis compras exige veinte semanas más; completar diez exige treinta y seis. Para alguien que vuelve cada ocho semanas, los mismos recorridos tomarían cuarenta y setenta y dos semanas. Estos ritmos sirven para seguir la cuenta, no son una frecuencia recomendada."
+          "text": "Ahora hagamos un ejemplo inventado. Una barbería cuenta un sello por corte, sin bonos, y da el premio junto con el último corte requerido. El ejemplo supone que el avance puede usarse de inmediato. Si una persona recibe hoy el primer sello y vuelve cada cuatro semanas, completar seis compras exige veinte semanas más; completar diez exige treinta y seis. Si vuelve cada ocho semanas, serían cuarenta y setenta y dos semanas. Son ritmos hipotéticos, no una frecuencia recomendada."
         },
         {
           "type": "paragraph",
@@ -500,7 +529,7 @@
         },
         {
           "type": "paragraph",
-          "text": "Nuestra propuesta es mostrar juntos el premio y el esfuerzo pendiente: «Llevas cuatro de seis cortes; te faltan dos para un cuidado de barba de regalo». Antes de lanzar, presenta la recompensa a algunos clientes y escucha si la quieren y si el recorrido les parece razonable. Sus respuestas orientan el diseño; las compras posteriores permitirán comprobar qué hacen."
+          "text": "En el mostrador podrías explicar juntos el premio y el esfuerzo pendiente: «Llevas cuatro de seis cortes; te faltan dos para un cuidado de barba de regalo». Antes de lanzar, presenta la recompensa a algunos clientes y escucha si la quieren y si el recorrido les parece razonable. Sus respuestas orientan el diseño; las compras posteriores permitirán comprobar qué hacen."
         },
         {
           "type": "heading",
@@ -537,11 +566,11 @@
         },
         {
           "type": "paragraph",
-          "text": "Los estudios citados no ofrecen un umbral universal. Elige uno que puedas costear y deja transcurrir un plazo compatible con el ritmo de compra que calculaste. Registra cuántas personas empiezan, cuántas alcanzan la meta, cuánto tardan y qué sucede después del canje."
+          "text": "Los estudios citados no ofrecen un umbral universal. Elige uno que puedas costear y deja transcurrir un plazo compatible con el ritmo de compra que calculaste. Para esta revisión, lleva un registro de quiénes empiezan, quiénes alcanzan la meta y cuánto tardan. Es un seguimiento aparte: PF no calcula automáticamente todo ese recorrido ni recomienda un número óptimo de visitas."
         },
         {
           "type": "paragraph",
-          "text": "Escucha también a quienes se quedan a mitad del camino. Quizá la espera sea larga, quizá no les interese el premio o quizá cambiaron sus necesidades. Antes de modificar el número, averigua qué explicación encaja con lo que observas y conserva las condiciones de las recompensas ya ganadas."
+          "text": "Escucha también a quienes se quedan a mitad del camino. Quizá la espera sea larga, quizá no les interese el premio o quizá cambiaron sus necesidades. Antes de modificar el número, averigua qué explicación encaja con lo que observas y conserva también las condiciones ofrecidas a quienes ya empezaron a acumular."
         }
       ],
       "references": [
@@ -621,7 +650,7 @@
         },
         {
           "type": "paragraph",
-          "text": "Imaginemos un taller de bicicletas que quiere probar esta presentación. Podría explicarla así: «Te regalamos dos sellos de bienvenida. Con ocho servicios pagados más completas los diez y recibes un kit de parches». Es un ejemplo de PF, no el premio que se ofreció en el estudio. El cliente debe poder hacer la cuenta sin ayuda."
+          "text": "Imaginemos un taller de bicicletas que quiere probarlo con tarjetas de papel. Podría explicarlo así: «Te regalamos dos sellos de bienvenida. Con ocho servicios pagados más completas los diez y recibes un kit de parches». Es una aplicación hipotética que proponemos, no el premio del estudio. El cliente debe poder hacer la cuenta sin ayuda."
         },
         {
           "type": "paragraph",
@@ -650,7 +679,7 @@
         },
         {
           "type": "paragraph",
-          "text": "Para una prueba pequeña, proponemos comparar las dos presentaciones durante el mismo período, con la misma recompensa y el mismo número de compras pendientes. Repartirlas al azar ayuda a evitar que una termine solo en manos de tus clientes más habituales."
+          "text": "Para una prueba pequeña, puedes usar tarjetas físicas y un registro aparte: compara las dos presentaciones durante el mismo período, con la misma recompensa y el mismo número de compras pendientes. Repartirlas al azar ayuda a evitar que una termine solo en manos de tus clientes más habituales. PF no automatiza esta comparación de tarjetas ni ofrece una configuración general de sellos de bienvenida."
         },
         {
           "type": "paragraph",
@@ -750,7 +779,7 @@
         },
         {
           "type": "paragraph",
-          "text": "En nuestra tienda de plantas, proponemos empezar con «Ya llevas dos de diez compras». Más adelante, «Te faltan dos compras para tu maceta», manteniendo el saldo completo debajo: ocho de diez. Son ejemplos nuestros, no textos cuya eficacia hayan comprobado esos estudios."
+          "text": "Al conversar con el cliente de nuestra tienda de plantas, podrías empezar con «Ya llevas dos de diez compras». Más adelante, «Te faltan dos compras para tu maceta», manteniendo el saldo completo a la vista: ocho de diez. Son ejemplos nuestros, no textos cuya eficacia hayan comprobado esos estudios."
         },
         {
           "type": "paragraph",
@@ -775,7 +804,7 @@
         },
         {
           "type": "paragraph",
-          "text": "Puedes empezar con la tarjeta, el recibo o la pantalla que el cliente abre para ver sus puntos. Mantén a la vista qué recompensa puede obtener y las condiciones para recibirla. Destacar una cifra no requiere esconder la otra ni cambiar el tamaño de la meta."
+          "text": "Puedes empezar con una tarjeta de papel o con una pantalla cuyo texto puedas editar. Mantén a la vista qué recompensa puede obtener y las condiciones para recibirla. Destacar una cifra no requiere esconder la otra ni cambiar el tamaño de la meta."
         },
         {
           "type": "paragraph",
@@ -804,6 +833,15 @@
           "italic": [
             "Journal of Consumer Research, 39"
           ]
+        },
+        {
+          "id": "pf-help",
+          "citation": "PuntosFieles, 2026",
+          "apa": "PuntosFieles. (2026, 16 de noviembre). Consultar puntos disponibles y pendientes [Documentación de software].",
+          "href": "https://puntosfieles.com/ayuda/clientes/puntos/",
+          "italic": [
+            "Consultar puntos disponibles y pendientes"
+          ]
         }
       ],
       "methodNote": [
@@ -824,6 +862,11 @@
         "alt": "Una tarjeta de sellos se convierte en una escalera hacia un pequeño regalo.",
         "width": 1152,
         "height": 768
+      },
+      "productNote": {
+        "text": "La tarjeta web muestra el saldo disponible, la siguiente recompensa y los puntos que faltan para alcanzarla. Mantiene visibles las condiciones; los puntos pendientes aún no sirven para canjear. PF no alterna automáticamente entre «lo ganado» y «lo que falta», ni realiza la comparación de mensajes propuesta aquí (PuntosFieles, 2026).",
+        "href": "/ayuda/clientes/puntos/",
+        "linkText": "Cómo consultar el saldo y la siguiente recompensa"
       }
     }
   ]

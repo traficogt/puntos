@@ -25,7 +25,8 @@ test('all six guides retain their reviewed sources, study passages and publicati
     assert.equal(article.status, status, slug);
     assert.equal(article.datePublished, datePublished, slug);
     assert.equal(article.publishAt, publishAt, slug);
-    assert.equal(hash(article.references), references, `${slug}: reference metadata`);
+    // The capability audit adds a separately cited software-help reference.
+    assert.equal(hash(article.references.filter(reference => reference.id !== 'pf-help')), references, `${slug}: reference metadata`);
     const passages = article.body.filter(block => block.type === 'paragraph' && article.references.some(reference => block.text.includes(reference.citation)))
       // Only this paragraph's own-example bridge changes 30 to 34 purchases;
       // every sentence about the actual study must retain the reviewed text.

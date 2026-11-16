@@ -45,6 +45,11 @@ const shared = {
   category: text.optional(),
   hero: z.object({ ...image, caption: text.optional() }).strict().optional(),
   references: z.array(reference).optional(),
+  productNote: z.object({
+    text: text.max(560),
+    href: z.string().regex(/^\/ayuda\/(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)+$/, 'Enlaza una tarea pública de ayuda, sin parámetros ni enlaces comerciales.'),
+    linkText: text.max(120)
+  }).strict().optional(),
   methodNote: z.array(text).optional(),
   readingMinutes: z.number().int().positive().optional(),
   artCredit: text.optional()

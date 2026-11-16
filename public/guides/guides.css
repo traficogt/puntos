@@ -95,6 +95,10 @@
 .guide-example > p:first-child { font-family: var(--display-font); font-size: 25px; line-height: 1.4; }
 .guide-example .guide-example-note { margin-top: 14px; font-size: 14px; line-height: 1.6; color: var(--muted); }
 .guide-methods { margin-top: 44px; border-block: 1px solid var(--line); font-size: 14px; line-height: 1.75; color: var(--muted); }
+.guide-product-note { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--line); font-size: 16px; line-height: 1.75; }
+.guide-product-note h2 { margin: 0 0 12px; font-family: var(--body-font, Inter, sans-serif); font-size: 16px; font-weight: 600; letter-spacing: normal; }
+.guide-product-note p { margin: 0; color: var(--muted); }
+.guide-product-note > a { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; text-decoration: underline; text-underline-offset: .2em; }
 .guide-methods summary { min-height: 48px; padding-block: 16px; cursor: pointer; font-weight: 500; color: var(--ink); }
 .guide-methods > div { padding-bottom: 20px; }
 .guide-methods p + p { margin-top: 14px; }
