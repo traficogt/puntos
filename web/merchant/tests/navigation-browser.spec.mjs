@@ -116,6 +116,7 @@ try {
     const current = await session(390, "dark");
     const page = current.page;
     await page.goto(`${origin}/negocio/?demo=1`);
+    await expect(page.getByRole("button", { name: "Tema claro", exact: true })).toBeVisible();
     const explore = page.getByRole("button", { name: "Explorar todas las funciones", exact: true });
     await explore.focus();
     await page.keyboard.press("Enter");

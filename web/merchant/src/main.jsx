@@ -16,6 +16,7 @@ import {
   Text,
   Title,
   useMantineColorScheme,
+  useComputedColorScheme,
   localStorageColorSchemeManager,
 } from "@mantine/core";
 import "@mantine/core/styles.css";
@@ -203,7 +204,8 @@ function Merchant({ staff }) {
   const region = useResource("/api/admin/region", refresh);
   if (region.data) setMerchantRegion(region.data.region);
   const enrollment = useResource("/api/admin/customer-enrollment");
-  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
+  const { toggleColorScheme } = useMantineColorScheme();
+  const colorScheme = useComputedColorScheme("light", { getInitialValueInEffect: false });
   useEffect(() => {
     const currentLocation = () => isDemo ? demoLocation(new URL(location.href), page, demoMode) : hashForPage(page);
     history.replaceState(null, "", currentLocation());
