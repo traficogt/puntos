@@ -1,6 +1,7 @@
 # Public loyalty calculator
 
-The public `/calculadora` page is a local, three-step planning tool. It has no
+The public `/calculadora` page starts with a simple two-input reward budget.
+The original three-step calculator remains at `/calculadora/detallada`. Both have no
 API calls, storage, account requirement, lead form, or merchant-setting writes.
 It inherits the existing public website fonts and colors. This is website work;
 it changes no native application or build workflow.
@@ -20,7 +21,41 @@ it changes no native application or build workflow.
   `/guias/funcionan-los-programas-de-fidelizacion`, and the guide hub. It does not
   link future scheduled articles before their publication.
 
-## Arithmetic and assumptions
+## Simple default (owner feedback, November 16)
+
+`public/calculator/simple-model.js`, `simple.js` and `simple.css` implement the
+new default. The only initial numerical inputs are reward delivery cost and the
+number of rewards to cover in a month. Currency remains selectable; optional
+monthly expenses and fictional examples are closed native details disclosures.
+Missing costs never silently become zero. An omitted monthly-expense total is
+explicitly excluded. This total may include the PF quote, messages and operations. Lost contribution
+from displacing a paid sale belongs in the per-reward cost, so it is also
+reserved for rewards earned by new sales. No price is invented.
+
+An optional return section opens only after a valid budget. It asks the amount
+left from a sale after ordinary variable expenses, purchases needed for a reward,
+and optionally additional sales to simulate. Available money from each extra
+sale = entered amount − reward cost / purchases per reward. The additional-sales
+threshold uses exact integer minor-unit/rational arithmetic for the budget and
+per-purchase reserve, avoiding cancellation-induced extra purchases. Zero or
+negative available amounts cannot cover a positive budget. Unknown additional
+sales produce no scenario balance. These sales are separate from the activity
+behind the starting budget; their new reward obligations must not be counted in
+both places. Results are estimates of included costs, not predictions or profit.
+
+Changing budget inputs hides all results; changing optional sales inputs hides
+only the return result and removes its stale print assumptions. Reset clears
+both forms. Printing includes the current budget and only a valid return result, even when
+the return disclosure has been collapsed. Nonzero balances below the currency
+minor unit are shown as less than that unit rather than falsely displayed as zero.
+There is no local storage, write request or provider dependency.
+
+The detailed page is noindex and linked in both directions. Its static HTML alias
+redirects to the canonical secondary route. Existing article/help links still
+open the simple calculator. It preserves multiple rewards, detailed cost inputs,
+redemption scenarios, margin/variable-cost options and text export.
+
+## Detailed calculator arithmetic and assumptions
 
 `public/calculator/model.js` exports the pure calculation model. All inputs use
 one month and one currency. The supported catalog is shared with the website and
@@ -86,7 +121,7 @@ their per-purchase allowance rule and claim no typical margin or PF performance.
 Run with the repository's Node 24 toolchain:
 
 ```sh
-node --test tests/unit/loyalty-calculator.test.js
+node --test tests/unit/loyalty-calculator.test.js tests/unit/simple-calculator.test.js
 node --test tests/integration/loyalty-calculator.browser.test.js
 node node_modules/eslint/bin/eslint.js public/calculator/*.js tests/unit/loyalty-calculator.test.js tests/integration/loyalty-calculator.browser.test.js --max-warnings=0
 ```
@@ -113,3 +148,14 @@ discarded on reload.
 The Impeccable detector reported only Inter and Fraunces as overused fonts. Both
 are explicitly required by the owner and already belong to the site, so they
 were preserved. The established design files were left unchanged.
+
+The simple-page browser regression also checks two visible inputs at entry,
+optional expenses and return, stale print prevention, four fictional examples,
+CLP precision, no storage/writes, and zero axe violations at 1440/390/320px.
+
+Independent review reproduced and resolved service-cost allocation guidance, an
+exact 492-purchase rounding boundary, and collapsed-disclosure printing. Local
+verification passed 35 model/search/editorial checks, both calculator browser
+flows and the self-service routing/status browser suite, strict typecheck, lint
+and the security-pattern gate. The 300-scenario model invariant verifies that
+the stated threshold covers its budget and one fewer purchase does not.

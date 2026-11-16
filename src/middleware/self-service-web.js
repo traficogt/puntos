@@ -4,6 +4,11 @@ import path from 'node:path';
 /** Public documents; case data remains behind the authenticated/capability API. */
 export function createSelfServiceWeb(publicDir) {
   const router = express.Router({ strict: true });
+  router.get(['/calculadora/detallada/', '/calculator/detallada.html'], (_req, res) => res.redirect(308, '/calculadora/detallada'));
+  router.get('/calculadora/detallada', (_req, res) => {
+    res.set('X-Robots-Tag', 'noindex, follow');
+    return res.sendFile('calculator/detallada.html', { root: publicDir });
+  });
   router.get(['/calculadora/', '/calculadora.html', '/estado/', '/estado.html'], (req, res) => {
     const target = req.path.startsWith('/calculadora') ? '/calculadora' : '/estado';
     return res.redirect(308, target);
