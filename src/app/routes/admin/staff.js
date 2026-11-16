@@ -60,6 +60,14 @@ adminStaffRoutes.post(
     const v = validate(StaffCreateSchema, req.body);
     if (!v.ok) return res.status(400).json({ error: v.error });
 
+    const branchId = v.data.branch_id ?? req.staff.branch_id ?? null;
+    if (branchId) {
+      const branch = await BranchRepo.getById(branchId);
+      if (!branch || branch.business_id !== req.tenantId) {
+        return res.status(400).json({ error: "La sucursal no pertenece a tu negocio." });
+      }
+    }
+
     const existing = await StaffRepo.getByEmail(v.data.email);
     if (existing) return res.status(409).json({ error: "Email already used" });
 
@@ -73,7 +81,7 @@ adminStaffRoutes.post(
     const staff = await StaffRepo.create({
       id: makeId(),
       business_id: req.tenantId,
-      branch_id: v.data.branch_id ?? req.staff.branch_id,
+      branch_id: branchId,
       name: v.data.name,
       email: v.data.email,
       phone: v.data.phone ?? null,
