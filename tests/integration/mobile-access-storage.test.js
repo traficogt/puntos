@@ -104,10 +104,26 @@ test('phone-first mobile access real PostgreSQL credentials, membership isolatio
       if (old !== next) await assert.rejects(service.verify({ phone, code: old }), { statusCode: 401 });
       await admin.query("UPDATE mobile_access_codes SET expires_at=now()-interval '1 second' WHERE phone=$1", [phone]);
       await assert.rejects(service.verify({ phone, code: next }), { statusCode: 401 });
-      const result = await grant(); assert.equal(result.status, 'choose_card'); assert.equal(result.cards.length, 2);
+      await age(); const currentCode = await request();
+      // Membership lookup can take longer than the old 100 ms tolerance. Keep
+      // real PostgreSQL storage and transactions while reproducing that delay.
+      const delayedService = createMobileAccessService({ sendMessage: delivery, repo: { ...MobileAccessRepo,
+        listCards: async number => { await database.dbQuery('SELECT pg_sleep(1.1)'); return MobileAccessRepo.listCards(number); }
+      } });
+      const verificationStartedAt = Date.now();
+      const result = await delayedService.verify({ phone, code: currentCode });
+      const verificationFinishedAt = Date.now();
+      assert.equal(result.status, 'choose_card'); assert.equal(result.cards.length, 2);
       assert.ok(result.cards.every(card => Object.keys(card).sort().join(',') === 'id,name,slug'));
       const stored = (await admin.query('SELECT * FROM mobile_access_grants WHERE token_hash=$1', [hashSessionToken(result.accessToken)])).rows[0];
-      assert.equal(stored.phone, phone); assert.notEqual(stored.token_hash, result.accessToken); assert.ok(Date.parse(stored.expires_at) - Date.parse(stored.created_at) <= 300100);
+      assert.equal(stored.phone, phone); assert.notEqual(stored.token_hash, result.accessToken);
+      // PostgreSQL now() records the transaction start, before verification and
+      // membership lookup. The five-minute grant starts when proof is issued.
+      // Read Date milliseconds directly; Date.parse(Date) truncates precision.
+      const expiresAt = stored.expires_at.getTime();
+      assert.equal(expiresAt, Date.parse(result.expiresAt));
+      assert.ok(expiresAt >= verificationStartedAt + 300000);
+      assert.ok(expiresAt <= verificationFinishedAt + 300000);
     });
     await t.test('grant rejects foreign-phone membership, expired proof, deletion and replay', async () => {
       const first = await grant();
