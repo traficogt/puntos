@@ -41,9 +41,9 @@ async function setup(page) {
 async function openStaff(page) {
   await page.goto(`${server.baseUrl}/staff?sw=noreload`);
   await expect(page.locator("#programInfo")).toContainText("Regla activa");
-  // The program renders before the offline grant request finishes. Wait for
-  // the initial queue/session snapshot before switching the browser offline.
-  await expect(page.locator("#queueMeta")).toContainText("Última actividad:");
+  // The initial HTML already has queue totals, before the grant request and
+  // session snapshot finish. These runtime-only messages confirm readiness.
+  await expect(page.locator("#queueMeta")).toContainText(/Captura sin conexión disponible|Conéctate para habilitar la captura/);
 }
 async function selectCustomer(page) {
   await page.fill("#token", "signed-qr-token");
