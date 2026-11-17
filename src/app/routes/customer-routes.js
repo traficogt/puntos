@@ -14,6 +14,7 @@ import { RewardRepo } from "../repositories/reward-repository.js";
 import { RedemptionRepo } from "../repositories/redemption-repository.js";
 import { toCSV } from "../../utils/csv.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
+import { ReferralRepository } from "../repositories/referral-repository.js";
 import { PlanConfigService } from "../services/plan-config-service.js";
 import { settlePendingPointsForCustomer, expirePointsForCustomer } from "../services/loyalty-ops-service.js";
 import { logger } from "../../utils/logger.js";
@@ -49,6 +50,8 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
   if (!business || business.id !== auth.business_id) return rejectMissingCustomer(req, res);
   const overrides = await PlanConfigService.getPlanFeatureOverrides().catch(() => ({}));
   const features = planFeaturesWithOverrides(business.plan, overrides);
+  // Additive: the plan allows referrals AND the owner has turned them on.
+  const referralsEnabled = Boolean(features.referrals) && Boolean((await ReferralRepository.getSettings(business.id))?.enabled);
   res.json({
     ok: true,
     business: {
@@ -57,6 +60,7 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
       slug: business.slug,
       plan: business.plan,
       features,
+      referrals_enabled: referralsEnabled,
       region: businessRegion(business),
       customer_branding: business.customer_branding_json ?? null
     },

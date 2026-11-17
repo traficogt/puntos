@@ -39,7 +39,9 @@ paymentWebhookRoutes.post("/public/payments/webhook/:provider", moderateRateLimi
   } catch (err) {
     const status = Number(err?.statusCode || err?.status || 500);
     if (status === 403) {
-      await SecurityEventRepo.log({
+      // No tenant is known before the signature verifies, so a plain insert
+      // would be rejected by security_events RLS and silently lost.
+      await SecurityEventRepo.logPrivileged({
         event_type: "webhook_auth_failed",
         severity: "HIGH",
         route: safeLogUrl(req.originalUrl || req.url),
@@ -73,7 +75,9 @@ paymentWebhookRoutes.get(
 
 export const ResolveSchema = z.object({
   customerId: z.guid().optional(),
-  customerPhone: z.string().min(6).optional()
+  customerPhone: z.string().min(6).optional(),
+  // Only for events that arrived with an invalid amount; validated by the service.
+  amountQ: z.union([z.number(), z.string().max(20)]).optional()
 }).refine((v) => Boolean(v.customerId || v.customerPhone), {
   message: "customerId or customerPhone is required"
 });
@@ -86,7 +90,8 @@ paymentWebhookRoutes.post("/admin/payment-webhooks/:id/resolve", csrfProtect, re
     businessId: req.tenantId,
     eventId: req.params.id,
     customerId: v.data.customerId,
-    customerPhone: v.data.customerPhone
+    customerPhone: v.data.customerPhone,
+    amountQ: v.data.amountQ
   });
   res.json(out);
 }));

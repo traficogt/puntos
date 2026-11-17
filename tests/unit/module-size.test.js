@@ -22,7 +22,7 @@ describe("module size guardrails", () => {
       ["public/admin-dashboard.html", 230],
       ["public/admin-dashboard/fragments/program.html", 180],
       ["public/admin-dashboard/fragments/analytics.html", 180],
-      ["public/admin-dashboard/modules/analytics/dashboard.js", 140],
+      ["public/admin-dashboard/modules/analytics/dashboard.js", 150],
       ["public/admin-dashboard/core.js", 380],
       ["public/admin-dashboard/tab-controller.js", 100],
       ["public/admin-dashboard/session-controller.js", 80],

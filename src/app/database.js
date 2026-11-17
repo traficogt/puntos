@@ -18,4 +18,4 @@ export {
   withDbClientContext
 } from "./db/session.js";
 export { initDatabase, applySchemaExtensions, runManagedMigrations, listManagedMigrations } from "./db/migrations.js";
-export { withTransaction } from "./db/transactions.js";
+export { withTransaction, afterCommit } from "./db/transactions.js";

@@ -6,7 +6,7 @@ import { asyncRoute } from "../../middleware/common.js";
 import { validateQuery } from "../../utils/schemas.js";
 import { requireRecentReauth, requireSuperAdmin } from "../../middleware/auth.js";
 import { csrfProtect } from "../../middleware/csrf.js";
-import { strictRateLimit } from "../../middleware/rate-limit.js";
+import { accountTokenConfirmRateLimit, passwordResetRequestRateLimit, superLoginRateLimit } from "../../middleware/rate-limit.js";
 import { dbQuery } from "../database.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
 import { PlanConfigService } from "../services/plan-config-service.js";
@@ -37,6 +37,7 @@ import {
   createSuperBusinessUser,
   LoginSchema,
   logSuperAudit,
+  recordSuperLoginFailure,
   requireSupportedPlan,
   UpdatePlanFeaturesSchema,
   UpdatePlanSchema
@@ -79,7 +80,7 @@ const SuperMfaConfirmSchema = z.object({
   code: z.string().regex(/^\d{6}$/)
 });
 
-superRoutes.post("/super/login", strictRateLimit, asyncRoute(async (req, res) => {
+superRoutes.post("/super/login", superLoginRateLimit, asyncRoute(async (req, res) => {
   const parsed = LoginSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Payload de login inválido" });
   /** @type {SuperLoginInput} */
@@ -98,20 +99,13 @@ superRoutes.post("/super/login", strictRateLimit, asyncRoute(async (req, res) =>
   if (
     !emailMatches || !passwordMatches
   ) {
-    await SecurityEventRepo.log({
-      event_type: "super_login_failed",
-      severity: "HIGH",
-      route: "/api/super/login",
-      method: "POST",
-      ip: getRequestIp(req),
-      actor_type: "SUPER_ADMIN",
-      meta: { email: payload.email.toLowerCase() }
-    }).catch(() => { });
+    await recordSuperLoginFailure(req, payload.email);
     return res.status(401).json({ error: "Credenciales inválidas" });
   }
   const mfaResult = await verifySuperMfaForLogin(payload.mfaCode);
   const token = await signSuperToken({
     email: payload.email.toLowerCase(),
+    reauthVerified: true,
     mfaVerified: Boolean(mfaResult?.mfaVerified)
   });
   res.cookie(
@@ -124,7 +118,7 @@ superRoutes.post("/super/login", strictRateLimit, asyncRoute(async (req, res) =>
   res.json(response);
 }));
 
-superRoutes.post("/public/super/password-reset/request", strictRateLimit, asyncRoute(async (req, res) => {
+superRoutes.post("/public/super/password-reset/request", passwordResetRequestRateLimit, asyncRoute(async (req, res) => {
   const parsed = SuperPasswordResetRequestSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Payload inválido" });
   await requestSuperPasswordReset({
@@ -135,7 +129,7 @@ superRoutes.post("/public/super/password-reset/request", strictRateLimit, asyncR
   res.json({ ok: true });
 }));
 
-superRoutes.post("/public/super/password-reset/confirm", strictRateLimit, asyncRoute(async (req, res) => {
+superRoutes.post("/public/super/password-reset/confirm", accountTokenConfirmRateLimit, asyncRoute(async (req, res) => {
   const parsed = SuperPasswordResetConfirmSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Payload inválido" });
   await completeSuperPasswordReset({
@@ -147,7 +141,7 @@ superRoutes.post("/public/super/password-reset/confirm", strictRateLimit, asyncR
   res.json({ ok: true });
 }));
 
-superRoutes.post("/public/super/email-change/confirm", strictRateLimit, asyncRoute(async (req, res) => {
+superRoutes.post("/public/super/email-change/confirm", accountTokenConfirmRateLimit, asyncRoute(async (req, res) => {
   const parsed = SuperTokenConfirmSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Token inválido" });
   const out = await confirmSuperEmailChange({
@@ -279,7 +273,7 @@ superRoutes.post("/super/businesses/:businessId/users", csrfProtect, requireSupe
   /** @type {SuperBusinessUserCreateInput} */
   const payload = parsed.data;
   const businessId = String(req.params.businessId || "");
-  const finalUser = await createSuperBusinessUser(businessId, payload);
+  const finalUser = await createSuperBusinessUser(businessId, payload, { req, superAdminEmail: req.superAdmin.email });
 
   /** @type {SuperBusinessUserCreateResponse} */
   const response = {
@@ -312,6 +306,7 @@ superRoutes.put("/super/plans/:plan/features", csrfProtect, requireSuperAdmin, a
   const plan = requireSupportedPlan(req.params.plan);
   const features = await PlanConfigService.updatePlanFeatures(plan, payload.features);
   if (!features) return res.status(404).json({ error: "Plan no encontrado" });
+  await logSuperAudit({ action: "super.plan_features.update", businessId: null, req, superAdminEmail: req.superAdmin.email, meta: { plan, features: payload.features } });
   res.json({ ok: true, plan, features });
 }));
 
@@ -360,7 +355,8 @@ superRoutes.post("/super/impersonate/:businessId", csrfProtect, requireSuperAdmi
     bid: target.business_id,
     role: target.role,
     brid: target.branch_id ?? null,
-    imp: superAdmin.email
+    imp: superAdmin.email,
+    reauthVerified: false // The super admin has not proven the staff member's credentials.
   });
   res.cookie(config.STAFF_COOKIE_NAME, token, { ...cookieOpts(req), maxAge: browserCookieMaxAge("STAFF") });
 
@@ -402,11 +398,12 @@ superRoutes.get("/super/security/posture", requireSuperAdmin, validateQuery(z.ob
   });
 }));
 
-superRoutes.post("/super/security/rotate-secrets", csrfProtect, requireSuperAdmin, requireRecentReauth(), asyncRoute(async (_req, res) => {
+superRoutes.post("/super/security/rotate-secrets", csrfProtect, requireSuperAdmin, requireRecentReauth(), asyncRoute(async (req, res) => {
   const [webhookRotated, externalAwardRotated] = await Promise.all([
     WebhookRepo.rotateSecretsToCurrentKey(),
     BusinessRepo.rotateExternalAwardApiKeysToCurrent()
   ]);
+  await logSuperAudit({ action: "super.secrets.rotate", businessId: null, req, superAdminEmail: req.superAdmin.email, meta: { webhook_secrets: webhookRotated, external_award_api_keys: externalAwardRotated } });
   res.json({
     ok: true,
     rotated: {

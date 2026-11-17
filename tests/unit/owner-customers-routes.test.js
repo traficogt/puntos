@@ -3,7 +3,8 @@ import {randomUUID} from 'node:crypto';
 import {before, beforeEach, after, test} from 'node:test';
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import {pool} from '../../src/app/database.js';
+import {EventEmitter} from 'node:events';
+import {pool, transactionPool} from '../../src/app/database.js';
 import {config} from '../../src/config/index.js';
 import {errorHandler} from '../../src/middleware/common.js';
 import {StaffRepo} from '../../src/app/repositories/staff-repository.js';
@@ -12,13 +13,15 @@ import {staffRoutes} from '../../src/app/routes/staff-routes.js';
 import {createBrowserSession} from '../../src/app/services/auth-session-service.js';
 const businessId=randomUUID(), staffId=randomUUID(), id=randomUUID(), csrf='owner-fixture-csrf';
 let server, origin, cookie, role, calls, mfaEnabled=false;
-const original={staff:StaffRepo.getById, query:pool.query};
+const original={staff:StaffRepo.getById, query:pool.query, connect:transactionPool.connect};
 before(async()=>{
  const routes=await import('../../src/app/routes/admin/customers.js');
  assert.equal(typeof routes.createCustomerDirectoryRouter,'function','owner directory router exists');
  const password_hash=await hashPassword('fixture-private-passphrase');
  StaffRepo.getById=async()=>({id:staffId,business_id:businessId,role,active:true,password_hash,mfa_enabled:mfaEnabled});
  pool.query=async()=>({rows:[],rowCount:0});
+ // Profile edits commit with their audit entry; the fixture transaction client is inert.
+ transactionPool.connect=/** @type {any} */(async()=>Object.assign(new EventEmitter(),{query:async()=>({rows:[],rowCount:0}),release(){}}));
  const session=await createBrowserSession({actorType:'STAFF',actorId:staffId,businessId,role:'OWNER'});
  cookie=`${config.STAFF_COOKIE_NAME}=${session.token}; pf_csrf=${csrf}`;
  const repo={list:async args=>{calls.push(args);return {customers:[],page:args.page,limit:args.limit,total:0,total_pages:1};},get:async args=>{calls.push(args);return args.customerId===id?{id,name:'Ana'}:null;},updateName:async args=>{calls.push(args);return {id,name:args.name};}};
@@ -26,7 +29,7 @@ before(async()=>{
  server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));origin=`http://127.0.0.1:${server.address().port}`;
 });
 beforeEach(()=>{role='OWNER';calls=[];mfaEnabled=false;});
-after(async()=>{if(server)await new Promise(r=>server.close(r));StaffRepo.getById=original.staff;pool.query=original.query;});
+after(async()=>{if(server)await new Promise(r=>server.close(r));StaffRepo.getById=original.staff;pool.query=original.query;transactionPool.connect=original.connect;});
 async function request(path='',options={}){const res=await fetch(`${origin}/api/admin/customers${path}`,{method:options.method||'GET',headers:{cookie:options.cookie??cookie,origin:options.origin??origin,'x-csrf-token':options.csrf??csrf,'content-type':'application/json'},body:options.body===undefined?undefined:JSON.stringify(options.body)});return {status:res.status,cache:res.headers.get('cache-control'),body:await res.json()};}
 test('directory requires owner and never accepts a tenant selector',async()=>{
  assert.equal((await request('',{cookie:''})).status,401);role='MANAGER';assert.equal((await request()).status,403);role='OWNER';assert.equal((await request('?business_id=other')).status,400);assert.equal(calls.length,0);

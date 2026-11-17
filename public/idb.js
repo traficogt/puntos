@@ -131,7 +131,11 @@ export async function getAwardQueueStats(scope) {
     total: awards.length,
     queued: 0,
     syncing: 0,
+    // Rows that are never resent automatically: held (session expired, or a
+    // legacy "failed" row whose outcome is unknown) and server rejections.
     failed: 0,
+    held: 0,
+    rejected: 0,
     quarantined: all.filter((row) => !row.businessId || !row.staffId || row.status === "quarantined").length,
     lastQueuedAt: "",
     lastError: ""
@@ -139,7 +143,8 @@ export async function getAwardQueueStats(scope) {
 
   for (const award of awards) {
     if (award.status === "syncing") stats.syncing += 1;
-    else if (award.status === "failed") stats.failed += 1;
+    else if (award.status === "held" || award.status === "failed") { stats.held += 1; stats.failed += 1; }
+    else if (award.status === "rejected") { stats.rejected += 1; stats.failed += 1; }
     else stats.queued += 1;
 
     if (!stats.lastQueuedAt || String(award.updated_at || "") > stats.lastQueuedAt) {

@@ -1,7 +1,7 @@
 ---
 title: Ayuda para el equipo de caja
 description: Ayuda para el equipo de caja
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: index
 sources:
 - public/staff.html
@@ -36,5 +36,5 @@ Una tarea por vez: prepara el turno, confirma al cliente y comprueba cada operac
 ## Conexión y cierre
 
 - [Qué puedes hacer sin internet](/ayuda/caja/sin-conexion/)
-- [Enviar pendientes y revisar fallidos](/ayuda/caja/sincronizar/)
+- [Enviar pendientes y revisar ventas rechazadas](/ayuda/caja/sincronizar/)
 - [Cerrar el turno y entregar pendientes](/ayuda/caja/cerrar-turno/)

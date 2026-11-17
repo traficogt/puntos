@@ -48,9 +48,33 @@ export function waitForQrLogoAsset(logoUrl, { ImageCtor = Image, timeoutMs = 150
 }
 
 /**
- * @param {{ $: (selector: string) => Element | null; toast: (message: string) => void }} deps
+ * The status and code of a failed QR response. Its body is never shown.
+ * @param {Response} resp
  */
-export function createQrController({ $, toast }) {
+export async function qrResponseError(resp) {
+  let body = null;
+  try { body = await resp.json(); } catch { /* Non-JSON bodies carry no code. */ }
+  const error = /** @type {Error & { status?: number; code?: string }} */ (new Error(`HTTP ${resp.status}`));
+  error.status = resp.status;
+  if (typeof body?.code === "string") error.code = body.code;
+  return error;
+}
+
+/**
+ * Customer-facing Spanish copy for a QR failure other than an ended session.
+ * @param {unknown} error
+ */
+export function qrErrorMessage(error) {
+  const status = Number(/** @type {{ status?: number }} */ (error)?.status || 0);
+  if (status === 429) return "Generaste varios QR seguidos. Espera un momento e inténtalo de nuevo.";
+  if (!status && (error instanceof TypeError || !navigator.onLine)) return "No se pudo generar tu QR. Revisa tu conexión e inténtalo de nuevo.";
+  return "No se pudo generar tu QR. Inténtalo de nuevo en un momento.";
+}
+
+/**
+ * @param {{ $: (selector: string) => Element | null; toast: (message: string) => void; onSessionExpired?: () => void }} deps
+ */
+export function createQrController({ $, toast, onSessionExpired = () => toast("Tu sesión venció. Vuelve a entrar desde el acceso del negocio.") }) {
   let qrTimer = null;
   let lastExp = null;
   let generation = 0;
@@ -78,10 +102,7 @@ export function createQrController({ $, toast }) {
     try {
       const resp = await fetch("/api/public/customer/qr.svg", { credentials: "include" });
       if (!isCurrent()) return;
-      if (!resp.ok) {
-        const t = await resp.text();
-        throw new Error(t || `HTTP ${resp.status}`);
-      }
+      if (!resp.ok) throw await qrResponseError(resp);
       const svg = await resp.text();
       if (!isCurrent()) return;
 
@@ -135,7 +156,7 @@ export function createQrController({ $, toast }) {
       lastExp = exp ? new Date(exp * 1000) : null;
 
       const expEl = /** @type {HTMLElement | null} */ (el("#qrExp"));
-      if (expEl) expEl.textContent = lastExp ? lastExp.toLocaleTimeString() : "—";
+      if (expEl) expEl.textContent = lastExp ? formatDate(lastExp, walletRegion($), { timeStyle: "medium" }) : "—";
       const hintEl = /** @type {HTMLElement | null} */ (el("#qrHint"));
       if (hintEl) hintEl.textContent = lastExp ? "Muestra este QR al personal para sumar puntos." : "";
 
@@ -153,7 +174,14 @@ export function createQrController({ $, toast }) {
         if (ms < 12_000) generateQR().catch(() => {});
       }, 3_000);
     } catch (e) {
-      if (isCurrent()) toast(e.message || "No se pudo generar QR");
+      if (!isCurrent()) return;
+      if (isCustomerAuthError(e)) {
+        // The wallet's session-expired flow clears the card and asks for a new login.
+        dispose();
+        onSessionExpired();
+        return;
+      }
+      toast(qrErrorMessage(e));
     } finally {
       inFlight = false;
     }
@@ -167,4 +195,5 @@ export function createQrController({ $, toast }) {
 
   return { generateQR, dispose };
 }
-import { getCustomerEpoch } from "./session.js";
+import { formatDate, walletRegion } from "./format.js";
+import { getCustomerEpoch, isCustomerAuthError } from "./session.js";

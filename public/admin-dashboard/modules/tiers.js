@@ -34,7 +34,8 @@ export function registerTiersModule(app) {
         name.textContent = tier.name;
         const meta = document.createElement("div");
         meta.className = "small";
-        meta.textContent = `Nivel ${tier.tier_level} • ${tier.min_points}+ puntos • ${tier.points_multiplier}x multiplicador`;
+        // points_multiplier is stored but never applied when points are awarded.
+        meta.textContent = `Nivel ${tier.tier_level} • desde ${tier.min_points} puntos ganados`;
         textWrap.append(name, meta);
         badge.appendChild(textWrap);
 
@@ -157,7 +158,7 @@ export function registerTiersModule(app) {
     $("#tierName").value = "";
     $("#tierLevel").value = "4";
     $("#tierMinPoints").value = "5000";
-    $("#tierMultiplier").value = "2.0";
+    $("#tierMultiplier").value = "1";
     $("#tierColor").value = "";
     $("#tierIcon").value = "";
     $("#tierPerks").value = "";

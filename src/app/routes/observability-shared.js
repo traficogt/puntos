@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { config } from "../../config/index.js";
-import { dbQuery } from "../database.js";
+import { dbQuery, withDbClientContext } from "../database.js";
 
 const require = createRequire(import.meta.url);
 const pkg = require(path.join(process.cwd(), "package.json"));
@@ -82,6 +82,14 @@ export async function checkDatabaseStatus() {
   return { checks, healthy };
 }
 
+// Operator gauges are cross-business aggregates without customer data. Tenant
+// tables are isolated by RLS, so the NOBYPASSRLS runtime role would read zero
+// rows without context and alerts on these gauges could never fire. Each
+// query reads explicitly as platform admin; only metrics-token holders see them.
+function platformQuery(sql) {
+  return withDbClientContext({ platformAdmin: true, tenantId: null }, () => dbQuery(sql));
+}
+
 export async function appendSharedMetrics(metrics) {
   const dbStats = await dbQuery(`
     SELECT
@@ -99,7 +107,7 @@ export async function appendSharedMetrics(metrics) {
   metrics.push(`# TYPE puntos_db_connections_idle gauge`);
   metrics.push(`puntos_db_connections_idle ${dbStat.idle_connections || 0}`);
 
-  const tableStats = await dbQuery(`
+  const tableStats = await platformQuery(`
     SELECT 'customers' as table_name, count(*) as row_count
     FROM customers WHERE deleted_at IS NULL
     UNION ALL
@@ -113,7 +121,7 @@ export async function appendSharedMetrics(metrics) {
     metrics.push(`puntos_table_rows_${row.table_name} ${row.row_count}`);
   }
 
-  const webhookStats = await dbQuery(`
+  const webhookStats = await platformQuery(`
     SELECT status, count(*) as count
     FROM webhook_deliveries
     WHERE created_at > now() - interval '24 hours'
@@ -129,7 +137,7 @@ export async function appendSharedMetrics(metrics) {
   metrics.push(`puntos_webhook_deliveries_24h{status="sent"} ${webhookCounts.SENT}`);
   metrics.push(`puntos_webhook_deliveries_24h{status="failed"} ${webhookCounts.FAILED}`);
 
-  const paymentWebhookStats = await dbQuery(`
+  const paymentWebhookStats = await platformQuery(`
     SELECT status, count(*) as count
     FROM payment_webhook_events
     WHERE created_at > now() - interval '24 hours'
@@ -151,7 +159,7 @@ export async function appendSharedMetrics(metrics) {
   metrics.push(`puntos_payment_webhook_events_24h{status="pending_mapping"} ${paymentWebhookCounts.PENDING_MAPPING}`);
   metrics.push(`puntos_payment_webhook_events_24h{status="ignored"} ${paymentWebhookCounts.IGNORED}`);
 
-  const paymentWebhookBacklog = await dbQuery(`
+  const paymentWebhookBacklog = await platformQuery(`
     SELECT EXTRACT(EPOCH FROM (now() - MIN(created_at))) AS age_seconds
     FROM payment_webhook_events
     WHERE status = 'PENDING_MAPPING'
@@ -161,7 +169,7 @@ export async function appendSharedMetrics(metrics) {
   metrics.push(`# TYPE puntos_payment_webhook_pending_mapping_oldest_age_seconds gauge`);
   metrics.push(`puntos_payment_webhook_pending_mapping_oldest_age_seconds ${pendingMappingAgeSeconds.toFixed(0)}`);
 
-  const pointsStats = await dbQuery(`
+  const pointsStats = await platformQuery(`
     SELECT
       count(*) as customer_count,
       COALESCE(sum(points), 0) as total_points,
@@ -179,38 +187,48 @@ export async function appendSharedMetrics(metrics) {
   metrics.push(`# TYPE puntos_points_average gauge`);
   metrics.push(`puntos_points_average ${parseFloat(pointStats.avg_points || 0).toFixed(2)}`);
 
-  const reconciliationLast = await dbQuery(`
+  // Ledger tables are tenant-isolated by RLS. These operator gauges are
+  // cross-business aggregates without customer data, read as platform admin.
+  const reconciliationLast = await platformQuery(`
     SELECT
       COALESCE(EXTRACT(EPOCH FROM MAX(completed_at)), 0) AS last_completed_ts
     FROM ledger_reconciliation_runs
     WHERE status = 'COMPLETED'
   `);
-  const reconciliationLatest = await dbQuery(`
+  // The nightly worker records one run per business; sum each business's latest.
+  const reconciliationLatest = await platformQuery(`
     SELECT
-      checked_customers,
-      mismatched_customers,
-      repaired_customers
-    FROM ledger_reconciliation_runs
-    WHERE status = 'COMPLETED'
-    ORDER BY completed_at DESC
-    LIMIT 1
+      COALESCE(SUM(checked_customers), 0)::int AS checked_customers,
+      COALESCE(SUM(mismatched_customers), 0)::int AS mismatched_customers,
+      COALESCE(SUM(repaired_customers), 0)::int AS repaired_customers
+    FROM (
+      SELECT DISTINCT ON (business_id)
+        checked_customers,
+        mismatched_customers,
+        repaired_customers
+      FROM ledger_reconciliation_runs
+      WHERE status = 'COMPLETED'
+        AND scope = 'business'
+        AND business_id IS NOT NULL
+      ORDER BY business_id, completed_at DESC
+    ) latest_by_business
   `);
   const latestRun = reconciliationLatest.rows?.[0] || {};
   const lastCompletedTs = Number(reconciliationLast.rows?.[0]?.last_completed_ts ?? 0);
   metrics.push(`# HELP puntos_ledger_reconciliation_last_completed_timestamp Unix timestamp of the latest completed ledger reconciliation run`);
   metrics.push(`# TYPE puntos_ledger_reconciliation_last_completed_timestamp gauge`);
   metrics.push(`puntos_ledger_reconciliation_last_completed_timestamp ${lastCompletedTs.toFixed(0)}`);
-  metrics.push(`# HELP puntos_ledger_reconciliation_checked_customers_total Customers checked in the latest completed ledger reconciliation run`);
+  metrics.push(`# HELP puntos_ledger_reconciliation_checked_customers_total Customers checked in each business's latest completed ledger reconciliation run`);
   metrics.push(`# TYPE puntos_ledger_reconciliation_checked_customers_total gauge`);
   metrics.push(`puntos_ledger_reconciliation_checked_customers_total ${Number(latestRun.checked_customers || 0)}`);
-  metrics.push(`# HELP puntos_ledger_reconciliation_mismatched_customers_total Customers with balance drift in the latest completed ledger reconciliation run`);
+  metrics.push(`# HELP puntos_ledger_reconciliation_mismatched_customers_total Customers with balance drift in each business's latest completed ledger reconciliation run`);
   metrics.push(`# TYPE puntos_ledger_reconciliation_mismatched_customers_total gauge`);
   metrics.push(`puntos_ledger_reconciliation_mismatched_customers_total ${Number(latestRun.mismatched_customers || 0)}`);
-  metrics.push(`# HELP puntos_ledger_reconciliation_repaired_customers_total Customers auto-repaired in the latest completed ledger reconciliation run`);
+  metrics.push(`# HELP puntos_ledger_reconciliation_repaired_customers_total Customers auto-repaired in each business's latest completed ledger reconciliation run`);
   metrics.push(`# TYPE puntos_ledger_reconciliation_repaired_customers_total gauge`);
   metrics.push(`puntos_ledger_reconciliation_repaired_customers_total ${Number(latestRun.repaired_customers || 0)}`);
 
-  const anomalyStats = await dbQuery(`
+  const anomalyStats = await platformQuery(`
     SELECT
       COALESCE((
         SELECT COUNT(*)
@@ -278,7 +296,7 @@ export function appendProcessMetrics(metrics) {
 }
 
 export async function appendBillingMetrics(metrics) {
-  const billingAgg = await dbQuery(`
+  const billingAgg = await platformQuery(`
     SELECT event_type, count(*) AS count
     FROM billing_events
     WHERE created_at > now() - interval '24 hours'
@@ -297,7 +315,7 @@ export async function appendBillingMetrics(metrics) {
 }
 
 export async function appendBackgroundJobMetrics(metrics) {
-  const jobCounts = await dbQuery(`
+  const jobCounts = await platformQuery(`
     SELECT status, count(*) AS count
     FROM background_jobs
     GROUP BY status
@@ -313,7 +331,7 @@ export async function appendBackgroundJobMetrics(metrics) {
   metrics.push(`puntos_jobs_total{status="done"} ${jobCountMap.DONE}`);
   metrics.push(`puntos_jobs_total{status="failed"} ${jobCountMap.FAILED}`);
 
-  const oldestQueued = await dbQuery(`
+  const oldestQueued = await platformQuery(`
     SELECT EXTRACT(EPOCH FROM (now() - run_after)) AS age_seconds
     FROM background_jobs
     WHERE status='QUEUED'
@@ -325,7 +343,7 @@ export async function appendBackgroundJobMetrics(metrics) {
   metrics.push(`# TYPE puntos_jobs_oldest_age_seconds gauge`);
   metrics.push(`puntos_jobs_oldest_age_seconds ${ageSeconds.toFixed(0)}`);
 
-  const runningAges = await dbQuery(`
+  const runningAges = await platformQuery(`
     SELECT
       COALESCE(MAX(EXTRACT(EPOCH FROM (now() - started_at))) FILTER (WHERE status = 'RUNNING'), 0) AS oldest_running_age_seconds,
       COALESCE(COUNT(*) FILTER (WHERE status = 'RUNNING' AND started_at <= now() - interval '15 minutes'), 0) AS stale_running_count,
@@ -344,7 +362,7 @@ export async function appendBackgroundJobMetrics(metrics) {
   metrics.push(`# TYPE puntos_jobs_failed_24h gauge`);
   metrics.push(`puntos_jobs_failed_24h ${Number(running.failed_24h || 0)}`);
 
-  const churnLast = await dbQuery(`
+  const churnLast = await platformQuery(`
     SELECT EXTRACT(EPOCH FROM max(created_at)) AS last_ts
     FROM message_logs
     WHERE channel = 'CHURN'

@@ -31,7 +31,9 @@ function actorContext(req) {
 
 function logDenied(req, method, reason) {
   const actor = actorContext(req);
-  return SecurityEventRepo.log({
+  // Denials often happen before authentication sets a tenant, where a plain
+  // RLS-scoped insert would be rejected and the event lost.
+  return SecurityEventRepo.logPrivileged({
     event_type: "csrf_denied",
     severity: "MEDIUM",
     route: safeLogUrl(req.originalUrl || req.url),

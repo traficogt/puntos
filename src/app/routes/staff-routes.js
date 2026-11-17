@@ -7,10 +7,10 @@ import { browserCookieMaxAge, cookieOpts } from "../../utils/auth-token.js";
 import { config } from "../../config/index.js";
 import { sanitizeProgramForClient } from "../../utils/program-secrets.js";
 import { issueOfflineGrant } from "../services/staff-offline-service.js";
-import { requireRecentReauth, requireStaff, requireStaffPermission } from "../../middleware/auth.js";
+import { forbidImpersonatedSession, requireRecentReauth, requireStaff, requireStaffPermission } from "../../middleware/auth.js";
 import { csrfProtect } from "../../middleware/csrf.js";
 import { requirePlanFeature } from "../../middleware/plan-feature.js";
-import { strictRateLimit } from "../../middleware/rate-limit.js";
+import { staffLoginRateLimit } from "../../middleware/rate-limit.js";
 import { staffLogin, awardPoints, redeemRewardWithRecovery, syncAwards, refundAward, lookupCustomerByQrToken } from "../services/staff-service.js";
 import { RewardRepo } from "../repositories/reward-repository.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
@@ -45,7 +45,7 @@ const StaffMfaConfirmSchema = z.object({
   code: z.string().regex(/^\d{6}$/)
 });
 
-staffRoutes.post("/staff/login", strictRateLimit, asyncRoute(async (req, res) => {
+staffRoutes.post("/staff/login", staffLoginRateLimit, asyncRoute(async (req, res) => {
   const v = validate(staffLoginSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
 
@@ -54,7 +54,7 @@ staffRoutes.post("/staff/login", strictRateLimit, asyncRoute(async (req, res) =>
   res.json({ ok: true, staff });
 }));
 
-staffRoutes.post("/staff/security/reauth", requireStaff, csrfProtect, asyncRoute(async (req, res) => {
+staffRoutes.post("/staff/security/reauth", requireStaff, csrfProtect, forbidImpersonatedSession, asyncRoute(async (req, res) => {
   const v = validate(StaffReauthSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
   try {
@@ -78,7 +78,7 @@ staffRoutes.post("/staff/security/reauth", requireStaff, csrfProtect, asyncRoute
   }
 }));
 
-staffRoutes.post("/staff/security/mfa/enroll", requireStaff, csrfProtect, requireRecentReauth(), asyncRoute(async (req, res) => {
+staffRoutes.post("/staff/security/mfa/enroll", requireStaff, csrfProtect, forbidImpersonatedSession, requireRecentReauth(), asyncRoute(async (req, res) => {
   const out = await startStaffMfaEnrollment({
     staffId: req.staff.id,
     businessId: req.staff.business_id
@@ -86,7 +86,7 @@ staffRoutes.post("/staff/security/mfa/enroll", requireStaff, csrfProtect, requir
   res.json({ ok: true, ...out });
 }));
 
-staffRoutes.post("/staff/security/mfa/confirm", requireStaff, csrfProtect, requireRecentReauth({ requireMfaIfEnabled: false }), asyncRoute(async (req, res) => {
+staffRoutes.post("/staff/security/mfa/confirm", requireStaff, csrfProtect, forbidImpersonatedSession, requireRecentReauth({ requireMfaIfEnabled: false }), asyncRoute(async (req, res) => {
   const v = validate(StaffMfaConfirmSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
   const out = await confirmStaffMfaEnrollment({
@@ -97,12 +97,12 @@ staffRoutes.post("/staff/security/mfa/confirm", requireStaff, csrfProtect, requi
   res.json(out);
 }));
 
-staffRoutes.post("/staff/security/mfa/disable", requireStaff, csrfProtect, requireRecentReauth(), asyncRoute(async (_req, res) => {
+staffRoutes.post("/staff/security/mfa/disable", requireStaff, csrfProtect, forbidImpersonatedSession, requireRecentReauth(), asyncRoute(async (_req, res) => {
   const out = await disableStaffMfa({ staffId: _req.staff.id });
   res.json(out);
 }));
 
-staffRoutes.post("/staff/security/email-change", requireStaff, csrfProtect, requireRecentReauth(), asyncRoute(async (req, res) => {
+staffRoutes.post("/staff/security/email-change", requireStaff, csrfProtect, forbidImpersonatedSession, requireRecentReauth(), asyncRoute(async (req, res) => {
   const v = validate(StaffEmailChangeSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
   const out = await requestStaffEmailChange({
@@ -114,7 +114,7 @@ staffRoutes.post("/staff/security/email-change", requireStaff, csrfProtect, requ
   res.json(out);
 }));
 
-staffRoutes.post("/staff/security/lockdown", requireStaff, csrfProtect, requireRecentReauth(), asyncRoute(async (req, res) => {
+staffRoutes.post("/staff/security/lockdown", requireStaff, csrfProtect, forbidImpersonatedSession, requireRecentReauth(), asyncRoute(async (req, res) => {
   const out = await lockdownStaffAccount({
     staffId: req.staff.id,
     ip: req.ip || null,

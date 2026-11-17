@@ -1,45 +1,96 @@
 import dns from "node:dns/promises";
 import net from "node:net";
 
-const PRIVATE_V4_RANGES = [
-  { from: [10, 0, 0, 0], to: [10, 255, 255, 255] },
-  { from: [127, 0, 0, 0], to: [127, 255, 255, 255] },
-  { from: [169, 254, 0, 0], to: [169, 254, 255, 255] },
-  { from: [172, 16, 0, 0], to: [172, 31, 255, 255] },
-  { from: [192, 168, 0, 0], to: [192, 168, 255, 255] },
-  { from: [100, 64, 0, 0], to: [100, 127, 255, 255] }, // CGNAT
-  { from: [0, 0, 0, 0], to: [0, 255, 255, 255] }
-];
+// Webhook destinations must be globally routable unicast addresses. Ranges are
+// from the IANA IPv4/IPv6 special-purpose registries (RFC 6890 and updates).
+const NON_PUBLIC_V4 = new net.BlockList();
+for (const [network, prefix] of /** @type {Array<[string, number]>} */ ([
+  ["0.0.0.0", 8], // "this network"
+  ["10.0.0.0", 8], // private
+  ["100.64.0.0", 10], // shared address space (CGNAT)
+  ["127.0.0.0", 8], // loopback
+  ["169.254.0.0", 16], // link-local, including cloud metadata services
+  ["172.16.0.0", 12], // private
+  ["192.0.0.0", 24], // IETF protocol assignments
+  ["192.0.2.0", 24], // documentation (TEST-NET-1)
+  ["192.88.99.0", 24], // deprecated 6to4 relay anycast
+  ["192.168.0.0", 16], // private
+  ["198.18.0.0", 15], // benchmarking
+  ["198.51.100.0", 24], // documentation (TEST-NET-2)
+  ["203.0.113.0", 24], // documentation (TEST-NET-3)
+  ["224.0.0.0", 4], // multicast
+  ["240.0.0.0", 4] // reserved, including 255.255.255.255 broadcast
+])) NON_PUBLIC_V4.addSubnet(network, prefix, "ipv4");
 
-function v4ToNum(ip) {
-  const parts = ip.split(".").map((x) => Number(x));
-  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n) || n < 0 || n > 255)) return null;
-  return ((parts[0] << 24) >>> 0) + (parts[1] << 16) + (parts[2] << 8) + parts[3];
+const GLOBAL_UNICAST_V6 = new net.BlockList();
+GLOBAL_UNICAST_V6.addSubnet("2000::", 3, "ipv6");
+// Special-purpose blocks inside 2000::/3 that are not ordinary public hosts.
+const NON_PUBLIC_GLOBAL_V6 = new net.BlockList();
+NON_PUBLIC_GLOBAL_V6.addSubnet("2001::", 23, "ipv6"); // IETF protocol assignments, incl. Teredo and benchmarking
+NON_PUBLIC_GLOBAL_V6.addSubnet("2001:db8::", 32, "ipv6"); // documentation
+NON_PUBLIC_GLOBAL_V6.addSubnet("3fff::", 20, "ipv6"); // documentation
+// Prefixes that carry an IPv4 destination; the embedded address decides.
+const NAT64_V6 = new net.BlockList();
+NAT64_V6.addSubnet("64:ff9b::", 96, "ipv6"); // RFC 6052 well-known NAT64 prefix
+const SIX_TO_FOUR_V6 = new net.BlockList();
+SIX_TO_FOUR_V6.addSubnet("2002::", 16, "ipv6"); // RFC 3056 6to4
+
+/** @param {string} ip a valid IPv6 address without a zone @returns {number[]|null} 16 bytes */
+function ipv6Bytes(ip) {
+  let text = ip.toLowerCase();
+  const dotted = text.match(/^(.*:)(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (dotted) {
+    if (net.isIP(dotted[2]) !== 4) return null;
+    const [a, b, c, d] = dotted[2].split(".").map(Number);
+    text = `${dotted[1]}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
+  }
+  const halves = text.split("::");
+  if (halves.length > 2) return null;
+  const parse = (part) => (part ? part.split(":").map((group) => (/^[0-9a-f]{1,4}$/.test(group) ? Number.parseInt(group, 16) : Number.NaN)) : []);
+  const head = parse(halves[0]);
+  const rest = halves.length === 2 ? parse(halves[1]) : [];
+  const fill = 8 - head.length - rest.length;
+  if (fill < 0 || (halves.length === 1 && fill !== 0)) return null;
+  const groups = [...head, ...Array(fill).fill(0), ...rest];
+  if (groups.some((group) => Number.isNaN(group))) return null;
+  return groups.flatMap((group) => [group >> 8, group & 0xff]);
 }
 
-function inRangeV4(ip, r) {
-  const n = v4ToNum(ip);
-  if (n === null) return false;
-  const from = ((r.from[0] << 24) >>> 0) + (r.from[1] << 16) + (r.from[2] << 8) + r.from[3];
-  const to = ((r.to[0] << 24) >>> 0) + (r.to[1] << 16) + (r.to[2] << 8) + r.to[3];
-  return n >= from && n <= to;
+/** @param {number[]} bytes @param {number} offset */
+function embeddedV4(bytes, offset) {
+  return bytes.slice(offset, offset + 4).join(".");
 }
 
-function isPrivateIp(ip) {
-  const kind = net.isIP(ip);
-  if (kind === 4) {
-    return PRIVATE_V4_RANGES.some((r) => inRangeV4(ip, r));
+/**
+ * Returns the address to dial when `ip` is a public unicast destination, or
+ * null for loopback, private, link-local, multicast, reserved, documentation
+ * and other special-purpose addresses. IPv4-mapped, NAT64 and 6to4 addresses
+ * are judged by the IPv4 address they carry.
+ * @param {string} ip
+ * @returns {{ address: string, family: 4|6 } | null}
+ */
+export function publicUnicastTarget(ip) {
+  const family = net.isIP(String(ip ?? ""));
+  if (family === 4) return NON_PUBLIC_V4.check(ip, "ipv4") ? null : { address: ip, family: 4 };
+  // Zone identifiers (fe80::1%eth0) only name local-scope addresses.
+  if (family !== 6 || ip.includes("%")) return null;
+  const bytes = ipv6Bytes(ip);
+  if (!bytes) return null;
+  // ::ffff:a.b.c.d reaches the IPv4 host itself; dial it as IPv4.
+  if (bytes.slice(0, 10).every((byte) => byte === 0) && bytes[10] === 0xff && bytes[11] === 0xff) {
+    return publicUnicastTarget(embeddedV4(bytes, 12));
   }
-  if (kind === 6) {
-    const lower = ip.toLowerCase();
-    // localhost / unspecified
-    if (lower === "::1" || lower === "::" || lower === "0:0:0:0:0:0:0:1") return true;
-    // Unique local (fc00::/7) and link-local (fe80::/10)
-    if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
-    if (lower.startsWith("fe8") || lower.startsWith("fe9") || lower.startsWith("fea") || lower.startsWith("feb")) return true;
-    return false;
-  }
-  return true;
+  if (NAT64_V6.check(ip, "ipv6")) return publicUnicastTarget(embeddedV4(bytes, 12)) ? { address: ip, family: 6 } : null;
+  if (SIX_TO_FOUR_V6.check(ip, "ipv6")) return publicUnicastTarget(embeddedV4(bytes, 2)) ? { address: ip, family: 6 } : null;
+  // Everything outside 2000::/3 is denied: ::, ::1, IPv4-compatible ::a.b.c.d,
+  // fc00::/7, fe80::/10, fec0::/10, ff00::/8, 100::/64, 64:ff9b:1::/48, ...
+  if (!GLOBAL_UNICAST_V6.check(ip, "ipv6") || NON_PUBLIC_GLOBAL_V6.check(ip, "ipv6")) return null;
+  return { address: ip, family: 6 };
+}
+
+/** @param {string} ip */
+export function isPublicUnicastAddress(ip) {
+  return publicUnicastTarget(ip) !== null;
 }
 
 function hostMatchesAllowlist(host, allowlist) {
@@ -54,15 +105,11 @@ function hostMatchesAllowlist(host, allowlist) {
 }
 
 /**
- * Validates a webhook URL and blocks SSRF to localhost/private IP ranges.
+ * Validates a webhook URL and blocks SSRF to every non-public address.
  * Resolves DNS and checks all returned addresses.
  * @param {string} urlStr
- * @param {{ requireHttps?: boolean, allowlist?: string[] }} opts
- * @returns {Promise<URL>}
- */
-/**
- * @param {string} urlStr
  * @param {{ requireHttps?: boolean, allowlist?: string[], lookup?: any }} opts
+ * @returns {Promise<URL>}
  */
 export async function validateWebhookUrl(urlStr, opts = {}) {
   const { url } = await resolveWebhookTarget(urlStr, opts);
@@ -112,12 +159,9 @@ export async function resolveWebhookTarget(urlStr, opts = {}) {
 
   // IP-literal host (use normalized host for detection)
   if (net.isIP(hostNormalized)) {
-    if (isPrivateIp(hostNormalized)) throw new Error("Private IPs are not allowed");
-    return {
-      url,
-      resolvedAddress: hostNormalized,
-      resolvedFamily: net.isIP(hostNormalized)
-    };
+    const target = publicUnicastTarget(hostNormalized);
+    if (!target) throw new Error("Private IPs are not allowed");
+    return { url, resolvedAddress: target.address, resolvedFamily: target.family };
   }
 
   // Resolve A/AAAA (use normalized host for DNS)
@@ -131,16 +175,9 @@ export async function resolveWebhookTarget(urlStr, opts = {}) {
   }
 
   if (!addrs.length) throw new Error("DNS lookup returned no addresses");
-  for (const ip of addrs) {
-    if (isPrivateIp(ip)) {
-      throw new Error("Private IPs are not allowed");
-    }
-  }
+  // Every answer must be public: a mixed answer set is how DNS rebinding hides.
+  const targets = addrs.map((ip) => publicUnicastTarget(ip));
+  if (targets.some((target) => !target)) throw new Error("Private IPs are not allowed");
 
-  const resolvedAddress = addrs[0] || null;
-  return {
-    url,
-    resolvedAddress,
-    resolvedFamily: resolvedAddress ? net.isIP(resolvedAddress) : null
-  };
+  return { url, resolvedAddress: targets[0].address, resolvedFamily: targets[0].family };
 }

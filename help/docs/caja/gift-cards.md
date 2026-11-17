@@ -2,7 +2,7 @@
 title: Descontar saldo de una tarjeta de regalo
 description: Usa el código de la tarjeta de regalo y confirma el importe antes del
   descuento.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - public/staff.html
@@ -40,4 +40,4 @@ La pantalla confirma el descuento autorizado. Conserva la referencia con el comp
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/equipo/escaner/#giftCardActionBlock). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/equipo/escaner/#giftCardActionBlock). Revisión del 17 de noviembre de 2026.

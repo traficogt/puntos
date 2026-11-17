@@ -65,7 +65,7 @@ export const TxnRepo = {
     const r = await one(
       `SELECT
          COUNT(*)::int AS tx_count,
-         COALESCE(SUM(amount_q),0)::numeric(10,2) AS amount_sum,
+         ROUND(COALESCE(SUM(amount_q),0), 2) AS amount_sum,
          COALESCE(SUM(points),0)::int AS points_sum
        FROM transactions
        WHERE business_id=$1 AND created_at >= now() - ($2 || ' days')::interval${branchClause}`,

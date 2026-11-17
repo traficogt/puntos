@@ -13,7 +13,7 @@ import {getOwnerOutcomeEvidence} from './owner-outcome-service.js';
 import {ownerOutcomeFindings} from './owner-outcome-model.js';
 const dfl={query:dbQuery,transaction:withTransaction,getOperationsHealth,getOwnerOutcomeEvidence,getPlanFeatureOverrides:()=>PlanConfigService.getPlanFeatureOverrides(),now:()=>new Date()};
 export const ReviewDecisionInput=z.object({decision_key:z.string().regex(/^[a-z_-]{1,80}$/),fingerprint:z.string().regex(/^[a-f0-9]{64}$/),version:z.number().int().min(0).max(2147483646),status:z.enum(['reviewed','snoozed','open','dismissed']),assigned_staff_id:z.guid().nullable().optional(),dismiss_reason:z.string().trim().min(3).max(500).optional(),snooze_hours:z.union([z.literal(1),z.literal(4),z.literal(24)]).optional()}).strict().refine(value=>value.status==='snoozed'?value.snooze_hours!==undefined:value.snooze_hours===undefined).refine(value=>value.status==='dismissed'?!!value.dismiss_reason:value.dismiss_reason===undefined);
-export const OperatingModeInput=z.object({mode:z.enum(['busy','normal','quiet']),capacity:z.number().int().min(0).max(200).optional(),request_id:z.guid().optional(),minutes:z.union([z.literal(30),z.literal(60),z.literal(120),z.literal(240)]).optional(),version:z.string().regex(/^[a-f0-9]{64}$/)}).strict().refine(value=>value.mode!=='normal'?value.minutes!==undefined:value.minutes===undefined);
+export const OperatingModeInput=z.object({mode:z.enum(['busy','normal','quiet']),capacity:z.number().int().min(0).max(200).nullable().optional(),request_id:z.guid().optional(),minutes:z.union([z.literal(30),z.literal(60),z.literal(120),z.literal(240)]).optional(),version:z.string().regex(/^[a-f0-9]{64}$/)}).strict().refine(value=>value.mode!=='normal'?value.minutes!==undefined:value.minutes===undefined);
 const COLLISIONS=`WITH active AS (
  SELECT id,name,bonus_points FROM growth_campaigns WHERE business_id=$1 AND status='active' AND starts_at<=$2 AND expires_at>$2 ORDER BY expires_at,id LIMIT 20
 ), eligible AS (
@@ -101,7 +101,7 @@ export async function setOperatingMode(options,injected={}){
   if(options.delegated&&input.capacity!==undefined)throw forbidden('Solo el dueño puede cambiar la capacidad.');
   if(operatingMode(business,now).version!==input.version)throw conflict('El estado cambió en otra sesión. Actualiza antes de guardar.');
   if(options.delegated){if(!input.request_id)throw badRequest('La acción necesita una referencia.');const {consumeStaffAuthority}=await import('./staff-delegation-service.js');await consumeStaffAuthority(client,{merchantId:options.businessId,staffId:options.staff.id,action:'operating_mode',staff:options.staff,locationId:null,points:0,costAmount:0,referenceType:'operating_mode',referenceId:input.request_id});}
-  const value={mode:input.mode,until:input.mode!=='normal'?new Date(now.getTime()+input.minutes*60000).toISOString():null,capacity:input.capacity??operatingMode(business,now).capacity};
+  const value={mode:input.mode,until:input.mode!=='normal'?new Date(now.getTime()+input.minutes*60000).toISOString():null,capacity:input.capacity===undefined?operatingMode(business,now).capacity:input.capacity};
   const next=(await client.query("UPDATE businesses SET program_json=COALESCE(program_json,'{}'::jsonb)||jsonb_build_object('merchant_operating_mode',$2::jsonb) WHERE id=$1 RETURNING program_json",[options.businessId,JSON.stringify(value)])).rows[0];
   await audit(client,options,'merchant.operating_mode.changed',value);
   const result={ok:true,operating_mode:operatingMode(next,now)};

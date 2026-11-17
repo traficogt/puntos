@@ -19,6 +19,80 @@ function reconciliationScope({ businessId = null, customerId = null }) {
   return "all";
 }
 
+// A REVERSED row once moved available points when its reversal row records an
+// available original (POSTED or EXPIRED) or, for legacy rows without that
+// metadata, moved points itself. Pending cancellations have a zero-point
+// reversal row (staff refunds) or none (order returns): they only moved pending.
+const REVERSED_AFTER_AVAILABLE = `(t.status = 'REVERSED' AND (
+  r.meta->>'original_status' IN ('POSTED','EXPIRED')
+  OR (r.meta->>'original_status' IS NULL AND r.points <> 0)))`;
+
+/**
+ * Expected cached balances, derived from what every ledger writer applies to
+ * customer_balances. One definition serves reconciliation, correction requests
+ * and the customer ledger view.
+ *
+ * - A POSTED or EXPIRED row keeps the effect it had when written. Expiry marks
+ *   the original EXPIRED and deducts through its own POSTED 'expire' row.
+ * - A refunded original keeps its effect when its POSTED reversal row carries the
+ *   compensation; pending cancellations moved pending points only.
+ * - lifetime_points grows with applied, earned (positive, non-reversal) rows,
+ *   including settled pending rows, and shrinks with negative refund reversals.
+ *   Gamification revocations (reversal meta.correction) reduce it only when
+ *   they record meta.lifetime_reversed; older revocations left it unchanged.
+ *   Redemptions, refunds of redemptions and expiries never touch it.
+ * - Ordinary balance adjustments (restorations, POS cancellations) add their
+ *   deltas; correction-linked adjustments only repair the cached balance.
+ *
+ * Filters must reference transactions as `t` and adjustments as `a`.
+ * Join the CTEs as `tx` and `adj` to use `columns`.
+ * @param {{ transactionFilter: string, adjustmentFilter: string }} filters
+ */
+export function ledgerExpectationSql({ transactionFilter, adjustmentFilter }) {
+  return {
+    ctes: `ledger_rows AS (
+       SELECT t.customer_id, t.points, t.status, t.source,
+              (t.status IN ('POSTED','EXPIRED') OR ${REVERSED_AFTER_AVAILABLE}) AS applied,
+              (t.source = 'reversal' AND t.status = 'POSTED' AND t.points < 0
+                AND (NOT COALESCE(t.meta ? 'correction', false)
+                  OR COALESCE(t.meta->>'lifetime_reversed', '') = 'true')) AS lifetime_reversal
+       FROM transactions t
+       LEFT JOIN transactions r
+         ON t.status = 'REVERSED'
+        AND r.original_transaction_id = t.id
+        AND r.customer_id = t.customer_id
+        AND r.source = 'reversal'
+       WHERE ${transactionFilter}
+     ),
+     tx_agg AS (
+       SELECT
+         customer_id,
+         COALESCE(SUM(CASE WHEN applied THEN points ELSE 0 END), 0)::int AS posted_points,
+         COALESCE(SUM(CASE WHEN status = 'PENDING' THEN points ELSE 0 END), 0)::int AS pending_points,
+         COALESCE(SUM(CASE
+           WHEN applied AND points > 0 AND source <> 'reversal' THEN points
+           WHEN lifetime_reversal THEN points
+           ELSE 0 END), 0)::int AS lifetime_points
+       FROM ledger_rows
+       GROUP BY customer_id
+     ),
+     adj_agg AS (
+       SELECT
+         a.customer_id,
+         COALESCE(SUM(a.delta_points), 0)::int AS delta_points,
+         COALESCE(SUM(a.delta_pending_points), 0)::int AS delta_pending_points,
+         COALESCE(SUM(a.delta_lifetime_points), 0)::int AS delta_lifetime_points
+       FROM ledger_balance_adjustments a
+       WHERE a.correction_id IS NULL
+         AND ${adjustmentFilter}
+       GROUP BY a.customer_id
+     )`,
+    columns: `(COALESCE(tx.posted_points, 0) + COALESCE(adj.delta_points, 0))::int AS expected_points,
+       (COALESCE(tx.pending_points, 0) + COALESCE(adj.delta_pending_points, 0))::int AS expected_pending_points,
+       (COALESCE(tx.lifetime_points, 0) + COALESCE(adj.delta_lifetime_points, 0))::int AS expected_lifetime_points`
+  };
+}
+
 export function expectedLedgerBalances(row) {
   return {
     points: toInt(row?.expected_points),
@@ -68,35 +142,19 @@ async function readLedgerRows(query, { businessId = null, customerId = null, lim
   );
   const checkedCustomers = toInt(countResult.rows?.[0]?.count);
 
+  const expectation = ledgerExpectationSql({
+    transactionFilter: `($1::uuid IS NULL OR t.business_id = $1) AND ($2::uuid IS NULL OR t.customer_id = $2)`,
+    adjustmentFilter: `($1::uuid IS NULL OR a.business_id = $1) AND ($2::uuid IS NULL OR a.customer_id = $2)`
+  });
   const rowsResult = await query(
-    `WITH tx_agg AS (
-       SELECT
-         customer_id,
-         COALESCE(SUM(CASE WHEN status = 'POSTED' THEN points ELSE 0 END), 0)::int AS posted_points,
-         COALESCE(SUM(CASE WHEN status = 'PENDING' THEN points ELSE 0 END), 0)::int AS pending_points,
-         COALESCE(SUM(CASE WHEN status = 'POSTED' AND points > 0 THEN points ELSE 0 END), 0)::int AS lifetime_points
-       FROM transactions
-       GROUP BY customer_id
-     ),
-     adj_agg AS (
-       SELECT
-         customer_id,
-         COALESCE(SUM(delta_points), 0)::int AS delta_points,
-         COALESCE(SUM(delta_pending_points), 0)::int AS delta_pending_points,
-         COALESCE(SUM(delta_lifetime_points), 0)::int AS delta_lifetime_points
-       FROM ledger_balance_adjustments
-       WHERE correction_id IS NULL
-       GROUP BY customer_id
-     )
+    `WITH ${expectation.ctes}
      SELECT
        c.id AS customer_id,
        c.business_id,
        COALESCE(cb.points, 0)::int AS stored_points,
        COALESCE(cb.pending_points, 0)::int AS stored_pending_points,
        COALESCE(cb.lifetime_points, 0)::int AS stored_lifetime_points,
-       (COALESCE(tx.posted_points, 0) + COALESCE(adj.delta_points, 0))::int AS expected_points,
-       (COALESCE(tx.pending_points, 0) + COALESCE(adj.delta_pending_points, 0))::int AS expected_pending_points,
-       (COALESCE(tx.lifetime_points, 0) + COALESCE(adj.delta_lifetime_points, 0))::int AS expected_lifetime_points
+       ${expectation.columns}
      FROM customers c
      LEFT JOIN customer_balances cb ON cb.customer_id = c.id
      LEFT JOIN tx_agg tx ON tx.customer_id = c.id

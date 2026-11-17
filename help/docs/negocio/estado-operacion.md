@@ -2,7 +2,7 @@
 title: Revisar pendientes y datos atrasados
 description: Consulta qué necesita atención en tu negocio y abre la pantalla donde
   puedes resolverlo.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - web/merchant/src/Operations.jsx
@@ -38,7 +38,7 @@ Cuando una conexión monitoreada supera su plazo, PF pausa recomendaciones y men
 
 ## Si algo no funciona
 
-**“Configurado” aparece en Wallet o mensajes:** solo confirma configuración o registros locales; no recepción, instalación ni conexión completa. **Confirmación de la integración:** no prueba ventas que nunca llegaron. **Desactivas seguimiento:** retiras esa protección, aunque no borres registros. Para una caída general, consulta el estado público.
+**“Configurado” aparece en Wallet o mensajes:** solo confirma configuración o registros locales; no recepción, instalación ni conexión completa. **Confirmación de la integración:** no prueba ventas que nunca llegaron. **Desactivas seguimiento:** retiras esa protección, aunque no borres registros. **No se guarda el seguimiento:** cada plazo debe ser un número entero de 5 a 10080 minutos. Si otra sesión cambió la configuración, tus cambios siguen en el formulario: revísalos y pulsa de nuevo **Guardar seguimiento**. Para una caída general, consulta el estado público.
 
 ## Continúa con otra tarea
 
@@ -47,4 +47,4 @@ Cuando una conexión monitoreada supera su plazo, PF pausa recomendaciones y men
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#operacion). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#operacion). Revisión del 17 de noviembre de 2026.

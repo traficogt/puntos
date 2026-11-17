@@ -77,12 +77,12 @@ analyticsDashboardRoutes.get(
            b.name AS branch_name,
            b.code AS branch_code,
            COALESCE(tx.tx_30d, 0)::int AS tx_30d,
-           COALESCE(tx.revenue_30d, 0)::numeric(10,2) AS revenue_30d,
+           ROUND(COALESCE(tx.revenue_30d, 0), 2) AS revenue_30d,
            COALESCE(tx.active_customers_30d, 0)::int AS active_customers_30d,
            COALESCE(rd.redemptions_30d, 0)::int AS redemptions_30d,
            CASE
-             WHEN COALESCE(tx.tx_30d, 0) > 0 THEN (COALESCE(tx.revenue_30d, 0) / tx.tx_30d)::numeric(10,2)
-             ELSE 0::numeric(10,2)
+             WHEN COALESCE(tx.tx_30d, 0) > 0 THEN ROUND(COALESCE(tx.revenue_30d, 0) / tx.tx_30d, 2)
+             ELSE 0.00
            END AS avg_ticket_30d
          FROM branches b
          LEFT JOIN LATERAL (
@@ -189,12 +189,12 @@ analyticsDashboardRoutes.get(
            b.name AS branch_name,
            b.code AS branch_code,
            COALESCE(tx.tx_30d, 0)::int AS tx_30d,
-           COALESCE(tx.revenue_30d, 0)::numeric(10,2) AS revenue_30d,
+           ROUND(COALESCE(tx.revenue_30d, 0), 2) AS revenue_30d,
            COALESCE(tx.active_customers_30d, 0)::int AS active_customers_30d,
            COALESCE(rd.redemptions_30d, 0)::int AS redemptions_30d,
            CASE
-             WHEN COALESCE(tx.tx_30d, 0) > 0 THEN (COALESCE(tx.revenue_30d, 0) / tx.tx_30d)::numeric(10,2)
-             ELSE 0::numeric(10,2)
+             WHEN COALESCE(tx.tx_30d, 0) > 0 THEN ROUND(COALESCE(tx.revenue_30d, 0) / tx.tx_30d, 2)
+             ELSE 0.00
            END AS avg_ticket_30d
          FROM branches b
          LEFT JOIN LATERAL (

@@ -8,15 +8,16 @@ const libStub = dataModule("export const setHidden=(el,hidden)=>{if(el)el.hidden
 const meStub = dataModule("export const renderFromMe=(...args)=>globalThis.__wallet.render(...args);");
 const networkStub = dataModule("export const setOnlineBadge=()=>{};");
 const sessionUrl = new URL("../../public/customer/session.js", import.meta.url).href;
+const formatUrl = new URL("../../public/customer/format.js", import.meta.url).href;
 // eslint-disable-next-line security/detect-non-literal-fs-filename -- Fixed repository fixture URL.
 const source = await fs.readFile(new URL("../../public/customer/load.js", import.meta.url), "utf8");
 // Load the real offer renderer with the same browser-lib adapter as the wallet loader.
 // eslint-disable-next-line security/detect-non-literal-fs-filename -- Fixed repository source URL.
 const growthSource = await fs.readFile(new URL("../../public/customer/growth-offers.js", import.meta.url), "utf8");
-const growthModule = dataModule(growthSource.replace("'/lib.js'", JSON.stringify(libStub)).replace("'./session.js'", JSON.stringify(sessionUrl)));
+const growthModule = dataModule(growthSource.replace("'/lib.js'", JSON.stringify(libStub)).replace("'./format.js'", JSON.stringify(formatUrl)).replace("'./session.js'", JSON.stringify(sessionUrl)));
 // eslint-disable-next-line security/detect-non-literal-fs-filename -- Fixed repository source URL.
 const entitlementSource = await fs.readFile(new URL("../../public/customer/reward-entitlements.js", import.meta.url), "utf8");
-const entitlementModule = dataModule(entitlementSource.replace("'/lib.js'", JSON.stringify(libStub)).replace("'./session.js'", JSON.stringify(sessionUrl)));
+const entitlementModule = dataModule(entitlementSource.replace("'/lib.js'", JSON.stringify(libStub)).replace("'./format.js'", JSON.stringify(formatUrl)).replace("'./session.js'", JSON.stringify(sessionUrl)));
 const { loadAll } = await import(dataModule(source.replace("'./demand-notebook.js'", JSON.stringify(new URL('../../public/customer/demand-notebook.js', import.meta.url).href)).replace('"./reward-entitlements.js"', JSON.stringify(entitlementModule)).replace('"./growth-offers.js"', JSON.stringify(growthModule)).replace('"/idb.js"', JSON.stringify(idbStub)).replace('"/lib.js"', JSON.stringify(libStub))
   .replace('"./wallet-navigation.js"', JSON.stringify(new URL("../../public/customer/wallet-navigation.js", import.meta.url).href))
   .replace('"./me.js"', JSON.stringify(meStub)).replace('"./network.js"', JSON.stringify(networkStub)).replace('"./session.js"', JSON.stringify(sessionUrl))));

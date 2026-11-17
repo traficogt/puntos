@@ -234,6 +234,9 @@ export async function awardPointsWithDeps(
 
   const planFeatureOverrides = business.program_json?.targeted_offers_enabled === true && typeof typedDeps.getPlanFeatureOverrides === "function"
     ? await typedDeps.getPlanFeatureOverrides() : undefined;
+  // Recorded after the rollback: an event written on the transaction client
+  // would be discarded together with the rejected award.
+  let replayEvent = null;
   const result = await typedDeps.withTransaction(async (client) => {
     await lockAwardRequest(client, bid, transactionId);
     const existing = txId ? await existingAward(client) : null;
@@ -265,7 +268,7 @@ export async function awardPointsWithDeps(
       [jti, bid, cid, exp]
     );
     if (insQr.rowCount !== 1) {
-      await SecurityEventRepo.log({
+      replayEvent = {
         event_type: "qr_replay_blocked",
         severity: "HIGH",
         route: "/api/staff/award",
@@ -274,7 +277,7 @@ export async function awardPointsWithDeps(
         actor_type: "STAFF",
         actor_id: staff.id,
         meta: withImpersonationMeta({ customer_id: cid, jti }, staff)
-      }).catch(() => {});
+      };
       throw conflict("QR token already used (replay protection)");
     }
 
@@ -357,6 +360,12 @@ export async function awardPointsWithDeps(
       status: awardStatus,
       availableAt
     };
+  }).catch(async (error) => {
+    if (replayEvent) {
+      const logSecurityEvent = typedDeps.logSecurityEvent ?? ((event) => SecurityEventRepo.logPrivileged(event));
+      await logSecurityEvent(replayEvent).catch(() => {});
+    }
+    throw error;
   });
 
   if (!result.replay) {

@@ -280,13 +280,27 @@ test('Git assume-unchanged cannot hide source bytes that differ from the recorde
   assert.equal((await readiness.inspectSource(dir)).clean, false);
 });
 
+// Cancel only after fixture processes report readiness through a marker file.
+// Fixed delays raced Node startup on a loaded host: a process signalled before
+// installing its handler correctly reports exitCode null and signal SIGTERM.
+async function abortWhenReady(file, abort) {
+  const { setTimeout: delay } = await import('node:timers/promises');
+  for (let attempt = 0; attempt < 3000 && !abort.signal.aborted; attempt++) {
+    if (await stat(file).then(() => true, () => false)) { abort.abort(); return; }
+    await delay(10);
+  }
+}
+
 test('capture records cancellation even when SIGTERM is handled with exit zero', async t => {
   const dir = await fixtureDirectory(t), abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), 150);
-  t.after(() => clearTimeout(timer));
-  const result = await readiness.capture(process.execPath, ['-e', "process.on('SIGTERM',()=>process.exit(0));setInterval(()=>{},1000)"],
-    { cwd: dir, env: { PATH: process.env.PATH }, timeoutMs: 3000, signal: abort.signal });
+  const [result] = await Promise.all([
+    readiness.capture(process.execPath, ['-e', "process.on('SIGTERM',()=>process.exit(0));require('node:fs').writeFileSync('handler-ready','');setInterval(()=>{},1000)"],
+      { cwd: dir, env: { PATH: process.env.PATH }, timeoutMs: 30000, signal: abort.signal }),
+    abortWhenReady(join(dir, 'handler-ready'), abort)
+  ]);
   assert.equal(result.exitCode, 0);
+  assert.equal(result.signal, null);
+  assert.equal(result.timedOut, false);
   assert.equal(result.cancelled, true);
 });
 
@@ -385,12 +399,18 @@ test('a cancelled wrapper forwards termination to its detached subprocess', asyn
   await writeFile(join(dir,'wrapper.mjs'), `
     import {capture,withProcessCancellation} from ${JSON.stringify(library)};
     const result = await withProcessCancellation(signal => capture(process.execPath,
-      ['-e', 'console.log(process.pid); setInterval(()=>{},1000)'],
+      ['-e', 'console.log(process.pid); require("node:fs").writeFileSync("child-ready",""); setInterval(()=>{},1000)'],
       {cwd:process.cwd(),env:{PATH:process.env.PATH},signal,graceMs:100}));
     console.log(JSON.stringify({pid:Number(result.stdout.toString().trim()),cancelled:result.cancelled}));
   `);
-  const result = await readiness.capture(process.execPath,['wrapper.mjs'],{cwd:dir,env:{PATH:process.env.PATH},timeoutMs:600});
-  assert.equal(result.timedOut,true);
+  // The wrapper installs its cancellation handlers before spawning the child.
+  const abort = new AbortController();
+  const [result] = await Promise.all([
+    readiness.capture(process.execPath,['wrapper.mjs'],{cwd:dir,env:{PATH:process.env.PATH},timeoutMs:30000,signal:abort.signal}),
+    abortWhenReady(join(dir,'child-ready'), abort)
+  ]);
+  assert.equal(result.cancelled,true);
+  assert.equal(result.timedOut,false);
   const evidence = JSON.parse(result.stdout.toString());
   assert.equal(evidence.cancelled,true);
   assert.ok(Number.isSafeInteger(evidence.pid) && evidence.pid>0);
@@ -401,15 +421,19 @@ test('termination still kills surviving group descendants after the runner exits
   const dir = await fixtureDirectory(t);
   await writeFile(join(dir,'parent.mjs'), `
     import {spawn} from 'node:child_process';
-    const child=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],{stdio:'ignore'});
-    setTimeout(()=>console.log(child.pid),100);setInterval(()=>{},1000);
+    const child=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});require('node:fs').writeFileSync('child-ready','');setInterval(()=>{},1000)"],{stdio:'ignore'});
+    console.log(child.pid);setInterval(()=>{},1000);
   `);
-  const result=await readiness.capture(process.execPath,['parent.mjs'],{cwd:dir,env:{PATH:process.env.PATH},timeoutMs:500,graceMs:100});
+  const abort=new AbortController();
+  const [result]=await Promise.all([
+    readiness.capture(process.execPath,['parent.mjs'],{cwd:dir,env:{PATH:process.env.PATH},timeoutMs:30000,graceMs:100,signal:abort.signal}),
+    abortWhenReady(join(dir,'child-ready'),abort)
+  ]);
   const pid=Number(result.stdout.toString().trim());assert.ok(Number.isSafeInteger(pid)&&pid>0);
   t.after(()=>{try{process.kill(pid,'SIGKILL');}catch{/* fixture already stopped */}});
   const {setTimeout:delay}=await import('node:timers/promises');
   let alive=true;
   for(let i=0;i<20;i++){try{process.kill(pid,0);}catch{alive=false;break;}await delay(25);}
-  assert.equal(result.timedOut,true);
+  assert.equal(result.cancelled,true);
   assert.equal(alive,false,'A closed runner must not cancel cleanup of its surviving descendants');
 });

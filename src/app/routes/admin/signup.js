@@ -5,8 +5,9 @@ import { validate } from "../../../utils/validation.js";
 import { browserCookieMaxAge, cookieOpts, signStaffToken } from "../../../utils/auth-token.js";
 import { config } from "../../../config/index.js";
 import { createBusinessWithOwner } from "../../services/business-service.js";
-import { rateLimitByPhone, strictRateLimit } from "../../../middleware/rate-limit.js";
+import { rateLimitByPhone, signupRateLimit } from "../../../middleware/rate-limit.js";
 import { passwordSchema } from "../../../utils/schemas.js";
+import { timingSafeEqualString } from "../../../utils/timing-safe.js";
 
 /** @typedef {import("zod").infer<typeof SignupSchema>} SignupInput */
 /** @typedef {import("../../../types/http-dto.js").AdminSignupResponse} AdminSignupResponse */
@@ -26,7 +27,7 @@ const SignupSchema = z.object({
 
 adminSignupRoutes.post(
   "/admin/signup",
-  strictRateLimit,
+  signupRateLimit,
   rateLimitByPhone(3, 10 * 60 * 1000),
   asyncRoute(async (req, res) => {
     const v = validate(SignupSchema, req.body);
@@ -36,7 +37,7 @@ adminSignupRoutes.post(
 
     if (config.SIGNUP_CAPTCHA_SECRET) {
       const providedToken = String(req.headers["x-signup-captcha"] || req.body?.captcha_token || "").trim();
-      if (!providedToken || providedToken !== config.SIGNUP_CAPTCHA_SECRET) {
+      if (!providedToken || !timingSafeEqualString(providedToken, config.SIGNUP_CAPTCHA_SECRET)) {
         return res.status(403).json({ error: "CAPTCHA verification failed" });
       }
     }
@@ -53,7 +54,8 @@ adminSignupRoutes.post(
     });
 
     // Auto-login owner (staff cookie)
-    const token = await signStaffToken({ sid: ownerId, bid: business.id, role: "OWNER", brid: branchId });
+    // The owner has just set this password, so the new session counts as re-authenticated.
+    const token = await signStaffToken({ sid: ownerId, bid: business.id, role: "OWNER", brid: branchId, reauthVerified: true });
     res.cookie(config.STAFF_COOKIE_NAME, token, { ...cookieOpts(req), maxAge: browserCookieMaxAge("STAFF") });
 
     /** @type {AdminSignupResponse} */

@@ -8,6 +8,8 @@ export function getAwardQueueStats(scope?: StaffQueueScope): Promise<{
   queued: number;
   syncing: number;
   failed: number;
+  held: number;
+  rejected: number;
   quarantined: number;
   lastQueuedAt: string;
   lastError: string;

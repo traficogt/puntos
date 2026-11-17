@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { dbQuery, withTransaction } from "../database.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
 import { badRequest, conflict, forbidden, notFound } from "../../utils/http-error.js";
-import { buildLedgerFinding, isLedgerBalanceMismatch } from "./ledger-reconciliation-service.js";
+import { buildLedgerFinding, isLedgerBalanceMismatch, ledgerExpectationSql } from "./ledger-reconciliation-service.js";
 
 function id() {
   return crypto.randomUUID();
@@ -56,36 +56,19 @@ function normalizeReason(reason) {
 // Correction-linked adjustments document a repair of the stored balance. They are
 // not additional earned points; ordinary restorations (no correction_id) remain additive.
 async function readCustomerLedgerRow(query, customerId) {
+  const expectation = ledgerExpectationSql({
+    transactionFilter: "t.customer_id = $1",
+    adjustmentFilter: "a.customer_id = $1"
+  });
   const { rows } = await query(
-    `WITH tx_agg AS (
-       SELECT
-         customer_id,
-         COALESCE(SUM(CASE WHEN status = 'POSTED' THEN points ELSE 0 END), 0)::int AS posted_points,
-         COALESCE(SUM(CASE WHEN status = 'PENDING' THEN points ELSE 0 END), 0)::int AS pending_points,
-         COALESCE(SUM(CASE WHEN status = 'POSTED' AND points > 0 THEN points ELSE 0 END), 0)::int AS lifetime_points
-       FROM transactions
-       WHERE customer_id = $1
-       GROUP BY customer_id
-     ),
-     adj_agg AS (
-       SELECT
-         customer_id,
-         COALESCE(SUM(delta_points), 0)::int AS delta_points,
-         COALESCE(SUM(delta_pending_points), 0)::int AS delta_pending_points,
-         COALESCE(SUM(delta_lifetime_points), 0)::int AS delta_lifetime_points
-       FROM ledger_balance_adjustments
-       WHERE customer_id = $1 AND correction_id IS NULL
-       GROUP BY customer_id
-     )
+    `WITH ${expectation.ctes}
      SELECT
        c.id AS customer_id,
        c.business_id,
        COALESCE(cb.points, 0)::int AS stored_points,
        COALESCE(cb.pending_points, 0)::int AS stored_pending_points,
        COALESCE(cb.lifetime_points, 0)::int AS stored_lifetime_points,
-       (COALESCE(tx.posted_points, 0) + COALESCE(adj.delta_points, 0))::int AS expected_points,
-       (COALESCE(tx.pending_points, 0) + COALESCE(adj.delta_pending_points, 0))::int AS expected_pending_points,
-       (COALESCE(tx.lifetime_points, 0) + COALESCE(adj.delta_lifetime_points, 0))::int AS expected_lifetime_points
+       ${expectation.columns}
      FROM customers c
      LEFT JOIN customer_balances cb ON cb.customer_id = c.id
      LEFT JOIN tx_agg tx ON tx.customer_id = c.id
@@ -148,6 +131,33 @@ function buildResolutionMeta(finding) {
   };
 }
 
+// Foreign keys bypass RLS, so a cited run or finding is checked here: it must
+// belong to this business, and a finding to this customer and the cited run.
+// A finding is enough to cite a platform-wide run, which tenants cannot read.
+async function assertCorrectionSource(client, { businessId, customerId, sourceRunId, sourceFindingId }) {
+  if (sourceFindingId) {
+    const { rows } = await client.query(
+      `SELECT run_id, customer_id
+       FROM ledger_reconciliation_findings
+       WHERE id = $1 AND business_id = $2`,
+      [sourceFindingId, businessId]
+    );
+    const finding = rows[0];
+    if (!finding
+      || String(finding.customer_id) !== String(customerId)
+      || (sourceRunId && String(finding.run_id) !== String(sourceRunId))) {
+      throw badRequest("Invalid reconciliation source");
+    }
+    return;
+  }
+  if (!sourceRunId) return;
+  const { rows } = await client.query(
+    `SELECT id FROM ledger_reconciliation_runs WHERE id = $1 AND business_id = $2`,
+    [sourceRunId, businessId]
+  );
+  if (!rows[0]) throw badRequest("Invalid reconciliation source");
+}
+
 /**
  * @param {LedgerCorrectionDeps} deps
  * @param {RequestLedgerCorrectionInput} args
@@ -169,6 +179,7 @@ export async function requestLedgerCorrectionWithDeps(deps, {
     if (!row || String(row.business_id) !== String(businessId)) {
       throw notFound("Customer not found");
     }
+    await assertCorrectionSource(client, { businessId, customerId, sourceRunId, sourceFindingId });
 
     if (!isLedgerBalanceMismatch(row)) {
       throw conflict("Customer balance already matches the ledger");

@@ -2,7 +2,7 @@
 title: Mostrar mi QR en caja
 description: Genera tu QR al pagar o al pedir un canje para que el personal seleccione
   tu cuenta.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - public/customer.html
@@ -34,7 +34,7 @@ El personal puede seleccionar tu cuenta. Mostrar el QR no registra por sí solo 
 
 ## Si algo no funciona
 
-**QR vencido:** no uses una captura antigua; genera uno nuevo. **No carga:** revisa conexión y sesión. **Código de inscripción:** el QR del cartel sirve para abrir el programa; para operar en caja, muestra el de tu tarjeta.
+**QR vencido:** no uses una captura antigua; genera uno nuevo. **No carga:** revisa conexión y sesión. **Tu sesión venció:** la tarjeta te pide entrar de nuevo desde el acceso del negocio; después genera otro QR. **Generaste varios QR seguidos:** espera un momento antes de intentarlo otra vez. **Código de inscripción:** el QR del cartel sirve para abrir el programa; para operar en caja, muestra el de tu tarjeta.
 
 ## Continúa con otra tarea
 
@@ -43,4 +43,4 @@ El personal puede seleccionar tu cuenta. Mostrar el QR no registra por sí solo 
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/mi-tarjeta/). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/mi-tarjeta/). Revisión del 17 de noviembre de 2026.

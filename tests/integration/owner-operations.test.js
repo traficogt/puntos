@@ -79,6 +79,7 @@ suite('complete owner workflows in isolated PostgreSQL',()=>{
   const initial=(await inbox()).operating_mode,request_id=randomUUID(),input={mode:'quiet',minutes:60,capacity:4,version:initial.version,request_id};
   const results=await Promise.all([decisions.setOperatingMode({businessId:b,staffId:ownerId,staff:owner,input},deps),decisions.setOperatingMode({businessId:b,staffId:ownerId,staff:owner,input},deps)]);assert.equal(results.filter(x=>x.replay).length,1);
   const paused=await decisions.setOperatingMode({businessId:b,staffId:ownerId,staff:owner,input:{mode:'busy',minutes:30,version:results[0].operating_mode.version}},deps);assert.equal(paused.operating_mode.capacity,4);
+  const cleared=await decisions.setOperatingMode({businessId:b,staffId:ownerId,staff:owner,input:{mode:'normal',capacity:null,version:paused.operating_mode.version}},deps);assert.equal(cleared.operating_mode.capacity,null,'owner can return to sin límite');
  });
  it('previews contacts, branch availability and tier descriptions without writes',async()=>{
   const approved=await template(),branch=randomUUID(),wrong=randomUUID(),tier=randomUUID();

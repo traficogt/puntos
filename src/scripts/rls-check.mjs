@@ -81,12 +81,24 @@ async function main() {
       [c1, c2]
     );
 
+    // Reconciliation runs carry customer balances; a platform-wide run has no business_id.
+    const runBaseline = (await client.query("SELECT count(*)::int AS c FROM ledger_reconciliation_runs")).rows[0].c;
+    await client.query(
+      `INSERT INTO ledger_reconciliation_runs (id, scope, status, business_id) VALUES
+       ($1, 'business', 'COMPLETED', $4),
+       ($2, 'business', 'COMPLETED', $5),
+       ($3, 'all', 'COMPLETED', NULL)`,
+      [randomUUID(), randomUUID(), randomUUID(), b1, b2]
+    );
+
     // Drop platform mode; strict RLS should hide everything until tenant is set.
     await client.query("SELECT set_config('app.platform_admin', '', true)");
     await client.query("SELECT set_config('app.current_tenant', '', true)");
 
     const none = await client.query("SELECT count(*)::int AS c FROM customers");
     assertEqual(none.rows[0].c, 0, "Strict RLS should hide tenant rows when no tenant is set");
+    const noRuns = await client.query("SELECT count(*)::int AS c FROM ledger_reconciliation_runs");
+    assertEqual(noRuns.rows[0].c, 0, "Strict RLS should hide reconciliation runs when no tenant is set");
 
     // Tenant-scoped view
     await client.query(`SELECT set_config('app.current_tenant', '${b1}', true)`);
@@ -96,12 +108,16 @@ async function main() {
     assertEqual(onlyB1.rows[0].c, 1, "RLS should restrict customers to current tenant");
     const balB1 = await client.query("SELECT count(*)::int AS c FROM customer_balances");
     assertEqual(balB1.rows[0].c, 1, "Derived-tenant RLS should restrict customer_balances to current tenant");
+    const runsB1 = await client.query("SELECT count(*)::int AS c FROM ledger_reconciliation_runs");
+    assertEqual(runsB1.rows[0].c, 1, "RLS should hide other tenants' and platform-wide reconciliation runs");
 
     // Platform-admin global view
     await client.query("SELECT set_config('app.current_tenant', '', true)");
     await client.query("SELECT set_config('app.platform_admin', 'true', true)");
     const allTenants = await client.query("SELECT count(*)::int AS c FROM customers");
     assertEqual(allTenants.rows[0].c, baselineCount + 2, "Platform admin should see all tenants");
+    const allRuns = await client.query("SELECT count(*)::int AS c FROM ledger_reconciliation_runs");
+    assertEqual(allRuns.rows[0].c, runBaseline + 3, "Platform admin should see every reconciliation run");
 
     console.log("RLS check: PASS (strict tenant isolation + platform admin access)");
   } finally {

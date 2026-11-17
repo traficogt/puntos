@@ -8,12 +8,15 @@ import { tenantContext } from "../../../middleware/tenant.js";
 import { requirePlanFeature } from "../../../middleware/plan-feature.js";
 import { StaffRepo } from "../../repositories/staff-repository.js";
 import { BranchRepo } from "../../repositories/branch-repository.js";
-import { dbQuery } from "../../database.js";
+import { dbQuery, withTransaction } from "../../database.js";
 import { makeId } from "./_util.js";
 import { passwordSchema } from "../../../utils/schemas.js";
 import { invalidateBrowserSessionsForActor } from "../../services/auth-session-service.js";
 import { hashPassword } from "../../../utils/password-hash.js";
 import { assertPasswordAllowed } from "../../../utils/password-policy.js";
+import { AuditRepo } from "../../repositories/audit-repository.js";
+import { AuthActionTokenRepo } from "../../repositories/auth-action-token-repository.js";
+import { withImpersonationMeta } from "../../../utils/impersonation.js";
 
 export const adminStaffRoutes = Router();
 
@@ -78,24 +81,44 @@ adminStaffRoutes.post(
     });
     const password_hash = await hashPassword(v.data.password);
 
-    const staff = await StaffRepo.create({
-      id: makeId(),
-      business_id: req.tenantId,
-      branch_id: branchId,
-      name: v.data.name,
-      email: v.data.email,
-      phone: v.data.phone ?? null,
-      role: v.data.role ?? "CASHIER",
-      password_hash
-    });
+    // The account and its audit entry commit together: a failed audit write
+    // leaves no account behind, so retrying cannot create a duplicate.
+    const finalStaff = await withTransaction(async () => {
+      const staff = await StaffRepo.create({
+        id: makeId(),
+        business_id: req.tenantId,
+        branch_id: branchId,
+        name: v.data.name,
+        email: v.data.email,
+        phone: v.data.phone ?? null,
+        role: v.data.role ?? "CASHIER",
+        password_hash
+      });
 
-    if (v.data.can_manage_gift_cards !== undefined) {
-      await dbQuery(
-        "UPDATE staff_users SET can_manage_gift_cards = $2 WHERE id = $1",
-        [staff.id, Boolean(v.data.can_manage_gift_cards)]
-      );
-    }
-    const finalStaff = await StaffRepo.getById(staff.id);
+      if (v.data.can_manage_gift_cards !== undefined) {
+        await dbQuery(
+          "UPDATE staff_users SET can_manage_gift_cards = $2 WHERE id = $1",
+          [staff.id, Boolean(v.data.can_manage_gift_cards)]
+        );
+      }
+      const created = await StaffRepo.getById(staff.id);
+      await AuditRepo.log({
+        id: makeId(),
+        business_id: req.tenantId,
+        actor_type: "STAFF",
+        actor_id: req.staff.id,
+        action: "staff.create",
+        ip: req.ip ?? null,
+        ua: req.get?.("user-agent") ?? null,
+        meta: withImpersonationMeta({
+          staff_id: created.id,
+          role: created.role,
+          branch_id: created.branch_id ?? null,
+          can_manage_gift_cards: Boolean(created.can_manage_gift_cards)
+        }, req.staff)
+      });
+      return created;
+    });
 
     return res.json({
       ok: true,
@@ -115,6 +138,7 @@ adminStaffRoutes.patch(
   "/admin/staff/:id",
   requireStaff,
   requireOwner,
+  requireRecentReauth(),
   tenantContext,
   csrfProtect,
   requirePlanFeature("staff_management"),
@@ -167,12 +191,37 @@ adminStaffRoutes.patch(
     if (!fields.length) return res.status(400).json({ error: "Sin cambios" });
 
     params.push(req.params.id, req.tenantId);
-    await dbQuery(
-      `UPDATE staff_users
-       SET ${fields.join(", ")}
-       WHERE id = $${idx++} AND business_id = $${idx}`,
-      params
-    );
+    // The change, the link invalidation and the audit entry commit together.
+    const updated = await withTransaction(async () => {
+      await dbQuery(
+        `UPDATE staff_users
+         SET ${fields.join(", ")}
+         WHERE id = $${idx++} AND business_id = $${idx}`,
+        params
+      );
+      // Reset and email-change links sent earlier must not outlive a password
+      // set by the owner or a deactivation.
+      if (v.data.password !== undefined || v.data.active !== undefined) {
+        await AuthActionTokenRepo.invalidateByActor({ actorType: "STAFF", actorId: target.id });
+      }
+
+      const row = await StaffRepo.getById(req.params.id);
+      // Record what changed, never the password or its hash.
+      const changes = Object.fromEntries(["active", "role", "branch_id", "can_manage_gift_cards"]
+        .filter((key) => v.data[key] !== undefined)
+        .map((key) => [key, { from: target[key] ?? null, to: row?.[key] ?? null }]));
+      await AuditRepo.log({
+        id: makeId(),
+        business_id: req.tenantId,
+        actor_type: "STAFF",
+        actor_id: req.staff.id,
+        action: "staff.update",
+        ip: req.ip ?? null,
+        ua: req.get?.("user-agent") ?? null,
+        meta: withImpersonationMeta({ staff_id: target.id, changes, password_reset: v.data.password !== undefined }, req.staff)
+      });
+      return row;
+    });
 
     if (
       v.data.active !== undefined
@@ -187,8 +236,6 @@ adminStaffRoutes.patch(
         reason: "staff_security_change"
       }).catch(() => {});
     }
-
-    const updated = await StaffRepo.getById(req.params.id);
     return res.json({
       ok: true,
       staff: {

@@ -16,7 +16,15 @@ import { config } from "../../config/index.js";
 import { browserCookieMaxAge, cookieOpts, customerCookieOptions, staffCookieOptions } from "../../utils/auth-token.js";
 import { requireCustomer } from "../../middleware/auth.js";
 import { csrfProtect } from "../../middleware/csrf.js";
-import { moderateRateLimit, rateLimitByPhone, strictRateLimit } from "../../middleware/rate-limit.js";
+import {
+  accountTokenConfirmRateLimit,
+  contactRateLimit,
+  customerCodeRequestRateLimit,
+  moderateRateLimit,
+  passwordResetRequestRateLimit,
+  rateLimitByPhone,
+  signupRateLimit
+} from "../../middleware/rate-limit.js";
 import QRCode from "qrcode";
 import { createBusinessWithOwner } from "../services/business-service.js";
 import crypto from "node:crypto";
@@ -120,7 +128,7 @@ publicRoutes.get("/public/keys", (req, res) => {
   res.json({ qr_public_key_pem: config.QR_PUBLIC_KEY_PEM || null });
 });
 
-publicRoutes.post("/public/business/:slug/join/request-code", strictRateLimit, rateLimitByPhone(3, 10 * 60 * 1000), asyncRoute(async (req, res) => {
+publicRoutes.post("/public/business/:slug/join/request-code", customerCodeRequestRateLimit, rateLimitByPhone(3, 10 * 60 * 1000), asyncRoute(async (req, res) => {
   const v = validate(requestJoinCodeSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
 
@@ -139,7 +147,7 @@ publicRoutes.post("/public/business/:slug/join/request-code", strictRateLimit, r
   res.json(out);
 }));
 
-publicRoutes.post("/public/business/:slug/login/request-code", strictRateLimit, rateLimitByPhone(3, 10 * 60 * 1000), asyncRoute(async (req, res) => {
+publicRoutes.post("/public/business/:slug/login/request-code", customerCodeRequestRateLimit, rateLimitByPhone(3, 10 * 60 * 1000), asyncRoute(async (req, res) => {
   const v = validate(requestJoinCodeSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
 
@@ -159,7 +167,7 @@ publicRoutes.post("/public/business/:slug/login/request-code", strictRateLimit, 
   res.json(out);
 }));
 
-publicRoutes.post("/public/staff/password-reset/request", strictRateLimit, asyncRoute(async (req, res) => {
+publicRoutes.post("/public/staff/password-reset/request", passwordResetRequestRateLimit, asyncRoute(async (req, res) => {
   const v = validate(StaffPasswordResetRequestSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
   await requestStaffPasswordReset({
@@ -170,7 +178,7 @@ publicRoutes.post("/public/staff/password-reset/request", strictRateLimit, async
   res.json({ ok: true });
 }));
 
-publicRoutes.post("/public/staff/password-reset/confirm", strictRateLimit, asyncRoute(async (req, res) => {
+publicRoutes.post("/public/staff/password-reset/confirm", accountTokenConfirmRateLimit, asyncRoute(async (req, res) => {
   const v = validate(StaffPasswordResetConfirmSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
   await completeStaffPasswordReset({
@@ -182,7 +190,7 @@ publicRoutes.post("/public/staff/password-reset/confirm", strictRateLimit, async
   res.json({ ok: true });
 }));
 
-publicRoutes.post("/public/staff/email-change/confirm", strictRateLimit, asyncRoute(async (req, res) => {
+publicRoutes.post("/public/staff/email-change/confirm", accountTokenConfirmRateLimit, asyncRoute(async (req, res) => {
   const v = validate(StaffTokenConfirmSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
   const out = await confirmStaffEmailChange({
@@ -334,14 +342,14 @@ publicRoutes.post("/public/external/award", moderateRateLimit, asyncRoute(async 
   res.json(out);
 }));
 
-publicRoutes.post("/public/business/register", strictRateLimit, asyncRoute(async (req, res) => {
+publicRoutes.post("/public/business/register", signupRateLimit, asyncRoute(async (req, res) => {
   const v = validate(businessRegisterSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
 
   // Optional shared secret for production; if set, require correct token
   if (config.REGISTRATION_API_KEY) {
     const tok = v.data.registration_token || req.headers["x-registration-token"];
-    if (tok !== config.REGISTRATION_API_KEY) {
+    if (!timingSafeEqualString(tok, config.REGISTRATION_API_KEY)) {
       return res.status(401).json({ error: "Invalid registration token" });
     }
   }
@@ -371,12 +379,12 @@ publicRoutes.post("/public/business/register", strictRateLimit, asyncRoute(async
   });
 }));
 
-publicRoutes.post("/public/contact", strictRateLimit, asyncRoute(async (req, res) => {
+publicRoutes.post("/public/contact", contactRateLimit, asyncRoute(async (req, res) => {
   const v = validate(ContactSchema, req.body);
-  if (!v.ok) return res.status(400).json({ error: v.error });
+  if (!v.ok) return res.status(400).json({ error: v.error, code: "VALIDATION_ERROR" });
   const ip = getRequestIp(req);
   const valid = await verifyTurnstile(v.data.turnstileToken, ip).catch(() => false);
-  if (!valid) return res.status(400).json({ error: "Verificación fallida. Intenta de nuevo." });
+  if (!valid) return res.status(400).json({ error: "Verificación fallida. Intenta de nuevo.", code: "VERIFICATION_FAILED" });
   try {
     await sendContactEmail(v.data, { host: req.get('host') });
   } catch {

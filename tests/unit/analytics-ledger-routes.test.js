@@ -4,22 +4,10 @@ import assert from "node:assert/strict";
 import { analyticsLedgerRoutes } from "../../src/app/routes/analytics/ledger.js";
 import { pool } from "../../src/app/database.js";
 
-pool.query = async (sql) => {
+const queries = [];
+pool.query = async (sql, params = []) => {
   const text = String(sql);
-  if (text.includes("FROM ledger_reconciliation_runs") && text.includes("LIMIT 1")) {
-    return {
-      rows: [{
-        id: "run-1",
-        completed_at: "2026-03-08T05:00:00.000Z",
-        status: "COMPLETED",
-        checked_customers: 12,
-        mismatched_customers: 2,
-        repaired_customers: 2,
-        scope: { business_id: "biz-1" }
-      }],
-      rowCount: 1
-    };
-  }
+  queries.push({ text, params });
   if (text.includes("FROM ledger_reconciliation_runs") && text.includes("LIMIT 10")) {
     return {
       rows: [{
@@ -88,6 +76,7 @@ async function runRoute(routePath, req) {
         reject(error);
       }
     });
+    if (res.body !== null) break;
   }
   return res;
 }
@@ -99,7 +88,8 @@ describe("analytics ledger routes", () => {
       path: "/admin/analytics/ledger-reconciliation",
       url: "/admin/analytics/ledger-reconciliation",
       originalUrl: "/admin/analytics/ledger-reconciliation",
-      tenantId: "biz-1"
+      tenantId: "biz-1",
+      staff: { id: "staff-1", business_id: "biz-1", role: "OWNER" }
     });
 
     assert.equal(res.statusCode, 200);
@@ -107,5 +97,24 @@ describe("analytics ledger routes", () => {
     assert.equal(res.body.latest_run.id, "run-1");
     assert.equal(res.body.recent_runs.length, 1);
     assert.equal(res.body.latest_findings.length, 1);
+    const runQuery = queries.find((query) => query.text.includes("FROM ledger_reconciliation_runs"));
+    assert.doesNotMatch(runQuery.text, /business_id IS NULL/);
+    assert.deepEqual(runQuery.params, ["biz-1"]);
+    const findingQuery = queries.find((query) => query.text.includes("FROM ledger_reconciliation_findings"));
+    assert.match(findingQuery.text, /AND business_id = \$2/);
+    assert.deepEqual(findingQuery.params, ["run-1", "biz-1"]);
+  });
+
+  it("is limited to owners like the other ledger review endpoints", async () => {
+    for (const role of ["MANAGER", "CASHIER"]) {
+      const res = await runRoute("/admin/analytics/ledger-reconciliation", {
+        method: "GET",
+        path: "/admin/analytics/ledger-reconciliation",
+        tenantId: "biz-1",
+        staff: { id: "staff-2", business_id: "biz-1", role }
+      });
+      assert.equal(res.statusCode, 403);
+      assert.equal(res.body.code, "RBAC_ROLE_REQUIRED");
+    }
   });
 });

@@ -8,6 +8,7 @@ import { planFeaturesWithOverrides } from "../../../utils/plan.js";
 import { Permission, hasPermission } from "../../../utils/permissions.js";
 import { withImpersonationMeta } from "../../../utils/impersonation.js";
 import { sanitizeProgramForClient } from "../../../utils/program-secrets.js";
+import { withTransaction } from "../../database.js";
 import { AuditRepo } from "../../repositories/audit-repository.js";
 import { BusinessRepo } from "../../repositories/business-repository.js";
 import { PlanConfigService } from "../../services/plan-config-service.js";
@@ -19,6 +20,14 @@ import {
   getBusinessOr404,
   ProgramSchema
 } from "./program-support.js";
+
+// Dedicated services validate and own these settings. The generic program
+// form never submits them, so a stale or crafted save cannot replace them.
+const SERVICE_MANAGED_PROGRAM_KEYS = [
+  "pos_integration", "external_awards", "weekly_owner_brief", "region", "currency_confirmation",
+  "data_health", "merchant_operating_mode", "second_visit", "targeted_offers_enabled",
+  "pos_inventory_checks", "pos_checkout_enabled"
+];
 
 export function registerProgramConfigRoutes(router) {
   router.get(
@@ -57,8 +66,7 @@ export function registerProgramConfigRoutes(router) {
       const hasAdvanced = hasPermission(req.staff.role, Permission.ADMIN_PROGRAM_UPDATE_ADVANCED);
 
       const nextProgram = { ...(v.data.program_json || {}) };
-      delete nextProgram.pos_integration;
-      delete nextProgram.external_awards;
+      for (const key of SERVICE_MANAGED_PROGRAM_KEYS) delete nextProgram[key];
       if (!hasAdvanced) {
         delete nextProgram.campaign_rules;
         delete nextProgram.tier_policy;
@@ -69,10 +77,31 @@ export function registerProgramConfigRoutes(router) {
       if (!features.tiers) delete nextProgram.tier_policy;
       if (!features.lifecycle_automation) delete nextProgram.lifecycle;
 
-      const business = await BusinessRepo.updateProgram(req.tenantId, {
-        program_type: v.data.program_type,
-        program_json: nextProgram,
-        preserveIntegrations: true
+      const previous = currentBusiness.program_json ?? {};
+      const changedKeys = Object.keys(nextProgram)
+        .filter((key) => JSON.stringify(previous[key] ?? null) !== JSON.stringify(nextProgram[key] ?? null)).sort();
+      // The saved rules and their audit entry commit together.
+      const business = await withTransaction(async () => {
+        const saved = await BusinessRepo.updateProgram(req.tenantId, {
+          program_type: v.data.program_type,
+          program_json: nextProgram,
+          preserveIntegrations: true
+        });
+        await AuditRepo.log({
+          id: makeId(),
+          business_id: req.tenantId,
+          actor_type: "STAFF",
+          actor_id: req.staff.id,
+          action: "program.update",
+          ip: req.ip ?? null,
+          ua: req.get?.("user-agent") ?? null,
+          meta: withImpersonationMeta({
+            program_type: { from: currentBusiness.program_type ?? null, to: v.data.program_type },
+            changed_keys: changedKeys,
+            changes: Object.fromEntries(changedKeys.map((key) => [key, { from: previous[key] ?? null, to: nextProgram[key] ?? null }]))
+          }, req.staff)
+        });
+        return saved;
       });
       return res.json({ ok: true, business: { ...business, program_json: sanitizeProgramForClient(business?.program_json) } });
     })

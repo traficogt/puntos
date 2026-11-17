@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import { config } from "../../../config/index.js";
 import { asyncRoute } from "../../../middleware/common.js";
 import { requireStaff, requireStaffPermission } from "../../../middleware/auth.js";
+import { csrfProtect } from "../../../middleware/csrf.js";
 import { tenantContext } from "../../../middleware/tenant.js";
 import { Permission } from "../../../utils/permissions.js";
 import { businessCustomerBrandingSchema } from "../../../utils/schemas.js";
@@ -65,6 +66,7 @@ export function createAdminBrandingRoutes({ appOrigin = config.APP_ORIGIN, getBu
     staffAuth,
     requireStaffPermission(Permission.ADMIN_PROGRAM_UPDATE_BASIC),
     tenantContext,
+    csrfProtect,
     asyncRoute(async (req, res) => {
       const business = await getBusiness(req.tenantId);
       if (!business) return res.status(404).json({ error: "Business not found" });

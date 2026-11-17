@@ -2,7 +2,7 @@
 title: Canjear una recompensa
 description: Canjea solo la recompensa elegida por el cliente y confirma el resultado
   antes de entregarla.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - public/staff.html
@@ -43,4 +43,4 @@ PF registra el débito de puntos y un código de canje. La confirmación en PF n
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/equipo/escaner/). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/equipo/escaner/). Revisión del 17 de noviembre de 2026.

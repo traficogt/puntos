@@ -5,6 +5,8 @@ import {
   getBrowserSession
 } from "../app/services/auth-session-service.js";
 
+// Sessions count as recently re-authenticated only when the caller has just
+// verified the actor's own credentials. Impersonation and link sessions must not.
 export async function signStaffToken(payload, _expiresInSeconds = 30 * 24 * 60 * 60) {
   const out = await createBrowserSession({
     actorType: "STAFF",
@@ -13,7 +15,7 @@ export async function signStaffToken(payload, _expiresInSeconds = 30 * 24 * 60 *
     role: payload.role ?? "CASHIER",
     branchId: payload.brid ?? null,
     impersonatedBy: payload.imp ?? null,
-    reauthVerified: payload.reauthVerified ?? true,
+    reauthVerified: payload.reauthVerified === true && !payload.imp,
     mfaVerified: payload.mfaVerified ?? false
   });
   return out.token;
@@ -33,7 +35,7 @@ export async function signSuperToken(payload, _expiresInSeconds = 7 * 24 * 60 * 
   const out = await createBrowserSession({
     actorType: "SUPER",
     actorEmail: String(payload.email || "").toLowerCase(),
-    reauthVerified: payload.reauthVerified ?? true,
+    reauthVerified: payload.reauthVerified === true,
     mfaVerified: payload.mfaVerified ?? false
   });
   return out.token;

@@ -1,3 +1,5 @@
+import { reportingPurchase } from "./reporting-purchase.js";
+
 function dateKey(value) {
   if (!value) return null;
   const date = new Date(value);
@@ -74,21 +76,22 @@ function predictedLtv(avgTransactionValue, purchaseFrequency) {
   return Number((Number(avgTransactionValue || 0) * (purchaseFrequency * 12 * 2)).toFixed(2));
 }
 
-export async function refreshCustomerDerivedState(client, customerId) {
+// Purchase statistics count recorded sales only (reportingPurchase): expiry,
+// bonus, redemption, migration and reversal rows and refunded sales are not
+// purchases. The update_customer_ltv trigger applies the same definition.
+export async function refreshCustomerLtv(client, customerId) {
   const { rows } = await client.query(
     `SELECT
-       COALESCE(SUM(amount_q), 0)::numeric(10,2) AS total_spend,
-       COALESCE(SUM(visits), 0)::int AS total_visits,
+       ROUND(COALESCE(SUM(t.amount_q), 0), 2) AS total_spend,
+       COALESCE(SUM(t.visits), 0)::int AS total_visits,
        COUNT(*)::int AS total_transactions,
-       COALESCE(AVG(amount_q), 0)::numeric(10,2) AS avg_transaction_value,
-       MIN(created_at) AS first_purchase_at,
-       MAX(created_at) AS last_purchase_at,
-       EXTRACT(DAY FROM (now() - MAX(created_at)))::int AS days_since_last_purchase
-     FROM transactions
-     WHERE customer_id = $1
-       AND type = 'PURCHASE'
-       AND source <> 'reversal'
-       AND status <> 'REVERSED'`,
+       ROUND(COALESCE(AVG(t.amount_q), 0), 2) AS avg_transaction_value,
+       MIN(t.created_at) AS first_purchase_at,
+       MAX(t.created_at) AS last_purchase_at,
+       EXTRACT(DAY FROM (now() - MAX(t.created_at)))::int AS days_since_last_purchase
+     FROM transactions t
+     WHERE t.customer_id = $1
+       AND ${reportingPurchase('t')}`,
     [customerId]
   );
 
@@ -141,15 +144,17 @@ export async function refreshCustomerDerivedState(client, customerId) {
       churnRiskScore(aggregate.days_since_last_purchase, purchaseFrequency)
     ]
   );
+}
+
+export async function refreshCustomerDerivedState(client, customerId) {
+  await refreshCustomerLtv(client, customerId);
 
   const { rows: visitRows } = await client.query(
-    `SELECT DISTINCT DATE(created_at) AS visit_date
-     FROM transactions
-     WHERE customer_id = $1
-       AND type = 'PURCHASE'
-       AND visits > 0
-       AND source <> 'reversal'
-       AND status <> 'REVERSED'
+    `SELECT DISTINCT DATE(t.created_at) AS visit_date
+     FROM transactions t
+     WHERE t.customer_id = $1
+       AND t.visits > 0
+       AND ${reportingPurchase('t')}
      ORDER BY visit_date ASC`,
     [customerId]
   );

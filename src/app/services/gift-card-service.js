@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { GiftCardRepo } from "../repositories/gift-card-repository.js";
 import { StaffRepo } from "../repositories/staff-repository.js";
 import { withTransaction } from "../database.js";
-import { badRequest, forbidden } from "../../utils/http-error.js";
+import { badRequest, conflict, forbidden } from "../../utils/http-error.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 
@@ -62,6 +62,18 @@ async function findExistingGiftCardTx(client, businessId, requestId) {
   return rows[0] ?? null;
 }
 
+// A retry must repeat the original operation. The same requestId with another
+// operation, card or amount is a different request, not a replay.
+function assertGiftCardReplay(existing, { txType, amount, codeOrToken = null }) {
+  const sameCard = codeOrToken == null
+    || existing.code === codeOrToken
+    || existing.qr_token === codeOrToken;
+  const sameAmount = Math.abs(Number(existing.amount_q) - amount) < 0.000001;
+  if (existing.tx_type !== txType || !sameCard || !sameAmount) {
+    throw conflict("Este identificador de solicitud ya se usó para otra operación de gift card.");
+  }
+}
+
 async function lockGiftCardRequest(client, businessId, requestId) {
   if (!requestId) return;
   await client.query(
@@ -107,6 +119,7 @@ export async function createGiftCardWithDeps(deps, {
     await lockGiftCardRequest(client, actor.business_id, requestId);
     const existing = await findExistingGiftCardTx(client, actor.business_id, requestId);
     if (existing) {
+      assertGiftCardReplay(existing, { txType: "ISSUE", amount });
       await auditRepo.log({
         id: crypto.randomUUID(),
         business_id: actor.business_id,
@@ -158,6 +171,7 @@ export async function createGiftCardWithDeps(deps, {
         if (String(err?.code) === "23505" && requestId) {
           const replay = await findExistingGiftCardTx(client, actor.business_id, requestId);
           if (replay) {
+            assertGiftCardReplay(replay, { txType: "ISSUE", amount });
             await auditRepo.log({
               id: crypto.randomUUID(),
               business_id: actor.business_id,
@@ -244,6 +258,7 @@ export async function redeemGiftCardWithDeps(deps, {
     await lockGiftCardRequest(client, actor.business_id, requestId);
     const existing = await findExistingGiftCardTx(client, actor.business_id, requestId);
     if (existing) {
+      assertGiftCardReplay(existing, { txType: "REDEEM", amount, codeOrToken: code_or_token });
       await auditRepo.log({
         id: crypto.randomUUID(),
         business_id: actor.business_id,
@@ -363,13 +378,11 @@ export async function giftCardLedgerDetailsWithDeps(deps, { staff, code_or_token
   const card = await deps.GiftCardRepo.getByCodeOrToken(staff.business_id, code_or_token);
   if (!card) throw badRequest("Gift card no encontrada");
 
+  // Totals cover the card's entire history; the list is only the latest rows.
   const transactions = await deps.GiftCardRepo.listTxByCard(card.id, 100);
-  const issueTotal = transactions
-    .filter((tx) => tx.tx_type === "ISSUE")
-    .reduce((sum, tx) => sum + Number(tx.amount_q || 0), 0);
-  const redeemTotal = transactions
-    .filter((tx) => tx.tx_type === "REDEEM")
-    .reduce((sum, tx) => sum + Number(tx.amount_q || 0), 0);
+  const totals = await deps.GiftCardRepo.sumTxByCard(card.id);
+  const issueTotal = Number(totals?.issue_total_q || 0);
+  const redeemTotal = Number(totals?.redeem_total_q || 0);
   const expectedBalance = Number((issueTotal - redeemTotal).toFixed(2));
   const storedBalance = Number(Number(card.balance_q || 0).toFixed(2));
   const delta = Number((expectedBalance - storedBalance).toFixed(2));

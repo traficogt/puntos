@@ -39,7 +39,8 @@ export function renderStatement($, statement, { isLive = false, region = undefin
   }
   root.appendChild(list);
   const completed = statement.rewards.completed;
-  append('p', `${number(completed)} canje${completed === 1 ? '' : 's'} completado${completed === 1 ? '' : 's'} en el período. ${number(statement.balance.pending)} puntos pendientes de confirmar al consultar.`, 'small');
+  const pending = statement.balance.pending;
+  append('p', `${number(completed)} canje${completed === 1 ? '' : 's'} completado${completed === 1 ? '' : 's'} en el período. ${number(pending)} ${pending === 1 ? 'punto pendiente' : 'puntos pendientes'} de confirmar al consultar.`, 'small');
   append('p', 'Puntos sumados incluye compras, bonificaciones y otros abonos confirmados registrados en este período; no significa que todos provengan de compras ni que sigan disponibles. Las devoluciones, correcciones y saldos transferidos aparecen en Ajustes. El saldo de tu tarjeta también incluye actividad anterior.', 'small');
   append('p', 'Estos puntos no tienen una equivalencia en dinero en este resumen.', 'small');
 }

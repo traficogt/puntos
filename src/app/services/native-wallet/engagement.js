@@ -1,13 +1,16 @@
 import {businessRegion} from '../regional-settings.js';
 const text=value=>String(value??'').trim().slice(0,160);
 const positive=value=>Math.max(0,Math.floor(Number(value)||0));
-const number=value=>new Intl.NumberFormat('es',{maximumFractionDigits:20}).format(value);
+// Numbers follow the business region (es-GT: 12,345 and 0.1), like the wallet.
+const numberIn=(region,value)=>new Intl.NumberFormat(region.locale,{maximumFractionDigits:20}).format(value);
+const pointsIn=(region,value)=>`${numberIn(region,value)} ${Math.abs(Number(value))===1?'punto':'puntos'}`;
 
 /** Select one points-based choice; pending points and hospitality never inflate progress. */
 export function buildWalletEngagement(snapshot) {
  const empty={reward:null,progress:null,earning:null,conditions:null,usage:null,locations:[],next_refresh_at:null};
  if(snapshot.is_voided||snapshot.revoked_at)return empty;
  const now=new Date(snapshot.snapshot_at??Date.now()).getTime(),points=Number(snapshot.points)||0;
+ const region=businessRegion({program_json:snapshot.program_json});
  const branches=Array.isArray(snapshot.wallet_branches)?snapshot.wallet_branches:[];
  const branchIds=new Set(branches.map(b=>b.id));
  const guard=snapshot.program_json?.redemption_guard??{};
@@ -33,12 +36,11 @@ export function buildWalletEngagement(snapshot) {
  const terms=snapshot.wallet_cycle?.earning_terms??snapshot.program_json??{};
  const type=snapshot.wallet_cycle?.program_type??snapshot.program_type;
  const rate=Number(type==='SPEND'?terms.points_per_q??0.1:type==='VISIT'?terms.points_per_visit??10:terms.points_per_item??1);
- const region=businessRegion({program_json:snapshot.program_json});
  // Older protected cycles predate regional settings. Preserve their earning
  // rules, but only override the business currency when the cycle recorded one.
  const currency=businessRegion({program_json:{region:{...region,...terms.region}}}).currency;
  const rounding=terms.round==='floor'?'hacia abajo':terms.round==='round'?'al entero más cercano':'hacia arriba';
- const earning=Number.isFinite(rate)&&rate>=0?`${snapshot.wallet_cycle?'Condiciones protegidas: ':''}${number(rate)} puntos ${type==='SPEND'?`por ${currency} 1`:type==='VISIT'?'por visita':'por artículo'}.${type==='SPEND'?` Redondeo ${rounding}.`:''}`:null;
+ const earning=Number.isFinite(rate)&&rate>=0?`${snapshot.wallet_cycle?'Condiciones protegidas: ':''}${pointsIn(region,rate)} ${type==='SPEND'?`por ${currency} 1`:type==='VISIT'?'por visita':'por artículo'}.${type==='SPEND'?` Redondeo ${rounding}.`:''}`:null;
  const scoped=reward?.branch_ids?.length?branches.filter(b=>reward.branch_ids.includes(b.id)):branches;
  const seen=new Set();
  const locations=scoped.filter(b=>{
@@ -49,5 +51,5 @@ export function buildWalletEngagement(snapshot) {
  const expiry=reward?.valid_until?new Intl.DateTimeFormat(region.locale,{dateStyle:'long',timeStyle:'short',timeZone:region.timezone}).format(new Date(reward.valid_until)):null;
  const conditions=reward?[reward.protected?'Condiciones originales protegidas.':'',branchNames.length?`Canje en: ${branchNames.join(', ')}.`:'Canje en las sucursales del negocio.',expiry?`Vigencia: ${expiry} (${region.timezone}).`:'','Sujeto a disponibilidad al canjear.'].filter(Boolean).join(' '):null;
  const usage='Los puntos pendientes aún no se pueden canjear. Puedes mostrar este QR sin conexión; para actualizar saldos y recompensas necesitas conectarte. Confirma el canje en caja.';
- return {reward,progress:reward?(reward.status==='available'?`Puedes elegir ${reward.name} por ${number(reward.points_cost)} puntos.`:`Te faltan ${number(reward.remaining_points)} puntos para ${reward.name}.`):'Consulta las recompensas y su disponibilidad en tu cuenta.',earning,conditions,usage,locations,next_refresh_at:deadlines.length?new Date(Math.min(...deadlines)).toISOString():null};
+ return {reward,progress:reward?(reward.status==='available'?`Puedes elegir ${reward.name} por ${pointsIn(region,reward.points_cost)}.`:`Te ${reward.remaining_points===1?'falta':'faltan'} ${pointsIn(region,reward.remaining_points)} para ${reward.name}.`):'Consulta las recompensas y su disponibilidad en tu cuenta.',earning,conditions,usage,locations,next_refresh_at:deadlines.length?new Date(Math.min(...deadlines)).toISOString():null};
 }

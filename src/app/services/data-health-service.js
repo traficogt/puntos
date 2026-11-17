@@ -12,6 +12,11 @@ export const healthSettingsSchema=z.object({version:z.string().regex(/^[a-f0-9]{
 export const heartbeatSchema=z.object({request_id:uuid,monitor_id:uuid,coverage_through:dateTimeSchema({offset:true}),status:z.enum(['complete','partial','error']),pending:z.number().int().min(0).max(10000000),errors:z.number().int().min(0).max(10000000)}).strict();
 const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 const stored=b=>b.program_json?.data_health??{sources:[]};
+// The optimistic version covers owner-editable settings only. Integration
+// heartbeats update last_heartbeat on the same row and must not invalidate
+// an owner's open form.
+const editable=settings=>({sources:(settings?.sources??[]).map(({id,source,label,branch_id,expected_minutes,enabled})=>({id,source,label,branch_id,expected_minutes,enabled}))});
+const settingsVersion=settings=>hash(editable(settings));
 const defaults={query:dbQuery,transaction:withTransaction,now:()=>new Date()};
 async function audit(client,o,action,meta){await client.query("INSERT INTO audit_logs(id,business_id,actor_type,actor_id,action,meta) VALUES($1,$2,$3,$4,$5,$6)",[randomUUID(),o.businessId,o.staffId?'STAFF':'INTEGRATION',o.staffId??null,action,JSON.stringify(withImpersonationMeta(meta,o))]);}
 export async function getDataHealth({businessId},injected={}){
@@ -19,14 +24,14 @@ export async function getDataHealth({businessId},injected={}){
  const b=(await d.query('SELECT id,slug,program_json FROM businesses WHERE id=$1',[businessId])).rows[0];if(!b)throw notFound('Negocio no encontrado.');
  const branches=(await d.query('SELECT id,name FROM branches WHERE business_id=$1 ORDER BY name,id',[businessId])).rows;
  const events=(await d.query('SELECT id,monitor_id,details,created_at FROM ingestion_health_events WHERE business_id=$1 ORDER BY created_at DESC,id DESC LIMIT 30',[businessId])).rows;
- return {version:hash(stored(b)),sources:stored(b).sources??[],branches,events,readiness:readinessForBusiness(b,d.now()),heartbeat_path:`/api/public/pos/${encodeURIComponent(b.slug)}/health/heartbeat`};
+ return {version:settingsVersion(stored(b)),sources:stored(b).sources??[],branches,events,readiness:readinessForBusiness(b,d.now()),heartbeat_path:`/api/public/pos/${encodeURIComponent(b.slug)}/health/heartbeat`};
 }
 export async function saveDataHealth(options,injected={}){
  const parsed=healthSettingsSchema.safeParse(options.input);if(!parsed.success)throw badRequest('Revisa las conexiones, sucursales y plazos.');
  const d={...defaults,...injected},input=parsed.data;
  return d.transaction(async client=>{
   const b=(await client.query('SELECT id,program_json FROM businesses WHERE id=$1 FOR UPDATE',[options.businessId])).rows[0];if(!b)throw notFound('Negocio no encontrado.');
-  if(hash(stored(b))!==input.version)throw conflict('La configuración cambió. Actualiza antes de guardar.');
+  if(settingsVersion(stored(b))!==input.version)throw conflict('La configuración cambió. Actualiza antes de guardar.');
   const branches=(await client.query('SELECT id FROM branches WHERE business_id=$1',[options.businessId])).rows.map(r=>r.id);
   if(input.sources.some(s=>s.branch_id&&!branches.includes(s.branch_id)))throw badRequest('La sucursal no pertenece a este negocio.');
   const existing=stored(b).sources??[];
@@ -34,7 +39,7 @@ export async function saveDataHealth(options,injected={}){
   const value={sources};
   await client.query("UPDATE businesses SET program_json=jsonb_set(COALESCE(program_json,'{}'::jsonb),'{data_health}',$2::jsonb,true) WHERE id=$1",[options.businessId,JSON.stringify(value)]);
   await audit(client,options,'data_health.configured',{sources:input.sources});
-  return {ok:true,version:hash(value),sources};
+  return {ok:true,version:settingsVersion(value),sources};
  });
 }
 export async function recordDataHeartbeat(business,payload,injected={}){

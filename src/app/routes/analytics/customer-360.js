@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { asyncRoute } from "../../../middleware/common.js";
 import { dbQuery } from "../../database.js";
-import { buildLedgerFinding, isLedgerBalanceMismatch } from "../../services/ledger-reconciliation-service.js";
+import { buildLedgerFinding, isLedgerBalanceMismatch, ledgerExpectationSql } from "../../services/ledger-reconciliation-service.js";
 
 export const analyticsCustomerRoutes = Router();
 
@@ -101,27 +101,12 @@ analyticsCustomerRoutes.get(
   asyncRoute(async (req, res) => {
     const customerId = req.params.id;
 
+    const expectation = ledgerExpectationSql({
+      transactionFilter: "t.customer_id = $1",
+      adjustmentFilter: "a.customer_id = $1"
+    });
     const { rows } = await dbQuery(
-      `WITH tx_agg AS (
-         SELECT
-           customer_id,
-           COALESCE(SUM(CASE WHEN status = 'POSTED' THEN points ELSE 0 END), 0)::int AS posted_points,
-           COALESCE(SUM(CASE WHEN status = 'PENDING' THEN points ELSE 0 END), 0)::int AS pending_points,
-           COALESCE(SUM(CASE WHEN status = 'POSTED' AND points > 0 THEN points ELSE 0 END), 0)::int AS lifetime_points
-         FROM transactions
-         WHERE customer_id = $1
-         GROUP BY customer_id
-       ),
-       adj_agg AS (
-         SELECT
-           customer_id,
-           COALESCE(SUM(delta_points), 0)::int AS delta_points,
-           COALESCE(SUM(delta_pending_points), 0)::int AS delta_pending_points,
-           COALESCE(SUM(delta_lifetime_points), 0)::int AS delta_lifetime_points
-         FROM ledger_balance_adjustments
-         WHERE customer_id = $1 AND correction_id IS NULL
-         GROUP BY customer_id
-       )
+      `WITH ${expectation.ctes}
        SELECT
          c.id AS customer_id,
          c.business_id,
@@ -131,9 +116,7 @@ analyticsCustomerRoutes.get(
          COALESCE(cb.points, 0)::int AS stored_points,
          COALESCE(cb.pending_points, 0)::int AS stored_pending_points,
          COALESCE(cb.lifetime_points, 0)::int AS stored_lifetime_points,
-         (COALESCE(tx.posted_points, 0) + COALESCE(adj.delta_points, 0))::int AS expected_points,
-         (COALESCE(tx.pending_points, 0) + COALESCE(adj.delta_pending_points, 0))::int AS expected_pending_points,
-         (COALESCE(tx.lifetime_points, 0) + COALESCE(adj.delta_lifetime_points, 0))::int AS expected_lifetime_points
+         ${expectation.columns}
        FROM customers c
        LEFT JOIN customer_balances cb ON cb.customer_id = c.id
        LEFT JOIN tx_agg tx ON tx.customer_id = c.id

@@ -132,12 +132,30 @@ export function requireStaffPermission(permission) {
   return middleware;
 }
 
+const IMPERSONATION_FORBIDDEN = {
+  error: "Esta acción de seguridad solo puede hacerse desde la sesión propia de la persona usuaria.",
+  code: "IMPERSONATION_FORBIDDEN"
+};
+
+function isImpersonatedSession(req) {
+  return Boolean(req.authSession?.impersonated_by || req.staff?.impersonated_by);
+}
+
+/** Refuses account-security changes (reauth, MFA, email, lockdown) in impersonated sessions. */
+export function forbidImpersonatedSession(req, res, next) {
+  if (isImpersonatedSession(req)) return res.status(403).json(IMPERSONATION_FORBIDDEN);
+  return next();
+}
+
 export function requireRecentReauth({ requireMfaIfEnabled = true } = {}) {
   const middleware = async (req, res, next) => {
     const session = req.authSession;
     if (!session?.id) {
       return res.status(401).json({ error: "No autenticado", code: "AUTH_REQUIRED" });
     }
+    // An impersonator cannot prove the account holder's credentials, including
+    // sessions created before impersonation stopped counting as re-authenticated.
+    if (isImpersonatedSession(req)) return res.status(403).json(IMPERSONATION_FORBIDDEN);
     const reauthAt = Date.parse(String(session.reauth_verified_at || ""));
     if (!Number.isFinite(reauthAt) || (Date.now() - reauthAt) > RECENT_REAUTH_WINDOW_MS) {
       return res.status(403).json({ error: "Reautenticación requerida", code: "RECENT_REAUTH_REQUIRED" });

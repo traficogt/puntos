@@ -2,32 +2,176 @@ import { TierRepository } from "../repositories/tier-repository.js";
 import { dbQuery, withTransaction } from "../database.js";
 import { notFound, badRequest, forbidden } from "../../utils/http-error.js";
 
-const DEFAULT_TIERS = [
+// Applies to newly created businesses only; existing tiers keep their names.
+export const DEFAULT_TIERS = [
   {
-    name: "Bronze",
+    name: "Bronce",
     tier_level: 1,
     min_points: 0,
     points_multiplier: 1,
-    perks: ["Earn points on purchases", "Redeem rewards"],
+    perks: ["Acumula puntos en tus compras", "Canjea recompensas"],
     color: "#CD7F32"
   },
   {
-    name: "Silver",
+    name: "Plata",
     tier_level: 2,
     min_points: 500,
     points_multiplier: 1.25,
-    perks: ["25% bonus points", "Early access to new rewards", "Birthday bonus"],
+    perks: ["Acceso anticipado a nuevas recompensas", "Bono de cumpleaños"],
     color: "#C0C0C0"
   },
   {
-    name: "Gold",
+    name: "Oro",
     tier_level: 3,
     min_points: 2000,
     points_multiplier: 1.5,
-    perks: ["50% bonus points", "Exclusive rewards", "Priority support", "Free delivery"],
+    perks: ["Recompensas exclusivas", "Atención prioritaria", "Envío gratis"],
     color: "#FFD700"
   }
 ];
+
+// Earned points: applied, positive rows that are not refund reversals. Expiry
+// does not undo an earning; refunded awards (REVERSED) and refunds of
+// redemptions do not count. Rolling tier windows use this definition for both
+// upgrades and the retention sweep.
+const EARNED_ROW = `t.points > 0
+  AND t.source <> 'reversal'
+  AND t.status IN ('POSTED', 'EXPIRED')`;
+
+/** @param {Record<string, any> | null | undefined} policy */
+export function normalizeTierPolicy(policy = {}) {
+  const value = policy && typeof policy === "object" ? policy : {};
+  return {
+    mode: String(value.mode || "lifetime") === "rolling_days" ? "rolling_days" : "lifetime",
+    rollingDays: Math.max(30, Number(value.rolling_days || 365)),
+    graceDays: Math.max(0, Number(value.grace_days || 0)),
+    reentryExtraPoints: Math.max(0, Number(value.reentry_extra_points || 0))
+  };
+}
+
+/**
+ * Points a tier requires from this customer. In a rolling window, a level the
+ * customer held before and lost requires the configured re-entry margin.
+ */
+function tierRequirement(tier, { mode, reentryExtraPoints, currentLevel, historicalMaxLevel }) {
+  const minPoints = Number(tier.min_points || 0);
+  const level = Number(tier.tier_level || 0);
+  const reentry = mode === "rolling_days" && reentryExtraPoints > 0
+    && level <= historicalMaxLevel && level > currentLevel;
+  return minPoints + (reentry ? reentryExtraPoints : 0);
+}
+
+async function readTierEvaluationContext(client, customerId) {
+  // Lock the balance like other ledger writers: its update trigger also assigns
+  // tiers, and serializing avoids duplicate history for one upgrade.
+  await client.query(`SELECT customer_id FROM customer_balances WHERE customer_id = $1 FOR UPDATE`, [customerId]);
+  const { rows } = await client.query(
+    `SELECT c.business_id,
+            b.program_json->'tier_policy' AS tier_policy,
+            COALESCE(cb.points, 0) AS available_points,
+            COALESCE(cb.lifetime_points, 0) AS lifetime_points,
+            ct.tier_id,
+            lt.tier_level
+     FROM customers c
+     JOIN businesses b ON b.id = c.business_id
+     LEFT JOIN customer_balances cb ON cb.customer_id = c.id
+     LEFT JOIN customer_tiers ct ON ct.customer_id = c.id
+     LEFT JOIN loyalty_tiers lt ON lt.id = ct.tier_id
+     WHERE c.id = $1`,
+    [customerId]
+  );
+  const customer = rows[0];
+  if (!customer) throw notFound("Customer not found");
+
+  const policy = normalizeTierPolicy(customer.tier_policy);
+  const currentLevel = Number(customer.tier_level || 0);
+  let tierPoints = Number(customer.lifetime_points || 0);
+  let historicalMaxLevel = currentLevel;
+  if (policy.mode === "rolling_days") {
+    const earned = await client.query(
+      `SELECT COALESCE(SUM(t.points), 0)::bigint AS points
+       FROM transactions t
+       WHERE t.customer_id = $1
+         AND ${EARNED_ROW}
+         AND t.created_at >= now() - ($2 || ' days')::interval`,
+      [customerId, String(policy.rollingDays)]
+    );
+    tierPoints = Number(earned.rows[0]?.points || 0);
+    const history = await client.query(
+      `SELECT COALESCE(MAX(lt.tier_level), 0) AS level
+       FROM tier_history th
+       JOIN loyalty_tiers lt ON lt.id = th.to_tier_id
+       WHERE th.customer_id = $1`,
+      [customerId]
+    );
+    historicalMaxLevel = Math.max(currentLevel, Number(history.rows[0]?.level || 0));
+  }
+
+  const { rows: tiers } = await client.query(
+    `SELECT * FROM loyalty_tiers
+     WHERE business_id = $1 AND active = true
+     ORDER BY tier_level ASC`,
+    [customer.business_id]
+  );
+
+  return {
+    customer,
+    policy,
+    tiers,
+    tierPoints,
+    availablePoints: Number(customer.available_points || 0),
+    currentLevel,
+    historicalMaxLevel
+  };
+}
+
+// Upgrades only. Downgrades belong to the rolling-window retention sweep.
+async function evaluateTierProgression(client, customerId) {
+  const context = await readTierEvaluationContext(client, customerId);
+  const { customer, policy, tiers, tierPoints, currentLevel, historicalMaxLevel } = context;
+  const requirementContext = { ...policy, currentLevel, historicalMaxLevel };
+  const newTier = tiers
+    .filter((tier) => Number(tier.tier_level || 0) > currentLevel
+      && tierPoints >= tierRequirement(tier, requirementContext))
+    .at(-1);
+
+  if (!newTier) return { ...context, upgraded: false, newTier: null };
+
+  await client.query(
+    `INSERT INTO customer_tiers (customer_id, tier_id)
+     VALUES ($1, $2)
+     ON CONFLICT (customer_id)
+     DO UPDATE SET tier_id = $2, updated_at = now()`,
+    [customerId, newTier.id]
+  );
+  await client.query(
+    `INSERT INTO tier_history (customer_id, from_tier_id, to_tier_id, reason)
+     VALUES ($1, $2, $3, 'points')`,
+    [customerId, customer.tier_id, newTier.id]
+  );
+  return { ...context, upgraded: true, newTier, currentLevel: Number(newTier.tier_level || 0) };
+}
+
+/**
+ * Progress toward the next active tier, never negative. current_points is the
+ * earned-points measure the tiers use (lifetime or rolling window), so it can
+ * be compared with next_tier_points; available_points is the spendable balance.
+ */
+function withTierProgress(tier, evaluation) {
+  const currentLevel = Number(tier.tier_level || 0);
+  const requirementContext = { ...evaluation.policy, currentLevel, historicalMaxLevel: evaluation.historicalMaxLevel };
+  const next = evaluation.tiers.find((candidate) => Number(candidate.tier_level || 0) > currentLevel) ?? null;
+  const nextRequirement = next ? tierRequirement(next, requirementContext) : null;
+  return {
+    ...tier,
+    current_points: evaluation.tierPoints,
+    available_points: evaluation.availablePoints,
+    tier_points_mode: evaluation.policy.mode,
+    next_tier_name: next?.name ?? null,
+    next_tier_points: nextRequirement,
+    points_to_next_tier: next ? Math.max(0, nextRequirement - evaluation.tierPoints) : null
+  };
+}
 
 async function findDefaultTier(customerId) {
   const { rows } = await dbQuery(
@@ -72,26 +216,14 @@ async function countCustomersInTier(tierId) {
   return Number.parseInt(rows[0]?.count ?? 0, 10);
 }
 
-function pickRetentionTier(tiers, customer, reentryExtraPoints) {
+function pickRetentionTier(tiers, customer, policy) {
   const points = Number(customer.rolling_points || 0);
-  const currentLevel = Number(customer.current_tier_level || 0);
-  const historicalMaxLevel = Number(customer.historical_max_level || 0);
-
-  const eligible = tiers.filter((tier) => {
-    const minPoints = Number(tier.min_points || 0);
-    if (minPoints > points) {
-      return false;
-    }
-
-    const targetLevel = Number(tier.tier_level || 0);
-    if (reentryExtraPoints > 0 && targetLevel <= historicalMaxLevel && targetLevel > currentLevel) {
-      return points >= minPoints + reentryExtraPoints;
-    }
-
-    return true;
-  });
-
-  return eligible.at(-1) || tiers[0];
+  const requirementContext = {
+    ...policy,
+    currentLevel: Number(customer.current_tier_level || 0),
+    historicalMaxLevel: Number(customer.historical_max_level || 0)
+  };
+  return tiers.filter((tier) => points >= tierRequirement(tier, requirementContext)).at(-1) || tiers[0];
 }
 
 async function createDefaultTiers(businessId, _programType = "SPEND") {
@@ -107,74 +239,31 @@ async function createDefaultTiers(businessId, _programType = "SPEND") {
   return tiers;
 }
 
+// Balances change through writers that never call the award hooks (imports,
+// bonuses, integrations, settlement inside other transactions), so reading the
+// tier evaluates it first instead of trusting a possibly stale assignment.
 async function getCustomerTierInfo(customerId) {
-  const tierInfo = await TierRepository.getCustomerTierWithProgress(customerId);
-  if (tierInfo) {
-    return tierInfo;
-  }
+  return withTransaction(async (client) => {
+    const evaluation = await evaluateTierProgression(client, customerId);
+    const tierInfo = await TierRepository.getCustomerTier(customerId);
+    if (tierInfo) {
+      return withTierProgress(tierInfo, evaluation);
+    }
 
-  const bronze = await findDefaultTier(customerId);
-  if (!bronze) {
-    return null;
-  }
+    const base = await findDefaultTier(customerId);
+    if (!base) {
+      return null;
+    }
 
-  await TierRepository.assignCustomerToTier(customerId, bronze.id);
-  return {
-    ...bronze,
-    current_points: 0,
-    points_to_next_tier: null,
-    next_tier_name: null
-  };
+    await TierRepository.assignCustomerToTier(customerId, base.id);
+    return withTierProgress(base, evaluation);
+  });
 }
 
 async function checkTierProgression(customerId) {
   return withTransaction(async (client) => {
-    const { rows: customerRows } = await client.query(
-      `SELECT cb.points, c.business_id, ct.tier_id, lt.tier_level
-       FROM customers c
-       JOIN customer_balances cb ON cb.customer_id = c.id
-       LEFT JOIN customer_tiers ct ON ct.customer_id = c.id
-       LEFT JOIN loyalty_tiers lt ON lt.id = ct.tier_id
-       WHERE c.id = $1`,
-      [customerId]
-    );
-    const customer = customerRows[0];
-
-    if (!customer) {
-      throw notFound("Customer not found");
-    }
-
-    const currentTierLevel = customer.tier_level || 0;
-    const { rows: eligibleTiers } = await client.query(
-      `SELECT * FROM loyalty_tiers
-       WHERE business_id = $1
-         AND active = true
-         AND min_points <= $2
-         AND tier_level > $3
-       ORDER BY tier_level DESC
-       LIMIT 1`,
-      [customer.business_id, customer.points, currentTierLevel]
-    );
-    const newTier = eligibleTiers[0];
-
-    if (!newTier) {
-      return { upgraded: false };
-    }
-
-    await client.query(
-      `INSERT INTO customer_tiers (customer_id, tier_id)
-       VALUES ($1, $2)
-       ON CONFLICT (customer_id)
-       DO UPDATE SET tier_id = $2, updated_at = now()`,
-      [customerId, newTier.id]
-    );
-    await client.query(
-      `INSERT INTO tier_history (customer_id, from_tier_id, to_tier_id, reason)
-       VALUES ($1, $2, $3, 'points')`,
-      [customerId, customer.tier_id, newTier.id]
-    );
-
-    return { upgraded: true, newTier };
+    const evaluation = await evaluateTierProgression(client, customerId);
+    return evaluation.upgraded ? { upgraded: true, newTier: evaluation.newTier } : { upgraded: false };
   });
 }
 
@@ -211,14 +300,12 @@ async function deleteTier(tierId, businessId) {
 }
 
 async function runTierRetentionSweep(businessId, policy = {}) {
-  const mode = String(policy.mode || "lifetime");
-  if (mode !== "rolling_days") {
+  const normalized = normalizeTierPolicy(policy);
+  if (normalized.mode !== "rolling_days") {
     return { businessId, skipped: true, reason: "mode_not_rolling" };
   }
 
-  const rollingDays = Math.max(30, Number(policy.rolling_days || 365));
-  const graceDays = Math.max(0, Number(policy.grace_days || 0));
-  const reentryExtraPoints = Math.max(0, Number(policy.reentry_extra_points || 0));
+  const { rollingDays, graceDays, reentryExtraPoints } = normalized;
 
   return withTransaction(async (client) => {
     const { rows: tiers } = await client.query(
@@ -234,7 +321,7 @@ async function runTierRetentionSweep(businessId, policy = {}) {
 
     const { rows: customers } = await client.query(
       `SELECT c.id AS customer_id,
-              COALESCE(SUM(CASE WHEN t.points > 0 THEN t.points ELSE 0 END), 0) AS rolling_points,
+              COALESCE(SUM(t.points), 0) AS rolling_points,
               ct.tier_id AS current_tier_id,
               lt.tier_level AS current_tier_level,
               ct.achieved_at,
@@ -247,7 +334,7 @@ async function runTierRetentionSweep(businessId, policy = {}) {
        FROM customers c
        LEFT JOIN transactions t
          ON t.customer_id = c.id
-        AND t.status = 'POSTED'
+        AND ${EARNED_ROW}
         AND t.created_at >= now() - ($2 || ' days')::interval
        LEFT JOIN customer_tiers ct ON ct.customer_id = c.id
        LEFT JOIN loyalty_tiers lt ON lt.id = ct.tier_id
@@ -260,7 +347,7 @@ async function runTierRetentionSweep(businessId, policy = {}) {
     let downgrades = 0;
 
     for (const customer of customers) {
-      const target = pickRetentionTier(tiers, customer, reentryExtraPoints);
+      const target = pickRetentionTier(tiers, customer, normalized);
       const currentLevel = Number(customer.current_tier_level || 0);
       const targetLevel = Number(target.tier_level || 0);
 

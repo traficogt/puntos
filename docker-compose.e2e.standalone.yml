@@ -30,8 +30,9 @@ services:
       DB_MIGRATIONS_USER: loyalty_admin
       DB_MIGRATIONS_PASSWORD: ${E2E_DB_ADMIN_PASSWORD:?set E2E_DB_ADMIN_PASSWORD}
       SUPER_ADMIN_PASSWORD: ${E2E_SUPER_ADMIN_PASSWORD:?set E2E_SUPER_ADMIN_PASSWORD}
-      # Allow both host-run Playwright (localhost:<E2E_PORT>) and in-network Playwright (api:3001).
-      CORS_ORIGIN: "http://localhost:${E2E_PORT:-3101},http://api:3001"
+      # Allow host-run Playwright (localhost:<E2E_PORT>), containerized Playwright in
+      # the API's network namespace (localhost:3001) and in-network clients (api:3001).
+      CORS_ORIGIN: "http://localhost:${E2E_PORT:-3101},http://localhost:3001,http://api:3001"
       APP_ORIGIN: "${E2E_APP_ORIGIN:-http://localhost:${E2E_PORT:-3101}}"
       MARKETING_ORIGIN: "${E2E_MARKETING_ORIGIN:-http://localhost:${E2E_PORT:-3101}}"
       IN_PROCESS_WORKERS: "false"
@@ -69,12 +70,16 @@ services:
     image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:6e3fb709361521eb27161606e6da6d2674e5e89fa16516cb37d6fdd91372273d
     depends_on:
       - api
+    # Share the API's network namespace so browsers reach it as localhost, as in
+    # CI: service workers need a secure context, which http://api:3001 is not,
+    # and links built from the app origin must resolve inside the container.
+    network_mode: "service:api"
     working_dir: /work
     volumes:
       - ./:/work
     environment:
-      # Inside the compose network, target the API service directly.
-      E2E_BASE_URL: http://api:3001
+      # Inside the API's network namespace, the API is localhost:3001.
+      E2E_BASE_URL: http://localhost:3001
       # Keep test runner credentials in sync with the API container.
       # (dotenv in playwright.config.mjs does not override already-set env vars.)
       SUPER_ADMIN_EMAIL: super@example.com

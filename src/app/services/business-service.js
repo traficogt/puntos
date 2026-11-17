@@ -72,8 +72,10 @@ export async function createBusinessWithOwner({
   const toCreate = seeds.slice(0, limits.rewards);
 
   let lastErr = null;
+  let slugAttempt = 0;
+  let branchCodeSuffix = "";
   for (let attempt = 0; attempt < 25; attempt += 1) {
-    slug = attempt === 0 ? slugBase : `${slugBase}-${attempt}`;
+    slug = slugAttempt === 0 ? slugBase : `${slugBase}-${slugAttempt}`;
     try {
       const { business } = await withTransaction(async (client) => {
         // Onboarding happens before any tenant context exists, but our INSERT uses
@@ -95,7 +97,7 @@ export async function createBusinessWithOwner({
           program_json: programJson
         });
 
-        const branchCode = `${slug}-main`;
+        const branchCode = `${slug}-main${branchCodeSuffix}`;
         await BranchRepo.create({
           id: branchId,
           business_id: businessId,
@@ -138,10 +140,19 @@ export async function createBusinessWithOwner({
       const isUnique = code === "23505";
       const isSlugConflict = isUnique && (constraint.includes("slug") || msg.toLowerCase().includes("slug"));
       const isEmailConflict = isUnique && (constraint.includes("email") || msg.toLowerCase().includes("email"));
+      // Branch codes are internal labels; a taken code never blocks signup.
+      const isBranchCodeConflict = isUnique && /^branches_(business_)?code_key$/.test(constraint);
 
       if (isEmailConflict) throw conflict("Email already registered");
+      if (isBranchCodeConflict) {
+        branchCodeSuffix = `-${crypto.randomBytes(3).toString("hex")}`;
+        continue;
+      }
       if (providedSlug && isSlugConflict) throw conflict("Slug already in use");
-      if (isSlugConflict) continue;
+      if (isSlugConflict) {
+        slugAttempt += 1;
+        continue;
+      }
       throw err;
     }
   }

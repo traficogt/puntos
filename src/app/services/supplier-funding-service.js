@@ -83,7 +83,9 @@ export async function transitionSupplierClaim(options,deps={}){
   const found=(await client.query('SELECT agreement_id FROM supplier_claims WHERE business_id=$1 AND id=$2',[businessId,claimId])).rows[0];if(!found)throw notFound('Reclamación no encontrada.');
   const a=await agreementRow(client,businessId,found.agreement_id,true),row=(await client.query('SELECT * FROM supplier_claims WHERE business_id=$1 AND id=$2 FOR UPDATE',[businessId,claimId])).rows[0];
   const prior=(await client.query('SELECT request_fingerprint FROM supplier_claim_events WHERE business_id=$1 AND request_id=$2',[businessId,requestId])).rows[0];if(prior){if(prior.request_fingerprint!==hash)throw conflict('La solicitud ya se usó para otra acción.');return{ok:true,claim:visible(row),replay:true};}
-  if(row.version!==version)throw conflict('La reclamación cambió. Actualiza antes de guardar.');const change=validateClaimTransition(row,options);
+  if(row.version!==version)throw conflict('La reclamación cambió. Actualiza antes de guardar.');
+  const business=(await client.query('SELECT program_json FROM businesses WHERE id=$1',[businessId])).rows[0];
+  const change=validateClaimTransition(row,options,{now:(deps.now??(()=>new Date()))(),timezone:businessRegion(business).timezone});
   if(change.status!=='rejected')await fulfillment(client,businessId,row.redemption_id,a);
   if(row.status==='rejected'){
    if(a.closed_at)throw conflict('El acuerdo está cerrado.');if(await reserved(client,businessId,a.id)+Number(row.amount_minor)>Number(a.cap_minor))throw conflict('El límite disponible no alcanza para reenviar la reclamación.');

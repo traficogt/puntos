@@ -5,10 +5,28 @@ import { clearCustomerCache, getCustomerCacheSnapshot, putCustomerCache } from "
 import { setHidden } from "/lib.js";
 import { setOnlineBadge } from "./network.js";
 import { renderFromMe } from "./me.js";
-import { clearWalletView, getCustomerEpoch, getCustomerIdentity, invalidateCustomerIdentity, isCustomerAuthError, readCustomerStorage, rememberCustomerIdentity } from "./session.js";
+import { clearWalletView, getCustomerEpoch, getCustomerIdentity, invalidateCustomerIdentity, isCustomerAuthError, onCustomerViewClear, readCustomerStorage, rememberCustomerIdentity } from "./session.js";
 import { walletDestination } from "./wallet-navigation.js";
 
 let latestLoad = 0;
+/** @type {WeakMap<object, string>} The verified card each wallet root shows. */
+const shownWallets = new WeakMap();
+let clearedViews = 0;
+onCustomerViewClear(() => { clearedViews += 1; });
+
+/**
+ * Record the card this wallet will show. Returns true when it differs from the
+ * card on screen (another customer, session or a cleared view), so the caller
+ * must empty the previous card's sections before showing any new data.
+ */
+function claimWalletView($, identity) {
+  const root = $("#main");
+  if (!root) return true;
+  const view = JSON.stringify([clearedViews, getCustomerEpoch(), identity.businessId, identity.customerId]);
+  const changed = shownWallets.get(root) !== view;
+  shownWallets.set(root, view);
+  return changed;
+}
 
 function isNetworkFailure(error) {
   if (error?.status || error?.code) return false;
@@ -21,8 +39,6 @@ export async function loadAll({ api, $, toast, silent = false }) {
   const isCurrent = () => loadId === latestLoad && epoch === getCustomerEpoch();
   setOnlineBadge($);
   pauseCustomerDemand();
-  clearGrowthOffers($);
-  clearRewardEntitlements($);
   const identity = getCustomerIdentity();
   const cachedSlug = identity?.slug || readCustomerStorage("pf_customer_slug").trim();
   if (readCustomerStorage("pf_customer_blocked") === "1") {
@@ -42,7 +58,14 @@ export async function loadAll({ api, $, toast, silent = false }) {
     if (!isCurrent()) return { status: "superseded" };
     const snapshot = await getCustomerCacheSnapshot(currentIdentity).catch(() => null);
     if (!isCurrent()) return { status: "superseded" };
-    const result = await renderFromMe({ api, $, toast, isCurrent, identity: currentIdentity }, me, true, snapshot);
+    // Claim and clear synchronously with renderFromMe's own reset, so a
+    // superseded load cannot leave another card's sections marked as current.
+    const newView = claimWalletView($, currentIdentity);
+    if (newView) {
+      clearGrowthOffers($);
+      clearRewardEntitlements($);
+    }
+    const result = await renderFromMe({ api, $, toast, isCurrent, identity: currentIdentity, newView }, me, true, snapshot);
     if (!isCurrent()) return { status: "superseded" };
     await Promise.all([loadGrowthOffers({ api, $, isCurrent, region: me.business.region }), loadRewardEntitlements({ api, $, isCurrent })]);
     if (!isCurrent()) return { status: "superseded" };
@@ -74,7 +97,11 @@ export async function loadAll({ api, $, toast, silent = false }) {
       if (!isCurrent()) return { status: "superseded" };
       const me = snapshot?.sections?.me;
       if (me?.business?.id === identity.businessId && me?.customer?.id === identity.customerId) {
-        await renderFromMe({ api, $, toast, isCurrent, identity }, me, false, snapshot);
+        // Offers and protected benefits are live-only; saved data never shows them.
+        clearGrowthOffers($);
+        clearRewardEntitlements($);
+        const newView = claimWalletView($, identity);
+        await renderFromMe({ api, $, toast, isCurrent, identity, newView }, me, false, snapshot);
         return { status: "offline" };
       }
     }

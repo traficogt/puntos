@@ -1,4 +1,5 @@
 import { clearRewardEntitlements } from "./reward-entitlements.js";
+import { formatDate, walletRegion } from "./format.js";
 import { clearGrowthOffers } from "./growth-offers.js";
 import { clearCustomerCache } from "/idb.js";
 import { loadAll } from "./load.js";
@@ -55,7 +56,9 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   let loggingOut = false;
   let refreshPending = false;
 
-  const { generateQR, dispose } = createQrController({ $, toast });
+  // An ended session found while generating a QR follows the wallet's
+  // session-expired flow, which revalidates the card and asks for a new login.
+  const { generateQR, dispose } = createQrController({ $, toast, onSessionExpired: () => ignore(refreshWallet({ silent: true })) });
   const destinationNavigation = createWalletNavigation({ $ });
 
   async function refreshWallet({ silent = true } = {}) {
@@ -81,6 +84,14 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
       }
       if (refreshPending) { refreshPending = false; ignore(refreshWallet({ silent: true })); }
     }
+  }
+
+  // Returning to the tab fires both focus and visibilitychange, and the timer
+  // can tick mid-refresh. A running refresh already answers these background
+  // triggers, so they never queue a second full reload behind it.
+  function refreshPassively() {
+    if (refreshInFlight) return;
+    ignore(refreshWallet({ silent: true }));
   }
 
   $("#btnQr")?.addEventListener("click", () => ignore(generateQR()));
@@ -115,12 +126,16 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   });
 
   $("#btnCopyCode")?.addEventListener("click", () => {
-    const code = /** @type {HTMLInputElement | null} */ ($("#referralCode"))?.value || "";
+    const input = /** @type {HTMLInputElement | null} */ ($("#referralCode"));
+    const code = input?.value || "";
     if (code && code !== "N/A" && code !== "---") {
-      navigator.clipboard.writeText(code).then(() => {
-        toast("¡Código copiado! Compártelo con tus amigos.");
+      // The invitation link opens registration with this code already filled in.
+      const shareText = input?.dataset.shareText || "";
+      const text = shareText.includes(`?ref=${code}`) ? shareText : code;
+      navigator.clipboard.writeText(text).then(() => {
+        toast(text === code ? "¡Código copiado! Compártelo con tus amigos." : "¡Invitación copiada! Compártela con tus amigos.");
       }).catch(() => {
-        toast(`No se pudo copiar. Copia manualmente: ${code}`);
+        toast(`No se pudo copiar. Copia manualmente: ${text}`);
       });
     }
   });
@@ -136,7 +151,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
         message += "Ninguno todavía.\n\n";
       } else {
         earned.forEach((a) => {
-          message += `${a.icon_url || "🏆"} ${a.name}\n   ${a.description || ""}\n   Obtenido: ${new Date(a.earned_at).toLocaleDateString()}\n\n`;
+          message += `${a.icon_url || "🏆"} ${a.name}\n   ${a.description || ""}\n   Obtenido: ${formatDate(a.earned_at, walletRegion($))}\n\n`;
         });
       }
 
@@ -162,7 +177,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     } else ignore(refreshWallet({ silent: true }));
   });
   window.addEventListener("offline", () => { destinationNavigation.pause(); setOnlineBadge($); clearGrowthOffers($); clearRewardEntitlements($); });
-  window.addEventListener("focus", () => ignore(refreshWallet({ silent: true })));
+  window.addEventListener("focus", refreshPassively);
   window.addEventListener("hashchange", () => destinationNavigation.navigate());
   window.addEventListener("storage", event => {
     if (event.key !== "pf_customer_epoch" && event.key !== "pf_customer_identity" && event.key !== "pf_customer_blocked" && event.key !== null) return;
@@ -174,7 +189,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     if (event.key === "pf_customer_identity" && event.newValue) ignore(refreshWallet({ silent: true }));
   });
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") ignore(refreshWallet({ silent: true }));
+    if (document.visibilityState === "visible") refreshPassively();
   });
 
   mountIosInstallHint();
@@ -186,7 +201,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     if (document.visibilityState !== "visible") return;
     if (!navigator.onLine) return;
     if (main?.classList.contains("is-hidden")) return;
-    ignore(refreshWallet({ silent: true }));
+    refreshPassively();
   }, 15000);
 
   window.addEventListener("beforeunload", () => {

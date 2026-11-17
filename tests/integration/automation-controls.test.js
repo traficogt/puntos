@@ -64,6 +64,18 @@ suite('guided automations on disposable PostgreSQL',()=>{
     await db.query(`CREATE FUNCTION reject_automation_queue() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'fixture'; END $$; CREATE TRIGGER reject_automation_queue BEFORE INSERT ON lifecycle_message_outbox FOR EACH ROW EXECUTE FUNCTION reject_automation_queue()`);
     try {await assert.rejects(generate());assert.equal((await db.query('SELECT * FROM transactions')).rowCount,0);assert.equal((await db.query('SELECT * FROM lifecycle_events')).rowCount,0);assert.equal((await db.query('SELECT * FROM lifecycle_automation_budgets')).rowCount,0);} finally {await db.query('DROP TRIGGER reject_automation_queue ON lifecycle_message_outbox; DROP FUNCTION reject_automation_queue()');}
   });
+  it('celebrates February 29 birthdays on February 28 in non-leap years, once',async()=>{
+    await db.query(`UPDATE customers SET birthday=CASE id WHEN $1 THEN DATE '2000-02-29' WHEN $2 THEN DATE '1990-02-28' ELSE DATE '1990-03-01' END WHERE business_id=$3`,[a,b,businessId]);
+    const candidates=async at=>(await ctx(()=>service.getAutomationControls({businessId,now:new Date(at)}))).rules.birthday.candidates;
+    assert.equal(await candidates('2027-02-28T15:00:00Z'),2);
+    assert.equal(await candidates('2027-03-01T15:00:00Z'),1);
+    assert.equal(await candidates('2028-02-28T15:00:00Z'),1);
+    assert.equal(await candidates('2028-02-29T15:00:00Z'),1);
+    await db.query(`UPDATE businesses SET program_json=jsonb_set(program_json,'{lifecycle,birthday_monthly_points_cap}','200') WHERE id=$1`,[businessId]);
+    await generate({now:new Date('2027-02-28T15:00:00Z')});await generate({now:new Date('2027-03-01T15:00:00Z')});
+    const events=(await db.query("SELECT customer_id,event_date::text AS day FROM lifecycle_events WHERE event_type='birthday' ORDER BY event_date,customer_id")).rows;
+    assert.deepEqual(events,[{customer_id:a,day:'2027-02-28'},{customer_id:b,day:'2027-02-28'}].sort((x,y)=>x.customer_id.localeCompare(y.customer_id)));
+  });
   it('records real preview counts and historical execution results',async()=>{
     const initial=await ctx(()=>service.getAutomationControls({businessId,now}));assert.equal(initial.rules.birthday.candidates,3);assert.equal(initial.rules.birthday.consented,2);assert.equal(initial.rules.birthday.available_awards,1);
     await generate();const report=await ctx(()=>service.getAutomationControls({businessId,now}));assert.equal(report.rules.birthday.points_committed,40);assert.equal(report.history[0].points,40);assert.equal(report.counts.queued,1);

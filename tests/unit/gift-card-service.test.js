@@ -166,7 +166,8 @@ describe("gift card idempotency", () => {
           listTxByCard: async () => ([
             { tx_type: "ISSUE", amount_q: "25.00", balance_after_q: "25.00", created_at: "2026-03-08T00:00:00.000Z" },
             { tx_type: "REDEEM", amount_q: "10.00", balance_after_q: "15.00", created_at: "2026-03-08T00:10:00.000Z" }
-          ])
+          ]),
+          sumTxByCard: async () => ({ issue_total_q: "25.00", redeem_total_q: "10.00", transaction_count: 2 })
         },
         assertGiftCardAccess: async (staff, options) => {
           accessCalls.push({ staff, options });
@@ -187,5 +188,73 @@ describe("gift card idempotency", () => {
     assert.equal(out.ledger.delta_q, 0);
     assert.equal(out.ledger.mismatch, false);
     assert.equal(out.transactions.length, 2);
+  });
+
+  it("checks the whole card history, not only the newest 100 transactions", async () => {
+    // 1 issue of 150 followed by 101 redemptions of 1: the newest 100 rows are all redemptions.
+    const newest = Array.from({ length: 100 }, (_, i) => ({ tx_type: "REDEEM", amount_q: "1.00", balance_after_q: String(49 + i) }));
+    const out = await giftCardLedgerDetailsWithDeps(
+      {
+        GiftCardRepo: {
+          getByCodeOrToken: async () => ({ id: "gc-1", business_id: "b1", code: "GC-123", balance_q: "49.00", status: "ACTIVE" }),
+          listTxByCard: async (_id, limit) => newest.slice(0, limit),
+          sumTxByCard: async () => ({ issue_total_q: "150.00", redeem_total_q: "101.00", transaction_count: 102 })
+        },
+        assertGiftCardAccess: async () => ({ id: "s1", business_id: "b1", role: "OWNER" })
+      },
+      { staff: { id: "s1", business_id: "b1" }, code_or_token: "GC-123" }
+    );
+    assert.equal(out.ledger.issue_total_q, 150);
+    assert.equal(out.ledger.redeem_total_q, 101);
+    assert.equal(out.ledger.expected_balance_q, 49);
+    assert.equal(out.ledger.mismatch, false);
+    assert.equal(out.transactions.length, 100);
+  });
+
+  function replayDeps(existing) {
+    return {
+      GiftCardRepo: {},
+      StaffRepo: {},
+      AuditRepo: { log: async () => {} },
+      withTransaction: async (fn) => fn({
+        query: async (sql) => {
+          if (sql.includes("pg_advisory_xact_lock")) return { rows: [], rowCount: 1 };
+          if (sql.includes("FROM gift_card_transactions tx") && sql.includes("tx.request_id = $2")) return { rows: [existing], rowCount: 1 };
+          throw new Error(`A mismatched retry must not reach: ${sql}`);
+        }
+      }),
+      assertGiftCardAccess: async () => ({ id: "s1", business_id: "b1", branch_id: null, role: "MANAGER" })
+    };
+  }
+  const issued = { transaction_id: "tx-1", tx_type: "ISSUE", amount_q: "25.00", balance_after_q: "25.00", meta: {}, id: "gc-1", business_id: "b1", code: "GC-123", qr_token: "gft_token", balance_q: "25.00", status: "ACTIVE" };
+  const redeemed = { ...issued, transaction_id: "tx-2", tx_type: "REDEEM", amount_q: "10.00", balance_after_q: "15.00" };
+  const requestId = "33333333-3333-4333-8333-333333333333";
+
+  it("rejects a reused issue requestId with another amount or operation", async () => {
+    await assert.rejects(
+      createGiftCardWithDeps(replayDeps(issued), { staff: { id: "s1" }, amount_q: 30, issued_to_name: undefined, issued_to_phone: undefined, expires_at: undefined, requestId }),
+      { statusCode: 409 }
+    );
+    await assert.rejects(
+      createGiftCardWithDeps(replayDeps(redeemed), { staff: { id: "s1" }, amount_q: 10, issued_to_name: undefined, issued_to_phone: undefined, expires_at: undefined, requestId }),
+      { statusCode: 409 }
+    );
+  });
+
+  it("rejects a reused redeem requestId with another card, amount or operation", async () => {
+    await assert.rejects(
+      redeemGiftCardWithDeps(replayDeps(redeemed), { staff: { id: "s1" }, code_or_token: "GC-OTHER", amount_q: 10, note: undefined, requestId }),
+      { statusCode: 409 }
+    );
+    await assert.rejects(
+      redeemGiftCardWithDeps(replayDeps(redeemed), { staff: { id: "s1" }, code_or_token: "GC-123", amount_q: 5, note: undefined, requestId }),
+      { statusCode: 409 }
+    );
+    await assert.rejects(
+      redeemGiftCardWithDeps(replayDeps(issued), { staff: { id: "s1" }, code_or_token: "GC-123", amount_q: 25, note: undefined, requestId }),
+      { statusCode: 409 }
+    );
+    const sameByToken = await redeemGiftCardWithDeps(replayDeps(redeemed), { staff: { id: "s1" }, code_or_token: "gft_token", amount_q: 10, note: undefined, requestId });
+    assert.equal(sameByToken.id, "gc-1");
   });
 });

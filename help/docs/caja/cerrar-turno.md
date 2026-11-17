@@ -2,7 +2,7 @@
 title: Cerrar el turno y entregar pendientes
 description: Deja al siguiente turno una explicación de lo confirmado y de lo que
   todavía requiere revisión.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - public/staff.html
@@ -23,7 +23,7 @@ Usa conexión siempre que sea posible y coordina el relevo con el responsable. C
 ## Paso a paso
 
 1. Pulsa **Pausar** para detener la cámara y **Sincronizar** para enviar las compras pendientes.
-2. Revisa la cola. Anota las referencias de operaciones fallidas o sin confirmación, sin copiar tokens QR ni credenciales.
+2. Revisa la cola. Anota las referencias de las ventas pendientes, rechazadas o que requieren tu decisión, sin copiar tokens QR ni credenciales.
 3. Revisa los casos abiertos y las entregas que faltan registrar en caja. Comunica al responsable qué acción sigue.
 4. Pulsa **Salir**. Si estás sin conexión, la sesión queda bloqueada en el dispositivo y el cierre en el servidor necesita internet.
 5. La siguiente persona debe usar su propia cuenta. Los pendientes siguen perteneciendo a la cuenta que los creó.
@@ -42,4 +42,4 @@ El acceso del turno termina y los pendientes quedan identificados. Salir no equi
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/equipo/escaner/). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/equipo/escaner/). Revisión del 17 de noviembre de 2026.

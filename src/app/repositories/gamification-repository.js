@@ -312,7 +312,8 @@ export const GamificationRepository = {
          cc.progress,
          cc.completed,
          cc.times_completed,
-         cc.completed_at
+         cc.completed_at,
+         cc.updated_at AS progress_updated_at
        FROM challenges c
        LEFT JOIN customer_challenges cc ON 
          cc.challenge_id = c.id AND cc.customer_id = $1

@@ -5,17 +5,23 @@ import {
 } from '../../src/scripts/run-domain-integration-isolated.mjs';
 
 test('domain filters select only registered suites and reject unknown paths', () => {
-  assert.equal(domainSuites.length, 59);
-  assert.equal(new Set(domainSuites.map(suite => suite.name)).size, 59);
+  assert.equal(domainSuites.length, 65);
+  assert.equal(new Set(domainSuites.map(suite => suite.name)).size, 65);
   assert.equal(selectSuites(['campaign-consent-race'])[0].env, 'CAMPAIGN_CONSENT_TEST_DB_URL');
   assert.deepEqual(selectSuites(['native-wallet-storage', 'operations-runtime-role.test.js']).map(suite => suite.database),
     ['native_wallet_test_storage', 'operations_completion_test']);
   assert.throws(() => selectSuites(['../../production.sql']), /Unknown domain suite/);
   assert.throws(() => selectSuites(['native-wallet-storage', 'typo']), /Unknown domain suite/);
-  assert.equal(selectSuites([]).length, 59);
+  assert.equal(selectSuites([]).length, 65);
   assert.equal(selectSuites(['customer-history'])[0].env, 'CUSTOMER_HISTORY_TEST_DB_URL');
   assert.equal(selectSuites(['first-purchase-return'])[0].env, 'FIRST_PURCHASE_RETURN_TEST_DB_URL');
   assert.equal(selectSuites(['support-cases'])[0].env, 'SUPPORT_CASES_TEST_DB_URL');
+  assert.equal(selectSuites(['integration-webhooks'])[0].env, 'INTEGRATION_WEBHOOKS_TEST_DB_URL');
+  assert.deepEqual(selectSuites(['auth-runtime-role'])[0], { name: 'auth-runtime-role', env: 'AUTH_RUNTIME_TEST_DB_URL', database: 'auth_runtime_test', fullSchema: true });
+  assert.equal(selectSuites(['admin-integrity'])[0].fullSchema, true);
+  assert.equal(selectSuites(['ledger-balances'])[0].env, 'LEDGER_BALANCES_TEST_DB_URL');
+  assert.deepEqual(selectSuites(['analytics-ledger-integrity'])[0], { name: 'analytics-ledger-integrity', env: 'ANALYTICS_LEDGER_TEST_DB_URL', database: 'analytics_ledger_test', fullSchema: true });
+  assert.equal(selectSuites(['engagement-rewards'])[0].env, 'ENGAGEMENT_REWARDS_TEST_DB_URL');
 });
 
 test('test environment does not inherit production credentials, opt-ins or Node preload hooks', () => {

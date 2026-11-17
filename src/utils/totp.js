@@ -54,16 +54,29 @@ export function totp(secret, { stepSeconds = 30, digits = 6, nowMs = Date.now() 
   return hotp(secret, counter, digits);
 }
 
-export function verifyTotp(secret, code, { stepSeconds = 30, digits = 6, window = 1, nowMs = Date.now() } = {}) {
+/**
+ * Returns the accepted time step for a code, or null. Steps at or before
+ * `afterStep` (the account's last accepted step) are never accepted, so a code
+ * observed once cannot be replayed within the clock-skew window.
+ * @returns {number|null}
+ */
+export function matchTotpStep(secret, code, { stepSeconds = 30, digits = 6, window = 1, nowMs = Date.now(), afterStep = null } = {}) {
   const normalizedCode = String(code || "").trim();
-  if (!/^\d{6}$/.test(normalizedCode)) return false;
+  if (!/^\d{6}$/.test(normalizedCode)) return null;
+  const lastStep = afterStep === null || afterStep === undefined || afterStep === "" ? null : Number(afterStep);
   const currentCounter = Math.floor(nowMs / 1000 / stepSeconds);
   for (let offset = -window; offset <= window; offset += 1) {
-    if (hotp(secret, currentCounter + offset, digits) === normalizedCode) {
-      return true;
+    const step = currentCounter + offset;
+    if (lastStep !== null && Number.isFinite(lastStep) && step <= lastStep) continue;
+    if (hotp(secret, step, digits) === normalizedCode) {
+      return step;
     }
   }
-  return false;
+  return null;
+}
+
+export function verifyTotp(secret, code, options = {}) {
+  return matchTotpStep(secret, code, options) !== null;
 }
 
 export function buildOtpAuthUri({ issuer, label, secret }) {

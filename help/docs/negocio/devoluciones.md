@@ -2,11 +2,12 @@
 title: Revisar devoluciones de caja y sus puntos
 description: Comprueba si una devolución tiene una reversión de puntos confirmada
   o necesita revisión.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - web/merchant/src/PosRefunds.jsx
 - web/merchant/src/RedemptionReturns.jsx
+- src/app/services/pos-refund-service.js
 owner_route: conectar-caja
 ---
 
@@ -30,7 +31,7 @@ Ten el recibo original y la devolución. Los importes se devuelven en tu POS; es
 
 ## Qué debe pasar
 
-Una reversión automática exige comprobar una devolución completa. Las devoluciones parciales requieren revisión; PF no calcula una reversión proporcional automática.
+Una reversión automática exige comprobar una devolución completa. Las devoluciones parciales requieren revisión; PF no calcula una reversión proporcional automática. Si los puntos de la compra original ya vencieron, PF no los revierte y la devolución queda para revisión.
 
 ## Si algo no funciona
 
@@ -43,4 +44,4 @@ Una reversión automática exige comprobar una devolución completa. Las devoluc
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#conectar-caja). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#conectar-caja). Revisión del 17 de noviembre de 2026.

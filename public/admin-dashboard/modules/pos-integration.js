@@ -15,6 +15,89 @@ const saleExample = (currency="GTQ") => JSON.stringify({
 }, null, 2);
 const number = (value) => Math.max(0, Number(value) || 0);
 
+// Owner-facing wording for Loyverse sync outcomes and the review list kept in
+// pos_integration.review_receipts (see src/app/services/pos/receipt-retry.js).
+
+/** A walk-in sale: the receipt has no customer, so it never earns points and is not retried. */
+export const WALK_IN_CODE = "missing_customer";
+
+const RECEIPT_PROBLEMS = {
+  invalid_receipt: "El recibo no tiene un número válido",
+  unsupported_receipt: "El tipo de recibo no es una venta reconocida",
+  invalid_amount: "El total del recibo no es válido",
+  unverified_payment: "Los pagos no confirman el total del recibo",
+  invalid_date: "El recibo no indica una fecha de venta válida",
+  invalid_items: "Las cantidades de artículos no son válidas",
+  invalid_refund: "La devolución no identifica un recibo original válido",
+  SALE_409: "El ID de venta ya se usó con otros datos",
+  SALE_404: "El cliente no está registrado en PF con ese teléfono",
+  customer_not_found: "El cliente del recibo no está disponible en Loyverse",
+  missing_phone: "El cliente no tiene teléfono en Loyverse",
+  invalid_phone: "El teléfono del cliente en Loyverse no es válido",
+  retry_unavailable: "Loyverse no respondió a la consulta del recibo"
+};
+
+const REVIEW_REASONS = {
+  not_retryable: "un reintento no lo corrige",
+  retry_limit: "se agotaron los reintentos (20 intentos o 7 días)",
+  retry_queue_full: "la cola de reintentos estaba llena"
+};
+
+/**
+ * Separates walk-in sales from errors. The sync counts a receipt without a
+ * customer among `errors`; issue rows that carry a status (previews) are only
+ * subtracted when they were counted as errors.
+ * @param {{ errors?: number }} counts
+ * @param {Array<{ code?: string, status?: string, [field: string]: any }> | undefined} issues
+ */
+export function posOutcome(counts, issues = []) {
+  const list = Array.isArray(issues) ? issues : [];
+  const walkIns = list.filter((issue) => issue?.code === WALK_IN_CODE);
+  const countedAsErrors = walkIns.filter((issue) => issue.status === undefined || issue.status === "error").length;
+  return {
+    walkIns: walkIns.length,
+    errors: Math.max(0, number(counts?.errors) - countedAsErrors),
+    issues: list.filter((issue) => issue?.code !== WALK_IN_CODE)
+  };
+}
+
+/** @param {number} walkIns */
+export function walkInText(walkIns) {
+  return walkIns === 1
+    ? "1 venta sin cliente asociado en Loyverse. No suma puntos ni se reintenta."
+    : `${walkIns} ventas sin cliente asociado en Loyverse. No suman puntos ni se reintentan.`;
+}
+
+/** @param {string | null | undefined} code */
+export function receiptProblem(code) {
+  return (code && Object.prototype.hasOwnProperty.call(RECEIPT_PROBLEMS, code) ? RECEIPT_PROBLEMS[code] : "") || "Requiere revisión";
+}
+
+/**
+ * @param {{ sale_id?: string | null, code?: string | null, reason?: string | null, attempts?: number, first_seen_at?: string | null }} row
+ * @param {{ locale?: string, timezone?: string } | undefined} [region]
+ */
+export function reviewReceiptText(row, region = undefined) {
+  const reason = row?.reason && Object.prototype.hasOwnProperty.call(REVIEW_REASONS, row.reason) ? REVIEW_REASONS[row.reason] : "";
+  const attempts = number(row?.attempts);
+  const seen = Date.parse(String(row?.first_seen_at || ""));
+  const since = Number.isFinite(seen)
+    ? new Intl.DateTimeFormat(region?.locale || "es-GT", { dateStyle: "medium", timeStyle: "short", timeZone: region?.timezone || "America/Guatemala" }).format(new Date(seen))
+    : "";
+  return [
+    `Recibo ${row?.sale_id || "sin número"}${since ? ` (detectado el ${since})` : ""}: ${receiptProblem(row?.code)}.`,
+    reason ? `Pasó a revisión porque ${reason}.` : "",
+    attempts ? `Intentos: ${attempts}.` : ""
+  ].filter(Boolean).join(" ");
+}
+
+/** @param {number} total Rows the server keeps (newest 100). */
+export function reviewSummaryText(total) {
+  if (!total) return "";
+  const head = total === 1 ? "1 recibo ya no se reintenta automáticamente y no sumó puntos." : `${total} recibos ya no se reintentan automáticamente y no sumaron puntos.`;
+  return `${head} Revísalos en Loyverse: si corriges un recibo, la siguiente sincronización lo vuelve a leer y sale de esta lista cuando suma puntos.${total >= 100 ? " Se muestran los 100 más recientes." : ""}`;
+}
+
 /** Register the owner-only connection panel after staff and plan are available.
  * @param {AdminDashboardApp} app
  */
@@ -111,20 +194,16 @@ export function registerPosIntegration(app) {
     el("posMerchant").textContent = integration.loyverse?.merchant_name
       ? `Cuenta conectada: ${integration.loyverse.merchant_name}.` : "Guarda un token para verificar tu cuenta de Loyverse.";
     const sync = integration.last_sync;
-    const syncIssues = el("posSyncIssues");
-    syncIssues.replaceChildren();
-    syncIssues.hidden = !sync?.issues?.length;
-    for (const issue of sync?.issues || []) {
-      const li = document.createElement("li");
-      li.textContent = `${issue.saleId || "Sincronización"}: ${issue.message || issue.code || "Requiere revisión."}`;
-      syncIssues.append(li);
-    }
+    const outcome = posOutcome(sync || {}, sync?.issues);
+    renderIssues(el("posSyncIssues"), outcome);
+    el("posSyncIssues").hidden = !el("posSyncIssues").childElementCount;
+    renderReview();
     if (sync) {
       const date = new Date(sync.at || sync.completed_at || sync.timestamp || sync.started_at || "");
       const when = Number.isNaN(date.getTime()) ? "" : ` · ${date.toLocaleString("es-GT")}`;
       const error = sync.error || (sync.status === "error" ? sync.message : "");
       el("posLastSync").textContent = error ? `Última sincronización${when}: ${error}`
-        : `Última sincronización${when}. Ventas con puntos: ${number(sync.awarded ?? sync.result?.awarded)}; repetidas: ${number(sync.duplicates ?? sync.result?.duplicates)}; omitidas: ${number(sync.ignored)}; con errores: ${number(sync.errors)}. Pendientes de corregir y reintentar: ${number(sync.pending)}.`;
+        : `Última sincronización${when}. Ventas con puntos: ${number(sync.awarded ?? sync.result?.awarded)}; repetidas: ${number(sync.duplicates ?? sync.result?.duplicates)}; omitidas: ${number(sync.ignored)}; sin cliente: ${outcome.walkIns}; con errores: ${outcome.errors}. En reintento automático: ${number(sync.pending)}; para revisar: ${reviewRows().length || number(sync.review)}.`;
       el("posLastSync").classList.toggle("is-error", Boolean(error) || sync.status === "error");
     } else {
       el("posLastSync").textContent = "Aún no se han sincronizado ventas.";
@@ -137,6 +216,36 @@ export function registerPosIntegration(app) {
     button("posKeyGenerate").textContent = integration.has_api_key ? "Generar nueva clave API" : "Generar clave API";
     el("posReload").hidden = true;
     showMode();
+  }
+  function reviewRows() {
+    return Array.isArray(integration?.review_receipts) ? integration.review_receipts : [];
+  }
+  /** Receipts that left the automatic retry queue unresolved, newest first. */
+  function renderReview() {
+    const rows = reviewRows();
+    const list = el("posReviewList");
+    list.replaceChildren();
+    for (const row of rows) {
+      const li = document.createElement("li");
+      li.textContent = reviewReceiptText(row, integration?.region);
+      list.append(li);
+    }
+    el("posReviewSummary").textContent = reviewSummaryText(rows.length);
+    el("posReview").hidden = !rows.length;
+  }
+  /** Lists issues for the owner; walk-in sales are summarized, not reported as errors. */
+  function renderIssues(list, outcome) {
+    list.replaceChildren();
+    for (const issue of outcome.issues) {
+      const li = document.createElement("li");
+      li.textContent = `${issue.saleId || (issue.row ? `Fila ${issue.row}` : "Venta")}: ${issue.message || receiptProblem(issue.code)}`;
+      list.append(li);
+    }
+    if (outcome.walkIns) {
+      const li = document.createElement("li");
+      li.textContent = walkInText(outcome.walkIns);
+      list.append(li);
+    }
   }
   function errorMessage(error) {
     if (error?.status === 404 || /HTTP 404|Cannot (GET|POST|PUT)|^No encontrado(?: \(Ref:.*\))?$/i.test(error?.message || "")) {
@@ -170,12 +279,14 @@ export function registerPosIntegration(app) {
   }
   function renderPreview(kind, preview) {
     const summary = preview.summary || {};
-    el(`pos${kind}PreviewSummary`).textContent = `Ventas revisadas: ${number(summary.total)}. Listas: ${number(summary.ready)}; repetidas: ${number(summary.duplicates)}; omitidas: ${number(summary.ignored)}; con errores: ${number(summary.errors)}. La vista previa no asigna puntos.`;
+    const outcome = posOutcome(summary, preview.rows);
+    el(`pos${kind}PreviewSummary`).textContent = `Ventas revisadas: ${number(summary.total)}. Listas: ${number(summary.ready)}; repetidas: ${number(summary.duplicates)}; omitidas: ${number(summary.ignored)}; sin cliente: ${outcome.walkIns}; con errores: ${outcome.errors}. La vista previa no asigna puntos.`;
     const rows = el(`pos${kind}PreviewRows`);
     rows.replaceChildren();
     for (const sale of preview.rows || []) {
       const tr = document.createElement("tr");
-      const label = { ready: "Lista", duplicate: "Repetida", ignored: "Omitida", error: "Error" }[sale.status] || "Sin validar";
+      const label = sale.code === WALK_IN_CODE ? "Sin cliente · no suma puntos"
+        : { ready: "Lista", duplicate: "Repetida", ignored: "Omitida", error: "Error" }[sale.status] || "Sin validar";
       for (const value of [sale.row ?? "—", sale.saleId || "—", sale.customerPhone || "—",
         Number.isFinite(Number(sale.amountQ)) && sale.amountQ !== null ? new Intl.NumberFormat(integration?.region?.locale || "es-GT",{style:"currency",currency:integration?.region?.currency || "GTQ"}).format(Number(sale.amountQ)) : "—",
         sale.points ?? "—", `${label}${sale.message ? ` · ${sale.message}` : ""}`]) {
@@ -190,21 +301,18 @@ export function registerPosIntegration(app) {
   function renderResult(kind, result) {
     const box = el(`pos${kind}Result`);
     box.replaceChildren();
+    const outcome = posOutcome(result, result.issues);
     const summary = document.createElement("p");
-    summary.textContent = `Ventas con puntos asignados: ${number(result.awarded)}. Repetidas: ${number(result.duplicates)}; omitidas: ${number(result.ignored)}; con errores: ${number(result.errors)}.`;
+    summary.textContent = `Ventas con puntos asignados: ${number(result.awarded)}. Repetidas: ${number(result.duplicates)}; omitidas: ${number(result.ignored)}; sin cliente: ${outcome.walkIns}; con errores: ${outcome.errors}.`;
     box.append(summary);
     if (result.has_more) {
       const more = document.createElement("p");
       more.textContent = "Quedan ventas por revisar. Consulta la siguiente vista previa para continuar.";
       box.append(more);
     }
-    if (result.issues?.length) {
+    if (outcome.issues.length || outcome.walkIns) {
       const list = document.createElement("ul");
-      for (const issue of result.issues) {
-        const li = document.createElement("li");
-        li.textContent = `${issue.saleId || (issue.row ? `Fila ${issue.row}` : "Venta")}: ${issue.message || issue.code || "No se pudo importar."}`;
-        list.append(li);
-      }
+      renderIssues(list, outcome);
       box.append(list);
     }
     box.hidden = false;

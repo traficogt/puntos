@@ -4,7 +4,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import { createMobileRoutes } from '../../src/app/routes/mobile-routes.js';
 import { errorHandler } from '../../src/middleware/common.js';
-import { rateLimitByPhone, strictRateLimit } from '../../src/middleware/rate-limit.js';
+import { AUTH_RATE_LIMITS, customerCodeRequestRateLimit, rateLimitByPhone } from '../../src/middleware/rate-limit.js';
 import { createBrowserSession, getBrowserSession, touchBrowserSessionIfNeeded } from '../../src/app/services/auth-session-service.js';
 import { getDbTenantId, runWithDbContext, setDbTenantId } from '../../src/app/db/context.js';
 import { unauthorized } from '../../src/utils/http-error.js';
@@ -295,14 +295,15 @@ test('mobile authentication retains active sessions when a best-effort touch fai
   assert.equal((await res.json()).token, 'signed-qr');
 });
 
-test('OTP request routes apply the existing strict IP limiter', async t => {
-  const f = await fixture(t, { requestCodeLimit: strictRateLimit });
-  for (let n = 0; n < 5; n++) {
+test('OTP request routes apply the customer code-request IP limiter', async t => {
+  const f = await fixture(t, { requestCodeLimit: customerCodeRequestRateLimit });
+  const { max } = AUTH_RATE_LIMITS.customerCodeRequest;
+  for (let n = 0; n < max; n++) {
     assert.equal((await f.request('/business/cafe/login/request-code', { method: 'POST', body: JSON.stringify({ phone: '55118765' }) })).status, 200);
   }
   const res = await f.request('/business/cafe/login/request-code', { method: 'POST', body: JSON.stringify({ phone: '55118765' }) });
   assert.equal(res.status, 429); assertPrivate(res);
-  assert.equal(f.state.requests.length, 5);
+  assert.equal(f.state.requests.length, max);
 });
 
 test('OTP verification routes apply the existing phone attempt limiter', async t => {

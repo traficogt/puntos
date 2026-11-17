@@ -50,7 +50,8 @@ test("customer wallet removes the paywalled account/export block and keeps gated
   assert.doesNotMatch(html, /id="btnDelete"/, "expected delete control to be removed from the wallet");
   assert.match(html, /id="referralsSection"/, "expected referrals region to remain identifiable for feature gating");
   assert.match(html, /id="achievementsSection"/, "expected achievements region to remain identifiable for feature gating");
-  assert.match(meModule, /setHidden\(referralsSection, !features\.referrals\)/, "expected referrals visibility to follow plan features");
+  assert.match(meModule, /setHidden\(referralsSection, !referralsActive\(business\)\)/, "expected referrals visibility to follow the plan and the owner's switch");
+  assert.match(meModule, /business\?\.features\?\.referrals\) && business\?\.referrals_enabled !== false/, "expected referrals to require the plan feature and an enabled program");
   assert.match(meModule, /setHidden\(achievementsSection, !features\.gamification\)/, "expected achievements visibility to follow plan features");
 });
 

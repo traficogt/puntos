@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { normalizePaymentWebhook } from "../../src/app/services/payment-webhook-normalizer.js";
+import { normalizePaymentWebhook, parsePaymentAmount } from "../../src/app/services/payment-webhook-normalizer.js";
 
 function eventType(fields) {
   return normalizePaymentWebhook("merchant-pos", {
@@ -57,5 +57,33 @@ describe("payment webhook success classification", () => {
     assert.equal(eventType({ status: { value: "PAID" } }), "payment.other");
     assert.equal(eventType({ status: null }), "payment.other");
     assert.equal(eventType({}), "payment.other");
+  });
+});
+
+describe("payment webhook amounts", () => {
+  const amount = (value) => normalizePaymentWebhook("merchant-pos", { externalEventId: "receipt-123", status: "PAID", amount_q: value }).amount_q;
+
+  for (const [value, expected] of [[48.5, 48.5], [0, 0], [10, 10], [99999999.99, 99999999.99], [0.1 + 0.2, 0.3], ["48.50", 48.5], ["7", 7], [" 12.3 ", 12.3], ["0", 0]]) {
+    it(`accepts ${JSON.stringify(value)}`, () => assert.equal(amount(value), expected));
+  }
+
+  for (const value of [true, false, "", "abc", "1e3", "10,50", "-5", -5, 10.555, "10.555", Number.NaN, Infinity, "Infinity", "0x10", 100000000, "100000000", [], [10], {}, { value: 10 }]) {
+    it(`rejects ${JSON.stringify(value) ?? String(value)} instead of treating it as zero`, () => assert.equal(amount(value), null));
+  }
+
+  it("treats a missing amount as invalid", () => {
+    assert.equal(normalizePaymentWebhook("merchant-pos", { externalEventId: "receipt-123", status: "PAID" }).amount_q, null);
+  });
+
+  it("reads the first present amount field without falling through an invalid one", () => {
+    assert.equal(normalizePaymentWebhook("cubo", { amount: "12.00", total: 99 }).amount_q, 12);
+    assert.equal(normalizePaymentWebhook("cubo", { amount_q: "abc", amount: 12 }).amount_q, null);
+  });
+});
+
+describe("parsePaymentAmount", () => {
+  it("never coerces booleans, sub-cent values or exponent notation", () => {
+    assert.deepEqual([true, 1.005, "1.005", "5e1", "1_000"].map(parsePaymentAmount), [null, null, null, null, null]);
+    assert.equal(parsePaymentAmount(19.99), 19.99);
   });
 });

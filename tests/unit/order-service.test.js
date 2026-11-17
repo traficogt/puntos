@@ -392,3 +392,62 @@ test("rejects unsupported order status", async () => {
     /Unsupported order status/
   );
 });
+
+function newOrderDeps(programJson, created) {
+  return {
+    withTransaction: async (fn) => fn({ query: async () => ({ rows: [], rowCount: 0 }) }),
+    setCurrentTenant: async () => {},
+    BusinessRepo: {
+      getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
+      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: programJson })
+    },
+    CustomerRepo: {
+      getById: async (id) => ({ id, business_id: "biz-1" }),
+      getByBusinessAndPhone: async () => null
+    },
+    OrderRepo: {
+      findByBusinessAndExternalId: async () => null,
+      create: async (_client, input) => {
+        created.push(input);
+        return { id: "order-created", transaction_id: input.transaction_id };
+      }
+    },
+    computePoints: () => 5,
+    hashPayload: () => "fp-money"
+  };
+}
+
+const newOrder = (extra) => ({
+  businessSlug: "cafe",
+  customerId: "cust-1",
+  externalOrderId: `ord-${Math.random()}`,
+  status: "paid",
+  amount_q: 50,
+  ...extra
+});
+
+test("rejects an order in another currency instead of awarding points as if it were the business currency", async () => {
+  const created = [];
+  const deps = newOrderDeps({ points_per_q: 0.1 }, created);
+  await assert.rejects(() => processOrderWithDeps(deps, newOrder({ currency: "USD" })), { statusCode: 400, code: "CURRENCY_MISMATCH" });
+  assert.equal(created.length, 0);
+});
+
+test("rejects order amounts with more decimals than the ledger or the currency allows", async () => {
+  const created = [];
+  await assert.rejects(() => processOrderWithDeps(newOrderDeps({ points_per_q: 0.1 }, created), newOrder({ amount_q: 10.005 })), { statusCode: 400 });
+  await assert.rejects(() => processOrderWithDeps(newOrderDeps({ points_per_q: 0.1 }, created), newOrder({ amount_q: 100_000_000 })), { statusCode: 400 });
+  await assert.rejects(() => processOrderWithDeps(newOrderDeps({ points_per_q: 0.1 }, created), newOrder({ tax_q: 1.234 })), { statusCode: 400 });
+  const chile = { points_per_q: 0.1, region: { country: "CL", currency: "CLP", timezone: "America/Santiago" } };
+  await assert.rejects(() => processOrderWithDeps(newOrderDeps(chile, created), newOrder({ amount_q: 1500.5, currency: "CLP" })), { statusCode: 400 });
+  assert.equal(created.length, 0);
+});
+
+test("records the business currency when an order omits it", async () => {
+  const created = [];
+  const chile = { points_per_q: 0.1, region: { country: "CL", currency: "CLP", timezone: "America/Santiago" } };
+  const out = await processOrderWithDeps(newOrderDeps(chile, created), newOrder({ amount_q: 1500 }));
+  assert.equal(out.ok, true);
+  assert.equal(created[0].currency, "CLP");
+  await assert.rejects(() => processOrderWithDeps(newOrderDeps(chile, []), newOrder({ currency: "GTQ" })), { code: "CURRENCY_MISMATCH" });
+});

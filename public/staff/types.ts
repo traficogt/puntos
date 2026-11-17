@@ -3,6 +3,8 @@ export interface StaffProfile {
   business_id: string;
   role: string;
   can_manage_gift_cards?: boolean;
+  /** Set when platform support opened this session on the account holder's behalf. */
+  impersonated_by?: string | null;
   [key: string]: unknown;
 }
 
@@ -49,6 +51,9 @@ export interface StaffSyncResult {
   ok?: boolean;
   txId?: string;
   error?: string;
+  /** HTTP-equivalent status of a failed sale: 4xx is definitive, 5xx is retried. */
+  status?: number;
+  code?: string;
 }
 
 export interface StaffSyncResponse {
@@ -100,7 +105,8 @@ export interface QueuedStaffAward {
   client_ts?: string;
   created_at?: string;
   updated_at?: string;
-  status?: "queued" | "syncing" | "failed" | "quarantined";
+  /** "held" and legacy "failed" await a cashier decision; "rejected" is never resent. */
+  status?: "queued" | "syncing" | "held" | "rejected" | "failed" | "quarantined";
   retry_count?: number;
   last_error?: string;
 }

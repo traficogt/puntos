@@ -93,7 +93,10 @@ export const BusinessRepo = {
       ? `|| CASE WHEN program_json ? 'external_awards'
            THEN jsonb_build_object('external_awards', program_json->'external_awards') ELSE '{}'::jsonb END`
       : "";
-    const sql = `UPDATE businesses SET program_type=$2, program_json=$3::jsonb
+    // The generic save owns only the keys it submits. Merge them onto the row
+    // that UPDATE locks so settings saved by dedicated services (campaign rules,
+    // second visit, operating mode, data health, region...) survive the save.
+    const sql = `UPDATE businesses SET program_type=$2, program_json=COALESCE(program_json,'{}'::jsonb) || $3::jsonb
        || CASE WHEN program_json ? 'pos_integration'
             THEN jsonb_build_object('pos_integration', program_json->'pos_integration') ELSE '{}'::jsonb END
        || CASE WHEN program_json ? 'weekly_owner_brief'
@@ -101,6 +104,8 @@ export const BusinessRepo = {
        ${externalAwardsSql}
        || CASE WHEN NOT ($3::jsonb ? 'lifecycle') AND program_json ? 'lifecycle'
           THEN jsonb_build_object('lifecycle', program_json->'lifecycle')
+          WHEN jsonb_typeof(program_json->'lifecycle')='object' AND jsonb_typeof($3::jsonb->'lifecycle')='object'
+          THEN jsonb_build_object('lifecycle', (program_json->'lifecycle') || ($3::jsonb->'lifecycle'))
           WHEN jsonb_typeof(program_json->'lifecycle')='object'
                      AND (program_json->'lifecycle') ?| $4::text[]
           THEN jsonb_build_object('lifecycle',
@@ -110,8 +115,9 @@ export const BusinessRepo = {
                     THEN $3::jsonb->'lifecycle' ELSE '{}'::jsonb END)
           ELSE '{}'::jsonb END
        WHERE id=$1`;
-    // Older forms do not submit the guided controls. Preserve only omitted
-    // controls from the row that UPDATE locks, including a null lifecycle input.
+    // Older forms do not submit the guided controls or template-only settings.
+    // A submitted lifecycle object updates only its own keys on the locked row.
+    // A null lifecycle input clears it except the guided controls.
     // An entirely omitted lifecycle (also stripped for basic-only permissions)
     // leaves that separate feature intact instead of implicitly disabling it.
     // This stays on the caller's client/transaction; no nested lock is acquired.

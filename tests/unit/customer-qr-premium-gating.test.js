@@ -138,3 +138,38 @@ it("QR renewal never starts overlapping requests", async t => {
   await Promise.all([pending, duplicate]);
   controller.dispose();
 });
+
+it("an ended session while generating a QR follows the session-expired flow instead of showing the response body", async t => {
+  const messages = [];
+  let expired = 0;
+  t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ error: "No autenticado", code: "AUTH_REQUIRED", request_id: "abc" }), { status: 401, headers: { "Content-Type": "application/json" } }));
+  const controller = createQrController({ $: () => null, toast: message => messages.push(message), onSessionExpired: () => { expired += 1; } });
+  await controller.generateQR();
+  assert.equal(expired, 1);
+  assert.deepEqual(messages, []);
+  t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ error: "Customer not found", code: "CUSTOMER_NOT_FOUND" }), { status: 404 }));
+  await controller.generateQR();
+  assert.equal(expired, 2);
+  assert.deepEqual(messages, []);
+});
+
+it("QR failures show friendly Spanish messages, never raw JSON", async t => {
+  const messages = [];
+  const controller = createQrController({ $: () => null, toast: message => messages.push(message), onSessionExpired: () => assert.fail("not a session error") });
+  t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ error: "Rate limit exceeded. Try again in 30 seconds.", code: "RATE_LIMITED" }), { status: 429 }));
+  await controller.generateQR();
+  t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ error: "Error interno del servidor", code: "INTERNAL_ERROR" }), { status: 500 }));
+  await controller.generateQR();
+  t.mock.method(globalThis, "fetch", async () => new Response("<html>Bad gateway</html>", { status: 502 }));
+  await controller.generateQR();
+  t.mock.method(globalThis, "fetch", async () => { throw new TypeError("Failed to fetch"); });
+  await controller.generateQR();
+  controller.dispose();
+  assert.deepEqual(messages, [
+    "Generaste varios QR seguidos. Espera un momento e inténtalo de nuevo.",
+    "No se pudo generar tu QR. Inténtalo de nuevo en un momento.",
+    "No se pudo generar tu QR. Inténtalo de nuevo en un momento.",
+    "No se pudo generar tu QR. Revisa tu conexión e inténtalo de nuevo."
+  ]);
+  assert.ok(messages.every(message => !/[{}]|error|HTTP|html/i.test(message)));
+});

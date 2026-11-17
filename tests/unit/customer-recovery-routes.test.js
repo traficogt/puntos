@@ -29,13 +29,14 @@ let queries;
 let server;
 let origin;
 let cookie;
-const originals = { staff: StaffRepo.getById, business: BusinessRepo.getById, plans: PlanConfigService.getPlanFeatureOverrides, query: pool.query, connect: transactionPool.connect, security: SecurityEventRepo.log };
+const originals = { staff: StaffRepo.getById, business: BusinessRepo.getById, plans: PlanConfigService.getPlanFeatureOverrides, query: pool.query, connect: transactionPool.connect, security: SecurityEventRepo.log, privilegedSecurity: SecurityEventRepo.logPrivileged };
 
 before(async () => {
   StaffRepo.getById = async () => ({ id: staffId, business_id: businessId, role, branch_id: null, active: true });
   BusinessRepo.getById = async () => ({ id: businessId, plan });
   PlanConfigService.getPlanFeatureOverrides = async () => ({});
   SecurityEventRepo.log = async () => {};
+  SecurityEventRepo.logPrivileged = async () => {};
   const query = async (sql, params) => {
     const text = String(sql);
     queries.push({ sql: text, params });
@@ -71,6 +72,7 @@ after(async () => {
   BusinessRepo.getById = originals.business;
   PlanConfigService.getPlanFeatureOverrides = originals.plans;
   SecurityEventRepo.log = originals.security;
+  SecurityEventRepo.logPrivileged = originals.privilegedSecurity;
   pool.query = originals.query;
   transactionPool.connect = originals.connect;
 });

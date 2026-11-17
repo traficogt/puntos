@@ -1,8 +1,18 @@
 import { one, many } from "./base.js";
 import { withTransaction } from "../database.js";
+import { AuditRepo } from "./audit-repository.js";
+
+/** @typedef {{ audit?: Parameters<typeof AuditRepo.log>[0] }} RewardWriteOptions */
+
+// An optional audit entry commits in the same transaction as the change.
+/** @param {RewardWriteOptions["audit"]} audit */
+async function auditInTransaction(audit) {
+  if (audit) await AuditRepo.log(audit);
+}
 
 export const RewardRepo = {
-  async create({ id, business_id, name, description, points_cost, active, stock, valid_until, branch_ids }) {
+  /** @param {any} reward @param {RewardWriteOptions} [options] */
+  async create({ id, business_id, name, description, points_cost, active, stock, valid_until, branch_ids }, { audit } = {}) {
     await withTransaction(async (client) => {
       await client.query('SELECT id FROM businesses WHERE id=$1 FOR UPDATE', [business_id]);
       // Publish only after branch eligibility is complete. An active intermediate
@@ -23,6 +33,7 @@ export const RewardRepo = {
       if (active ?? true) {
         await client.query(`UPDATE rewards SET active = true WHERE id=$1 AND business_id=$2`, [id, business_id]);
       }
+      await auditInTransaction(audit);
     });
     return this.getById(id, business_id);
   },
@@ -75,7 +86,8 @@ export const RewardRepo = {
     );
   },
 
-  async update(id, patch) {
+  /** @param {string} id @param {Record<string, unknown>} patch @param {RewardWriteOptions} [options] */
+  async update(id, patch, { audit } = {}) {
     const fields = [];
     const vals = [];
     let i = 1;
@@ -88,11 +100,13 @@ export const RewardRepo = {
     await withTransaction(async client => {
       await client.query('SELECT b.id FROM businesses b JOIN rewards r ON r.business_id=b.id WHERE r.id=$1 FOR UPDATE OF b', [id]);
       await client.query(`UPDATE rewards SET ${fields.join(", ")} WHERE id=$${i}`, vals);
+      await auditInTransaction(audit);
     });
     return this.getById(id);
   },
 
-  async setBranches(rewardId, branchIds = []) {
+  /** @param {string} rewardId @param {string[]} [branchIds] @param {RewardWriteOptions} [options] */
+  async setBranches(rewardId, branchIds = [], { audit } = {}) {
     await withTransaction(async (client) => {
       await client.query('SELECT b.id FROM businesses b JOIN rewards r ON r.business_id=b.id WHERE r.id=$1 FOR UPDATE OF b', [rewardId]);
       await client.query('SELECT id FROM rewards WHERE id=$1 FOR UPDATE', [rewardId]);
@@ -103,6 +117,7 @@ export const RewardRepo = {
           [rewardId, branchId]
         );
       }
+      await auditInTransaction(audit);
     });
     return this.getById(rewardId);
   },

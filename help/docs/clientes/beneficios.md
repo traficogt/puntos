@@ -2,7 +2,7 @@
 title: Entender beneficios protegidos, ofertas y cortesías
 description: 'Consulta cada beneficio por separado: no todos usan puntos ni tienen
   el mismo plazo.'
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - public/customer.html
@@ -42,4 +42,4 @@ Puedes distinguir el premio por puntos, una oferta de bono y una cortesía. Tene
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/mi-tarjeta/). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/mi-tarjeta/). Revisión del 17 de noviembre de 2026.

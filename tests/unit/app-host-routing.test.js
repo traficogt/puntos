@@ -127,6 +127,24 @@ test("runtime config infers live app and marketing origins from the incoming hos
   );
 });
 
+test('container service names and IP addresses never redirect to an invented app. host', () => {
+  // A local configuration with a non-local Host header used to infer "app.<host>":
+  // a request to the "api" container for /equipo/ingresar/ redirected to
+  // https://app.api/, which cannot resolve.
+  const local = { appOrigin: 'http://localhost:3101', marketingOrigin: 'http://localhost:3101' };
+  for (const host of ['api:3001', 'puntos-api', '10.10.1.47:3001', '[fd00::5]:3001']) {
+    for (const path of ['/equipo/ingresar/', '/mi-tarjeta/', '/administracion/']) {
+      assert.equal(resolveHostSplitRedirect({ host, path, originalUrl: path, ...local }), '', `${host}${path}`);
+    }
+    assert.equal(runtimeConfigForHost({ host, ...local }).appOrigin, 'http://localhost:3101', host);
+  }
+  // Dotted DNS names still infer their app host from a local configuration.
+  assert.equal(
+    resolveHostSplitRedirect({ host: 'pf.example.test', path: '/mi-tarjeta/', originalUrl: '/mi-tarjeta/', forwardedProto: 'https', ...local }),
+    'https://app.pf.example.test/mi-tarjeta/'
+  );
+});
+
 test('shared host installations serve both shells without redirect loops', () => {
   for (const path of ['/', '/admin', '/staff/login', '/c']) assert.equal(resolveHostSplitRedirect({ host: 'localhost:3111', path, originalUrl: path, appOrigin: 'http://localhost:3111', marketingOrigin: 'http://localhost:3001' }), '');
 });

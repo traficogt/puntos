@@ -9,7 +9,7 @@ const url = process.env.DEPENDENCY_TEST_REDIS_URL;
 test('Redis limits share counters, expire and survive reconnects; queued job payloads retain FIFO order', { skip: !url, timeout: 10000 }, async t => {
   const parsed = new URL(url);
   assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname), 'Use a disposable loopback Redis fixture');
-  const { checkRedisRateLimit } = await import('../../src/utils/redis-rate-limit.js');
+  const { checkRedisRateLimit, releaseRedisRateLimit } = await import('../../src/utils/redis-rate-limit.js');
   const first = createClient({ url, RESP: 2 });
   const second = createClient({ url, RESP: 2 });
   first.on('error', () => {});
@@ -17,9 +17,9 @@ test('Redis limits share counters, expire and survive reconnects; queued job pay
   await first.connect();
   await second.connect();
   const prefix = `dependency-fixture:${randomUUID()}`;
-  const key = `${prefix}:limit`, queue = `${prefix}:queue`;
+  const key = `${prefix}:limit`, queue = `${prefix}:queue`, orphan = `${prefix}:orphan`, released = `${prefix}:released`;
   t.after(async () => {
-    if (first.isOpen) { await first.del([key, queue]); await first.close(); }
+    if (first.isOpen) { await first.del([key, queue, orphan, released]); await first.close(); }
     if (second.isOpen) await second.close();
   });
   assert.equal((await checkRedisRateLimit(first, key, 2, 1000)).remaining, 1);
@@ -31,6 +31,21 @@ test('Redis limits share counters, expire and survive reconnects; queued job pay
   assert.equal((await checkRedisRateLimit(second, key, 2, 1000)).allowed, false);
   await setTimeout(1100);
   assert.equal((await checkRedisRateLimit(first, key, 2, 1000)).allowed, true);
+  // A counter left without an expiry (an INCR whose PEXPIRE never ran) is repaired.
+  await first.set(orphan, '7');
+  assert.equal(await first.pTTL(orphan), -1);
+  assert.equal((await checkRedisRateLimit(first, orphan, 5, 60000)).allowed, false);
+  assert.ok(await first.pTTL(orphan) > 0, 'An orphaned counter regains an expiry');
+  // Releasing returns one allowance and never recreates an expired window.
+  await checkRedisRateLimit(first, released, 1, 60000);
+  assert.equal((await checkRedisRateLimit(first, released, 1, 60000)).allowed, false);
+  await releaseRedisRateLimit(first, released);
+  await releaseRedisRateLimit(first, released);
+  assert.equal(await first.get(released), '0', 'Releases never go below zero');
+  assert.ok(await first.pTTL(released) > 0, 'Releases keep the window expiry');
+  await first.del(released);
+  await releaseRedisRateLimit(first, released);
+  assert.equal(await first.exists(released), 0);
   const firstJob = JSON.stringify({ id: 'stored-job-one' });
   const secondJob = JSON.stringify({ id: 'stored-job-two' });
   await first.lPush(queue, firstJob);

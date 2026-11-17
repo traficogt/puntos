@@ -50,7 +50,38 @@ if (demoVisit) {
   });
 }
 
-// Contact form
+// Contact form. Limits match the server's ContactSchema.
+const MESSAGE_MIN_LENGTH = 10;
+const MESSAGE_MAX_LENGTH = 2000;
+const CONTACT_FIELD_IDS = { name: "cfName", business: "cfBusiness", contact: "cfContact", message: "cfMessage" };
+const CONTACT_FIELD_ERRORS = {
+  name: "Revisa tu nombre: puede tener hasta 100 caracteres.",
+  business: "Revisa el nombre de tu negocio: puede tener hasta 160 caracteres.",
+  contact: "Revisa tu correo o teléfono: puede tener hasta 200 caracteres.",
+  message: `Cuéntanos qué quieres resolver con al menos ${MESSAGE_MIN_LENGTH} caracteres y hasta ${MESSAGE_MAX_LENGTH}.`,
+  turnstileToken: "Por favor completa la verificación."
+};
+
+/**
+ * Spanish copy for a rejected demo request and, when known, the field to fix.
+ * @param {number} status
+ * @param {any} body
+ * @returns {{ message: string, field?: string }}
+ */
+export function contactFailure(status, body) {
+  if (status === 429) return { message: "Recibimos varias solicitudes desde tu conexión. Espera unos minutos e inténtalo de nuevo." };
+  if (body?.code === "VERIFICATION_FAILED") return { message: "No pudimos confirmar la verificación. Complétala de nuevo y envía tu solicitud." };
+  const error = body?.error;
+  if (error && typeof error === "object") {
+    const fieldErrors = error.fieldErrors && typeof error.fieldErrors === "object" ? error.fieldErrors : {};
+    const field = Object.keys(CONTACT_FIELD_ERRORS).find(key => Array.isArray(fieldErrors[key]) && fieldErrors[key].length);
+    if (field) return { message: CONTACT_FIELD_ERRORS[field], field: CONTACT_FIELD_IDS[field] };
+  }
+  // The server's own messages for this form are written in Spanish.
+  if (typeof error === "string" && error.trim()) return { message: error.trim() };
+  return { message: "No pudimos enviar tu solicitud. Inténtalo de nuevo en unos minutos." };
+}
+
 const contactForm = /** @type {HTMLFormElement|null} */ (document.getElementById("contactForm"));
 if (contactForm) {
   const submitBtn = /** @type {HTMLButtonElement} */ (document.getElementById("contactSubmit"));
@@ -104,11 +135,14 @@ if (contactForm) {
       { id: "cfContact", value: contact, message: "Escribe un correo o teléfono de contacto." },
       { id: "cfMessage", value: message, message: "Cuéntanos qué quieres resolver en tu negocio." }
     ];
-    const missing = requiredFields.find((field) => !field.value);
-    if (missing) {
-      statusEl.textContent = missing.message;
+    const fullMessage = locations ? `${message}\n\nContexto operativo: ${locations}` : message;
+    const invalid = requiredFields.find((field) => !field.value)
+      || (message.length < MESSAGE_MIN_LENGTH ? { id: "cfMessage", message: `Cuéntanos un poco más: escribe al menos ${MESSAGE_MIN_LENGTH} caracteres.` } : null)
+      || (fullMessage.length > MESSAGE_MAX_LENGTH ? { id: "cfMessage", message: `Tu mensaje y las sucursales superan ${MESSAGE_MAX_LENGTH} caracteres. Acorta el mensaje para enviarlo.` } : null);
+    if (invalid) {
+      statusEl.textContent = invalid.message;
       statusEl.className = "contact-status contact-status-error";
-      const field = document.getElementById(missing.id);
+      const field = document.getElementById(invalid.id);
       field?.setAttribute("aria-invalid", "true");
       field?.focus();
       return;
@@ -134,7 +168,7 @@ if (contactForm) {
           name,
           business,
           contact,
-          message: locations ? `${message}\n\nContexto operativo: ${locations}` : message,
+          message: fullMessage,
           turnstileToken
         })
       });
@@ -145,8 +179,16 @@ if (contactForm) {
         statusEl.textContent = "Recibimos tu solicitud. Te escribimos pronto para coordinar la demo.";
         statusEl.className = "contact-status contact-status-success";
       } else {
-        statusEl.textContent = "Revisa los campos e inténtalo de nuevo.";
+        let body = null;
+        try { body = await res.json(); } catch { /* A non-JSON failure gets the general message. */ }
+        const failure = contactFailure(res.status, body);
+        statusEl.textContent = failure.message;
         statusEl.className = "contact-status contact-status-error";
+        if (failure.field) {
+          const field = document.getElementById(failure.field);
+          field?.setAttribute("aria-invalid", "true");
+          field?.focus();
+        }
         submitBtn.disabled = false;
         submitBtn.textContent = "Solicitar demo";
         if (window.turnstile) window.turnstile.reset();
