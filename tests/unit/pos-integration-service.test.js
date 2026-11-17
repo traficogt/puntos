@@ -223,7 +223,7 @@ test("rotating a key does not re-enable a concurrently disabled legacy connectio
   assert.equal(f.business.program_json.external_awards.enabled, false);
   assert.equal(f.business.program_json.external_awards.api_key, rotated.api_key);
 });
-test("full recovery queue retains every older failed receipt and holds the new page", async () => {
+test("a full recovery queue moves its oldest receipts to review and never holds back new sales", async () => {
   const pending = Array.from({ length: 500 }, (_, i) => `old-${i}`);
   const receipt = { ...sale, source: "loyverse:m1:s1", occurredAt: "2026-11-09T10:30:00Z" };
   const f = fixture({ getCustomer: async () => null,
@@ -232,10 +232,79 @@ test("full recovery queue retains every older failed receipt and holds the new p
   });
   Object.assign(f.business.program_json.pos_integration, { mode: "loyverse", pending_receipts: pending });
   const out = await f.service.syncLoyverseBusiness(f.business.id);
+  const cfg = f.business.program_json.pos_integration;
   assert.equal(out.result.issues[0].code, "RETRY_QUEUE_FULL");
-  assert.deepEqual(new Set(f.business.program_json.pos_integration.pending_receipts), new Set(pending));
-  assert.equal(f.business.program_json.pos_integration.sync_window.cursor, null);
-  assert.equal(f.business.program_json.pos_integration.last_completed_at, null);
+  assert.equal(out.result.has_more, true);
+  // The scan advances to the next page instead of re-reading this one forever.
+  assert.equal(cfg.sync_window.cursor, "page2");
+  assert.equal(cfg.pending_receipts.length, 500);
+  assert.ok(cfg.pending_receipts.includes("new-99"));
+  assert.equal(cfg.review_receipts.length, 100);
+  assert.ok(cfg.review_receipts.every(row => row.reason === "retry_queue_full" && row.sale_id.startsWith("old-")));
+  assert.equal(cfg.last_sync.pending, 500);
+  assert.equal(cfg.last_sync.review, 100);
+});
+test("walk-in receipts and receipt defects never enter the retry queue", async () => {
+  const receipt = { ...sale, source: "loyverse:m1:s1", occurredAt: "2026-11-09T10:30:00Z" };
+  const issues = [
+    { saleId: "walk-in", source: "loyverse:m1:s1", code: "missing_customer", message: "Sin cliente" },
+    { saleId: "bad-payment", source: "loyverse:m1:s1", code: "unverified_payment", message: "Pago" },
+    { saleId: "bad-refund", code: "invalid_refund", message: "Devolución" },
+    { saleId: "voided", code: "cancelled", message: "Anulado" },
+    { saleId: "no-phone", source: "loyverse:m1:s1", code: "missing_phone", message: "Teléfono" }
+  ];
+  let retried = 0;
+  const f = fixture({ getCustomer: async () => null, fetchSales: async () => ({ sales: [{ ...receipt, saleId: "unregistered" }], issues, nextCursor: null }), fetchRetrySales: async () => { retried += 1; return { sales: [], issues: [] }; } });
+  f.business.program_json.pos_integration.mode = "loyverse";
+  await f.service.syncLoyverseBusiness(f.business.id);
+  const cfg = f.business.program_json.pos_integration;
+  assert.deepEqual(new Set(cfg.pending_receipts), new Set(["unregistered", "no-phone"]));
+  assert.deepEqual(cfg.pending_receipt_meta.unregistered, { code: "SALE_404", attempts: 1, first_seen_at: "2026-11-09T11:00:00.000Z", next_retry_at: "2026-11-09T11:05:00.000Z" });
+  assert.deepEqual(cfg.review_receipts.map(row => [row.sale_id, row.reason]).sort(), [["bad-payment", "not_retryable"], ["bad-refund", "not_retryable"]]);
+  assert.equal(cfg.last_completed_at, "2026-11-09T11:00:00.000Z");
+  assert.equal(retried, 0);
+});
+test("automatic syncs wait for each receipt's backoff and stop retrying after the attempt limit", async () => {
+  const receipt = { ...sale, source: "loyverse:m1:s1", occurredAt: "2026-11-09T10:30:00Z" };
+  let now = new Date("2026-11-09T11:00:00.000Z");
+  const lookups = [];
+  const f = fixture({ getCustomer: async () => null, now: () => now,
+    fetchSales: async () => ({ sales: [], issues: [], nextCursor: null }),
+    fetchRetrySales: async ({ receiptIds }) => { lookups.push(receiptIds); return { sales: receiptIds.map(saleId => ({ ...receipt, saleId })), issues: [] }; } });
+  Object.assign(f.business.program_json.pos_integration, { mode: "loyverse", automatic: true, pending_receipts: ["000123"],
+    pending_receipt_meta: { "000123": { code: "SALE_404", attempts: 1, first_seen_at: now.toISOString(), next_retry_at: "2026-11-09T11:05:00.000Z" } } });
+  await f.service.syncLoyverseBusiness(f.business.id, { automatic: true });
+  assert.equal(lookups.length, 0);
+  for (let attempt = 2; attempt <= 20; attempt += 1) {
+    now = new Date(Date.parse(f.business.program_json.pos_integration.pending_receipt_meta["000123"]?.next_retry_at ?? now.toISOString()));
+    await f.service.syncLoyverseBusiness(f.business.id, { automatic: true });
+  }
+  const cfg = f.business.program_json.pos_integration;
+  assert.equal(lookups.length, 19);
+  assert.deepEqual(cfg.pending_receipts, []);
+  assert.deepEqual(cfg.review_receipts.map(row => [row.sale_id, row.reason, row.attempts]), [["000123", "retry_limit", 20]]);
+  // Backoff is capped, and the whole budget stays within the seven-day window.
+  assert.ok(Date.parse(now.toISOString()) - Date.parse("2026-11-09T11:00:00.000Z") < 7 * 24 * 3600 * 1000);
+});
+test("a failed lookup of old receipts does not stop the forward scan", async () => {
+  const normalized = { ...sale, source: "loyverse:m1:s1", customerPhone: "50255554444", items: 1, visits: 1, occurredAt: "2026-11-09T10:30:00Z" };
+  const f = fixture({ fetchSales: async () => ({ sales: [{ ...normalized, saleId: "fresh" }], issues: [], nextCursor: null }),
+    fetchRetrySales: async () => { throw new Error("Loyverse alcanzó su límite de consultas."); } });
+  Object.assign(f.business.program_json.pos_integration, { mode: "loyverse", pending_receipts: ["stale"], pending_receipt_meta: { stale: { code: "SALE_404", attempts: 3, first_seen_at: "2026-11-09T09:00:00.000Z", next_retry_at: "2026-11-09T10:00:00.000Z" } } });
+  const out = await f.service.syncLoyverseBusiness(f.business.id);
+  const cfg = f.business.program_json.pos_integration;
+  assert.equal(out.result.awarded, 1);
+  assert.equal(cfg.last_completed_at, "2026-11-09T11:00:00.000Z");
+  assert.deepEqual(cfg.pending_receipts, ["stale"]);
+  assert.equal(cfg.pending_receipt_meta.stale.attempts, 4);
+  assert.equal(cfg.pending_receipt_meta.stale.code, "retry_unavailable");
+});
+test("reconnecting clears the retry metadata and review list with the queue", async () => {
+  const f = fixture({ verifyConnection: async () => ({ merchantId: "m2", merchantName: "Otro", storeId: null }) });
+  Object.assign(f.business.program_json.pos_integration, { mode: "loyverse", pending_receipts: ["a"], pending_receipt_meta: { a: { attempts: 2 } }, review_receipts: [{ sale_id: "b" }] });
+  await f.service.configurePosIntegration(f.business.id, { enabled: true, mode: "loyverse", loyverse: { access_token: "another-token" } });
+  const cfg = f.business.program_json.pos_integration;
+  assert.deepEqual([cfg.pending_receipts, cfg.pending_receipt_meta, cfg.review_receipts], [[], {}, []]);
 });
 test("disabled connections and lost plan entitlement cannot award", async () => {
   const f = fixture({ hasFeature: async () => false });

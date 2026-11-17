@@ -2,12 +2,39 @@ import { regionalMoney } from "/lib.js";
 /** @typedef {import("../../types.js").AdminDashboardApp} AdminDashboardApp */
 /** @typedef {import("../../types.js").AnalyticsOperationsController} AnalyticsOperationsController */
 
+// Approved payments whose webhook arrived without a valid amount are stored as
+// FAILED with reason invalid_amount. The owner may assign them once with the
+// corrected amount (POST /api/admin/payment-webhooks/:id/resolve, amountQ).
+
+export const INVALID_AMOUNT_REASON = "invalid_amount";
+
+/** @typedef {{ status?: string, reason?: string | null, event_type?: string, [field: string]: any }} PaymentWebhookEventRow */
+
+/**
+ * @param {PaymentWebhookEventRow[] | undefined} events
+ * @returns {PaymentWebhookEventRow[]}
+ */
+export function invalidAmountEvents(events) {
+  return (Array.isArray(events) ? events : []).filter((event) =>
+    event?.status === "FAILED" && event.reason === INVALID_AMOUNT_REASON && event.event_type === "payment.approved");
+}
+
+/**
+ * Mirrors the server rule: a non-negative amount with up to two decimals.
+ * @param {string} text
+ * @returns {string | null} The amount to send, or null when it is not valid.
+ */
+export function correctedAmount(text) {
+  const value = String(text ?? "").trim();
+  return /^\d{1,8}(?:\.\d{1,2})?$/.test(value) ? value : null;
+}
+
 /**
  * @param {AdminDashboardApp} app
  * @returns {AnalyticsOperationsController}
  */
 export function createAnalyticsOperationsController(app) {
-  const { api, $, toast } = app;
+  const { api, $, toast, confirm } = app;
 
   /**
    * @template T
@@ -279,6 +306,79 @@ export function createAnalyticsOperationsController(app) {
       });
     }, (error) => {
       box.textContent = "Error cargando pendientes: " + error.message;
+    });
+    await loadInvalidAmountPayments();
+  }
+
+  // Approved payments that arrived with an invalid amount are never credited
+  // as zero; the owner assigns them once with the corrected amount.
+  async function loadInvalidAmountPayments() {
+    const box = element("#paymentInvalidAmountList");
+    if (!box) return;
+    await run(async () => {
+      const out = await api("/api/admin/payment-webhooks?status=FAILED&limit=50");
+      const events = invalidAmountEvents(out.events);
+      box.replaceChildren();
+      if (!events.length) {
+        box.textContent = "No hay pagos con monto inválido.";
+        return;
+      }
+      const title = document.createElement("strong");
+      title.textContent = "Pagos con monto inválido";
+      const help = document.createElement("p");
+      help.className = "small";
+      help.textContent = "El proveedor confirmó el pago, pero no envió un monto válido y no se asignaron puntos. Comprueba el monto real del pago y el teléfono del cliente antes de asignarlo.";
+      box.append(title, help);
+
+      events.forEach((event) => {
+        const card = document.createElement("div");
+        card.className = "card compact-card mb-8";
+        const top = document.createElement("div");
+        top.className = "small";
+        const when = event.created_at ? new Date(event.created_at).toLocaleString() : "—";
+        top.textContent = `${when} • ${event.provider || "—"} • Ref: ${event.provider_event_id || event.id} • Monto recibido no válido`;
+        card.appendChild(top);
+
+        const row = document.createElement("div");
+        row.className = "row mt-8";
+        const phone = document.createElement("input");
+        phone.placeholder = "Teléfono cliente (502...)";
+        phone.setAttribute("aria-label", "Teléfono del cliente");
+        phone.value = event.customer_phone || "";
+        phone.className = "max-w-240";
+        const amount = document.createElement("input");
+        amount.placeholder = "Monto correcto (48.50)";
+        amount.setAttribute("aria-label", "Monto correcto del pago");
+        amount.inputMode = "decimal";
+        amount.className = "max-w-240";
+        const btn = document.createElement("button");
+        btn.className = "primary";
+        btn.textContent = "Asignar con monto correcto";
+        btn.addEventListener("click", async () => {
+          await run(async () => {
+            const customerPhone = phone.value.trim();
+            const amountQ = correctedAmount(amount.value);
+            if (!customerPhone) return toast("Escribe un teléfono.");
+            if (amountQ === null) return toast("Escribe el monto con punto decimal y hasta dos decimales, por ejemplo 48.50.");
+            if (!await confirm(`¿Asignar este pago de ${regionalMoney(amountQ)} al cliente ${customerPhone}? Sus puntos se calcularán con este monto y no se podrá volver a asignar.`)) return;
+            btn.disabled = true;
+            await api(`/api/admin/payment-webhooks/${encodeURIComponent(event.id)}/resolve`, {
+              method: "POST",
+              body: JSON.stringify({ customerPhone, amountQ })
+            });
+            toast("Pago asignado con el monto corregido y puntos otorgados.");
+            await loadInvalidAmountPayments();
+          }, (error) => {
+            btn.disabled = false;
+            toast("No se pudo asignar: " + error.message);
+          });
+        });
+        row.append(phone, amount, btn);
+        card.appendChild(row);
+        box.appendChild(card);
+      });
+    }, (error) => {
+      box.textContent = "Error cargando pagos con monto inválido: " + error.message;
     });
   }
 

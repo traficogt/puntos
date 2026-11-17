@@ -2,7 +2,7 @@
 title: Guardar mi tarjeta en Wallet
 description: Guarda tu tarjeta cuando el negocio y tu dispositivo muestren una opción
   compatible.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - public/customer.html
@@ -43,4 +43,4 @@ La tarjeta guardada puede mostrarse desde la billetera. La actualización del sa
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/mi-tarjeta/#billeteras). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/mi-tarjeta/#billeteras). Revisión del 17 de noviembre de 2026.

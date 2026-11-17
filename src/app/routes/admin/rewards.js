@@ -12,8 +12,17 @@ import { planLimits } from "../../../utils/plan.js";
 import { dbQuery } from "../../database.js";
 import { rewardCreateSchema, rewardUpdateSchema } from "../../../utils/schemas.js";
 import { makeId } from "./_util.js";
+import { withImpersonationMeta } from "../../../utils/impersonation.js";
 
 export const adminRewardsRoutes = Router();
+
+/** @param {any} req @param {string} action @param {Record<string, unknown>} meta */
+function rewardAudit(req, action, meta) {
+  return {
+    id: makeId(), business_id: req.tenantId, actor_type: "STAFF", actor_id: req.staff.id, action,
+    ip: req.ip ?? null, ua: req.get?.("user-agent") ?? null, meta: withImpersonationMeta(meta, req.staff)
+  };
+}
 
 /** @param {{ businessId: string, branchIds?: string[] }} params */
 async function validateRewardBranchScope({ businessId, branchIds }) {
@@ -68,8 +77,9 @@ adminRewardsRoutes.post(
     const count = await BusinessRepo.countRewards(req.tenantId);
     if (count >= limits.rewards) return res.status(403).json({ error: "Plan limit: rewards exceeded" });
 
+    const rewardId = makeId();
     const reward = await RewardRepo.create({
-      id: makeId(),
+      id: rewardId,
       business_id: req.tenantId,
       name: v.data.name,
       description: v.data.description ?? null,
@@ -78,6 +88,11 @@ adminRewardsRoutes.post(
       stock: v.data.stock ?? null,
       valid_until: v.data.valid_until ? new Date(v.data.valid_until) : null,
       branch_ids: scopedBranchIds
+    }, {
+      audit: rewardAudit(req, "reward.create", {
+        reward_id: rewardId, name: v.data.name, points_cost: v.data.points_cost, active: v.data.active ?? true,
+        stock: v.data.stock ?? null, valid_until: v.data.valid_until ?? null, branch_ids: scopedBranchIds
+      })
     });
     return res.json({ ok: true, reward });
   })
@@ -113,10 +128,19 @@ adminRewardsRoutes.patch(
     const reward = await RewardRepo.getById(req.params.id);
     if (!reward || reward.business_id !== req.tenantId) return res.status(404).json({ error: "Not found" });
 
+    const changes = Object.fromEntries(Object.keys(patch).map((key) => [key, { from: reward[key] ?? null, to: patch[key] ?? null }]));
     if (scopedBranchIds !== undefined) {
-      await RewardRepo.setBranches(req.params.id, scopedBranchIds);
+      changes.branch_ids = { from: (reward.branch_ids ?? []).map(String), to: scopedBranchIds };
     }
-    const updated = await RewardRepo.update(req.params.id, patch);
+    // The audit entry commits with the last write of this update.
+    const audit = Object.keys(changes).length
+      ? rewardAudit(req, "reward.update", { reward_id: reward.id, changes })
+      : undefined;
+    const patchesFields = Object.keys(patch).length > 0;
+    if (scopedBranchIds !== undefined) {
+      await RewardRepo.setBranches(req.params.id, scopedBranchIds, { audit: patchesFields ? undefined : audit });
+    }
+    const updated = await RewardRepo.update(req.params.id, patch, { audit: patchesFields ? audit : undefined });
     return res.json({ ok: true, reward: updated });
   })
 );

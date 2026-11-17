@@ -36,7 +36,7 @@ test('revocation strips progress, protected terms and locations',()=>{
 });
 test('spend earning preserves precise rates and the protected rounding rule',()=>{
  const out=buildWalletEngagement({...base,wallet_cycle:{program_type:'SPEND',earning_terms:{points_per_q:0.00001,round:'floor',region:{country:'MX',currency:'MXN'}}}});
- assert.match(out.earning,/0,00001/);assert.match(out.earning,/MXN 1/);assert.match(out.earning,/hacia abajo/);
+ assert.match(out.earning,/0\.00001/);assert.match(out.earning,/MXN 1/);assert.match(out.earning,/hacia abajo/);
 });
 test('refund-negative available balance is included in the reward deficit',()=>{
  const out=buildWalletEngagement({...base,points:-20,pending_points:100,wallet_rewards:[reward('Café',50)]});
@@ -49,7 +49,7 @@ test('old protected earning terms inherit the business currency only when region
  const current={points_per_q:4,region:{country:'SV',currency:'USD',timezone:'America/El_Salvador'}};
  const oldCycle={program_type:'SPEND',earning_terms:{points_per_q:0.5,round:'floor'}};
  const legacy=buildWalletEngagement({...base,program_json:current,wallet_cycle:oldCycle});
- assert.match(legacy.earning,/USD 1/);assert.match(legacy.earning,/0,5/);assert.match(legacy.earning,/hacia abajo/);
+ assert.match(legacy.earning,/USD 1/);assert.match(legacy.earning,/0\.5 puntos/);assert.match(legacy.earning,/hacia abajo/);
  const protectedRegion=buildWalletEngagement({...base,program_json:current,wallet_cycle:{...oldCycle,earning_terms:{...oldCycle.earning_terms,region:{country:'MX',currency:'MXN'}}}});
  assert.match(protectedRegion.earning,/MXN 1/);
 });

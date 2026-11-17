@@ -6,21 +6,22 @@ import vm from "node:vm";
 const dataModule = source => `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
 const sessionUrl = new URL("../../public/customer/session.js", import.meta.url).href;
 const navigationUrl = new URL("../../public/customer/wallet-navigation.js", import.meta.url).href;
+const formatUrl = new URL("../../public/customer/format.js", import.meta.url).href;
 const libStub = dataModule("export const setHidden=(element,hidden)=>{if(element){element.hidden=hidden;element.classList.toggle('is-hidden',hidden);}};export const registerServiceWorker=async()=>{};");
 const idbStub = dataModule("export const clearCustomerCache=async()=>{globalThis.__growthLifecycle.clears++;};export const getCustomerCacheSnapshot=async()=>({sections:{me:globalThis.__growthLifecycle.me}});export const putCustomerCache=async(...args)=>{globalThis.__growthLifecycle.writes.push(args);};");
-const meStub = dataModule("export const renderFromMe=async({$},me,online)=>{globalThis.__growthLifecycle.renders.push({me,online});$('#main').hidden=false;$('#main').classList.toggle('is-hidden',false);$('#tierSection').hidden=!globalThis.__growthLifecycle.hasTier;$('#tierSection').classList.toggle('is-hidden',!globalThis.__growthLifecycle.hasTier);return {status:online?'live':'offline'};};");
+const meStub = dataModule("export const renderFromMe=async({$,newView},me,online)=>{globalThis.__growthLifecycle.renders.push({me,online,newView});$('#main').hidden=false;$('#main').classList.toggle('is-hidden',false);$('#tierSection').hidden=!globalThis.__growthLifecycle.hasTier;$('#tierSection').classList.toggle('is-hidden',!globalThis.__growthLifecycle.hasTier);return {status:online?'live':'offline'};};");
 const networkStub = dataModule("export const setOnlineBadge=()=>{};");
-const qrStub = dataModule("export const createQrController=()=>({generateQR:async()=>{},dispose:()=>{globalThis.__growthLifecycle.disposed++;}});");
+const qrStub = dataModule("export const createQrController=(deps)=>{globalThis.__growthLifecycle.qr=deps;return {generateQR:async()=>{},dispose:()=>{globalThis.__growthLifecycle.disposed++;}};};");
 const demandStub = dataModule("export const pauseCustomerDemand=()=>{};export const loadCustomerDemand=async()=>{globalThis.__growthLifecycle.demandStarted=true;await globalThis.__growthLifecycle.demandGate;};");
 // All module sources are fixed repository fixtures; only browser-only imports are replaced.
 // eslint-disable-next-line security/detect-non-literal-fs-filename
 const offerSource = await readFile(new URL("../../public/customer/growth-offers.js", import.meta.url), "utf8");
-const offerUrl = dataModule(offerSource.replace(/(['"])\/lib\.js\1/, JSON.stringify(libStub)).replace(/(['"])\.\/session\.js\1/, JSON.stringify(sessionUrl)));
+const offerUrl = dataModule(offerSource.replace(/(['"])\/lib\.js\1/, JSON.stringify(libStub)).replace(/(['"])\.\/format\.js\1/, JSON.stringify(formatUrl)).replace(/(['"])\.\/session\.js\1/, JSON.stringify(sessionUrl)));
 // eslint-disable-next-line security/detect-non-literal-fs-filename
 const loadSource = await readFile(new URL("../../public/customer/load.js", import.meta.url), "utf8");
 // eslint-disable-next-line security/detect-non-literal-fs-filename
 const entitlementSource = await readFile(new URL("../../public/customer/reward-entitlements.js", import.meta.url), "utf8");
-const entitlementUrl = dataModule(entitlementSource.replace("'/lib.js'", JSON.stringify(libStub)).replace("'./session.js'", JSON.stringify(sessionUrl)));
+const entitlementUrl = dataModule(entitlementSource.replace("'/lib.js'", JSON.stringify(libStub)).replace("'./format.js'", JSON.stringify(formatUrl)).replace("'./session.js'", JSON.stringify(sessionUrl)));
 const { loadRewardEntitlements } = await import(entitlementUrl);
 const loadUrl = dataModule(loadSource.replace("'./demand-notebook.js'", JSON.stringify(demandStub)).replace('"./reward-entitlements.js"', JSON.stringify(entitlementUrl)).replace(/(['"])\.\/growth-offers\.js\1/, JSON.stringify(offerUrl))
   .replace('"./wallet-navigation.js"', JSON.stringify(navigationUrl))
@@ -33,6 +34,7 @@ const { clearWalletView } = await import(sessionUrl);
 const indexSource = await readFile(new URL("../../public/customer/index.js", import.meta.url), "utf8");
 const { initCustomerPage } = await import(dataModule(indexSource
   .replace('"./wallet-navigation.js"', JSON.stringify(navigationUrl))
+  .replace('"./format.js"', JSON.stringify(formatUrl))
   .replace('"./reward-entitlements.js"', JSON.stringify(entitlementUrl))
   .replace(/(['"])\.\/growth-offers\.js\1/, JSON.stringify(offerUrl))
   .replace(/(['"])\/idb\.js\1/, JSON.stringify(idbStub)).replace(/(['"])\/lib\.js\1/, JSON.stringify(libStub))
@@ -103,20 +105,87 @@ function setup(t) {
   return { $, api, state, elements, events, saved, browserNavigator, toast: message => state.toasts.push(message), mountIosInstallHint() {}, modalAlert: async () => {} };
 }
 
-test("live customer offers are fetched without caching and are cleared at the start of refresh", async t => {
+test("live customer offers are fetched without caching and stay visible until the same card's refresh replaces them", async t => {
   const h = setup(t);
   await loadAll(h);
   assert.match(h.$("#growthOffers").textContent, /Regresa por tu café/);
   assert.equal(h.$("#growthOffersSection").hidden, false);
   assert.equal(h.state.calls.find(call => call.path.endsWith("growth-offers")).options.cache, "no-store");
   assert.ok(h.state.writes.every(write => write[0] !== "growth-offers"));
+  assert.equal(h.state.renders.at(-1).newView, true);
+  const gate = deferred(), entered = deferred();
+  const pending = loadAll({ ...h, api: async path => {
+    if (path === "/api/customer/me") return me;
+    entered.resolve(); return gate.promise;
+  } });
+  await entered.promise;
+  // A background refresh of the same card never blanks its offers.
+  assert.match(h.$("#growthOffers").textContent, /Regresa por tu café/);
+  assert.equal(h.$("#growthOffersSection").hidden, false);
+  assert.equal(h.state.renders.at(-1).newView, false);
+  gate.resolve({ offers: [{ ...offer, name: "Nueva oferta" }] });
+  assert.equal((await pending).status, "live");
+  assert.match(h.$("#growthOffers").textContent, /Nueva oferta/);
+  assert.doesNotMatch(h.$("#growthOffers").textContent, /Regresa por tu café/);
+});
+
+test("a refresh whose session changes before its card answers is superseded", async t => {
+  const h = setup(t);
+  await loadAll(h);
   const gate = deferred();
   const pending = loadAll({ ...h, api: () => gate.promise });
-  assert.equal(h.$("#growthOffers").textContent, "");
-  assert.equal(h.$("#growthOffersSection").hidden, true);
   h.saved.set("pf_customer_epoch", "new-session");
   gate.resolve(me);
   assert.equal((await pending).status, "superseded");
+});
+
+test("another customer's card clears the previous offers before rendering", async t => {
+  const h = setup(t);
+  await loadAll(h);
+  const other = { business: me.business, customer: { id: "customer-b", points: 5 } };
+  const gate = deferred(), entered = deferred();
+  const pending = loadAll({ ...h, api: async path => {
+    if (path === "/api/customer/me") return other;
+    entered.resolve(); return gate.promise;
+  } });
+  await entered.promise;
+  assert.equal(h.$("#growthOffers").textContent, "");
+  assert.equal(h.$("#growthOffersSection").hidden, true);
+  assert.equal(h.state.renders.at(-1).me, other);
+  assert.equal(h.state.renders.at(-1).newView, true);
+  gate.resolve({ offers: [] });
+  assert.equal((await pending).status, "live");
+});
+
+test("a cleared wallet starts its next load of the same card from empty sections", async t => {
+  const h = setup(t);
+  await loadAll(h);
+  await loadAll(h);
+  assert.equal(h.state.renders.at(-1).newView, false);
+  clearWalletView(h.$);
+  await loadAll(h);
+  assert.equal(h.state.renders.at(-1).newView, true);
+});
+
+test("returning to the tab runs one refresh for both focus and visibility events", async t => {
+  const h = setup(t), gate = deferred(), originalApi = h.api;
+  let cards = 0, gated = false;
+  h.api = async (path, options) => {
+    if (path === "/api/customer/me" && gated) { cards += 1; await gate.promise; }
+    return originalApi(path, options);
+  };
+  await initCustomerPage(h);
+  gated = true;
+  h.events.get("visibilitychange")();
+  h.events.get("focus")();
+  h.events.get("interval")();
+  gate.resolve();
+  for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.equal(cards, 1);
+  // A later return still refreshes.
+  h.events.get("focus")();
+  for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.equal(cards, 2);
 });
 
 test('protected choices distinguish enough points from confirmed redemption eligibility', async t => {
@@ -375,6 +444,22 @@ test("expired sessions carry only the allowlisted Wallet destination back to ver
     assert.equal(result.status, "auth");
     assert.equal(location.href, `/ingresar/cafe?motivo=sesion-vencida${expected}`);
   }
+});
+
+test("an ended session found by the QR control follows the wallet's session-expired flow", async t => {
+  const h = setup(t), originalApi = h.api;
+  let ended = false;
+  h.api = async (path, options) => {
+    if (ended && path === "/api/customer/me") throw Object.assign(new Error("No autenticado"), { status: 401, code: "AUTH_REQUIRED" });
+    return originalApi(path, options);
+  };
+  await initCustomerPage(h);
+  ended = true;
+  h.state.qr.onSessionExpired();
+  for (let i = 0; i < 20 && !location.href; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.equal(location.href, "/ingresar/cafe?motivo=sesion-vencida");
+  assert.equal(h.$("#main").hidden, true);
+  assert.equal(h.saved.has("pf_customer_identity"), false);
 });
 
 test("the service worker installs every new static offer dependency needed by an offline wallet", async () => {

@@ -53,10 +53,11 @@ Con Docker Compose, carga estos mapas desde archivos externos mediante `PAYMENT_
 ## Flujo interno
 
 1. Se normaliza payload a formato canónico.
-2. Se registra evento en `payment_webhook_events` (idempotencia por `provider + provider_event_id`).
+2. Se registra evento en `payment_webhook_events`. La idempotencia es por `provider + provider_event_id` dentro de cada negocio: dos negocios pueden recibir el mismo ID de evento. Los eventos sin negocio identificado se agrupan por el `businessSlug` recibido y nunca se asignan después a otro negocio; un reenvío con el negocio correcto crea su propio registro.
 3. Si el evento no es aprobado -> `IGNORED`.
-4. Si falta negocio/cliente -> `PENDING_MAPPING`.
-5. Si hay datos suficientes -> se otorgan puntos automáticamente (`APPLIED`).
+4. Si el monto falta o no es un número no negativo con hasta dos decimales (`48.5` o `"48.50"`) -> `FAILED` con motivo `invalid_amount` y respuesta `400`. Nunca se acredita como monto cero. Un reenvío corregido con el mismo ID lo aplica.
+5. Si falta negocio/cliente -> `PENDING_MAPPING`.
+6. Si hay datos suficientes -> se otorgan puntos automáticamente (`APPLIED`).
 
 ## Revisión y resolución manual
 
@@ -67,6 +68,7 @@ Con Docker Compose, carga estos mapas desde archivos externos mediante `PAYMENT_
   - Body:
     - `{ "customerPhone": "50255551234" }` o
     - `{ "customerId": "<uuid>" }`
+  - Solo se pueden resolver pagos aprobados en `PENDING_MAPPING`, o en `FAILED` con motivo `invalid_amount`. En este último caso agrega el monto corregido: `{ "customerPhone": "50255551234", "amountQ": "48.50" }`. Los eventos ignorados (reembolsos, pagos pendientes o fallidos), ya aplicados u otros fallos responden `409`.
 
 ## Nota de operación
 

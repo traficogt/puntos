@@ -143,7 +143,9 @@ export async function consumeInternalMagicLink(rawToken, meta = {}, deps = {}) {
       bid: staff.business_id,
       brid: staff.branch_id,
       role: staff.role,
-      imp: record.created_by ?? null
+      imp: record.created_by ?? null,
+      // A link is not proof of the staff member's password or MFA.
+      reauthVerified: false
     });
     return {
       actorType: "staff",

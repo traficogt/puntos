@@ -188,7 +188,7 @@ test.describe("PWA coverage", () => {
     await gotoStable(page, appUrl("/staff"), { waitUntil: "domcontentloaded", timeout: 20_000 });
     await expect.poll(async () => page.locator("#queueBadge").textContent(), { timeout: 20_000 }).toMatch(/Cola:\s*1/);
     await expect(page.locator("#queueMeta")).toContainText(/Pendientes:\s*1/);
-    await expect(page.locator("#queueList")).toContainText(/queued|syncing|failed/i);
+    await expect(page.locator("#queueList")).toContainText(/Pendiente|Enviando|Requiere tu decisión/);
 
     await page.route("**/api/staff/me", async (route) => {
       await route.fulfill({

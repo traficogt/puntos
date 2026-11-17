@@ -17,7 +17,8 @@ export const BranchRepo = {
     return many(`SELECT * FROM branches WHERE business_id=$1 ORDER BY created_at DESC`, [businessId]);
   },
 
-  async getByCode(code) {
-    return one(`SELECT * FROM branches WHERE code=$1`, [code]);
+  // Codes are unique only within a business.
+  async getByCode(businessId, code) {
+    return one(`SELECT * FROM branches WHERE business_id=$1 AND code=$2`, [businessId, code]);
   }
 };

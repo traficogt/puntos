@@ -1,7 +1,7 @@
 ---
 title: Resolver un problema
 description: Resolver un problema
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: index
 sources:
 - public/customer.html

@@ -2,7 +2,7 @@
 title: El QR no se puede leer
 description: Distingue un problema de cámara, un QR vencido y un enlace de inscripción
   equivocado.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - public/staff.html
@@ -44,4 +44,4 @@ El personal debe ver el cliente correcto antes de operar. Leer un código no reg
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/equipo/escaner/). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/equipo/escaner/). Revisión del 17 de noviembre de 2026.

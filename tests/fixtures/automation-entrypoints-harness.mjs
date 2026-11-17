@@ -22,7 +22,7 @@ async function verifyEntrypoint(filename, enabled) {
     config: { NODE_ENV: 'production', CHURN_SEND_HOUR_LOCAL: 9, CRON_TZ: 'America/Guatemala', JOB_WORKER_INTERVAL_MS: 5000 },
     withDbClientContext: async (_context, fn) => fn(),
     WebhookRepo: { encryptPlaintextSecrets: nothing, rotateSecretsToCurrentKey: nothing },
-    BusinessRepo: { rotateExternalAwardApiKeysToCurrent: nothing, listAllIds: async () => [] },
+    BusinessRepo: { rotateExternalAwardApiKeysToCurrent: nothing, listAllIds: async () => ['fixture-business'] },
     createMarketingTick: () => {
       marketingTick = createMarketingTick({
         generate: async () => { calls.push('generate'); throw new Error('private generation fixture'); },
@@ -34,6 +34,7 @@ async function verifyEntrypoint(filename, enabled) {
     },
     runLifecycleOnce: async () => { calls.push('maintenance'); throw new Error('private maintenance fixture'); },
     runLedgerReconciliation: async () => { calls.push('ledger'); return { mismatchedCustomers: 0 }; },
+    writeLedgerCertificationArtifacts: async ({ businessId }) => ({ businessId, certificationStatus: 'OK' }),
     resolveCertificationPeriod: () => ({ from: '2026-11-01', to: '2026-11-10' })
   };
   const context = createContext({

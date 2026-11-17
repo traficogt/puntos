@@ -1,4 +1,5 @@
 import { dbQuery } from "../../database.js";
+import { reportingPurchase } from "../../services/reporting-purchase.js";
 
 export const rfmRepository = {
   async calculateRFMScores(businessId) {
@@ -10,7 +11,9 @@ export const rfmRepository = {
            COUNT(t.id) as frequency,
            COALESCE(SUM(t.amount_q), 0) as monetary
          FROM customers c
-         LEFT JOIN transactions t ON t.customer_id = c.id AND t.amount_q IS NOT NULL
+         LEFT JOIN transactions t ON t.customer_id = c.id
+           AND t.business_id = c.business_id
+           AND ${reportingPurchase("t")}
          WHERE c.business_id = $1 AND c.deleted_at IS NULL
          GROUP BY c.id
        ),
@@ -74,14 +77,13 @@ export const rfmRepository = {
     await dbQuery(
       `UPDATE customer_ltv cl
        SET 
-         predicted_ltv = (
+         predicted_ltv = ROUND(
            CASE 
              WHEN cl.purchase_frequency > 0 THEN
                cl.avg_transaction_value * 
                (cl.purchase_frequency * 12 * 2)
              ELSE 0
-           END
-         )::DECIMAL(10,2),
+           END, 2),
          updated_at = now()
        FROM customers c
        WHERE c.id = cl.customer_id 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { afterEach, test } from 'node:test';
-import { transactionPool, withTransaction } from '../../src/app/database.js';
+import { afterCommit, transactionPool, withTransaction } from '../../src/app/database.js';
 
 const originalConnect = transactionPool.connect;
 afterEach(() => { transactionPool.connect = originalConnect; });
@@ -50,4 +50,38 @@ test('an ordinary application rollback preserves the connection for reuse', asyn
   assert.deepEqual(releases, [false]);
   assert.equal(queries[1], 'ROLLBACK'); assert.match(queries[2], /set_config/);
   assert.equal(client.listenerCount('error'), 0);
+});
+
+test('after-commit work runs once after the outer commit and release, never after a rollback', async () => {
+  const events = [];
+  const fakeClient = () => Object.assign(new EventEmitter(), {
+    async query(sql) { if (sql === 'COMMIT' || sql === 'ROLLBACK') events.push(sql); return { rows: [] }; },
+    release() { events.push('release'); }
+  });
+  transactionPool.connect = async () => fakeClient();
+  assert.equal(afterCommit(() => events.push('outside')), false, 'No transaction scope: the caller owns the work');
+
+  const out = await withTransaction(async client => {
+    // Work joined to the caller's transaction (fn => fn(client)) defers to its commit.
+    await (fn => fn(client))(async _joinedClient => { assert.equal(afterCommit(() => events.push('joined')), true); });
+    events.push('body');
+    return 'done';
+  });
+  assert.equal(out, 'done');
+  assert.deepEqual(events, ['body', 'COMMIT', 'release', 'joined']);
+
+  events.length = 0;
+  await assert.rejects(withTransaction(async () => {
+    afterCommit(() => events.push('discarded'));
+    throw new Error('fixture rollback');
+  }), /fixture rollback/);
+  assert.deepEqual(events, ['ROLLBACK', 'release']);
+
+  events.length = 0;
+  assert.equal(await withTransaction(async () => {
+    afterCommit(() => { throw new Error('fixture follow-up failure'); });
+    afterCommit(() => events.push('next'));
+    return 'committed';
+  }), 'committed', 'A failed follow-up never turns a committed transaction into an error');
+  assert.deepEqual(events, ['COMMIT', 'release', 'next']);
 });

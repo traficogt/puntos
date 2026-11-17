@@ -43,6 +43,7 @@
     "ops:ledger:reconcile": "node src/scripts/reconcile-ledger.mjs",
     "ops:ledger:certify": "node src/scripts/generate-ledger-certification.mjs",
     "ops:ledger:certify:prune": "node src/scripts/prune-ledger-certifications.mjs",
+    "ops:analytics:recompute-purchase-stats": "node src/scripts/recompute-customer-purchase-stats.mjs",
     "ops:create-app-role": "node src/scripts/create-app-role.mjs",
     "ops:security-scan": "node src/scripts/security-scan.mjs",
     "ops:perf-sanity": "node src/scripts/perf-sanity.mjs",

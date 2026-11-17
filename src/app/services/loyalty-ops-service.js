@@ -1,14 +1,24 @@
 import {assertCheckoutCorrectionAllowed} from './pos-checkout-guard.js';
 import crypto from "node:crypto";
-import { dbQuery, withTransaction } from "../database.js";
+import { afterCommit, dbQuery, withTransaction } from "../database.js";
 import { conflict, forbidden, notFound } from "../../utils/http-error.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 import { refreshCustomerDerivedState } from "./customer-derived-state.js";
 import { reconcileCustomerGamificationAfterRefund } from "./gamification/reconciliation-service.js";
+import { runPostAwardHooks } from "./staff-award-hooks.js";
 import { logger } from "../../utils/logger.js";
 
 function id() { return crypto.randomUUID(); }
+
+// Earned points still in the available balance and subject to expiry. Refund
+// reversals of redemptions only restore earlier credits, so they never count
+// as new credits; reversed or expired rows are no longer live.
+const LIVE_EARNED_CREDIT = `t.status = 'POSTED'
+  AND t.points > 0
+  AND t.expired_at IS NULL
+  AND t.source <> 'reversal'
+  AND t.reversed_transaction_id IS NULL`;
 
 async function lockRefundRequest(client, businessId, requestId) {
   await client.query(
@@ -52,6 +62,38 @@ async function getPointsExpirationDays({ businessId, client = null }) {
   return Math.max(0, Number(rows?.[0]?.days ?? 0));
 }
 
+const settlementHookDeps = {
+  loadTierService: () => import("./tier-service.js"),
+  loadGamificationService: () => import("./gamification-service.js"),
+  loadReferralService: () => import("./referral-service.js")
+};
+
+// Staff awards defer their post-award checks while points are pending: the
+// hooks only act on POSTED sources. Integration awards (order, external) never
+// run them, settled or not.
+const STAFF_AWARD_SOURCES = new Set(["online", "offline"]);
+
+/**
+ * Runs the staff post-award checks for awards that a committed settlement made
+ * available. Each row moves PENDING -> POSTED once, so each runs once.
+ * @param {{ customerId: string, settled: Array<{ id: string, business_id: string, points: number|string, amount_q: number|string, visits: number|string, items: number|string, source: string }>, deps?: Record<string, any> }} args
+ */
+export async function runSettledAwardHooks({ customerId, settled, deps = settlementHookDeps }) {
+  for (const tx of settled) {
+    if (!STAFF_AWARD_SOURCES.has(String(tx.source))) continue;
+    await runPostAwardHooks({
+      deps,
+      customerId,
+      businessId: tx.business_id,
+      sourceTransactionId: tx.id,
+      pointsAwarded: Number(tx.points || 0),
+      amountQ: Number(tx.amount_q || 0),
+      visits: Number(tx.visits || 0),
+      items: Number(tx.items || 0)
+    });
+  }
+}
+
 export async function settlePendingPointsForCustomer(customerId, businessId = null, transaction = withTransaction) {
   return transaction(async (client) => {
     const params = [customerId];
@@ -62,7 +104,7 @@ export async function settlePendingPointsForCustomer(customerId, businessId = nu
     }
 
     const { rows } = await client.query(
-      `SELECT id, points
+      `SELECT id, business_id, points, amount_q, visits, items, source
        FROM transactions
        WHERE ${where}
          AND status = 'PENDING'
@@ -71,10 +113,11 @@ export async function settlePendingPointsForCustomer(customerId, businessId = nu
        FOR UPDATE`,
       params
     );
-    if (!rows.length) return { settledCount: 0, settledPoints: 0 };
+    if (!rows.length) return { settledCount: 0, settledPoints: 0, settledTransactionIds: [] };
 
     const ids = rows.map(r => r.id);
     const settledPoints = rows.reduce((acc, r) => acc + Number(r.points || 0), 0);
+    const earnedPoints = rows.reduce((acc, r) => acc + Math.max(0, Number(r.points || 0)), 0);
 
     await client.query(
       `UPDATE transactions
@@ -83,16 +126,23 @@ export async function settlePendingPointsForCustomer(customerId, businessId = nu
       [ids]
     );
 
+    // Settled points become earned now: an immediately posted award adds the
+    // same amount to lifetime_points when it is written.
     await client.query(
       `UPDATE customer_balances
        SET points = points + $2,
            pending_points = GREATEST(0, pending_points - $2),
+           lifetime_points = lifetime_points + $3,
            updated_at = now()
        WHERE customer_id = $1`,
-      [customerId, settledPoints]
+      [customerId, settledPoints, earnedPoints]
     );
 
-    return { settledCount: ids.length, settledPoints };
+    // Gamification locks these rows, so its checks must wait for this commit
+    // (or the caller's, when settlement joins an outer transaction).
+    afterCommit(() => runSettledAwardHooks({ customerId, settled: rows }));
+
+    return { settledCount: ids.length, settledPoints, settledTransactionIds: ids };
   });
 }
 
@@ -137,15 +187,15 @@ export async function expirePointsForCustomer(customerId, businessId = null, tra
     const days = await getPointsExpirationDays({ client, businessId: resolvedBusinessId });
     if (days <= 0) return { expiredCount: 0, expiredPoints: 0, deductedPoints: 0 };
 
+    // Lock order matches refunds and settlement: ledger rows, then balance.
     const { rows } = await client.query(
-      `SELECT id, points
-       FROM transactions
-       WHERE customer_id = $1
-         AND business_id = $2
-         AND status = 'POSTED'
-         AND points > 0
-         AND expired_at IS NULL
-         AND created_at <= now() - ($3 || ' days')::interval
+      `SELECT t.id, t.points
+       FROM transactions t
+       WHERE t.customer_id = $1
+         AND t.business_id = $2
+         AND ${LIVE_EARNED_CREDIT}
+         AND t.created_at <= now() - ($3 || ' days')::interval
+       ORDER BY t.created_at ASC, t.id ASC
        FOR UPDATE`,
       [customerId, resolvedBusinessId, String(days)]
     );
@@ -153,14 +203,6 @@ export async function expirePointsForCustomer(customerId, businessId = null, tra
 
     const txIds = rows.map((r) => r.id);
     const expiredPoints = rows.reduce((acc, r) => acc + Number(r.points || 0), 0);
-
-    await client.query(
-      `UPDATE transactions
-       SET status = 'EXPIRED',
-           expired_at = now()
-       WHERE id = ANY($1::uuid[])`,
-      [txIds]
-    );
 
     const bal = await client.query(
       `SELECT points
@@ -170,7 +212,35 @@ export async function expirePointsForCustomer(customerId, businessId = null, tra
       [customerId]
     );
     const currentPoints = Number(bal.rows?.[0]?.points ?? 0);
-    const deductedPoints = Math.max(0, Math.min(currentPoints, expiredPoints));
+
+    // FIFO: debits (redemptions, refunds, earlier expiries, negative
+    // adjustments) consumed the oldest credits first, so the available balance
+    // is made of the newest credits still in it. Earned credits newer than the
+    // cutoff are protected; only the remainder can still belong to the old
+    // credits. Read after the balance lock: concurrent ledger writers update
+    // this balance row, so its value and these rows describe the same moment.
+    const recent = await client.query(
+      `SELECT COALESCE(SUM(t.points), 0)::bigint AS points
+       FROM transactions t
+       WHERE t.customer_id = $1
+         AND t.business_id = $2
+         AND ${LIVE_EARNED_CREDIT}
+         AND t.created_at > now() - ($3 || ' days')::interval`,
+      [customerId, resolvedBusinessId, String(days)]
+    );
+    const protectedPoints = Number(recent.rows?.[0]?.points ?? 0);
+    const deductedPoints = Math.max(0, Math.min(expiredPoints, currentPoints - protectedPoints));
+
+    // Every old credit is now either consumed or expired. Marking all of them
+    // keeps their original effect in the ledger (the 'expire' row carries the
+    // deduction) and ends their refund window, as for POS refunds and returns.
+    await client.query(
+      `UPDATE transactions
+       SET status = 'EXPIRED',
+           expired_at = now()
+       WHERE id = ANY($1::uuid[])`,
+      [txIds]
+    );
 
     if (deductedPoints > 0) {
       await client.query(
@@ -193,7 +263,11 @@ export async function expirePointsForCustomer(customerId, businessId = null, tra
           {
             expiration_days: days,
             expired_count: txIds.length,
-            expired_transaction_ids_sample: txIds.slice(0, 20)
+            expired_transaction_ids_sample: txIds.slice(0, 20),
+            method: "fifo",
+            eligible_points: expiredPoints,
+            protected_recent_points: protectedPoints,
+            available_before: currentPoints
           }
         ]
       );
@@ -207,14 +281,13 @@ export async function expirePointsForBusiness(businessId, limit = 1000) {
   const days = await getPointsExpirationDays({ businessId });
   if (days <= 0) return { totalCustomers: 0, totalExpired: 0, totalExpiredPoints: 0, totalDeductedPoints: 0 };
 
+  // Same rows that expirePointsForCustomer marks, so processed customers leave the batch.
   const { rows } = await dbQuery(
-    `SELECT DISTINCT customer_id
-     FROM transactions
-     WHERE business_id = $1
-       AND status = 'POSTED'
-       AND points > 0
-       AND expired_at IS NULL
-       AND created_at <= now() - ($2 || ' days')::interval
+    `SELECT DISTINCT t.customer_id
+     FROM transactions t
+     WHERE t.business_id = $1
+       AND ${LIVE_EARNED_CREDIT}
+       AND t.created_at <= now() - ($2 || ' days')::interval
      LIMIT $3`,
     [businessId, String(days), limit]
   );
@@ -287,6 +360,14 @@ export async function refundAwardTransactionWithClient(client, { staff, transact
     if (tx.business_id !== staff.business_id) throw forbidden("Transaction belongs to different business");
     if (tx.source === "reversal") throw conflict("Cannot reverse a reversal transaction");
     if (tx.status === "REVERSED" || tx.reversed_transaction_id) throw conflict("Transaction already reversed");
+    // Expiry already deducted what remained of these points through its own
+    // ledger row. POS refunds and order returns reject expired originals too.
+    if (tx.status === "EXPIRED" || tx.expired_at) {
+      throw conflict("Los puntos de esta transacción ya vencieron; no se pueden revertir.");
+    }
+    if (tx.status !== "POSTED" && tx.status !== "PENDING") {
+      throw conflict("Esta transacción no se puede revertir en su estado actual.");
+    }
     // Service restoration and legacy refunds both hold this original debit's
     // FOR UPDATE lock. Check after acquiring it so a concurrent restoration
     // cannot commit a credit between this check and the refund balance update.

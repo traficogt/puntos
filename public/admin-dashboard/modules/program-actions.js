@@ -99,10 +99,15 @@ export function createProgramActions(app) {
     });
   }
 
+  let suspiciousSequence = 0;
   async function loadSuspiciousAwards() {
+    // Quick branch switches must not let an older response render under the newer branch.
+    const sequence = ++suspiciousSequence, branchId = app.selectedBranchId();
+    const isCurrent = () => sequence === suspiciousSequence && branchId === app.selectedBranchId();
     await run(async () => {
       const q = app.branchQueryString();
       const out = await api(`/api/admin/awards/suspicious?limit=30${q ? `&${q}` : ""}`);
+      if (!isCurrent()) return;
       const rows = out.awards || [];
       const box = /** @type {HTMLElement} */ ($("#suspiciousAwards"));
       if (!rows.length) {
@@ -119,6 +124,7 @@ export function createProgramActions(app) {
       });
       box.textContent = lines.join("\n");
     }, (error) => {
+      if (!isCurrent()) return;
       /** @type {HTMLElement} */ ($("#suspiciousAwards")).textContent = "Error cargando sospechosas: " + error.message;
     });
   }

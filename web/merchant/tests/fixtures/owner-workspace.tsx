@@ -19,6 +19,7 @@ const send:OwnerRequest=async<T,>(path:string,options?:RequestInit):Promise<T>=>
   if(controls.conflictCustomerSave){controls.conflictCustomerSave=false;throw Object.assign(new Error('El nombre cambió en otra sesión. Vuelve a abrir el perfil antes de guardar.'),{status:409});}
  }
  if(path.includes('q=lenta')){const result=demo(new URL('/api/admin/customers?q=Ana',location.origin),options);await new Promise(resolve=>setTimeout(resolve,300));return result as T;}
+ if(new URLSearchParams(location.search).get('impersonated')==='1'&&(path.startsWith('/api/admin/staff')||path.startsWith('/api/staff/security/')))throw Object.assign(new Error('Esta acción de seguridad solo puede hacerse desde la sesión propia de la persona usuaria. (Ref: prueba)'),{status:403,code:'IMPERSONATION_FORBIDDEN'});
  if(path==='/api/admin/staff'&&!verified)throw Object.assign(new Error('Verifica tu identidad'),{status:403,code:'RECENT_REAUTH_REQUIRED'});
  if(path==='/api/staff/security/reauth'){if(typeof options?.body==='string'&&JSON.parse(options.body).password==='wrong')throw Object.assign(new Error('No pudimos verificar tu identidad.'),{status:400,code:'REAUTH_VERIFICATION_FAILED'});verified=true;}
  return demo(new URL(path,location.origin),options) as T;

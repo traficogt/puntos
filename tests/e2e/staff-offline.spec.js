@@ -9,7 +9,7 @@ const scope = { businessId: "business-a", staffId: "staff-a" };
 
 async function setup(page) {
   await page.route("**/equipo/ingresar/", route => route.fulfill({ contentType: "text/html", body: "<!doctype html><html lang=es><title>Ingresar</title><body>Inicia sesión</body></html>" }));
-  const state = { offline: false, authenticated: true, loseAck: false, grantAvailable: true, permissions: ["staff.award", "staff.sync", "staff.redeem"], awards: [], syncs: [], storedAtSend: 0, lookups: 0 };
+  const state = { offline: false, authenticated: true, loseAck: false, awardStatus: 200, grantAvailable: true, permissions: ["staff.award", "staff.sync", "staff.redeem"], awards: [], syncs: [], redeems: [], loseRedeem: false, storedAtSend: 0, lookups: 0 };
   await page.route("**/api/**", async (route) => {
     if (state.offline) return route.abort("internetdisconnected");
     const pathname = new URL(route.request().url()).pathname;
@@ -29,7 +29,12 @@ async function setup(page) {
       state.awards.push(route.request().postDataJSON());
       state.storedAtSend = await page.evaluate(async (identity) => (await (await import("/idb.js")).listAwards(identity)).length, scope);
       if (state.loseAck) return route.abort("failed");
+      if (state.awardStatus !== 200) return route.fulfill({ status: state.awardStatus, json: { error: "Límite de puntos por compra excedido", code: "AWARD_GUARD" } });
       response = { customerId: "customer-a", pointsAwarded: 10, newBalance: 110 };
+    } else if (pathname === "/api/staff/redeem") {
+      state.redeems.push(route.request().postDataJSON());
+      if (state.loseRedeem) return route.abort("failed");
+      response = { redemptionCode: "ABC123", newBalance: 80 };
     } else if (pathname === "/api/staff/sync") {
       const body = route.request().postDataJSON(); state.syncs.push(body.awards);
       response = { results: body.awards.map(({ txId }) => ({ txId, ok: true })) };
@@ -161,11 +166,38 @@ test("lost award acknowledgment is retried automatically with the original UUID"
   state.loseAck = true; await page.click("#btnAward");
   await expect(page.locator("#queueBadge")).toHaveText("Cola: 1");
   await expect.poll(() => state.awards.length).toBe(1);
-  await expect(page.locator("#queueMeta")).toContainText("Fallidos: 1");
+  // A lost response is ambiguous: it stays pending (not "failed") so it is retried with the same UUID.
+  await expect(page.locator("#queueMeta")).toContainText("Pendientes: 1");
   const txId = state.awards[0].txId;
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
   await expect(page.locator("#queueBadge")).toHaveText("Cola: 0");
   expect(state.syncs[0][0].txId).toBe(txId);
+});
+
+test("a definitive award rejection is shown as not registered and is never replayed by synchronization", async ({ page }) => {
+  const state = await setup(page); await openStaff(page); await selectCustomer(page);
+  state.awardStatus = 400;
+  await page.click("#btnAward");
+  await expect(page.locator("#customerActionStatus")).toContainText("No se registró");
+  await expect(page.locator("#queueMeta")).toContainText("Rechazadas: 1");
+  state.awardStatus = 200;
+  await page.click("#btnSync");
+  await expect(page.locator("#toast")).toContainText(/Nada que sincronizar/);
+  expect(state.syncs).toHaveLength(0);
+  await page.locator("#queueList button", { hasText: "Descartar" }).click();
+  await expect(page.locator("#queueBadge")).toHaveText("Cola: 0");
+});
+
+test("a redemption retried after a lost response reuses its request ID", async ({ page }) => {
+  const state = await setup(page); await openStaff(page); await selectCustomer(page);
+  state.loseRedeem = true;
+  await page.click("#btnRedeem");
+  await expect.poll(() => state.redeems.length).toBe(1);
+  await expect(page.locator("#btnRedeem")).toBeEnabled();
+  state.loseRedeem = false;
+  await page.click("#btnRedeem");
+  await expect(page.locator("#redeemCode")).toHaveText("ABC123");
+  expect(state.redeems[1].requestId).toBe(state.redeems[0].requestId);
 });
 
 test("redemptions and gift-card spending are explicitly unavailable offline", async ({ page, context }) => {

@@ -74,7 +74,19 @@ test("staff login page exposes recovery and MFA controls", async ({ page }) => {
   await expect(page.locator("#btnConfirmEmailChange")).toBeVisible();
 });
 
+// TOTP codes are single-use: each accepted code must come from a later 30-second
+// step than the last one. The server accepts the current step ±1, so a test can
+// use consecutive steps, waiting only until a step enters that window.
+const TOTP_STEP_MS = 30_000;
+const currentTotpStep = () => Math.floor(Date.now() / TOTP_STEP_MS);
+async function totpForStep(page, secret, step) {
+  while (step > currentTotpStep() + 1) await page.waitForTimeout(500);
+  return totp(secret, { nowMs: step * TOTP_STEP_MS });
+}
+
 test("staff can enable MFA through UI and use it on next login", async ({ page }) => {
+  // Up to one TOTP step (30 s) of waiting on top of the normal flow.
+  test.slow();
   const clientIp = await useRandomClientIp(page);
   const out = await createBusinessForAuthFlow(page, clientIp);
 
@@ -100,7 +112,8 @@ test("staff can enable MFA through UI and use it on next login", async ({ page }
   expect(match, "staff MFA secret should be rendered").toBeTruthy();
   const secret = String(match[1]);
 
-  await page.fill("#staffMfaConfirmCode", totp(secret));
+  const enrolledStep = currentTotpStep();
+  await page.fill("#staffMfaConfirmCode", await totpForStep(page, secret, enrolledStep));
   const confirmResp = page.waitForResponse((resp) =>
     resp.request().method() === "POST" && resp.url().includes("/api/staff/security/mfa/confirm")
   );
@@ -122,11 +135,12 @@ test("staff can enable MFA through UI and use it on next login", async ({ page }
   await page.click("#btnLogin");
   expect((await failedLogin).status()).toBe(401);
 
-  await loginStaffViaUi(page, { ...out, mfaCode: totp(secret) });
+  // The enrollment code was accepted, so the same code cannot sign in again.
+  await loginStaffViaUi(page, { ...out, mfaCode: await totpForStep(page, secret, enrolledStep + 1) });
 
   await page.goto("/staff?sw=off", { waitUntil: "domcontentloaded" });
   await page.fill("#staffReauthPassword", out.password);
-  await page.fill("#staffReauthMfaCode", totp(secret));
+  await page.fill("#staffReauthMfaCode", await totpForStep(page, secret, enrolledStep + 2));
   const reauthWithMfaResp = page.waitForResponse((resp) =>
     resp.request().method() === "POST" && resp.url().includes("/api/staff/security/reauth")
   );

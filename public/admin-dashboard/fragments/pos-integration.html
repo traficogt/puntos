@@ -41,9 +41,14 @@
                   <p id="posMerchant" class="small"></p>
                   <p id="posLastSync" class="small">Aún no se han sincronizado ventas.</p>
                   <ul id="posSyncIssues" class="pos-sync-issues small" hidden></ul>
-                  <p class="small">La vista previa no asigna puntos. Se omiten ventas sin teléfono, reembolsos y clientes sin registrar.</p>
-                  <p class="small">Los reembolsos no revierten puntos automáticamente; revísalos en tu programa.</p>
-                  <p class="small">Corrige los teléfonos o registra los clientes pendientes. Las ventas con problemas se vuelven a consultar en grupos de hasta 25.</p>
+                  <section id="posReview" class="pos-review" aria-labelledby="posReviewHeading" hidden>
+                    <h5 id="posReviewHeading">Recibos para revisar</h5>
+                    <p id="posReviewSummary" class="small"></p>
+                    <ul id="posReviewList" class="pos-sync-issues small"></ul>
+                  </section>
+                  <p class="small">La vista previa no asigna puntos. Las ventas sin cliente asociado en Loyverse, los reembolsos y las anulaciones no suman puntos y no se reintentan.</p>
+                  <p class="small">Una devolución completa que PF verifica contra el recibo original revierte los puntos de esa venta. Las parciales o sin verificar quedan en «Devoluciones y conciliación», dentro de Conectar caja, para tu revisión.</p>
+                  <p class="small">Si el cliente del recibo no tiene teléfono en Loyverse o aún no está registrado en PF, corrígelo: esas ventas se vuelven a consultar en grupos de hasta 25, con esperas crecientes, durante un máximo de 20 intentos o 7 días. Los recibos con datos inválidos y los que agotan los reintentos pasan a «Recibos para revisar».</p>
                   <div class="pos-actions">
                     <button type="button" id="posLoyversePreview">Ver vista previa</button>
                     <button type="button" id="posLoyverseSync" class="primary" disabled>Sincronizar ventas</button>

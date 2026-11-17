@@ -8,6 +8,9 @@ import { tenantContext } from "../../../middleware/tenant.js";
 import { toCSV } from "../../../utils/csv.js";
 import { dbQuery } from "../../database.js";
 import { BillingRepo } from "../../repositories/billing-repository.js";
+import { reportingPurchase } from "../../services/reporting-purchase.js";
+import { BusinessRepo } from "../../repositories/business-repository.js";
+import { regionTimezone } from "../../services/regional-settings.js";
 
 export const adminBillingRoutes = Router();
 
@@ -30,26 +33,33 @@ adminBillingRoutes.get(
     const businessId = req.tenantId;
     const from = req.validatedQuery.from ? String(req.validatedQuery.from) : "";
     const to = req.validatedQuery.to ? String(req.validatedQuery.to) : "";
-    const params = [businessId];
+    // Sale days follow the business's own calendar, not the database server's
+    // timezone, so businesses configured outside Guatemala get correct days.
+    const business = await BusinessRepo.getById(businessId);
+    const params = [businessId, regionTimezone(business)];
+    const localDate = "(t.created_at AT TIME ZONE $2)::date";
     let dateClause = "";
     if (from) {
       params.push(from);
-      dateClause += ` AND t.created_at::date >= $${params.length}::date`;
+      dateClause += ` AND ${localDate} >= $${params.length}::date`;
     }
     if (to) {
       params.push(to);
-      dateClause += ` AND t.created_at::date <= $${params.length}::date`;
+      dateClause += ` AND ${localDate} <= $${params.length}::date`;
     }
+    // Only recorded sales: no redemptions, expiries, opening balances, bonuses or refunded sales.
+    // Unbounded numeric: currencies such as COP exceed numeric(10,2) totals.
     const { rows } = await dbQuery(
       `SELECT
-         t.created_at::date AS fecha,
+         to_char(${localDate}, 'YYYY-MM-DD') AS fecha,
          COUNT(*)::int AS transacciones,
-         COALESCE(SUM(t.amount_q), 0)::numeric(10,2) AS monto_bruto_q
+         ROUND(COALESCE(SUM(t.amount_q), 0), 2) AS monto_bruto_q
        FROM transactions t
        WHERE t.business_id = $1
+         AND ${reportingPurchase("t")}
          ${dateClause}
-       GROUP BY t.created_at::date
-       ORDER BY t.created_at::date ASC`,
+       GROUP BY 1
+       ORDER BY 1 ASC`,
       params
     );
 

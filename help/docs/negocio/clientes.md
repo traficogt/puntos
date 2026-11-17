@@ -2,7 +2,7 @@
 title: Buscar un cliente y corregir su nombre
 description: Encuentra la cuenta por nombre o teléfono y consulta su saldo antes de
   atender una duda.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - web/merchant/src/OwnerCustomers.tsx
@@ -45,4 +45,4 @@ El perfil conserva el nombre corregido sin cambiar el teléfono ni los saldos. E
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#clientes). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#clientes). Revisión del 17 de noviembre de 2026.

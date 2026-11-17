@@ -11,6 +11,24 @@ import { createBusinessWithOwner } from "../services/business-service.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 import { hashPassword } from "../../utils/password-hash.js";
 import { assertPasswordAllowed } from "../../utils/password-policy.js";
+import { SecurityEventRepo } from "../repositories/security-event-repository.js";
+import { getRequestIp } from "../../utils/request-ip.js";
+
+/**
+ * Records a failed platform-admin login. No tenant or platform context exists
+ * before login, so a plain RLS insert would be rejected and silently lost.
+ */
+export async function recordSuperLoginFailure(req, email) {
+  await SecurityEventRepo.logPrivileged({
+    event_type: "super_login_failed",
+    severity: "HIGH",
+    route: "/api/super/login",
+    method: "POST",
+    ip: getRequestIp(req),
+    actor_type: "SUPER_ADMIN",
+    meta: { email: String(email || "").toLowerCase() }
+  }).catch(() => { });
+}
 
 export const LoginSchema = z.object({
   email: z.string().email(),
@@ -96,7 +114,8 @@ export async function createSuperBusiness(payload) {
   });
 }
 
-export async function createSuperBusinessUser(businessId, payload) {
+/** @param {string} businessId @param {any} payload @param {{ req: any, superAdminEmail: string } | null} [actor] */
+export async function createSuperBusinessUser(businessId, payload, actor = null) {
   const business = await BusinessRepo.getById(businessId);
   if (!business) throw notFound("Negocio no encontrado");
 
@@ -144,7 +163,17 @@ export async function createSuperBusinessUser(businessId, payload) {
     );
   }
 
-  return StaffRepo.getById(user.id);
+  const created = await StaffRepo.getById(user.id);
+  if (actor) {
+    await logSuperAudit({
+      action: "super.staff.create",
+      businessId,
+      req: actor.req,
+      superAdminEmail: actor.superAdminEmail,
+      meta: { staff_id: created.id, role: created.role, branch_id: created.branch_id ?? null, can_manage_gift_cards: Boolean(created.can_manage_gift_cards) }
+    });
+  }
+  return created;
 }
 
 export async function logSuperAudit({ action, businessId, req, superAdminEmail, meta = {} }) {

@@ -322,3 +322,52 @@ test("international enrollment keeps the explicit number and explains its prefix
  assert.equal(h.$('#phone').placeholder,'+ código de país y número');
  assert.match(h.$('#phoneHelp').textContent,/código internacional/);
 });
+
+const verifyBody = h => JSON.parse(h.calls.find(call => call.path.endsWith("/verify")).options.body);
+
+for (const param of ["ref", "codigo"]) {
+  test(`an invitation link (?${param}=) prefills the referral code and registration sends it`, async t => {
+    const { h, events } = setup(t);
+    location.search = `?${param}=abc-234`;
+    await initCustomerAuthEntry({ mode: "register" });
+    assert.equal(h.$("#joinReferralCode").value, "ABC234");
+    await events["#btnCode:click"]();
+    await events["#btnVerify:click"]();
+    assert.equal(verifyBody(h).referralCode, "ABC234");
+  });
+}
+
+test("a typed referral code is normalized and sent; an empty one is omitted", async t => {
+  const { h, events } = setup(t);
+  await initCustomerAuthEntry({ mode: "register" });
+  h.$("#joinReferralCode").value = " xy7 k2m ";
+  await events["#btnCode:click"]();
+  await events["#btnVerify:click"]();
+  assert.equal(verifyBody(h).referralCode, "XY7K2M");
+
+  const second = setup(t);
+  await initCustomerAuthEntry({ mode: "register" });
+  await second.events["#btnCode:click"]();
+  await second.events["#btnVerify:click"]();
+  assert.equal(Object.hasOwn(verifyBody(second.h), "referralCode"), false);
+});
+
+test("an invalid referral code is explained in Spanish before any code is sent", async t => {
+  const { h, events } = setup(t);
+  location.search = "?ref=bad";
+  await initCustomerAuthEntry({ mode: "register" });
+  assert.equal(h.$("#joinReferralCode").value, "", "malformed links do not prefill");
+  h.$("#joinReferralCode").value = "AB12";
+  await events["#btnCode:click"]();
+  assert.equal(h.calls.some(call => call.options?.method === "POST"), false);
+  assert.match(h.$("#joinRequestFeedback").textContent, /código de referido/);
+});
+
+test("login never sends a referral code", async t => {
+  const { h, events } = setup(t);
+  location.search = "?ref=ABC234";
+  await initCustomerAuthEntry({ mode: "login" });
+  await events["#btnCode:click"]();
+  await events["#btnVerify:click"]();
+  assert.equal(Object.hasOwn(verifyBody(h), "referralCode"), false);
+});

@@ -2,7 +2,7 @@
 title: Registrar un aporte de proveedor y conciliarlo
 description: Conserva el acuerdo negociado, la reclamación por una entrega y el pago
   recibido como etapas distintas.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - web/merchant/src/SupplierFunding.jsx
@@ -42,4 +42,4 @@ Se distinguen montos disponibles, reservados, aprobados por cobrar y pagados. Un
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#proveedores). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#proveedores). Revisión del 17 de noviembre de 2026.

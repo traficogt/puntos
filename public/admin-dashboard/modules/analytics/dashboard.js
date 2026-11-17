@@ -36,29 +36,35 @@ export function createAnalyticsDashboardController(app, deps) {
     loadPaymentPending,
     loadAuditTimeline
   } = deps;
+  let loadSequence = 0;
   async function loadAnalytics() {
+    // A newer load or branch selection supersedes this one: its late responses must not render.
+    const sequence = ++loadSequence, branchId = app.selectedBranchId(), stale = new Error("stale analytics load");
+    const isCurrent = () => sequence === loadSequence && branchId === app.selectedBranchId();
+    const currentApi = /** @type {typeof api} */ ((...args) => api(...args).then((out) => { if (!isCurrent()) throw stale; return out; }));
     try {
       const query = app.branchQueryString();
-      const branchId = app.selectedBranchId();
       const [dashboard, globalDashboard] = await Promise.all([
-        api(`/api/admin/analytics/dashboard${query ? `?${query}` : ""}`),
-        branchId ? api("/api/admin/analytics/dashboard") : Promise.resolve(null)
+        currentApi(`/api/admin/analytics/dashboard${query ? `?${query}` : ""}`),
+        branchId ? currentApi("/api/admin/analytics/dashboard") : Promise.resolve(null)
       ]);
       const roiPrefetchPromise = api("/api/admin/roi?days=30");
       const alertsPrefetchPromise = api("/api/admin/alerts?limit=60");
       renderSummaryTiles({ $, summary: dashboard.summary || {}, app });
       renderRfmDistribution({ $, dashboard, app });
       const activityRows = renderRevenueTrend({ $, dashboard, app });
-      const churnDataPromise = api(`/api/admin/analytics/churn-risk?limit=10${query ? `&${query}` : ""}`);
+      const churnDataPromise = currentApi(`/api/admin/analytics/churn-risk?limit=10${query ? `&${query}` : ""}`);
+      churnDataPromise.catch(() => {}); // Awaited below; an abandoned load must not report it as unhandled.
       const perfRows = renderBranchPerformance({ $, dashboard, app });
       renderBranchCompareTable($, perfRows);
-      await loadCohortSummary({ $, api });
+      await loadCohortSummary({ $, api: currentApi });
       const benchmarkBranchRows = branchId ? activityRows : [];
       const benchmarkGlobalRows = branchId ? (globalDashboard?.recent_activity || []) : activityRows;
       renderBranchBenchmark($, { branchRows: benchmarkBranchRows, globalRows: benchmarkGlobalRows, branchLabel: app.selectedBranchLabel() });
       await loadOpsSummary();
       await loadJobsStatus();
       await loadPaymentPending();
+      if (!isCurrent()) return;
       const churnData = await hydrateExecutiveSummary({
         $,
         deps,
@@ -70,17 +76,16 @@ export function createAnalyticsDashboardController(app, deps) {
         branchId,
         churnDataPromise
       });
+      if (!isCurrent()) return;
       renderChurnList({ $, churnCustomers: churnData?.customers || [], app });
-      const anomalies = await api("/api/admin/analytics/anomalies");
-      renderValueAnomalies($, anomalies);
-      const ledger = await api("/api/admin/analytics/ledger-reconciliation");
-      renderLedgerReconciliation($, ledger);
-      await loadLedgerCertification({ $, api });
-      await loadLedgerCertificationArchive({ $, api });
-      await loadLedgerCorrections({ $, api });
-      await loadAuditTimeline();
+      renderValueAnomalies($, await currentApi("/api/admin/analytics/anomalies"));
+      renderLedgerReconciliation($, await currentApi("/api/admin/analytics/ledger-reconciliation"));
+      await loadLedgerCertification({ $, api: currentApi });
+      await loadLedgerCertificationArchive({ $, api: currentApi });
+      await loadLedgerCorrections({ $, api: currentApi });
+      if (isCurrent()) await loadAuditTimeline();
     } catch (error) {
-      toast(`Error cargando analítica: ${error.message}`);
+      if (error !== stale && isCurrent()) toast(`Error cargando analítica: ${error.message}`);
     }
   }
   async function recalcAnalytics() {

@@ -1,6 +1,7 @@
 import {dbQuery,getDbPlatformAdmin} from '../database.js';
 import {forbidden} from '../../utils/http-error.js';
 import {readinessForBusiness} from './merchant-data-readiness.js';
+import {reportingPurchase} from './reporting-purchase.js';
 
 export async function getPlatformOperationsHealth({limit=25,offset=0},injected={}){
  const d={query:dbQuery,isPlatformAdmin:getDbPlatformAdmin,now:()=>new Date(),...injected};
@@ -11,7 +12,7 @@ export async function getPlatformOperationsHealth({limit=25,offset=0},injected={
  ) SELECT b.*,
  (SELECT jsonb_object_agg(br.id::text,br.name) FROM branches br WHERE br.business_id=b.id) AS branch_names,
  (SELECT count(*)::int FROM customers c WHERE c.business_id=b.id AND c.deleted_at IS NULL) AS members,
- (SELECT max(t.created_at) FROM transactions t WHERE t.business_id=b.id AND t.type='PURCHASE') AS last_purchase_at,
+ (SELECT max(t.created_at) FROM transactions t WHERE t.business_id=b.id AND ${reportingPurchase('t')}) AS last_purchase_at,
  (SELECT count(*)::int FROM redemptions r WHERE r.business_id=b.id AND r.status='REDEEMED') AS recorded_redemptions,
  (SELECT count(*)::int FROM service_cases s WHERE s.business_id=b.id AND s.status='open') AS open_cases,
  (SELECT count(*)::int FROM service_cases s WHERE s.business_id=b.id AND s.kind='redemption_failed' AND s.created_at>$3::timestamptz-interval '7 days') AS failed_attempts_7d,

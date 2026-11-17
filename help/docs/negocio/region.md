@@ -2,7 +2,7 @@
 title: Revisar moneda, horario y ubicaciones de Wallet
 description: Define la región antes de registrar operaciones y revisa las ubicaciones
   públicas de tus sucursales.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - web/merchant/src/RegionSettings.jsx
@@ -42,4 +42,4 @@ Las reglas y comunicaciones usan el horario del negocio. Las coordenadas pueden 
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#region). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#region). Revisión del 17 de noviembre de 2026.

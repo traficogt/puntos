@@ -159,11 +159,15 @@ export interface AnalyticsBranchPerformanceRow {
   redemptions_30d?: number;
 }
 
+/** One cohort month from GET /api/admin/analytics/cohorts; null metrics mark a month that has not ended. */
 export interface AnalyticsCohortRow {
-  cohort_month?: string;
-  m1?: number;
-  m2?: number;
-  m3?: number;
+  cohort_name?: string;
+  cohort_date?: string;
+  cohort_size?: number;
+  month_number?: number;
+  active_customers?: number | string | null;
+  retention_rate?: number | string | null;
+  revenue?: number | string | null;
 }
 
 export interface AnalyticsDashboardResponse {

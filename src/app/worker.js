@@ -101,17 +101,34 @@ async function startWorkers() {
     catch { logger.warn("Worker: daily lifecycle maintenance did not complete"); }
     try {
       const ids = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => BusinessRepo.listAllIds());
-      const reconciliation = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => (
-        runLedgerReconciliation({
-          limit: config.LEDGER_RECONCILE_LIMIT,
-          repair: config.LEDGER_RECONCILE_REPAIR,
-          persist: true
-        })
-      ));
+      // Platform authority only lists businesses. Each reconciliation runs under
+      // its tenant's RLS context, so every run, total and finding belongs to one
+      // business and the limit applies per business rather than platform-wide.
+      const reconciliation = { checkedCustomers: 0, mismatchedCustomers: 0, repairedCustomers: 0, failedBusinesses: 0 };
+      for (const bid of ids) {
+        try {
+          const run = await withDbClientContext({ platformAdmin: false, tenantId: bid }, async () => (
+            runLedgerReconciliation({
+              businessId: bid,
+              limit: config.LEDGER_RECONCILE_LIMIT,
+              repair: config.LEDGER_RECONCILE_REPAIR,
+              persist: true
+            })
+          ));
+          reconciliation.checkedCustomers += Number(run?.checkedCustomers || 0);
+          reconciliation.mismatchedCustomers += Number(run?.mismatchedCustomers || 0);
+          reconciliation.repairedCustomers += Number(run?.repairedCustomers || 0);
+        } catch (e) {
+          reconciliation.failedBusinesses += 1;
+          logger.warn({ businessId: bid, err: e?.message }, "Worker: ledger reconciliation failed for business");
+        }
+      }
       logger.info({
+        businesses: ids.length,
         checkedCustomers: reconciliation.checkedCustomers,
         mismatchedCustomers: reconciliation.mismatchedCustomers,
         repairedCustomers: reconciliation.repairedCustomers,
+        failedBusinesses: reconciliation.failedBusinesses,
         repairMode: config.LEDGER_RECONCILE_REPAIR
       }, "Worker: ledger reconciliation completed");
       if (reconciliation.mismatchedCustomers > 0 && !config.LEDGER_RECONCILE_REPAIR) {
@@ -122,11 +139,13 @@ async function startWorkers() {
       const period = resolveCertificationPeriod();
       const certificationArtifacts = [];
       for (const bid of ids) {
-        const artifact = await writeLedgerCertificationArtifacts({
-          businessId: bid,
-          from: period.from,
-          to: period.to
-        });
+        const artifact = await withDbClientContext({ platformAdmin: false, tenantId: bid }, async () => (
+          writeLedgerCertificationArtifacts({
+            businessId: bid,
+            from: period.from,
+            to: period.to
+          })
+        ));
         certificationArtifacts.push({
           businessId: artifact.businessId,
           certificationStatus: artifact.certificationStatus,

@@ -60,6 +60,9 @@
           <input id="email" hidden disabled placeholder="correo@ejemplo.com" type="email" autocomplete="email"/>
           <label for="name">Nombre (opcional)</label>
           <input id="name" autocomplete="name" placeholder="María"/>
+          <label for="joinReferralCode">Código de referido (opcional)</label>
+          <input id="joinReferralCode" name="referralCode" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="9" placeholder="ABC234" aria-describedby="joinReferralHelp"/>
+          <p class="small" id="joinReferralHelp">Si alguien te invitó, escribe su código de 6 letras y números.</p>
           <button type="submit" class="primary" id="btnCode" disabled>Enviar código</button>
         </form>
 

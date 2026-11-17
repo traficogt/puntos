@@ -18,8 +18,53 @@ import { mountServiceBriefing } from "./service-briefing.js";
 /** @typedef {import("./types.js").StaffRewardsResponse} StaffRewardsResponse */
 /** @typedef {import("./types.js").StaffSyncResponse} StaffSyncResponse */
 
+/**
+ * Sections that fill in after the screen opens (shift briefing, operations,
+ * benefits, cases) can grow by more than a screen above account security.
+ * Keep the control a person last pressed or focused at the same place on the
+ * screen while content around it changes, so a press and its release land on
+ * the same control and a field being typed into does not move away.
+ * A scroll that leaves the control's place in the document unchanged is the
+ * person's own (or this correction), so it sets where the control should stay;
+ * after a layout change the page scrolls the control back there. That also
+ * covers the browser clamping the scroll when the page gets shorter. The
+ * browser's own scroll anchoring is paused meanwhile (staff-holding-control
+ * in service-cases.css) so that it cannot add a second correction. Without
+ * an interaction the page behaves as before.
+ * @param {Element} [root] element whose size changes when the page's content does
+ */
+export function keepInteractionInPlace(root = document.body) {
+  /** @type {Element | null} */
+  let anchor = null;
+  let anchorDocTop = 0;
+  let anchorViewTop = 0;
+  /** @param {EventTarget | null} target */
+  const remember = (target) => {
+    anchor = target instanceof Element && target !== document.body && target !== document.documentElement ? target : null;
+    anchorViewTop = anchor ? anchor.getBoundingClientRect().top : 0;
+    anchorDocTop = anchorViewTop + window.scrollY;
+    document.documentElement.classList.toggle("staff-holding-control", Boolean(anchor));
+  };
+  document.addEventListener("pointerdown", (event) => remember(event.target), true);
+  document.addEventListener("focusin", (event) => remember(event.target));
+  document.addEventListener("focusout", (event) => { if (!event.relatedTarget && event.target === anchor) remember(null); });
+  window.addEventListener("scroll", () => {
+    if (!anchor?.isConnected) return;
+    const top = anchor.getBoundingClientRect().top;
+    if (Math.abs(top + window.scrollY - anchorDocTop) < 1) anchorViewTop = top;
+  }, { passive: true });
+  if (typeof ResizeObserver !== "function") return;
+  new ResizeObserver(() => {
+    if (!anchor?.isConnected) return;
+    const top = anchor.getBoundingClientRect().top;
+    anchorDocTop = top + window.scrollY;
+    if (Math.abs(top - anchorViewTop) >= 1) window.scrollTo({ top: anchorDocTop - anchorViewTop, behavior: "instant" });
+  }).observe(root);
+}
+
 /** @param {{ api: any, $: any, toast: any, uuidv4: any, addAward?: Function, listAwards?: Function, deleteAward?: Function }} options */
 export async function initStaffPage({ api, $, toast, uuidv4 }) {
+  keepInteractionInPlace();
   /** @type {import("./types.js").StaffProfile | null} */
   let staff = null;
   let serviceCases = null;
@@ -56,6 +101,18 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   /** @type {Record<string, boolean>} */
   let planFeatures = {};
   let lastCustomerMovement = "Sin movimientos recientes";
+  // A lost response must not turn a second click into a second deduction. The
+  // server stores successful request IDs only, so reusing one after any error
+  // either replays the original result or processes the request once.
+  /** @type {{ key: string, requestId: string } | null} */
+  let redeemPending = null;
+  /** @type {{ key: string, requestId: string } | null} */
+  let giftRedeemPending = null;
+  /** @param {unknown} payload @param {{ key: string, requestId: string } | null} prior */
+  function stableRequest(payload, prior) {
+    const key = JSON.stringify(payload);
+    return prior?.key === key ? prior : { key, requestId: uuidv4() };
+  }
   const selectionPromptCopy = "Escanea o ingresa el código del cliente para continuar.";
   const queue = createAwardQueue({
     store: { addAward: storeAward, listAwards: listStoredAwards, updateAward, deleteAward: removeAward },
@@ -138,6 +195,8 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     demandNotebook?.destroy();
     sessionEnded = true;
     sessionOnline = false;
+    redeemPending = null;
+    giftRedeemPending = null;
     permissionSet = new Set();
     offlineGrant = null;
     staff = null;
@@ -164,7 +223,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   /**
    * @template T
    * @param {() => Promise<T>} task
-   * @param {(error: Error & {code?: string, status?: number, recoveryCaseId?: string}) => T | null | Promise<T | null>} [onError]
+   * @param {(error: Error & {code?: string, status?: number, recoveryCaseId?: string, awardOutcome?: string}) => T | null | Promise<T | null>} [onError]
    * @returns {Promise<T | null>}
    */
   async function run(task, onError) {
@@ -216,18 +275,81 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     return null;
   }
 
+  const QUEUE_STATUS_LABELS = {
+    queued: "Pendiente, se reintentará",
+    syncing: "Enviando",
+    held: "Requiere tu decisión",
+    failed: "Requiere tu decisión",
+    rejected: "Rechazada, no se reintentará"
+  };
+  let lastAttentionCount = 0;
+
+  /** @param {string} label @param {string} action @param {string} txId */
+  function queueButton(label, action, txId) {
+    const button = /** @type {HTMLButtonElement} */ (document.createElement("button"));
+    button.type = "button";
+    button.textContent = label;
+    button.dataset.queueAction = action;
+    button.dataset.txId = txId;
+    return button;
+  }
+
   async function refreshQueue() {
     const scope = currentScope();
     const q = await listStoredAwards(scope || {});
     const stats = await getAwardQueueStats(scope || undefined);
+    const pending = Number(stats.queued || 0) + Number(stats.syncing || 0);
+    const held = Number(stats.held || 0);
+    const rejected = Number(stats.rejected || 0);
     element("#queueBadge").textContent = `Cola: ${stats.total}`;
-    element("#queueMeta").textContent = `Pendientes: ${stats.queued} • Fallidos: ${stats.failed} • Última actividad: ${stats.lastQueuedAt ? new Date(stats.lastQueuedAt).toLocaleTimeString() : "—"}${stats.quarantined ? ` • ${stats.quarantined} operaciones antiguas sin identidad: requieren revisión; no se enviarán.` : ""}${hasOfflineGrant() ? " • Captura sin conexión disponible por 24 h desde la validación." : " • Conéctate para habilitar la captura sin conexión."}`;
-    element("#queueList").textContent = q.length
-      ? q.slice(-5).reverse().map((award) => {
-        const base = `${new Date(award.updated_at || award.created_at || Date.now()).toLocaleTimeString()} • ${award.status || "queued"} • tx ${award.txId}`;
-        return award.last_error ? `${base} • ${award.last_error}` : base;
-      }).join("\n")
-      : "(sin operaciones pendientes)";
+    element("#queueMeta").textContent = `Pendientes: ${pending} • Requieren decisión: ${held} • Rechazadas: ${rejected} • Última actividad: ${stats.lastQueuedAt ? new Date(stats.lastQueuedAt).toLocaleTimeString() : "—"}${held || rejected ? " • Revisa la cola de sincronización." : ""}${stats.quarantined ? ` • ${stats.quarantined} operaciones antiguas sin identidad: requieren revisión; no se enviarán.` : ""}${hasOfflineGrant() ? " • Captura sin conexión disponible por 24 h desde la validación." : " • Conéctate para habilitar la captura sin conexión."}`;
+    const list = element("#queueList");
+    if (!q.length) {
+      list.replaceChildren();
+      list.textContent = "(sin operaciones pendientes)";
+    } else {
+      // Every row needing a decision stays visible; automatic retries show the latest five.
+      const attention = q.filter((award) => ["held", "failed", "rejected"].includes(String(award.status)));
+      const automatic = q.filter((award) => !attention.includes(award)).slice(-5);
+      list.replaceChildren(...[...attention.reverse(), ...automatic.reverse()].map((award) => {
+        const row = document.createElement("div");
+        row.className = "row";
+        const status = String(award.status || "queued");
+        const text = document.createElement("span");
+        const base = `${new Date(award.updated_at || award.created_at || Date.now()).toLocaleTimeString()} • ${QUEUE_STATUS_LABELS[status] || status} • tx ${award.txId}`;
+        text.textContent = award.last_error ? `${base} • ${award.last_error}` : base;
+        row.append(text);
+        if (status === "held" || status === "failed") row.append(queueButton("Reintentar", "retry", award.txId));
+        if (status === "held" || status === "failed" || status === "rejected") row.append(queueButton("Descartar", "discard", award.txId));
+        return row;
+      }));
+    }
+    const attentionCount = held + rejected;
+    const details = /** @type {HTMLDetailsElement | null} */ (element("#queueDetails"));
+    if (details && attentionCount > lastAttentionCount) details.open = true;
+    lastAttentionCount = attentionCount;
+  }
+
+  async function decideQueuedAward(action, txId) {
+    if (!txId || sessionEnded) return;
+    await run(async () => {
+      if (action === "retry") {
+        const result = await queue.retry(txId);
+        toast(result?.rejected || result?.held
+          ? "El servidor no aceptó la venta. Revisa el motivo en la cola."
+          : result?.synced ? "Venta reenviada y confirmada con su referencia original." : "Venta devuelta a pendientes; se enviará con su referencia original.");
+      } else if (action === "discard") {
+        const row = await queue.discard(txId);
+        toast(row?.status === "rejected"
+          ? "Venta rechazada descartada. Si corresponde, regístrala de nuevo."
+          : "Venta descartada de este dispositivo. Antes de registrarla de nuevo, confirma en los movimientos del cliente que no se haya acreditado.");
+      }
+      await refreshQueue();
+    }, (error) => {
+      if (error.code === "OFFLINE_STORAGE_ERROR") storageFailed = true;
+      toast(error.message);
+      refreshQueue().catch(() => {});
+    });
   }
 
   async function ensureAuth() {
@@ -308,6 +430,22 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     return hasFeature("gift_cards") && Boolean(staff?.can_manage_gift_cards);
   }
 
+  // Platform support sessions (impersonation) cannot prove or change the
+  // account holder's security; the server refuses with IMPERSONATION_FORBIDDEN.
+  const IMPERSONATION_MESSAGE = "Esta acción de seguridad solo puede hacerse desde la sesión propia de la persona usuaria.";
+  const SECURITY_CONTROLS = ["#staffReauthPassword", "#staffReauthMfaCode", "#btnStaffReauth", "#btnStaffMfaEnroll", "#btnStaffMfaDisable", "#staffMfaConfirmCode", "#btnStaffMfaConfirm", "#btnStaffLockdown"];
+  function renderAccountSecurity(restricted = Boolean(staff?.impersonated_by)) {
+    for (const selector of SECURITY_CONTROLS) /** @type {HTMLInputElement} */ (element(selector)).disabled = restricted;
+    const notice = element("#staffSecurityNotice");
+    notice.textContent = restricted ? IMPERSONATION_MESSAGE : "";
+    setHidden(notice, !restricted);
+  }
+  function securityError(error) {
+    if (error?.code !== "IMPERSONATION_FORBIDDEN") return toast(error.message);
+    renderAccountSecurity(true);
+    toast(IMPERSONATION_MESSAGE);
+  }
+
   function applyUiPermissions() {
     const canAward = hasPerm("staff.award");
     const canRedeem = canUseRedeemFlow();
@@ -323,6 +461,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
 
     // Analytics quick panel remains owner-only because endpoint is owner-only.
     setHidden(element("#ownerAnalyticsCard"), staff?.role !== "OWNER");
+    renderAccountSecurity();
     updateCustomerSurfaceState();
   }
 
@@ -704,9 +843,21 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
         toast(error.message);
         return false;
       }
-      if (isNetworkFailure(error)) {
+      if (error.awardOutcome === "held") {
+        const message = "La sesión venció antes de confirmar la venta. Quedó guardada como pendiente y no se enviará sola: inicia sesión de nuevo y elige Reintentar o Descartar en la cola. No la registres otra vez.";
+        if (selectionIsCurrent()) updateCustomerSurfaceState(message);
+        toast(message);
+        return false;
+      }
+      if (error.awardOutcome === "rejected") {
+        const message = `No se registró: ${error.message}. Esta venta no se reintentará; puedes registrarla de nuevo si corresponde.`;
+        updateCustomerSurfaceState(selectionIsCurrent() ? message : "");
+        toast(message);
+        return false;
+      }
+      if (error.awardOutcome === "retry" || isNetworkFailure(error)) {
         if (selectionIsCurrent()) updateCustomerSurfaceState("Guardado y pendiente de confirmación. Se reintentará automáticamente; no registres esta venta otra vez.");
-        toast("Venta pendiente de confirmación. No la registres otra vez.");
+        toast("Venta pendiente de confirmación, se reintentará. No la registres otra vez.");
         return true;
       }
       updateCustomerSurfaceState();
@@ -788,14 +939,25 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     await run(async () => {
       const result = await queue.sync();
       await refreshQueue();
-      if (manual) toast(result.attempted ? `Sincronizados: ${result.synced}/${result.attempted}` : navigator.onLine ? "Nada que sincronizar para esta cuenta." : "La sincronización requiere conexión.");
+      const review = result.rejected || result.held ? ` • ${result.rejected + result.held} requieren revisión en la cola; no se reenviarán solas.` : "";
+      if (manual) toast(result.attempted ? `Sincronizados: ${result.synced}/${result.attempted}${review}` : navigator.onLine ? "Nada que sincronizar para esta cuenta." : "La sincronización requiere conexión.");
+      else if (review) toast(`Sincronización: ${result.rejected + result.held} ventas no fueron aceptadas. Revisa la cola de sincronización.`);
     }, (error) => {
       if (error.code === "OFFLINE_STORAGE_ERROR") storageFailed = true;
-      if (manual || storageFailed) toast(error.message);
-      updateCustomerSurfaceState(storageFailed ? error.message : "Las ventas siguen guardadas. Se reintentará la sincronización.");
+      const held = error.awardOutcome === "held";
+      if (manual || storageFailed || held) toast(held ? "El servidor no autorizó la sincronización. Las ventas quedaron en la cola y requieren tu decisión." : error.message);
+      updateCustomerSurfaceState(storageFailed ? error.message : held
+        ? "Hay ventas que requieren tu decisión en la cola de sincronización. No se enviarán solas."
+        : "Las ventas siguen guardadas. Se reintentará la sincronización.");
     });
   }
   element("#btnSync").addEventListener("click", () => requestSync(true));
+  element("#queueList").addEventListener("click", (event) => {
+    const button = /** @type {HTMLElement | null} */ (/** @type {HTMLElement} */ (event.target)?.closest?.("button[data-queue-action]"));
+    if (!button || /** @type {HTMLButtonElement} */ (button).disabled) return;
+    /** @type {HTMLButtonElement} */ (button).disabled = true;
+    return decideQueuedAward(button.dataset.queueAction, button.dataset.txId);
+  });
 
   element("#btnLogout").addEventListener("click", async () => {
     logoutPending = true;
@@ -821,9 +983,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
         })
       });
       toast("Sesión revalidada.");
-    }, (error) => {
-      toast(error.message);
-    });
+    }, securityError);
   });
 
   element("#btnStaffMfaEnroll").addEventListener("click", async () => {
@@ -832,9 +992,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       const out = await api("/api/staff/security/mfa/enroll", { method: "POST", body: "{}" });
       setPendingStaffMfa(out.secret, out.otpauth_uri || "");
       toast("Se generó un secreto MFA. Confirma con el código.");
-    }, (error) => {
-      toast(error.message);
-    });
+    }, securityError);
   });
 
   element("#btnStaffMfaConfirm").addEventListener("click", async () => {
@@ -849,9 +1007,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       input("#staffMfaConfirmCode").value = "";
       setPendingStaffMfa("");
       toast("MFA activado.");
-    }, (error) => {
-      toast(error.message);
-    });
+    }, securityError);
   });
 
   element("#btnStaffMfaDisable").addEventListener("click", async () => {
@@ -860,9 +1016,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       await api("/api/staff/security/mfa/disable", { method: "POST", body: "{}" });
       setPendingStaffMfa("");
       toast("MFA desactivado.");
-    }, (error) => {
-      toast(error.message);
-    });
+    }, securityError);
   });
 
   element("#btnStaffLockdown").addEventListener("click", async () => {
@@ -872,9 +1026,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       clearOfflineSnapshot();
       toast("Sesiones revocadas por seguridad.");
       setTimeout(() => location.href = "/equipo/ingresar/", 600);
-    }, (error) => {
-      toast(error.message);
-    });
+    }, securityError);
   });
 
   async function loadRewards() {
@@ -900,10 +1052,12 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       const rewardId = select("#rewardSelect").value;
       if (!rewardId) return toast("Selecciona una recompensa disponible.");
       updateCustomerSurfaceState("Canjeando recompensa...");
+      const pending = redeemPending = stableRequest([scopeAtRequest, customerAtRequest, rewardId], redeemPending);
       const out = /** @type {StaffRedeemResponse} */ (await api("/api/staff/redeem", {
         method: "POST",
-        body: JSON.stringify({ customerId: lastCustomerId, rewardId, requestId: uuidv4() })
+        body: JSON.stringify({ customerId: lastCustomerId, rewardId, requestId: pending.requestId })
       }));
+      if (redeemPending === pending) redeemPending = null;
       if (!redemptionContextIsCurrent()) return;
       element("#redeemCode").textContent = out.redemptionCode;
       element("#lastBalance").textContent = String(out.newBalance);
@@ -943,10 +1097,12 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       const amount_q = Number(input("#giftAmount").value || 0);
       if (!code_or_token) return toast("Escribe el código/token de gift card.");
       if (!(amount_q > 0)) return toast("Monto inválido.");
+      const pending = giftRedeemPending = stableRequest([JSON.stringify([currentScope(), staff?.branch_id ?? null]), code_or_token, amount_q], giftRedeemPending);
       const out = /** @type {StaffGiftRedeemResponse} */ (await api("/api/staff/gift-cards/redeem", {
         method: "POST",
-        body: JSON.stringify({ code_or_token, amount_q, requestId: uuidv4() })
+        body: JSON.stringify({ code_or_token, amount_q, requestId: pending.requestId })
       }));
+      if (giftRedeemPending === pending) giftRedeemPending = null;
       const g = out.gift_card;
       element("#giftStatus").textContent = `OK. Saldo restante: ${new Intl.NumberFormat(programRule?.region?.locale, { style: "currency", currency: programRule?.region?.currency || "GTQ" }).format(Number(g.balance_q || 0))} (${g.status || "ACTIVE"})`;
       toast("Gift card canjeada.");

@@ -74,5 +74,16 @@ export const GiftCardRepo = {
       `SELECT * FROM gift_card_transactions WHERE gift_card_id = $1 ORDER BY created_at DESC LIMIT $2`,
       [giftCardId, limit]
     );
+  },
+
+  async sumTxByCard(giftCardId) {
+    return one(
+      `SELECT COALESCE(SUM(amount_q) FILTER (WHERE tx_type = 'ISSUE'), 0)::numeric(12,2) AS issue_total_q,
+              COALESCE(SUM(amount_q) FILTER (WHERE tx_type = 'REDEEM'), 0)::numeric(12,2) AS redeem_total_q,
+              COUNT(*)::int AS transaction_count
+       FROM gift_card_transactions
+       WHERE gift_card_id = $1`,
+      [giftCardId]
+    );
   }
 };

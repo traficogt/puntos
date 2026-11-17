@@ -1105,6 +1105,9 @@
           }
         ],
         "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ],
         "x-plan-features": [
           "analytics"
         ]
@@ -2400,6 +2403,7 @@
             "staffAuth": []
           }
         ],
+        "x-csrf-required": true,
         "x-tenant-context": true,
         "x-required-permissions": [
           "admin.program.update.basic"
@@ -12839,6 +12843,17 @@
           "customerPhone": {
             "type": "string",
             "minLength": 6
+          },
+          "amountQ": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "maxLength": 20
+              }
+            ]
           }
         },
         "additionalProperties": false

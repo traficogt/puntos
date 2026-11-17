@@ -200,7 +200,8 @@ test("consumeInternalMagicLink returns /staff with the pf_staff cookie name", as
     bid: "biz-1",
     brid: "branch-1",
     role: "CASHIER",
-    imp: "super@test.com"
+    imp: "super@test.com",
+    reauthVerified: false
   }]);
 });
 

@@ -18,6 +18,7 @@ import { fetchLoyverseSales, fetchLoyverseSalesByReceiptIds, verifyLoyverseConne
 import { enqueuePosRefund, reconcilePosRefund, retryPendingPosRefunds, reconcilePendingRefundsForSale } from "./pos-refund-service.js";
 import { assertPurchaseTimeReplay } from './purchase-event-time.js';
 import { posMeasurementReceipt, recordPosMeasurementReceipts } from './pos-measurement-receipts.js';
+import { RETRY_QUEUE_LIMIT, nextRetryState, selectRetryIds } from "./pos/receipt-retry.js";
 
 const SettingsSchema = z.object({
   enabled: z.boolean(), mode: z.enum(["api", "csv", "loyverse"]), automatic: z.boolean().optional(),
@@ -119,7 +120,7 @@ export function createPosIntegrationService(overrides = {}) {
       }
       const reset = data.enabled && (!current.enabled || !business.program_json?.external_awards?.enabled || current.mode !== data.mode || current.loyverse?.merchant_id !== native.merchant_id || current.loyverse?.store_id !== native.store_id);
       const next = { ...current, enabled: data.enabled, mode: data.mode, automatic: data.automatic ?? current.automatic ?? false, loyverse: native, revision: crypto.randomUUID() };
-      if (reset || !next.connected_at) Object.assign(next, { connected_at: deps.now().toISOString(), last_completed_at: null, sync_window: null, last_sync: null, pending_receipts: [] });
+      if (reset || !next.connected_at) Object.assign(next, { connected_at: deps.now().toISOString(), last_completed_at: null, sync_window: null, last_sync: null, pending_receipts: [], pending_receipt_meta: {}, review_receipts: [] });
       const existingKey = business.program_json?.external_awards?.api_key;
       const external = /** @type {{ enabled?: boolean, api_key?: string }} */ ({});
       // Disabling this hub stops its imports; legacy integrations retain their own switch.
@@ -256,18 +257,28 @@ export function createPosIntegrationService(overrides = {}) {
     });
   }
 
-  async function nativePage(business) {
+  async function nativePage(business, { automatic = false } = {}) {
     const cfg = business.program_json?.pos_integration;
     if (!cfg?.loyverse?.access_token || String(cfg.loyverse.access_token).startsWith("enc:")) throw badRequest("Conecta tu cuenta de Loyverse primero.");
     if (!cfg.connected_at || !Number.isFinite(Date.parse(cfg.connected_at))) throw badRequest("Guarda la conexión para iniciar la sincronización.");
     const window = cfg.sync_window ?? { since: new Date(Math.max(Date.parse(cfg.connected_at), Date.parse(cfg.last_completed_at || cfg.connected_at) - 300000)).toISOString(), until: deps.now().toISOString(), cursor: null };
     const auth = { accessToken: cfg.loyverse.access_token, merchantId: cfg.loyverse.merchant_id, storeId: cfg.loyverse.store_id, region:businessRegion(business) };
     const page = await deps.fetchSales({ ...auth, ...window });
-    const retryIds = (cfg.pending_receipts ?? []).slice(0, 25);
+    const retryIds = selectRetryIds(cfg, deps.now(), { automatic });
     if (retryIds.length) {
-      const retried = await deps.fetchRetrySales({ ...auth, receiptIds: retryIds });
-      // Prefer the fresh lookup, and avoid awarding the same receipt twice within a batch.
-      const replaced = new Set(retryIds);
+      let retried, replaced;
+      try {
+        retried = await deps.fetchRetrySales({ ...auth, receiptIds: retryIds });
+        // Prefer the fresh lookup, and avoid awarding the same receipt twice within a batch.
+        replaced = new Set(retryIds);
+      } catch (error) {
+        // A failed lookup of old receipts must not hold back new sales: each one
+        // not already on this page counts as a failed attempt and waits its turn.
+        logger.warn({ businessId: business.id, err: error?.message }, "Loyverse receipt retry lookup failed");
+        const onPage = new Set([...page.sales.map((sale) => sale.saleId), ...page.issues.map((issue) => issue.saleId)]);
+        replaced = new Set();
+        retried = { sales: [], refunds: [], issues: retryIds.filter((saleId) => !onPage.has(saleId)).map((saleId) => ({ saleId, code: "retry_unavailable", message: "No se pudo volver a consultar este recibo en Loyverse. Se intentará de nuevo más tarde." })) };
+      }
       page.sales = [...page.sales.filter((sale) => !replaced.has(sale.saleId)), ...retried.sales];
       page.issues = [...page.issues.filter((issue) => !replaced.has(issue.saleId)), ...retried.issues];
       page.refunds = [...(page.refunds ?? []).filter(refund => !replaced.has(refund.refundId)), ...(retried.refunds ?? [])];
@@ -292,7 +303,7 @@ export function createPosIntegrationService(overrides = {}) {
       const cfg = business.program_json.pos_integration;
       if (automatic && cfg.automatic !== true) return { ok: true, result: { awarded: 0, duplicates: 0, errors: 0, ignored: 0, issues: [], has_more: false } };
       try {
-        const page = await nativePage(business);
+        const page = await nativePage(business, { automatic });
         const queuedRefunds = [];
         for (const { nativeEvidence, ...refund } of page.refunds) queuedRefunds.push(await deps.enqueueRefund(id, refund, { origin: "loyverse", nativeEvidence }));
         const prepared = await prepare(business, page.sales, page.issues);
@@ -303,18 +314,12 @@ export function createPosIntegrationService(overrides = {}) {
         Object.assign(result, { refunds_received: queuedRefunds.length,
           refunds_reconciled: reconciledRefunds.filter(value => value.refund.status === "reconciled").length,
           refunds_pending: reconciledRefunds.filter(value => value.refund.status === "pending").length });
-        const ignoredCodes = new Set(["refund", "cancelled", "historic_sale", "store_mismatch", "receipt_not_found"]);
-        const attempted = new Set(page.attemptedIds);
-        const failures = new Set(result.issues.filter((issue) => issue.saleId && !ignoredCodes.has(issue.code)).map((issue) => issue.saleId));
-        const existingPending = cfg.pending_receipts ?? [];
-        // Preserve every unresolved old ID before admitting new IDs; rotate retries fairly.
-        const pending = [...new Set([...existingPending.filter((id) => !attempted.has(id)), ...existingPending.filter((id) => attempted.has(id) && failures.has(id)), ...failures])];
-        // Keep the scan at this page if the recovery queue cannot safely retain every failure.
-        const overflow = pending.length > 500;
-        if (overflow) result.issues.unshift({ row: null, saleId: "", code: "RETRY_QUEUE_FULL", message: "Hay más de 500 ventas por corregir. Revisa los clientes antes de avanzar; este grupo se volverá a consultar." });
-        result.has_more ||= overflow;
+        // Walk-in and non-sale receipts are dropped, receipt defects go to
+        // review, and recoverable failures retry with backoff for a bounded time.
+        const queue = nextRetryState({ cfg, now: deps.now(), attemptedIds: page.attemptedIds, issues: result.issues });
+        if (queue.overflow) result.issues.unshift({ row: null, saleId: "", code: "RETRY_QUEUE_FULL", message: `Hay más de ${RETRY_QUEUE_LIMIT} ventas por reintentar. ${queue.overflow === 1 ? "La más antigua pasó" : `Las ${queue.overflow} más antiguas pasaron`} a revisión; la importación de ventas nuevas continúa.` });
         const lastSync = { at: deps.now().toISOString(), status: result.errors || result.issues.length || result.refunds_pending ? "attention" : "ok", ...result, issues: result.issues.slice(0, 25) };
-        await deps.saveSync(id, cfg.revision, { last_sync: { ...lastSync, pending: pending.length }, pending_receipts: pending.slice(0, 500), sync_window: overflow ? page.window : page.nextCursor ? { ...page.window, cursor: page.nextCursor } : null, last_completed_at: overflow || page.nextCursor ? (cfg.last_completed_at ?? null) : page.window.until });
+        await deps.saveSync(id, cfg.revision, { last_sync: { ...lastSync, pending: queue.pending_receipts.length, review: queue.review_receipts.length }, pending_receipts: queue.pending_receipts, pending_receipt_meta: queue.pending_receipt_meta, review_receipts: queue.review_receipts, sync_window: page.nextCursor ? { ...page.window, cursor: page.nextCursor } : null, last_completed_at: page.nextCursor ? (cfg.last_completed_at ?? null) : page.window.until });
         return { ok: true, result };
       } catch (error) {
         await deps.saveSync(id, cfg.revision, { last_sync: { at: deps.now().toISOString(), status: "error", awarded: 0, duplicates: 0, ignored: 0, errors: 1, issues: [{ saleId: "", code: "SYNC_FAILED", message: "No se completó la sincronización. Revisa el acceso a Loyverse y vuelve a intentar; las ventas procesadas no se duplicarán." }], has_more: true } });

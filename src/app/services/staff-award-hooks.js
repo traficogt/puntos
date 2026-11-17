@@ -1,6 +1,9 @@
 import { logger } from "../../utils/logger.js";
 import { dbQuery } from "../database.js";
 
+// Only POSTED, unreversed sources qualify. A PENDING award skips these hooks
+// here; settlement runs them once after it posts the row (runSettledAwardHooks),
+// so held points count when they become available, and only once.
 async function sourceTransactionIsActive(sourceTransactionId, deps = null) {
   if (!sourceTransactionId) return true;
   if (typeof deps?.isSourceTransactionActive === "function") {

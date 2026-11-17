@@ -1,7 +1,7 @@
 ---
 title: ¿Qué necesitas hacer?
 description: ¿Qué necesitas hacer?
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: index
 sources:
 - public/staff.html
@@ -46,4 +46,4 @@ Estas guías explican las pantallas y los pasos de PF. Los artículos sobre fide
 
 ## Referencia
 
-PuntosFieles. (2026). *Escáner del equipo y panel del negocio* [Software]. [Caja](/equipo/escaner/) y [negocio](/negocio/). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *Escáner del equipo y panel del negocio* [Software]. [Caja](/equipo/escaner/) y [negocio](/negocio/). Revisión del 17 de noviembre de 2026.

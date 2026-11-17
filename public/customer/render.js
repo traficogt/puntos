@@ -1,5 +1,6 @@
 import { setHidden } from "/lib.js";
 import { rewardsWithState, nextInventoryRefresh, getRewardViewModel, rewardProgressText } from "./rewards.js";
+import { formatNumber, formatPoints, missingPointsText, walletRegion } from "./format.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
 /** @typedef {import("../types.js").CustomerReferralCodeData} CustomerReferralCodeData */
@@ -35,24 +36,23 @@ export function renderRewards($, points, rewards, options = {}) {
   rewardFreshnessTimers.delete(box);
   box.replaceChildren();
 
-  const { progress, isLive = true } = options;
+  const { progress, isLive = true, region } = options;
   const now = Date.now();
   const deadline = Date.parse(progress?.next_refresh_at ?? "");
   const stale = !isLive || Number.isFinite(deadline) && deadline <= now;
   const savedMessage = !isLive ? "Datos guardados. Actualiza la tarjeta para consultar tu recompensa." : "Actualiza la tarjeta para confirmar la disponibilidad de tu recompensa.";
   rewards = progress?.choices ?? rewards;
   points = progress ? progress.available_points : points;
-  const { sorted, eligible, next, remain } = rewardsWithState(points, rewards, now);
+  const { sorted, eligible, next, remain } = rewardsWithState(points, rewards, now, region);
   const target = progress ? progress.reward : next ? { ...next, remaining_points: remain } : null;
   const targetChoice = target && sorted.find(entry => entry.reward.id === target.id);
-  const selected = !stale && target && getRewardViewModel(points, target, now).available &&
+  const selected = !stale && target && getRewardViewModel(points, target, now, region).available &&
     (!targetChoice || targetChoice.available) ? target : null;
-  const number = value => new Intl.NumberFormat("es").format(value);
-  const date = value => new Intl.DateTimeFormat(options.region?.locale || "es-GT", { dateStyle: "medium", timeStyle: "short", timeZone: options.region?.timezone || "America/Guatemala" }).format(new Date(value));
+  const date = value => new Intl.DateTimeFormat(region?.locale || "es-GT", { dateStyle: "medium", timeStyle: "short", timeZone: region?.timezone || "America/Guatemala" }).format(new Date(value));
   const text = (id, value) => { const element = safeEl($, id); if (element) element.textContent = value; };
-  text("#nextReward", stale ? savedMessage : selected ? rewardProgressText(points, selected)
+  text("#nextReward", stale ? savedMessage : selected ? rewardProgressText(points, selected, region)
     : "No hay una recompensa disponible ahora. Consulta las opciones en caja.");
-  text("#nextRewardBalance", selected ? `${number(points)} puntos disponibles · ${number(selected.points_cost)} puntos de costo` : "");
+  text("#nextRewardBalance", selected ? `${formatPoints(points, region)} ${points === 1 ? "disponible" : "disponibles"} · ${formatPoints(selected.points_cost, region)} de costo` : "");
   text("#nextRewardConditions", selected ? (progress?.conditions || "Sujeto a disponibilidad al canjear.").replace(/\d{4}-\d{2}-\d{2}T[\d:.]+Z/g, date) + " En caja se confirman las condiciones del canje." : "");
   text("#nextRewardEarning", !stale ? progress?.earning ?? "" : "");
 
@@ -69,7 +69,7 @@ export function renderRewards($, points, rewards, options = {}) {
     callout.className = "card cus-rewards-callout";
     const title = document.createElement("h2");
     title.textContent = stale ? "Actualiza la disponibilidad" : eligible.length > 0
-      ? `Tus puntos alcanzan para ${eligible.length} opción${eligible.length === 1 ? "" : "es"}`
+      ? `Tus puntos alcanzan para ${formatNumber(eligible.length, region)} ${eligible.length === 1 ? "opción" : "opciones"}`
       : selected ? `Tu próxima opción: ${selected.name}` : "Consulta la disponibilidad en caja";
     const description = document.createElement("p");
     description.className = "small";
@@ -92,10 +92,10 @@ export function renderRewards($, points, rewards, options = {}) {
       row.className = "row";
       const cost = document.createElement("span");
       cost.className = "badge";
-      cost.textContent = `Costo: ${number(r.points_cost)} puntos`;
+      cost.textContent = `Costo: ${formatPoints(r.points_cost, region)}`;
       const state = document.createElement("span");
       state.className = "badge";
-      state.textContent = stale ? "Disponibilidad pendiente de actualizar" : !available ? statusLabel : can ? "Tienes los puntos necesarios" : `Te faltan ${number(remainingPoints)} puntos`;
+      state.textContent = stale ? "Disponibilidad pendiente de actualizar" : !available ? statusLabel : can ? "Tienes los puntos necesarios" : missingPointsText(remainingPoints, region);
       row.append(cost, state);
       const hint = document.createElement("p");
       hint.className = "small cus-reward-note";
@@ -132,7 +132,8 @@ export function renderHistory($, transactions, redemptions, region = undefined) 
   const moneyInRegion = value => new Intl.NumberFormat(region?.locale || "es-GT", { style: "currency", currency: region?.currency || "GTQ" }).format(Number(value));
   const txText = (transactions || []).slice(0, 12).map((t) => {
     const when = whenInRegion(t.created_at);
-    const pts = t.points_delta >= 0 ? `+${t.points_delta}` : String(t.points_delta);
+    const delta = Number(t.points_delta);
+    const pts = `${delta >= 0 ? "+" : "-"}${formatPoints(Math.abs(delta), region)}`;
     const kinds = new Map([
       ['purchase', 'Compra'], ['referral_bonus', 'Bono por referido'], ['achievement_bonus', 'Bono por logro'],
       ['challenge_bonus', 'Bono por reto'], ['birthday_bonus', 'Bono de cumpleaños'], ['other_bonus', 'Bonificación'],
@@ -148,14 +149,14 @@ export function renderHistory($, transactions, redemptions, region = undefined) 
     const bonus = kind === 'purchase' && t.provenance?.includes_bonus === true ? ' · Incluye bonificación' : '';
     const status = statuses.get(t.provenance?.status) || 'Estado no documentado';
     const amt = kind === 'purchase' && t.amount_q != null && Number(t.amount_q) > 0 ? ` · Compra: ${moneyInRegion(t.amount_q)}` : "";
-    return `${label}${bonus} · ${status}\n${when} · ${pts} pts${amt}`;
+    return `${label}${bonus} · ${status}\n${when} · ${pts}${amt}`;
   }).join("\n\n") || "(sin registros)";
 
   const rdText = (redemptions || []).slice(0, 12).map((r) => {
     const when = whenInRegion(r.created_at);
     const status = new Map([['REDEEMED', 'Completado'], ['PENDING', 'Pendiente'], ['CANCELLED', 'Cancelado'], ['CANCELED', 'Cancelado'], ['REVERSED', 'Revertido'], ['EXPIRED', 'Vencido']]).get(r.status)
       || (r.status ? 'Estado no documentado' : r.redeemed_at ? 'Completado' : 'Pendiente');
-    return `${r.reward_name || 'Recompensa'} · ${status}\n${when} · Costo registrado: ${r.points_cost} pts · Código: ${r.code}`;
+    return `${r.reward_name || 'Recompensa'} · ${status}\n${when} · Costo registrado: ${formatPoints(Number(r.points_cost), region)} · Código: ${r.code}`;
   }).join("\n\n") || "(sin canjes)";
 
   const txEl = safeEl($, "#tx");
@@ -167,8 +168,9 @@ export function renderHistory($, transactions, redemptions, region = undefined) 
 /**
  * @param {(selector: string) => Element | null} $
  * @param {CustomerTier | null | undefined} tier
+ * @param {{locale?: string} | undefined} [region] Defaults to the region of the rendered card.
  */
-export function renderTier($, tier) {
+export function renderTier($, tier, region = walletRegion($)) {
   const section = safeEl($, "#tierSection");
   if (!section) return;
   if (!tier) {
@@ -188,26 +190,38 @@ export function renderTier($, tier) {
   const nameEl = safeEl($, "#tierName");
   const multEl = safeEl($, "#tierMultiplier");
   const progEl = safeEl($, "#tierProgress");
-  const barEl = safeEl($, "#tierProgressBar");
+  const barEl = /** @type {HTMLProgressElement | null} */ (safeEl($, "#tierProgressBar"));
 
   if (iconEl) iconEl.textContent = icons[tier.tier_level] || "⭐";
   if (nameEl) nameEl.textContent = tier.name || "Bronce";
-  if (multEl) multEl.textContent = `${tier.points_multiplier || 1.0}x puntos`;
+  // Tiers do not multiply earned points (the award engine never applies
+  // points_multiplier), so the badge states the tier basis instead.
+  if (multEl) multEl.textContent = "Por puntos ganados";
 
-  if (tier.points_to_next_tier && tier.next_tier_name) {
-    if (progEl) progEl.textContent = `${tier.points_to_next_tier} puntos más para ${tier.next_tier_name}`;
-    const progress = ((tier.current_points || 0) / (tier.next_tier_points || 1)) * 100;
-    if (barEl) /** @type {HTMLProgressElement} */ (barEl).value = Math.min(100, progress);
-  } else {
-    if (progEl) progEl.textContent = "¡Nivel máximo alcanzado! 🎉";
-    if (barEl) /** @type {HTMLProgressElement} */ (barEl).value = 100;
+  // Only the server's missing next tier means the top tier. A balance that
+  // already meets the next tier waits for the tier change without negative copy.
+  const nextName = typeof tier.next_tier_name === "string" && tier.next_tier_name.trim() ? tier.next_tier_name : null;
+  const remaining = tier.points_to_next_tier == null ? NaN : Number(tier.points_to_next_tier);
+  const current = Number(tier.current_points), target = Number(tier.next_tier_points);
+  let progress = 100;
+  let label = "¡Nivel máximo alcanzado! 🎉";
+  if (nextName && Number.isFinite(remaining) && remaining > 0) {
+    label = `${formatPoints(remaining, region)} más para ${nextName}`;
+    progress = target > 0 && Number.isFinite(current) ? Math.max(0, Math.min(100, (current / target) * 100)) : 0;
+  } else if (nextName && Number.isFinite(remaining)) {
+    label = `Ya tienes los puntos para ${nextName}; tu nivel se actualizará pronto.`;
+  } else if (nextName) {
+    label = `Siguiente nivel: ${nextName}.`;
+    progress = target > 0 && Number.isFinite(current) ? Math.max(0, Math.min(100, (current / target) * 100)) : 0;
   }
+  if (progEl) progEl.textContent = label;
+  if (barEl) barEl.value = progress;
 
-  if (tier.perks && Array.isArray(tier.perks)) {
-    const perksDiv = safeEl($, "#tierPerks");
-    if (!perksDiv) return;
-    perksDiv.replaceChildren();
-
+  // A same-card refresh keeps this section visible, so replace earlier perks.
+  const perksDiv = safeEl($, "#tierPerks");
+  if (!perksDiv) return;
+  perksDiv.replaceChildren();
+  if (tier.perks && Array.isArray(tier.perks) && tier.perks.length) {
     const strong = document.createElement("strong");
     strong.textContent = "Beneficios:";
     perksDiv.appendChild(strong);

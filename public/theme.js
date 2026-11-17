@@ -38,28 +38,31 @@ export function cycleTheme(currentTheme) {
   return currentTheme === "dark" ? "light" : "dark";
 }
 
-function bindThemeToggle(doc = document, win = window) {
+/** Reflect the active theme in the toggle's glyph and accessible name. */
+function syncThemeToggle(doc = document) {
   const toggle = doc.getElementById("themeToggle");
   if (!toggle) return;
   const glyph = toggle.querySelector(".theme-toggle-glyph");
+  const activeTheme = doc.documentElement.dataset.theme === "light" ? "light" : "dark";
+  const nextTheme = activeTheme === "dark" ? "claro" : "oscuro";
+  if (glyph) glyph.textContent = activeTheme === "dark" ? "☀" : "☾";
+  toggle.setAttribute("aria-label", `Cambiar a tema ${nextTheme}`);
+  toggle.setAttribute("title", `Cambiar a tema ${nextTheme}`);
+  toggle.setAttribute("aria-pressed", activeTheme === "light" ? "true" : "false");
+}
 
-  const syncLabel = () => {
-    const activeTheme = doc.documentElement.dataset.theme === "light" ? "light" : "dark";
-    const nextTheme = activeTheme === "dark" ? "claro" : "oscuro";
-    if (glyph) glyph.textContent = activeTheme === "dark" ? "☀" : "☾";
-    toggle.setAttribute("aria-label", `Cambiar a tema ${nextTheme}`);
-    toggle.setAttribute("title", `Cambiar a tema ${nextTheme}`);
-    toggle.setAttribute("aria-pressed", activeTheme === "light" ? "true" : "false");
-  };
+function bindThemeToggle(doc = document, win = window) {
+  const toggle = doc.getElementById("themeToggle");
+  if (!toggle) return;
 
   toggle.addEventListener("click", () => {
     const nextTheme = cycleTheme(doc.documentElement.dataset.theme);
     persistTheme(nextTheme, win);
     applyTheme(nextTheme, doc);
-    syncLabel();
+    syncThemeToggle(doc);
   });
 
-  syncLabel();
+  syncThemeToggle(doc);
 }
 
 function bindSystemTheme(doc = document, win = window) {
@@ -69,8 +72,9 @@ function bindSystemTheme(doc = document, win = window) {
   media.addEventListener("change", (event) => {
     const saved = win.localStorage.getItem(STORAGE_KEY);
     if (isTheme(saved)) return;
+    // Re-apply only; the toggle keeps its single click handler.
     applyTheme(event.matches ? "dark" : "light", doc);
-    bindThemeToggle(doc, win);
+    syncThemeToggle(doc);
   });
 }
 

@@ -1,7 +1,7 @@
 ---
 title: Cambiar permisos o desactivar una cuenta
 description: Revisa los cambios de acceso de una persona antes de aplicarlos.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - web/merchant/src/OwnerTeam.tsx
@@ -33,7 +33,7 @@ La pantalla confirma **Acceso actualizado**. La persona deberá entrar de nuevo;
 
 ## Si algo no funciona
 
-**La cuenta es del dueño:** aparece identificada y no se edita con este flujo. **Hay operaciones pendientes en el dispositivo:** coordina su revisión con la cuenta original antes de perder acceso a ella. **Se pide revalidar identidad:** completa la comprobación y revisa de nuevo el cambio.
+**La cuenta es del dueño:** aparece identificada y no se edita con este flujo. **Hay operaciones pendientes en el dispositivo:** coordina su revisión con la cuenta original antes de perder acceso a ella. **Se pide revalidar identidad:** completa la comprobación y revisa de nuevo el cambio. **Acción reservada a la sesión propia:** una sesión de soporte de PF no puede cambiar accesos; el dueño debe hacerlo desde su propia sesión.
 
 ## Continúa con otra tarea
 
@@ -41,4 +41,4 @@ La pantalla confirma **Acceso actualizado**. La persona deberá entrar de nuevo;
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#personal). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#personal). Revisión del 17 de noviembre de 2026.

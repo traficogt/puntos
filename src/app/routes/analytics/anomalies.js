@@ -14,7 +14,8 @@ analyticsAnomalyRoutes.get(
           SELECT id, mismatched_customers
           FROM ledger_reconciliation_runs
           WHERE status = 'COMPLETED'
-            AND (business_id = $1 OR business_id IS NULL)
+            AND scope = 'business'
+            AND business_id = $1
           ORDER BY completed_at DESC
           LIMIT 1
         )

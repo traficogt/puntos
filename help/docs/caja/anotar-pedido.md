@@ -2,7 +2,7 @@
 title: Anotar una solicitud del cliente
 description: Registra lo que una persona pidió para que el dueño pueda revisar temas
   repetidos.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - public/demand-notebook.js
@@ -41,4 +41,4 @@ Un cliente seleccionado cuenta una vez por tema. Las observaciones del personal 
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/equipo/escaner/). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/equipo/escaner/). Revisión del 17 de noviembre de 2026.

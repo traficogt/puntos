@@ -204,8 +204,8 @@ export async function readLedgerCertificationReportWithDeps(
        gift_card_daily AS (
          SELECT
            created_at::date AS day,
-           COALESCE(SUM(CASE WHEN tx_type = 'ISSUE' THEN amount_q ELSE 0 END), 0)::numeric(10,2) AS gift_cards_issued_q,
-           COALESCE(SUM(CASE WHEN tx_type = 'REDEEM' THEN amount_q ELSE 0 END), 0)::numeric(10,2) AS gift_cards_redeemed_q
+           ROUND(COALESCE(SUM(CASE WHEN tx_type = 'ISSUE' THEN amount_q ELSE 0 END), 0), 2) AS gift_cards_issued_q,
+           ROUND(COALESCE(SUM(CASE WHEN tx_type = 'REDEEM' THEN amount_q ELSE 0 END), 0), 2) AS gift_cards_redeemed_q
          FROM gift_card_transactions
          WHERE business_id = $1
            AND created_at::date BETWEEN $2::date AND $3::date
@@ -222,14 +222,16 @@ export async function readLedgerCertificationReportWithDeps(
          GROUP BY created_at::date
        )
        SELECT
-         d.day,
+         -- ISO text: node-pg turns DATE into a JS Date whose String() form is
+         -- "Mon Nov 16 2026 …", which the report would truncate to "Mon Nov 16".
+         to_char(d.day, 'YYYY-MM-DD') AS day,
          COALESCE(tx.points_issued, 0)::int AS points_issued,
          COALESCE(tx.points_redeemed, 0)::int AS points_redeemed,
          COALESCE(tx.points_reversed, 0)::int AS points_reversed,
          COALESCE(tx.points_expired, 0)::int AS points_expired,
          COALESCE(adj.adjustment_points, 0)::int AS adjustment_points,
-         COALESCE(gc.gift_cards_issued_q, 0)::numeric(10,2) AS gift_cards_issued_q,
-         COALESCE(gc.gift_cards_redeemed_q, 0)::numeric(10,2) AS gift_cards_redeemed_q,
+         ROUND(COALESCE(gc.gift_cards_issued_q, 0), 2) AS gift_cards_issued_q,
+         ROUND(COALESCE(gc.gift_cards_redeemed_q, 0), 2) AS gift_cards_redeemed_q,
          COALESCE(rp.replay_events, 0)::int AS replay_events
        FROM days d
        LEFT JOIN tx_daily tx ON tx.day = d.day
@@ -244,7 +246,8 @@ export async function readLedgerCertificationReportWithDeps(
          SELECT completed_at, mismatched_customers
          FROM ledger_reconciliation_runs
          WHERE status = 'COMPLETED'
-           AND (business_id = $1 OR business_id IS NULL)
+           AND scope = 'business'
+           AND business_id = $1
          ORDER BY completed_at DESC
          LIMIT 1
        )

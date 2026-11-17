@@ -1,12 +1,16 @@
 ---
 title: Guardar la regla base de puntos
 description: Define si una compra suma puntos por importe, por visita o por artículo.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - web/merchant/src/Launch.jsx
 - web/merchant/src/LaunchProgramEditor.jsx
 - web/merchant/src/launch-model.js
+- src/app/services/tier-service.js
+- public/admin-dashboard.html
+- public/admin-dashboard/fragments/tiers.html
+- public/admin-dashboard/modules/tiers.js
 owner_route: preparar
 ---
 
@@ -30,7 +34,7 @@ Ingresa como dueño y revisa primero la moneda del negocio. Ten claro qué dato 
 
 ## Qué debe pasar
 
-La regla guardada se usa para compras futuras, respetando los ciclos protegidos aplicables. El ejemplo muestra puntos base; bonos, niveles, límites y liberación pueden cambiar el resultado final.
+La regla guardada se usa para compras futuras, respetando los ciclos protegidos aplicables. El ejemplo muestra puntos base; bonos, límites y liberación pueden cambiar el resultado final. Los niveles no multiplican los puntos de una compra: PF guarda un multiplicador por nivel, pero no lo aplica al sumar puntos, así que no lo anuncies como beneficio. Si los beneficios de un nivel prometen puntos extra, corrígelos: usa **Abrir administración avanzada**, abre **Niveles**, elige **Editar** en ese nivel, cambia **Beneficios (uno por línea)** y pulsa **Guardar**.
 
 ## Si algo no funciona
 
@@ -43,4 +47,4 @@ La regla guardada se usa para compras futuras, respetando los ciclos protegidos 
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#preparar). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#preparar). Revisión del 17 de noviembre de 2026.

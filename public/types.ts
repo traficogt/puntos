@@ -42,6 +42,8 @@ export interface CustomerCardBusiness {
     gamification?: boolean;
     tiers?: boolean;
   };
+  /** Plan includes referrals and the owner enabled the program. */
+  referrals_enabled?: boolean;
   customer_branding?: {
     branding_mode?: "platform_led" | "endorsed_brand" | "white_label_ready";
     customer_program_name?: string;
@@ -145,10 +147,10 @@ export interface CustomerTier {
   tier_level?: number;
   name?: string;
   points_multiplier?: number;
-  points_to_next_tier?: number;
-  next_tier_name?: string;
+  points_to_next_tier?: number | null;
+  next_tier_name?: string | null;
   current_points?: number;
-  next_tier_points?: number;
+  next_tier_points?: number | null;
   perks?: string[];
 }
 

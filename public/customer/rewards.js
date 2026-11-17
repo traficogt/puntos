@@ -1,5 +1,8 @@
+import { formatDate, formatNumber, formatPoints, missingPointsText } from "./format.js";
+
 /**
  * @typedef {import("../types.js").CustomerReward & {stock?: number | null, valid_until?: string | null, active?: boolean}} CustomerReward
+ * @typedef {{locale?: string, timezone?: string} | undefined} WalletRegion
  */
 
 /** @param {import("../types.js").CustomerRewardInventoryBranch} branch @param {number} now */
@@ -9,8 +12,8 @@ function inventoryState(branch,now){
  if(!Number.isFinite(until)||!Number.isFinite(observed)||observed>now)return 'unknown';
  return now>until?'stale':'available';
 }
-/** @param {import("../types.js").CustomerRewardInventory | undefined} inventory @param {number} now */
-function inventoryView(inventory,now){
+/** @param {import("../types.js").CustomerRewardInventory | undefined} inventory @param {number} now @param {WalletRegion} [region] */
+function inventoryView(inventory,now,region=undefined){
  if(!inventory)return {available:true,label:'',note:''};
  const branches=Array.isArray(inventory.branches)?inventory.branches:[];
  const states=branches.map(branch=>inventoryState(branch,now));
@@ -21,7 +24,7 @@ function inventoryView(inventory,now){
  const notes=branches.map((branch,index)=>{
   const state=states[index];
   const description=state==='available'?'existencias comprobadas recientemente':state==='not_required'?'confirma disponibilidad en caja':state==='stale'?'comprobación desactualizada':state==='unavailable'?'sin existencias suficientes':'sin comprobación reciente';
-  const time=state==='available'&&branch.observedAt?` (${new Intl.DateTimeFormat('es',{dateStyle:'short',timeStyle:'short'}).format(new Date(branch.observedAt))})`:'';
+  const time=state==='available'&&branch.observedAt?` (${formatDate(branch.observedAt,region,{dateStyle:'short',timeStyle:'short'})})`:'';
   return `${branch.branchName||'Caja del negocio'}: ${description}${time}.`;
  });
  return {available,label,note:[...notes,'Las existencias pueden cambiar; no se reservan unidades.'].join(' ')};
@@ -35,13 +38,15 @@ export function nextInventoryRefresh(rewards,now=Date.now()){
 /**
  * @param {number} points
  * @param {CustomerReward} reward
+ * @param {number} [now]
+ * @param {WalletRegion} [region]
  */
-export function getRewardViewModel(points, reward, now=Date.now()) {
+export function getRewardViewModel(points, reward, now=Date.now(), region=undefined) {
   const normalizedPoints = Number(points);
   const cost = Number(reward?.points_cost);
   const validBalance = typeof points === 'number' && Number.isSafeInteger(points) && points >= 0;
   const remainingPoints = Math.max(0, cost - normalizedPoints);
-  const inventory=inventoryView(reward?.inventory,now);
+  const inventory=inventoryView(reward?.inventory,now,region);
   const unavailable = !validBalance ? "Actualiza la tarjeta para confirmar tu saldo"
     : reward?.active === false ? "Recompensa no disponible"
     : !inventory.available ? inventory.label
@@ -60,28 +65,33 @@ export function getRewardViewModel(points, reward, now=Date.now()) {
     inventoryNote:inventory.note,
     statusLabel: unavailable || (canRedeem
       ? "Tienes los puntos necesarios"
-      : `Te faltan ${remainingPoints} puntos para canjear`)
+      : `${missingPointsText(remainingPoints, region)} para canjear`)
   };
 }
 
-/** Midpoint changes only the wording, never the target or redemption rules. */
-export function rewardProgressText(points, reward) {
+/**
+ * Midpoint changes only the wording, never the target or redemption rules.
+ * @param {number} points
+ * @param {{name?: string, points_cost: number}} reward
+ * @param {WalletRegion} [region]
+ */
+export function rewardProgressText(points, reward, region = undefined) {
   const cost = Number(reward.points_cost);
-  const number = value => new Intl.NumberFormat('es').format(value);
   if (points === 0) return `Tu próxima recompensa: “${reward.name}”.`;
   if (points >= cost) return `Tienes los puntos para “${reward.name}”.`;
-  if (points < cost / 2) return `Ya tienes ${number(points)} de ${number(cost)} puntos para “${reward.name}”.`;
-  const remaining = cost - points;
-  return `Te ${remaining === 1 ? 'falta' : 'faltan'} ${number(remaining)} ${remaining === 1 ? 'punto' : 'puntos'} para “${reward.name}”.`;
+  if (points < cost / 2) return `Ya tienes ${formatNumber(points, region)} de ${formatPoints(cost, region)} para “${reward.name}”.`;
+  return `${missingPointsText(cost - points, region)} para “${reward.name}”.`;
 }
 
 /**
  * @param {number} points
  * @param {CustomerReward[] | undefined} rewards
+ * @param {number} [now]
+ * @param {WalletRegion} [region]
  */
-export function rewardsWithState(points, rewards, now=Date.now()) {
+export function rewardsWithState(points, rewards, now=Date.now(), region=undefined) {
   const sorted = [...(rewards || [])]
-    .map((reward) => getRewardViewModel(points, reward, now))
+    .map((reward) => getRewardViewModel(points, reward, now, region))
     .sort((a, b) => {
       if (a.canRedeem !== b.canRedeem) return a.canRedeem ? -1 : 1;
       return Number(a.reward.points_cost || 0) - Number(b.reward.points_cost || 0);

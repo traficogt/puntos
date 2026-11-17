@@ -1,7 +1,7 @@
 ---
 title: Elegir si quiero recibir promociones
 description: Decide si el negocio puede enviarte mensajes promocionales desde PF.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - public/marketing-preferences.html
@@ -40,4 +40,4 @@ La preferencia guardada se utiliza para comprobar el permiso de mensajes promoci
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/preferencias-de-mensajes/). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/preferencias-de-mensajes/). Revisión del 17 de noviembre de 2026.

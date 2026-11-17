@@ -7,6 +7,7 @@ import { tenantContext } from "../../../middleware/tenant.js";
 import { BranchRepo } from "../../repositories/branch-repository.js";
 import { businessSummary } from "../../services/analytics-service.js";
 import { dbQuery } from "../../database.js";
+import { reportingPurchase } from "../../services/reporting-purchase.js";
 
 export const adminInsightsRoutes = Router();
 
@@ -41,20 +42,24 @@ adminInsightsRoutes.get(
     const { days } = req.validatedQuery;
     const businessId = req.tenantId;
 
+    // Recorded sales only (no redemptions, expiries, opening balances, bonuses or refunded
+    // sales), summed as unbounded numeric so large-currency totals cannot overflow.
     const [curTx, prevTx, totals, redemptions] = await Promise.all([
       dbQuery(
-        `SELECT COUNT(*)::int AS tx_count, COALESCE(SUM(amount_q),0)::numeric(10,2) AS revenue
-         FROM transactions
-         WHERE business_id = $1
-           AND created_at >= now() - ($2 || ' days')::interval`,
+        `SELECT COUNT(*)::int AS tx_count, ROUND(COALESCE(SUM(t.amount_q),0), 2) AS revenue
+         FROM transactions t
+         WHERE t.business_id = $1
+           AND ${reportingPurchase("t")}
+           AND t.created_at >= now() - ($2 || ' days')::interval`,
         [businessId, String(days)]
       ),
       dbQuery(
-        `SELECT COUNT(*)::int AS tx_count, COALESCE(SUM(amount_q),0)::numeric(10,2) AS revenue
-         FROM transactions
-         WHERE business_id = $1
-           AND created_at >= now() - (($2 * 2) || ' days')::interval
-           AND created_at < now() - ($2 || ' days')::interval`,
+        `SELECT COUNT(*)::int AS tx_count, ROUND(COALESCE(SUM(t.amount_q),0), 2) AS revenue
+         FROM transactions t
+         WHERE t.business_id = $1
+           AND ${reportingPurchase("t")}
+           AND t.created_at >= now() - (($2 * 2) || ' days')::interval
+           AND t.created_at < now() - ($2 || ' days')::interval`,
         [businessId, String(days)]
       ),
       dbQuery(

@@ -33,6 +33,15 @@ function isLocalHost(host) {
     || normalized.endsWith(".localhost");
 }
 
+// Sibling origins (app.<host>) only exist for dotted DNS names. A single-label
+// name such as a container service ("api") or an IP address has no "app."
+// sibling, so inferring one would redirect to a host that cannot resolve.
+function canInferSiblingOrigins(host) {
+  const normalized = normalizeHostHeader(host);
+  if (!normalized.includes(".") || normalized.includes(":")) return false;
+  return !/^\d{1,3}(\.\d{1,3}){3}$/.test(normalized);
+}
+
 function isLocalOrigin(origin) {
   const host = hostFromOrigin(origin);
   return !host || isLocalHost(host);
@@ -81,7 +90,7 @@ function effectiveOriginsForRequest({ host, forwardedProto, protocol, appOrigin,
   const appHost = hostFromOrigin(appOrigin);
   const marketingHost = hostFromOrigin(marketingOrigin);
   const localConfigured = isLocalOrigin(appOrigin) || isLocalOrigin(marketingOrigin);
-  const shouldInfer = !isLocalHost(normalizedHost) && (
+  const shouldInfer = !isLocalHost(normalizedHost) && canInferSiblingOrigins(normalizedHost) && (
     localConfigured
     || (!appHost && !marketingHost)
     || (normalizedHost.startsWith("app.") && normalizedHost !== appHost)

@@ -29,12 +29,12 @@ test('legacy writes preserve guided automation controls atomically', {skip:!url,
   /** @param {Record<string, any>} [program] */
   const reset=(program=initial)=>db.query("UPDATE businesses SET program_type='SPEND',program_json=$2 WHERE id=$1",[bid,program]);
   const read=()=>ctx(()=>BusinessRepo.getById(bid));
-  async function handler(path,method,body){
+  async function handler(path,method,body,role='OWNER'){
     // Express exposes these runtime route fields without typing its test doubles.
     const layers=/** @type {any[]} */(router.stack);
     const layer=layers.find(item=>item.route?.path===path&&item.route.methods[method]);assert.ok(layer);
     const res={body:null,statusCode:200,status(code){this.statusCode=code;return this;},json(body){this.body=body;return this;}};
-    await ctx(()=>layer.route.stack.at(-1).handle({tenantId:bid,staff:{id:null,role:'OWNER'},body},res,error=>{throw error;}));assert.equal(res.statusCode,200);return res.body;
+    await ctx(()=>layer.route.stack.at(-1).handle({tenantId:bid,staff:{id:null,role},body},res,error=>{throw error;}));assert.equal(res.statusCode,200);return res.body;
   }
   async function guidedFirst(legacyWrite){
     let entered=()=>{},release=()=>{};
@@ -82,19 +82,46 @@ test('legacy writes preserve guided automation controls atomically', {skip:!url,
     });
     await t.test('program POST retains omitted controls for object, missing and null lifecycle',async()=>{
       for(const lifecycle of [{birthday_points:5},undefined,null]){
-        await reset();await handler('/admin/program','post',{program_type:'VISIT',program_json:{points_per_visit:2,...(lifecycle===undefined?{}:{lifecycle})}});
+        // A basic-only role (the handler is called past requireOwner) cannot edit lifecycle.
+        await reset();await handler('/admin/program','post',{program_type:'VISIT',program_json:{points_per_visit:2,...(lifecycle===undefined?{}:{lifecycle})}},'MANAGER');
         const row=await read();for(const [key,value] of Object.entries(managed))assert.equal(row.program_json.lifecycle[key],value);
-        assert.equal(row.program_type,'VISIT');assert.equal(row.program_json.points_per_visit,2);assert.equal(row.program_json.round,undefined);assert.equal(row.program_json.pos_integration.revision,7);assert.equal(row.program_json.external_awards.enabled,true);
-        assert.equal(row.program_json.lifecycle.birthday_points,20,'basic OWNER save cannot erase lifecycle fields it is not permitted to edit');
+        assert.equal(row.program_type,'VISIT');assert.equal(row.program_json.points_per_visit,2);assert.equal(row.program_json.round,'floor','omitted keys are preserved');assert.equal(row.program_json.pos_integration.revision,7);assert.equal(row.program_json.external_awards.enabled,true);
+        assert.equal(row.program_json.lifecycle.birthday_points,20,'basic save cannot erase lifecycle fields it is not permitted to edit');
         assert.equal(row.program_json.lifecycle.birthday_enabled,true);
       }
+      await reset();await handler('/admin/program','post',{program_type:'VISIT',program_json:{points_per_visit:2,lifecycle:{birthday_points:5}}});
+      let row=await read();for(const [key,value] of Object.entries(managed))assert.equal(row.program_json.lifecycle[key],value);
+      assert.equal(row.program_json.lifecycle.birthday_points,5,'owner saves the lifecycle fields shown on the form');
+      assert.equal(row.program_json.lifecycle.birthday_enabled,true,'omitted lifecycle fields are preserved');
+      assert.equal(row.program_json.lifecycle.suspicious_digest_enabled,true,'template-only lifecycle fields are preserved');
+      await reset();await handler('/admin/program','post',{program_type:'VISIT',program_json:{points_per_visit:2}});
+      row=await read();assert.equal(row.program_json.lifecycle.birthday_points,20);assert.equal(row.program_json.lifecycle.suspicious_digest_enabled,true);
     });
-    await t.test('repository lifecycle replacement preserves only omitted managed keys',async()=>{
+    await t.test('program POST changes only the keys of the form and keeps settings owned by other services',async()=>{
+      const owned={campaign_rules:[{id:'kept',name:'Kept',kind:'bonus_points',value:3}],second_visit:{settings:{enabled:true,bonus_points:10},enabled_at:'2026-11-01T00:00:00.000Z'},targeted_offers_enabled:true,
+        merchant_operating_mode:{mode:'normal',until:null,capacity:12},data_health:{sources:[{id:crypto.randomUUID(),source:'mi-pos',label:'Caja',branch_id:null,expected_minutes:60,enabled:true,last_heartbeat:null}]},
+        currency_confirmation:{currency:'GTQ',confirmed_at:'2026-11-01T00:00:00.000Z',staff_id:null},region:{country:'GT',currency:'GTQ',timezone:'America/Guatemala'},tier_policy:{mode:'lifetime',rolling_days:365,grace_days:0}};
+      const form={points_per_q:2,round:'ceil',pending_points_hold_days:0,points_expiration_days:0,award_guard:{max_amount_q:0,max_points_per_tx:0,max_visits:0,max_items:0,suspicious_points_threshold:0,suspicious_amount_q_threshold:0},
+        redemption_guard:{max_redemptions_per_day:0,max_reward_redemptions_per_day:0,reward_cooldown_hours:0},balance_policy:{allow_negative_balance_on_refund:false},
+        lifecycle:{birthday_enabled:true,birthday_points:20,winback_enabled:false,winback_days:30,winback_points:10,scheduler_hour_local:9,scheduler_tz:'America/Guatemala'},tier_policy:{mode:'rolling_days',rolling_days:180,grace_days:15}};
+      await reset({...initial,...owned});
+      await handler('/admin/program','post',{program_type:'SPEND',program_json:{...form,data_health:{sources:[]},targeted_offers_enabled:false,merchant_operating_mode:{mode:'busy'},region:{country:'CO',currency:'COP',timezone:'America/Bogota'}}});
+      const row=await read();
+      for(const key of ['campaign_rules','second_visit','targeted_offers_enabled','merchant_operating_mode','data_health','currency_confirmation','region'])assert.deepEqual(row.program_json[key],owned[key],key);
+      assert.deepEqual(row.program_json.other,{preserve:true});assert.equal(row.program_json.points_per_q,2);
+      assert.deepEqual(row.program_json.tier_policy,form.tier_policy,'owners can save the tier policy shown on the form');
+      const audit=(await db.query("SELECT actor_type,meta FROM audit_logs WHERE business_id=$1 AND action='program.update' ORDER BY created_at DESC LIMIT 1",[bid])).rows[0];
+      assert.equal(audit.actor_type,'STAFF');assert.ok(audit.meta.changed_keys.includes('tier_policy'));assert.equal(JSON.stringify(audit.meta).includes('sandbox-legacy'),false,'audit meta carries no credentials');
+      await reset({...initial,...owned});
+      await handler('/admin/program','post',{program_type:'SPEND',program_json:form},'MANAGER');
+      assert.deepEqual((await read()).program_json.tier_policy,owned.tier_policy,'a role without the advanced permission cannot change the tier policy');
+    });
+    await t.test('repository lifecycle object updates its keys and null clears all but managed keys',async()=>{
       for(const lifecycle of [{birthday_points:5},null]){
         await reset();await ctx(()=>BusinessRepo.updateProgram(bid,{program_type:'SPEND',program_json:{lifecycle}}));
         const row=await read();for(const [key,value] of Object.entries(managed))assert.equal(row.program_json.lifecycle[key],value);
         assert.equal(row.program_json.lifecycle.birthday_points,lifecycle?5:undefined);
-        assert.equal(row.program_json.lifecycle.suspicious_digest_enabled,undefined);
+        assert.equal(row.program_json.lifecycle.suspicious_digest_enabled,lifecycle?true:undefined);
       }
     });
     await t.test('explicit managed values including zero keep the existing contract',async()=>{

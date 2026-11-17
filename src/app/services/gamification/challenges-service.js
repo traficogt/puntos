@@ -3,6 +3,15 @@ import crypto from "node:crypto";
 import { GamificationRepository } from "../../repositories/gamification-repository.js";
 import { dbQuery, withTransaction } from "../../database.js";
 import { notFound } from "../../../utils/http-error.js";
+import { lockCustomerGamification } from "./customer-lock.js";
+import {
+  challengeProgressWrittenAt,
+  challengeTimezone,
+  hasRecurringWindowElapsed,
+  isWindowedRecurrence
+} from "./recurrence-window.js";
+
+export { hasRecurringWindowElapsed } from "./recurrence-window.js";
 
 function id() {
   return crypto.randomUUID();
@@ -21,10 +30,16 @@ async function sourceTransactionIsActive(sourceTransactionId, query = dbQuery) {
   return Boolean(tx && tx.status === "POSTED" && !tx.reversed_transaction_id);
 }
 
-async function getCustomerBusinessId(customerId, query = dbQuery) {
-  const { rows } = await query(`SELECT business_id FROM customers WHERE id = $1`, [customerId]);
+async function getCustomerBusiness(customerId, query = dbQuery) {
+  const { rows } = await query(
+    `SELECT c.business_id, b.program_json
+     FROM customers c
+     JOIN businesses b ON b.id = c.business_id
+     WHERE c.id = $1`,
+    [customerId]
+  );
   if (!rows[0]) throw notFound("Customer not found");
-  return rows[0].business_id;
+  return { businessId: rows[0].business_id, timezone: challengeTimezone({ program_json: rows[0].program_json }) };
 }
 
 async function awardChallenge(client, businessId, customerId, challenge, context = {}) {
@@ -72,40 +87,6 @@ export function calculateMilestoneCompletionDelta({
   return Math.max(0, completionCap - Math.max(0, Number(timesCompleted || 0)));
 }
 
-function recurrenceWindowStart(date, recurrence) {
-  const at = new Date(date);
-  if (Number.isNaN(at.getTime())) return null;
-
-  if (recurrence === "daily") {
-    at.setUTCHours(0, 0, 0, 0);
-    return at;
-  }
-
-  if (recurrence === "weekly") {
-    at.setUTCHours(0, 0, 0, 0);
-    const day = at.getUTCDay();
-    const diff = (day + 6) % 7;
-    at.setUTCDate(at.getUTCDate() - diff);
-    return at;
-  }
-
-  if (recurrence === "monthly") {
-    at.setUTCHours(0, 0, 0, 0);
-    at.setUTCDate(1);
-    return at;
-  }
-
-  return null;
-}
-
-export function hasRecurringWindowElapsed(completedAt, recurrence, now = new Date()) {
-  if (!completedAt || !recurrence) return true;
-  const completedWindow = recurrenceWindowStart(completedAt, recurrence);
-  const currentWindow = recurrenceWindowStart(now, recurrence);
-  if (!completedWindow || !currentWindow) return true;
-  return currentWindow.getTime() > completedWindow.getTime();
-}
-
 export async function createChallenge(businessId, challengeData) {
   return GamificationRepository.createChallenge({
     business_id: businessId,
@@ -114,7 +95,19 @@ export async function createChallenge(businessId, challengeData) {
 }
 
 export async function getCustomerChallenges(customerId, businessId) {
-  return GamificationRepository.getCustomerActiveChallenges(customerId, businessId);
+  const rows = await GamificationRepository.getCustomerActiveChallenges(customerId, businessId);
+  if (!rows.some((row) => isWindowedRecurrence(row.recurrence))) return rows.map(({ progress_updated_at: _updatedAt, ...row }) => row);
+  const { rows: businessRows } = await dbQuery(`SELECT program_json FROM businesses WHERE id = $1`, [businessId]);
+  const timezone = challengeTimezone(businessRows[0] || {});
+  const now = new Date();
+  // Progress from an earlier day, week or month does not count toward the
+  // current window, even before the customer's next qualifying purchase.
+  return rows.map(({ progress_updated_at: progressUpdatedAt, ...row }) => {
+    if (!isWindowedRecurrence(row.recurrence) || row.progress == null) return row;
+    const writtenAt = challengeProgressWrittenAt({ ...row, updated_at: progressUpdatedAt });
+    if (!hasRecurringWindowElapsed(writtenAt, row.recurrence, now, timezone)) return row;
+    return { ...row, progress: 0, completed: false, completed_at: null };
+  });
 }
 
 export async function updateChallengeProgress(customerId, challengeType, incrementValue = 1, context = {}) {
@@ -123,7 +116,9 @@ export async function updateChallengeProgress(customerId, challengeType, increme
     if (!await sourceTransactionIsActive(context.sourceTransactionId || null, q)) {
       return [];
     }
-    const businessId = await getCustomerBusinessId(customerId, q);
+    // Lock order: source transaction, then the customer's balance row.
+    await lockCustomerGamification(q, customerId);
+    const { businessId, timezone } = await getCustomerBusiness(customerId, q);
     const challenges = await GamificationRepository.listActiveChallenges(businessId);
     const matchingChallenges = challenges.filter((challenge) => challenge.requirement_type === challengeType);
     const completed = [];
@@ -133,15 +128,20 @@ export async function updateChallengeProgress(customerId, challengeType, increme
       if (!progress) progress = { progress: 0, times_completed: 0 };
       if (challenge.max_completions && progress.times_completed >= challenge.max_completions) continue;
 
-      if (challenge.recurrence && progress.completed) {
-        const windowElapsed = hasRecurringWindowElapsed(progress.completed_at || progress.last_reset_at, challenge.recurrence);
-        if (!windowElapsed) continue;
-        progress = await GamificationRepository.resetRecurringChallengeProgress(customerId, challenge.id, q) || {
-          ...progress,
-          progress: 0,
-          completed: false,
-          completed_at: null
-        };
+      if (challenge.recurrence) {
+        const writtenAt = challengeProgressWrittenAt(progress);
+        const windowElapsed = !writtenAt || hasRecurringWindowElapsed(writtenAt, challenge.recurrence, new Date(), timezone);
+        if (!windowElapsed && progress.completed) continue;
+        // Unfinished progress from an earlier day, week or month never carries over.
+        const staleProgress = isWindowedRecurrence(challenge.recurrence) && Number(progress.progress || 0) !== 0;
+        if (windowElapsed && (progress.completed || staleProgress)) {
+          progress = await GamificationRepository.resetRecurringChallengeProgress(customerId, challenge.id, q) || {
+            ...progress,
+            progress: 0,
+            completed: false,
+            completed_at: null
+          };
+        }
       }
 
       const previousProgress = Number(progress.progress || 0);

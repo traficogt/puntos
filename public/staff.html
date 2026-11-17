@@ -60,8 +60,8 @@
         <div class="row mt-10">
           <button id="btnSelectCustomer">Seleccionar cliente</button>
         </div>
-        <p class="small" id="queueMeta">Pendientes: 0 • Fallidos: 0 • Última actividad: —</p>
-        <details class="operations-disclosure"><summary>Cola de sincronización</summary><pre id="queueList" class="small pre-wrap">(sin operaciones pendientes)</pre></details>
+        <p class="small" id="queueMeta" role="status" aria-live="polite">Pendientes: 0 • Requieren decisión: 0 • Rechazadas: 0 • Última actividad: —</p>
+        <details class="operations-disclosure" id="queueDetails"><summary>Cola de sincronización</summary><p class="small">Las ventas pendientes se reintentan solas con su misma referencia. Las rechazadas no se reenvían; las que requieren decisión solo se envían si eliges Reintentar.</p><div id="queueList" class="small">(sin operaciones pendientes)</div></details>
       </div>
 
       <div class="staff-customer-column staff-action-stack">
@@ -175,6 +175,7 @@
 
       <div class="card">
         <h2>Seguridad de cuenta</h2>
+        <p id="staffSecurityNotice" class="small" role="status" hidden></p>
         <div class="grid">
           <div class="card compact-card">
             <h3>Revalidar sesión</h3>

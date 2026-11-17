@@ -1,3 +1,8 @@
+/* While the staff screen keeps a pressed or focused control in place
+   (keepInteractionInPlace), the browser's own scroll anchoring is paused so
+   that a layout change is corrected once. */
+.staff-holding-control { overflow-anchor: none; }
+
 .staff-service-cases { margin-block: 24px; }
 .staff-service-cases summary { cursor: pointer; font-weight: 650; font-size: 1.1rem; padding-block: 14px; }
 .staff-service-cases details > p, .staff-service-cases form, .staff-service-cases [data-detail] { max-width: 70ch; }

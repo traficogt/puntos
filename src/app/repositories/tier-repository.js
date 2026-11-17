@@ -87,28 +87,6 @@ export const TierRepository = {
     return rows[0];
   },
 
-  async getCustomerTierWithProgress(customerId) {
-    const { rows } = await dbQuery(
-      `SELECT 
-         lt.*, 
-         ct.achieved_at,
-         cb.points as current_points,
-         next_tier.name as next_tier_name,
-         next_tier.min_points as next_tier_points,
-         (next_tier.min_points - cb.points) as points_to_next_tier
-       FROM customer_tiers ct
-       JOIN loyalty_tiers lt ON ct.tier_id = lt.id
-       JOIN customer_balances cb ON cb.customer_id = ct.customer_id
-       LEFT JOIN loyalty_tiers next_tier ON 
-         next_tier.business_id = lt.business_id AND
-         next_tier.tier_level = lt.tier_level + 1 AND
-         next_tier.active = true
-       WHERE ct.customer_id = $1`,
-      [customerId]
-    );
-    return rows[0];
-  },
-
   async assignCustomerToTier(customerId, tierId) {
     const { rows } = await dbQuery(
       `INSERT INTO customer_tiers (customer_id, tier_id)

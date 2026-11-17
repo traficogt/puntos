@@ -33,6 +33,8 @@
 .operations-shell .pos-result ul { padding-left: 20px; max-height: 240px; overflow-y: auto; }
 .operations-shell .pos-result li + li { margin-top: 8px; }
 .operations-shell .pos-sync-issues { padding-left: 20px; max-height: 200px; overflow: auto; overflow-wrap: anywhere; }
+.operations-shell .pos-review { margin-top: 16px; padding-top: 8px; border-top: 1px solid var(--line); }
+.operations-shell .pos-integration .pos-review h5 { font: 600 13px/1.5 var(--font-ui); margin: 0; color: var(--text); }
 .operations-shell .pos-key-reveal { margin-top: 16px; padding: 16px; background: var(--bg-soft); border-radius: 8px; }
 .operations-shell .pos-key-reveal label { margin-top: 0; }
 .operations-shell .pos-api-instructions { margin-top: 24px; }

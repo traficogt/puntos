@@ -63,6 +63,12 @@ export function safePosIntegration(business) {
     has_api_key: hasKey,
     api_key_masked: hasKey ? `••••${key.slice(-4)}` : null,
     loyverse: { configured: !!native.access_token && !String(native.access_token).startsWith("enc:"), merchant_id: native.merchant_id ?? null, merchant_name: native.merchant_name ?? null, store_id: native.store_id ?? null },
-    last_sync: cfg.last_sync ?? null
+    last_sync: cfg.last_sync ?? null,
+    // Receipts that left the automatic retry queue unresolved, newest first.
+    review_receipts: (Array.isArray(cfg.review_receipts) ? cfg.review_receipts : []).slice(0, 100).map((row) => ({
+      sale_id: row?.sale_id ?? null, code: row?.code ?? null, reason: row?.reason ?? null,
+      attempts: Number.isSafeInteger(row?.attempts) ? row.attempts : 0,
+      first_seen_at: row?.first_seen_at ?? null, moved_at: row?.moved_at ?? null
+    }))
   };
 }

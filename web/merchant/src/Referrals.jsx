@@ -411,8 +411,9 @@ function IncentiveEditor({ initialSettings, onDirty }) {
               {...form.getInputProps("enabled", { type: "checkbox" })}
             />
             <Text size="sm" c="dimmed">
-              Los códigos ya compartidos pueden seguir usándose. Desactivar no
-              cancela recomendaciones pendientes ni revierte puntos ya entregados.
+              Mientras esté desactivado, los códigos no se pueden usar y las
+              recomendaciones pendientes no entregan puntos; siguen pendientes
+              por si lo vuelves a activar. Los puntos ya entregados no se revierten.
             </Text>
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <NumberInput
@@ -450,7 +451,7 @@ function IncentiveEditor({ initialSettings, onDirty }) {
             {!form.values.reward_on_signup && (
               <NumberInput
                 label={`Importe acumulado mínimo (${merchantRegion().currency})`}
-                description="Usa 0 para no exigir un importe mínimo. Se considera el acumulado registrado del cliente, no una sola compra."
+                description="Usa 0 para no exigir un importe mínimo. Se suman las compras confirmadas del cliente que no fueron devueltas, no una sola compra."
                 min={0}
                 max={99999999.99}
                 decimalScale={merchantRegion().minorUnits}

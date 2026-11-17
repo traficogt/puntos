@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { asyncRoute } from '../../middleware/common.js';
 import { setTenantForRequest } from '../../middleware/tenant.js';
-import { moderateRateLimit, rateLimitByIp, rateLimitByPhone, strictRateLimit } from '../../middleware/rate-limit.js';
+import { customerCodeRequestRateLimit, moderateRateLimit, rateLimitByIp, rateLimitByPhone } from '../../middleware/rate-limit.js';
 import { validate } from '../../utils/validation.js';
 import { businessCustomerBrandingSchema, requestJoinCodeSchema, verifyJoinCodeSchema } from '../../utils/schemas.js';
 import { normalizePhone } from '../../utils/phone.js';
@@ -47,7 +47,7 @@ const defaults = {
   pushRegisterLimit: rateLimitByIp(20, 60000, { keyPrefix: 'ip:push-register:' }),
   pushRevokeLimit: rateLimitByIp(10, 60000, { keyPrefix: 'ip:push-revoke:' }),
   pushTestLimit: rateLimitByIp(3, 60000, { keyPrefix: 'ip:push-test:' }),
-  requestCodeLimit: strictRateLimit,
+  requestCodeLimit: customerCodeRequestRateLimit,
   verifyCodeLimit: moderateRateLimit,
   requestPhoneLimit: rateLimitByPhone(3, 10 * 60 * 1000),
   verifyPhoneLimit: rateLimitByPhone(10, 10 * 60 * 1000),

@@ -86,6 +86,9 @@ suite('demand and supplier funding durable PostgreSQL',()=>{
  it('requires submission and approval before payment, reconciles exact amount and exports no identities',async()=>{
   const {agreement:a}=await agreement();const {claim:c}=await claim(a.id);await assert.rejects(transition(c,'paid',{paid_minor:500,paid_at:'2026-11-12'}),{statusCode:409});
   const sub=await transition(c,'submitted'),approved=await transition(sub.claim,'approved');await assert.rejects(transition(approved.claim,'paid',{paid_minor:400,paid_at:'2026-11-12'}),{statusCode:400});
+  // 21:00 in Guatemala is already the next UTC day: that UTC date is still a future business date.
+  const guatemalaEvening={...deps,now:()=>new Date('2026-11-13T03:00:00Z')};
+  await assert.rejects(s.transitionSupplierClaim({...actor,claimId:approved.claim.id,version:approved.claim.version,requestId:randomUUID(),status:'paid',reference:'Respuesta del proveedor 123',paid_minor:500,paid_at:'2026-11-13'},guatemalaEvening),{statusCode:400});
   const requestId=randomUUID(),paid=await transition(approved.claim,'paid',{requestId,paid_minor:500,paid_at:'2026-11-12'});assert.equal(paid.claim.status,'paid');assert.equal((await transition(approved.claim,'paid',{requestId,paid_minor:500,paid_at:'2026-11-12'})).replay,true);
   const overview=await s.getSupplierFunding(actor,deps);assert.equal(overview.summary[0].paid_minor,500);assert.equal(overview.summary[0].available_minor,0);
   const csv=await s.exportSupplierClaims({...actor,agreementId:a.id},deps);assert.ok(!csv.includes(customerId));assert.ok(!csv.includes('Private customer'));assert.ok(!csv.includes('receipt'));

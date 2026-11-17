@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { Router } from "express";
-import { runWithDbContext } from "../../src/app/database.js";
+import { runWithDbContext, transactionPool } from "../../src/app/database.js";
 import { AuditRepo } from "../../src/app/repositories/audit-repository.js";
 import { BusinessRepo } from "../../src/app/repositories/business-repository.js";
 import { publicRoutes } from "../../src/app/routes/public-routes.js";
@@ -20,6 +21,9 @@ const business = { id: "biz-1", plan: "EMPRESARIAL", program_type: "SPEND", prog
 const adminRoutes = Router();
 registerProgramConfigRoutes(adminRoutes);
 registerProgramExternalRoutes(adminRoutes);
+
+// A program save commits with its audit entry; this transaction client is inert.
+const inertTransactionClient = async () => Object.assign(new EventEmitter(), { query: async () => ({ rows: [], rowCount: 0 }), release() {} });
 
 async function runHandler(router, path, method, req) {
   const layer = router.stack.find(entry => entry.route?.path === path && entry.route?.methods?.[method]);
@@ -57,16 +61,56 @@ test("basic program save ignores submitted integrations and requests atomic pres
     update = input;
     return structuredClone(business);
   });
+  const audits = [];
+  t.mock.method(AuditRepo, "log", async (entry) => { audits.push(entry); });
+  t.mock.method(transactionPool, "connect", inertTransactionClient);
   const res = await runHandler(adminRoutes, "/admin/program", "post", {
-    tenantId: "biz-1", staff: { role: "OWNER" },
+    tenantId: "biz-1", staff: { id: "owner-1", role: "OWNER" },
     body: { program_type: "SPEND", program_json: { ...program, points_per_q: 4 } }
   });
   assert.equal(res.statusCode, 200);
   assert.equal(update.preserveIntegrations, true);
   assert.equal(update.program_json.pos_integration, undefined);
   assert.equal(update.program_json.external_awards, undefined);
+  assert.equal(update.program_json.weekly_owner_brief, undefined);
   assert.equal(update.program_json.points_per_q, 4);
   assert.deepEqual(res.body.business.program_json, { points_per_q: 1, external_awards: { enabled: true } });
+  assert.equal(audits.length, 1);
+  assert.equal(audits[0].action, "program.update");
+  assert.deepEqual(audits[0].meta.changes.points_per_q, { from: 1, to: 4 });
+  assert.doesNotMatch(JSON.stringify(audits[0].meta), /sandbox-(api|pos)-secret|private-owner/);
+});
+
+/** @param {import("node:test").TestContext} t @param {string} role @param {Record<string, any>} programJson */
+async function saveProgramAs(t, role, programJson) {
+  /** @type {Record<string, any>} */
+  let update = {};
+  t.mock.method(BusinessRepo, "getById", async () => structuredClone(business));
+  t.mock.method(PlanConfigService, "getPlanFeatureOverrides", async () => ({}));
+  t.mock.method(BusinessRepo, "updateProgram", async (_businessId, input) => { update = input; return structuredClone(business); });
+  t.mock.method(AuditRepo, "log", async () => {});
+  t.mock.method(transactionPool, "connect", inertTransactionClient);
+  const res = await runHandler(adminRoutes, "/admin/program", "post", {
+    tenantId: "biz-1", staff: { id: "staff-1", role }, body: { program_type: "SPEND", program_json: programJson }
+  });
+  assert.equal(res.statusCode, 200);
+  return update.program_json;
+}
+
+test("owners can save the tier policy shown on the program form; other roles cannot", async t => {
+  const tierPolicy = { mode: "rolling_days", rolling_days: 180, grace_days: 15 };
+  assert.deepEqual((await saveProgramAs(t, "OWNER", { points_per_q: 1, tier_policy: tierPolicy })).tier_policy, tierPolicy);
+  t.mock.restoreAll();
+  assert.equal((await saveProgramAs(t, "MANAGER", { points_per_q: 1, tier_policy: tierPolicy })).tier_policy, undefined);
+});
+
+test("the generic program save cannot replace settings owned by dedicated services", async t => {
+  const saved = await saveProgramAs(t, "OWNER", {
+    points_per_q: 2, region: { country: "CO", currency: "COP", timezone: "America/Bogota" }, currency_confirmation: { currency: "COP" },
+    data_health: { sources: [] }, merchant_operating_mode: { mode: "busy" }, second_visit: { settings: { enabled: true } },
+    targeted_offers_enabled: true, pos_inventory_checks: false, pos_checkout_enabled: false
+  });
+  assert.deepEqual(saved, { points_per_q: 2 });
 });
 
 test("repository preservation merges current integration keys inside the UPDATE without a stale read", async () => {
@@ -83,6 +127,7 @@ test("repository preservation merges current integration keys inside the UPDATE 
   assert.match(calls[0].sql, /program_json\s*->\s*'external_awards'/);
   assert.match(calls[0].sql, /program_json\s*->\s*'weekly_owner_brief'/);
   assert.match(calls[0].sql, /\|\|/);
+  assert.match(calls[0].sql, /program_json=COALESCE\(program_json,'\{\}'::jsonb\) \|\| \$3::jsonb/, "submitted keys merge onto the locked row");
   assert.equal(calls[0].params[2].pos_integration, undefined);
   assert.equal(calls[0].params[2].external_awards, undefined);
   assert.equal(calls[0].params[2].weekly_owner_brief, undefined);

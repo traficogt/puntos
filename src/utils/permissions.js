@@ -21,6 +21,9 @@ const matrix = {
     Permission.STAFF_SYNC,
     Permission.STAFF_REFUND,
     Permission.ADMIN_PROGRAM_UPDATE_BASIC,
+    // Owners can save every rule the program form shows (tier policy, lifecycle,
+    // campaign rules); plan features still gate each one.
+    Permission.ADMIN_PROGRAM_UPDATE_ADVANCED,
     Permission.ADMIN_SUSPICIOUS_VIEW
   ]),
   [Role.MANAGER]: new Set([

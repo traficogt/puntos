@@ -22,3 +22,11 @@ test("join page exposes inline feedback for request and verify actions", () => {
   assert.match(shared, /Cerraste tu sesión de .* Solicita un nuevo código/);
   assert.doesNotMatch(shared, /out\.expiresAt/);
 });
+
+test("join page offers an optional, labelled referral code field", () => {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  const html = fs.readFileSync(new URL("../../public/join.html", import.meta.url), "utf8");
+  assert.match(html, /<label for="joinReferralCode">Código de referido \(opcional\)<\/label>/);
+  assert.match(html, /<input id="joinReferralCode"[^>]*aria-describedby="joinReferralHelp"/);
+  assert.doesNotMatch(html, /<input id="joinReferralCode"[^>]*required/);
+});

@@ -17,6 +17,13 @@ paths = ['''(^|/)help/reviewed-sources\.json$''']
 regexes = ['''^\s*\Q"public/customer-auth-entry.js": "2b636a9032a0622af107b2799f4b4b69203b496858bd9a6b2f3482fe058bfec5",\E\s*$''']
 
 [[rules.allowlists]]
+description = "Exact help-review SHA-256 verified against public/customer-auth-entry.js after the November 16 bug-hunt changes; not a credential"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)help/reviewed-sources\.json$''']
+regexes = ['''^\s*\Q"public/customer-auth-entry.js": "d271ac4a86d1514deb71edccd81c2e360d5f6e907128c2bfb4cf3a1e0db0b9e6",\E\s*$''']
+
+[[rules.allowlists]]
 description = "Synthetic JWT fixture used only by the isolated consent-race test"
 condition = "AND"
 regexTarget = "line"
@@ -78,6 +85,13 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''(^|/)src/app/migrations/checksums\.json$''']
 regexes = ['''^\s*\Q"2026-11-10-mobile-access.sql": "af762d885a3edce5fed4ac31e645e4eb959e0d228c579fbe3e64ddf8519a1e1d",\E\s*$''']
+
+[[rules.allowlists]]
+description = "Migration SHA-256 verified against SQL file bytes"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)src/app/migrations/checksums\.json$''']
+regexes = ['''^\s*\Q"2026-11-17-auth-totp-replay.sql": "5ee3342ade08c0f82864f89679fa014a2eb4cc7d2e208965ed6091108192e326",\E\s*$''']
 
 [[rules.allowlists]]
 description = "Sequential hexadecimal schema-validation input"

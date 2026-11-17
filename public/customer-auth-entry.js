@@ -7,6 +7,26 @@ import { renderNativeWallet } from "./customer/native-wallet.js";
 import { walletDestination } from "./customer/wallet-navigation.js";
 
 const returningSlugKey = "pf_customer_joined_slug";
+const referralCodePattern = /^[A-Z0-9]{6}$/;
+
+function normalizeReferralCode(value) {
+  return String(value || "").toUpperCase().replace(/[\s-]/g, "");
+}
+
+// Registration only. Undefined when left empty, null when it is not a code.
+function enteredReferralCode(mode) {
+  const input = mode === "register" ? $("#joinReferralCode") : null;
+  if (!input) return undefined;
+  const code = normalizeReferralCode(input.value);
+  if (!code) {
+    input.setAttribute("aria-invalid", "false");
+    return undefined;
+  }
+  const valid = referralCodePattern.test(code);
+  input.setAttribute("aria-invalid", String(!valid));
+  if (valid) input.value = code;
+  return valid ? code : null;
+}
 
 function normalizedPhone(value,country="GT") {
   const digits = String(value || "").replace(/\D/g, "");
@@ -178,6 +198,12 @@ export async function initCustomerAuthEntry({ mode }) {
   }
 
   const acquisition = enrollmentAcquisition({ mode, slug, search: location.search, api });
+  // An invitation link (?ref= or ?codigo=) fills in the optional referral code.
+  const referralInput = mode === "register" ? $("#joinReferralCode") : null;
+  const linkedReferralCode = normalizeReferralCode(searchParams.get("ref") || searchParams.get("codigo"));
+  if (referralInput && !referralInput.value && referralCodePattern.test(linkedReferralCode)) {
+    referralInput.value = linkedReferralCode;
+  }
 
   setStep(1);
   setHidden($("#joinForms"), false);
@@ -292,6 +318,11 @@ export async function initCustomerAuthEntry({ mode }) {
         setFeedback("#joinRequestFeedback", "Escribe el teléfono para recibir el código.");
         return toast("Escribe el teléfono");
       }
+      if (enteredReferralCode(mode) === null) {
+        setFeedback("#joinRequestFeedback", "Revisa el código de referido: tiene 6 letras o números. Si no tienes uno, déjalo vacío.");
+        referralInput?.focus();
+        return toast("Revisa el código de referido");
+      }
       setFeedback("#joinRequestFeedback", "Enviando código...");
       $("#phone").readOnly = true;
       const name = $("#name")?.value.trim() || undefined;
@@ -346,10 +377,15 @@ export async function initCustomerAuthEntry({ mode }) {
         setFeedback("#joinVerifyFeedback", "Escribe el teléfono y el código recibido.");
         return toast("Falta teléfono o código");
       }
+      const referralCode = enteredReferralCode(mode);
+      if (referralCode === null) {
+        setFeedback("#joinVerifyFeedback", "Revisa el código de referido con «Cambiar teléfono». Si no tienes uno, déjalo vacío.");
+        return toast("Revisa el código de referido");
+      }
       setFeedback("#joinVerifyFeedback", "Verificando código...");
       const verified = await api(verifyPath, {
         method: "POST",
-        body: JSON.stringify({ phone, code, name, ...await acquisition })
+        body: JSON.stringify({ phone, code, name, ...(referralCode ? { referralCode } : {}), ...await acquisition })
       });
       if (!active || verificationEpoch !== getCustomerEpoch()) return;
       if (verified?.ok !== true || !verified?.customer?.id) throw new Error("No pudimos confirmar tu acceso. Vuelve a intentar.");

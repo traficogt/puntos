@@ -91,7 +91,8 @@ async function lockRedemptionRequest(client, businessId, requestId) {
 export async function staffLogin({ email, password, mfaCode = undefined }) {
   const loginRow = await StaffRepo.getByEmail(email);
   if (!loginRow || !loginRow.active) {
-    await SecurityEventRepo.log({
+    // No tenant context is set for an unknown or inactive account.
+    await SecurityEventRepo.logPrivileged({
       event_type: "staff_login_failed",
       severity: "MEDIUM",
       route: "/api/staff/login",
@@ -139,6 +140,7 @@ export async function staffLogin({ email, password, mfaCode = undefined }) {
     bid: staff.business_id,
     role: staff.role,
     brid: staff.branch_id ?? null,
+    reauthVerified: true,
     mfaVerified: Boolean(mfaResult?.mfaVerified)
   });
   return {
@@ -258,6 +260,13 @@ export async function redeemRewardWithDeps(
       [rewardId]
     );
     let reward = rewardResult.rows[0];
+    // Serialize this customer's redemptions before the daily-limit and cooldown
+    // counts: concurrent redemptions of different rewards hold different reward
+    // locks. Business -> reward -> balance -> customer, as in other ledger writers.
+    await client.query(
+      `SELECT customer_id FROM customer_balances WHERE customer_id=$1 FOR UPDATE`,
+      [customerId]
+    );
     if (reward && reward.business_id === staff.business_id && typeof deps.protectedRedemptionReward === "function") {
       reward = await deps.protectedRedemptionReward(client, { businessId: staff.business_id, customerId, reward });
     }
@@ -512,7 +521,17 @@ export async function syncAwards({ staff, awards }) {
       });
       results.push({ txId: award.txId, ok: true, result });
     } catch (e) {
-      results.push({ txId: award.txId, ok: false, error: e?.message ?? String(e) });
+      // Additive: the offline queue retries only ambiguous failures (5xx) and
+      // stops resending definitive per-sale rejections (4xx).
+      const raw = Number(e?.statusCode ?? e?.status ?? 500);
+      const status = Number.isInteger(raw) && raw >= 400 && raw <= 599 ? raw : 500;
+      results.push({
+        txId: award.txId,
+        ok: false,
+        error: e?.message ?? String(e),
+        status,
+        ...(status < 500 && typeof e?.code === "string" && e.code ? { code: e.code } : {})
+      });
     }
   }
   return results;

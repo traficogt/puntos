@@ -9,7 +9,8 @@ test("customer rewards surface a redemption callout and in-store guidance for el
   assert.match(source, /cus-rewards-callout/);
   assert.match(source, /Muestra tu QR en caja\./);
   assert.match(source, /Tienes los puntos necesarios/);
-  assert.match(source, /Te faltan .* puntos/);
+  // Missing-point badges share the singular/plural helper with every wallet message.
+  assert.match(source, /missingPointsText\(remainingPoints, region\)/);
   assert.match(source, /rewardsWithState/);
 });
 

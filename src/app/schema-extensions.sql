@@ -234,15 +234,15 @@ CREATE INDEX idx_segment_assignments_segment ON customer_segment_assignments(seg
 -- Customer lifetime value tracking
 CREATE TABLE IF NOT EXISTS customer_ltv (
   customer_id UUID PRIMARY KEY REFERENCES customers(id) ON DELETE CASCADE,
-  total_spend DECIMAL(10,2) DEFAULT 0,
+  total_spend NUMERIC DEFAULT 0, -- Aggregates exceed NUMERIC(10,2) in large currencies.
   total_visits INTEGER DEFAULT 0,
   total_transactions INTEGER DEFAULT 0,
-  avg_transaction_value DECIMAL(10,2) DEFAULT 0,
+  avg_transaction_value NUMERIC DEFAULT 0,
   first_purchase_at TIMESTAMPTZ,
   last_purchase_at TIMESTAMPTZ,
   days_since_last_purchase INTEGER,
   purchase_frequency DECIMAL(8,2), -- Purchases per month
-  predicted_ltv DECIMAL(10,2), -- ML prediction (future feature)
+  predicted_ltv NUMERIC, -- ML prediction (future feature)
   churn_risk_score DECIMAL(4,2), -- 0-1, higher = more risk
   rfm_recency INTEGER, -- 1-5 score
   rfm_frequency INTEGER, -- 1-5 score
@@ -313,57 +313,63 @@ CREATE INDEX idx_pass_updates_date ON wallet_pass_updates(created_at);
 
 -- TRIGGERS & FUNCTIONS
 
--- Function to update tier based on points
+-- Function to upgrade tiers from earned points (lifetime_points). Rolling-window
+-- programs are evaluated by the application and the retention sweep.
+-- Keep in sync with migrations/2026-11-17-ledger-tier-earned-points.sql.
 CREATE OR REPLACE FUNCTION check_tier_progression()
 RETURNS TRIGGER AS $$
 DECLARE
-  new_tier_id UUID;
-  current_tier_level INTEGER;
   business UUID;
+  tier_mode TEXT;
+  current_tier UUID;
+  current_tier_level INTEGER;
+  new_tier_id UUID;
 BEGIN
-  -- Get customer's business
-  SELECT c.business_id INTO business
+  SELECT c.business_id, COALESCE(b.program_json->'tier_policy'->>'mode', 'lifetime')
+    INTO business, tier_mode
   FROM customers c
+  JOIN businesses b ON b.id = c.business_id
   WHERE c.id = NEW.customer_id;
-  
-  -- Get current tier level
-  SELECT COALESCE(lt.tier_level, 0) INTO current_tier_level
+
+  IF business IS NULL OR tier_mode = 'rolling_days' THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT ct.tier_id, COALESCE(lt.tier_level, 0)
+    INTO current_tier, current_tier_level
   FROM customer_tiers ct
   LEFT JOIN loyalty_tiers lt ON ct.tier_id = lt.id
   WHERE ct.customer_id = NEW.customer_id;
-  
-  -- Find highest tier customer qualifies for
+
   SELECT lt.id INTO new_tier_id
   FROM loyalty_tiers lt
   WHERE lt.business_id = business
     AND lt.active = true
-    AND NEW.points >= lt.min_points
+    AND NEW.lifetime_points >= lt.min_points
     AND lt.tier_level > COALESCE(current_tier_level, 0)
   ORDER BY lt.tier_level DESC
   LIMIT 1;
-  
-  -- Update tier if found
+
   IF new_tier_id IS NOT NULL THEN
     INSERT INTO customer_tiers (customer_id, tier_id)
     VALUES (NEW.customer_id, new_tier_id)
     ON CONFLICT (customer_id)
-    DO UPDATE SET 
+    DO UPDATE SET
       tier_id = new_tier_id,
       updated_at = now();
-    
-    -- Log tier change
-    INSERT INTO tier_history (customer_id, to_tier_id, reason)
-    VALUES (NEW.customer_id, new_tier_id, 'points');
+
+    INSERT INTO tier_history (customer_id, from_tier_id, to_tier_id, reason)
+    VALUES (NEW.customer_id, current_tier, new_tier_id, 'points');
   END IF;
-  
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger on points update
+-- Trigger on earned points update
 DROP TRIGGER IF EXISTS trigger_check_tier_progression ON customer_balances;
 CREATE TRIGGER trigger_check_tier_progression
-AFTER INSERT OR UPDATE OF points ON customer_balances
+AFTER INSERT OR UPDATE OF lifetime_points ON customer_balances
 FOR EACH ROW
 EXECUTE FUNCTION check_tier_progression();
 
@@ -384,19 +390,23 @@ BEGIN
   )
   SELECT
     NEW.customer_id,
-    COALESCE(SUM(amount_q), 0),
-    COALESCE(SUM(visits), 0),
+    ROUND(COALESCE(SUM(t.amount_q), 0), 2),
+    COALESCE(SUM(t.visits), 0),
     COUNT(*),
-    AVG(amount_q),
-    MIN(created_at),
-    MAX(created_at),
-    EXTRACT(DAY FROM (now() - MAX(created_at))),
+    ROUND(AVG(t.amount_q), 2),
+    MIN(t.created_at),
+    MAX(t.created_at),
+    EXTRACT(DAY FROM (now() - MAX(t.created_at))),
     now()
-  FROM transactions
-  WHERE customer_id = NEW.customer_id
-    AND type = 'PURCHASE'
-    AND source <> 'reversal'
-    AND status <> 'REVERSED'
+  FROM transactions t
+  WHERE t.customer_id = NEW.customer_id
+    -- reportingPurchase('t') in src/app/services/reporting-purchase.js
+    AND (t.source IN ('online', 'offline', 'external', 'order')
+    AND (t.type = 'PURCHASE' OR t.type IS NULL)
+    AND t.status IN ('POSTED', 'PENDING', 'EXPIRED')
+    AND (t.amount_q > 0 OR t.visits > 0 OR t.items > 0)
+    AND t.original_transaction_id IS NULL
+    AND t.reversed_transaction_id IS NULL)
   ON CONFLICT (customer_id)
   DO UPDATE SET
     total_spend = EXCLUDED.total_spend,
@@ -415,7 +425,7 @@ $$ LANGUAGE plpgsql;
 -- Trigger on transaction insert
 DROP TRIGGER IF EXISTS trigger_update_customer_ltv ON transactions;
 CREATE TRIGGER trigger_update_customer_ltv
-AFTER INSERT OR UPDATE OF status, source, type, amount_q, visits ON transactions
+AFTER INSERT OR UPDATE OF status, source, type, amount_q, visits, items, original_transaction_id, reversed_transaction_id ON transactions
 FOR EACH ROW
 EXECUTE FUNCTION update_customer_ltv();
 

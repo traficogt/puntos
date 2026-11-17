@@ -1,7 +1,7 @@
 ---
 title: Agregar una sucursal
 description: Registra una nueva ubicación y después asigna el personal correspondiente.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - web/merchant/src/OwnerBranches.tsx
@@ -32,7 +32,7 @@ La ubicación aparece en la lista con dirección y código. Crear una sucursal n
 
 ## Si algo no funciona
 
-**Llegaste al límite:** revisa tu plan antes de agregar otra. **Nombre o código inválido:** el nombre necesita al menos dos caracteres y un código escrito necesita al menos tres. **No puedes editar una dirección desde la lista:** esa vista permite consultar y agregar; pide ayuda para una corrección que no tenga un control disponible.
+**Llegaste al límite:** revisa tu plan antes de agregar otra. **Nombre o código inválido:** el nombre necesita al menos dos caracteres y un código escrito necesita al menos tres. **Código repetido:** ya tienes otra sucursal con ese código; elige uno distinto. Los códigos solo se comparan con las sucursales de tu negocio. **No puedes editar una dirección desde la lista:** esa vista permite consultar y agregar; pide ayuda para una corrección que no tenga un control disponible.
 
 ## Continúa con otra tarea
 
@@ -41,4 +41,4 @@ La ubicación aparece en la lista con dirección y código. Crear una sucursal n
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#sucursales). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#sucursales). Revisión del 17 de noviembre de 2026.

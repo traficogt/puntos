@@ -7,6 +7,7 @@ const data = source => `data:text/javascript;base64,${Buffer.from(source).toStri
 const source = await fs.readFile(new URL("../../public/customer/index.js", import.meta.url), "utf8");
 const { initCustomerPage } = await import(data(source
   .replace('"./wallet-navigation.js"', JSON.stringify(new URL("../../public/customer/wallet-navigation.js", import.meta.url).href))
+  .replace('"./format.js"', JSON.stringify(new URL("../../public/customer/format.js", import.meta.url).href))
   .replace('"./reward-entitlements.js"', JSON.stringify(data("export const clearRewardEntitlements=()=>{};")))
   .replace('"./growth-offers.js"', JSON.stringify(data("export const clearGrowthOffers=()=>{};")))
   .replace('"/idb.js"', JSON.stringify(data("export const clearCustomerCache=async()=>{globalThis.__logout.clears++;};")))

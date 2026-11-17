@@ -4,6 +4,7 @@ import { GamificationRepository } from "../../repositories/gamification-reposito
 import { withTransaction } from "../../database.js";
 import { DEFAULT_ACHIEVEMENTS } from "./default-achievements.js";
 import { getCustomerGamificationStats } from "./customer-stats.js";
+import { lockCustomerGamification } from "./customer-lock.js";
 
 function id() {
   return crypto.randomUUID();
@@ -22,10 +23,12 @@ async function sourceTransactionIsActive(sourceTransactionId, query) {
   return Boolean(tx && tx.status === "POSTED" && !tx.reversed_transaction_id);
 }
 
+// Achievements are permanent milestones: measure points earned (not the
+// spendable balance) and the best streak (not the streak still running).
 export function achievementProgressValue(stats, requirementType) {
   switch (requirementType) {
     case "points":
-      return Number(stats.points || 0);
+      return Number(stats.lifetime_points || 0);
     case "spend":
       return Number(stats.total_spend || 0);
     case "visits":
@@ -35,14 +38,14 @@ export function achievementProgressValue(stats, requirementType) {
     case "referrals":
       return Number(stats.referral_count || 0);
     case "streak":
-      return Number(stats.current_streak || 0);
+      return Number(stats.longest_streak || 0);
     default:
       return 0;
   }
 }
 
 async function awardAchievementPoints(client, stats, customerId, achievement, context = {}) {
-  if (achievement.points_reward <= 0) return;
+  if (!(Number(achievement.points_reward) > 0)) return null;
   const rewardTransactionId = id();
   await client.query(
     `UPDATE customer_balances
@@ -89,6 +92,9 @@ export async function checkAndAwardAchievements(customerId, _eventType = null, c
     if (!await sourceTransactionIsActive(context.sourceTransactionId || null, q)) {
       return [];
     }
+    // Lock order: source transaction, then the customer's balance row. The
+    // earned check, stats and award below are then serialized per customer.
+    await lockCustomerGamification(q, customerId);
     const stats = await getCustomerGamificationStats(customerId, client.query.bind(client));
     const achievements = await GamificationRepository.listAchievements(stats.business_id);
     const newlyEarned = [];
@@ -106,17 +112,24 @@ export async function checkAndAwardAchievements(customerId, _eventType = null, c
       if (currentValue < Number(achievement.requirement_value || 0)) continue;
       if (!await sourceTransactionIsActive(context.sourceTransactionId || null, q)) continue;
 
-      const rewardTransactionId = await awardAchievementPoints(client, stats, customerId, achievement, context);
-      await GamificationRepository.awardAchievement(
+      const earned = await GamificationRepository.awardAchievement(
         customerId,
         achievement.id,
         100,
-        {
-          sourceTransactionId: context.sourceTransactionId || null,
-          rewardTransactionId
-        },
+        { sourceTransactionId: context.sourceTransactionId || null },
         q
       );
+      // Credit only the insert that actually recorded the achievement.
+      if (!earned) continue;
+      const rewardTransactionId = await awardAchievementPoints(client, stats, customerId, achievement, context);
+      if (rewardTransactionId) {
+        await q(
+          `UPDATE customer_achievements
+           SET reward_transaction_id = $3
+           WHERE customer_id = $1 AND achievement_id = $2`,
+          [customerId, achievement.id, rewardTransactionId]
+        );
+      }
       newlyEarned.push(achievement);
     }
 

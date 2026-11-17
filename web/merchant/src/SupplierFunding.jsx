@@ -3,7 +3,7 @@ import React,{useRef,useState} from 'react';
 import {Alert,Badge,Button,Group,MultiSelect,NativeSelect,SimpleGrid,Stack,Table,Text,TextInput,Title} from '@mantine/core';
 import {api,isDemo,useResource} from './api.js';
 import {Failure,Loading} from './ui.jsx';
-import {regionalDate,merchantRegion} from './region.js';
+import {regionalDate,regionalToday,merchantRegion} from './region.js';
 const states={draft:'Borrador',submitted:'Enviada',approved:'Aprobada',rejected:'Rechazada',paid:'Pagada'};
 const choices={draft:['submitted','rejected'],submitted:['approved','rejected'],approved:['paid','rejected'],rejected:['submitted'],paid:[]};
 const actionLabels={submitted:'Registrar envío',approved:'Registrar aprobación',rejected:'Registrar rechazo',paid:'Conciliar pago'};
@@ -20,7 +20,7 @@ function ClaimDetail({id,refresh,onSaved,offline}){
   {error&&<Alert color="red" title="No pudimos guardar" role="alert">{error}</Alert>}
   {allowed.length>0&&<form onSubmit={save}><Stack maw={650}><NativeSelect label="Acción" data={allowed.map(value=>({value,label:actionLabels[value]}))} value={next} onChange={e=>setStatus(e.currentTarget.value)} disabled={offline||busy}/>
    <TextInput label={next==='paid'?'Referencia del pago recibido':next==='rejected'?'Motivo del rechazo o cancelación':'Referencia del envío o respuesta del proveedor'} description="Registra evidencia real. Esta acción no envía documentos ni contacta al proveedor." required minLength={3} maxLength={200} value={reference} onChange={e=>setReference(e.currentTarget.value)} disabled={offline||busy}/>
-   {next==='paid'&&<SimpleGrid cols={{base:1,sm:2}}><NumberInput label={`Importe recibido (${claim.currency})`} description={`Debe coincidir con ${money(claim.amount_minor,claim.currency)} aprobado.`} decimalScale={units} min={0} value={amount} onChange={setAmount} required disabled={offline||busy}/><TextInput type="date" label="Fecha de pago recibido" required value={date} max={new Date().toISOString().slice(0,10)} onChange={e=>setDate(e.currentTarget.value)} disabled={offline||busy}/></SimpleGrid>}
+   {next==='paid'&&<SimpleGrid cols={{base:1,sm:2}}><NumberInput label={`Importe recibido (${claim.currency})`} description={`Debe coincidir con ${money(claim.amount_minor,claim.currency)} aprobado.`} decimalScale={units} min={0} value={amount} onChange={setAmount} required disabled={offline||busy}/><TextInput type="date" label="Fecha de pago recibido" required value={date} max={regionalToday()} onChange={e=>setDate(e.currentTarget.value)} disabled={offline||busy}/></SimpleGrid>}
    <Button type="submit" loading={busy} disabled={offline||reference.trim().length<3||next==='paid'&&(!date||Math.round(Number(amount)*10**units)!==claim.amount_minor)}>{actionLabels[next]}</Button>
   </Stack></form>}
   {claim.status==='paid'&&<Text fw={600}>Conciliado: {money(claim.paid_minor,claim.currency)} · {claim.payment_reference}</Text>}

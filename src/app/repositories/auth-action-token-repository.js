@@ -35,6 +35,7 @@ export const AuthActionTokenRepo = {
     return rows[0] ?? null;
   },
 
+  /** Consumes an unexpired token once; null when it was already used, invalidated or expired. */
   async markUsed(id, consumedMeta = {}, query = dbQuery) {
     const { rows } = await query(
       `UPDATE auth_action_tokens
@@ -42,6 +43,7 @@ export const AuthActionTokenRepo = {
               consumed_meta = $2::jsonb
         WHERE id = $1
           AND used_at IS NULL
+          AND expires_at > now()
       RETURNING *`,
       [id, JSON.stringify(consumedMeta || {})]
     );

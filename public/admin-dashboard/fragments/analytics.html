@@ -40,8 +40,9 @@
           </div>
           <div class="card">
             <div class="row justify-between align-center"><h3 class="m-0">Pagos pendientes por asignar</h3><button id="btnRefreshPaymentPending">Recargar</button></div>
-            <p class="small">Si el webhook llegó sin cliente, puedes asignarlo manualmente por teléfono.</p>
+            <p class="small">Si el webhook llegó sin cliente, puedes asignarlo manualmente por teléfono. Si llegó con un monto inválido, indica también el monto correcto del pago.</p>
             <div id="paymentPendingList" class="small">(sin datos)</div>
+            <div id="paymentInvalidAmountList" class="small mt-8"></div>
           </div>
           <div class="card">
             <div class="row justify-between align-center"><h3 class="m-0">Centro de alertas</h3><button id="btnRefreshAlerts">Recargar</button></div>

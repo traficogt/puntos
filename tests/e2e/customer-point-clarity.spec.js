@@ -30,7 +30,7 @@ test('progress changes at halfway using available points and keeps the selected 
   for (const [points, copy] of [[0, 'Tu próxima recompensa: “Café de la casa”.'], [1, 'Ya tienes 1 de 100 puntos para “Café de la casa”.'], [49, 'Ya tienes 49 de 100 puntos para “Café de la casa”.'], [50, 'Te faltan 50 puntos para “Café de la casa”.'], [99, 'Te falta 1 punto para “Café de la casa”.'], [100, 'Tienes los puntos para “Café de la casa”.'], [101, 'Tienes los puntos para “Café de la casa”.']]) {
     await reward(page, points);
     await expect(page.locator('#nextReward')).toHaveText(String(copy));
-    await expect(page.locator('#nextRewardBalance')).toContainText(`${points} puntos disponibles`);
+    await expect(page.locator('#nextRewardBalance')).toContainText(points === 1 ? '1 punto disponible ·' : `${points} puntos disponibles`);
     await expect(page.locator('#nextRewardBalance')).toContainText('100 puntos de costo');
     await expect(page.locator('#nextRewardConditions')).toContainText('Válido en Centro.');
     await expect(page.locator('#nextRewardConditions')).toContainText('En caja se confirman');

@@ -9,7 +9,8 @@ import { OrderRepo } from "../repositories/order-repository.js";
 import { resolveCustomerForIntegrationWithDeps } from "./customer-resolution-service.js";
 import { PlanConfigService } from "./plan-config-service.js";
 import { claimTargetedOffer } from "./targeted-offer-service.js";
-import { isLedgerInteger } from "../../utils/ledger-limits.js";
+import { isLedgerAmount, isLedgerInteger } from "../../utils/ledger-limits.js";
+import { assertRegionAmount, regionCurrency } from "./regional-settings.js";
 import { computePoints } from "./points-service.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 
@@ -203,7 +204,14 @@ async function processOrderWithClient(deps, client, input) {
   const subtotalQ = normalizeNumber(input.subtotal_q);
   const discountQ = normalizeNumber(input.discount_q);
   const taxQ = normalizeNumber(input.tax_q);
-  const currency = String(input.currency || "GTQ").toUpperCase();
+  // Same rules as external awards: PF never converts currencies, and amounts
+  // must fit the ledger's money columns with the currency's decimals.
+  const currency = input.currency ? String(input.currency).toUpperCase() : regionCurrency(business);
+  for (const money of [amountQ, subtotalQ, discountQ, taxQ]) {
+    if (money === null) continue;
+    if (!isLedgerAmount(money)) throw badRequest("El importe debe ser válido, no negativo y con máximo dos decimales.");
+    assertRegionAmount(money, currency, business);
+  }
   const basePoints = Number(deps.computePoints(business, { amount_q: amountQ }) || 0);
   const transactionId = id();
   const bonus = typeof deps.claimTargetedOffer === "function"

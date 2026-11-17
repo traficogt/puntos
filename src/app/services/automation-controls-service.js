@@ -28,8 +28,10 @@ async function businessRow(businessId,client={query:dbQuery},lock=false) {
   const {rows}=await client.query(`SELECT id,name,plan,program_json FROM businesses WHERE id=$1 ${lock?'FOR NO KEY UPDATE':''}`,[businessId]);
   if(!rows[0]) throw notFound('Negocio no encontrado.');return rows[0];
 }
+// February 29 birthdays are celebrated on February 28 in non-leap years.
 const eligibleSql=`c.business_id=$1 AND c.deleted_at IS NULL AND
-  (($2='birthday' AND to_char(c.birthday,'MM-DD')=to_char($3::date,'MM-DD')) OR
+  (($2='birthday' AND (to_char(c.birthday,'MM-DD')=to_char($3::date,'MM-DD') OR
+     (to_char(c.birthday,'MM-DD')='02-29' AND to_char($3::date,'MM-DD')='02-28' AND to_char($3::date+1,'MM-DD')='03-01'))) OR
    ($2='winback' AND (c.last_visit_at AT TIME ZONE $5)::date=$3::date-$4::int))`;
 const inactivityAnchorSql=`to_char(c.last_visit_at AT TIME ZONE 'UTC','YYYY-MM-DD HH24:MI:SS.US')`;
 const notProcessedSql=`NOT EXISTS(SELECT 1 FROM lifecycle_events e WHERE e.business_id=c.business_id AND e.customer_id=c.id AND e.event_type=$2

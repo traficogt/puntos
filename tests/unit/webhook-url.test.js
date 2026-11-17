@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { resolveWebhookTarget, validateWebhookUrl } from "../../src/utils/webhook-url.js";
+import { isPublicUnicastAddress, resolveWebhookTarget, validateWebhookUrl } from "../../src/utils/webhook-url.js";
 
 const publicLookup = async () => [{ address: "93.184.216.34" }];
 const privateLookup = async () => [{ address: "127.0.0.1" }];
@@ -288,3 +288,54 @@ describe("webhook-url (SSRF Protection)", () => {
     });
   });
 });
+
+describe("webhook-url only allows global unicast destinations", () => {
+  const blocked = [
+    // IPv4 special-purpose ranges
+    "0.0.0.0", "0.1.2.3", "10.1.2.3", "100.64.0.1", "100.127.255.255", "127.0.0.1", "127.255.255.254",
+    "169.254.169.254", "172.16.0.1", "172.31.255.255", "192.0.0.8", "192.0.2.10", "192.88.99.1",
+    "192.168.0.1", "198.18.0.1", "198.19.255.255", "198.51.100.7", "203.0.113.9", "224.0.0.1",
+    "239.255.255.250", "240.0.0.1", "255.255.255.255",
+    // IPv4 carried inside IPv6: mapped, compatible, NAT64 and 6to4 forms
+    "::ffff:127.0.0.1", "::ffff:7f00:1", "0:0:0:0:0:ffff:7f00:1", "::ffff:169.254.169.254", "::ffff:a9fe:a9fe",
+    "::ffff:10.1.2.3", "::127.0.0.1", "::7f00:1", "::a01:203", "64:ff9b::7f00:1", "64:ff9b::169.254.169.254",
+    "64:ff9b:1::a01:203", "2002:7f00:1::1", "2002:a9fe:a9fe::1", "::ffff:0:7f00:1",
+    // IPv6 special-purpose ranges
+    "::", "::1", "fc00::1", "fd12:3456::1", "fe80::1", "febf::1", "fe80::1%eth0", "fec0::1", "feff::1",
+    "ff02::1", "ff05::1:3", "100::1", "2001::1", "2001:2::1", "2001:10::1", "2001:db8::1", "3fff::1",
+    // Not addresses
+    "", "localhost", "example.com", "127.1"
+  ];
+  const allowed = [
+    "1.1.1.1", "8.8.8.8", "93.184.216.34", "100.63.255.255", "100.128.0.1", "172.15.255.255", "172.32.0.1",
+    "192.0.1.1", "198.17.255.255", "198.20.0.1", "223.255.255.255",
+    "2606:4700:4700::1111", "2001:4860:4860::8888", "2a00:1450:4001:80b::200e",
+    "::ffff:93.184.216.34", "64:ff9b::93.184.216.34", "2002:5db8:d822::1"
+  ];
+  for (const ip of blocked) it(`blocks ${JSON.stringify(ip)}`, () => assert.equal(isPublicUnicastAddress(ip), false));
+  for (const ip of allowed) it(`allows ${ip}`, () => assert.equal(isPublicUnicastAddress(ip), true));
+
+  for (const host of ["[::ffff:127.0.0.1]", "[::ffff:169.254.169.254]", "[::127.0.0.1]", "[64:ff9b::7f00:1]", "[fec0::1]", "[ff02::1]", "[2002:7f00:1::1]", "0x7f000001", "2130706433", "127.1", "224.0.0.1", "198.18.0.1"]) {
+    it(`rejects the URL host ${host}`, async () => {
+      await assert.rejects(validateWebhookUrl(`https://${host}/hook`, { requireHttps: true }), { message: /Private IPs/ });
+    });
+  }
+
+  for (const address of ["::ffff:10.1.2.3", "::ffff:127.0.0.1", "64:ff9b::a9fe:a9fe", "fec0::1", "ff02::1", "224.0.0.251", "198.18.0.5"]) {
+    it(`rejects a hostname whose DNS answer is ${address}`, async () => {
+      const lookup = async () => [{ address: "93.184.216.34", family: 4 }, { address, family: address.includes(":") ? 6 : 4 }];
+      await assert.rejects(validateWebhookUrl("https://hooks.example.com/hook", { lookup }), { message: /Private IPs/ });
+    });
+  }
+
+  it("pins an IPv4-mapped public answer to its IPv4 address", async () => {
+    const target = await resolveWebhookTarget("https://hooks.example.com/hook", { lookup: async () => [{ address: "::ffff:93.184.216.34", family: 6 }] });
+    assert.deepEqual([target.resolvedAddress, target.resolvedFamily], ["93.184.216.34", 4]);
+  });
+
+  it("pins a public IPv6 literal", async () => {
+    const target = await resolveWebhookTarget("https://[2606:4700:4700::1111]/hook");
+    assert.deepEqual([target.resolvedAddress, target.resolvedFamily], ["2606:4700:4700::1111", 6]);
+  });
+});
+

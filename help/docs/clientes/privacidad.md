@@ -1,7 +1,7 @@
 ---
 title: Proteger mi cuenta y mis datos
 description: Usa tu tarjeta sin compartir los códigos que permiten entrar a tu cuenta.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - public/customer.html
@@ -42,4 +42,4 @@ Cerrar sesión limita el acceso desde ese navegador. Desactivar las tarjetas gua
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/privacidad). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/privacidad). Revisión del 17 de noviembre de 2026.

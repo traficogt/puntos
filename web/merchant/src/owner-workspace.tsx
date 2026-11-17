@@ -24,6 +24,9 @@ export function failure(error: unknown): OwnerFailure {
   return {message: 'No pudimos completar la operación. Vuelve a intentarlo.'};
 }
 export function needsReauth(error: OwnerFailure | null) {return error?.code === 'RECENT_REAUTH_REQUIRED' || error?.code === 'RECENT_MFA_REQUIRED';}
+// A platform support session cannot prove the owner's identity, so re-authentication is never offered.
+export function ownSessionOnly(error: OwnerFailure | null) {return error?.code === 'IMPERSONATION_FORBIDDEN';}
+export const OWN_SESSION_MESSAGE = 'Esta acción de seguridad solo puede hacerse desde la sesión propia de la persona usuaria.';
 export function useOwnerResource<T>(path: string | null, revision: number, send: OwnerRequest) {
   const [state,setState] = useState<{path: string | null; revision: number; data: T | null; error: OwnerFailure | null; loading: boolean}>({path:null,revision:-1,data:null,error:null,loading:!!path});
   useEffect(()=>{if(!path)return; const controller=new AbortController();setState({path,revision,data:null,error:null,loading:true});
@@ -45,6 +48,7 @@ export function useOwnerDirty(dirty: boolean, onDirty: (dirty:boolean)=>void = n
 export function mayDiscard(dirty: boolean) {return !dirty || window.confirm('Tienes cambios sin guardar. ¿Quieres descartarlos?');}
 export function OwnerLoading({label='Cargando información…'}:{label?:string}) {return <Stack role="status" aria-label={label} gap="sm"><Text>{label}</Text><Skeleton height={42}/><Skeleton height={42}/><Skeleton height={42}/></Stack>;}
 function errorMessage(error:OwnerFailure) {
+  if(ownSessionOnly(error))return OWN_SESSION_MESSAGE;
   if(error.code==='REAUTH_VERIFICATION_FAILED')return 'No pudimos verificar tu identidad. Revisa la contraseña y el código de verificación.';
   if(error.message.startsWith('Email already used'))return 'Ese correo ya tiene una cuenta. Usa otro correo para crear el acceso.';
   if(error.message.startsWith('Password'))return 'Elige una contraseña de 8 a 128 caracteres que no sea común ni incluya el nombre, correo o teléfono de la cuenta.';
@@ -55,7 +59,7 @@ function errorMessage(error:OwnerFailure) {
   if(error.status===400||error.status===409)return error.message;
   return 'Revisa tu conexión y vuelve a intentarlo. Tus cambios siguen en el formulario.';
 }
-export function OwnerError({error,retry}:{error:OwnerFailure;retry?:()=>void}) {return <Alert color="red" title="No pudimos completar la operación" role="alert"><Stack gap="sm"><Text size="sm">{errorMessage(error)}</Text>{retry&&<Button variant="default" onClick={retry} w="fit-content">Reintentar</Button>}</Stack></Alert>;}
+export function OwnerError({error,retry}:{error:OwnerFailure;retry?:()=>void}) {const ownSession=ownSessionOnly(error);return <Alert color={ownSession?'yellow':'red'} title={ownSession?'Acción reservada a la sesión propia':'No pudimos completar la operación'} role="alert"><Stack gap="sm"><Text size="sm">{errorMessage(error)}</Text>{retry&&!ownSession&&<Button variant="default" onClick={retry} w="fit-content">Reintentar</Button>}</Stack></Alert>;}
 export function OwnerRestricted({title,owner=true}:{title:string;owner?:boolean}) {return <Stack><Title order={1}>{title}</Title><Text>{owner?'Esta función no está incluida en el plan actual de tu negocio.':'Esta sección está disponible para el dueño del negocio.'}</Text></Stack>;}
 export function VerifyIdentity({send,onVerified}:{send:OwnerRequest;onVerified:()=>void}) {
   const [password,setPassword]=useState(''),[code,setCode]=useState('');const mutation=useOwnerMutation();

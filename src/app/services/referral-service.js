@@ -1,6 +1,10 @@
 import { ReferralRepository } from "../repositories/referral-repository.js";
 import { dbQuery, withTransaction } from "../database.js";
 import { notFound, badRequest, forbidden } from "../../utils/http-error.js";
+import { hasPlanFeature } from "../../utils/plan.js";
+import { PlanConfigService } from "./plan-config-service.js";
+import { lockCustomerGamification } from "./gamification/customer-lock.js";
+import { getSettledPurchaseSummary, referralPurchaseRequirementMet } from "./gamification/settled-purchase.js";
 
 const DEFAULT_SETTINGS = {
   enabled: false,
@@ -56,15 +60,26 @@ function assertReferralCodeUsable(code, newCustomerId, businessId) {
   }
 }
 
-async function getPurchaseTotal(customerId) {
-  const { rows } = await dbQuery(
-    `SELECT COALESCE(SUM(amount_q), 0) AS total_spend
-     FROM transactions
-     WHERE customer_id = $1 AND amount_q IS NOT NULL`,
-    [customerId]
-  );
+function loadPlanFeatureOverrides(deps) {
+  const load = deps?.getPlanFeatureOverrides ?? (() => PlanConfigService.getPlanFeatureOverrides());
+  return Promise.resolve(load()).catch(() => ({}));
+}
 
-  return Number.parseFloat(rows[0]?.total_spend ?? 0);
+// The owner's switch and the plan both gate the program at the moment points
+// would move, not only when the customer opens the wallet.
+async function referralProgramActive(client, businessId, overrides) {
+  const { rows: settingsRows } = await client.query(
+    `SELECT * FROM referral_settings WHERE business_id = $1`,
+    [businessId]
+  );
+  const settings = settingsRows[0] ?? null;
+  if (!settings?.enabled) return { active: false, settings };
+  const { rows: businessRows } = await client.query(
+    `SELECT plan FROM businesses WHERE id = $1`,
+    [businessId]
+  );
+  const business = businessRows[0];
+  return { active: Boolean(business && hasPlanFeature(business.plan, "referrals", overrides)), settings };
 }
 
 async function getSettingsWithDefaults(businessId) {
@@ -76,7 +91,7 @@ async function getSettingsWithDefaults(businessId) {
   return ReferralRepository.updateSettings(businessId, DEFAULT_SETTINGS);
 }
 
-async function logReferralReward(client, referral, customerId, points, type) {
+async function logReferralReward(client, referral, customerId, points, type, qualification) {
   await client.query(
     `INSERT INTO transactions
      (business_id, customer_id, type, points, meta)
@@ -85,13 +100,30 @@ async function logReferralReward(client, referral, customerId, points, type) {
       referral.business_id,
       customerId,
       points,
-      JSON.stringify({ referral_id: referral.id, type })
+      // Refund reconciliation reads how this reward qualified.
+      JSON.stringify({ referral_id: referral.id, type, ...qualification })
     ]
   );
 }
 
-export async function completeAndRewardReferralWithDeps(deps, referralId) {
+/**
+ * @param {{ withTransaction: Function, getPlanFeatureOverrides?: Function }} deps
+ * @param {string} referralId
+ * @param {{ trigger?: "purchase" | "signup" }} [options]
+ */
+export async function completeAndRewardReferralWithDeps(deps, referralId, { trigger = "purchase" } = {}) {
+  const overrides = await loadPlanFeatureOverrides(deps);
   return deps.withTransaction(async (client) => {
+    const { rows: targetRows } = await client.query(
+      `SELECT referred_customer_id FROM referrals WHERE id = $1`,
+      [referralId]
+    );
+    if (!targetRows[0]) {
+      throw notFound("Referral not found");
+    }
+    // Refunds lock the referred customer's balance before this referral.
+    await lockCustomerGamification(client.query.bind(client), targetRows[0].referred_customer_id);
+
     const { rows: referralRows } = await client.query(
       `SELECT * FROM referrals WHERE id = $1 FOR UPDATE`,
       [referralId]
@@ -106,15 +138,20 @@ export async function completeAndRewardReferralWithDeps(deps, referralId) {
       return referral;
     }
 
-    const { rows: settingsRows } = await client.query(
-      `SELECT * FROM referral_settings WHERE business_id = $1`,
-      [referral.business_id]
-    );
-    const settings = settingsRows[0];
-
-    if (!settings) {
-      throw new Error("Referral settings not found");
+    const { active, settings } = await referralProgramActive(client, referral.business_id, overrides);
+    // A disabled program pays nothing; the referral stays pending.
+    if (!active) {
+      return referral;
     }
+
+    const minPurchase = trigger === "purchase" ? (settings.min_purchase_to_complete ?? null) : null;
+    if (trigger === "purchase") {
+      const purchases = await getSettledPurchaseSummary(client.query.bind(client), referral.referred_customer_id);
+      if (!referralPurchaseRequirementMet(purchases, minPurchase)) {
+        return referral;
+      }
+    }
+    const qualification = { trigger, min_purchase_to_complete: minPurchase };
 
     const { rows: completedRows } = await client.query(
       `UPDATE referrals
@@ -159,14 +196,16 @@ export async function completeAndRewardReferralWithDeps(deps, referralId) {
       referral,
       referral.referrer_customer_id,
       settings.referrer_reward_points,
-      "referrer"
+      "referrer",
+      qualification
     );
     await logReferralReward(
       client,
       referral,
       referral.referred_customer_id,
       settings.referred_reward_points,
-      "referred"
+      "referred",
+      qualification
     );
 
     await client.query(
@@ -186,8 +225,8 @@ export async function completeAndRewardReferralWithDeps(deps, referralId) {
   });
 }
 
-async function completeAndRewardReferral(referralId) {
-  return completeAndRewardReferralWithDeps({ withTransaction }, referralId);
+async function completeAndRewardReferral(referralId, options = {}) {
+  return completeAndRewardReferralWithDeps({ withTransaction }, referralId, options);
 }
 
 async function getCustomerReferralCode(customerId) {
@@ -197,7 +236,13 @@ async function getCustomerReferralCode(customerId) {
 }
 
 export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerId, businessId) {
+  const overrides = await loadPlanFeatureOverrides(deps);
   const { referral, settings } = await deps.withTransaction(async (client) => {
+    const program = await referralProgramActive(client, businessId, overrides);
+    if (!program.active) {
+      throw forbidden("Referral program is not enabled");
+    }
+
     const { rows: codeRows } = await client.query(
       `SELECT *
        FROM referral_codes
@@ -249,19 +294,14 @@ export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerI
       throw error;
     }
 
-    const { rows: settingsRows } = await client.query(
-      `SELECT * FROM referral_settings WHERE business_id = $1`,
-      [businessId]
-    );
-
     return {
       referral: createdReferral,
-      settings: settingsRows[0] ?? null
+      settings: program.settings
     };
   });
 
   if (settings?.reward_on_signup) {
-    await completeAndRewardReferral(referral.id);
+    await completeAndRewardReferralWithDeps(deps, referral.id, { trigger: "signup" });
   }
 
   return referral;
@@ -278,16 +318,14 @@ async function checkAndCompleteReferral(customerId) {
   }
 
   const settings = await ReferralRepository.getSettings(referral.business_id);
-  if (!settings?.min_purchase_to_complete) {
-    return completeAndRewardReferral(referral.id);
+  if (!settings?.enabled) {
+    return null;
   }
 
-  const totalSpend = await getPurchaseTotal(customerId);
-  if (totalSpend >= Number.parseFloat(settings.min_purchase_to_complete)) {
-    return completeAndRewardReferral(referral.id);
-  }
-
-  return null;
+  // The program, plan and settled-purchase requirement are rechecked while
+  // the reward transaction holds the customer and referral locks.
+  const result = await completeAndRewardReferral(referral.id, { trigger: "purchase" });
+  return result?.status === "pending" ? null : result;
 }
 
 async function getCustomerReferralStats(customerId) {

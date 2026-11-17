@@ -31,7 +31,7 @@ nav:
   - Canjear una recompensa: caja/canjear.md
   - Comprobar el recibo después del canje: caja/recibo.md
   - Qué puedes hacer sin internet: caja/sin-conexion.md
-  - Enviar pendientes y revisar fallidos: caja/sincronizar.md
+  - Enviar pendientes y revisar ventas rechazadas: caja/sincronizar.md
   - Reportar una recompensa no entregada: caja/incidencia.md
   - Entregar una recompensa protegida: caja/beneficios-protegidos.md
   - Emitir y entregar una cortesía aprobada: caja/cortesias.md

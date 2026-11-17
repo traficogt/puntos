@@ -1,7 +1,7 @@
 ---
 title: Lista imprimible para el turno
 description: Lista imprimible para el turno
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: checklist
 sources:
 - public/staff.html
@@ -27,7 +27,7 @@ Imprime esta hoja y úsala con el procedimiento de tu negocio. Las comprobacione
 
 ## Antes de salir
 
-<ul class="checklist"><li>Sincronicé y revisé pendientes y fallidos.</li><li>Entregué las referencias de casos, canjes y recibos por resolver.</li><li>Informé qué quedó sin confirmar y quién lo revisará.</li><li>Detuve la cámara y cerré mi sesión.</li></ul>
+<ul class="checklist"><li>Sincronicé y revisé pendientes, rechazadas y ventas que requieren decisión.</li><li>Entregué las referencias de casos, canjes y recibos por resolver.</li><li>Informé qué quedó sin confirmar y quién lo revisará.</li><li>Detuve la cámara y cerré mi sesión.</li></ul>
 
 **Pendiente y referencia:** __________________________________________________
 
@@ -39,4 +39,4 @@ No anotes contraseñas, códigos temporales, tokens QR ni datos personales innec
 
 ## Referencia
 
-PuntosFieles. (2026). *Escáner y preparación del turno* [Software]. [Pantalla de caja](/equipo/escaner/). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *Escáner y preparación del turno* [Software]. [Pantalla de caja](/equipo/escaner/). Revisión del 17 de noviembre de 2026.

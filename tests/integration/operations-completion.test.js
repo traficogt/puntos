@@ -33,12 +33,14 @@ run('configuration preserves unrelated settings and blocks inactivity before fir
 });
 run('integration heartbeat is idempotent, monotonic and tenant-bound',async()=>{
  const input={request_id:randomUUID(),monitor_id:monitor,coverage_through:now.toISOString(),status:'complete',pending:0,errors:0};
+ const settingsVersion=(await getDataHealth({businessId:bid},deps())).version;
  assert.equal((await recordDataHeartbeat({id:bid},input,deps())).replayed,false);
  assert.equal((await recordDataHeartbeat({id:bid},input,deps())).replayed,true);
  await assert.rejects(recordDataHeartbeat({id:bid},{...input,errors:1},deps()),{statusCode:409});
  await assert.rejects(recordDataHeartbeat({id:other},{...input,request_id:randomUUID()},deps()),{statusCode:404});
  await assert.rejects(recordDataHeartbeat({id:bid},{...input,request_id:randomUUID(),coverage_through:'2026-11-13T17:00:00Z'},deps()),{statusCode:409});
  const current=await getDataHealth({businessId:bid},deps());assert.equal(current.readiness.state,'ready');assert.equal(current.events.length,1);
+ assert.equal(current.version,settingsVersion,'heartbeats do not invalidate an owner settings form');
 });
 run('configuration rejects foreign branches and concurrent stale revisions',async()=>{
  const branch=randomUUID();await pool.query("INSERT INTO branches(id,business_id,name,code) VALUES($1,$2,'Other branch','TEST')",[branch,other]);

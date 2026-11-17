@@ -26,10 +26,12 @@ CREATE TABLE IF NOT EXISTS branches (
   business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   address TEXT,
-  code TEXT UNIQUE NOT NULL,
+  code TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_branches_business ON branches(business_id);
+-- Codes are unique within a business (see 2026-11-17-admin-branch-codes.sql).
+CREATE UNIQUE INDEX IF NOT EXISTS branches_business_code_key ON branches(business_id, code);
 
 CREATE TABLE IF NOT EXISTS staff_users (
   id UUID PRIMARY KEY,
@@ -248,20 +250,24 @@ CREATE TABLE IF NOT EXISTS webhook_deliveries (
   attempts INT NOT NULL DEFAULT 0,
   last_error TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  sent_at TIMESTAMPTZ
+  sent_at TIMESTAMPTZ,
+  claimed_at TIMESTAMPTZ,
+  claim_token UUID
 );
 CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON webhook_deliveries(status);
 
 CREATE TABLE IF NOT EXISTS audit_logs (
   id UUID PRIMARY KEY,
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  -- NULL only for platform-wide super-admin actions (2026-11-17-admin-platform-audit.sql).
+  business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
   actor_type TEXT NOT NULL,
   actor_id UUID,
   action TEXT NOT NULL,
   ip TEXT,
   ua TEXT,
   meta JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT audit_logs_platform_scope_check CHECK (business_id IS NOT NULL OR actor_type = 'SUPER_ADMIN')
 );
 CREATE INDEX IF NOT EXISTS idx_audit_business ON audit_logs(business_id);
 
@@ -329,9 +335,11 @@ CREATE TABLE IF NOT EXISTS payment_webhook_events (
   error TEXT,
   linked_transaction_id UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (provider, provider_event_id)
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Event IDs are unique per destination (business, or addressed slug when unmapped).
+CREATE UNIQUE INDEX IF NOT EXISTS payment_webhook_events_destination_event_key
+  ON payment_webhook_events (provider, business_id, business_slug, provider_event_id) NULLS NOT DISTINCT;
 CREATE INDEX IF NOT EXISTS idx_payment_events_business_status ON payment_webhook_events(business_id, status, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS gift_cards (
@@ -427,6 +435,7 @@ ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS mfa_secret_enc TEXT;
 ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS mfa_pending_secret_enc TEXT;
 ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS mfa_pending_created_at TIMESTAMPTZ;
 ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS mfa_confirmed_at TIMESTAMPTZ;
+ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS mfa_last_totp_step BIGINT;
 
 CREATE TABLE IF NOT EXISTS super_admin_auth_settings (
   singleton BOOLEAN PRIMARY KEY DEFAULT true,
@@ -440,6 +449,7 @@ CREATE TABLE IF NOT EXISTS super_admin_auth_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CHECK (singleton = true)
 );
+ALTER TABLE super_admin_auth_settings ADD COLUMN IF NOT EXISTS mfa_last_totp_step BIGINT;
 
 -- Trigger to update businesses.updated_at
 CREATE OR REPLACE FUNCTION set_updated_at()

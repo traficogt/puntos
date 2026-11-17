@@ -1,7 +1,7 @@
 ---
 title: Ayuda para usar tu tarjeta
 description: Ayuda para usar tu tarjeta
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: index
 sources:
 - public/customer.html

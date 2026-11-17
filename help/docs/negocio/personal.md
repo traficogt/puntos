@@ -1,7 +1,7 @@
 ---
 title: Crear una cuenta para el equipo
 description: Da a cada persona un acceso propio con el rol y la sucursal que necesita.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - web/merchant/src/OwnerTeam.tsx
@@ -35,7 +35,7 @@ La cuenta aparece en el equipo. Crear la cuenta no significa que PF haya enviado
 
 ## Si algo no funciona
 
-**No aparece la sucursal:** usa **Reintentar carga de sucursales**. **Correo ya utilizado o dato inválido:** corrige lo que indica el formulario. **Se requiere verificar identidad:** completa la comprobación con tu propia cuenta; no compartas credenciales del dueño con el personal.
+**No aparece la sucursal:** usa **Reintentar carga de sucursales**. **Correo ya utilizado o dato inválido:** corrige lo que indica el formulario. **Se requiere verificar identidad:** completa la comprobación con tu propia cuenta; no compartas credenciales del dueño con el personal. **Acción reservada a la sesión propia:** una sesión de soporte de PF no puede ver ni cambiar el personal; el dueño debe hacerlo desde su propia sesión.
 
 ## Continúa con otra tarea
 
@@ -45,4 +45,4 @@ La cuenta aparece en el equipo. Crear la cuenta no significa que PF haya enviado
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#personal). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#personal). Revisión del 17 de noviembre de 2026.

@@ -2,7 +2,7 @@
 title: Consultar puntos disponibles y pendientes
 description: Revisa tu saldo disponible, el origen de los movimientos y lo que
   falta para la siguiente recompensa.
-reviewed: '2026-11-16'
+reviewed: '2026-11-17'
 kind: task
 sources:
 - public/customer.html
@@ -11,6 +11,8 @@ sources:
 - public/customer/render.js
 - public/customer/rewards.js
 - src/app/services/customer-history-provenance.js
+- src/app/services/tier-service.js
+- src/app/services/loyalty-ops-service.js
 ---
 
 # Consultar puntos disponibles y pendientes
@@ -43,9 +45,15 @@ Cambiar el texto al llegar a la mitad es una regla de presentación de PF. No si
 
 Cuando el registro permite conocerlo, el historial distingue compras, bonos de recomendaciones o logros, otros bonos, canjes, vencimientos, correcciones, reversiones y saldos iniciales importados. Si una compra incluye un bono documentado, puede indicar **Incluye bonificación** sin separar cuántos puntos corresponden a cada parte. Un registro antiguo sin evidencia suficiente aparece como **Origen no documentado**; PF no lo convierte en una compra ni en un regalo supuesto.
 
-Lee también el estado: un movimiento pendiente, vencido o revertido no significa que esos puntos estén disponibles. **Puntos sumados**, en el resumen de treinta días, incluye compras, bonificaciones y otros abonos confirmados. No es un conteo de compras, no indica que todos esos puntos sigan disponibles ni tiene una equivalencia en dinero.
+Lee también el estado: un movimiento pendiente, vencido o revertido no significa que esos puntos estén disponibles. Una compra antigua puede aparecer como vencida aunque ya hubieras usado esos puntos en un canje; lo que realmente se descontó aparece como **Vencimiento de puntos**. **Puntos sumados**, en el resumen de treinta días, incluye compras, bonificaciones y otros abonos confirmados. No es un conteo de compras, no indica que todos esos puntos sigan disponibles ni tiene una equivalencia en dinero.
 
 Las correcciones del saldo también pueden aparecer agrupadas en **Ajustes y restituciones** del resumen, sin una fila propia en el historial de transacciones. Si necesitas explicar una diferencia, pide al negocio que revise el movimiento.
+
+## Entender tu nivel y el vencimiento
+
+Los puntos pendientes se suman a **ganados en total** cuando se liberan según la regla del negocio. Si el negocio usa niveles, **Tu nivel** depende de los puntos que has ganado, no de tu saldo disponible: canjear no reduce tu avance hacia el siguiente nivel. Según las reglas del negocio, el nivel puede contar los puntos ganados desde que te uniste o solo los ganados en un período reciente. La etiqueta **Por puntos ganados** junto a tu nivel indica esa base; el nivel no multiplica los puntos de tus compras.
+
+Si el negocio vence puntos, solo vencen los puntos antiguos que todavía no usaste. Los canjes consumen primero los puntos más antiguos, así que los puntos ganados recientemente no se pierden por el vencimiento de una compra anterior.
 
 ## Qué debe pasar
 
@@ -53,7 +61,7 @@ La tarjeta muestra el saldo y progreso que PF conoce. Una copia sin conexión pu
 
 ## Si algo no funciona
 
-**Faltan puntos:** puede faltar sincronizar la compra o liberar los puntos según la regla del negocio. **Ganados en total difiere del saldo:** los canjes y otros movimientos afectan el disponible; no son la misma medida. **No coincide con tu comprobante:** pide al negocio revisar el movimiento antes de repetir el registro.
+**Faltan puntos:** puede faltar sincronizar la compra o liberar los puntos según la regla del negocio. **Ganados en total difiere del saldo:** los canjes, vencimientos y otros movimientos afectan el disponible; no son la misma medida. **No coincide con tu comprobante:** pide al negocio revisar el movimiento antes de repetir el registro.
 
 ## Continúa con otra tarea
 
@@ -62,4 +70,4 @@ La tarjeta muestra el saldo y progreso que PF conoce. Una copia sin conexión pu
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/mi-tarjeta/). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/mi-tarjeta/). Revisión del 17 de noviembre de 2026.
