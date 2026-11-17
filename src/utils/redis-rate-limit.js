@@ -1,3 +1,5 @@
+import { defineScript } from "redis";
+
 // One server-side step increments the counter and guarantees an expiry. A
 // separate INCR and PEXPIRE could leave a permanent counter if the client
 // failed between them; a key found without a TTL (-1) is also repaired here.
@@ -22,9 +24,41 @@ end
 return 0
 `;
 
-/** Shared Redis counter with a fixed expiry, used by all rate-limit dimensions. */
+/**
+ * Lua scripts for the rate-limit client: pass as `scripts` to `createClient`.
+ * The client runs them by SHA (EVALSHA) and sends the source again only when
+ * Redis does not have it, for example after a restart.
+ */
+export const rateLimitScripts = {
+  rateLimitHit: defineScript({
+    SCRIPT: HIT_SCRIPT,
+    NUMBER_OF_KEYS: 1,
+    /** @param {import("redis").CommandParser} parser @param {string} key @param {number} windowMs */
+    parseCommand(parser, key, windowMs) {
+      parser.pushKey(key);
+      parser.push(String(windowMs));
+    },
+    /** @param {unknown} reply */
+    transformReply: (reply) => reply
+  }),
+  rateLimitRelease: defineScript({
+    SCRIPT: RELEASE_SCRIPT,
+    NUMBER_OF_KEYS: 1,
+    /** @param {import("redis").CommandParser} parser @param {string} key */
+    parseCommand(parser, key) {
+      parser.pushKey(key);
+    },
+    /** @param {unknown} reply */
+    transformReply: (reply) => reply
+  })
+};
+
+/**
+ * Shared Redis counter with a fixed expiry, used by all rate-limit dimensions.
+ * @param {{ rateLimitHit: (key: string, windowMs: number) => Promise<unknown> }} client created with `rateLimitScripts`
+ */
 export async function checkRedisRateLimit(client, key, maxRequests, windowMs) {
-  const reply = await client.eval(HIT_SCRIPT, { keys: [key], arguments: [String(Math.max(1, Math.floor(windowMs)))] });
+  const reply = await client.rateLimitHit(key, Math.max(1, Math.floor(windowMs)));
   const [rawCount, rawTtl] = Array.isArray(reply) ? reply : [];
   const count = Number(rawCount);
   if (!Number.isFinite(count)) throw new Error("Unexpected Redis rate-limit reply");
@@ -36,7 +70,10 @@ export async function checkRedisRateLimit(client, key, maxRequests, windowMs) {
   };
 }
 
-/** Returns one allowance to an existing window (for example after a successful login). */
+/**
+ * Returns one allowance to an existing window (for example after a successful login).
+ * @param {{ rateLimitRelease: (key: string) => Promise<unknown> }} client created with `rateLimitScripts`
+ */
 export async function releaseRedisRateLimit(client, key) {
-  await client.eval(RELEASE_SCRIPT, { keys: [key], arguments: [] });
+  await client.rateLimitRelease(key);
 }

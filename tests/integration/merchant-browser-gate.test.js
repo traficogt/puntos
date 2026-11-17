@@ -29,6 +29,6 @@ for (const [name, file, completion] of runners) {
     assert.equal(result.truncated,false,detail);
     assert.equal(result.cancelled,false,detail);
     if (completion) assert.match(result.stdout.toString(),completion,detail);
-    else assert.equal(hasBrowserCompletion(result.stdout.toString(),'owner-workspace-browser',30),true,detail);
+    else assert.equal(hasBrowserCompletion(result.stdout.toString(),'owner-workspace-browser',34),true,detail);
   });
 }

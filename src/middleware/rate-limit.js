@@ -3,7 +3,7 @@ import { config } from "../config/index.js";
 import { tooManyRequests } from "../utils/http-error.js";
 import { logger } from "../utils/logger.js";
 import { getRequestIp } from "../utils/request-ip.js";
-import { checkRedisRateLimit, releaseRedisRateLimit } from "../utils/redis-rate-limit.js";
+import { checkRedisRateLimit, rateLimitScripts, releaseRedisRateLimit } from "../utils/redis-rate-limit.js";
 
 const userLimitStore = new Map();
 const phoneLimitStore = new Map();
@@ -14,7 +14,7 @@ let redisClient = null;
 let redisReady = false;
 
 if (config.RATE_LIMIT_DRIVER === "redis" && String(config.REDIS_URL || "").trim()) {
-  redisClient = createClient({ url: config.REDIS_URL, RESP: 2 });
+  redisClient = createClient({ url: config.REDIS_URL, RESP: 2, scripts: rateLimitScripts });
   redisClient.on("error", (err) => {
     redisReady = false;
     logger.warn({ err: err?.message }, "Redis rate-limit client error; using memory store");

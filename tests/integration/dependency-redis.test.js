@@ -9,9 +9,9 @@ const url = process.env.DEPENDENCY_TEST_REDIS_URL;
 test('Redis limits share counters, expire and survive reconnects; queued job payloads retain FIFO order', { skip: !url, timeout: 10000 }, async t => {
   const parsed = new URL(url);
   assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname), 'Use a disposable loopback Redis fixture');
-  const { checkRedisRateLimit, releaseRedisRateLimit } = await import('../../src/utils/redis-rate-limit.js');
-  const first = createClient({ url, RESP: 2 });
-  const second = createClient({ url, RESP: 2 });
+  const { checkRedisRateLimit, rateLimitScripts, releaseRedisRateLimit } = await import('../../src/utils/redis-rate-limit.js');
+  const first = createClient({ url, RESP: 2, scripts: rateLimitScripts });
+  const second = createClient({ url, RESP: 2, scripts: rateLimitScripts });
   first.on('error', () => {});
   second.on('error', () => {});
   await first.connect();

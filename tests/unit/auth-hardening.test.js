@@ -8,7 +8,7 @@ import { EventEmitter } from "node:events";
 import { readFile } from "node:fs/promises";
 
 const rateLimit = await import("../../src/middleware/rate-limit.js");
-const { checkRedisRateLimit, releaseRedisRateLimit } = await import("../../src/utils/redis-rate-limit.js");
+const { checkRedisRateLimit, rateLimitScripts, releaseRedisRateLimit } = await import("../../src/utils/redis-rate-limit.js");
 const { matchTotpStep, totp, verifyTotp, generateBase32Secret } = await import("../../src/utils/totp.js");
 const { signStaffToken, signSuperToken } = await import("../../src/utils/auth-token.js");
 const { getBrowserSession } = await import("../../src/app/services/auth-session-service.js");
@@ -112,26 +112,39 @@ describe("authentication rate limits", () => {
 });
 
 describe("Redis rate-limit counter", () => {
+  /** Redis arguments a registered script sends after EVALSHA <sha> <numkeys>. */
+  function scriptArgs(script, ...args) {
+    const parsed = [];
+    script.parseCommand({ pushKey: (key) => parsed.push(key), push: (...values) => parsed.push(...values) }, ...args);
+    return parsed;
+  }
+
   it("increments and sets the expiry in one atomic server-side step", async () => {
     const calls = [];
     const client = {
-      eval: async (script, options) => { calls.push({ script, options }); return [3, 1500]; }
+      rateLimitHit: async (...args) => { calls.push(args); return [3, 1500]; }
     };
     const result = await checkRedisRateLimit(client, "ip:test", 2, 60000);
     assert.deepEqual(result, { allowed: false, remaining: 0, resetIn: 2 });
     assert.equal(calls.length, 1, "no separate INCR/PEXPIRE round trips");
-    assert.deepEqual(calls[0].options, { keys: ["ip:test"], arguments: ["60000"] });
-    assert.match(calls[0].script, /INCR/);
-    assert.match(calls[0].script, /if ttl < 0 then/, "a key without expiry (-1) is repaired");
-    assert.match(calls[0].script, /PEXPIRE/);
+    assert.deepEqual(calls[0], ["ip:test", 60000]);
+    const hit = rateLimitScripts.rateLimitHit;
+    assert.equal(hit.NUMBER_OF_KEYS, 1);
+    assert.deepEqual(scriptArgs(hit, ...calls[0]), ["ip:test", "60000"]);
+    assert.match(hit.SCRIPT, /INCR/);
+    assert.match(hit.SCRIPT, /if ttl < 0 then/, "a key without expiry (-1) is repaired");
+    assert.match(hit.SCRIPT, /PEXPIRE/);
+    assert.match(hit.SHA1, /^[0-9a-f]{40}$/, "run by SHA, not resent on every request");
   });
 
   it("returns an allowance only to an existing window", async () => {
     const calls = [];
-    await releaseRedisRateLimit({ eval: async (script, options) => { calls.push({ script, options }); return 0; } }, "acct:x");
-    assert.equal(calls.length, 1);
-    assert.match(calls[0].script, /EXISTS/);
-    assert.deepEqual(calls[0].options.keys, ["acct:x"]);
+    await releaseRedisRateLimit({ rateLimitRelease: async (...args) => { calls.push(args); return 0; } }, "acct:x");
+    assert.deepEqual(calls, [["acct:x"]]);
+    const release = rateLimitScripts.rateLimitRelease;
+    assert.equal(release.NUMBER_OF_KEYS, 1);
+    assert.deepEqual(scriptArgs(release, "acct:x"), ["acct:x"]);
+    assert.match(release.SCRIPT, /EXISTS/);
   });
 });
 
