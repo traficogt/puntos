@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-17T01:34:23.532Z",
+  "generated_at": "2026-11-17T04:24:56.175Z",
   "files": {
     "001_add_transactions_type.sql": "34e119c91fa5c744920b65a77dedeb89276bfd86a1b45e9a7edd59d73e8ffefc",
     "002_reward_branch_scope.sql": "5a076cc3a0b4df04031c5dc6d8ec26f75ebf44e648ca14a234dd8dfea08af401",
@@ -91,6 +91,7 @@
     "2026-11-17-auth-totp-replay.sql": "5ee3342ade08c0f82864f89679fa014a2eb4cc7d2e208965ed6091108192e326",
     "2026-11-17-integrations-payment-event-scope.sql": "de7d026cdf83e9efb3439fae09c60f2f66f2fed8871a4aa6a60f31b02327d729",
     "2026-11-17-integrations-webhook-delivery-lease.sql": "733797e5722bb8599072a26f98ccfa163590045630ece28d981b09085d0f929e",
+    "2026-11-17-ledger-default-tier-text.sql": "edff1442a75b9abd65cdbd7268648d008c713761391263c7c15b60a85cc9b96d",
     "2026-11-17-ledger-tier-earned-points.sql": "4f1b6925aff0670edc115483318661181e97f325cb9120d59e41289a68b4a91a"
   }
 }

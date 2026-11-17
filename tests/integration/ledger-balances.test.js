@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import fs from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import { after, before, describe, it } from 'node:test';
 import pg from 'pg';
@@ -7,7 +8,7 @@ import pg from 'pg';
 // Every fixture is fictional and lives in a disposable, isolated database.
 const url = process.env.LEDGER_BALANCES_TEST_DB_URL;
 const suite = url ? describe : describe.skip;
-let db, app, ops, recon, corrections, awards, staffService, tiers, giftCards, customerRoutes, repos;
+let db, app, ops, recon, corrections, awards, staffService, tiers, defaultTiers, giftCards, customerRoutes, repos;
 
 const tenant = (businessId, fn) => app.withDbClientContext({ tenantId: businessId, platformAdmin: false }, fn);
 const one = async (sql, values = []) => (await db.query(sql, values)).rows[0];
@@ -103,7 +104,7 @@ suite('ledger balances, expiry and tiers against isolated PostgreSQL', { concurr
     assert.equal(process.env.NODE_ENV, 'test');
     assert.equal(process.env.DB_NAME, 'ledger_balances_test');
     db = new pg.Pool({ connectionString: url, max: 6 });
-    [app, ops, recon, corrections, awards, staffService, { TierService: tiers }, giftCards, { analyticsCustomerRoutes: customerRoutes }, repos] = await Promise.all([
+    [app, ops, recon, corrections, awards, staffService, { TierService: tiers, DEFAULT_TIERS: defaultTiers }, giftCards, { analyticsCustomerRoutes: customerRoutes }, repos] = await Promise.all([
       import('../../src/app/database.js'), import('../../src/app/services/loyalty-ops-service.js'),
       import('../../src/app/services/ledger-reconciliation-service.js'), import('../../src/app/services/ledger-correction-service.js'),
       import('../../src/app/services/external-award-service.js'), import('../../src/app/services/staff-service.js'),
@@ -280,6 +281,60 @@ suite('ledger balances, expiry and tiers against isolated PostgreSQL', { concurr
     info = await tenant(b.id, () => tiers.getCustomerTierInfo(c));
     assert.equal(info.name, 'Plata');
     assert.equal(info.available_points, 0);
+  });
+
+  it('rewrites only untouched English default tiers, keeping their ids and assignments', async () => {
+    // The English defaults as businesses created before the Spanish ones stored them.
+    const english = [
+      { name: 'Bronze', tier_level: 1, min_points: 0, points_multiplier: 1, perks: ['Earn points on purchases', 'Redeem rewards'], color: '#CD7F32' },
+      { name: 'Silver', tier_level: 2, min_points: 500, points_multiplier: 1.25, perks: ['25% bonus points', 'Early access to new rewards', 'Birthday bonus'], color: '#C0C0C0' },
+      { name: 'Gold', tier_level: 3, min_points: 2000, points_multiplier: 1.5, perks: ['50% bonus points', 'Exclusive rewards', 'Priority support', 'Free delivery'], color: '#FFD700' }
+    ];
+    const seeded = async (tierList) => {
+      const b = await business();
+      for (const t of tierList) {
+        await db.query(`INSERT INTO loyalty_tiers(business_id,name,tier_level,min_points,points_multiplier,perks,color)
+          VALUES($1,$2,$3,$4,$5,$6::jsonb,$7)`, [b.id, t.name, t.tier_level, t.min_points, t.points_multiplier, JSON.stringify(t.perks), t.color]);
+      }
+      return b;
+    };
+    const rows = async b => (await db.query(`SELECT id, name, tier_level, min_points, points_multiplier, perks, color,
+      min_spend, min_visits, icon_url, active, updated_at FROM loyalty_tiers WHERE business_id=$1 ORDER BY tier_level`, [b.id])).rows;
+    const edit = (level, change) => english.map(t => t.tier_level === level ? { ...t, ...change } : t);
+
+    const untouched = await seeded(english);
+    const c = await customer(untouched);
+    const before = await rows(untouched);
+    await db.query(`INSERT INTO customer_tiers(customer_id, tier_id) VALUES($1,$2)
+      ON CONFLICT (customer_id) DO UPDATE SET tier_id = EXCLUDED.tier_id`, [c, before[1].id]);
+    const kept = [
+      await seeded(edit(2, { min_points: 400 })),
+      await seeded(edit(3, { perks: ['Exclusive rewards', 'Priority support', 'Free delivery'] })),
+      await seeded([...english, { name: 'Platinum', tier_level: 4, min_points: 5000, points_multiplier: 2, perks: ['100% bonus points'], color: '#E5E4E2' }])
+    ];
+    const spanish = await business();
+    await tenant(spanish.id, () => tiers.createDefaultTiers(spanish.id));
+    kept.push(spanish);
+    const keptBefore = await Promise.all(kept.map(rows));
+
+    // Fixed repository migration path; no request input is used.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    const migration = await fs.readFile(new URL('../../src/app/migrations/2026-11-17-ledger-default-tier-text.sql', import.meta.url), 'utf8');
+    await db.query(migration);
+    await db.query(migration);
+
+    const after = await rows(untouched);
+    assert.deepEqual(after.map(t => t.name), defaultTiers.map(t => t.name));
+    assert.deepEqual(after.map(t => t.perks), defaultTiers.map(t => t.perks));
+    assert.ok(!JSON.stringify(after).includes('bonus points'));
+    // Only the text changes: same rows, thresholds, multipliers and colors.
+    const settings = t => ({ id: t.id, tier_level: t.tier_level, min_points: t.min_points, points_multiplier: t.points_multiplier, color: t.color, active: t.active });
+    assert.deepEqual(after.map(settings), before.map(settings));
+    const assigned = await one('SELECT lt.name FROM customer_tiers ct JOIN loyalty_tiers lt ON lt.id = ct.tier_id WHERE ct.customer_id = $1', [c]);
+    assert.equal(assigned.name, 'Plata');
+
+    // Any owner change, an extra tier, or tiers already in Spanish: left exactly as they were.
+    assert.deepEqual(await Promise.all(kept.map(rows)), keptBefore);
   });
 
   it('rolling-window tiers use earned points inside the window for upgrades and the sweep', async () => {

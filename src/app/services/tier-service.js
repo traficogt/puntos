@@ -2,7 +2,9 @@ import { TierRepository } from "../repositories/tier-repository.js";
 import { dbQuery, withTransaction } from "../database.js";
 import { notFound, badRequest, forbidden } from "../../utils/http-error.js";
 
-// Applies to newly created businesses only; existing tiers keep their names.
+// Created for new businesses. Migration 2026-11-17-ledger-default-tier-text
+// gave these names and perks to businesses whose tiers were still the original
+// English defaults; tiers an owner changed keep their own text.
 export const DEFAULT_TIERS = [
   {
     name: "Bronce",

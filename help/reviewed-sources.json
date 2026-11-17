@@ -1,8 +1,11 @@
 {
   "reviewed": "2026-11-17",
   "sources": {
+    "public/admin-dashboard.html": "6ad4f30ed29ef26691c8d2973652af945bdcb71901adfae11fe60141e801ac26",
     "public/admin-dashboard/fragments/pos-integration.html": "f7471c8626d7f7944ec3e998c3ec7e52abb1ab7ccf0ce1176695c67468cbcf65",
+    "public/admin-dashboard/fragments/tiers.html": "a5a662dc0d5e86fd94302cb2d8d6ac3df4a9f85fc037a89f06f912c7c3a447cc",
     "public/admin-dashboard/modules/pos-integration.js": "e41e43500df12b1306c00e16ddb3b2c1ac0b4298a0ed2fe1d8819579d8b0abf5",
+    "public/admin-dashboard/modules/tiers.js": "932cfb10d39d636048c04e35ba133d0d072bc90d92247821ba26f115d70ad439",
     "public/customer-auth-entry.js": "d271ac4a86d1514deb71edccd81c2e360d5f6e907128c2bfb4cf3a1e0db0b9e6",
     "public/customer.html": "4961f9fafe2c954b126932eeab3b592f8f72a33f18b86939a1cb8a3fa43ecbac",
     "public/customer/demand-notebook.js": "a67b266a87555ee4e8b2599784263a3b1fa5decc41802db48ae3a0e0b58ad788",
@@ -44,7 +47,7 @@
     "src/app/services/loyalty-ops-service.js": "87ee408a275cbe944150445d9fa12529d5ce3e74026ceccaee541ae7a9a705c0",
     "src/app/services/pos-refund-service.js": "3da0f5d1b7645a52bd104c4eac6e13cc31c256e6c407486d3eba258e28965667",
     "src/app/services/referral-service.js": "451563fa27681e2b97d687c94c27a51d86fcc55d02e5a98a6595a24fbcafa7b8",
-    "src/app/services/tier-service.js": "8ccadb2686a571737a7d74f0896f58c64635f8119942016a46eb8df5e73c2b2b",
+    "src/app/services/tier-service.js": "f205083875fd9ec398985e19ca87ccb15742e021bed587a9a81d7a93c2702697",
     "web/merchant/src/Acquisition.jsx": "9238ab230471696da941c6df85ecce4b03c9749232dec6d1abad4630f96a5027",
     "web/merchant/src/AudienceRules.jsx": "b9bdd93eb46122c6061158e0740f9d3c028b290a5d7a363c4a89a889813c8fa3",
     "web/merchant/src/Audiences.jsx": "30c0fa22a24f6d7824d8941e5d3d1aea4402e4fa689727fe223c02a817ec7885",
