@@ -423,6 +423,45 @@ test('Google enrichment adds concise progress and scoped object locations, then 
  object=state.objects.get(objectId);assert.equal(object.state,'INACTIVE');assert.deepEqual(object.textModulesData,[]);assert.deepEqual(object.merchantLocations,[]);assert.equal(object.loyaltyPoints.balance.int,0);
 });
 
+test('a pass message is delivered as a notifying TEXT_AND_NOTIFY update', async () => {
+  const { provider, state } = harness();
+  await provider.savePass(snapshot);
+  const message = { text: 'Café del Centro: gana 20 puntos extra hoy.', id: 'pfm_test123', start: '2026-11-18', end: '2026-11-21' };
+  await provider.updatePass({ ...snapshot, points: 130, wallet_message: message, revision: 8 });
+  const object = state.objects.get(objectId);
+  assert.equal(object.messages.length, 1);
+  assert.equal(object.messages[0].messageType, 'TEXT_AND_NOTIFY');
+  assert.equal(object.messages[0].id, message.id);
+  assert.equal(object.messages[0].body, message.text);
+  assert.deepEqual(object.messages[0].displayInterval, { start: { date: message.start }, end: { date: message.end } });
+});
+
+test("over Google's notification quota, the message degrades to a silent TEXT update without failing", async () => {
+  let notifyingAttempts = 0;
+  const { provider, state } = harness({ hook: request => {
+    if (request.init.method === 'PATCH' && request.url.includes('loyaltyObject/') && request.body?.messages?.[0]?.messageType === 'TEXT_AND_NOTIFY') {
+      notifyingAttempts += 1;
+      return jsonResponse(429, { reason: 'QuotaExceededException' });
+    }
+  } });
+  await provider.savePass(snapshot);
+  const message = { text: 'Oferta de puntos', id: 'pfm_quota', start: '2026-11-18', end: '2026-11-21' };
+  await provider.updatePass({ ...snapshot, points: 140, wallet_message: message, revision: 9 });
+  assert.equal(notifyingAttempts, 1, 'the notifying update is attempted exactly once before degrading');
+  const object = state.objects.get(objectId);
+  assert.equal(object.messages[0].messageType, 'TEXT', 'the message still lands, silently, without a push');
+  assert.equal(object.messages[0].body, message.text);
+  assert.equal(object.loyaltyPoints.balance.int, 140, 'the balance is still reconciled on the silent retry');
+});
+
+test('a non-quota object PATCH failure still surfaces instead of being swallowed', async () => {
+  const { provider } = harness({ hook: request => request.init.method === 'PATCH' && request.url.includes('loyaltyObject/')
+    ? jsonResponse(403, { reason: 'forbidden' }) : undefined });
+  await provider.savePass(snapshot);
+  const message = { text: 'Oferta', id: 'pfm_403', start: '2026-11-18', end: '2026-11-21' };
+  await assert.rejects(provider.updatePass({ ...snapshot, wallet_message: message, revision: 9 }), { code: 'GOOGLE_WALLET_HTTP_ERROR', status: 403 });
+});
+
 test('Google keeps a refund-negative signed available balance instead of failing every refresh',async()=>{
  const {provider,state}=harness();
  await provider.savePass({...snapshot,points:-20});

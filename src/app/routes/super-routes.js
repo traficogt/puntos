@@ -13,6 +13,7 @@ import { PlanConfigService } from "../services/plan-config-service.js";
 import { StaffRepo } from "../repositories/staff-repository.js";
 import { SecurityEventRepo } from "../repositories/security-event-repository.js";
 import { WebhookRepo } from "../repositories/webhook-repository.js";
+import { PlatformSettingsRepo } from "../repositories/platform-settings-repository.js";
 import { timingSafeEqualString } from "../../utils/timing-safe.js";
 import { getRequestIp } from "../../utils/request-ip.js";
 import { invalidateBrowserSessionById } from "../services/auth-session-service.js";
@@ -38,6 +39,7 @@ import {
   LoginSchema,
   logSuperAudit,
   requireSupportedPlan,
+  SetWalletBroadcastSchema,
   UpdatePlanFeaturesSchema,
   UpdatePlanSchema
 } from "./super-support.js";
@@ -337,6 +339,27 @@ superRoutes.put("/super/businesses/:businessId/plan", csrfProtect, requireSuperA
   });
 
   res.json({ ok: true, business: { id: business.id, name: business.name, plan: business.plan } });
+}));
+
+// Platform-owner-only: opt a business in/out of wallet broadcasts and set its channel
+// policy + per-business caps. Merchants have no channel/broadcast knob by design; the
+// shared Apple/Google wallet account is governed here so one tenant cannot endanger it.
+superRoutes.put("/super/businesses/:businessId/wallet-broadcast", csrfProtect, requireSuperAdmin, asyncRoute(async (req, res) => {
+  const parsed = SetWalletBroadcastSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Payload inválido" });
+  const businessId = String(req.params.businessId || "");
+  const business = await BusinessRepo.getById(businessId);
+  if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
+  const settings = await PlatformSettingsRepo.setWalletBroadcastForBusiness(businessId, parsed.data);
+  const superAdmin = req.superAdmin;
+  await logSuperAudit({
+    action: "super.wallet_broadcast.update",
+    businessId,
+    req,
+    superAdminEmail: superAdmin.email,
+    meta: parsed.data
+  });
+  res.json({ ok: true, businessId, settings });
 }));
 
 superRoutes.post("/super/impersonate/:businessId", csrfProtect, requireSuperAdmin, asyncRoute(async (req, res) => {

@@ -73,6 +73,7 @@ const {
   LoginSchema,
   UpdatePlanSchema,
   UpdatePlanFeaturesSchema,
+  SetWalletBroadcastSchema,
   CreateBusinessSchema,
   CreateBusinessUserSchema
 } = await import("../app/routes/super-support.js");
@@ -330,6 +331,7 @@ const schemas = {
   SuperLoginRequest: LoginSchema,
   SuperPlanUpdateRequest: UpdatePlanSchema,
   SuperPlanFeaturesRequest: UpdatePlanFeaturesSchema,
+  SuperWalletBroadcastRequest: SetWalletBroadcastSchema,
   SuperCreateBusinessRequest: CreateBusinessSchema,
   SuperCreateBusinessUserRequest: CreateBusinessUserSchema,
   BusinessPublicResponse: z.object({
@@ -585,6 +587,9 @@ const routeSchemaBindings = {
   },
   "/api/v1/super/businesses/{businessId}/plan": {
     put: { body: "SuperPlanUpdateRequest" }
+  },
+  "/api/v1/super/businesses/{businessId}/wallet-broadcast": {
+    put: { body: "SuperWalletBroadcastRequest" }
   },
   "/api/v1/super/businesses/{businessId}/users": {
     post: { body: "SuperCreateBusinessUserRequest" }

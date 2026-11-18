@@ -10935,6 +10935,42 @@
         }
       }
     },
+    "/api/v1/super/businesses/{businessId}/wallet-broadcast": {
+      "put": {
+        "summary": "Derived PUT /api/v1/super/businesses/{businessId}/wallet-broadcast",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "superAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuperWalletBroadcastRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/super/impersonate/{businessId}": {
       "post": {
         "summary": "Impersonate the first active OWNER or MANAGER for a business",
@@ -11900,6 +11936,31 @@
         },
         "required": [
           "features"
+        ],
+        "additionalProperties": false
+      },
+      "SuperWalletBroadcastRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "daily_cap": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1
+          },
+          "monthly_cap": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "channel_policy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled"
         ],
         "additionalProperties": false
       },

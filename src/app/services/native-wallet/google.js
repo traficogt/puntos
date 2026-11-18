@@ -176,8 +176,10 @@ export function createGoogleProvider(config, { fetchImpl = fetch, now = () => Da
       ],
       merchantLocations: (engagement?.locations ?? []).slice(0, 10).map(({ latitude, longitude }) => ({ latitude, longitude })),
       linksModuleData: { uris: [{ id: "customer_account", uri: `${appOrigin}/mi-tarjeta/`, description: "Ver mi cuenta y recompensas" }] },
-      // Lifecycle-automation push: a stable message id notifies once; displayInterval auto-expires it.
-      ...(message ? { messages: [{ id: message.id, header: snapshot.business_name.trim().slice(0, 60), body: message.text, messageType: "TEXT", displayInterval: { start: { date: message.start }, end: { date: message.end } } }] } : {})
+      // Lifecycle/broadcast push: TEXT_AND_NOTIFY triggers the lock-screen notification;
+      // a stable message id notifies once and displayInterval auto-expires it. Google caps
+      // notifying updates at 3 per pass / 24h — syncObject degrades to silent TEXT past that.
+      ...(message ? { messages: [{ id: message.id, header: snapshot.business_name.trim().slice(0, 60), body: message.text, messageType: "TEXT_AND_NOTIFY", displayInterval: { start: { date: message.start }, end: { date: message.end } } }] } : {})
     };
     const passClass = {
       id: classId,
@@ -234,7 +236,15 @@ export function createGoogleProvider(config, { fetchImpl = fetch, now = () => Da
       result = await api("GET", resource);
     }
     validateResource(result.data, object);
-    const updated = await api("PATCH", resource, object);
+    // A notifying message can exceed Google's 3-per-pass/24h quota (QuotaExceededException,
+    // surfaced as HTTP 429). Degrade to a silent TEXT update so the message still lands on
+    // the pass without a push, rather than failing the whole sync or retry-storming.
+    const notifying = object.messages?.[0]?.messageType === "TEXT_AND_NOTIFY";
+    let updated = await api("PATCH", resource, object, notifying ? [429] : []);
+    if (notifying && updated.status === 429) {
+      const quiet = { ...object, messages: [{ ...object.messages[0], messageType: "TEXT" }] };
+      updated = await api("PATCH", resource, quiet);
+    }
     validateResource(updated.data, object);
   }
 

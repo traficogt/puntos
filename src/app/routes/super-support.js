@@ -11,6 +11,7 @@ import { createBusinessWithOwner } from "../services/business-service.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 import { hashPassword } from "../../utils/password-hash.js";
 import { assertPasswordAllowed } from "../../utils/password-policy.js";
+import { CHANNEL_POLICIES, WALLET_BROADCAST_DAILY_CEIL, WALLET_BROADCAST_MONTHLY_CEIL } from "../services/wallet-broadcast-config.js";
 
 export const LoginSchema = z.object({
   email: z.string().email(),
@@ -24,6 +25,15 @@ export const UpdatePlanSchema = z.object({
 
 export const UpdatePlanFeaturesSchema = z.object({
   features: z.record(z.string(), z.boolean())
+});
+
+// Platform-owner-only per-business wallet-broadcast control. Caps are clamped again
+// server-side in resolveWalletBroadcast, so this schema's max is the request ceiling.
+export const SetWalletBroadcastSchema = z.object({
+  enabled: z.boolean(),
+  daily_cap: z.number().int().min(1).max(WALLET_BROADCAST_DAILY_CEIL).optional(),
+  monthly_cap: z.number().int().min(1).max(WALLET_BROADCAST_MONTHLY_CEIL).optional(),
+  channel_policy: z.string().refine((value) => CHANNEL_POLICIES.includes(value), "channel_policy inválido").optional()
 });
 
 export const CreateBusinessSchema = z.object({

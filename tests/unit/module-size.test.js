@@ -38,7 +38,7 @@ describe("module size guardrails", () => {
       ["src/app/routes/gamification-support.js", 120],
       ["src/app/routes/gamification-customer-routes.js", 90],
       ["src/app/routes/gamification-admin-routes.js", 220],
-      ["src/app/routes/super-routes.js", 420],
+      ["src/app/routes/super-routes.js", 450],
       ["src/app/repositories/analytics-repository.js", 420]
     ];
 

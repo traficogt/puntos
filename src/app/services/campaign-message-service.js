@@ -11,6 +11,9 @@ import { hasPlanFeature } from '../../utils/plan.js';
 import { PlanConfigService } from './plan-config-service.js';
 import { sendMessage, marketingProviderReady } from './messaging-service.js';
 import { issueMarketingUnsubscribeUrl } from './marketing-preference-service.js';
+import { deliverLifecycleWalletMessage } from './wallet-notification-service.js';
+import { PlatformSettingsRepo } from '../repositories/platform-settings-repository.js';
+import { resolveWalletBroadcast, walletBroadcastDelivery } from './wallet-broadcast-config.js';
 
 const STATUSES = ['queued','processing','accepted','failed','uncertain','suppressed'];
 const MAX_ATTEMPTS=3;
@@ -23,6 +26,16 @@ export function campaignMessageBody(campaign,unsubscribeUrl) {
   const amount=region.currency==='GTQ'?`Q${Number(campaign.minimum_purchase_q).toFixed(2)}`:`${new Intl.NumberFormat(region.locale,{maximumFractionDigits:region.minorUnits}).format(Number(campaign.minimum_purchase_q))} ${region.currency}`;
   const availability=campaign.points_budget==null?'':' Sujeta a los puntos disponibles de la campaña.';
   return `${campaign.business_name}: gana ${Number(campaign.bonus_points)} puntos adicionales en una compra de ${amount} o más. Puedes usar esta oferta una vez, hasta el ${end} (zona ${region.timezone}). Sujeta a que la campaña siga activa.${availability}\n\nDejar de recibir promociones: ${unsubscribeUrl}`;
+}
+// Wallet variant: the offer rides on the customer's own loyalty pass (pass-relevant
+// and consent-gated, per Apple's push policy), so it carries no external unsubscribe
+// link — the wallet's own notification controls and the one-tap pass removal apply.
+// Kept concise; native-wallet-repository truncates the stored message to 240 chars.
+export function campaignWalletBody(campaign) {
+  const region=businessRegion(campaign);
+  const end=new Date(campaign.expires_at).toLocaleString(region.locale,{timeZone:region.timezone,dateStyle:'short'});
+  const amount=region.currency==='GTQ'?`Q${Number(campaign.minimum_purchase_q).toFixed(2)}`:`${new Intl.NumberFormat(region.locale,{maximumFractionDigits:region.minorUnits}).format(Number(campaign.minimum_purchase_q))} ${region.currency}`;
+  return `${campaign.business_name}: gana ${Number(campaign.bonus_points)} puntos extra en una compra de ${amount}+ antes del ${end}. Válida una vez mientras la campaña siga activa.`;
 }
 export function classifyCampaignSend(result) {
   if (result?.provider==='dev'||result?.simulated) return 'suppressed';
@@ -67,6 +80,8 @@ export async function getCampaignMessages({businessId,campaignId,now=new Date()}
 }
 export async function queueCampaignMessages({businessId,campaignId,request_id,now=new Date()}) {
   const overrides=await PlanConfigService.getPlanFeatureOverrides();
+  // Platform-owned per-business wallet-broadcast opt-in + caps (superadmin-set).
+  const walletCfg=resolveWalletBroadcast(await PlatformSettingsRepo.getWalletBroadcast(),businessId);
   const outcome=await withTransaction(async client=>{
     const campaign=await campaignById(businessId,campaignId,true);
     if(!allowedPlan(campaign.plan,overrides)) throw forbidden('Tu plan no incluye mensajes de campañas.');
@@ -77,6 +92,17 @@ export async function queueCampaignMessages({businessId,campaignId,request_id,no
     if(!marketingProviderReady()) throw conflict("Configura un proveedor de mensajería para teléfonos antes de preparar envíos.");
     if(!activeCampaign(campaign,now)) throw conflict('La campaña debe estar activa y vigente.');
     if(!campaignBudgetAvailable(campaign)) throw conflict('La campaña agotó los puntos disponibles para otro bono.');
+    // Wallet-broadcast account safety: when this business is opted in, cap how many
+    // broadcasts it may queue per day / per month (ceilings hold even at the maximum a
+    // business could request) so one tenant cannot get the shared wallet account throttled.
+    if(walletCfg.enabled){
+      const caps=(await client.query(`SELECT
+        count(*) FILTER (WHERE created_at>=$2::timestamptz-interval '1 day')::int AS day,
+        count(*) FILTER (WHERE created_at>=date_trunc('month',$2::timestamptz))::int AS month
+        FROM growth_message_requests WHERE business_id=$1`,[businessId,now])).rows[0];
+      if(caps.day>=walletCfg.dailyCap) throw conflict(`Alcanzaste el límite de difusiones por billetera de hoy (${walletCfg.dailyCap}). Vuelve a intentarlo mañana.`);
+      if(caps.month>=walletCfg.monthlyCap) throw conflict(`Alcanzaste el límite mensual de difusiones por billetera (${walletCfg.monthlyCap}).`);
+    }
     await client.query(`INSERT INTO growth_message_requests(business_id,campaign_id,request_id) VALUES($1,$2,$3)`,[businessId,campaignId,request_id]);
     const {rows}=await client.query(`SELECT m.customer_id FROM growth_campaign_members m
       JOIN customers c ON c.business_id=m.business_id AND c.id=m.customer_id AND c.deleted_at IS NULL
@@ -136,8 +162,17 @@ export async function processCampaignMessagesOnce({businessId=null,limit=25,now=
   const ids=businessId?[businessId]:await withDbClientContext({platformAdmin:true,tenantId:null},async()=>{
     const {rows}=await dbQuery(`SELECT DISTINCT business_id FROM growth_message_outbox WHERE status IN ('queued','processing') OR (status='failed' AND attempts<3)`);return rows.map(row=>row.business_id);
   });
+  // Deliver via wallet push only where the pass table exists; this stays false for the
+  // schema.sql bootstrap + unit/integration DBs (no native_wallet_passes), keeping the
+  // SMS/email path byte-for-byte unchanged there.
+  const walletEnabled=await withDbClientContext({platformAdmin:true,tenantId:null},async()=>{
+    const {rows}=await dbQuery("SELECT to_regclass('native_wallet_passes') IS NOT NULL AS ok");return rows[0]?.ok===true;
+  });
+  // Platform-owned per-business wallet-broadcast opt-in + channel policy (superadmin-set).
+  const walletSettings=walletEnabled?await PlatformSettingsRepo.getWalletBroadcast():{};
   const counts={accepted:0,failed:0,uncertain:0,suppressed:0};
   for(const bid of ids) await withDbClientContext({tenantId:bid,platformAdmin:false},async client=>{
+    const walletCfg=resolveWalletBroadcast(walletSettings,bid);
     for(let i=0;i<Math.min(limit,200);i++) {
       const overrides=await PlanConfigService.getPlanFeatureOverrides();
       const item=await claimMessage(bid,now(),overrides); if(!item) break; if(item.skipped) continue;
@@ -161,8 +196,8 @@ export async function processCampaignMessagesOnce({businessId=null,limit=25,now=
           // Match opt-out's customer -> preference order. Keep both locks through
           // provider I/O so a completed revocation/deletion cannot precede a new
           // submission, including sendMessage's awaited authorization checks.
-          const customer=(await client.query(`SELECT phone FROM customers
-            WHERE business_id=$1 AND id=$2 AND deleted_at IS NULL FOR SHARE`,[bid,item.customer_id])).rows[0];
+          const customer=(await client.query(`SELECT c.phone${walletEnabled?', EXISTS(SELECT 1 FROM native_wallet_passes w WHERE w.business_id=c.business_id AND w.customer_id=c.id AND w.revoked_at IS NULL) AS has_pass':', false AS has_pass'} FROM customers c
+            WHERE c.business_id=$1 AND c.id=$2 AND c.deleted_at IS NULL FOR SHARE`,[bid,item.customer_id])).rows[0];
           const check=await client.query(`SELECT 1 FROM customer_marketing_preferences p JOIN customers c ON c.business_id=p.business_id AND c.id=p.customer_id
             JOIN growth_campaign_members m ON m.business_id=p.business_id AND m.customer_id=p.customer_id AND m.campaign_id=$3
             WHERE p.business_id=$1 AND p.customer_id=$2 AND p.marketing_opt_in=true AND c.deleted_at IS NULL
@@ -174,7 +209,17 @@ export async function processCampaignMessagesOnce({businessId=null,limit=25,now=
           else {
             const last=await recentMarketingContact(client,{businessId:bid,customerId:item.customer_id,excludeId:item.id,now:now(),days:latestContactDays});
             if(last||!marketingWindow(now(),latestBusiness).allowed)result={ok:false,suppressed:true};
-            else result=await send({businessId:bid,customerId:item.customer_id,channel:'campaign',to:customer.phone,destinations:{phone:customer.phone,email:null},body:campaignMessageBody(current,unsubscribeUrl),subject:`${current.business_name}: oferta de puntos`});
+            else {
+              // Prefer the free wallet channel when the business is opted in and the
+              // customer holds a pass; fall back to SMS per the business channel policy
+              // (wallet_only never pays for SMS; sms_only never uses wallet). A phone-less
+              // pass-holder is now reachable instead of suppressed.
+              const plan=walletBroadcastDelivery({enabled:walletCfg.enabled,channelPolicy:walletCfg.channelPolicy,hasPass:customer.has_pass===true,hasPhone:!!customer.phone});
+              const wallet=plan.tryWallet?await deliverLifecycleWalletMessage({businessId:bid,customerId:item.customer_id,body:campaignWalletBody(current),now}):null;
+              if(wallet?.ok)result=wallet;
+              else if(plan.smsFallback)result=await send({businessId:bid,customerId:item.customer_id,channel:'campaign',to:customer.phone,destinations:{phone:customer.phone,email:null},body:campaignMessageBody(current,unsubscribeUrl),subject:`${current.business_name}: oferta de puntos`});
+              else result={ok:false,suppressed:true};
+            }
           }
           await client.query('COMMIT');
         } catch(error) {

@@ -26,5 +26,32 @@ export const PlatformSettingsRepo = {
       [key, value]
     );
     return this.getJson(key, {});
+  },
+
+  // Per-business wallet-broadcast opt-in + caps + channel policy. Platform-owned
+  // (superadmin-only writes); read here in a self-contained platform-admin transaction
+  // so the per-tenant dispatch can load it without elevating its own request context.
+  async getWalletBroadcast() {
+    return withTransaction(async client => {
+      await client.query("SELECT set_config('app.platform_admin', 'true', true)");
+      const { rows } = await client.query("SELECT value FROM platform_settings WHERE key = 'wallet_broadcast_settings'");
+      return rows[0]?.value ?? {};
+    });
+  },
+
+  async setWalletBroadcastForBusiness(businessId, patch) {
+    return withTransaction(async client => {
+      await client.query("SELECT set_config('app.platform_admin', 'true', true)");
+      const { rows } = await client.query("SELECT value FROM platform_settings WHERE key = 'wallet_broadcast_settings' FOR UPDATE");
+      const current = rows[0]?.value ?? {};
+      const next = { ...current, [businessId]: { ...(current[businessId] || {}), ...patch } };
+      await client.query(
+        `INSERT INTO platform_settings (key, value, updated_at)
+         VALUES ('wallet_broadcast_settings', $1, now())
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+        [next]
+      );
+      return next[businessId];
+    });
   }
 };
