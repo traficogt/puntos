@@ -349,7 +349,7 @@ export async function initCustomerAuthEntry({ mode }) {
       setFeedback("#joinVerifyFeedback", "Verificando código...");
       const verified = await api(verifyPath, {
         method: "POST",
-        body: JSON.stringify({ phone, code, name, ...await acquisition })
+        body: JSON.stringify({ phone, code, name, marketingOptIn: $("#marketingOptIn")?.checked === true, ...await acquisition })
       });
       if (!active || verificationEpoch !== getCustomerEpoch()) return;
       if (verified?.ok !== true || !verified?.customer?.id) throw new Error("No pudimos confirmar tu acceso. Vuelve a intentar.");

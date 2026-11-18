@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-18T03:27:21.927Z",
+  "generated_at": "2026-11-18T20:31:56.663Z",
   "files": {
     "001_add_transactions_type.sql": "34e119c91fa5c744920b65a77dedeb89276bfd86a1b45e9a7edd59d73e8ffefc",
     "002_reward_branch_scope.sql": "5a076cc3a0b4df04031c5dc6d8ec26f75ebf44e648ca14a234dd8dfea08af401",
@@ -84,6 +84,7 @@
     "2026-11-15-pilot-capabilities.sql": "f6722b1cb20040c7c07adaece0ad2d432cb08661d2caf5e2d3145483e70c0461",
     "2026-11-16-support-cases.sql": "505ea1122e887ff262217ee4ed3d46b97199f75747a9c4f28ad7cb61426608ed",
     "2026-11-18-ledger-tables-rls.sql": "e097314c979e8e1f023bc4063e0bbda9b6893b92e10ca4b145e2855a1e9f04c6",
-    "2026-11-18-mfa-used-counters.sql": "8c96508435d1c14731f90fc22a3f0d6104999d05abe8a346b817671c3b8d473f"
+    "2026-11-18-mfa-used-counters.sql": "8c96508435d1c14731f90fc22a3f0d6104999d05abe8a346b817671c3b8d473f",
+    "2026-11-18-wallet-pending-message.sql": "e2bc07972eb65c95258a8135c2c90dd29012f630f8483e01cfe53652a895aa94"
   }
 }

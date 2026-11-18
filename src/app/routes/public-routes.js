@@ -240,7 +240,8 @@ publicRoutes.post("/public/business/:slug/join/verify", moderateRateLimit, rateL
     code: v.data.code,
     name: v.data.name ?? null,
     referralCode: v.data.referralCode ?? null, // Pass referral code if provided
-    visitToken: v.data.visitToken ?? null
+    visitToken: v.data.visitToken ?? null,
+    marketingOptIn: v.data.marketingOptIn === true
   });
 
   res.cookie(config.CUSTOMER_COOKIE_NAME, token, { ...cookieOpts(req), maxAge: browserCookieMaxAge("CUSTOMER") });

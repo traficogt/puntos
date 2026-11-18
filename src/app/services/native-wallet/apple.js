@@ -69,6 +69,8 @@ function passProperties(config, snapshot) {
   if (typeof snapshot.barcode !== "string" || !/^[\x21-\x7e]{1,2048}$/.test(snapshot.barcode)) throw passError();
   const voided = Boolean(snapshot.revoked_at || snapshot.is_voided);
   const engagement = voided ? null : snapshot.wallet_engagement;
+  // Lifecycle-automation push: a changeMessage field makes Wallet show the lock-screen alert.
+  const walletMessageText = voided ? null : (snapshot.wallet_message?.text || null);
   const points = voided ? 0 : Number(snapshot.points);
   const pendingPoints = voided ? 0 : Number(snapshot.pending_points);
   if (!Number.isFinite(points) || !Number.isFinite(pendingPoints)) throw passError();
@@ -103,6 +105,7 @@ function passProperties(config, snapshot) {
       ],
       auxiliaryFields: [{ key: "pending_points", label: "PUNTOS PENDIENTES", value: pendingPoints }],
       backFields: [
+        ...(walletMessageText ? [{ key: "pf_message", label: "NOVEDADES", value: walletMessageText, changeMessage: "%@" }] : []),
         ...(engagement?.progress ? [{ key: "reward_progress", label: "Tu próxima recompensa", value: engagement.progress }] : []),
         ...(engagement?.conditions ? [{ key: "reward_conditions", label: "Condiciones del canje", value: engagement.conditions }] : []),
         ...(engagement?.earning ? [{ key: "earning_terms", label: "Cómo acumulas", value: engagement.earning }] : []),

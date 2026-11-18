@@ -78,7 +78,7 @@ export async function requestJoinCodeWithDeps(deps, { business, phone, email: _e
   });
 }
 
-export async function verifyJoinCodeWithDeps(deps, { business, phone, code, name, referralCode, requireExisting = false, visitToken = null }) {
+export async function verifyJoinCodeWithDeps(deps, { business, phone, code, name, referralCode, requireExisting = false, visitToken = null, marketingOptIn = false }) {
   if (!business?.id) throw notFound("Negocio no encontrado");
   if (!phone) throw badRequest("Falta el teléfono");
   phone = normalizeEnrollmentPhone(phone, business);
@@ -132,6 +132,17 @@ export async function verifyJoinCodeWithDeps(deps, { business, phone, code, name
     });
     if (result.error) throw result.error;
     const { customer, isNewCustomer } = result;
+
+    if (marketingOptIn) {
+      // Affirmative notification consent captured at signup; upsert only, never auto-revoke.
+      try {
+        const { setMarketingPreference } = await import("./marketing-preference-service.js");
+        await deps.withDbClientContext({ tenantId: business.id, platformAdmin: false }, () =>
+          setMarketingPreference({ businessId: business.id, customerId: customer.id, marketing_opt_in: true }));
+      } catch (err) {
+        logger.warn({ err: err?.message || err, customerId: customer.id }, "Marketing opt-in not recorded at signup");
+      }
+    }
 
     if (isNewCustomer) {
       await deps.withDbClientContext({ tenantId: business.id, platformAdmin: false }, async () => {

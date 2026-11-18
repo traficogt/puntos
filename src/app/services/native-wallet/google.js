@@ -8,7 +8,7 @@ const REQUEST_TIMEOUT_MS = 10000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** @typedef {{ issuerId: string, serviceAccountEmail: string, privateKey: string, appOrigin: string, logoUrl?: string, organizationName?: string, privateKeyId?: string }} GoogleConfig */
-/** @typedef {{ id: string, serial_number: string, barcode: string, customer_name?: string | null, business_name: string, business_id: string, customer_id?: string, points: number, pending_points: number, revoked_at?: string | Date | null, is_voided?: boolean, wallet_engagement?: {progress?:string,earning?:string,conditions?:string,usage?:string,locations?:Array<{latitude:number,longitude:number}>}, revision?: number }} PassSnapshot */
+/** @typedef {{ id: string, serial_number: string, barcode: string, customer_name?: string | null, business_name: string, business_id: string, customer_id?: string, points: number, pending_points: number, revoked_at?: string | Date | null, is_voided?: boolean, wallet_engagement?: {progress?:string,earning?:string,conditions?:string,usage?:string,locations?:Array<{latitude:number,longitude:number}>}, wallet_message?: {text:string,id:string,start:string,end:string} | null, revision?: number }} PassSnapshot */
 
 function walletError(code, message, status = undefined) {
   return Object.assign(new Error(message), { code, ...(status === undefined ? {} : { status }) });
@@ -157,6 +157,7 @@ export function createGoogleProvider(config, { fetchImpl = fetch, now = () => Da
     const classId = `${config.issuerId}.pf_${snapshot.business_id.replaceAll("-", "").toLowerCase()}`;
     const voided = Boolean(snapshot.revoked_at || snapshot.is_voided);
     const engagement = voided ? null : snapshot.wallet_engagement;
+    const message = voided ? null : (snapshot.wallet_message || null);
     const object = {
       id, classId,
       state: voided ? "INACTIVE" : "ACTIVE",
@@ -174,7 +175,9 @@ export function createGoogleProvider(config, { fetchImpl = fetch, now = () => Da
         ...(engagement?.usage ? [{ id: "card_usage", header: "Cómo usar tu tarjeta", body: engagement.usage }] : [])
       ],
       merchantLocations: (engagement?.locations ?? []).slice(0, 10).map(({ latitude, longitude }) => ({ latitude, longitude })),
-      linksModuleData: { uris: [{ id: "customer_account", uri: `${appOrigin}/mi-tarjeta/`, description: "Ver mi cuenta y recompensas" }] }
+      linksModuleData: { uris: [{ id: "customer_account", uri: `${appOrigin}/mi-tarjeta/`, description: "Ver mi cuenta y recompensas" }] },
+      // Lifecycle-automation push: a stable message id notifies once; displayInterval auto-expires it.
+      ...(message ? { messages: [{ id: message.id, header: snapshot.business_name.trim().slice(0, 60), body: message.text, messageType: "TEXT", displayInterval: { start: { date: message.start }, end: { date: message.end } } }] } : {})
     };
     const passClass = {
       id: classId,

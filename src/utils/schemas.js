@@ -146,6 +146,7 @@ export const verifyJoinCodeSchema = z.object({
   code: z.string().min(4).max(10),
   name: z.string().max(120).optional(),
   referralCode: z.string().length(6).optional(),
+  marketingOptIn: z.boolean().optional(),
   // Optional source capability never makes an otherwise valid enrollment fail.
   visitToken: z.unknown().optional().transform(value => typeof value === "string" && /^[A-Za-z0-9_-]{43}$/.test(value) ? value : undefined)
 });

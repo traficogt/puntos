@@ -20,6 +20,23 @@ function membershipHash(token) {
   return crypto.createHash("sha256").update(String(token), "utf8").digest("hex");
 }
 
+// A transient lifecycle-automation message rides on the pass until it expires. Apple
+// renders it as a changeMessage field (lock-screen alert); Google as a messages[] entry.
+// Exported for unit tests; returns null when there is no live message.
+export function walletMessage(row) {
+  const text = row?.pending_message;
+  const expires = row?.pending_message_expires_at;
+  if (!text || !expires || new Date(expires).getTime() <= Date.now()) return null;
+  const clipped = String(text).slice(0, 240);
+  const end = new Date(expires).toISOString();
+  return {
+    text: clipped,
+    id: "pfm_" + crypto.createHash("sha256").update(`${clipped}|${end}`).digest("hex").slice(0, 24),
+    start: new Date().toISOString(),
+    end
+  };
+}
+
 // Credential-bearing methods are internal only. Route handlers must explicitly
 // construct public responses instead of serializing a pass or snapshot.
 export const NativeWalletRepo = {
@@ -46,7 +63,7 @@ export const NativeWalletRepo = {
     if (!stored) return null;
     const snapshot = await withWalletRewardInventory(getDbClient(), stored);
     const wallet_engagement = walletInventoryEngagement(snapshot, buildWalletEngagement(snapshot));
-    return { ...snapshot, wallet_engagement, next_refresh_at: wallet_engagement.next_refresh_at };
+    return { ...snapshot, wallet_engagement, wallet_message: walletMessage(stored), next_refresh_at: wallet_engagement.next_refresh_at };
   },
 
   async getBySerial(serial, provider = null) {
@@ -61,6 +78,17 @@ export const NativeWalletRepo = {
   async revokeCustomerPasses(businessId, customerId) {
     return many(`UPDATE native_wallet_passes SET revoked_at=now()
       WHERE business_id=$1 AND customer_id=$2 AND revoked_at IS NULL RETURNING ${publicColumns}`, [businessId, customerId]);
+  },
+
+  // Queue a transient wallet-push message on the customer's active passes and mark them
+  // due so the wallet worker (processDue) delivers the push. Returns the queued passes;
+  // an empty array means the customer has no active pass (caller falls back to SMS/email).
+  async queueWalletMessage({ businessId, customerId, message, expiresAt }) {
+    return many(`UPDATE native_wallet_passes
+      SET pending_message=$3, pending_message_expires_at=$4,
+          revision=revision+1, next_attempt_at=now(), updated_at=now()
+      WHERE business_id=$1 AND customer_id=$2 AND revoked_at IS NULL
+      RETURNING id, provider`, [businessId, customerId, String(message).slice(0, 240), expiresAt]);
   },
 
   async registerDevice({ passId, deviceId, pushToken }) {
