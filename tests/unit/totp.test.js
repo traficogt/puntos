@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { buildOtpAuthUri, decodeBase32, generateBase32Secret, totp, verifyTotp, verifyTotpCounter} from "../../src/utils/totp.js";
+import { buildOtpAuthUri, decodeBase32, generateBase32Secret, totp, verifyTotp } from "../../src/utils/totp.js";
 
 describe("totp utils", () => {
   it("generates verifiable six-digit codes", () => {

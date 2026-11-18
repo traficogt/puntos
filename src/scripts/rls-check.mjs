@@ -11,6 +11,8 @@ function readSecret(inline, filePath) {
   if (inline) return inline;
   if (filePath) {
     try {
+      // Path is a trusted secret-file location from deploy config, not user input.
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
       return fs.readFileSync(filePath, "utf8").trim();
     } catch {
       return undefined;

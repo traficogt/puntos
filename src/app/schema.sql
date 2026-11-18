@@ -428,6 +428,20 @@ ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS mfa_pending_secret_enc TEXT;
 ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS mfa_pending_created_at TIMESTAMPTZ;
 ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS mfa_confirmed_at TIMESTAMPTZ;
 
+-- TOTP single-use enforcement (RFC 6238 §5.2): one row per accepted time-step
+-- counter so a 6-digit code cannot be replayed within its validity window
+-- (staff/super login + reauth). Not tenant-scoped (keyed by account) and written
+-- during login before any tenant context exists, so it has no business_id/RLS.
+-- Kept in sync with migration 2026-11-18-mfa-used-counters.sql (both IF NOT EXISTS).
+CREATE TABLE IF NOT EXISTS mfa_used_counters (
+  account_type TEXT NOT NULL,
+  account_id   TEXT NOT NULL,
+  counter      BIGINT NOT NULL,
+  used_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (account_type, account_id, counter)
+);
+CREATE INDEX IF NOT EXISTS idx_mfa_used_counters_used_at ON mfa_used_counters(used_at);
+
 CREATE TABLE IF NOT EXISTS super_admin_auth_settings (
   singleton BOOLEAN PRIMARY KEY DEFAULT true,
   email TEXT,
