@@ -14,6 +14,7 @@ import { StaffRepo } from "../repositories/staff-repository.js";
 import { SecurityEventRepo } from "../repositories/security-event-repository.js";
 import { WebhookRepo } from "../repositories/webhook-repository.js";
 import { PlatformSettingsRepo } from "../repositories/platform-settings-repository.js";
+import { resolveWalletBroadcast } from "../services/wallet-broadcast-config.js";
 import { timingSafeEqualString } from "../../utils/timing-safe.js";
 import { getRequestIp } from "../../utils/request-ip.js";
 import { invalidateBrowserSessionById } from "../services/auth-session-service.js";
@@ -247,7 +248,11 @@ superRoutes.get("/super/businesses", requireSuperAdmin, validateQuery(z.object({
      LIMIT $1`,
     [limit]
   );
-  res.json({ ok: true, businesses: rows });
+  // Attach the platform-owned wallet-broadcast config (opt-in + channel policy + caps)
+  // so the /super console can render a per-business toggle without a request per row.
+  const walletBroadcast = await PlatformSettingsRepo.getWalletBroadcast();
+  const businesses = rows.map((business) => ({ ...business, wallet_broadcast: resolveWalletBroadcast(walletBroadcast, business.id) }));
+  res.json({ ok: true, businesses });
 }));
 
 superRoutes.post("/super/businesses", csrfProtect, requireSuperAdmin, asyncRoute(async (req, res) => {

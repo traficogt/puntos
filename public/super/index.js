@@ -629,6 +629,54 @@ export async function initSuperPage({ api, $, toast }) {
         row.appendChild(impersonateBtn);
 
         card.appendChild(row);
+
+        // Wallet broadcast: platform-owner-only opt-in + channel policy. Merchants have
+        // no such control; this governs the shared Apple/Google wallet account for this business.
+        const wb = business.wallet_broadcast || { enabled: false, channelPolicy: "wallet_first_sms_fallback" };
+        const wbRow = document.createElement("div");
+        wbRow.className = "row mt-8";
+        const wbLabel = document.createElement("span");
+        wbLabel.className = "small";
+        wbLabel.textContent = "Difusión por billetera:";
+        wbRow.appendChild(wbLabel);
+
+        const wbEnabled = document.createElement("select");
+        for (const [val, text] of [["off", "Desactivada"], ["on", "Activada"]]) {
+          const opt = document.createElement("option");
+          opt.value = val;
+          opt.textContent = text;
+          wbEnabled.appendChild(opt);
+        }
+        wbEnabled.value = wb.enabled ? "on" : "off";
+        wbRow.appendChild(wbEnabled);
+
+        const wbPolicy = document.createElement("select");
+        for (const [val, text] of [["wallet_first_sms_fallback", "Billetera, SMS de respaldo"], ["wallet_only", "Solo billetera (sin SMS)"], ["sms_only", "Solo SMS (sin billetera)"]]) {
+          const opt = document.createElement("option");
+          opt.value = val;
+          opt.textContent = text;
+          wbPolicy.appendChild(opt);
+        }
+        wbPolicy.value = wb.channelPolicy || "wallet_first_sms_fallback";
+        wbRow.appendChild(wbPolicy);
+
+        const wbSave = document.createElement("button");
+        wbSave.textContent = "Guardar billetera";
+        wbSave.addEventListener("click", async () => {
+          await run(async () => {
+            await api(`/api/super/businesses/${encodeURIComponent(business.id)}/wallet-broadcast`, {
+              method: "PUT",
+              body: JSON.stringify({ enabled: wbEnabled.value === "on", channel_policy: wbPolicy.value })
+            });
+            toast("Difusión por billetera actualizada.");
+            await loadBusinesses();
+          }, (error) => {
+            toast("No se pudo actualizar difusión por billetera: " + error.message);
+          });
+        });
+        wbRow.appendChild(wbSave);
+        card.appendChild(wbRow);
+
         box.appendChild(card);
       });
 

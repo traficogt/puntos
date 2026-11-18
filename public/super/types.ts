@@ -27,6 +27,13 @@ export interface SuperPlanDefinition {
   messaging_gtq?: SuperPlanMessaging;
 }
 
+export interface SuperWalletBroadcast {
+  enabled: boolean;
+  dailyCap?: number;
+  monthlyCap?: number;
+  channelPolicy: string;
+}
+
 export interface SuperBusinessRow {
   id: string;
   name: string;
@@ -34,6 +41,7 @@ export interface SuperBusinessRow {
   plan: string;
   customers?: number;
   staff?: number;
+  wallet_broadcast?: SuperWalletBroadcast;
 }
 
 export interface SuperStaffRow {
