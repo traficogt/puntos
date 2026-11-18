@@ -1,7 +1,7 @@
 {
-  "reviewed": "2026-11-16",
+  "reviewed": "2026-11-18",
   "sources": {
-    "public/customer-auth-entry.js": "2b636a9032a0622af107b2799f4b4b69203b496858bd9a6b2f3482fe058bfec5",
+    "public/customer-auth-entry.js": "cc7aca8576ce12dae8093847d6667d2cf8e13e6a2f2c3c49b8dc22fdadeacf3a",
     "public/customer.html": "a65cc8b83367fc460f9d529adc06c8373f0233f2700f1137fd00e9c45642820a",
     "public/customer/demand-notebook.js": "a67b266a87555ee4e8b2599784263a3b1fa5decc41802db48ae3a0e0b58ad788",
     "public/customer/growth-offers.js": "c9d76b845bce276f5e4836a12465318467592cb3df7863646233e109b92334c8",
@@ -18,7 +18,7 @@
     "public/idb.js": "b5760c95126bd86aeda9c7ceb35320fa300bfe0d02b5076f8724d86144888d74",
     "public/ingresar.html": "b7d224d5852382fa5bea24aacd9b4e4b2af3f97e8473d6b673cfa0d1f6f8a690",
     "public/ingresar.js": "412d22323cdc917c4bf811b11fe6dd9dafb04d25034307aa937cb5832ee3cf0e",
-    "public/join.html": "bc8809838d55dae2e43806f4369d25fe3b19ee1af7511eccffda408f9ae0cffc",
+    "public/join.html": "518c5fd4b00498b7d484d6ffbc0e554a500c4768ae6580fe703ae966fc37ec4e",
     "public/join.js": "06ba109b2c6373488cbb202f906208f12d15f222d7f2856889ea2c0ce8db8e59",
     "public/marketing-preferences.html": "152d260ea584a46acd6b0f7bfa1ac1d83bcc135dcba237345bf064016735893b",
     "public/marketing-preferences.js": "412c04da2a69aef70b583d53c54f9598dfe8fe93d2aa7077b8a7b3c6cd714ae2",

@@ -7693,6 +7693,8 @@ components:
           type: string
           minLength: 6
           maxLength: 6
+        marketingOptIn:
+          type: boolean
         visitToken:
           {}
       required:

@@ -2,7 +2,7 @@
 title: El código de ingreso no llega
 description: Comprueba el teléfono y las indicaciones de entrega antes de pedir otro
   código.
-reviewed: '2026-11-16'
+reviewed: '2026-11-18'
 kind: task
 sources:
 - public/join.html
@@ -43,4 +43,4 @@ La pantalla confirma la verificación y permite abrir tu tarjeta. Solicitar un c
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/mi-tarjeta/). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/mi-tarjeta/). Revisión del 18 de noviembre de 2026.
