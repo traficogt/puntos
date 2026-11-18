@@ -38,7 +38,8 @@ function requireTotpFormat(code) {
 
 // Single-use enforcement for a verified TOTP code: records the accepted time-step
 // counter for this account and returns true only if it had not been used before.
-// A replay of the same code within its validity window returns false. The table
+// A replay of the same code for the SAME operation (accountType namespaces login
+// vs reauth) within its validity window returns false. The table
 // has no RLS and no business_id, so this works during login before tenant context.
 async function consumeTotpCounter(accountType, accountId, counter) {
   if (counter === null || counter === undefined) return false;
@@ -579,7 +580,7 @@ export async function verifyStaffMfaForLogin(staff, code) {
   const secret = decryptSecretMaybe(staff.mfa_secret_enc || "");
   const normalizedCode = String(code || "").trim();
   const counter = secret ? verifyTotpCounter(secret, normalizedCode) : null;
-  const validCode = counter !== null && await consumeTotpCounter("STAFF", staff.id, counter);
+  const validCode = counter !== null && await consumeTotpCounter("STAFF_LOGIN", staff.id, counter);
   if (!validCode) {
     await logSecurity({
       event_type: "staff_mfa_failed_after_password",
@@ -608,7 +609,7 @@ export async function verifySuperMfaForLogin(code) {
   const secret = decryptSecretMaybe(auth.mfa_secret_enc || "");
   const normalizedCode = String(code || "").trim();
   const counter = secret ? verifyTotpCounter(secret, normalizedCode) : null;
-  const validCode = counter !== null && await consumeTotpCounter("SUPER", "SUPER", counter);
+  const validCode = counter !== null && await consumeTotpCounter("SUPER_LOGIN", "SUPER", counter);
   if (!validCode) {
     await logSecurity({
       event_type: "super_mfa_failed_after_password",
@@ -635,7 +636,7 @@ export async function reauthenticateStaffSession({ staff, password, mfaCode, ses
   if (fresh.mfa_enabled) {
     const secret = decryptSecretMaybe(fresh.mfa_secret_enc || "");
     const counter = secret ? verifyTotpCounter(secret, requireTotpFormat(mfaCode)) : null;
-    if (counter === null || !(await consumeTotpCounter("STAFF", fresh.id, counter))) throw unauthorized("Invalid MFA code");
+    if (counter === null || !(await consumeTotpCounter("STAFF_REAUTH", fresh.id, counter))) throw unauthorized("Invalid MFA code");
   }
   await markBrowserSessionReauthenticated({ sessionId, mfaVerified: Boolean(fresh.mfa_enabled) });
   await logAudit({
@@ -657,7 +658,7 @@ export async function reauthenticateSuperSession({ password, mfaCode, sessionId 
   if (auth.mfa_enabled) {
     const secret = decryptSecretMaybe(auth.mfa_secret_enc || "");
     const counter = secret ? verifyTotpCounter(secret, requireTotpFormat(mfaCode)) : null;
-    if (counter === null || !(await consumeTotpCounter("SUPER", "SUPER", counter))) throw unauthorized("Invalid MFA code");
+    if (counter === null || !(await consumeTotpCounter("SUPER_REAUTH", "SUPER", counter))) throw unauthorized("Invalid MFA code");
   }
   await markBrowserSessionReauthenticated({ sessionId, mfaVerified: Boolean(auth.mfa_enabled) });
   return { ok: true };
