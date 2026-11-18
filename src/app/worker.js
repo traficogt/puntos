@@ -13,6 +13,7 @@ import { deliverPendingOnce } from "./services/webhook-service.js";
 import { syncConfiguredPosOnce } from "./services/pos-integration-service.js";
 import { processPendingJobsOnce } from "./services/job-service.js";
 import { runLifecycleOnce, createMarketingTick } from "./services/lifecycle-service.js";
+import { pruneExpiredMfaCounters } from "./services/account-security-service.js";
 import { runLedgerReconciliation } from "./services/ledger-reconciliation-service.js";
 import { resolveCertificationPeriod, writeLedgerCertificationArtifacts } from "./services/ledger-certification-service.js";
 import { BusinessRepo } from "./repositories/business-repository.js";
@@ -99,6 +100,13 @@ async function startWorkers() {
     await purgeSupportImages();
     try { await runLifecycleOnce(); }
     catch { logger.warn("Worker: daily lifecycle maintenance did not complete"); }
+    try {
+      const pruned = await withDbClientContext(
+        { platformAdmin: true, tenantId: null },
+        async () => pruneExpiredMfaCounters()
+      );
+      logger.info({ pruned }, "Worker: pruned expired MFA single-use counters");
+    } catch { logger.warn("Worker: MFA counter prune did not complete"); }
     try {
       const ids = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => BusinessRepo.listAllIds());
       const reconciliation = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => (

@@ -52,6 +52,17 @@ async function consumeTotpCounter(accountType, accountId, counter) {
   return rowCount === 1;
 }
 
+// Daily maintenance: a used-counter row only matters while its TOTP code could
+// still validate (±1 step ≈ 90s), so rows well past that are dead weight. Prune
+// them so the table stays bounded. Not tenant-scoped — no RLS/business context.
+export async function pruneExpiredMfaCounters({ olderThan = "1 day" } = {}) {
+  const { rowCount } = await dbQuery(
+    "DELETE FROM mfa_used_counters WHERE used_at < now() - $1::interval",
+    [olderThan]
+  );
+  return rowCount ?? 0;
+}
+
 async function logAudit({ businessId = null, actorType, actorId = null, action, meta = {}, ip = null, ua = null }) {
   await AuditRepo.log({
     id: id(),
