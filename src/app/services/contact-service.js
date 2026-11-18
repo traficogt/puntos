@@ -74,7 +74,12 @@ export async function sendContactEmail({ name, business, contact, message }, { h
     host: config.CONTACT_SMTP_HOST,
     port: config.CONTACT_SMTP_PORT,
     secure: false,
-    ignoreTLS: true
+    // Upgrade to STARTTLS when the relay offers it so lead PII (name, email,
+    // phone) is not sent in cleartext over the network. opportunisticTLS falls
+    // back to plaintext if the relay has no STARTTLS, so delivery never breaks;
+    // rejectUnauthorized:false accepts the internal relay's own certificate.
+    opportunisticTLS: true,
+    tls: { rejectUnauthorized: false }
   });
 
   await transport.sendMail({

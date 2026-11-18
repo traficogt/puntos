@@ -59,7 +59,7 @@ const ContactSchema = z.object({
   business: z.string().min(1).max(160).trim(),
   contact: z.string().min(1).max(200).trim(),
   message: z.string().min(10).max(2000).trim(),
-  turnstileToken: z.string().min(1)
+  turnstileToken: z.string().min(1).max(4096)
 });
 
 function rejectMissingCustomer(req, res) {
