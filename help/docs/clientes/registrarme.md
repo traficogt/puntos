@@ -2,7 +2,7 @@
 title: Crear mi tarjeta del negocio
 description: Abre el enlace de inscripción del negocio y verifica tu teléfono para
   obtener tu tarjeta.
-reviewed: '2026-11-18'
+reviewed: '2026-11-16'
 kind: task
 sources:
 - public/join.html
@@ -23,7 +23,7 @@ Pide el QR o enlace oficial al negocio. Comprueba su nombre antes de escribir tu
 ## Paso a paso
 
 1. Escanea el QR de inscripción o abre el enlace que te compartió el negocio.
-2. Escribe tu **Teléfono** y los datos que solicite el formulario. El formulario puede incluir una casilla **opcional** para recibir novedades, recompensas y recordatorios en tu tarjeta; marcarla es tu decisión y puedes darte de baja cuando quieras. Para otro país, incluye el prefijo internacional.
+2. Escribe tu **Teléfono** y los datos que solicite el formulario. Para otro país, incluye el prefijo internacional.
 3. Pulsa **Enviar código**. Revisa el canal y las indicaciones que aparecen en pantalla.
 4. Escribe el **Código** recibido y pulsa **Verificar y entrar**.
 5. Cuando aparezca **Tu tarjeta está lista**, elige **Ver mi tarjeta y mis puntos** o una opción de Wallet disponible.
@@ -43,4 +43,4 @@ La tarjeta muestra el nombre del negocio. Verificar tu teléfono permite entrar 
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/mi-tarjeta/). Revisión del 18 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/mi-tarjeta/). Revisión del 16 de noviembre de 2026.
