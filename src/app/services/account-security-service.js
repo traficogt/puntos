@@ -11,7 +11,7 @@ import { assertPasswordAllowed } from "../../utils/password-policy.js";
 import { hashPassword, verifyPassword } from "../../utils/password-hash.js";
 import { badRequest, conflict, notFound, unauthorized } from "../../utils/http-error.js";
 import { encryptSecret, decryptSecretMaybe } from "../../utils/secret-crypto.js";
-import { buildOtpAuthUri, generateBase32Secret, verifyTotp } from "../../utils/totp.js";
+import { buildOtpAuthUri, generateBase32Secret, verifyTotp, verifyTotpCounter } from "../../utils/totp.js";
 import { sendSecurityNotification } from "./security-notification-service.js";
 
 function id() {
@@ -34,6 +34,21 @@ function requireTotpFormat(code) {
   const normalized = String(code || "").trim();
   if (!/^\d{6}$/.test(normalized)) throw badRequest("Invalid MFA code");
   return normalized;
+}
+
+// Single-use enforcement for a verified TOTP code: records the accepted time-step
+// counter for this account and returns true only if it had not been used before.
+// A replay of the same code within its validity window returns false. The table
+// has no RLS and no business_id, so this works during login before tenant context.
+async function consumeTotpCounter(accountType, accountId, counter) {
+  if (counter === null || counter === undefined) return false;
+  const { rowCount } = await dbQuery(
+    `INSERT INTO mfa_used_counters (account_type, account_id, counter)
+     VALUES ($1, $2, $3)
+     ON CONFLICT DO NOTHING`,
+    [accountType, String(accountId), Number(counter)]
+  );
+  return rowCount === 1;
 }
 
 async function logAudit({ businessId = null, actorType, actorId = null, action, meta = {}, ip = null, ua = null }) {
@@ -563,7 +578,8 @@ export async function verifyStaffMfaForLogin(staff, code) {
   if (!staff?.mfa_enabled) return { ok: true };
   const secret = decryptSecretMaybe(staff.mfa_secret_enc || "");
   const normalizedCode = String(code || "").trim();
-  const validCode = /^\d{6}$/.test(normalizedCode) && secret && verifyTotp(secret, normalizedCode);
+  const counter = secret ? verifyTotpCounter(secret, normalizedCode) : null;
+  const validCode = counter !== null && await consumeTotpCounter("STAFF", staff.id, counter);
   if (!validCode) {
     await logSecurity({
       event_type: "staff_mfa_failed_after_password",
@@ -591,7 +607,8 @@ export async function verifySuperMfaForLogin(code) {
   if (!auth?.mfa_enabled) return { ok: true, auth };
   const secret = decryptSecretMaybe(auth.mfa_secret_enc || "");
   const normalizedCode = String(code || "").trim();
-  const validCode = /^\d{6}$/.test(normalizedCode) && secret && verifyTotp(secret, normalizedCode);
+  const counter = secret ? verifyTotpCounter(secret, normalizedCode) : null;
+  const validCode = counter !== null && await consumeTotpCounter("SUPER", "SUPER", counter);
   if (!validCode) {
     await logSecurity({
       event_type: "super_mfa_failed_after_password",
@@ -617,7 +634,8 @@ export async function reauthenticateStaffSession({ staff, password, mfaCode, ses
   if (!ok) throw unauthorized("Invalid credentials");
   if (fresh.mfa_enabled) {
     const secret = decryptSecretMaybe(fresh.mfa_secret_enc || "");
-    if (!secret || !verifyTotp(secret, requireTotpFormat(mfaCode))) throw unauthorized("Invalid MFA code");
+    const counter = secret ? verifyTotpCounter(secret, requireTotpFormat(mfaCode)) : null;
+    if (counter === null || !(await consumeTotpCounter("STAFF", fresh.id, counter))) throw unauthorized("Invalid MFA code");
   }
   await markBrowserSessionReauthenticated({ sessionId, mfaVerified: Boolean(fresh.mfa_enabled) });
   await logAudit({
@@ -638,7 +656,8 @@ export async function reauthenticateSuperSession({ password, mfaCode, sessionId 
   if (!ok) throw unauthorized("Invalid credentials");
   if (auth.mfa_enabled) {
     const secret = decryptSecretMaybe(auth.mfa_secret_enc || "");
-    if (!secret || !verifyTotp(secret, requireTotpFormat(mfaCode))) throw unauthorized("Invalid MFA code");
+    const counter = secret ? verifyTotpCounter(secret, requireTotpFormat(mfaCode)) : null;
+    if (counter === null || !(await consumeTotpCounter("SUPER", "SUPER", counter))) throw unauthorized("Invalid MFA code");
   }
   await markBrowserSessionReauthenticated({ sessionId, mfaVerified: Boolean(auth.mfa_enabled) });
   return { ok: true };

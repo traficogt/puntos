@@ -1,5 +1,5 @@
 import express from "express";
-import { dbQuery } from "../database.js";
+import { dbQuery, withDbClientContext } from "../database.js";
 import {
   appendBackgroundJobMetrics as appendBackgroundJobMetricsShared,
   appendBillingMetrics as appendBillingMetricsShared,
@@ -19,8 +19,12 @@ async function checkDatabaseStatus() {
   return checkDatabaseStatusShared();
 }
 
+// Platform-wide ops metrics must bypass tenant RLS (this endpoint is token-gated
+// and intentionally global). Without this, every RLS-protected table counts as 0.
+const METRICS_DB_CONTEXT = { platformAdmin: true, tenantId: null };
+
 async function appendSharedMetrics(metrics) {
-  return appendSharedMetricsShared(metrics);
+  return withDbClientContext(METRICS_DB_CONTEXT, () => appendSharedMetricsShared(metrics));
 }
 
 function appendProcessMetrics(metrics) {
@@ -28,11 +32,11 @@ function appendProcessMetrics(metrics) {
 }
 
 async function appendBillingMetrics(metrics) {
-  return appendBillingMetricsShared(metrics);
+  return withDbClientContext(METRICS_DB_CONTEXT, () => appendBillingMetricsShared(metrics));
 }
 
 async function appendBackgroundJobMetrics(metrics) {
-  return appendBackgroundJobMetricsShared(metrics);
+  return withDbClientContext(METRICS_DB_CONTEXT, () => appendBackgroundJobMetricsShared(metrics));
 }
 
 export function createObservabilityRouter(options = {}) {

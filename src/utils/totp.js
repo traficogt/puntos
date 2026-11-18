@@ -54,16 +54,22 @@ export function totp(secret, { stepSeconds = 30, digits = 6, nowMs = Date.now() 
   return hotp(secret, counter, digits);
 }
 
-export function verifyTotp(secret, code, { stepSeconds = 30, digits = 6, window = 1, nowMs = Date.now() } = {}) {
+// Returns the time-step counter the code matched (so the caller can enforce
+// single-use / reject replay within the validity window), or null if no match.
+export function verifyTotpCounter(secret, code, { stepSeconds = 30, digits = 6, window = 1, nowMs = Date.now() } = {}) {
   const normalizedCode = String(code || "").trim();
-  if (!/^\d{6}$/.test(normalizedCode)) return false;
+  if (!/^\d{6}$/.test(normalizedCode)) return null;
   const currentCounter = Math.floor(nowMs / 1000 / stepSeconds);
   for (let offset = -window; offset <= window; offset += 1) {
     if (hotp(secret, currentCounter + offset, digits) === normalizedCode) {
-      return true;
+      return currentCounter + offset;
     }
   }
-  return false;
+  return null;
+}
+
+export function verifyTotp(secret, code, opts = {}) {
+  return verifyTotpCounter(secret, code, opts) !== null;
 }
 
 export function buildOtpAuthUri({ issuer, label, secret }) {

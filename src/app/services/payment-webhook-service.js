@@ -52,12 +52,25 @@ function validateProviderHmac(provider, signatureHeader, rawBody) {
   }
 }
 
+const insecureProviderWarned = new Set();
+
 function assertProviderAuthConfigured(provider) {
-  if (!config.PAYMENT_WEBHOOK_REQUIRE_AUTH) return;
   const hasSecret = Boolean(config.PAYMENT_WEBHOOK_SECRETS?.[provider]);
   const hasHmac = Boolean(config.PAYMENT_WEBHOOK_HMAC_SECRETS?.[provider]);
-  if (!hasSecret && !hasHmac) {
+  if (hasSecret || hasHmac) return;
+  if (config.PAYMENT_WEBHOOK_REQUIRE_AUTH) {
     throw forbidden("Webhook auth is required but no provider secret/signature key is configured");
+  }
+  // REQUIRE_AUTH is disabled AND this provider has no secret/HMAC configured, so
+  // an unauthenticated POST would be trusted — a forged payment event could mint
+  // credit. Preserve the operator escape hatch, but make it loud rather than a
+  // silent no-op validator.
+  if (!insecureProviderWarned.has(provider)) {
+    insecureProviderWarned.add(provider);
+    logger.warn(
+      { provider },
+      "SECURITY: payment webhook accepted WITHOUT authentication (PAYMENT_WEBHOOK_REQUIRE_AUTH=false and no provider secret/HMAC configured)"
+    );
   }
 }
 

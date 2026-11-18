@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { GiftCardRepo } from "../repositories/gift-card-repository.js";
 import { StaffRepo } from "../repositories/staff-repository.js";
 import { withTransaction } from "../database.js";
-import { badRequest, forbidden } from "../../utils/http-error.js";
+import { badRequest, conflict, forbidden } from "../../utils/http-error.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 
@@ -43,7 +43,7 @@ async function validateRegionalMoney(client, businessId, amount) {
   return region;
 }
 
-async function findExistingGiftCardTx(client, businessId, requestId) {
+async function findExistingGiftCardTx(client, businessId, requestId, opts = {}) {
   if (!requestId) return null;
   const { rows } = await client.query(
     `SELECT tx.id AS transaction_id,
@@ -59,7 +59,18 @@ async function findExistingGiftCardTx(client, businessId, requestId) {
      LIMIT 1`,
     [businessId, requestId]
   );
-  return rows[0] ?? null;
+  const existing = rows[0] ?? null;
+  if (!existing) return null;
+  // An idempotency replay must be the SAME logical operation. A requestId reused
+  // for a different operation type, or for a different card, is a client error —
+  // not a silent no-op that returns the wrong card's snapshot without acting.
+  if (opts.expectType && existing.tx_type !== opts.expectType) {
+    throw conflict("requestId ya fue usado para otra operación de gift card");
+  }
+  if (opts.cardToken && existing.code !== opts.cardToken && existing.qr_token !== opts.cardToken) {
+    throw conflict("requestId ya fue usado para otra gift card");
+  }
+  return existing;
 }
 
 async function lockGiftCardRequest(client, businessId, requestId) {
@@ -105,7 +116,7 @@ export async function createGiftCardWithDeps(deps, {
 
   return deps.withTransaction(async (client) => {
     await lockGiftCardRequest(client, actor.business_id, requestId);
-    const existing = await findExistingGiftCardTx(client, actor.business_id, requestId);
+    const existing = await findExistingGiftCardTx(client, actor.business_id, requestId, { expectType: "ISSUE" });
     if (existing) {
       await auditRepo.log({
         id: crypto.randomUUID(),
@@ -156,7 +167,7 @@ export async function createGiftCardWithDeps(deps, {
         break;
       } catch (err) {
         if (String(err?.code) === "23505" && requestId) {
-          const replay = await findExistingGiftCardTx(client, actor.business_id, requestId);
+          const replay = await findExistingGiftCardTx(client, actor.business_id, requestId, { expectType: "ISSUE" });
           if (replay) {
             await auditRepo.log({
               id: crypto.randomUUID(),
@@ -242,7 +253,7 @@ export async function redeemGiftCardWithDeps(deps, {
 
   return deps.withTransaction(async (client) => {
     await lockGiftCardRequest(client, actor.business_id, requestId);
-    const existing = await findExistingGiftCardTx(client, actor.business_id, requestId);
+    const existing = await findExistingGiftCardTx(client, actor.business_id, requestId, { expectType: "REDEEM", cardToken: code_or_token });
     if (existing) {
       await auditRepo.log({
         id: crypto.randomUUID(),

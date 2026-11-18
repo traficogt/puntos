@@ -287,4 +287,56 @@ describe("webhook-url (SSRF Protection)", () => {
       );
     });
   });
+
+  describe("IPv4-mapped / NAT64 IPv6 bypass (regression)", () => {
+    const mappedLookup = (addr) => async () => [{ address: addr }];
+
+    it("blocks IPv4-mapped IPv6 literal of link-local metadata (dotted)", async () => {
+      await assert.rejects(
+        async () => validateWebhookUrl("https://[::ffff:169.254.169.254]/latest/meta-data/", { requireHttps: true }),
+        { message: /Private IPs/ }
+      );
+    });
+
+    it("blocks IPv4-mapped IPv6 literal of a private host", async () => {
+      await assert.rejects(
+        async () => validateWebhookUrl("https://[::ffff:10.0.0.5]:6443/", { requireHttps: true }),
+        { message: /Private IPs/ }
+      );
+    });
+
+    it("blocks IPv4-mapped IPv6 literal of loopback", async () => {
+      await assert.rejects(
+        async () => validateWebhookUrl("https://[::ffff:127.0.0.1]/", { requireHttps: true }),
+        { message: /Private IPs/ }
+      );
+    });
+
+    it("blocks hex-form IPv4-mapped IPv6 literal (::ffff:a9fe:a9fe)", async () => {
+      await assert.rejects(
+        async () => validateWebhookUrl("https://[::ffff:a9fe:a9fe]/", { requireHttps: true }),
+        { message: /Private IPs/ }
+      );
+    });
+
+    it("blocks NAT64 well-known prefix", async () => {
+      await assert.rejects(
+        async () => validateWebhookUrl("https://[64:ff9b::a9fe:a9fe]/", { requireHttps: true }),
+        { message: /Private IPs/ }
+      );
+    });
+
+    it("blocks a hostname that resolves to a mapped private IPv4", async () => {
+      await assert.rejects(
+        async () => validateWebhookUrl("https://evil.example/", { requireHttps: true, lookup: mappedLookup("::ffff:10.1.2.3") }),
+        { message: /Private IPs/ }
+      );
+    });
+
+    it("still allows an IPv4-mapped IPv6 of a public address", async () => {
+      // Node canonicalises ::ffff:8.8.8.8 -> ::ffff:808:808; the point is it is NOT rejected.
+      const url = await validateWebhookUrl("https://[::ffff:8.8.8.8]/", { requireHttps: true });
+      assert.equal(url.protocol, "https:");
+    });
+  });
 });

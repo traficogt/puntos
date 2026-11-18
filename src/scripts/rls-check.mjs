@@ -16,6 +16,57 @@ const {
   DB_MIGRATIONS_PASSWORD
 } = process.env;
 
+// Tables carrying a business_id are tenant-scoped and MUST have row-level
+// security — the runtime role is NOBYPASSRLS, so RLS is the only DB-level
+// backstop if an application query ever forgets its explicit business_id filter.
+// These are the ONLY allowed exceptions: capability tables looked up by an
+// unguessable secret token_hash BEFORE any tenant/login context exists, where a
+// tenant-isolation policy would break pre-auth token consumption (password
+// reset, email change, magic-link login). Adding a NEW tenant table without RLS
+// — or removing RLS from a covered one — makes this check FAIL on purpose.
+const RLS_EXEMPT_TENANT_TABLES = new Set([
+  // Looked up by an unguessable secret token_hash BEFORE any tenant/login
+  // context exists; a tenant-isolation policy would break token consumption.
+  "auth_action_tokens",   // password-reset / email-change action tokens
+  "internal_magic_links", // staff/customer magic-link login
+  "auth_sessions",        // browser sessions; the session_token_hash lookup is how the tenant is derived
+  // Resolved before tenant context by a non-tenant key (login email / public slug).
+  "staff_login_index",    // email -> business/staff resolution during login
+  "business_public"       // public business projection, read by slug on unauthenticated pages
+]);
+
+async function assertTenantTablesHaveRls(db) {
+  const { rows } = await db.query(`
+    SELECT c.relname, c.relrowsecurity
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind = 'r'
+      AND EXISTS (
+        SELECT 1 FROM pg_attribute a
+        WHERE a.attrelid = c.oid AND a.attname = 'business_id' AND NOT a.attisdropped
+      )
+    ORDER BY c.relname
+  `);
+  const uncovered = rows
+    .filter((r) => !r.relrowsecurity && !RLS_EXEMPT_TENANT_TABLES.has(r.relname))
+    .map((r) => r.relname);
+  if (uncovered.length > 0) {
+    throw new Error(
+      `Tenant-scoped tables (have business_id) without RLS enabled: ${uncovered.join(", ")}. ` +
+      `Enable RLS in a migration, or add to RLS_EXEMPT_TENANT_TABLES with a documented reason.`
+    );
+  }
+  // Guard the exemptions too: if an exempt table gained RLS or disappeared,
+  // update the list deliberately rather than letting it drift.
+  for (const name of RLS_EXEMPT_TENANT_TABLES) {
+    const row = rows.find((r) => r.relname === name);
+    if (row && row.relrowsecurity) {
+      throw new Error(`Exempt table ${name} now has RLS; remove it from RLS_EXEMPT_TENANT_TABLES.`);
+    }
+  }
+  console.log(`RLS coverage: ${rows.length - uncovered.length}/${rows.length} business_id tables protected (${RLS_EXEMPT_TENANT_TABLES.size} documented exemption(s))`);
+}
+
 const client = new pg.Client({
   host: DB_HOST,
   port: Number(DB_PORT),
@@ -32,6 +83,7 @@ function assertEqual(actual, expected, message) {
 
 async function main() {
   await client.connect();
+  await assertTenantTablesHaveRls(client);
   await client.query("BEGIN");
   try {
     // Ensure a non-super, non-bypass role exists for the check.

@@ -25,6 +25,24 @@ function inRangeV4(ip, r) {
   return n >= from && n <= to;
 }
 
+// Extract the embedded IPv4 from an IPv4-mapped (::ffff:a.b.c.d / ::ffff:aabb:ccdd)
+// or IPv4-compatible (::a.b.c.d) IPv6 literal so it can be range-checked as IPv4.
+// Returns a dotted-quad string, or null when there is no embedded IPv4.
+function embeddedIpv4(lowerV6) {
+  // dotted form: ::ffff:1.2.3.4  or  ::1.2.3.4
+  let m = lowerV6.match(/^::(?:ffff:)?(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (m) return m[1];
+  // hex form: ::ffff:aabb:ccdd
+  m = lowerV6.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (m) {
+    const hi = Number.parseInt(m[1], 16);
+    const lo = Number.parseInt(m[2], 16);
+    if (Number.isNaN(hi) || Number.isNaN(lo)) return null;
+    return `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
+  }
+  return null;
+}
+
 function isPrivateIp(ip) {
   const kind = net.isIP(ip);
   if (kind === 4) {
@@ -34,6 +52,14 @@ function isPrivateIp(ip) {
     const lower = ip.toLowerCase();
     // localhost / unspecified
     if (lower === "::1" || lower === "::" || lower === "0:0:0:0:0:0:0:1") return true;
+    // IPv4-mapped / IPv4-compatible IPv6: classify by the embedded IPv4 so a v6
+    // literal cannot smuggle an internal IPv4 (e.g. ::ffff:169.254.169.254) past
+    // the private-range guard. A public embedded IPv4 stays allowed.
+    const v4 = embeddedIpv4(lower);
+    if (v4) return PRIVATE_V4_RANGES.some((r) => inRangeV4(v4, r));
+    // NAT64 well-known prefixes (64:ff9b::/96, 64:ff9b:1::/48) translate to IPv4
+    // via a host gateway — not a legitimate webhook destination; block outright.
+    if (lower.startsWith("64:ff9b:")) return true;
     // Unique local (fc00::/7) and link-local (fe80::/10)
     if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
     if (lower.startsWith("fe8") || lower.startsWith("fe9") || lower.startsWith("fea") || lower.startsWith("feb")) return true;
