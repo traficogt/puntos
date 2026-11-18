@@ -4,7 +4,20 @@
  * Creates temporary rows inside a transaction, asserts row filtering, then rolls back.
  */
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
 import pg from "pg";
+
+function readSecret(inline, filePath) {
+  if (inline) return inline;
+  if (filePath) {
+    try {
+      return fs.readFileSync(filePath, "utf8").trim();
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
 
 const {
   DB_HOST = "localhost",
@@ -12,9 +25,18 @@ const {
   DB_NAME = "puntos",
   DB_USER = "postgres",
   DB_PASSWORD = "",
+  DB_PASSWORD_FILE,
   DB_MIGRATIONS_USER,
-  DB_MIGRATIONS_PASSWORD
+  DB_MIGRATIONS_PASSWORD,
+  DB_MIGRATIONS_PASSWORD_FILE
 } = process.env;
+
+// Support both inline passwords and Docker/systemd *_FILE secrets: production
+// mounts db_migrations_password as a file, mirroring the app config loader.
+const DB_PASSWORD_RESOLVED =
+  readSecret(DB_MIGRATIONS_PASSWORD, DB_MIGRATIONS_PASSWORD_FILE) ||
+  readSecret(DB_PASSWORD, DB_PASSWORD_FILE) ||
+  "";
 
 // Tables carrying a business_id are tenant-scoped and MUST have row-level
 // security — the runtime role is NOBYPASSRLS, so RLS is the only DB-level
@@ -72,7 +94,7 @@ const client = new pg.Client({
   port: Number(DB_PORT),
   database: DB_NAME,
   user: DB_MIGRATIONS_USER || DB_USER,
-  password: DB_MIGRATIONS_PASSWORD || DB_PASSWORD
+  password: DB_PASSWORD_RESOLVED
 });
 
 function assertEqual(actual, expected, message) {
