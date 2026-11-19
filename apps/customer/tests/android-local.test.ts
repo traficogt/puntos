@@ -46,6 +46,12 @@ function fixture() {
   const calls: Call[] = [];
   const runtime = {
     platform: 'linux',
+    // Simulated privileged-host context: the fixture injects uid 0 the same way it
+    // injects platform/memory/disk/runner, so build/setup tests are deterministic
+    // under any test runner (including Codemagic's non-root macOS builder). The real
+    // getuid()===0 enforcement in android-local-lib.mjs stays in force for production;
+    // its rejection path is covered by the explicit userId:1000 override test below.
+    userId: 0,
     appRoot,
     repositoryRoot: appRoot,
     hostLock: path.join(temporary, 'host-operation.lock'),

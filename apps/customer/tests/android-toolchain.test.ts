@@ -11,6 +11,9 @@ function fixture() {
  for(const folder of [bin,work,tools,path.join(work,'scripts'),path.join(tools,'bin')])mkdirSync(folder,{recursive:true});
  const script=(file:string,body:string)=>writeFileSync(file,'#!/bin/bash\nset -euo pipefail\n'+body,{mode:0o700});
  script(path.join(bin,'java'),'echo \'openjdk version "17.0.17"\' >&2\n');
+ // Deterministic Node for entrypoint.sh's `node --version` gate (matches the .nvmrc
+ // written below), so these tests do not depend on whichever node launched the runner.
+ script(path.join(bin,'node'),'echo v22.23.5\n');
  script(path.join(bin,'npm'),`test -z "\${PF_ANDROID_STORE_PASSWORD:-}"\nprintf 'npm %s\\n' "$*" >> "$PF_TEST_LOG"\nif [[ "\${PF_TEST_FAIL_NPM:-}" == "$*" ]]; then exit 42; fi\n`);
  script(path.join(tools,'bin/sdkmanager'),`printf 'sdk %s\\n' "$*" >> "$PF_TEST_LOG"\nif [[ "$*" == *--licenses* ]]; then head -n 1 >/dev/null; fi\n`);
  script(path.join(work,'scripts/build-android-release.sh'),`test "$PF_ANDROID_STORE_PASSWORD" = 'fixture-password'\ntest "$PF_ANDROID_KEY_PASSWORD" = 'fixture-password'\ntest "$PF_ANDROID_KEYSTORE_BASE64" = 'Zml4dHVyZS1rZXk='\ntest "$PF_ANDROID_VERSION_CODE" = 13\ntest "$PF_ANDROID_KEY_ALIAS" = pf-upload\nprintf 'release %s\\n' "$*" >> "$PF_TEST_LOG"\n`);
