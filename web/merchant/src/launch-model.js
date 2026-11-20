@@ -30,12 +30,15 @@ export function launchReadiness({program,rewards,pilot,branches}={},now=Date.now
  }):null;
  const isDiscount=program?.program_type==='DISCOUNT';
  const isStamp=program?.program_type==='STAMP';
+ const isCashback=program?.program_type==='CASHBACK';
  const programReady=isDiscount
   ?typeof program?.percent_off==='number'&&Number.isFinite(program.percent_off)&&program.percent_off>0&&program.percent_off<=100
+  :isCashback
+  ?typeof program?.cashback_percent==='number'&&Number.isFinite(program.cashback_percent)&&program.cashback_percent>0&&program.cashback_percent<=100
   :isStamp
   ?Number.isInteger(Number(program?.stamps_required))&&Number(program.stamps_required)>=2&&typeof program?.reward_label==='string'&&program.reward_label.trim().length>0
   :['SPEND','VISIT','ITEM'].includes(program?.program_type)&&typeof program?.rate==='number'&&Number.isFinite(program.rate)&&program.rate>0;
- return {program:programReady,requiresRewards:!isDiscount&&!isStamp,
+ return {program:programReady,requiresRewards:!isDiscount&&!isStamp&&!isCashback,
  activeRewards:readyRewards?.length??null,readyRewards,
  unknownRewardCosts:readyRewards?.filter(reward=>reward.unit_cost_q==null||!Number.isFinite(Number(reward.unit_cost_q))||Number(reward.unit_cost_q)<0).length??null,
  physicalPassed:required.filter(c=>c.status==='passed').length,physicalTotal:required.length};
@@ -60,6 +63,14 @@ export function discountPreview(program,quantity){
  if(program?.program_type!=='DISCOUNT')return null;
  if(typeof quantity!=='number'||!Number.isFinite(quantity)||quantity<0)return null;
  const pct=Number(program?.percent_off);
+ if(!Number.isFinite(pct)||pct<=0)return null;
+ return Math.round(quantity*Math.min(100,pct))/100;
+}
+/** Quetzales earned back as cashback credit on a sample purchase. */
+export function cashbackPreview(program,quantity){
+ if(program?.program_type!=='CASHBACK')return null;
+ if(typeof quantity!=='number'||!Number.isFinite(quantity)||quantity<0)return null;
+ const pct=Number(program?.cashback_percent);
  if(!Number.isFinite(pct)||pct<=0)return null;
  return Math.round(quantity*Math.min(100,pct))/100;
 }

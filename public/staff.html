@@ -153,6 +153,17 @@
               </div>
               <p class="small" id="giftStatus">—</p>
             </div>
+
+            <div class="card staff-action-block staff-action-block-secondary hidden" id="cashbackActionBlock">
+              <h3>Cashback</h3>
+              <p class="small" id="cashbackBalance">Saldo del cliente: —</p>
+              <label for="cashbackAmount">Monto a usar</label>
+              <input id="cashbackAmount" type="number" min="0.01" step="0.01" value="0"/>
+              <div class="row mt-10">
+                <button class="primary" id="btnCashbackSpend" disabled>Usar saldo</button>
+              </div>
+              <p class="small" id="cashbackStatus">—</p>
+            </div>
           </div>
         </div>
       </div>

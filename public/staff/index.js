@@ -31,6 +31,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   let scanning = false;
   let lastCustomerId = null;
   let lastCustomerToken = "";
+  let lastCashbackBalance = 0;
   let lastCustomerPoints = 0;
   let customerSelectionRevision = 0;
   let detector = null;
@@ -351,9 +352,27 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       const prize = (typeof cfg.reward_label === "string" && cfg.reward_label.trim()) ? cfg.reward_label.trim() : "Premio";
       const per = cfg.stamp_unit === "item" ? "artículo" : "visita";
       el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Tarjeta de sellos — ${req} sellos para ${prize}${hs > 0 ? `, empieza con ${hs} de regalo` : ""} (1 sello por ${per}).`;
+    } else if (effective.program_type === "CASHBACK") {
+      el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Cashback — gana ${Number(cfg.cashback_percent ?? 0)}% de cada compra como saldo (sin puntos).`;
     } else {
       el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Por item (${Number(cfg.points_per_item ?? 1)} pts por item).`;
     }
+  }
+
+  function renderCashbackPanel(cb) {
+    const block = element("#cashbackActionBlock");
+    if (!block) return;
+    if (!cb) {
+      block.classList.add("hidden");
+      lastCashbackBalance = 0;
+      const amt = input("#cashbackAmount"); if (amt) amt.value = "0";
+      const st = element("#cashbackStatus"); if (st) st.textContent = "—";
+      return;
+    }
+    lastCashbackBalance = Number(cb.balance_q) || 0;
+    element("#cashbackBalance").textContent = `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)} (gana ${Number(cb.percent)}%)`;
+    const btn = element("#btnCashbackSpend"); if (btn) btn.disabled = !(lastCashbackBalance > 0);
+    block.classList.remove("hidden");
   }
 
   function updateInputsForRule() {
@@ -368,7 +387,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     const stampCfg = (protectedCycle ? protectedCycle.earning_terms : programRule.program_json) || {};
     const stampVisit = t === "STAMP" && stampCfg.stamp_unit !== "item";
     const stampItem = t === "STAMP" && stampCfg.stamp_unit === "item";
-    input("#amount").disabled = t !== "SPEND" && t !== "DISCOUNT";
+    input("#amount").disabled = t !== "SPEND" && t !== "DISCOUNT" && t !== "CASHBACK";
     input("#visits").disabled = t !== "VISIT" && !stampVisit;
     input("#items").disabled = t !== "ITEM" && !stampItem;
     updateAwardPreview();
@@ -488,6 +507,16 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
         : "Descuento de miembro no configurado todavía.";
       return;
     }
+    if (effective.program_type === "CASHBACK") {
+      const pct = Math.min(100, Math.max(0, Number(cfg.cashback_percent ?? 0)));
+      const digits = programRule.region?.minorUnits === 0 ? 0 : 2;
+      const currency = programRule.region?.currency || "GTQ";
+      const earn = Math.round(amount * pct) / 100;
+      out.textContent = pct > 0
+        ? `Cashback: ${currency} ${earn.toFixed(digits)} (${pct}% de ${currency} ${amount.toFixed(digits)}) como saldo. No otorga puntos.`
+        : "Cashback no configurado todavía.";
+      return;
+    }
     if (effective.program_type === "STAMP") {
       const unitCount = cfg.stamp_unit === "item" ? (items || 1) : (visits || 1);
       const n = Math.max(1, Math.floor(unitCount));
@@ -571,6 +600,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     customerSelectionRevision += 1;
     applySelectedCustomer(null, "", { silent: true });
     element("#redeemCode").textContent = "—";
+    renderCashbackPanel(null);
   }
 
   async function selectCustomerFromToken(token, { silent = true } = {}) {
@@ -602,6 +632,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       }));
       if (!selectionIsCurrent()) return false;
       applySelectedCustomer(out.customer, trimmed, { silent });
+      renderCashbackPanel(out.cashback);
       return true;
     }, (error) => {
       if (!selectionIsCurrent()) return false;
@@ -981,6 +1012,28 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       toast(error.message);
     }).finally(() => {
       giftRedeemInFlight = false;
+    });
+  });
+
+  element("#btnCashbackSpend")?.addEventListener("click", async () => {
+    if (!navigator.onLine || !sessionOnline) return toast("Usar el saldo de cashback requiere conexión.");
+    await run(async () => {
+      if (!await ensureAuth() || !sessionOnline) return;
+      if (!lastCustomerToken) return toast("Selecciona al cliente primero.");
+      const amount_q = Number(input("#cashbackAmount").value || 0);
+      if (!(amount_q > 0)) return toast("Ingresa un monto a usar.");
+      const out = await api("/api/staff/cashback/spend", {
+        method: "POST",
+        body: JSON.stringify({ customerQrToken: lastCustomerToken, amount_q, requestId: uuidv4() })
+      });
+      lastCashbackBalance = Number(out.balance_after_q) || 0;
+      element("#cashbackStatus").textContent = `Aplicado Q${Number(out.spent_q).toFixed(2)}. Nuevo saldo: Q${lastCashbackBalance.toFixed(2)}.`;
+      element("#cashbackBalance").textContent = `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)}`;
+      input("#cashbackAmount").value = "0";
+      const btn = element("#btnCashbackSpend"); if (btn) btn.disabled = !(lastCashbackBalance > 0);
+      toast("Saldo de cashback aplicado.");
+    }, (error) => {
+      toast(error.message);
     });
   });
 

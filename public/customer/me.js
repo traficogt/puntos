@@ -163,6 +163,18 @@ export async function renderFromMe({ api, $, toast, isCurrent = () => true, iden
     }
   }
 
+  const cashbackEl = safeEl($, "#cashbackBenefit");
+  if (cashbackEl) {
+    const cb = me.cashback;
+    if (cb && Number(cb.percent) > 0) {
+      const bal = Number(cb.balance_q) || 0;
+      cashbackEl.textContent = `Saldo de cashback: Q${bal.toFixed(2)} · ganas ${Number(cb.percent)}% en cada compra.`;
+      setHidden(cashbackEl, false);
+    } else {
+      setHidden(cashbackEl, true);
+    }
+  }
+
   const qrWrap = /** @type {HTMLElement | null} */ (safeEl($, "#qrWrap"));
   if (qrWrap) {
     const owner = `${identity.businessId}:${identity.customerId}`;

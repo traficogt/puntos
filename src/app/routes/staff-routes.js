@@ -20,6 +20,10 @@ import { awardPointsSchema, redeemRewardSchema, staffLoginSchema, staffLookupCus
 import { settlePendingPointsForBusiness } from "../services/loyalty-ops-service.js";
 import { PlanConfigService } from "../services/plan-config-service.js";
 import { tenantContext } from "../../middleware/tenant.js";
+import { getDbClient } from "../database.js";
+import { cashbackTerms } from "../services/cashback-model.js";
+import { getCashbackBalance } from "../services/cashback-service.js";
+import { spendCashbackForStaff } from "../services/cashback-spend-service.js";
 import { invalidateBrowserSessionById } from "../services/auth-session-service.js";
 import {
   confirmStaffMfaEnrollment,
@@ -176,9 +180,26 @@ staffRoutes.post("/staff/customer/lookup", csrfProtect, requireStaff, tenantCont
     staff: req.staff,
     customerQrToken: v.data.customerQrToken
   });
-  res.json({ ok: true, ...out });
+  const business = await BusinessRepo.getById(req.staff.business_id);
+  const cbTerms = cashbackTerms(business, { amount_q: 0 });
+  const cashback = cbTerms ? await getCashbackBalance(getDbClient(), out.customer.id) : null;
+  res.json({ ok: true, ...out, cashback: cashback ? { balance_q: cashback.balance_q, percent: cbTerms.percent } : null });
 }));
 
+
+export const CashbackSpendSchema = z.object({
+  customerQrToken: z.string().min(20),
+  amount_q: z.number().positive().max(1000000),
+  requestId: z.guid(),
+  note: z.string().max(200).optional()
+});
+
+staffRoutes.post("/staff/cashback/spend", csrfProtect, requireStaff, tenantContext, requireStaffPermission(Permission.STAFF_AWARD), asyncRoute(async (req, res) => {
+  const v = validate(CashbackSpendSchema, req.body);
+  if (!v.ok) return res.status(400).json({ error: v.error });
+  const out = await spendCashbackForStaff({ staff: req.staff, ...v.data });
+  res.json({ ok: true, ...out });
+}));
 
 staffRoutes.post("/staff/award", csrfProtect, requireStaff, tenantContext, requireStaffPermission(Permission.STAFF_AWARD), asyncRoute(async (req, res) => {
   const v = validate(awardPointsSchema, req.body);
