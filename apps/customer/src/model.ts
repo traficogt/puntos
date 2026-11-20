@@ -47,6 +47,14 @@ export type Snapshot = {
     providers: { apple: boolean; google: boolean };
     passes: { provider: string }[];
   };
+  stamp_card?: {
+    stamps_required: number;
+    head_start: number;
+    filled: number;
+    remaining: number;
+    reward_label: string;
+    complete: boolean;
+  } | null;
 };
 export type Session = {
   token: string;

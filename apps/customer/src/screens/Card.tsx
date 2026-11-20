@@ -49,6 +49,7 @@ export function Card() {
     business.member_discount && Number(business.member_discount.percent_off) > 0
       ? Number(business.member_discount.percent_off)
       : null;
+  const stamp = data.stamp_card ?? null;
   const title =
     business.customer_branding?.customer_program_name || business.name;
   const rewards =
@@ -137,29 +138,74 @@ export function Card() {
             PF.
           </Copy>
         </View>
-        <Copy
-          style={{
-            fontFamily: fonts.bold,
-            fontSize: 52,
-            lineHeight: 62,
-            color: colors.onCard,
-            marginTop: 24,
-            fontVariant: ["tabular-nums"],
-          }}
-        >
-          {discountPct != null
-            ? `${discountPct}%`
-            : Number(customer.points).toLocaleString("es-GT")}
-        </Copy>
-        <Copy style={{ color: colors.onCard, fontSize: 15, lineHeight: 23 }}>
-          {discountPct != null
-            ? "de descuento en cada compra"
-            : state.demo
-            ? "puntos de ejemplo"
-            : state.offline || !state.fresh
-            ? "puntos guardados"
-            : "puntos disponibles"}
-        </Copy>
+        {stamp ? (
+          <View style={{ marginTop: 24 }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+              {Array.from({
+                length: Math.min(60, Math.max(0, Number(stamp.stamps_required) || 0)),
+              }).map((_, i) => {
+                const earned = i < Number(stamp.filled);
+                const gift = i < Number(stamp.head_start);
+                return (
+                  <View
+                    key={i}
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
+                      borderWidth: 2,
+                      borderColor: earned && gift ? colors.success : colors.onCard,
+                      backgroundColor: earned
+                        ? gift
+                          ? colors.success
+                          : colors.onCard
+                        : "transparent",
+                      opacity: earned ? 1 : 0.35,
+                    }}
+                  />
+                );
+              })}
+            </View>
+            <Copy
+              style={{
+                color: colors.onCard,
+                fontSize: 15,
+                lineHeight: 23,
+                marginTop: 14,
+              }}
+            >
+              {stamp.complete
+                ? `¡Tarjeta completa! Canjea ${stamp.reward_label}.`
+                : `${stamp.filled}/${stamp.stamps_required} sellos · faltan ${stamp.remaining} para ${stamp.reward_label}`}
+            </Copy>
+          </View>
+        ) : (
+          <>
+            <Copy
+              style={{
+                fontFamily: fonts.bold,
+                fontSize: 52,
+                lineHeight: 62,
+                color: colors.onCard,
+                marginTop: 24,
+                fontVariant: ["tabular-nums"],
+              }}
+            >
+              {discountPct != null
+                ? `${discountPct}%`
+                : Number(customer.points).toLocaleString("es-GT")}
+            </Copy>
+            <Copy style={{ color: colors.onCard, fontSize: 15, lineHeight: 23 }}>
+              {discountPct != null
+                ? "de descuento en cada compra"
+                : state.demo
+                ? "puntos de ejemplo"
+                : state.offline || !state.fresh
+                ? "puntos guardados"
+                : "puntos disponibles"}
+            </Copy>
+          </>
+        )}
         <View
           style={{
             borderTopWidth: 1,
