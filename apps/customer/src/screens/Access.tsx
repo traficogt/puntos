@@ -29,7 +29,7 @@ type SignedIn = {
 type CardChoice = {
   accessToken: string;
   expiresAt: string;
-  cards: Pick<Business, "id" | "name" | "slug">[];
+  cards: Pick<Business, "id" | "name" | "slug" | "customer_branding">[];
 };
 type AccessResult =
   | ({ status: "signed_in" } & SignedIn)
@@ -605,16 +605,65 @@ export function Access() {
               {choice ? (
                 <>
                   <View style={layout.stack}>
-                    {choice.cards.map((card) => (
-                      <Button
-                        key={card.id}
-                        label={card.name}
-                        secondary
-                        icon="card-outline"
-                        disabled={busy}
-                        onPress={() => void selectCard(card.id, Date.now())}
-                      />
-                    ))}
+                    {choice.cards.map((card) => {
+                      const logo = /^https:\/\//i.test(
+                        card.customer_branding?.customer_logo_url || "",
+                      )
+                        ? card.customer_branding?.customer_logo_url
+                        : null;
+                      return (
+                        <Pressable
+                          key={card.id}
+                          accessibilityRole="button"
+                          accessibilityLabel={card.name}
+                          disabled={busy}
+                          onPress={() => void selectCard(card.id, Date.now())}
+                          style={({ pressed }) => ({
+                            minHeight: 52,
+                            paddingHorizontal: 16,
+                            paddingVertical: 13,
+                            borderRadius: 12,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 12,
+                            backgroundColor: colors.surface,
+                            borderWidth: 1,
+                            borderColor: colors.line,
+                            opacity: busy ? 0.55 : pressed ? 0.75 : 1,
+                          })}
+                        >
+                          {logo ? (
+                            <Image
+                              source={{ uri: logo }}
+                              resizeMode="contain"
+                              accessibilityIgnoresInvertColors
+                              style={{ width: 28, height: 28, borderRadius: 6 }}
+                            />
+                          ) : (
+                            <Ionicons
+                              name="card-outline"
+                              size={22}
+                              color={colors.ink}
+                            />
+                          )}
+                          <Copy
+                            style={{
+                              fontFamily: fonts.bold,
+                              color: colors.ink,
+                              flex: 1,
+                              flexShrink: 1,
+                            }}
+                          >
+                            {card.name}
+                          </Copy>
+                          <Ionicons
+                            name="chevron-forward"
+                            size={18}
+                            color={colors.muted}
+                          />
+                        </Pressable>
+                      );
+                    })}
                   </View>
                   {busy && <Notice>Abriendo tu tarjeta…</Notice>}
                   <View style={{ marginTop: 24 }}>

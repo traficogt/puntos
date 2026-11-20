@@ -133,7 +133,14 @@ export function createMobileRoutes(overrides = {}) {
     res.json(await deps.accessService.requestCode({ phone: req.body.phone }));
   }));
   router.post('/mobile/access/verify', deps.accessVerifyLimit, prepareOtp(accessVerifySchema), deps.accessVerifyPhoneLimit, asyncRoute(async (req, res) => {
-    res.json(await deps.accessService.verify({ phone: req.body.phone, code: req.body.code }));
+    const result = await deps.accessService.verify({ phone: req.body.phone, code: req.body.code });
+    if (result?.status === 'choose_card') {
+      result.cards = result.cards.map(({ customer_branding_json, ...card }) => ({
+        ...card,
+        customer_branding: customerBranding(customer_branding_json),
+      }));
+    }
+    res.json(result);
   }));
   router.post('/mobile/access/select', deps.accessSelectLimit, asyncRoute(async (req, res) => {
     const result = validate(accessSelectSchema, req.body);

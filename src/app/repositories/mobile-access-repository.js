@@ -36,7 +36,7 @@ export const MobileAccessRepo = {
     return rowCount === 1;
   },
   async listCards(phone) {
-    const { rows } = await query(`SELECT b.id,b.name,b.slug FROM customers c JOIN businesses b ON b.id=c.business_id
+    const { rows } = await query(`SELECT b.id,b.name,b.slug,b.customer_branding_json FROM customers c JOIN businesses b ON b.id=c.business_id
       WHERE c.phone=$1 AND c.deleted_at IS NULL ORDER BY b.name,b.id`, [phone]);
     return rows;
   },

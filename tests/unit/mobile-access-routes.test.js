@@ -70,3 +70,30 @@ test('actual access request and verification buckets stay separate from each oth
   for (let i = 0; i < 3; i++) assert.equal((await f.request(`../business/cafe/${i % 2 ? 'join' : 'login'}/request-code`, { phone: phone(i) })).status, 200);
   assert.equal((await f.request('../business/cafe/login/request-code', { phone: phone(3) })).status, 429);
 });
+
+test('choose_card maps normalized branding onto each card and drops the raw json', async t => {
+  const b1 = '44444444-4444-4444-8444-444444444444';
+  const b2 = '55555555-5555-4555-8555-555555555555';
+  const service = {
+    requestCode: async () => ({ ok: true }),
+    verify: async () => ({
+      status: 'choose_card', accessToken: 'A'.repeat(43), expiresAt: '2026-12-01T00:00:00.000Z',
+      cards: [
+        { id: b1, name: 'Caf\u00e9 Uno', slug: 'cafe-uno', customer_branding_json: { customer_logo_url: 'https://cdn.example.com/uno.png', customer_program_name: 'Club Uno' } },
+        { id: b2, name: 'Sal\u00f3n Dos', slug: 'salon-dos', customer_branding_json: null }
+      ]
+    }),
+    select: async () => ({ status: 'no_cards' })
+  };
+  const f = await fixture(t, { accessService: service });
+  const res = await f.request('verify', { phone: '55551234', code: '123456' });
+  assert.equal(res.status, 200); privateResponse(res);
+  const body = await res.json();
+  assert.equal(body.status, 'choose_card');
+  assert.equal(body.cards.length, 2);
+  assert.equal(body.cards[0].customer_branding.customer_logo_url, 'https://cdn.example.com/uno.png');
+  assert.equal(body.cards[0].customer_branding.customer_program_name, 'Club Uno');
+  assert.ok(!('customer_branding_json' in body.cards[0]));
+  assert.equal(body.cards[1].customer_branding.customer_logo_url, undefined);
+  assert.ok(!('customer_branding_json' in body.cards[1]));
+});
