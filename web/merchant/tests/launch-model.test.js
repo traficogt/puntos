@@ -1,5 +1,5 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
-import {basePointsPreview,launchReadiness,launchPilot} from '../src/launch-model.js';
+import {basePointsPreview,launchReadiness,launchPilot,firstLaunchStep,discountPreview} from '../src/launch-model.js';
 test('base preview respects actual rounding without pretending to include campaign bonuses',()=>{
  assert.equal(basePointsPreview({program_type:'SPEND',rate:0.1,round:'ceil'},75),8);
  assert.equal(basePointsPreview({program_type:'SPEND',rate:0.1,round:'floor'},75),7);
@@ -75,4 +75,20 @@ test('setup counts a reward at an eligible branch without borrowing stock outsid
  assert.deepEqual(ready.readyRewards[0].ready_branch_labels,['Centro']);
  assert.deepEqual(ready.readyRewards[1].ready_branch_labels,['Norte']);
  assert.equal(ready.readyRewards[0].limited_availability,true);
+});
+
+test('discount program is ready on a valid percent and requires no point rewards',()=>{
+ const ready=launchReadiness({program:{program_type:'DISCOUNT',rate:null,percent_off:10},rewards:[]});
+ assert.equal(ready.program,true);
+ assert.equal(ready.requiresRewards,false);
+ assert.equal(firstLaunchStep(ready,true),'launch');
+ const notReady=launchReadiness({program:{program_type:'DISCOUNT',rate:null,percent_off:0},rewards:[]});
+ assert.equal(notReady.program,false);
+});
+test('discount preview computes money off a sample purchase and ignores other programs',()=>{
+ assert.equal(discountPreview({program_type:'DISCOUNT',percent_off:10},250),25);
+ assert.equal(discountPreview({program_type:'DISCOUNT',percent_off:15},99.9),14.99);
+ assert.equal(discountPreview({program_type:'SPEND',rate:0.1},100),null);
+ assert.equal(discountPreview({program_type:'DISCOUNT',percent_off:0},100),null);
+ for(const value of [-1,NaN,Infinity,''])assert.equal(discountPreview({program_type:'DISCOUNT',percent_off:10},value),null);
 });

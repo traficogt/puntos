@@ -3,7 +3,7 @@ import { BusinessRepo } from "../../repositories/business-repository.js";
 import { maskSecret } from "./_util.js";
 
 export const ProgramSchema = z.object({
-  program_type: z.enum(["SPEND", "VISIT", "ITEM"]),
+  program_type: z.enum(["SPEND", "VISIT", "ITEM", "DISCOUNT"]),
   program_json: z.record(z.string(), z.any())
 });
 

@@ -343,6 +343,8 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Por gasto (${programRule.region?.currency || "GTQ"}). Tasa ${Number(cfg.points_per_q ?? 0.1)} pts/${programRule.region?.currency || "GTQ"} (${cfg.round || "ceil"}).`;
     } else if (effective.program_type === "VISIT") {
       el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Por visita (${Number(cfg.points_per_visit ?? 10)} pts por visita).`;
+    } else if (effective.program_type === "DISCOUNT") {
+      el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Descuento de miembro ${Number(cfg.percent_off ?? 0)}% en cada compra (sin puntos).`;
     } else {
       el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Por item (${Number(cfg.points_per_item ?? 1)} pts por item).`;
     }
@@ -357,7 +359,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     input("#amount").step = programRule.region?.minorUnits === 0 ? "1" : "0.01";
     input("#giftAmount").step = programRule.region?.minorUnits === 0 ? "1" : "0.01";
     input("#giftAmount").min = programRule.region?.minorUnits === 0 ? "1" : "0.01";
-    input("#amount").disabled = t !== "SPEND";
+    input("#amount").disabled = t !== "SPEND" && t !== "DISCOUNT";
     input("#visits").disabled = t !== "VISIT";
     input("#items").disabled = t !== "ITEM";
     updateAwardPreview();
@@ -467,6 +469,16 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     const items = Math.floor(Number(input("#items").value || 0));
     let preview = 0;
 
+    if (effective.program_type === "DISCOUNT") {
+      const pct = Math.min(100, Math.max(0, Number(cfg.percent_off ?? 0)));
+      const digits = programRule.region?.minorUnits === 0 ? 0 : 2;
+      const currency = programRule.region?.currency || "GTQ";
+      const discount = Math.round(amount * pct) / 100;
+      out.textContent = pct > 0
+        ? `Descuento de miembro: ${currency} ${discount.toFixed(digits)} (${pct}% de ${currency} ${amount.toFixed(digits)}). No otorga puntos.`
+        : "Descuento de miembro no configurado todavía.";
+      return;
+    }
     if (effective.program_type === "VISIT") {
       preview = Math.max(0, (visits || 1) * Number(cfg.points_per_visit ?? 10));
     } else if (effective.program_type === "ITEM") {

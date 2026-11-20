@@ -18,7 +18,7 @@ export const awardSchema = z.object({
   currency: z.string().regex(/^[A-Z]{3}$/).optional(),
   evaluated_at: date, clock: z.literal('server'), time_zone: z.string().max(100).refine(value => { try { new Intl.DateTimeFormat('en-US', { timeZone: value }); return true; } catch { return false; } }), local_weekday: z.number().int().min(0).max(6), local_hour: z.number().int().min(0).max(24),
   inputs: z.object({ amount_q: finite, visits: finite, items: finite }),
-  program: z.object({ type: z.enum(['SPEND','VISIT','ITEM']), rate: finite, round: z.enum(['ceil','floor','round']), quantity: finite }),
+  program: z.object({ type: z.enum(['SPEND','VISIT','ITEM','DISCOUNT']), rate: finite, round: z.enum(['ceil','floor','round']), quantity: finite }),
   base_points: finite, rules: z.array(rule).max(1000), program_points: z.number().int().nonnegative(),
   targeted_offer: z.object({ bonus_points: z.number().int().nonnegative(), campaign_id: uuid.nullable(), criteria: z.union([z.literal('not_snapshotted'), targetedOfferCriteriaSchema]) }),
   awarded_points: z.number().int().nonnegative(), hold_days: z.number().int().nonnegative(), initial_status: z.enum(['POSTED','PENDING']), available_at: date.nullable(),

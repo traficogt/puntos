@@ -28,7 +28,11 @@ export function launchReadiness({program,rewards,pilot,branches}={},now=Date.now
   if(!usable.length)return [];
   return [{...reward,ready_branch_labels:usable.map(branch=>branch.branchName).filter(Boolean),limited_availability:usable.length<scoped.length}];
  }):null;
- return {program:['SPEND','VISIT','ITEM'].includes(program?.program_type)&&typeof program?.rate==='number'&&Number.isFinite(program.rate)&&program.rate>0,
+ const isDiscount=program?.program_type==='DISCOUNT';
+ const programReady=isDiscount
+  ?typeof program?.percent_off==='number'&&Number.isFinite(program.percent_off)&&program.percent_off>0&&program.percent_off<=100
+  :['SPEND','VISIT','ITEM'].includes(program?.program_type)&&typeof program?.rate==='number'&&Number.isFinite(program.rate)&&program.rate>0;
+ return {program:programReady,requiresRewards:!isDiscount,
  activeRewards:readyRewards?.length??null,readyRewards,
  unknownRewardCosts:readyRewards?.filter(reward=>reward.unit_cost_q==null||!Number.isFinite(Number(reward.unit_cost_q))||Number(reward.unit_cost_q)<0).length??null,
  physicalPassed:required.filter(c=>c.status==='passed').length,physicalTotal:required.length};
@@ -36,8 +40,16 @@ export function launchReadiness({program,rewards,pilot,branches}={},now=Date.now
 
 export function firstLaunchStep(readiness,practiceComplete=false){
  if(!readiness.program)return 'program';
- if(!readiness.activeRewards)return 'rewards';
+ if(readiness.requiresRewards!==false&&!readiness.activeRewards)return 'rewards';
  return practiceComplete?'launch':'data';
+}
+/** Quetzales taken off a sample purchase for a member discount program. */
+export function discountPreview(program,quantity){
+ if(program?.program_type!=='DISCOUNT')return null;
+ if(typeof quantity!=='number'||!Number.isFinite(quantity)||quantity<0)return null;
+ const pct=Number(program?.percent_off);
+ if(!Number.isFinite(pct)||pct<=0)return null;
+ return Math.round(quantity*Math.min(100,pct))/100;
 }
 
 export function launchPilot(pilots = []) {

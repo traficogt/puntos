@@ -18,13 +18,14 @@ export interface RegionResponse {
   countries: Record<string, { name: string; currency: string; timezone: string; locale: string; dialCode: string }>;
   currencies: Record<string, string>;
 }
-export type ProgramType = 'SPEND' | 'VISIT' | 'ITEM';
+export type ProgramType = 'SPEND' | 'VISIT' | 'ITEM' | 'DISCOUNT';
 export type Rounding = 'ceil' | 'round' | 'floor';
-export interface ProgramUpdate { program_type: ProgramType; rate: number; round: Rounding; version: string }
-// Existing stored configurations can have an unavailable rate. The form must
-// validate it before saving; an empty NumberInput also holds a string.
-export interface ProgramBasics extends Omit<ProgramUpdate, 'rate'> { rate: number | null }
-export interface ProgramForm extends Omit<ProgramUpdate, 'rate'> { rate: number | string | null }
+export interface ProgramUpdate { program_type: ProgramType; rate?: number; round?: Rounding; percent_off?: number; version: string }
+// Existing stored configurations can have an unavailable rate (points programs)
+// or percent_off (discount programs). The form validates before saving; an empty
+// NumberInput also holds a string.
+export interface ProgramBasics { program_type: ProgramType; rate: number | null; round: Rounding; percent_off: number | null; version: string }
+export interface ProgramForm { program_type: ProgramType; rate: number | string | null; round: Rounding; percent_off: number | string | null; version: string }
 export interface ProgramResponse { ok: boolean; program: ProgramBasics }
 export interface MerchantReadResponses {
   '/api/admin/region': RegionResponse;
