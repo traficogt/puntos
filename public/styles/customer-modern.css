@@ -283,6 +283,12 @@ body.customer-modern.page-customer .lc-qr-btn:hover { background: color-mix(in s
 .customer-modern .lc-footer { padding-top: 18px; border-color: color-mix(in srgb,var(--modern-warm-text) 22%,transparent); }
 .customer-modern .lc-badge { color: inherit; background: transparent; border: 0; padding: 4px 0; font-size: 11px; white-space: normal; }
 .customer-modern .lc-member-benefit { margin: 0; padding: 8px 12px; border-radius: 10px; color: var(--modern-success); background: var(--modern-success-bg); font: 600 14px/1.4 var(--font-ui); }
+.customer-modern .lc-stamp-card { margin: 0; padding: 12px; border-radius: var(--radius-md); background: var(--nav-surface); }
+.customer-modern .lc-stamp-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.customer-modern .lc-stamp { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--field-border); box-sizing: border-box; }
+.customer-modern .lc-stamp.is-filled { background: var(--modern-action); border-color: var(--modern-action); }
+.customer-modern .lc-stamp.is-gift.is-filled { background: var(--modern-success); border-color: var(--modern-success); }
+.customer-modern .lc-stamp-caption { margin: 8px 0 0; font: 600 14px/1.4 var(--font-ui); color: var(--text); }
 .customer-modern .lc-foot-badges { gap: 12px; }
 .customer-modern .loyalty-card .status-online { color: inherit; background: transparent; border: 0; }
 .customer-modern #netBadge { padding: 6px 10px; color: var(--modern-success); background: var(--modern-success-bg); flex-shrink: 0; }

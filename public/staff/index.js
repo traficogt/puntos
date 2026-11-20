@@ -345,6 +345,12 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Por visita (${Number(cfg.points_per_visit ?? 10)} pts por visita).`;
     } else if (effective.program_type === "DISCOUNT") {
       el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Descuento de miembro ${Number(cfg.percent_off ?? 0)}% en cada compra (sin puntos).`;
+    } else if (effective.program_type === "STAMP") {
+      const req = Math.max(2, Math.floor(Number(cfg.stamps_required) || 0) || 10);
+      const hs = Math.min(req - 1, Math.max(0, Math.floor(Number(cfg.head_start) || 0)));
+      const prize = (typeof cfg.reward_label === "string" && cfg.reward_label.trim()) ? cfg.reward_label.trim() : "Premio";
+      const per = cfg.stamp_unit === "item" ? "artículo" : "visita";
+      el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Tarjeta de sellos — ${req} sellos para ${prize}${hs > 0 ? `, empieza con ${hs} de regalo` : ""} (1 sello por ${per}).`;
     } else {
       el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Por item (${Number(cfg.points_per_item ?? 1)} pts por item).`;
     }
@@ -359,9 +365,12 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     input("#amount").step = programRule.region?.minorUnits === 0 ? "1" : "0.01";
     input("#giftAmount").step = programRule.region?.minorUnits === 0 ? "1" : "0.01";
     input("#giftAmount").min = programRule.region?.minorUnits === 0 ? "1" : "0.01";
+    const stampCfg = (protectedCycle ? protectedCycle.earning_terms : programRule.program_json) || {};
+    const stampVisit = t === "STAMP" && stampCfg.stamp_unit !== "item";
+    const stampItem = t === "STAMP" && stampCfg.stamp_unit === "item";
     input("#amount").disabled = t !== "SPEND" && t !== "DISCOUNT";
-    input("#visits").disabled = t !== "VISIT";
-    input("#items").disabled = t !== "ITEM";
+    input("#visits").disabled = t !== "VISIT" && !stampVisit;
+    input("#items").disabled = t !== "ITEM" && !stampItem;
     updateAwardPreview();
   }
 
@@ -477,6 +486,12 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       out.textContent = pct > 0
         ? `Descuento de miembro: ${currency} ${discount.toFixed(digits)} (${pct}% de ${currency} ${amount.toFixed(digits)}). No otorga puntos.`
         : "Descuento de miembro no configurado todavía.";
+      return;
+    }
+    if (effective.program_type === "STAMP") {
+      const unitCount = cfg.stamp_unit === "item" ? (items || 1) : (visits || 1);
+      const n = Math.max(1, Math.floor(unitCount));
+      out.textContent = `Vista previa: se otorgará ${n} ${n === 1 ? "sello" : "sellos"} con los valores actuales.`;
       return;
     }
     if (effective.program_type === "VISIT") {

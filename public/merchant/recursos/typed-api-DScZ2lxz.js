@@ -1,0 +1,1 @@
+import{o as e,t}from"./api-DrRKVGbQ.js";function n(e){return{async get(t,n){return await e(t,n)},async put(t,n,r){return await e(t,{...r,method:`PUT`,body:JSON.stringify(n)})}}}var r=t,i=n(t),a=e;export{r as n,a as r,i as t};

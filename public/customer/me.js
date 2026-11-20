@@ -138,6 +138,31 @@ export async function renderFromMe({ api, $, toast, isCurrent = () => true, iden
     }
   }
 
+  const stampWrap = safeEl($, "#stampCard");
+  if (stampWrap) {
+    const sc = me.stamp_card;
+    if (sc && Number(sc.stamps_required) > 0) {
+      const req = Number(sc.stamps_required), hs = Math.max(0, Number(sc.head_start) || 0), filled = Math.max(0, Number(sc.filled) || 0);
+      const grid = document.createElement("div");
+      grid.className = "lc-stamp-grid";
+      grid.setAttribute("aria-hidden", "true");
+      for (let i = 0; i < req; i += 1) {
+        const dot = document.createElement("span");
+        dot.className = "lc-stamp" + (i < filled ? " is-filled" : "") + (i < hs ? " is-gift" : "");
+        grid.appendChild(dot);
+      }
+      const caption = document.createElement("p");
+      caption.className = "lc-stamp-caption";
+      caption.textContent = sc.complete
+        ? `¡Tarjeta completa! Canjea: ${sc.reward_label}.`
+        : `${filled}/${req} sellos · faltan ${sc.remaining} para ${sc.reward_label}${hs > 0 ? ` · ${hs} de regalo` : ""}`;
+      stampWrap.replaceChildren(grid, caption);
+      setHidden(stampWrap, false);
+    } else {
+      setHidden(stampWrap, true);
+    }
+  }
+
   const qrWrap = /** @type {HTMLElement | null} */ (safeEl($, "#qrWrap"));
   if (qrWrap) {
     const owner = `${identity.businessId}:${identity.customerId}`;

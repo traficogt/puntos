@@ -29,10 +29,13 @@ export function launchReadiness({program,rewards,pilot,branches}={},now=Date.now
   return [{...reward,ready_branch_labels:usable.map(branch=>branch.branchName).filter(Boolean),limited_availability:usable.length<scoped.length}];
  }):null;
  const isDiscount=program?.program_type==='DISCOUNT';
+ const isStamp=program?.program_type==='STAMP';
  const programReady=isDiscount
   ?typeof program?.percent_off==='number'&&Number.isFinite(program.percent_off)&&program.percent_off>0&&program.percent_off<=100
+  :isStamp
+  ?Number.isInteger(Number(program?.stamps_required))&&Number(program.stamps_required)>=2&&typeof program?.reward_label==='string'&&program.reward_label.trim().length>0
   :['SPEND','VISIT','ITEM'].includes(program?.program_type)&&typeof program?.rate==='number'&&Number.isFinite(program.rate)&&program.rate>0;
- return {program:programReady,requiresRewards:!isDiscount,
+ return {program:programReady,requiresRewards:!isDiscount&&!isStamp,
  activeRewards:readyRewards?.length??null,readyRewards,
  unknownRewardCosts:readyRewards?.filter(reward=>reward.unit_cost_q==null||!Number.isFinite(Number(reward.unit_cost_q))||Number(reward.unit_cost_q)<0).length??null,
  physicalPassed:required.filter(c=>c.status==='passed').length,physicalTotal:required.length};
@@ -42,6 +45,15 @@ export function firstLaunchStep(readiness,practiceComplete=false){
  if(!readiness.program)return 'program';
  if(readiness.requiresRewards!==false&&!readiness.activeRewards)return 'rewards';
  return practiceComplete?'launch':'data';
+}
+/** Shape of a stamp card for the editor preview: gifted stamps and the real purchases needed. */
+export function stampPreview(program){
+ if(program?.program_type!=='STAMP')return null;
+ const req=Number(program?.stamps_required);
+ if(!Number.isInteger(req)||req<2)return null;
+ const hsRaw=program?.head_start;
+ const hs=hsRaw===''||hsRaw==null?Math.min(req-1,2):Math.min(req-1,Math.max(0,Number.isFinite(Number(hsRaw))?Math.floor(Number(hsRaw)):2));
+ return {stamps_required:req,head_start:hs,purchases_required:req-hs};
 }
 /** Quetzales taken off a sample purchase for a member discount program. */
 export function discountPreview(program,quantity){
