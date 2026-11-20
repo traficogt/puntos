@@ -4,7 +4,7 @@ import { z } from 'zod';
 import {businessRegion} from './regional-settings.js';
 
 const finite = value => Number.isFinite(Number(value)) ? Number(value) : null;
-const types = ['SPEND', 'VISIT', 'ITEM'];
+const types = ['SPEND', 'VISIT', 'ITEM', 'STAMP'];
 function localTime(date, timeZone) {
   try {
     const parts = new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short', hour: '2-digit', hour12: false }).formatToParts(date);
@@ -47,10 +47,10 @@ export function evaluatePointRules(business, { amount_q = 0, visits = 0, items =
       inputs: { amount_q: Number(amount_q), visits: Number(visits), items: Number(items) },
       program, base_points: 0, rules: [], program_points: 0 } };
   }
-  const programType = type === 'VISIT' || type === 'ITEM' ? type : 'SPEND';
-  const rate = Number(programType === 'VISIT' ? cfg.points_per_visit ?? 10 : programType === 'ITEM' ? cfg.points_per_item ?? 1 : cfg.points_per_q ?? 0.1);
+  const programType = type === 'VISIT' || type === 'ITEM' || type === 'STAMP' ? type : 'SPEND';
+  const rate = programType === 'STAMP' ? 1 : Number(programType === 'VISIT' ? cfg.points_per_visit ?? 10 : programType === 'ITEM' ? cfg.points_per_item ?? 1 : cfg.points_per_q ?? 0.1);
   const round = programType === 'SPEND' ? (['floor', 'round'].includes(String(cfg.round)) ? String(cfg.round) : 'ceil') : 'floor';
-  const quantity = programType === 'VISIT' ? Math.floor(visits || 1) : programType === 'ITEM' ? Math.floor(items || 1) : Number(amount_q);
+  const quantity = programType === 'STAMP' ? Math.floor((cfg.stamp_unit === 'item' ? items : visits) || 1) : programType === 'VISIT' ? Math.floor(visits || 1) : programType === 'ITEM' ? Math.floor(items || 1) : Number(amount_q);
   const raw = quantity * rate;
   const base = Math.max(0, programType === 'SPEND' ? round === 'floor' ? Math.floor(raw) : round === 'round' ? Math.round(raw) : Math.ceil(raw) : raw);
   const clock = localTime(now, timeZone), definitions = Array.isArray(cfg.campaign_rules) ? cfg.campaign_rules : [];
