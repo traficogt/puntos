@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 import { Button, Stack, Text } from "@mantine/core";
 import { isDemo } from "./api.js";
-import { dailyNavigation, navigationGroups, demoNavigation } from "./merchant-navigation.js";
+import { dailyNavigation, navigationGroups, demoNavigation, pageFeatures } from "./merchant-navigation.js";
 
-export default function MerchantNavigation({ page, visible, onNavigate }) {
+export default function MerchantNavigation({ page, visible, onNavigate, features }) {
   const navigation = useRef(null);
   useEffect(() => {
     // Reveal the selected page on history/deep-link changes and each mobile
@@ -44,27 +44,42 @@ export default function MerchantNavigation({ page, visible, onNavigate }) {
     );
   }
 
-  const renderGroup = grp => (
-    <details key={grp.id} className="merchant-nav-group">
-      <summary>{grp.label}</summary>
-      {items(grp.items)}
-    </details>
-  );
+  // Once the plan has loaded, hide pages whose required plan feature(s) are
+  // off — every listed flag must be present (matches each page's own lock).
+  // Until features arrive (undefined) we show everything so the menu doesn't
+  // flash items away on load.
+  const allow = entries => {
+    if (!features) return entries;
+    return entries.filter(item => {
+      const required = pageFeatures[item.page];
+      return !required || required.every(flag => features[flag]);
+    });
+  };
+
+  const renderGroup = grp => {
+    const groupItems = allow(grp.items);
+    if (groupItems.length === 0) return null;
+    return (
+      <details key={grp.id} className="merchant-nav-group">
+        <summary>{grp.label}</summary>
+        {items(groupItems)}
+      </details>
+    );
+  };
 
   // Everyday groups stay in view; operational and power-user groups move
   // behind one deliberate reveal so the default surface stays small.
-  const primary = navigationGroups.filter(group => !group.advanced);
-  const advanced = navigationGroups.filter(group => group.advanced);
+  const advancedGroups = navigationGroups.filter(group => group.advanced).map(renderGroup).filter(Boolean);
 
   return (
     <nav ref={navigation} aria-label="Tu negocio" className="merchant-navigation">
       <Text className="merchant-nav-label" size="sm" fw={600}>Día a día</Text>
-      {items(dailyNavigation)}
-      {primary.map(renderGroup)}
-      {advanced.length > 0 && (
+      {items(allow(dailyNavigation))}
+      {navigationGroups.filter(group => !group.advanced).map(renderGroup)}
+      {advancedGroups.length > 0 && (
         <details className="merchant-nav-more">
           <summary>Ver todas las herramientas</summary>
-          {advanced.map(renderGroup)}
+          {advancedGroups}
         </details>
       )}
     </nav>

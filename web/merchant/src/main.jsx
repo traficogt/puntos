@@ -329,7 +329,7 @@ function Merchant({ staff }) {
             </Text>
             {compactNavigation && <Button ref={navigationToggle} variant="outline" fullWidth aria-expanded={navigationOpen} aria-controls="merchant-navigation" onClick={() => setNavigationOpen(v => !v)}>{navigationOpen ? "Cerrar menú del negocio" : "Cambiar sección del negocio"}</Button>}
             <div id="merchant-navigation" hidden={compactNavigation && !navigationOpen}>
-            <MerchantNavigation page={page} visible={!compactNavigation || navigationOpen} onNavigate={navigate} />
+            <MerchantNavigation page={page} visible={!compactNavigation || navigationOpen} onNavigate={navigate} features={plan.data?.features} />
             <div className="sidebar-secondary">
               <BusinessLink href="/administracion/?seccion=analisis">
                 Informes detallados

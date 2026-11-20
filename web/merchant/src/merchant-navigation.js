@@ -84,3 +84,24 @@ export const demoNavigation = [
   { page: "brand", label: "Marca y QR" },
   { page: "fulfillment", label: "Canjes y caja" },
 ];
+
+// Plan features each page requires to be usable (ALL must be present). Derived
+// from the components' own lock checks (Campaigns, Automations, Recovery,
+// Referrals, GrowthCampaigns, Audiences, OwnerTeam, OwnerBranches, BrandedQr,
+// PosConnect, Economics, Pilot). Pages not listed are core and always shown —
+// including overview/launch/rewards/customers/settings/acquisition, which only
+// lock a sub-widget, not the whole page.
+export const pageFeatures = {
+  campaigns: ["campaign_rules"],
+  automations: ["lifecycle_automation"],
+  recovery: ["analytics"],
+  referrals: ["referrals"],
+  growth: ["campaign_rules", "analytics"],
+  audiences: ["analytics", "campaign_rules"],
+  team: ["staff_management"],
+  branches: ["multi_branch"],
+  brand: ["branded_qr"],
+  pos: ["external_awards"],
+  economics: ["analytics"],
+  pilot: ["analytics"],
+};
