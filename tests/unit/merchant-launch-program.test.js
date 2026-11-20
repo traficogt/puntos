@@ -23,3 +23,21 @@ test('stale edits and removed plan permission are rejected before writes',async(
  for(const kind of ['stale','plan']){const b=row(),input={program_type:'SPEND',rate:2,round:'round',version:programBasics(b).version};if(kind==='stale')b.program_json.points_per_q=3;
  let writes=0;await assert.rejects(updateLaunchProgram({businessId:b.id,staffId:'owner',input},{transaction:fn=>fn({query:async sql=>{if(!sql.startsWith('SELECT'))writes++;return {rows:[b]};}}),getPlanFeatureOverrides:async()=>kind==='plan'?{NEGOCIO:{program_rules:false}}:{}}),e=>e instanceof Error && "statusCode" in e && e.statusCode===(kind==='stale'?409:403));assert.equal(writes,0);}
 });
+test('basic editor accepts a member discount program and validates its percentage',()=>{
+ const base={program_type:'DISCOUNT',percent_off:10,version:'a'.repeat(64)};
+ assert.equal(LaunchProgramInput.safeParse(base).success,true);
+ for(const patch of [{percent_off:0},{percent_off:-5},{percent_off:101},{percent_off:undefined},{percent_off:'10'},{lifecycle:{birthday_enabled:true}}]) assert.equal(LaunchProgramInput.safeParse({...base,...patch}).success,false);
+});
+test('launch view exposes the member discount percentage and a null rate for a discount program',()=>{
+ const b={id:'business',plan:'NEGOCIO',program_type:'DISCOUNT',program_json:{percent_off:15}};
+ const v=programBasics(b);
+ assert.equal(v.program_type,'DISCOUNT');assert.equal(v.rate,null);assert.equal(v.percent_off,15);assert.match(v.version,/^[a-f0-9]{64}$/);
+});
+test('a save switches a program to a member discount, persists only the percentage, and preserves other config',async()=>{
+ const b=row(),version=programBasics(b).version;let writes=0,audits=0;
+ const query=async(sql,params)=>{if(sql.startsWith('SELECT'))return {rows:[b]};if(sql.startsWith('UPDATE')){writes++;Object.assign(b,{program_type:params[1],program_json:{...b.program_json,...JSON.parse(params[2])}});return {rows:[b]};}audits++;assert.ok(sql.includes('audit_logs'));return {rows:[]};};
+ const result=await updateLaunchProgram({businessId:b.id,staffId:'owner',input:{program_type:'DISCOUNT',percent_off:12,version}},{transaction:fn=>fn({query}),getPlanFeatureOverrides:async()=>({})});
+ assert.equal(writes,1);assert.equal(audits,1);
+ assert.equal(result.program.program_type,'DISCOUNT');assert.equal(result.program.percent_off,12);assert.equal(result.program.rate,null);
+ assert.equal(b.program_json.percent_off,12);assert.equal(b.program_json.external_awards.api_key,'private');assert.equal(b.program_json.campaign_rules.length,1);
+});
