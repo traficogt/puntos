@@ -11,6 +11,8 @@ import { PlanConfigService } from "./plan-config-service.js";
 import { claimTargetedOffer } from "./targeted-offer-service.js";
 import { isLedgerInteger } from "../../utils/ledger-limits.js";
 import { computePoints } from "./points-service.js";
+import { cashbackTerms } from "./cashback-model.js";
+import { accrueCashback } from "./cashback-service.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 
 const PROCESSABLE_STATUSES = new Set(["paid", "completed"]);
@@ -243,6 +245,13 @@ async function processOrderWithClient(deps, client, input) {
      WHERE customer_id = $1`,
     [customer.id, pointsAwarded, transactionStatus]
   );
+
+  if (business.program_type === "CASHBACK" && transactionStatus === "POSTED") {
+    const cashback = cashbackTerms(business, { amount_q: amountQ });
+    if (cashback && cashback.earn_q > 0) {
+      await accrueCashback(client, { businessId: business.id, customerId: customer.id, amountQ, earnQ: cashback.earn_q, sourceTransactionId: transactionId, requestId: transactionId, meta: { percent: cashback.percent, source: "order" } });
+    }
+  }
 
   const order = await createOrder(deps, client, {
     business_id: business.id,

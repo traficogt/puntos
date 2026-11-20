@@ -5,6 +5,8 @@ import { getCustomerStatement } from '../services/customer-statement-service.js'
 import { businessRegion } from "../services/regional-settings.js";
 import { memberDiscount } from "../services/discount-model.js";
 import { stampCard } from "../services/stamp-model.js";
+import { cashbackTerms } from "../services/cashback-model.js";
+import { getCashbackBalance } from "../services/cashback-service.js";
 import { Router } from "express";
 import { asyncRoute } from "../../middleware/common.js";
 import { requireCustomer } from "../../middleware/auth.js";
@@ -53,6 +55,8 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
   const features = planFeaturesWithOverrides(business.plan, overrides);
   const discountTerms = memberDiscount(business, { amount_q: 0 });
   const stamp = stampCard(business, { points: Number(customer.points) || 0 });
+  const cbTerms = cashbackTerms(business, { amount_q: 0 });
+  const cashback = cbTerms ? await getCashbackBalance(getDbClient(), auth.id) : null;
   res.json({
     ok: true,
     business: {
@@ -75,7 +79,8 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
       created_at: customer.created_at,
       last_visit_at: customer.last_visit_at
     },
-    stamp_card: stamp ? { stamps_required: stamp.stamps_required, head_start: stamp.head_start, filled: stamp.filled, remaining: stamp.remaining, reward_label: stamp.reward_label, complete: stamp.complete } : null
+    stamp_card: stamp ? { stamps_required: stamp.stamps_required, head_start: stamp.head_start, filled: stamp.filled, remaining: stamp.remaining, reward_label: stamp.reward_label, complete: stamp.complete } : null,
+    cashback: cashback ? { balance_q: cashback.balance_q, percent: cbTerms.percent } : null
   });
 }));
 

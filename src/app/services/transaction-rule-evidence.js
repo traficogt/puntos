@@ -34,14 +34,14 @@ function ruleContent(rule, index) {
  */
 export function evaluatePointRules(business, { amount_q = 0, visits = 0, items = 0 }, { now, timeZone }) {
   const type = business.program_type ?? 'SPEND', cfg = business.program_json ?? {};
-  if (type === 'DISCOUNT') {
+  if (type === 'DISCOUNT' || type === 'CASHBACK') {
     // A discount program accrues no points; the benefit is applied as a counter
     // discount (see discount-model.js). Evidence is emitted with zero points for a
     // consistent audit trail so downstream award storage validates unchanged.
     const clock = localTime(now, timeZone);
-    const program = { type: 'DISCOUNT', rate: 0, round: 'floor', quantity: Number(amount_q) };
+    const program = { type, rate: 0, round: 'floor', quantity: Number(amount_q) };
     return { points: 0, evidence: { schema_version: 1, algorithm: 'pf-points-v1',
-      rule_version: createHash('sha256').update(JSON.stringify({ type: 'DISCOUNT', rate: 0, round: 'floor', rules: [] })).digest('hex'),
+      rule_version: createHash('sha256').update(JSON.stringify({ type, rate: 0, round: 'floor', rules: [] })).digest('hex'),
       evaluated_at: now.toISOString(), clock: 'server', time_zone: clock.timeZone, currency: businessRegion(business).currency,
       local_weekday: clock.weekday, local_hour: clock.hour,
       inputs: { amount_q: Number(amount_q), visits: Number(visits), items: Number(items) },

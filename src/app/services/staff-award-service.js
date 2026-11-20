@@ -8,6 +8,8 @@ import { SecurityEventRepo } from "../repositories/security-event-repository.js"
 import { verifyQrToken, verifyQrSignature } from "../../utils/qr-token.js";
 import { verifyCapturedQr } from "./staff-offline-service.js";
 import { computePoints, computePointsWithEvidence } from "./points-service.js";
+import { cashbackTerms } from "./cashback-model.js";
+import { accrueCashback } from "./cashback-service.js";
 import { completeAwardEvidence } from "./transaction-rule-evidence.js";
 import { enqueueWebhookEvent } from "./webhook-service.js";
 import { planLimits } from "../../utils/plan.js";
@@ -347,6 +349,13 @@ export async function awardPointsWithDeps(
 
     await client.query(`UPDATE customers SET last_visit_at=now() WHERE id=$1`, [cid]);
     await refreshCustomerDerivedState(client, cid);
+
+    if (business.program_type === "CASHBACK" && awardStatus === "POSTED") {
+      const cashback = cashbackTerms(business, { amount_q: normalizedAmountQ });
+      if (cashback && cashback.earn_q > 0) {
+        await accrueCashback(client, { businessId: bid, customerId: cid, staffUserId: staff.id, amountQ: normalizedAmountQ, earnQ: cashback.earn_q, sourceTransactionId: transactionId, requestId: transactionId, meta: { percent: cashback.percent, source: "staff_award" } });
+      }
+    }
 
     return {
       pointsAwarded: awardedPoints,

@@ -69,3 +69,22 @@ test('a save switches a program to a stamp card, gives the default 2-stamp head 
  await updateLaunchProgram({businessId:b.id,staffId:'owner',input:{program_type:'SPEND',rate:0.1,round:'ceil',version:programBasics(b).version}},deps);
  assert.equal(rewards[0].active,false);
 });
+
+test('basic editor accepts a cashback program and validates its percentage',()=>{
+ const base={program_type:'CASHBACK',cashback_percent:5,version:'a'.repeat(64)};
+ assert.equal(LaunchProgramInput.safeParse(base).success,true);
+ for(const patch of [{cashback_percent:0},{cashback_percent:-5},{cashback_percent:101},{cashback_percent:undefined},{cashback_percent:'5'},{lifecycle:{birthday_enabled:true}}]) assert.equal(LaunchProgramInput.safeParse({...base,...patch}).success,false);
+});
+test('launch view exposes the cashback percentage and a null rate for a cashback program',()=>{
+ const b={id:'business',plan:'NEGOCIO',program_type:'CASHBACK',program_json:{cashback_percent:7}};
+ const v=programBasics(b);
+ assert.equal(v.program_type,'CASHBACK');assert.equal(v.rate,null);assert.equal(v.cashback_percent,7);assert.match(v.version,/^[a-f0-9]{64}$/);
+});
+test('a save switches a program to cashback, persists only the percentage, and preserves other config',async()=>{
+ const b=row(),version=programBasics(b).version;let writes=0,audits=0;
+ const query=async(sql,params)=>{if(sql.startsWith('SELECT'))return {rows:[b]};if(sql.startsWith('UPDATE')){writes++;Object.assign(b,{program_type:params[1],program_json:{...b.program_json,...JSON.parse(params[2])}});return {rows:[b]};}audits++;assert.ok(sql.includes('audit_logs'));return {rows:[]};};
+ const result=await updateLaunchProgram({businessId:b.id,staffId:'owner',input:{program_type:'CASHBACK',cashback_percent:8,version}},{transaction:fn=>fn({query}),getPlanFeatureOverrides:async()=>({})});
+ assert.equal(writes,1);assert.equal(audits,1);
+ assert.equal(result.program.program_type,'CASHBACK');assert.equal(result.program.cashback_percent,8);assert.equal(result.program.rate,null);
+ assert.equal(b.program_json.cashback_percent,8);assert.equal(b.program_json.external_awards.api_key,'private');
+});
