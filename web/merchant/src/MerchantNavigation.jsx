@@ -5,10 +5,13 @@ import { dailyNavigation, navigationGroups } from "./merchant-navigation.js";
 export default function MerchantNavigation({ page, visible, onNavigate }) {
   const navigation = useRef(null);
   useEffect(() => {
-    // Native disclosures keep the owner's choices while browsing. Reveal the
-    // selected page on history/deep-link changes and each mobile menu entry.
-    const selectedGroup = navigation.current?.querySelector('[aria-current="page"]')?.closest("details");
-    if (visible && selectedGroup) selectedGroup.open = true;
+    // Reveal the selected page on history/deep-link changes and each mobile
+    // menu entry: open every disclosure that contains it (its group, and the
+    // "ver todas las herramientas" reveal when the group lives inside it).
+    const selected = navigation.current?.querySelector('[aria-current="page"]');
+    if (!visible || !selected) return;
+    let node = selected.closest("details");
+    while (node) { node.open = true; node = node.parentElement?.closest("details"); }
   }, [page, visible]);
 
   const items = entries => (
@@ -29,16 +32,29 @@ export default function MerchantNavigation({ page, visible, onNavigate }) {
     </Stack>
   );
 
+  const renderGroup = grp => (
+    <details key={grp.id} className="merchant-nav-group">
+      <summary>{grp.label}</summary>
+      {items(grp.items)}
+    </details>
+  );
+
+  // Everyday groups stay in view; operational and power-user groups move
+  // behind one deliberate reveal so the default surface stays small.
+  const primary = navigationGroups.filter(group => !group.advanced);
+  const advanced = navigationGroups.filter(group => group.advanced);
+
   return (
     <nav ref={navigation} aria-label="Tu negocio" className="merchant-navigation">
       <Text className="merchant-nav-label" size="sm" fw={600}>Día a día</Text>
       {items(dailyNavigation)}
-      {navigationGroups.map(group => (
-        <details key={group.id} className="merchant-nav-group">
-          <summary>{group.label}</summary>
-          {items(group.items)}
+      {primary.map(renderGroup)}
+      {advanced.length > 0 && (
+        <details className="merchant-nav-more">
+          <summary>Ver todas las herramientas</summary>
+          {advanced.map(renderGroup)}
         </details>
-      ))}
+      )}
     </nav>
   );
 }

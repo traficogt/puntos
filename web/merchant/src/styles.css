@@ -102,6 +102,27 @@ a {
 .merchant-nav-group > .mantine-Stack-root {
   padding-bottom: 4px;
 }
+.merchant-nav-more {
+  margin-top: 12px;
+  border-top: 1px solid var(--pf-line);
+}
+.merchant-nav-more > summary {
+  min-height: 44px;
+  padding: 12px 4px;
+  color: var(--pf-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.merchant-nav-more > summary:hover {
+  background: var(--mantine-color-default-hover);
+}
+.merchant-nav-more[open] > summary {
+  color: var(--pf-ink);
+}
+.merchant-nav-more .merchant-nav-group:first-of-type {
+  margin-top: 4px;
+}
 .sidebar-secondary {
   display: flex;
   flex-direction: column;

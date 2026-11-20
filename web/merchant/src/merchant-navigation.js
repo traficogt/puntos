@@ -41,6 +41,7 @@ export const navigationGroups = [
   {
     id: "team",
     label: "Caja, equipo y ajustes",
+    advanced: true,
     items: [
       { page: "team", label: "Personal" },
       { page: "authority", label: "Permisos del equipo" },
@@ -54,6 +55,7 @@ export const navigationGroups = [
   {
     id: "advanced",
     label: "Avanzado",
+    advanced: true,
     items: [
       { page: "decisions", label: "Decisiones automáticas" },
       { page: "economics", label: "Costos y margen" },
