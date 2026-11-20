@@ -17,6 +17,7 @@ import RedemptionReturns from "./RedemptionReturns.jsx";
 import FirstPurchaseReturns from "./FirstPurchaseReturns.jsx";
 import { isDemo, useResource } from "./api.js";
 import { BusinessLink, Failure, Loading, Locked, number, money, periodDate } from "./ui.jsx";
+import { launchReadiness } from "./launch-model.js";
 function Comparison({ current, previous, rate = false }) {
   if (
     previous === null ||
@@ -46,6 +47,59 @@ function Comparison({ current, previous, rate = false }) {
     </Text>
   );
 }
+// A plain "what to do next" card. Reuses the same readiness signals as the
+// Launch flow (program + rewards) so the owner always knows the single next
+// step. Collapses to a growth nudge once setup is done; hidden entirely on the
+// full dashboard when complete (hideWhenComplete).
+function GuidedStart({ features, onNavigate, hideWhenComplete = false }) {
+  const program = useResource("/api/admin/launch/program");
+  const rewards = useResource("/api/admin/reward-workspace");
+  if (program.loading || rewards.loading || program.error || rewards.error) return null;
+  const readiness = launchReadiness({
+    program: program.data?.program,
+    rewards: rewards.data?.rewards,
+    branches: rewards.data?.branches,
+  });
+  const steps = [
+    { key: "program", done: readiness.program === true, label: "Elige y configura tu programa", cta: "Configurar programa", page: "launch" },
+  ];
+  if (readiness.requiresRewards !== false)
+    steps.push({ key: "rewards", done: (readiness.activeRewards ?? 0) > 0, label: "Prepara una recompensa para tus clientes", cta: "Agregar recompensa", page: "rewards" });
+  const complete = steps.every((step) => step.done);
+  if (complete && hideWhenComplete) return null;
+  const next = steps.find((step) => !step.done);
+  return (
+    <Stack className="panel" gap="sm" p="md">
+      {complete ? (
+        <>
+          <Title order={2}>Tu programa está activo</Title>
+          <Text>Ahora haz que tus clientes vuelvan: activa una notificación en su billetera o comparte tu QR de registro.</Text>
+          <Group>
+            <Button onClick={() => onNavigate("automations")}>Activar notificaciones</Button>
+            <Button variant="default" onClick={() => onNavigate("brand")}>Compartir mi QR</Button>
+          </Group>
+        </>
+      ) : (
+        <>
+          <Title order={2}>Pon tu programa en marcha</Title>
+          <Stack gap={6}>
+            {steps.map((step) => (
+              <Group key={step.key} gap="xs" wrap="nowrap">
+                <Text aria-hidden="true" fw={700} c={step.done ? "teal" : "dimmed"}>{step.done ? "\u2713" : "\u25cb"}</Text>
+                <Text fw={step === next ? 700 : 400} c={step.done ? "dimmed" : undefined}>{step.label}</Text>
+              </Group>
+            ))}
+          </Stack>
+          {next && (
+            <Button w="fit-content" onClick={() => onNavigate(next.page)}>
+              Siguiente: {next.cta}
+            </Button>
+          )}
+        </>
+      )}
+    </Stack>
+  );
+}
 export default function Overview({ features, onNavigate }) {
   const [days, setDays] = useState("30"),
     [branch, setBranch] = useState(""),
@@ -62,13 +116,14 @@ export default function Overview({ features, onNavigate }) {
   );
   if (!features.analytics)
     return (
-      <>
+      <Stack gap="lg">
         <Title order={1}>Tu negocio, con perspectiva</Title>
+        <GuidedStart features={features} onNavigate={onNavigate} />
         <Locked feature="Análisis de resultados" />
-        <Button onClick={() => onNavigate("launch")}>
+        <Button w="fit-content" onClick={() => onNavigate("launch")}>
           Preparar mi programa
         </Button>
-      </>
+      </Stack>
     );
   const data = result.data,
     current = data?.current,
@@ -90,6 +145,7 @@ export default function Overview({ features, onNavigate }) {
     : "Todas las sucursales";
   return (
     <Stack gap="xl">
+      <GuidedStart features={features} onNavigate={onNavigate} hideWhenComplete />
       <div>
         <Title order={1}>Tu negocio, con perspectiva</Title>
         <Text className="intro">

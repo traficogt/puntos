@@ -1,60 +1,69 @@
 // Keep each page in one place. Routes and legacy aliases remain in navigation.js.
+// Organised around what an owner is trying to DO, not around the system's
+// internals. The first groups cover the everyday job; rarely-touched power
+// tools live under "Avanzado" so the main flow stays small and legible.
 export const dailyNavigation = [
-  { page: "overview", label: "Resumen" },
-  { page: "decisions", label: "Decisiones" },
-  { page: "transactions", label: "Movimientos" },
+  { page: "overview", label: "Inicio" },
   { page: "fulfillment", label: "Canjes y caja" },
   { page: "cases", label: "Atención al cliente" },
 ];
 
 export const navigationGroups = [
   {
-    id: "customers",
-    label: "Clientes y ventas",
-    items: [
-      { page: "customers", label: "Clientes" },
-      { page: "recovery", label: "Recuperar clientes" },
-      { page: "audiences", label: "Audiencias" },
-      { page: "growth", label: "Campañas dirigidas" },
-      { page: "referrals", label: "Recomendaciones" },
-      { page: "acquisition", label: "Origen de clientes" },
-      { page: "demand", label: "Pedidos de clientes" },
-      { page: "migration", label: "Importar clientes" },
-    ],
-  },
-  {
     id: "program",
-    label: "Programa y recompensas",
+    label: "Mi programa",
     items: [
       { page: "launch", label: "Preparar mi programa" },
       { page: "rewards", label: "Recompensas y catálogo" },
       { page: "campaigns", label: "Reglas de puntos" },
-      { page: "automations", label: "Automatizaciones" },
-      { page: "promises", label: "Promesas de recompensa" },
-      { page: "hospitality", label: "Cortesías del equipo" },
+      { page: "automations", label: "Notificaciones automáticas" },
     ],
   },
   {
-    id: "analysis",
-    label: "Análisis y costos",
+    id: "customers",
+    label: "Clientes",
     items: [
-      { page: "economics", label: "Costos y margen" },
-      { page: "funding", label: "Financiamiento de proveedores" },
-      { page: "pilot", label: "Mi piloto" },
+      { page: "customers", label: "Clientes" },
+      { page: "recovery", label: "Recuperar clientes" },
+      { page: "referrals", label: "Recomendaciones" },
+      { page: "transactions", label: "Movimientos" },
     ],
   },
   {
-    id: "settings",
-    label: "Configuración y equipo",
+    id: "grow",
+    label: "Hacer crecer",
     items: [
-      { page: "settings", label: "Configuración" },
+      { page: "growth", label: "Campañas y ofertas" },
+      { page: "audiences", label: "Audiencias" },
+      { page: "acquisition", label: "Origen de clientes" },
+    ],
+  },
+  {
+    id: "team",
+    label: "Caja, equipo y ajustes",
+    items: [
       { page: "team", label: "Personal" },
+      { page: "authority", label: "Permisos del equipo" },
       { page: "branches", label: "Sucursales" },
-      { page: "authority", label: "Equipo y permisos" },
       { page: "brand", label: "Marca y QR" },
       { page: "pos", label: "Conectar caja" },
-      { page: "operations", label: "Estado de la operación" },
+      { page: "settings", label: "Configuración" },
       { page: "region", label: "Región del negocio" },
+    ],
+  },
+  {
+    id: "advanced",
+    label: "Avanzado",
+    items: [
+      { page: "decisions", label: "Decisiones automáticas" },
+      { page: "economics", label: "Costos y margen" },
+      { page: "funding", label: "Financiamiento de proveedores" },
+      { page: "promises", label: "Promesas de recompensa" },
+      { page: "hospitality", label: "Cortesías del equipo" },
+      { page: "demand", label: "Pedidos de clientes" },
+      { page: "migration", label: "Importar clientes" },
+      { page: "pilot", label: "Mi piloto" },
+      { page: "operations", label: "Estado de la operación" },
     ],
   },
 ];
