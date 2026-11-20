@@ -41,17 +41,31 @@ test('a save switches a program to a member discount, persists only the percenta
  assert.equal(result.program.program_type,'DISCOUNT');assert.equal(result.program.percent_off,12);assert.equal(result.program.rate,null);
  assert.equal(b.program_json.percent_off,12);assert.equal(b.program_json.external_awards.api_key,'private');assert.equal(b.program_json.campaign_rules.length,1);
 });
-
-test('a save switches a program to a stamp card, gives the default 2-stamp head start, and clamps a bad head start',async()=>{
+test('a save switches a program to a stamp card, gives the default 2-stamp head start, and auto-creates the free-item reward',async()=>{
  const base={program_type:'STAMP',stamps_required:10,reward_label:'Cafe gratis',version:'a'.repeat(64)};
  assert.equal(LaunchProgramInput.safeParse(base).success,true);
  for(const patch of [{stamps_required:undefined},{reward_label:undefined},{reward_label:'  '},{stamps_required:1},{head_start:10},{head_start:12}]) assert.equal(LaunchProgramInput.safeParse({...base,...patch}).success,false);
- const b=row(),version=programBasics(b).version;let writes=0;
- const query=async(sql,params)=>{if(sql.startsWith('SELECT'))return {rows:[b]};if(sql.startsWith('UPDATE')){writes++;Object.assign(b,{program_type:params[1],program_json:{...b.program_json,...JSON.parse(params[2])}});return {rows:[b]};}assert.ok(sql.includes('audit_logs'));return {rows:[]};};
- const result=await updateLaunchProgram({businessId:b.id,staffId:'owner',input:{program_type:'STAMP',stamps_required:10,reward_label:'Cafe gratis',version}},{transaction:fn=>fn({query}),getPlanFeatureOverrides:async()=>({})});
- assert.equal(writes,1);
+ const b=row();const rewards=[];
+ const query=async(sql,params)=>{
+  if(sql.startsWith('SELECT'))return {rows:[b]};
+  if(sql.startsWith('INSERT INTO rewards')){rewards.push({id:params[0],name:params[2],points_cost:params[4],active:true});return {rows:[{id:params[0]}]};}
+  if(sql.startsWith('UPDATE rewards')){const r=rewards.find(x=>x.id===params[0]);if(r){if(sql.includes('active=false'))r.active=false;else{r.active=true;r.name=params[2];r.points_cost=params[4];}}return {rows:r?[{id:r.id}]:[]};}
+  if(sql.startsWith('UPDATE businesses')&&sql.includes('program_type')){Object.assign(b,{program_type:params[1],program_json:{...b.program_json,...JSON.parse(params[2])}});return {rows:[b]};}
+  if(sql.startsWith('UPDATE businesses')){b.program_json={...b.program_json,...JSON.parse(params[1])};return {rows:[b]};}
+  assert.ok(sql.includes('audit_logs'));return {rows:[]};
+ };
+ const deps={transaction:fn=>fn({query}),getPlanFeatureOverrides:async()=>({})};
+ const result=await updateLaunchProgram({businessId:b.id,staffId:'owner',input:{program_type:'STAMP',stamps_required:10,reward_label:'Cafe gratis',version:programBasics(b).version}},deps);
  assert.equal(result.program.program_type,'STAMP');assert.equal(result.program.stamps_required,10);
  assert.equal(result.program.head_start,2);assert.equal(result.program.reward_label,'Cafe gratis');assert.equal(result.program.rate,null);
  assert.equal(b.program_json.stamps_required,10);assert.equal(b.program_json.head_start,2);
  assert.equal(b.program_json.external_awards.api_key,'private');assert.equal(b.program_json.campaign_rules.length,1);
+ // free item auto-created costing the real purchases (10 - 2 = 8), linked for idempotent edits
+ assert.equal(rewards.length,1);assert.equal(rewards[0].points_cost,8);assert.equal(rewards[0].name,'Cafe gratis');assert.equal(b.program_json.stamp_reward_id,rewards[0].id);
+ // editing the card resizes the SAME reward (members keep their progress); no duplicate
+ await updateLaunchProgram({businessId:b.id,staffId:'owner',input:{program_type:'STAMP',stamps_required:12,reward_label:'Cafe gratis',version:programBasics(b).version}},deps);
+ assert.equal(rewards.length,1);assert.equal(rewards[0].points_cost,10);
+ // switching away retires the auto reward
+ await updateLaunchProgram({businessId:b.id,staffId:'owner',input:{program_type:'SPEND',rate:0.1,round:'ceil',version:programBasics(b).version}},deps);
+ assert.equal(rewards[0].active,false);
 });

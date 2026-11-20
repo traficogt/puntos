@@ -44,6 +44,27 @@ export async function getLaunchProgram({businessId},query=dbQuery){
  if(!rows[0])throw notFound('Negocio no encontrado.');
  return {ok:true,program:programBasics(rows[0])};
 }
+async function ensureStampReward(client,{businessId,programType,patch,priorRewardId}){
+ if(programType==='STAMP'){
+  // The free item is an ordinary reward whose cost is the real purchases needed
+  // (stamps_required - head_start). Stamps are points, so resizing the card only
+  // updates this cost; members keep their progress. Idempotent via stamp_reward_id.
+  const cost=patch.stamps_required-patch.head_start,name=patch.reward_label,desc='Premio de tu tarjeta de sellos';
+  let rewardId=priorRewardId;
+  if(rewardId){
+   const upd=await client.query('UPDATE rewards SET name=$3,description=$4,points_cost=$5,active=true,stock=NULL,valid_until=NULL WHERE id=$1 AND business_id=$2 RETURNING id',[rewardId,businessId,name,desc,cost]);
+   if(!upd.rows[0])rewardId=null;
+  }
+  if(!rewardId){
+   rewardId=randomUUID();
+   await client.query('INSERT INTO rewards (id, business_id, name, description, points_cost, active) VALUES ($1,$2,$3,$4,$5,true)',[rewardId,businessId,name,desc,cost]);
+  }
+  await client.query("UPDATE businesses SET program_json=COALESCE(program_json,'{}'::jsonb)||$2::jsonb WHERE id=$1",[businessId,JSON.stringify({stamp_reward_id:rewardId})]);
+ }else if(priorRewardId){
+  // Switched away from a stamp card: retire its auto reward so it is not a stray redeemable.
+  await client.query('UPDATE rewards SET active=false WHERE id=$1 AND business_id=$2',[priorRewardId,businessId]);
+ }
+}
 export async function updateLaunchProgram(options,injected={}){
  const parsed=LaunchProgramInput.safeParse(options.input);if(!parsed.success)throw badRequest('Revisa la regla de puntos.');
  const d={transaction:withTransaction,getPlanFeatureOverrides:()=>PlanConfigService.getPlanFeatureOverrides(),...injected};
@@ -56,6 +77,7 @@ export async function updateLaunchProgram(options,injected={}){
   const patch=input.program_type==='DISCOUNT'?{percent_off:input.percent_off}:input.program_type==='STAMP'?{stamps_required:input.stamps_required,head_start:Math.min(input.stamps_required-1,Math.max(0,input.head_start??2)),reward_label:(input.reward_label||'').trim(),stamp_unit:input.stamp_unit??'visit'}:{[rateKey[input.program_type]]:input.rate,...(input.program_type==='SPEND'?{round:input.round}:{})};
   const updated=await client.query("UPDATE businesses SET program_type=$2,program_json=COALESCE(program_json,'{}'::jsonb)||$3::jsonb WHERE id=$1 RETURNING program_type,program_json",[options.businessId,input.program_type,JSON.stringify(patch)]);
   const after=programBasics(updated.rows[0]);
+  await ensureStampReward(client,{businessId:options.businessId,programType:input.program_type,patch,priorRewardId:business.program_json?.stamp_reward_id ?? null});
   await client.query(`INSERT INTO audit_logs(id,business_id,actor_type,actor_id,action,ip,ua,meta) VALUES($1,$2,'STAFF',$3,'program.launch.basics.update',$4,$5,$6)`,[randomUUID(),options.businessId,options.staffId,options.ip??null,options.ua??null,JSON.stringify(withImpersonationMeta({before,after},options))]);
   return {ok:true,program:after};
  });
