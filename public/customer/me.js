@@ -127,6 +127,17 @@ export async function renderFromMe({ api, $, toast, isCurrent = () => true, iden
   if (lifetime) lifetime.textContent = String(c?.lifetime_points ?? 0);
   if (lastVisit) lastVisit.textContent = c?.last_visit_at ? fmtDT(c.last_visit_at, me.business?.region) : "—";
 
+  const memberBenefit = safeEl($, "#memberBenefit");
+  if (memberBenefit) {
+    const discount = biz?.member_discount;
+    if (discount && Number(discount.percent_off) > 0) {
+      memberBenefit.textContent = `Beneficio de miembro: ${Number(discount.percent_off)}% de descuento en cada compra.`;
+      setHidden(memberBenefit, false);
+    } else {
+      setHidden(memberBenefit, true);
+    }
+  }
+
   const qrWrap = /** @type {HTMLElement | null} */ (safeEl($, "#qrWrap"));
   if (qrWrap) {
     const owner = `${identity.businessId}:${identity.customerId}`;

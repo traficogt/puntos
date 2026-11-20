@@ -282,6 +282,7 @@ body.customer-modern.page-customer .lc-qr-btn:hover { background: color-mix(in s
 .customer-modern .lc-foot-stat span { color: inherit; opacity: .8; font-size: 11px; letter-spacing: 0; text-transform: none; }
 .customer-modern .lc-footer { padding-top: 18px; border-color: color-mix(in srgb,var(--modern-warm-text) 22%,transparent); }
 .customer-modern .lc-badge { color: inherit; background: transparent; border: 0; padding: 4px 0; font-size: 11px; white-space: normal; }
+.customer-modern .lc-member-benefit { margin: 0; padding: 8px 12px; border-radius: 10px; color: var(--modern-success); background: var(--modern-success-bg); font: 600 14px/1.4 var(--font-ui); }
 .customer-modern .lc-foot-badges { gap: 12px; }
 .customer-modern .loyalty-card .status-online { color: inherit; background: transparent; border: 0; }
 .customer-modern #netBadge { padding: 6px 10px; color: var(--modern-success); background: var(--modern-success-bg); flex-shrink: 0; }

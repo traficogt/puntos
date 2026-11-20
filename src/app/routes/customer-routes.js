@@ -3,6 +3,7 @@ import { withPublicRewardAvailability } from '../services/reward-inventory-publi
 import { getCustomerRewardProgress } from '../services/customer-reward-progress.js';
 import { getCustomerStatement } from '../services/customer-statement-service.js';
 import { businessRegion } from "../services/regional-settings.js";
+import { memberDiscount } from "../services/discount-model.js";
 import { Router } from "express";
 import { asyncRoute } from "../../middleware/common.js";
 import { requireCustomer } from "../../middleware/auth.js";
@@ -49,6 +50,7 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
   if (!business || business.id !== auth.business_id) return rejectMissingCustomer(req, res);
   const overrides = await PlanConfigService.getPlanFeatureOverrides().catch(() => ({}));
   const features = planFeaturesWithOverrides(business.plan, overrides);
+  const discountTerms = memberDiscount(business, { amount_q: 0 });
   res.json({
     ok: true,
     business: {
@@ -58,7 +60,8 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
       plan: business.plan,
       features,
       region: businessRegion(business),
-      customer_branding: business.customer_branding_json ?? null
+      customer_branding: business.customer_branding_json ?? null,
+      member_discount: discountTerms ? { percent_off: discountTerms.percent_off, min_purchase_q: discountTerms.min_purchase_q } : null
     },
     customer: {
       id: customer.id,
