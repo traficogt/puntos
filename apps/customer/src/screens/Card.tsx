@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Linking,
   Platform,
   Pressable,
@@ -29,6 +30,7 @@ export function Card() {
   const now = useClock(30000);
   const [walletBusy, setWalletBusy] = useState(false);
   const [walletMessage, setWalletMessage] = useState("");
+  const [logoFailed, setLogoFailed] = useState(false);
   const data = state.snapshot;
   if (!data)
     return (
@@ -52,6 +54,11 @@ export function Card() {
   const stamp = data.stamp_card ?? null;
   const title =
     business.customer_branding?.customer_program_name || business.name;
+  const brandLogo =
+    !logoFailed &&
+    /^https:\/\//i.test(business.customer_branding?.customer_logo_url || "")
+      ? business.customer_branding?.customer_logo_url
+      : null;
   const rewards =
     business.features?.rewards === false
       ? []
@@ -113,6 +120,20 @@ export function Card() {
       <View
         style={{ backgroundColor: colors.card, borderRadius: 16, padding: 22 }}
       >
+        {brandLogo ? (
+          <Image
+            source={{ uri: brandLogo }}
+            onError={() => setLogoFailed(true)}
+            resizeMode="contain"
+            accessibilityLabel={title}
+            style={{
+              width: 120,
+              height: 40,
+              marginBottom: 16,
+              alignSelf: "flex-start",
+            }}
+          />
+        ) : null}
         <View
           style={{ flexDirection: "row", alignItems: "flex-start", gap: 16 }}
         >
