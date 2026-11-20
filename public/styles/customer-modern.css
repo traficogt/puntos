@@ -284,6 +284,14 @@ body.customer-modern.page-customer .lc-qr-btn:hover { background: color-mix(in s
 .customer-modern .lc-badge { color: inherit; background: transparent; border: 0; padding: 4px 0; font-size: 11px; white-space: normal; }
 .customer-modern .lc-member-benefit { margin: 0; padding: 8px 12px; border-radius: 10px; color: var(--modern-success); background: var(--modern-success-bg); font: 600 14px/1.4 var(--font-ui); }
 .customer-modern .lc-stamp-card { margin: 0; padding: 12px; border-radius: var(--radius-md); background: var(--nav-surface); }
+.customer-modern .lc-giftcard { margin: 0; }
+.customer-modern .lc-giftcard-details { padding: 8px 12px; border-radius: 10px; background: var(--nav-surface); font: 600 14px/1.4 var(--font-ui); }
+.customer-modern .lc-giftcard-details > summary { cursor: pointer; color: var(--modern-success); }
+.customer-modern .lc-giftcard-form { display: grid; gap: 8px; margin-top: 10px; }
+.customer-modern .lc-giftcard-form label { font: 600 13px/1.3 var(--font-ui); color: var(--muted); }
+.customer-modern .lc-giftcard-form input { width: 100%; }
+.customer-modern .lc-giftcard-form button { width: 100%; margin-top: 4px; }
+.customer-modern .lc-giftcard-form .small { margin: 0; color: var(--muted); }
 .customer-modern .lc-stamp-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .customer-modern .lc-stamp { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--field-border); box-sizing: border-box; }
 .customer-modern .lc-stamp.is-filled { background: var(--modern-action); border-color: var(--modern-action); }

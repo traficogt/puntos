@@ -42,7 +42,7 @@ export const CreateBusinessSchema = z.object({
   phone: z.string().min(6).optional(),
   password: passwordSchema,
   category: z.string().optional(),
-  program_type: z.enum(["SPEND", "VISIT", "ITEM", "DISCOUNT", "STAMP", "CASHBACK"]).optional(),
+  program_type: z.enum(["SPEND", "VISIT", "ITEM", "DISCOUNT", "STAMP", "CASHBACK", "GIFT_CARD"]).optional(),
   program_json: z.record(z.string(), z.any()).optional(),
   plan: z.string().min(3).max(40).optional()
 });

@@ -7,6 +7,10 @@ import { memberDiscount } from "../services/discount-model.js";
 import { stampCard } from "../services/stamp-model.js";
 import { cashbackTerms } from "../services/cashback-model.js";
 import { getCashbackBalance } from "../services/cashback-service.js";
+import { walletProgram } from "../services/wallet-model.js";
+import { transferGiftCardForCustomer } from "../services/gift-card-program-service.js";
+import { z } from "zod";
+import { validate } from "../../utils/validation.js";
 import { Router } from "express";
 import { asyncRoute } from "../../middleware/common.js";
 import { requireCustomer } from "../../middleware/auth.js";
@@ -57,6 +61,8 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
   const stamp = stampCard(business, { points: Number(customer.points) || 0 });
   const cbTerms = cashbackTerms(business, { amount_q: 0 });
   const cashback = cbTerms ? await getCashbackBalance(getDbClient(), auth.id) : null;
+  const wallet = walletProgram(business);
+  const walletBalance = wallet ? (cashback ?? await getCashbackBalance(getDbClient(), auth.id)) : null;
   res.json({
     ok: true,
     business: {
@@ -80,8 +86,25 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
       last_visit_at: customer.last_visit_at
     },
     stamp_card: stamp ? { stamps_required: stamp.stamps_required, head_start: stamp.head_start, filled: stamp.filled, remaining: stamp.remaining, reward_label: stamp.reward_label, complete: stamp.complete } : null,
-    cashback: cashback ? { balance_q: cashback.balance_q, percent: cbTerms.percent } : null
+    cashback: cashback ? { balance_q: cashback.balance_q, percent: cbTerms.percent } : null,
+    wallet: wallet && walletBalance ? { kind: wallet.kind, balance_q: walletBalance.balance_q, percent: wallet.kind === "CASHBACK" ? wallet.percent : null, bonus_percent: wallet.kind === "GIFT_CARD" ? wallet.bonus_percent : null } : null
   });
+}));
+
+const GiftCardTransferSchema = z.object({
+  recipient_phone: z.string().min(4).max(40),
+  amount_q: z.number().positive().max(1000000),
+  requestId: z.guid(),
+  note: z.string().max(200).optional()
+});
+
+customerRoutes.post("/customer/giftcard/transfer", csrfProtect, requireCustomer, tenantContext, asyncRoute(async (req, res) => {
+  const auth = req.customerAuth;
+  if (!req.tenantId || req.tenantId !== auth.business_id) return rejectMissingCustomer(req, res);
+  const v = validate(GiftCardTransferSchema, req.body);
+  if (!v.ok) return res.status(400).json({ error: v.error });
+  const out = await transferGiftCardForCustomer({ auth, ...v.data });
+  res.json({ ok: true, ...out });
 }));
 
 customerRoutes.get("/customer/history", requireCustomer, tenantContext, asyncRoute(async (req, res) => {

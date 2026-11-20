@@ -7,7 +7,7 @@ import { badRequest, conflict, forbidden, notFound } from '../../utils/http-erro
 import { withImpersonationMeta } from '../../utils/impersonation.js';
 const rateKey = {SPEND:'points_per_q',VISIT:'points_per_visit',ITEM:'points_per_item'};
 export const LaunchProgramInput = z.object({
- program_type:z.enum(['SPEND','VISIT','ITEM','DISCOUNT','STAMP','CASHBACK']),
+ program_type:z.enum(['SPEND','VISIT','ITEM','DISCOUNT','STAMP','CASHBACK','GIFT_CARD']),
  rate:z.number().finite().positive().max(10000).optional(),
  round:z.enum(['ceil','round','floor']).optional(),
  percent_off:z.number().finite().positive().max(100).optional(),
@@ -16,6 +16,7 @@ export const LaunchProgramInput = z.object({
  stamp_unit:z.enum(['visit','item']).optional(),
  head_start:z.number().int().nonnegative().max(99).optional(),
  cashback_percent:z.number().finite().positive().max(100).optional(),
+ load_bonus_percent:z.number().finite().nonnegative().max(100).optional(),
  version:z.string().regex(/^[a-f0-9]{64}$/)
 }).strict().superRefine((v,ctx)=>{
  if(v.program_type==='DISCOUNT'){
@@ -24,6 +25,9 @@ export const LaunchProgramInput = z.object({
  }
  if(v.program_type==='CASHBACK'){
   if(v.cashback_percent==null)ctx.addIssue({code:'custom',path:['cashback_percent'],message:'Ingresa el porcentaje de cashback (1 a 100).'});
+  return;
+ }
+ if(v.program_type==='GIFT_CARD'){
   return;
  }
  if(v.program_type==='STAMP'){
@@ -39,10 +43,10 @@ export const LaunchProgramInput = z.object({
 });
 export function programBasics(business) {
  const config=business.program_json ?? {}, type=business.program_type ?? 'SPEND';
- const basics={program_type:type,points_per_q:config.points_per_q ?? 0.1,points_per_visit:config.points_per_visit ?? 10,points_per_item:config.points_per_item ?? 1,round:config.round ?? 'ceil',percent_off:config.percent_off ?? null,stamps_required:config.stamps_required ?? null,reward_label:config.reward_label ?? null,stamp_unit:config.stamp_unit ?? 'visit',head_start:config.head_start ?? null,cashback_percent:config.cashback_percent ?? null};
+ const basics={program_type:type,points_per_q:config.points_per_q ?? 0.1,points_per_visit:config.points_per_visit ?? 10,points_per_item:config.points_per_item ?? 1,round:config.round ?? 'ceil',percent_off:config.percent_off ?? null,stamps_required:config.stamps_required ?? null,reward_label:config.reward_label ?? null,stamp_unit:config.stamp_unit ?? 'visit',head_start:config.head_start ?? null,cashback_percent:config.cashback_percent ?? null,load_bonus_percent:config.load_bonus_percent ?? null};
  const version=createHash('sha256').update(JSON.stringify(basics)).digest('hex');
  const raw=basics[rateKey[type]],rate=Number(raw);
- return {program_type:type,rate:Number.isFinite(rate)?rate:null,round:basics.round,percent_off:basics.percent_off,stamps_required:basics.stamps_required,reward_label:basics.reward_label,stamp_unit:basics.stamp_unit,head_start:basics.head_start,cashback_percent:basics.cashback_percent,version};
+ return {program_type:type,rate:Number.isFinite(rate)?rate:null,round:basics.round,percent_off:basics.percent_off,stamps_required:basics.stamps_required,reward_label:basics.reward_label,stamp_unit:basics.stamp_unit,head_start:basics.head_start,cashback_percent:basics.cashback_percent,load_bonus_percent:basics.load_bonus_percent,version};
 }
 export async function getLaunchProgram({businessId},query=dbQuery){
  const {rows}=await query('SELECT program_type,program_json FROM businesses WHERE id=$1',[businessId]);
@@ -79,7 +83,7 @@ export async function updateLaunchProgram(options,injected={}){
   const business=rows[0];if(!business)throw notFound('Negocio no encontrado.');
   if(!hasPlanFeature(business.plan,'program_rules',overrides))throw forbidden('Tu plan no permite editar el programa.');
   const before=programBasics(business);if(before.version!==input.version)throw conflict('La regla cambió en otra sesión. Recarga la configuración antes de guardar.');
-  const patch=input.program_type==='DISCOUNT'?{percent_off:input.percent_off}:input.program_type==='CASHBACK'?{cashback_percent:input.cashback_percent}:input.program_type==='STAMP'?{stamps_required:input.stamps_required,head_start:Math.min(input.stamps_required-1,Math.max(0,input.head_start??2)),reward_label:(input.reward_label||'').trim(),stamp_unit:input.stamp_unit??'visit'}:{[rateKey[input.program_type]]:input.rate,...(input.program_type==='SPEND'?{round:input.round}:{})};
+  const patch=input.program_type==='DISCOUNT'?{percent_off:input.percent_off}:input.program_type==='CASHBACK'?{cashback_percent:input.cashback_percent}:input.program_type==='GIFT_CARD'?{load_bonus_percent:Math.max(0,Math.min(100,input.load_bonus_percent??0))}:input.program_type==='STAMP'?{stamps_required:input.stamps_required,head_start:Math.min(input.stamps_required-1,Math.max(0,input.head_start??2)),reward_label:(input.reward_label||'').trim(),stamp_unit:input.stamp_unit??'visit'}:{[rateKey[input.program_type]]:input.rate,...(input.program_type==='SPEND'?{round:input.round}:{})};
   const updated=await client.query("UPDATE businesses SET program_type=$2,program_json=COALESCE(program_json,'{}'::jsonb)||$3::jsonb WHERE id=$1 RETURNING program_type,program_json",[options.businessId,input.program_type,JSON.stringify(patch)]);
   const after=programBasics(updated.rows[0]);
   await ensureStampReward(client,{businessId:options.businessId,programType:input.program_type,patch,priorRewardId:business.program_json?.stamp_reward_id ?? null});

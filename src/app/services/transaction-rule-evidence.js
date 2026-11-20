@@ -34,7 +34,7 @@ function ruleContent(rule, index) {
  */
 export function evaluatePointRules(business, { amount_q = 0, visits = 0, items = 0 }, { now, timeZone }) {
   const type = business.program_type ?? 'SPEND', cfg = business.program_json ?? {};
-  if (type === 'DISCOUNT' || type === 'CASHBACK') {
+  if (type === 'DISCOUNT' || type === 'CASHBACK' || type === 'GIFT_CARD') {
     // A discount program accrues no points; the benefit is applied as a counter
     // discount (see discount-model.js). Evidence is emitted with zero points for a
     // consistent audit trail so downstream award storage validates unchanged.

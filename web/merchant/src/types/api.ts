@@ -18,14 +18,14 @@ export interface RegionResponse {
   countries: Record<string, { name: string; currency: string; timezone: string; locale: string; dialCode: string }>;
   currencies: Record<string, string>;
 }
-export type ProgramType = 'SPEND' | 'VISIT' | 'ITEM' | 'DISCOUNT' | 'STAMP' | 'CASHBACK';
+export type ProgramType = 'SPEND' | 'VISIT' | 'ITEM' | 'DISCOUNT' | 'STAMP' | 'CASHBACK' | 'GIFT_CARD';
 export type Rounding = 'ceil' | 'round' | 'floor';
-export interface ProgramUpdate { program_type: ProgramType; rate?: number; round?: Rounding; percent_off?: number; stamps_required?: number; head_start?: number; reward_label?: string; stamp_unit?: 'visit' | 'item'; cashback_percent?: number; version: string }
+export interface ProgramUpdate { program_type: ProgramType; rate?: number; round?: Rounding; percent_off?: number; stamps_required?: number; head_start?: number; reward_label?: string; stamp_unit?: 'visit' | 'item'; cashback_percent?: number; load_bonus_percent?: number; version: string }
 // Existing stored configurations can have an unavailable rate (points programs)
 // or percent_off (discount programs). The form validates before saving; an empty
 // NumberInput also holds a string.
-export interface ProgramBasics { program_type: ProgramType; rate: number | null; round: Rounding; percent_off: number | null; stamps_required: number | null; head_start: number | null; reward_label: string | null; stamp_unit: 'visit' | 'item'; cashback_percent: number | null; version: string }
-export interface ProgramForm { program_type: ProgramType; rate: number | string | null; round: Rounding; percent_off: number | string | null; stamps_required: number | string | null; head_start: number | string | null; reward_label: string | null; stamp_unit: 'visit' | 'item'; cashback_percent: number | string | null; version: string }
+export interface ProgramBasics { program_type: ProgramType; rate: number | null; round: Rounding; percent_off: number | null; stamps_required: number | null; head_start: number | null; reward_label: string | null; stamp_unit: 'visit' | 'item'; cashback_percent: number | null; load_bonus_percent: number | null; version: string }
+export interface ProgramForm { program_type: ProgramType; rate: number | string | null; round: Rounding; percent_off: number | string | null; stamps_required: number | string | null; head_start: number | string | null; reward_label: string | null; stamp_unit: 'visit' | 'item'; cashback_percent: number | string | null; load_bonus_percent: number | string | null; version: string }
 export interface ProgramResponse { ok: boolean; program: ProgramBasics }
 export interface MerchantReadResponses {
   '/api/admin/region': RegionResponse;

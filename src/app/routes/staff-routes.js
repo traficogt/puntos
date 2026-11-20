@@ -24,6 +24,8 @@ import { getDbClient } from "../database.js";
 import { cashbackTerms } from "../services/cashback-model.js";
 import { getCashbackBalance } from "../services/cashback-service.js";
 import { spendCashbackForStaff } from "../services/cashback-spend-service.js";
+import { walletProgram } from "../services/wallet-model.js";
+import { loadGiftCardForStaff } from "../services/gift-card-program-service.js";
 import { invalidateBrowserSessionById } from "../services/auth-session-service.js";
 import {
   confirmStaffMfaEnrollment,
@@ -182,8 +184,11 @@ staffRoutes.post("/staff/customer/lookup", csrfProtect, requireStaff, tenantCont
   });
   const business = await BusinessRepo.getById(req.staff.business_id);
   const cbTerms = cashbackTerms(business, { amount_q: 0 });
-  const cashback = cbTerms ? await getCashbackBalance(getDbClient(), out.customer.id) : null;
-  res.json({ ok: true, ...out, cashback: cashback ? { balance_q: cashback.balance_q, percent: cbTerms.percent } : null });
+  const wallet = walletProgram(business);
+  const walletBalance = wallet ? await getCashbackBalance(getDbClient(), out.customer.id) : null;
+  res.json({ ok: true, ...out,
+    cashback: cbTerms && walletBalance ? { balance_q: walletBalance.balance_q, percent: cbTerms.percent } : null,
+    wallet: wallet && walletBalance ? { kind: wallet.kind, balance_q: walletBalance.balance_q, percent: wallet.kind === "CASHBACK" ? wallet.percent : null, bonus_percent: wallet.kind === "GIFT_CARD" ? wallet.bonus_percent : null } : null });
 }));
 
 
@@ -198,6 +203,20 @@ staffRoutes.post("/staff/cashback/spend", csrfProtect, requireStaff, tenantConte
   const v = validate(CashbackSpendSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
   const out = await spendCashbackForStaff({ staff: req.staff, ...v.data });
+  res.json({ ok: true, ...out });
+}));
+
+export const GiftCardLoadSchema = z.object({
+  customerQrToken: z.string().min(20),
+  amount_q: z.number().positive().max(1000000),
+  requestId: z.guid(),
+  note: z.string().max(200).optional()
+});
+
+staffRoutes.post("/staff/giftcard/load", csrfProtect, requireStaff, tenantContext, requireStaffPermission(Permission.STAFF_AWARD), asyncRoute(async (req, res) => {
+  const v = validate(GiftCardLoadSchema, req.body);
+  if (!v.ok) return res.status(400).json({ error: v.error });
+  const out = await loadGiftCardForStaff({ staff: req.staff, ...v.data });
   res.json({ ok: true, ...out });
 }));
 

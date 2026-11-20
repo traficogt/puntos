@@ -354,25 +354,40 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Tarjeta de sellos — ${req} sellos para ${prize}${hs > 0 ? `, empieza con ${hs} de regalo` : ""} (1 sello por ${per}).`;
     } else if (effective.program_type === "CASHBACK") {
       el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Cashback — gana ${Number(cfg.cashback_percent ?? 0)}% de cada compra como saldo (sin puntos).`;
+    } else if (effective.program_type === "GIFT_CARD") {
+      const bonus = Number(cfg.load_bonus_percent ?? 0);
+      el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Tarjeta de regalo — el cliente recarga saldo${bonus > 0 ? ` (bono ${bonus}%)` : ""} y puede regalarlo a otro miembro. No otorga puntos.`;
     } else {
       el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Por item (${Number(cfg.points_per_item ?? 1)} pts por item).`;
     }
   }
 
-  function renderCashbackPanel(cb) {
+  function renderWalletPanel(wallet) {
     const block = element("#cashbackActionBlock");
-    if (!block) return;
-    if (!cb) {
-      block.classList.add("hidden");
+    const loadBlock = element("#giftCardLoadBlock");
+    if (!wallet) {
+      if (block) block.classList.add("hidden");
+      if (loadBlock) loadBlock.classList.add("hidden");
       lastCashbackBalance = 0;
       const amt = input("#cashbackAmount"); if (amt) amt.value = "0";
       const st = element("#cashbackStatus"); if (st) st.textContent = "—";
+      const la = input("#giftCardLoadAmount"); if (la) la.value = "0";
+      const ls = element("#giftCardLoadStatus"); if (ls) ls.textContent = "—";
       return;
     }
-    lastCashbackBalance = Number(cb.balance_q) || 0;
-    element("#cashbackBalance").textContent = `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)} (gana ${Number(cb.percent)}%)`;
+    lastCashbackBalance = Number(wallet.balance_q) || 0;
+    const isGift = wallet.kind === "GIFT_CARD";
+    const title = element("#cashbackActionBlockTitle"); if (title) title.textContent = isGift ? "Saldo de tarjeta" : "Cashback";
+    element("#cashbackBalance").textContent = isGift
+      ? `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)}`
+      : `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)} (gana ${Number(wallet.percent)}%)`;
     const btn = element("#btnCashbackSpend"); if (btn) btn.disabled = !(lastCashbackBalance > 0);
-    block.classList.remove("hidden");
+    if (block) block.classList.remove("hidden");
+    if (loadBlock) {
+      loadBlock.classList.toggle("hidden", !isGift);
+      const hint = element("#giftCardBonusHint");
+      if (hint) hint.textContent = isGift && Number(wallet.bonus_percent) > 0 ? `Incluye bono de recarga del ${Number(wallet.bonus_percent)}%.` : "";
+    }
   }
 
   function updateInputsForRule() {
@@ -517,6 +532,10 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
         : "Cashback no configurado todavía.";
       return;
     }
+    if (effective.program_type === "GIFT_CARD") {
+      out.textContent = "Tarjeta de regalo: usa «Recargar saldo» o «Usar saldo». Registrar una compra no otorga puntos ni saldo.";
+      return;
+    }
     if (effective.program_type === "STAMP") {
       const unitCount = cfg.stamp_unit === "item" ? (items || 1) : (visits || 1);
       const n = Math.max(1, Math.floor(unitCount));
@@ -600,7 +619,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     customerSelectionRevision += 1;
     applySelectedCustomer(null, "", { silent: true });
     element("#redeemCode").textContent = "—";
-    renderCashbackPanel(null);
+    renderWalletPanel(null);
   }
 
   async function selectCustomerFromToken(token, { silent = true } = {}) {
@@ -632,7 +651,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       }));
       if (!selectionIsCurrent()) return false;
       applySelectedCustomer(out.customer, trimmed, { silent });
-      renderCashbackPanel(out.cashback);
+      renderWalletPanel(out.wallet);
       return true;
     }, (error) => {
       if (!selectionIsCurrent()) return false;
@@ -1032,6 +1051,29 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       input("#cashbackAmount").value = "0";
       const btn = element("#btnCashbackSpend"); if (btn) btn.disabled = !(lastCashbackBalance > 0);
       toast("Saldo de cashback aplicado.");
+    }, (error) => {
+      toast(error.message);
+    });
+  });
+
+  element("#btnGiftCardLoad")?.addEventListener("click", async () => {
+    if (!navigator.onLine || !sessionOnline) return toast("Recargar la tarjeta requiere conexión.");
+    await run(async () => {
+      if (!await ensureAuth() || !sessionOnline) return;
+      if (!lastCustomerToken) return toast("Selecciona al cliente primero.");
+      const amount_q = Number(input("#giftCardLoadAmount").value || 0);
+      if (!(amount_q > 0)) return toast("Ingresa un monto a recargar.");
+      const out = await api("/api/staff/giftcard/load", {
+        method: "POST",
+        body: JSON.stringify({ customerQrToken: lastCustomerToken, amount_q, requestId: uuidv4() })
+      });
+      lastCashbackBalance = Number(out.balance_after_q) || 0;
+      const bonusTxt = Number(out.bonus_q) > 0 ? ` (incluye Q${Number(out.bonus_q).toFixed(2)} de bono)` : "";
+      element("#giftCardLoadStatus").textContent = `Recargado Q${Number(out.loaded_q).toFixed(2)}${bonusTxt}. Nuevo saldo: Q${lastCashbackBalance.toFixed(2)}.`;
+      element("#cashbackBalance").textContent = `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)}`;
+      input("#giftCardLoadAmount").value = "0";
+      const btn = element("#btnCashbackSpend"); if (btn) btn.disabled = !(lastCashbackBalance > 0);
+      toast("Saldo recargado.");
     }, (error) => {
       toast(error.message);
     });

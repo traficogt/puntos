@@ -114,6 +114,30 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     location.reload();
   });
 
+  $("#btnGiftTransfer")?.addEventListener("click", async () => {
+    const phoneEl = /** @type {HTMLInputElement | null} */ (safeEl($, "#giftTransferPhone"));
+    const amtEl = /** @type {HTMLInputElement | null} */ (safeEl($, "#giftTransferAmount"));
+    const statusEl = safeEl($, "#giftTransferStatus");
+    const btn = /** @type {HTMLButtonElement | null} */ (safeEl($, "#btnGiftTransfer"));
+    const recipient_phone = phoneEl ? String(phoneEl.value || "").trim() : "";
+    const amount_q = amtEl ? Number(amtEl.value || 0) : 0;
+    if (!recipient_phone) { if (statusEl) statusEl.textContent = "Ingresa el teléfono de quien recibe."; return; }
+    if (!(amount_q > 0)) { if (statusEl) statusEl.textContent = "Ingresa un monto a regalar."; return; }
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.textContent = "Enviando…";
+    try {
+      const out = await api("/api/customer/giftcard/transfer", { method: "POST", body: JSON.stringify({ recipient_phone, amount_q, requestId: crypto.randomUUID() }) });
+      if (statusEl) statusEl.textContent = `Regalaste Q${Number(out.transferred_q).toFixed(2)}. Tu nuevo saldo: Q${Number(out.balance_after_q).toFixed(2)}.`;
+      if (amtEl) amtEl.value = "0";
+      if (phoneEl) phoneEl.value = "";
+      await loadAll({ api, $, toast, silent: true });
+    } catch (error) {
+      if (statusEl) statusEl.textContent = (error && error.message) ? error.message : "No se pudo regalar el saldo.";
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+
   $("#btnCopyCode")?.addEventListener("click", () => {
     const code = /** @type {HTMLInputElement | null} */ ($("#referralCode"))?.value || "";
     if (code && code !== "N/A" && code !== "---") {

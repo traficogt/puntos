@@ -14,8 +14,8 @@ import { spendCashback } from "./cashback-service.js";
 export async function spendCashbackForStaff({ staff, customerQrToken, amount_q, requestId, note = null }) {
   const { customer } = await lookupCustomerByQrToken({ staff, customerQrToken });
   const business = await BusinessRepo.getById(staff.business_id);
-  if (!business || business.program_type !== "CASHBACK") {
-    throw badRequest("Este negocio no usa un programa de cashback.");
+  if (!business || !["CASHBACK", "GIFT_CARD"].includes(business.program_type)) {
+    throw badRequest("Este negocio no usa un programa con saldo (cashback o tarjeta).");
   }
   const result = await withTransaction((client) =>
     spendCashback(client, {
@@ -32,7 +32,7 @@ export async function spendCashbackForStaff({ staff, customerQrToken, amount_q, 
     business_id: staff.business_id,
     actor_type: "STAFF",
     actor_id: staff.id,
-    action: result.replay ? "cashback.spend.replay" : "cashback.spend",
+    action: `${business.program_type === "GIFT_CARD" ? "giftcard" : "cashback"}.spend${result.replay ? ".replay" : ""}`,
     ip: null,
     ua: null,
     meta: withImpersonationMeta(

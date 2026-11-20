@@ -43,6 +43,7 @@ export interface StaffSelectedCustomer {
 
 export interface StaffLookupCustomerResponse {
   customer: StaffSelectedCustomer;
+  wallet?: { kind: string; balance_q: number; percent?: number | null; bonus_percent?: number | null } | null;
 }
 
 export interface StaffSyncResult {

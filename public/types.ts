@@ -69,6 +69,7 @@ export interface CustomerCardProfile {
 export interface CustomerMeResponse {
   business?: CustomerCardBusiness;
   customer?: CustomerCardProfile;
+  wallet?: { kind: string; balance_q: number; percent?: number | null; bonus_percent?: number | null } | null;
 }
 
 export interface CustomerRewardInventoryBranch {

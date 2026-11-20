@@ -163,16 +163,24 @@ export async function renderFromMe({ api, $, toast, isCurrent = () => true, iden
     }
   }
 
-  const cashbackEl = safeEl($, "#cashbackBenefit");
-  if (cashbackEl) {
-    const cb = me.cashback;
-    if (cb && Number(cb.percent) > 0) {
-      const bal = Number(cb.balance_q) || 0;
-      cashbackEl.textContent = `Saldo de cashback: Q${bal.toFixed(2)} · ganas ${Number(cb.percent)}% en cada compra.`;
-      setHidden(cashbackEl, false);
+  const walletEl = safeEl($, "#cashbackBenefit");
+  const wallet = me.wallet;
+  if (walletEl) {
+    if (wallet && wallet.kind === "CASHBACK" && Number(wallet.percent) > 0) {
+      const bal = Number(wallet.balance_q) || 0;
+      walletEl.textContent = `Saldo de cashback: Q${bal.toFixed(2)} · ganas ${Number(wallet.percent)}% en cada compra.`;
+      setHidden(walletEl, false);
+    } else if (wallet && wallet.kind === "GIFT_CARD") {
+      const bal = Number(wallet.balance_q) || 0;
+      walletEl.textContent = `Saldo de tu tarjeta: Q${bal.toFixed(2)}.`;
+      setHidden(walletEl, false);
     } else {
-      setHidden(cashbackEl, true);
+      setHidden(walletEl, true);
     }
+  }
+  const giftWrap = safeEl($, "#giftCardTransfer");
+  if (giftWrap) {
+    setHidden(giftWrap, !(wallet && wallet.kind === "GIFT_CARD" && (Number(wallet.balance_q) || 0) > 0));
   }
 
   const qrWrap = /** @type {HTMLElement | null} */ (safeEl($, "#qrWrap"));
