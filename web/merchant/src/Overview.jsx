@@ -15,9 +15,11 @@ import { LineChart } from "@mantine/charts";
 import {RewardExposurePanel,StaffActivityPanel} from "./ActivationInsights.jsx";
 import RedemptionReturns from "./RedemptionReturns.jsx";
 import FirstPurchaseReturns from "./FirstPurchaseReturns.jsx";
-import { isDemo, useResource } from "./api.js";
+import { api, isDemo, useResource } from "./api.js";
 import { BusinessLink, Failure, Loading, Locked, number, money, periodDate } from "./ui.jsx";
 import { launchReadiness } from "./launch-model.js";
+import { merchantApi } from "./typed-api";
+import { programPresets } from "./program-presets.js";
 function Comparison({ current, previous, rate = false }) {
   if (
     previous === null ||
@@ -47,56 +49,121 @@ function Comparison({ current, previous, rate = false }) {
     </Text>
   );
 }
-// A plain "what to do next" card. Reuses the same readiness signals as the
-// Launch flow (program + rewards) so the owner always knows the single next
-// step. Collapses to a growth nudge once setup is done; hidden entirely on the
-// full dashboard when complete (hideWhenComplete).
+// Guided onboarding on the Home card: when the program isn't set up yet, offer
+// one-click business-type presets that leave a working program ready; once set
+// up, confirm and point to the next useful move. Reuses the Launch readiness
+// signals (program + rewards). Collapses on the full dashboard when complete.
 function GuidedStart({ features, onNavigate, hideWhenComplete = false }) {
-  const program = useResource("/api/admin/launch/program");
-  const rewards = useResource("/api/admin/reward-workspace");
+  const [refresh, setRefresh] = useState(0);
+  const [applying, setApplying] = useState(null);
+  const [error, setError] = useState("");
+  const [applied, setApplied] = useState(null);
+  const program = useResource("/api/admin/launch/program", refresh);
+  const rewards = useResource("/api/admin/reward-workspace", refresh);
   if (program.loading || rewards.loading || program.error || rewards.error) return null;
   const readiness = launchReadiness({
     program: program.data?.program,
     rewards: rewards.data?.rewards,
     branches: rewards.data?.branches,
   });
-  const steps = [
-    { key: "program", done: readiness.program === true, label: "Elige y configura tu programa", cta: "Configurar programa", page: "launch" },
-  ];
-  if (readiness.requiresRewards !== false)
-    steps.push({ key: "rewards", done: (readiness.activeRewards ?? 0) > 0, label: "Prepara una recompensa para tus clientes", cta: "Agregar recompensa", page: "rewards" });
-  const complete = steps.every((step) => step.done);
+  const needsRewards = readiness.requiresRewards !== false;
+  const programReady = readiness.program === true;
+  const complete = programReady && (!needsRewards || (readiness.activeRewards ?? 0) > 0);
+
+  async function applyPreset(preset) {
+    if (isDemo) { onNavigate("launch"); return; }
+    setApplying(preset.key); setError("");
+    try {
+      const current = await api("/api/admin/launch/program");
+      await merchantApi.put("/api/admin/launch/program", { ...preset.program, version: current.program.version });
+      for (const reward of preset.rewards || []) {
+        await api("/api/admin/reward-workspace", { method: "POST", body: JSON.stringify({
+          requestId: crypto.randomUUID(),
+          reward: { name: reward.name, description: reward.description ?? null, points_cost: reward.points_cost, active: true, stock: null, valid_until: null, branch_ids: [] },
+          available: true,
+        }) });
+      }
+      setApplied(preset); setRefresh((value) => value + 1);
+    } catch (e) {
+      if (e.name !== "AbortError")
+        setError(e.status === 409
+          ? "Otra sesión cambió la configuración. Recarga la página e inténtalo de nuevo."
+          : e.message || "No se pudo preparar el programa. Inténtalo de nuevo.");
+    } finally { setApplying(null); }
+  }
+
+  if (applied)
+    return (
+      <Stack className="panel" gap="sm" p="md">
+        <Title order={2}>¡Listo! Tu programa quedó configurado</Title>
+        <Text>{applied.label}: {applied.summary} Ya puedes registrar clientes.</Text>
+        <Group>
+          <Button onClick={() => onNavigate("brand")}>Compartir mi QR de registro</Button>
+          <Button variant="default" onClick={() => onNavigate("launch")}>Ajustar mi programa</Button>
+        </Group>
+      </Stack>
+    );
+
   if (complete && hideWhenComplete) return null;
-  const next = steps.find((step) => !step.done);
+
+  if (complete)
+    return (
+      <Stack className="panel" gap="sm" p="md">
+        <Title order={2}>Tu programa está activo</Title>
+        <Text>Ahora haz que tus clientes vuelvan: activa una notificación en su billetera o comparte tu QR de registro.</Text>
+        <Group>
+          <Button onClick={() => onNavigate("automations")}>Activar notificaciones</Button>
+          <Button variant="default" onClick={() => onNavigate("brand")}>Compartir mi QR</Button>
+        </Group>
+      </Stack>
+    );
+
+  if (!programReady)
+    return (
+      <Stack className="panel" gap="sm" p="md">
+        <Title order={2}>Pon tu programa en marcha</Title>
+        <Text>Elige tu tipo de negocio y dejamos un programa listo para operar. Podrás ajustarlo después.</Text>
+        {error && <Alert color="red" role="alert">{error}</Alert>}
+        <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="sm">
+          {programPresets.map((preset) => (
+            <Button
+              key={preset.key}
+              variant="default"
+              h="auto"
+              justify="start"
+              className="preset-tile"
+              loading={applying === preset.key}
+              disabled={Boolean(applying) && applying !== preset.key}
+              onClick={() => applyPreset(preset)}
+            >
+              <span className="preset-tile-body">
+                <span className="preset-tile-emoji" aria-hidden="true">{preset.emoji}</span>
+                <span className="preset-tile-label">{preset.label}</span>
+                <span className="preset-tile-summary">{preset.summary}</span>
+              </span>
+            </Button>
+          ))}
+        </SimpleGrid>
+        <Button variant="subtle" w="fit-content" onClick={() => onNavigate("launch")}>
+          Prefiero configurarlo manualmente
+        </Button>
+      </Stack>
+    );
+
   return (
     <Stack className="panel" gap="sm" p="md">
-      {complete ? (
-        <>
-          <Title order={2}>Tu programa está activo</Title>
-          <Text>Ahora haz que tus clientes vuelvan: activa una notificación en su billetera o comparte tu QR de registro.</Text>
-          <Group>
-            <Button onClick={() => onNavigate("automations")}>Activar notificaciones</Button>
-            <Button variant="default" onClick={() => onNavigate("brand")}>Compartir mi QR</Button>
-          </Group>
-        </>
-      ) : (
-        <>
-          <Title order={2}>Pon tu programa en marcha</Title>
-          <Stack gap={6}>
-            {steps.map((step) => (
-              <Group key={step.key} gap="xs" wrap="nowrap">
-                <Text aria-hidden="true" fw={700} c={step.done ? "teal" : "dimmed"}>{step.done ? "\u2713" : "\u25cb"}</Text>
-                <Text fw={step === next ? 700 : 400} c={step.done ? "dimmed" : undefined}>{step.label}</Text>
-              </Group>
-            ))}
-          </Stack>
-          {next && (
-            <Button w="fit-content" onClick={() => onNavigate(next.page)}>
-              Siguiente: {next.cta}
-            </Button>
-          )}
-        </>
-      )}
+      <Title order={2}>Pon tu programa en marcha</Title>
+      <Stack gap={6}>
+        <Group gap="xs" wrap="nowrap">
+          <Text aria-hidden="true" fw={700} c="teal">✓</Text>
+          <Text c="dimmed">Tu programa está configurado</Text>
+        </Group>
+        <Group gap="xs" wrap="nowrap">
+          <Text aria-hidden="true" fw={700} c="dimmed">○</Text>
+          <Text fw={700}>Prepara una recompensa para tus clientes</Text>
+        </Group>
+      </Stack>
+      <Button w="fit-content" onClick={() => onNavigate("rewards")}>Siguiente: Agregar recompensa</Button>
     </Stack>
   );
 }

@@ -417,3 +417,36 @@ footer {
   .demo-outline { display: grid; gap: 16px; }
   .demo-guide-heading h2 { font-size: 22px !important; }
 }
+
+.preset-tile {
+  height: auto;
+  min-height: 72px;
+  padding: 12px;
+  align-items: flex-start;
+  text-align: left;
+}
+.preset-tile .mantine-Button-label {
+  width: 100%;
+  white-space: normal;
+}
+.preset-tile-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+.preset-tile-emoji {
+  font-size: 20px;
+  line-height: 1;
+}
+.preset-tile-label {
+  font-weight: 600;
+  font-size: 14px;
+}
+.preset-tile-summary {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--pf-muted);
+  white-space: normal;
+}
