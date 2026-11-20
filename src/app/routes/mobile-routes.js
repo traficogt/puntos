@@ -16,6 +16,7 @@ import { CustomerRepo } from '../repositories/customer-repository.js';
 import { TxnRepo } from '../repositories/transaction-repository.js';
 import { getCustomerRewardProgress } from '../services/customer-reward-progress.js';
 import { memberDiscount } from '../services/discount-model.js';
+import { stampCard } from '../services/stamp-model.js';
 import { RedemptionRepo } from '../repositories/redemption-repository.js';
 import { requestJoinCode, verifyJoinCode, issueCustomerQr } from '../services/customer-service.js';
 import {
@@ -218,6 +219,7 @@ export function createMobileRoutes(overrides = {}) {
     const overrides = await deps.PlanConfigService.getPlanFeatureOverrides().catch(() => ({}));
     const features = planFeaturesWithOverrides(business.plan, overrides);
     const discountTerms = memberDiscount(business, { amount_q: 0 });
+    const stampTerms = stampCard(business, { points: Number(customer.points) || 0 });
     const rewardProgress = features.rewards
       ? await deps.getCustomerRewardProgress(deps.getDbClient(), { businessId: auth.business_id, customerId: auth.id }) : null;
     // Installed clients only understand stock/expiry, so expose eligible choices
@@ -239,7 +241,8 @@ export function createMobileRoutes(overrides = {}) {
       reward_progress: rewardProgress,
       transactions: transactions.filter(forCustomer).map(record => project(record, transactionFields)),
       redemptions: redemptions.filter(forCustomer).map(record => project(record, redemptionFields)),
-      wallet
+      wallet,
+      stamp_card: stampTerms ? { stamps_required: stampTerms.stamps_required, head_start: stampTerms.head_start, filled: stampTerms.filled, remaining: stampTerms.remaining, reward_label: stampTerms.reward_label, complete: stampTerms.complete } : null
     });
   }));
 
