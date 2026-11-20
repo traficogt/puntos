@@ -96,6 +96,7 @@
 .calculator-reading p { font-size: .875rem; }
 .calculator-reading .text-link { display: flex; font-size: .875rem; }
 .calculator-footer { display: flex; justify-content: space-between; gap: 24px; align-items: center; padding-block: 28px; font-size: .8125rem; }
+.print-brand { display: none; }
 .print-assumptions { display: none; }
 @media (max-width: 1050px) {
   .step-layout { grid-template-columns: minmax(0, 1fr) 250px; gap: 32px; }
@@ -151,9 +152,12 @@
   :root { background: white; color: black; }
   .page-calculator .container { width: 100%; max-width: none; }
   .site-header, .example-picker, .calculator-steps, #calculator-form, .calculator-reading, .reset-row, .result-actions, .calculator-footer, .skip-link, #changed-note, #example-note { display: none !important; }
-  .calculator-intro { display: block; padding: 0 0 16px; }
-  .calculator-intro h1 { font-size: 24pt; }
-  .calculator-intro > div { display: none; }
+  .calculator-intro { display: none !important; }
+  .print-brand { display: flex !important; align-items: center; gap: 14px; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 18px; }
+  .print-brand img { width: 40px; height: 40px; }
+  .print-brand strong { display: block; font: 600 16pt/1.1 var(--brand-font); color: #000; }
+  .print-brand .brand-period { color: var(--accent); }
+  .print-brand span { display: block; font-size: 9pt; color: #555; margin-top: 3px; }
   .calculator-results { border-top: 1px solid black; margin-top: 0; padding-top: 20px; }
   .result-grid, .result-contribution { gap: 24px; }
   .result-grid > section:first-child { background: none; padding: 0; }

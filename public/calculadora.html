@@ -17,7 +17,7 @@
   <link rel="icon" href="/icon.svg?v=4" type="image/svg+xml">
   <link rel="stylesheet" href="/styles/fonts.css">
   <link rel="stylesheet" href="/styles/marketing.css?v=activation1">
-  <link rel="stylesheet" href="/calculator/simple.css?v=1">
+  <link rel="stylesheet" href="/calculator/simple.css?v=2">
   <script type="module" src="/calculator/simple.js?v=1"></script>
 </head>
 <body class="page-marketing page-calculator-simple">
@@ -27,9 +27,10 @@
     <nav aria-label="Navegación principal"><a href="/guias/">Guías</a><a href="/precios">Planes</a></nav>
   </div></header>
   <main class="simple-main" id="contenido" tabindex="-1">
+    <div class="print-brand" aria-hidden="true"><img src="/icon.svg?v=4" alt="" width="40" height="40"><div><strong>PuntosFieles<span class="brand-period">.</span></strong><span>Estimación de presupuesto de recompensas · puntosfieles.com</span></div></div>
     <div class="simple-intro">
       <h1>¿Cuánto costarían<br><span>tus premios?</span></h1>
-      <p>Empieza con un premio y dos números.<br>Puede ser un producto, un servicio o un descuento.</p>
+      <p>Calcula lo que costaría tu programa y, con un par de datos más, cuántas compras extra harían que se pague solo.</p>
     </div>
     <noscript><p>Activa JavaScript para calcular. También puedes <a href="/guias/funcionan-los-programas-de-fidelizacion">leer nuestra guía sobre programas de fidelización</a>.</p></noscript>
     <div id="simple-calculator" hidden>
@@ -52,9 +53,9 @@
         <p id="budget-total" class="budget-total"></p>
         <p id="budget-calculation"></p>
         <p id="budget-exclusions" class="small-note"></p>
-        <details id="return-options" class="return-options" hidden>
-          <summary>¿Las compras extra podrían cubrirlo?</summary>
-          <p class="return-intro">Prueba compras nuevas, además de la actividad que ya consideraste en tu presupuesto.</p>
+        <section id="return-options" class="return-options" hidden aria-labelledby="payback-heading">
+          <h3 id="payback-heading">¿Se paga solo?</h3>
+          <p class="return-intro">Eso es lo que cuesta. Con dos datos más calculamos cuántas compras extra harían falta para que el programa cubra su propio costo.</p>
           <form id="return-form" novalidate>
             <div id="return-errors" class="error-summary" role="alert" tabindex="-1" hidden></div>
             <div class="simple-fields">
@@ -62,14 +63,14 @@
               <div class="field"><label for="rewardEvery">¿Cada cuántas compras das un premio?</label><input id="rewardEvery" type="text" inputmode="numeric" maxlength="8" aria-describedby="rewardEvery-help rewardEvery-error"><p id="rewardEvery-help" class="field-help">Así incluimos los premios que esas compras extra también ganarían.</p><p id="rewardEvery-error" class="field-error" hidden></p></div>
               <div class="field"><label for="additionalSales">Compras extra que quieres probar <span>(opcional)</span></label><input id="additionalSales" type="text" inputmode="numeric" maxlength="8" aria-describedby="additionalSales-help additionalSales-error"><p id="additionalSales-help" class="field-help">Tu hipótesis, no una predicción. Déjalo vacío para ver solo cuántas necesitarías.</p><p id="additionalSales-error" class="field-error" hidden></p></div>
             </div>
-            <button type="submit" class="button" id="calculate-return">Ver cuántas compras necesitaría</button>
+            <button type="submit" class="button" id="calculate-return">Calcular cuántas compras lo cubren</button>
           </form>
           <div id="return-result" class="return-result" tabindex="-1" hidden>
             <h3 id="extra-sales-needed"></h3><p id="sales-scenario" hidden></p>
             <p id="return-explanation" class="small-note"></p>
             <p class="small-note">Esto no demuestra que llegarán nuevas ventas ni calcula utilidad neta. Solo contempla los costos que incluiste.</p>
           </div>
-        </details>
+        </section>
         <button type="button" class="text-button" id="print-simple">Imprimir / guardar PDF</button>
         <p id="print-assumptions" class="print-assumptions"></p>
       </section>
