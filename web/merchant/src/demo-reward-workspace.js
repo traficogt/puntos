@@ -1,3 +1,4 @@
+import {DEMO_CATALOG} from './demo-catalog.js';
 import {parsePosCsv} from '../../../src/app/services/pos/csv.js';
 import {canCheckInventory,manualItemPayload,rewardDraft,rewardPayload} from './reward-workspace-model.js';
 // Fictional page-session state. No network, POS, persistence or real customers.
@@ -6,8 +7,8 @@ let next=1000;
 const branches=[{id:uuid(201),name:'Local central'},{id:uuid(202),name:'Sucursal norte'}];
 const region={country:'GT',currency:'GTQ',locale:'es-GT',timezone:'America/Guatemala',minorUnits:2};
 const features={analytics:true,rewards:true,external_awards:true,redemptions:true};
-const items=[{id:uuid(301),source:'Caja de ejemplo',productRef:'CAFE-01',sku:'C-01',name:'Café de la casa',itemKind:'product',active:true,origin:'connector',revision:1,observedAt:'2026-11-11T15:00:00.000Z'},{id:uuid(302),source:'catalog:manual',productRef:'SERV-01',sku:null,name:'Sesión de asesoría',itemKind:'service',active:true,origin:'manual',revision:1,observedAt:null}];
-const rewards=[{id:uuid(101),name:'Café de la casa',description:'Una taza de nuestro café del día.',points_cost:50,stock:null,valid_until:null,branch_ids:[],active:true,available:true,unit_cost_q:4.5,version:'demo-1',mappings:[]},{id:uuid(102),name:'Postre del día',description:'Consulta el postre disponible con el equipo.',points_cost:80,stock:20,valid_until:null,branch_ids:[branches[0].id],active:true,available:false,unit_cost_q:null,version:'demo-1',mappings:[]}];
+const items=[{id:uuid(301),source:'Caja de ejemplo',productRef:'CAFE-01',sku:'C-01',name:DEMO_CATALOG.coffee.name,itemKind:'product',active:true,origin:'connector',revision:1,observedAt:'2026-11-11T15:00:00.000Z'},{id:uuid(302),source:'catalog:manual',productRef:'SERV-01',sku:null,name:'Sesión de asesoría',itemKind:'service',active:true,origin:'manual',revision:1,observedAt:null}];
+const rewards=[{id:uuid(101),name:DEMO_CATALOG.coffee.name,description:DEMO_CATALOG.coffee.description,points_cost:DEMO_CATALOG.coffee.points_cost,stock:null,valid_until:null,branch_ids:[],active:true,available:true,unit_cost_q:4.5,version:'demo-1',mappings:[]},{id:uuid(102),name:DEMO_CATALOG.dessert.name,description:DEMO_CATALOG.dessert.description,points_cost:DEMO_CATALOG.dessert.points_cost,stock:20,valid_until:null,branch_ids:[branches[0].id],active:true,available:false,unit_cost_q:null,version:'demo-1',mappings:[]}];
 const sources=[],staff=[{id:uuid(401),name:'Ana de ejemplo',role:'CASHIER',branch_id:branches[0].id,active:true},{id:uuid(402),name:'Luis de ejemplo',role:'MANAGER',branch_id:branches[1].id,active:true}],requests=new Map();
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
 const copy=value=>structuredClone(value);

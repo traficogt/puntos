@@ -1,12 +1,13 @@
+import {DEMO_CATALOG} from './demo-catalog.js';
 import {manualPayload,mappingPayload} from './fulfillment-model.js';
 // Fictional session state only. This module never calls the network or a POS.
 const at='2026-11-11T15:00:00.000Z';
 const uuid=n=>`f1000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
-const rewards=[{id:uuid(101),name:'Café de la casa',active:true},{id:uuid(102),name:'Postre del día',active:true}];
+const rewards=[{id:uuid(101),name:DEMO_CATALOG.coffee.name,active:true},{id:uuid(102),name:DEMO_CATALOG.dessert.name,active:true}];
 const branches=[{id:uuid(201),name:'Local central'},{id:uuid(202),name:'Sucursal norte'}];
 const rows=Array.from({length:57},(_,i)=>{
  const pos_status=['pending','recorded','review','not_required','unknown'][i%5];
- return {id:uuid(i+1),customer_id:uuid(301+i),reward_id:rewards[i%2].id,branch_id:branches[i%2].id,branch_name:branches[i%2].name,code:(0xA1000000+i).toString(16).toUpperCase(),points_cost:i%2?75:50,created_at:new Date(Date.parse(at)-i*3600000).toISOString(),reward_name:rewards[i%2].name,pos_status,version:['pending','unknown'].includes(pos_status)?0:1,method:['pending','unknown'].includes(pos_status)?null:i%2?'manual':'connector',source:pos_status==='recorded'?'Caja de ejemplo':null,order_id:pos_status==='recorded'?`EJ-${i+1}`:null,line_id:pos_status==='recorded'?`LINEA-${i+1}`:null,stock_status:pos_status==='review'?'returned':'unknown',receipt_ref:pos_status==='recorded'?`EJ-${i+1}`:null,recorded_at:pos_status==='recorded'?at:null,returned_quantity:pos_status==='review'?1:0,points_restored:pos_status==='review'&&i%2===0};
+ return {id:uuid(i+1),customer_id:uuid(301+i),reward_id:rewards[i%2].id,branch_id:branches[i%2].id,branch_name:branches[i%2].name,code:(0xA1000000+i).toString(16).toUpperCase(),points_cost:i%2?DEMO_CATALOG.dessert.points_cost:DEMO_CATALOG.coffee.points_cost,created_at:new Date(Date.parse(at)-i*3600000).toISOString(),reward_name:rewards[i%2].name,pos_status,version:['pending','unknown'].includes(pos_status)?0:1,method:['pending','unknown'].includes(pos_status)?null:i%2?'manual':'connector',source:pos_status==='recorded'?'Caja de ejemplo':null,order_id:pos_status==='recorded'?`EJ-${i+1}`:null,line_id:pos_status==='recorded'?`LINEA-${i+1}`:null,stock_status:pos_status==='review'?'returned':'unknown',receipt_ref:pos_status==='recorded'?`EJ-${i+1}`:null,recorded_at:pos_status==='recorded'?at:null,returned_quantity:pos_status==='review'?1:0,points_restored:pos_status==='review'&&i%2===0};
 });
 const mappings=[],requests=new Map(),events=new Map(rows.map(row=>[row.id,[]]));
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};

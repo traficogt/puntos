@@ -1,6 +1,7 @@
+import {DEMO_CATALOG} from './demo-catalog.js';
 // Fictional session-only data. No API calls, storage, messages or real entitlements.
 const region={country:'GT',currency:'GTQ',timezone:'America/Guatemala',locale:'es-GT',minorUnits:2};
-const rewards=[{id:'demo-promise-coffee',name:'Café de la casa',points_cost:80,stock:18,active:true,available:true,alternative_reward_ids:['demo-promise-tea'],protected_customers:6,unit_cost_q:5},{id:'demo-promise-tea',name:'Té de la casa',points_cost:80,stock:12,active:true,available:true,alternative_reward_ids:[],protected_customers:6,unit_cost_q:4}];
+const rewards=[{id:'demo-promise-coffee',name:DEMO_CATALOG.coffee.name,points_cost:DEMO_CATALOG.coffee.points_cost,stock:18,active:true,available:true,alternative_reward_ids:['demo-promise-tea'],protected_customers:6,unit_cost_q:5},{id:'demo-promise-tea',name:DEMO_CATALOG.tea.name,points_cost:DEMO_CATALOG.tea.points_cost,stock:12,active:true,available:true,alternative_reward_ids:[],protected_customers:6,unit_cost_q:4}];
 const staff=[{id:'demo-hospitality-ana',name:'Ana (ficticia)',branch_id:'demo-hospitality-centro'}],branches=[{id:'demo-hospitality-centro',name:'Centro (demostración)'}];
 const now=()=>new Date().toISOString(),requests=new Map();
 const grants=[{id:'demo-hospitality-grant',staff_id:staff[0].id,staff_name:staff[0].name,branch_id:branches[0].id,reward_id:rewards[0].id,reward_name:rewards[0].name,title:'Un café de cortesía',total_units:8,used_units:5,remaining_units:3,total_cost:40,used_cost:25,remaining_cost:15,unit_cost_limit:5,starts_at:new Date(Date.now()-55*3600000).toISOString(),ends_at:new Date(Date.now()+7*3600000).toISOString(),valid_hours:48,revoked_at:null}];

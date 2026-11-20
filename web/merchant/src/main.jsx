@@ -12,6 +12,7 @@ import {
   Anchor,
   Button,
   Group,
+  NativeSelect,
   Stack,
   Text,
   Title,
@@ -27,6 +28,7 @@ import { pageFromHash, hashForPage } from "./navigation.js";
 import MerchantNavigation from "./MerchantNavigation.jsx";
 import DemoGuide, { DemoWelcome } from "./DemoGuide.jsx";
 import { demoView, demoLocation } from "./demo-guide.js";
+import { demoThemeOptions, demoThemeKey } from "./demo-catalog.js";
 import { Loading, Failure, BusinessLink } from "./ui.jsx";
 import { setMerchantRegion } from './region.js';
 const OwnerCustomers = lazy(() => import('./OwnerCustomers.tsx'));
@@ -354,6 +356,15 @@ function Merchant({ staff }) {
                   <a className="demo-contact-link" href="https://puntosfieles.com/#contacto" onClick={()=>trackDemoEvent('demo_contact_open')}>Hablar con nosotros</a>
                 </Text>
                 <Text size="sm" mt="xs"><strong>Funciones según el plan</strong>. La demo incluye herramientas de distintos planes. Recuperación, campañas y costos: desde Negocio. <Anchor href="/precios">Comparar planes</Anchor></Text>
+                <Group gap="xs" mt="md" align="flex-end">
+                  <NativeSelect
+                    size="xs"
+                    label="Ver la demo para otro tipo de negocio"
+                    data={demoThemeOptions}
+                    value={demoThemeKey()}
+                    onChange={event => { const url = new URL(location.href); url.searchParams.set("ejemplo", event.currentTarget.value); location.assign(url.pathname + url.search + url.hash); }}
+                  />
+                </Group>
               </Alert>
             )}
             {isDemo && <DemoGuide page={page} mode={demoMode} onNavigate={navigate} />}

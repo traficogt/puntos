@@ -1,3 +1,4 @@
+import {DEMO_CATALOG} from './demo-catalog.js';
 import {demoOwnerWorkspace} from './demo-owner-workspace.ts';
 import {demoServiceCompletion} from './demo-service-completion.js';
 import {demoDemandFunding} from './demo-demand-funding.js';
@@ -103,12 +104,12 @@ function overview(url) {
     daily,
     rewards: [
       {
-        name: "Café de la casa",
+        name: DEMO_CATALOG.coffee.name,
         redemptions: Math.round(redemptions * 0.7),
         points_redeemed: Math.round(redemptions * 0.7) * 100,
       },
       {
-        name: "Pan artesanal",
+        name: DEMO_CATALOG.bread.name,
         redemptions: redemptions - Math.round(redemptions * 0.7),
         points_redeemed: (redemptions - Math.round(redemptions * 0.7)) * 80,
       },
@@ -213,14 +214,14 @@ export async function demoApi(path, options = {}) {
           rewards: [
             {
               id: "demo-coffee",
-              name: "Café de la casa",
+              name: DEMO_CATALOG.coffee.name,
               active: true,
               stock: 100,
-              points_cost: 100,
+              points_cost: DEMO_CATALOG.coffee.points_cost,
             },
             {
               id: "demo-bread",
-              name: "Pan artesanal",
+              name: DEMO_CATALOG.bread.name,
               active: true,
               stock: 50,
               points_cost: 80,

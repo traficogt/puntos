@@ -1,10 +1,11 @@
+import {DEMO_CATALOG} from './demo-catalog.js';
 import {demoRegion} from './demo-region.js';
 // Synthetic data, isolated to this browser module; no outbound requests.
 let settings = { gross_margin_pct: null, cost_per_point_q: null };
 const rewards = [
-  { id: 'demo-coffee', name: 'Café de la casa', points_cost: 50, active: true, valid_until: null, unit_cost_q: 4.5,retail_value_q:12 },
-  { id: 'demo-dessert', name: 'Postre del día', points_cost: 100, active: true, valid_until: null, unit_cost_q: null,retail_value_q:null },
-  { id: 'demo-upgrade', name: 'Tamaño grande', points_cost: 25, active: true, valid_until: null, unit_cost_q: 0,retail_value_q:null },
+  { id: 'demo-coffee', name: DEMO_CATALOG.coffee.name, points_cost: DEMO_CATALOG.coffee.points_cost, active: true, valid_until: null, unit_cost_q: 4.5,retail_value_q:12 },
+  { id: 'demo-dessert', name: DEMO_CATALOG.dessert.name, points_cost: DEMO_CATALOG.dessert.points_cost, active: true, valid_until: null, unit_cost_q: null,retail_value_q:null },
+  { id: 'demo-upgrade', name: DEMO_CATALOG.upgrade.name, points_cost: DEMO_CATALOG.upgrade.points_cost, active: true, valid_until: null, unit_cost_q: 0,retail_value_q:null },
 ];
 const round = value => Math.round((value + Number.EPSILON) * 100) / 100;
 function valid(value, max, places) {
