@@ -10,7 +10,7 @@ export function DemoWelcome({ onNavigate }) {
     </ol>
     <Group mt="xl" gap="md">
       <Button mih={44} onClick={() => onNavigate('recovery', 'guia')}>Ver un ejemplo</Button>
-      <Button mih={44} variant="default" onClick={() => onNavigate('overview', 'libre')}>Explorar todas las funciones</Button>
+      <Button mih={44} variant="default" onClick={() => onNavigate('overview', 'libre')}>Explorar el panel</Button>
     </Group>
     <Text size="sm" c="dimmed" mt="lg">Sin registro. Puedes salir del recorrido en cualquier momento.</Text>
   </section>;

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Button, Stack, Text } from "@mantine/core";
-import { dailyNavigation, navigationGroups } from "./merchant-navigation.js";
+import { isDemo } from "./api.js";
+import { dailyNavigation, navigationGroups, demoNavigation } from "./merchant-navigation.js";
 
 export default function MerchantNavigation({ page, visible, onNavigate }) {
   const navigation = useRef(null);
@@ -31,6 +32,17 @@ export default function MerchantNavigation({ page, visible, onNavigate }) {
       ))}
     </Stack>
   );
+
+  // The public demo shows a small, sales-focused subset instead of the full
+  // ~30-page operator surface, so a first-time visitor is not overwhelmed.
+  if (isDemo) {
+    return (
+      <nav ref={navigation} aria-label="Tu negocio" className="merchant-navigation">
+        <Text className="merchant-nav-label" size="sm" fw={600}>Explora la demo</Text>
+        {items(demoNavigation)}
+      </nav>
+    );
+  }
 
   const renderGroup = grp => (
     <details key={grp.id} className="merchant-nav-group">

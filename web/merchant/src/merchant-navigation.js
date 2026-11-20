@@ -69,3 +69,18 @@ export const navigationGroups = [
     ],
   },
 ];
+
+// Public demo: a small, sales-focused subset of the full operator surface.
+// Order tells the loyalty story; operator/admin screens are intentionally left
+// out so a first-time visitor is not overwhelmed.
+export const demoNavigation = [
+  { page: "overview", label: "Inicio" },
+  { page: "launch", label: "Preparar mi programa" },
+  { page: "rewards", label: "Recompensas" },
+  { page: "automations", label: "Notificaciones automáticas" },
+  { page: "customers", label: "Clientes" },
+  { page: "recovery", label: "Recuperar clientes" },
+  { page: "growth", label: "Campañas y ofertas" },
+  { page: "brand", label: "Marca y QR" },
+  { page: "fulfillment", label: "Canjes y caja" },
+];
