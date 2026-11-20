@@ -15,6 +15,7 @@ import { BusinessRepo } from '../repositories/business-repository.js';
 import { CustomerRepo } from '../repositories/customer-repository.js';
 import { TxnRepo } from '../repositories/transaction-repository.js';
 import { getCustomerRewardProgress } from '../services/customer-reward-progress.js';
+import { memberDiscount } from '../services/discount-model.js';
 import { RedemptionRepo } from '../repositories/redemption-repository.js';
 import { requestJoinCode, verifyJoinCode, issueCustomerQr } from '../services/customer-service.js';
 import {
@@ -216,6 +217,7 @@ export function createMobileRoutes(overrides = {}) {
     if (!business || String(business.id) !== auth.business_id) return missingCustomer(req, res);
     const overrides = await deps.PlanConfigService.getPlanFeatureOverrides().catch(() => ({}));
     const features = planFeaturesWithOverrides(business.plan, overrides);
+    const discountTerms = memberDiscount(business, { amount_q: 0 });
     const rewardProgress = features.rewards
       ? await deps.getCustomerRewardProgress(deps.getDbClient(), { businessId: auth.business_id, customerId: auth.id }) : null;
     // Installed clients only understand stock/expiry, so expose eligible choices
@@ -228,7 +230,7 @@ export function createMobileRoutes(overrides = {}) {
     const forCustomer = record => inBusiness(record) && String(record.customer_id) === auth.id;
     res.json({
       ok: true,
-      business: { ...businessIdentity(business), customer_branding: customerBranding(business.customer_branding_json), features },
+      business: { ...businessIdentity(business), customer_branding: customerBranding(business.customer_branding_json), features, member_discount: discountTerms ? { percent_off: discountTerms.percent_off, min_purchase_q: discountTerms.min_purchase_q } : null },
       customer: project(customer, customerFields),
       rewards: rewards.map(record => ({
         ...project(record, rewardFields),
