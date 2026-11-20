@@ -42,6 +42,12 @@ summary span { font-weight: 400; color: var(--muted); }
 .return-result { padding-block: 24px 16px; }
 .return-result h3 { font-size: 1.5rem; line-height: 1.4; font-variant-numeric: tabular-nums; }
 #sales-scenario { margin-top: 14px; }
+.payback-ask { margin-top: 28px; border-top: 1px solid var(--line); padding-top: 24px; }
+.payback-ask-lead { font-weight: 600; font-size: .9375rem; margin-bottom: 16px; }
+.payback-block { margin-block: 20px 8px; border-top: 1px solid var(--line); padding-top: 20px; }
+.payback-title { font-size: 1.125rem; }
+.payback-headline { font: 600 1.5rem/1.35 var(--brand-font); font-variant-numeric: tabular-nums; margin-top: 8px; overflow-wrap: anywhere; }
+.payback-missing { margin-block: 16px 4px; }
 .text-button { background: transparent; color: var(--accent-hover); border: 0; min-height: 44px; padding: 10px 0; font-size: .875rem; text-decoration: underline; text-underline-offset: 5px; }
 .text-button:hover { color: var(--ink); }
 .reset-button { margin-top: 16px; }
@@ -71,7 +77,7 @@ summary span { font-weight: 400; color: var(--muted); }
   .budget-total { font-size: 2rem; }
 }
 @media print {
-  .site-header, .simple-footer, #budget-form, #examples, #example-context, #reset-simple, #print-simple, .simple-more, .skip-link, .simple-intro, .return-options { display: none !important; }
+  .site-header, .simple-footer, #budget-form, #examples, #example-context, #reset-simple, #print-simple, .simple-more, .skip-link, .simple-intro, #payback-block, #payback-missing, #budget-calculation, #budget-exclusions { display: none !important; }
   .print-brand { display: flex !important; align-items: center; gap: 14px; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 18px; }
   .print-brand img { width: 40px; height: 40px; }
   .print-brand strong { display: block; font: 600 16pt/1.1 var(--brand-font); color: #000; }

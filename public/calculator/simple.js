@@ -5,6 +5,7 @@ import { REGIONAL_CURRENCIES } from '../regional-catalog.js';
 const byId = id => document.getElementById(id);
 const number = value => new Intl.NumberFormat('es-GT', { maximumFractionDigits: 6 }).format(value);
 const value = id => parseDecimal(byId(id).value);
+const filled = id => byId(id).value.trim() !== '';
 const examples = new Map([
   ['retail', { label: 'Tienda · accesorio de regalo', rewardCost: 20, rewardCount: 20, keptPerSale: 36, rewardEvery: 10, additionalSales: 20 }],
   ['salon', { label: 'Salón · tratamiento adicional', rewardCost: 12, rewardCount: 24, keptPerSale: 45, rewardEvery: 8, additionalSales: 10 }],
@@ -16,9 +17,14 @@ const labels = new Map([
   ['currency', 'Moneda'], ['keptPerSale', 'Lo que te queda de una compra'], ['rewardEvery', 'Compras por premio'],
   ['additionalSales', 'Compras extra'], ['calculation', 'Revisa las cantidades'],
 ]);
-function inputs(includeReturn = false) {
+
+// The payback runs in the same step: if either payback field is touched we
+// compute it (and validate both), otherwise we show the budget alone.
+function wantsReturn() { return filled('keptPerSale') || filled('rewardEvery'); }
+function inputs() {
   return { currency: byId('currency').value, rewardCost: value('rewardCost'), rewardCount: value('rewardCount'),
-    monthlyCosts: value('monthlyCosts'), includeReturn, keptPerSale: value('keptPerSale'), rewardEvery: value('rewardEvery'), additionalSales: value('additionalSales') };
+    monthlyCosts: value('monthlyCosts'), includeReturn: wantsReturn(),
+    keptPerSale: value('keptPerSale'), rewardEvery: value('rewardEvery'), additionalSales: value('additionalSales') };
 }
 function money(amount) { return formatMoney(amount, byId('currency').value); }
 function balanceAmount(amount) {
@@ -32,8 +38,8 @@ function clearErrors() {
   for (const element of document.querySelectorAll('.field-error, .error-summary')) { element.hidden = true; element.replaceChildren(); }
   for (const element of document.querySelectorAll('[aria-invalid]')) element.removeAttribute('aria-invalid');
 }
-function showErrors(errors, scope) {
-  const summary = byId(`${scope}-errors`);
+function showErrors(errors) {
+  const summary = byId('budget-errors');
   const intro = document.createElement('p'); intro.textContent = 'Revisa estos datos para continuar:';
   const list = document.createElement('ul');
   for (const error of errors) {
@@ -53,16 +59,6 @@ function showErrors(errors, scope) {
   }
   summary.replaceChildren(intro, list); summary.hidden = false; summary.focus();
 }
-function invalidateReturn() {
-  byId('return-result').hidden = true; byId('print-assumptions').textContent = '';
-  if (!byId('budget-result').hidden) {
-    const input = inputs(); const result = calculateSimple(input);
-    if (!result.errors.length) printAssumptions(input, result);
-  }
-}
-function invalidateBudget() {
-  byId('budget-result').hidden = true; byId('return-options').hidden = true; invalidateReturn();
-}
 function printAssumptions(input, result) {
   const lines = [`Período: un mes. Moneda: ${input.currency}. Sin conversión.`,
     `${number(input.rewardCount)} premios a ${money(input.rewardCost)} cada uno. Se contempla entregarlos todos.`,
@@ -81,23 +77,7 @@ function printAssumptions(input, result) {
   }
   byId('print-assumptions').textContent = lines.join('\n');
 }
-function showBudget(focus = true) {
-  clearErrors(); invalidateBudget();
-  const input = inputs(); const result = calculateSimple(input);
-  if (result.errors.length) { showErrors(result.errors, 'budget'); return; }
-  byId('budget-total').textContent = money(result.budget);
-  byId('budget-calculation').textContent = `${number(input.rewardCount)} premios × ${money(input.rewardCost)} cada uno${input.monthlyCosts === null ? '.' : ` + ${money(input.monthlyCosts)} en otros gastos.`}`;
-  byId('budget-exclusions').textContent = input.monthlyCosts === null
-    ? 'Solo premios: no incluye suscripción PF ni otros gastos. Puedes sumarlos arriba.'
-    : 'Incluye todos estos premios y los otros gastos que anotaste. Revisa que no falte ninguno.';
-  byId('budget-result').hidden = false; byId('return-options').hidden = false;
-  printAssumptions(input, result);
-  if (focus) byId('budget-heading').focus();
-}
-function showReturn() {
-  clearErrors(); invalidateReturn();
-  const input = inputs(true); const result = calculateSimple(input);
-  if (result.errors.length) { showErrors(result.errors, 'return'); return; }
+function renderPayback(input, result) {
   const estimate = result.estimate;
   byId('extra-sales-needed').textContent = result.budget === 0 ? 'Este presupuesto no requiere compras extra.'
     : estimate.reason === 'nonpositive' ? 'Con esos números, cada compra extra no alcanza para cubrir el premio que genera.'
@@ -112,29 +92,45 @@ function showReturn() {
         : `quedarían ${balanceAmount(estimate.balance)} después de los premios y gastos incluidos.`);
   }
   byId('return-explanation').textContent = 'También incluimos los premios que ganarían esas compras adicionales. No los cuentes otra vez en tu presupuesto inicial.';
-  byId('return-result').hidden = false; printAssumptions(input, result); byId('return-result').focus();
 }
+function render(focus = true) {
+  clearErrors(); invalidate();
+  const input = inputs(); const result = calculateSimple(input);
+  if (result.errors && result.errors.length) { showErrors(result.errors); return; }
+  byId('budget-total').textContent = money(result.budget);
+  byId('budget-calculation').textContent = `${number(input.rewardCount)} premios × ${money(input.rewardCost)} cada uno${input.monthlyCosts === null ? '.' : ` + ${money(input.monthlyCosts)} en otros gastos.`}`;
+  byId('budget-exclusions').textContent = input.monthlyCosts === null
+    ? 'Solo premios: no incluye suscripción PF ni otros gastos. Puedes sumarlos en “Más opciones”.'
+    : 'Incluye todos estos premios y los otros gastos que anotaste. Revisa que no falte ninguno.';
+  if (result.estimate) {
+    renderPayback(input, result);
+    byId('payback-block').hidden = false; byId('payback-missing').hidden = true;
+  } else {
+    byId('payback-block').hidden = true; byId('payback-missing').hidden = false;
+  }
+  printAssumptions(input, result);
+  byId('budget-result').hidden = false;
+  if (focus) byId('budget-heading').focus();
+}
+function invalidate() { byId('budget-result').hidden = true; byId('print-assumptions').textContent = ''; }
 function clearForms() {
-  byId('budget-form').reset(); byId('return-form').reset(); byId('currency').value = 'GTQ';
-  byId('extra-costs').open = false; byId('return-options').open = false;
-  byId('example-context').hidden = true; clearErrors(); invalidateBudget(); syncCurrency();
+  byId('budget-form').reset(); byId('currency').value = 'GTQ';
+  byId('extra-costs').open = false; byId('example-context').hidden = true;
+  clearErrors(); invalidate(); syncCurrency();
 }
 for (const [code, name] of Object.entries(REGIONAL_CURRENCIES)) {
   const option = document.createElement('option'); option.value = code; option.textContent = `${code} · ${name}`; byId('currency').append(option);
 }
-byId('budget-form').addEventListener('submit', event => { event.preventDefault(); showBudget(); });
-byId('return-form').addEventListener('submit', event => { event.preventDefault(); showReturn(); });
-byId('budget-form').addEventListener('input', invalidateBudget);
-byId('budget-form').addEventListener('change', () => { syncCurrency(); invalidateBudget(); });
-byId('return-form').addEventListener('input', invalidateReturn);
-byId('return-form').addEventListener('change', invalidateReturn);
+byId('budget-form').addEventListener('submit', event => { event.preventDefault(); render(); });
+byId('budget-form').addEventListener('input', invalidate);
+byId('budget-form').addEventListener('change', () => { syncCurrency(); invalidate(); });
 for (const button of document.querySelectorAll('[data-example]')) {
   button.addEventListener('click', () => {
     const example = examples.get(button.dataset.example); if (!example) return;
     clearForms();
     for (const [key, val] of Object.entries(example)) { if (key !== 'label') byId(key).value = String(val); }
     byId('example-context').textContent = `Ejemplo ficticio: ${example.label}. Cifras en GTQ, editables; no son costos típicos ni tarifas de PF. Se supone capacidad disponible para los servicios.`;
-    byId('example-context').hidden = false; showBudget(false);
+    byId('example-context').hidden = false; render(false);
   });
 }
 byId('reset-simple').addEventListener('click', () => { clearForms(); byId('examples').open = false; byId('rewardCost').focus(); });

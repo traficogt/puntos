@@ -17,8 +17,8 @@
   <link rel="icon" href="/icon.svg?v=4" type="image/svg+xml">
   <link rel="stylesheet" href="/styles/fonts.css">
   <link rel="stylesheet" href="/styles/marketing.css?v=activation1">
-  <link rel="stylesheet" href="/calculator/simple.css?v=2">
-  <script type="module" src="/calculator/simple.js?v=1"></script>
+  <link rel="stylesheet" href="/calculator/simple.css?v=3">
+  <script type="module" src="/calculator/simple.js?v=2"></script>
 </head>
 <body class="page-marketing page-calculator-simple">
   <a class="skip-link" href="#contenido">Saltar al contenido</a>
@@ -41,10 +41,18 @@
           <div class="field"><label for="rewardCost">¿Cuánto te cuesta un premio? <span class="currency-code"></span></label><input id="rewardCost" type="text" inputmode="decimal" maxlength="24" aria-describedby="rewardCost-help rewardCost-error"><p id="rewardCost-help" class="field-help">Tu costo, no el precio de venta. Si reemplaza una venta, suma lo que dejas de ganar por premio. En descuentos, usa el importe descontado.</p><p id="rewardCost-error" class="field-error" hidden></p></div>
           <div class="field"><label for="rewardCount">¿Cuántos premios quieres cubrir?</label><input id="rewardCount" type="text" inputmode="numeric" maxlength="8" aria-describedby="rewardCount-help rewardCount-error"><p id="rewardCount-help" class="field-help">La cantidad que quieres presupuestar para un mes.</p><p id="rewardCount-error" class="field-error" hidden></p></div>
         </div>
-        <details id="extra-costs" class="optional-section"><summary>Sumar otros gastos <span>(opcional)</span></summary>
+        <div class="payback-ask">
+          <p class="payback-ask-lead">¿Se paga solo? Añade estos dos datos y lo calculamos en el mismo paso.</p>
+          <div class="simple-fields">
+            <div class="field"><label for="keptPerSale">¿Cuánto te queda de una compra? <span class="currency-code"></span></label><input id="keptPerSale" type="text" inputmode="decimal" maxlength="24" aria-describedby="keptPerSale-help keptPerSale-error"><p id="keptPerSale-help" class="field-help">Lo cobrado menos el producto, materiales y otros gastos de esa venta. Antes de los premios.</p><p id="keptPerSale-error" class="field-error" hidden></p></div>
+            <div class="field"><label for="rewardEvery">¿Cada cuántas compras das un premio?</label><input id="rewardEvery" type="text" inputmode="numeric" maxlength="8" aria-describedby="rewardEvery-help rewardEvery-error"><p id="rewardEvery-help" class="field-help">Así incluimos los premios que esas compras extra también ganarían.</p><p id="rewardEvery-error" class="field-error" hidden></p></div>
+          </div>
+        </div>
+        <details id="extra-costs" class="optional-section"><summary>Más opciones <span>(otros gastos del mes, compras a probar)</span></summary>
           <div class="field"><label for="monthlyCosts">Otros gastos del mes <span class="currency-code"></span></label><input id="monthlyCosts" type="text" inputmode="decimal" maxlength="24" aria-describedby="monthlyCosts-help monthlyCosts-error"><p id="monthlyCosts-help" class="field-help">Suscripción, mensajes u operación. Usa tu cotización; no suponemos un precio de PF. No repitas aquí los costos que ya incluiste por premio.</p><p id="monthlyCosts-error" class="field-error" hidden></p></div>
+          <div class="field"><label for="additionalSales">Compras extra que quieres probar <span>(opcional)</span></label><input id="additionalSales" type="text" inputmode="numeric" maxlength="8" aria-describedby="additionalSales-help additionalSales-error"><p id="additionalSales-help" class="field-help">Tu hipótesis, no una predicción. Déjalo vacío para ver solo cuántas necesitarías.</p><p id="additionalSales-error" class="field-error" hidden></p></div>
         </details>
-        <button type="submit" class="button" id="calculate-budget">Calcular presupuesto</button>
+        <button type="submit" class="button" id="calculate-budget">Calcular</button>
       </form>
       <details id="examples" class="examples"><summary>Prefiero empezar con un ejemplo</summary><p class="field-help">Cifras ficticias y editables. Estos negocios son solo algunos ejemplos.</p><div class="example-buttons"><button type="button" data-example="retail">Tienda</button><button type="button" data-example="salon">Salón</button><button type="button" data-example="carwash">Lavado de vehículos</button><button type="button" data-example="cafe">Cafetería</button></div></details>
       <p id="example-context" class="small-note" hidden></p>
@@ -53,24 +61,14 @@
         <p id="budget-total" class="budget-total"></p>
         <p id="budget-calculation"></p>
         <p id="budget-exclusions" class="small-note"></p>
-        <section id="return-options" class="return-options" hidden aria-labelledby="payback-heading">
-          <h3 id="payback-heading">¿Se paga solo?</h3>
-          <p class="return-intro">Eso es lo que cuesta. Con dos datos más calculamos cuántas compras extra harían falta para que el programa cubra su propio costo.</p>
-          <form id="return-form" novalidate>
-            <div id="return-errors" class="error-summary" role="alert" tabindex="-1" hidden></div>
-            <div class="simple-fields">
-              <div class="field"><label for="keptPerSale">¿Cuánto te queda de una compra? <span class="currency-code"></span></label><input id="keptPerSale" type="text" inputmode="decimal" maxlength="24" aria-describedby="keptPerSale-help keptPerSale-error"><p id="keptPerSale-help" class="field-help">Lo cobrado menos el producto, materiales y otros gastos de esa venta. Antes de los premios.</p><p id="keptPerSale-error" class="field-error" hidden></p></div>
-              <div class="field"><label for="rewardEvery">¿Cada cuántas compras das un premio?</label><input id="rewardEvery" type="text" inputmode="numeric" maxlength="8" aria-describedby="rewardEvery-help rewardEvery-error"><p id="rewardEvery-help" class="field-help">Así incluimos los premios que esas compras extra también ganarían.</p><p id="rewardEvery-error" class="field-error" hidden></p></div>
-              <div class="field"><label for="additionalSales">Compras extra que quieres probar <span>(opcional)</span></label><input id="additionalSales" type="text" inputmode="numeric" maxlength="8" aria-describedby="additionalSales-help additionalSales-error"><p id="additionalSales-help" class="field-help">Tu hipótesis, no una predicción. Déjalo vacío para ver solo cuántas necesitarías.</p><p id="additionalSales-error" class="field-error" hidden></p></div>
-            </div>
-            <button type="submit" class="button" id="calculate-return">Calcular cuántas compras lo cubren</button>
-          </form>
-          <div id="return-result" class="return-result" tabindex="-1" hidden>
-            <h3 id="extra-sales-needed"></h3><p id="sales-scenario" hidden></p>
-            <p id="return-explanation" class="small-note"></p>
-            <p class="small-note">Esto no demuestra que llegarán nuevas ventas ni calcula utilidad neta. Solo contempla los costos que incluiste.</p>
-          </div>
-        </section>
+        <div id="payback-block" class="payback-block" hidden>
+          <h3 class="payback-title">¿Se paga solo?</h3>
+          <p id="extra-sales-needed" class="payback-headline"></p>
+          <p id="sales-scenario" hidden></p>
+          <p id="return-explanation" class="small-note"></p>
+          <p class="small-note">Esto no demuestra que llegarán nuevas ventas ni calcula utilidad neta. Solo contempla los costos que incluiste.</p>
+        </div>
+        <p id="payback-missing" class="small-note payback-missing" hidden>Completa “¿Cuánto te queda de una compra?” y “¿Cada cuántas compras das un premio?” para ver si el programa se paga solo.</p>
         <button type="button" class="text-button" id="print-simple">Imprimir / guardar PDF</button>
         <p id="print-assumptions" class="print-assumptions"></p>
       </section>
