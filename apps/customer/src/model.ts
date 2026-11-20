@@ -3,6 +3,7 @@ export type Business = {
   name: string;
   slug: string;
   features?: Record<string, boolean>;
+  member_discount?: { percent_off: number; min_purchase_q?: number } | null;
   customer_branding?: {
     customer_program_name?: string;
     primary_color?: string;

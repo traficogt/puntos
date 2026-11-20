@@ -45,6 +45,10 @@ export function Card() {
     );
 
   const { customer, business } = data;
+  const discountPct =
+    business.member_discount && Number(business.member_discount.percent_off) > 0
+      ? Number(business.member_discount.percent_off)
+      : null;
   const title =
     business.customer_branding?.customer_program_name || business.name;
   const rewards =
@@ -143,10 +147,14 @@ export function Card() {
             fontVariant: ["tabular-nums"],
           }}
         >
-          {Number(customer.points).toLocaleString("es-GT")}
+          {discountPct != null
+            ? `${discountPct}%`
+            : Number(customer.points).toLocaleString("es-GT")}
         </Copy>
         <Copy style={{ color: colors.onCard, fontSize: 15, lineHeight: 23 }}>
-          {state.demo
+          {discountPct != null
+            ? "de descuento en cada compra"
+            : state.demo
             ? "puntos de ejemplo"
             : state.offline || !state.fresh
             ? "puntos guardados"
