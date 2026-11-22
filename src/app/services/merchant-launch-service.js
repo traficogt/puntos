@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { dbQuery, withTransaction } from '../database.js';
 import { PlanConfigService } from './plan-config-service.js';
-import { hasPlanFeature } from '../../utils/plan.js';
+import { hasPlanFeature, canUseProgramType } from '../../utils/plan.js';
 import { badRequest, conflict, forbidden, notFound } from '../../utils/http-error.js';
 import { withImpersonationMeta } from '../../utils/impersonation.js';
 const rateKey = {SPEND:'points_per_q',VISIT:'points_per_visit',ITEM:'points_per_item'};
@@ -82,6 +82,7 @@ export async function updateLaunchProgram(options,injected={}){
   const {rows}=await client.query('SELECT id,plan,program_type,program_json FROM businesses WHERE id=$1 FOR NO KEY UPDATE',[options.businessId]);
   const business=rows[0];if(!business)throw notFound('Negocio no encontrado.');
   if(!hasPlanFeature(business.plan,'program_rules',overrides))throw forbidden('Tu plan no permite editar el programa.');
+  if(!canUseProgramType(business.plan,input.program_type,overrides))throw forbidden('Las tarjetas de regalo están disponibles desde el plan Negocio.');
   const before=programBasics(business);if(before.version!==input.version)throw conflict('La regla cambió en otra sesión. Recarga la configuración antes de guardar.');
   const patch=input.program_type==='DISCOUNT'?{percent_off:input.percent_off}:input.program_type==='CASHBACK'?{cashback_percent:input.cashback_percent}:input.program_type==='GIFT_CARD'?{load_bonus_percent:Math.max(0,Math.min(100,input.load_bonus_percent??0))}:input.program_type==='STAMP'?{stamps_required:input.stamps_required,head_start:Math.min(input.stamps_required-1,Math.max(0,input.head_start??2)),reward_label:(input.reward_label||'').trim(),stamp_unit:input.stamp_unit??'visit'}:{[rateKey[input.program_type]]:input.rate,...(input.program_type==='SPEND'?{round:input.round}:{})};
   const updated=await client.query("UPDATE businesses SET program_type=$2,program_json=COALESCE(program_json,'{}'::jsonb)||$3::jsonb WHERE id=$1 RETURNING program_type,program_json",[options.businessId,input.program_type,JSON.stringify(patch)]);

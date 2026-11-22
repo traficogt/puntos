@@ -87,12 +87,12 @@ export function normalizePlan(plan) {
 
 export function planLimits(plan) {
   const key = normalizePlan(plan);
-  return PLAN_LIMITS[key] ?? PLAN_LIMITS.EMPRESA;
+  return PLAN_LIMITS[key] ?? PLAN_LIMITS.EMPRENDEDOR;
 }
 
 export function planFeatures(plan) {
   const key = normalizePlan(plan);
-  return DEFAULT_PLAN_FEATURES[key] ?? DEFAULT_PLAN_FEATURES.EMPRESA;
+  return DEFAULT_PLAN_FEATURES[key] ?? DEFAULT_PLAN_FEATURES.EMPRENDEDOR;
 }
 
 export function mergePlanFeatures(overrides = {}) {
@@ -113,11 +113,26 @@ export function mergePlanFeatures(overrides = {}) {
 export function planFeaturesWithOverrides(plan, overrides = {}) {
   const key = normalizePlan(plan);
   const merged = mergePlanFeatures(overrides);
-  return merged[key] ?? merged.EMPRESA;
+  return merged[key] ?? merged.EMPRENDEDOR;
 }
 
 export function hasPlanFeature(plan, feature, overrides = {}) {
   return Boolean(planFeaturesWithOverrides(plan, overrides)[feature]);
+}
+
+// Program models that require a specific plan feature to be selected or operated.
+// Earning models (SPEND, VISIT, ITEM, DISCOUNT, STAMP, CASHBACK) are part of core
+// loyalty and available on every tier; the gift-card product is premium stored
+// value. To make another model premium, add it here (e.g. CASHBACK: "cashback").
+export const PROGRAM_TYPE_FEATURE = { GIFT_CARD: "gift_cards" };
+
+export function programTypeFeature(programType) {
+  return PROGRAM_TYPE_FEATURE[String(programType || "").trim().toUpperCase()] ?? null;
+}
+
+export function canUseProgramType(plan, programType, overrides = {}) {
+  const feature = programTypeFeature(programType);
+  return feature ? hasPlanFeature(plan, feature, overrides) : true;
 }
 
 export function suggestedPlanForFeature(feature) {

@@ -4,7 +4,7 @@ import { BranchRepo } from "../repositories/branch-repository.js";
 import { StaffRepo } from "../repositories/staff-repository.js";
 import { slugify } from "./slug-service.js";
 import { config } from "../../config/index.js";
-import { planLimits } from "../../utils/plan.js";
+import { planLimits, canUseProgramType } from "../../utils/plan.js";
 import { badRequest, conflict } from "../../utils/http-error.js";
 import { logger } from "../../utils/logger.js";
 import { setCurrentTenant, withTransaction, withDbClientContext } from "../database.js";
@@ -63,6 +63,9 @@ export async function createBusinessWithOwner({
 
   const plan = providedPlan ? String(providedPlan) : (config.DEFAULT_PLAN ?? "EMPRENDEDOR");
   const programType = program_type ?? "SPEND";
+  if (!canUseProgramType(plan, programType)) {
+    throw badRequest(`El tipo de programa ${programType} no está disponible en el plan ${plan}.`);
+  }
   const programJson = program_json ?? { points_per_q: 0.1, round: "ceil" }; // 1pt per Q10 default
 
   const branchId = id();

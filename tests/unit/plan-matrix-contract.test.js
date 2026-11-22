@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { planFeatures, planLimits } from "../../src/utils/plan.js";
+import { planFeatures, planLimits, canUseProgramType } from "../../src/utils/plan.js";
 
 describe("plan matrix contract", () => {
   it("keeps EMPRENDEDOR tight and usable", () => {
@@ -63,5 +63,31 @@ describe("plan matrix contract", () => {
     assert.equal(features.rbac_matrix, true);
     assert.equal(features.external_awards, true);
     assert.equal(features.gamification, true);
+  });
+});
+
+describe("program-type gating + fail-closed defaults", () => {
+  it("gates the gift-card product to NEGOCIO and above", () => {
+    assert.equal(canUseProgramType("EMPRENDEDOR", "GIFT_CARD"), false);
+    assert.equal(canUseProgramType("NEGOCIO", "GIFT_CARD"), true);
+    assert.equal(canUseProgramType("EMPRESA", "GIFT_CARD"), true);
+  });
+
+  it("keeps earning models (incl. CASHBACK/STAMP/DISCOUNT) free on every tier", () => {
+    for (const type of ["SPEND", "VISIT", "ITEM", "DISCOUNT", "STAMP", "CASHBACK"]) {
+      assert.equal(canUseProgramType("EMPRENDEDOR", type), true, type);
+    }
+  });
+
+  it("respects platform overrides that grant gift cards to EMPRENDEDOR", () => {
+    const overrides = { EMPRENDEDOR: { gift_cards: true } };
+    assert.equal(canUseProgramType("EMPRENDEDOR", "GIFT_CARD", overrides), true);
+  });
+
+  it("fails closed: an unknown plan gets the lowest tier, not the top one", () => {
+    assert.equal(planFeatures("bogus").gift_cards, planFeatures("EMPRENDEDOR").gift_cards);
+    assert.equal(planFeatures("bogus").gamification, false);
+    assert.equal(planLimits("bogus").activeCustomers, planLimits("EMPRENDEDOR").activeCustomers);
+    assert.equal(canUseProgramType("bogus", "GIFT_CARD"), false);
   });
 });

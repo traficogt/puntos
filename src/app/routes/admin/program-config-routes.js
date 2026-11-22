@@ -4,7 +4,7 @@ import { requireOwner, requireStaff, requireStaffPermission } from "../../../mid
 import { tenantContext } from "../../../middleware/tenant.js";
 import { requirePlanFeature } from "../../../middleware/plan-feature.js";
 import { validate } from "../../../utils/validation.js";
-import { planFeaturesWithOverrides } from "../../../utils/plan.js";
+import { planFeaturesWithOverrides, canUseProgramType, suggestedPlanForFeature } from "../../../utils/plan.js";
 import { Permission, hasPermission } from "../../../utils/permissions.js";
 import { withImpersonationMeta } from "../../../utils/impersonation.js";
 import { sanitizeProgramForClient } from "../../../utils/program-secrets.js";
@@ -54,6 +54,13 @@ export function registerProgramConfigRoutes(router) {
       const currentBusiness = await getBusinessOr404(res, req.tenantId);
       if (!currentBusiness) return;
       const features = planFeaturesWithOverrides(currentBusiness.plan, overrides);
+      if (!canUseProgramType(currentBusiness.plan, v.data.program_type, overrides)) {
+        return res.status(403).json({
+          error: "Las tarjetas de regalo están disponibles desde el plan Negocio.",
+          code: "PLAN_FEATURE_LOCKED", feature: "gift_cards",
+          plan: currentBusiness.plan, suggested_plan: suggestedPlanForFeature("gift_cards")
+        });
+      }
       const hasAdvanced = hasPermission(req.staff.role, Permission.ADMIN_PROGRAM_UPDATE_ADVANCED);
 
       const nextProgram = { ...(v.data.program_json || {}) };
