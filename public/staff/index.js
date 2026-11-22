@@ -381,7 +381,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     element("#cashbackBalance").textContent = isGift
       ? `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)}`
       : `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)} (gana ${Number(wallet.percent)}%)`;
-    const btn = element("#btnCashbackSpend"); if (btn) btn.disabled = !(lastCashbackBalance > 0);
+    const btn = /** @type {HTMLButtonElement|null} */ (element("#btnCashbackSpend")); if (btn) btn.disabled = !(lastCashbackBalance > 0);
     if (block) block.classList.remove("hidden");
     if (loadBlock) {
       loadBlock.classList.toggle("hidden", !isGift);
@@ -1049,7 +1049,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       element("#cashbackStatus").textContent = `Aplicado Q${Number(out.spent_q).toFixed(2)}. Nuevo saldo: Q${lastCashbackBalance.toFixed(2)}.`;
       element("#cashbackBalance").textContent = `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)}`;
       input("#cashbackAmount").value = "0";
-      const btn = element("#btnCashbackSpend"); if (btn) btn.disabled = !(lastCashbackBalance > 0);
+      const btn = /** @type {HTMLButtonElement|null} */ (element("#btnCashbackSpend")); if (btn) btn.disabled = !(lastCashbackBalance > 0);
       toast("Saldo de cashback aplicado.");
     }, (error) => {
       toast(error.message);
@@ -1072,7 +1072,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       element("#giftCardLoadStatus").textContent = `Recargado Q${Number(out.loaded_q).toFixed(2)}${bonusTxt}. Nuevo saldo: Q${lastCashbackBalance.toFixed(2)}.`;
       element("#cashbackBalance").textContent = `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)}`;
       input("#giftCardLoadAmount").value = "0";
-      const btn = element("#btnCashbackSpend"); if (btn) btn.disabled = !(lastCashbackBalance > 0);
+      const btn = /** @type {HTMLButtonElement|null} */ (element("#btnCashbackSpend")); if (btn) btn.disabled = !(lastCashbackBalance > 0);
       toast("Saldo recargado.");
     }, (error) => {
       toast(error.message);

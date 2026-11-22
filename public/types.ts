@@ -54,6 +54,7 @@ export interface CustomerCardBusiness {
     wallet_headline?: string;
     join_headline?: string;
   } | null;
+  member_discount?: { percent_off?: number } | null;
 }
 
 export interface CustomerCardProfile {
@@ -70,6 +71,7 @@ export interface CustomerMeResponse {
   business?: CustomerCardBusiness;
   customer?: CustomerCardProfile;
   wallet?: { kind: string; balance_q: number; percent?: number | null; bonus_percent?: number | null } | null;
+  stamp_card?: { stamps_required?: number; head_start?: number; filled?: number; complete?: boolean; reward_label?: string; remaining?: number } | null;
 }
 
 export interface CustomerRewardInventoryBranch {
