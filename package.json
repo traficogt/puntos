@@ -51,6 +51,7 @@
     "ops:alerts:drill": "bash src/scripts/alerts-drill.sh",
     "ops:smoke": "node src/scripts/deploy-smoke.mjs",
     "ops:backup": "bash src/scripts/backup-db.sh",
+    "ops:backup:offsite": "bash src/scripts/backup-offsite.sh",
     "ops:backup:verify": "node src/scripts/verify-backup.mjs",
     "ops:restore": "bash src/scripts/restore-db.sh",
     "ops:restore:drill": "bash src/scripts/restore-drill.sh",
