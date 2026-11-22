@@ -70,12 +70,28 @@ describe("merchant overview route through existing analytics gates", () => {
     assert.equal((await request()).status, 403);
     assert.equal(queries.length, 0);
   });
-  it("preserves the analytics plan gate for owners", async () => {
+  it("serves basic reporting on every tier (entry tier included)", async () => {
     plan = "EMPRENDEDOR";
     const response = await request();
+    assert.equal(response.status, 200);
+    assert.equal(response.body.ok, true);
+  });
+  it("still honors a basic_reporting override that turns it off", async () => {
+    plan = "EMPRENDEDOR";
+    const prev = PlanConfigService.getPlanFeatureOverrides;
+    PlanConfigService.getPlanFeatureOverrides = async () => ({ EMPRENDEDOR: { basic_reporting: false } });
+    try {
+      const response = await request();
+      assert.equal(response.status, 403);
+      assert.equal(response.body.code, "PLAN_FEATURE_LOCKED");
+    } finally {
+      PlanConfigService.getPlanFeatureOverrides = prev;
+    }
+  });
+  it("still gates deep analytics behind the analytics feature on the entry tier", async () => {
+    plan = "EMPRENDEDOR";
+    const response = await fetch(`${origin}/api/admin/analytics/churn`, { headers: { cookie } });
     assert.equal(response.status, 403);
-    assert.equal(response.body.code, "PLAN_FEATURE_LOCKED");
-    assert.equal(queries.length, 0);
   });
   it("defaults to 30 days and passes the authenticated tenant to the query", async () => {
     const response = await request();

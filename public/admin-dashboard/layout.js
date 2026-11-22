@@ -11,6 +11,7 @@ const TAB_FRAGMENT_PATHS = [
   "/admin-dashboard/fragments/challenges.html",
   "/admin-dashboard/fragments/referrals.html",
   "/admin-dashboard/fragments/operations.html",
+  "/admin-dashboard/fragments/reportes.html",
   "/admin-dashboard/fragments/analytics.html"
 ];
 

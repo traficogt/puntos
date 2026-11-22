@@ -20,6 +20,7 @@ const PLAN_MESSAGING_GTQ = {
 
 export const DEFAULT_PLAN_FEATURES = {
   EMPRENDEDOR: {
+    basic_reporting: true,
     gift_cards: false,
     rewards: true,
     redemptions: true,
@@ -40,6 +41,7 @@ export const DEFAULT_PLAN_FEATURES = {
     campaign_rules: false
   },
   NEGOCIO: {
+    basic_reporting: true,
     gift_cards: true,
     rewards: true,
     redemptions: true,
@@ -60,6 +62,7 @@ export const DEFAULT_PLAN_FEATURES = {
     campaign_rules: true
   },
   EMPRESA: {
+    basic_reporting: true,
     gift_cards: true,
     rewards: true,
     redemptions: true,

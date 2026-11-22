@@ -11,6 +11,7 @@ describe("plan matrix contract", () => {
     assert.equal(features.redemptions, true);
     assert.equal(features.program_rules, true);
     assert.equal(features.staff_management, true);
+    assert.equal(features.basic_reporting, true); // basic participation reporting on every tier
 
     assert.equal(features.analytics, false);
     assert.equal(features.tiers, false);
@@ -34,6 +35,7 @@ describe("plan matrix contract", () => {
     const limits = planLimits("NEGOCIO");
 
     assert.equal(features.analytics, true);
+    assert.equal(features.basic_reporting, true);
     assert.equal(features.tiers, true);
     assert.equal(features.referrals, true);
     assert.equal(features.customer_export, true);

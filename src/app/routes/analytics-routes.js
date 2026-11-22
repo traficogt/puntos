@@ -23,6 +23,11 @@ import { analyticsRecoveryRoutes } from "./analytics/recovery.js";
 
 const router = Router();
 
+// Basic participation reporting (overview) self-gates at the route level on `basic_reporting`
+// (available on every tier) and is mounted BEFORE the deep-analytics gate below, so that gate
+// never runs for it. Everything else under /admin/analytics and /admin/jobs stays behind `analytics`.
+router.use(analyticsOverviewRoutes);
+
 // Scope analytics gating to analytics/job endpoints only.
 // This router is mounted alongside other routers that also use `/admin/*` paths;
 // using `/admin` here would inadvertently block unrelated admin routes (e.g. gift cards).
@@ -34,7 +39,6 @@ router.use(analyticsSegmentRoutes);
 router.use(analyticsCohortRoutes);
 router.use(analyticsRfmRoutes);
 router.use(analyticsDashboardRoutes);
-router.use(analyticsOverviewRoutes);
 router.use(analyticsRecoveryRoutes);
 router.use(analyticsCustomerRoutes);
 router.use(analyticsLedgerRoutes);

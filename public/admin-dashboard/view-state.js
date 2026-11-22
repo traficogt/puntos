@@ -1,4 +1,4 @@
-const sectionNames = new Map(Object.entries({ rewards: "recompensas", branding: "marca", tiers: "niveles", branches: "sucursales", staff: "equipo", giftcards: "tarjetas-regalo", achievements: "logros", challenges: "retos", referrals: "referidos", operations: "operaciones", analytics: "analisis" }));
+const sectionNames = new Map(Object.entries({ rewards: "recompensas", branding: "marca", tiers: "niveles", branches: "sucursales", staff: "equipo", giftcards: "tarjetas-regalo", achievements: "logros", challenges: "retos", referrals: "referidos", operations: "operaciones", reportes: "reportes", analytics: "analisis" }));
 function readSection(value) {
   return Array.from(sectionNames).find(([, spanish]) => spanish === value)?.[0] || value;
 }

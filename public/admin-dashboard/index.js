@@ -10,6 +10,7 @@ import { registerStaffModule } from "./modules/staff.js";
 import { registerGiftCardsModule } from "./modules/giftcards.js";
 import { registerOpsModule } from "./modules/ops.js";
 import { registerAnalyticsModule } from "./modules/analytics.js";
+import { registerReportsModule } from "./modules/reports.js";
 
 /** @typedef {import("./types.js").AdminDashboardDependencies} AdminDashboardDependencies */
 
@@ -30,6 +31,7 @@ export async function initAdminDashboard({ api, $, toast, alert, confirm, prompt
   registerGiftCardsModule(app);
   registerOpsModule(app);
   registerAnalyticsModule(app);
+  registerReportsModule(app);
 
   await app.start();
 }

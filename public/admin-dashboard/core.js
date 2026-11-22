@@ -80,6 +80,11 @@ const TAB_PRESENTATION = {
     description: "Ajusta reglas, alertas y salvaguardas que sostienen el programa cuando ya está en marcha.",
     plan: "Base"
   },
+  reportes: {
+    title: "Reportes",
+    description: "Lee la participación básica de tu programa: clientes activos, quién vuelve y premios usados.",
+    plan: "Base"
+  },
   analytics: {
     title: "Analítica",
     description: "Lee ritmo, riesgo y retorno desde una vista de decisión, no como una pared de tarjetas compitiendo entre sí.",

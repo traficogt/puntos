@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
 
-import { requireOwner } from "../../../middleware/auth.js";
+import { requireOwner, requireStaff } from "../../../middleware/auth.js";
+import { tenantContext } from "../../../middleware/tenant.js";
+import { requirePlanFeature } from "../../../middleware/plan-feature.js";
 import { asyncRoute } from "../../../middleware/common.js";
 import { getMerchantOverview } from "../../services/merchant-overview-service.js";
 
@@ -12,10 +14,13 @@ const OverviewQuery = z.object({
   branch_id: z.guid().transform(value => value.toLowerCase()).optional()
 }).strict();
 
-// Staff authentication, tenant context and the analytics plan gate are applied
-// by analytics-routes.js before this owner-only endpoint is reached.
+// Basic participation reporting: gated on `basic_reporting` (available on every tier) at the
+// route level, so the deep-analytics gate in analytics-routes.js never applies to it.
 analyticsOverviewRoutes.get(
   "/admin/analytics/overview",
+  requireStaff,
+  tenantContext,
+  requirePlanFeature("basic_reporting"),
   requireOwner,
   asyncRoute(async (req, res) => {
     const parsed = OverviewQuery.safeParse(req.query);
