@@ -86,8 +86,8 @@ customerRoutes.get("/customer/me", requireCustomer, tenantContext, asyncRoute(as
       last_visit_at: customer.last_visit_at
     },
     stamp_card: stamp ? { stamps_required: stamp.stamps_required, head_start: stamp.head_start, filled: stamp.filled, remaining: stamp.remaining, reward_label: stamp.reward_label, complete: stamp.complete } : null,
-    cashback: cashback ? { balance_q: cashback.balance_q, percent: cbTerms.percent } : null,
-    wallet: wallet && walletBalance ? { kind: wallet.kind, balance_q: walletBalance.balance_q, percent: wallet.kind === "CASHBACK" ? wallet.percent : null, bonus_percent: wallet.kind === "GIFT_CARD" ? wallet.bonus_percent : null } : null
+    cashback: cashback ? { balance_q: Math.max(0, Number(cashback.balance_q)), percent: cbTerms.percent } : null,
+    wallet: wallet && walletBalance ? { kind: wallet.kind, balance_q: Math.max(0, Number(walletBalance.balance_q)), percent: wallet.kind === "CASHBACK" ? wallet.percent : null, bonus_percent: wallet.kind === "GIFT_CARD" ? wallet.bonus_percent : null } : null
   });
 }));
 

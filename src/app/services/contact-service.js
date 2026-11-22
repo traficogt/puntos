@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import { config } from "../../config/index.js";
 import { logger } from "../../utils/logger.js";
 import { contactSite } from "../../utils/contact-site.js";
+import { maskContact } from "../../utils/pii.js";
 
 function escapeHtml(str) {
   return String(str ?? "")
@@ -66,7 +67,7 @@ export async function verifyTurnstile(token, remoteip) {
 export async function sendContactEmail({ name, business, contact, message }, { host = '' } = {}) {
   const site = contactSite(host, config.CONTACT_TO);
   if (!site.to) {
-    logger.info({ name, business, contact }, "[CONTACT] CONTACT_TO not configured — logging only");
+    logger.info({ name, business, contact: maskContact(contact) }, "[CONTACT] CONTACT_TO not configured — logging only");
     return;
   }
 

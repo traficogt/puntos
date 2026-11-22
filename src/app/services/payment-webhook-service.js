@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { dbQuery, setCurrentTenant, setWebhookIngest } from "../database.js";
 import { config } from "../../config/index.js";
 import { normalizePhone } from "../../utils/phone.js";
+import { maskPhone } from "../../utils/pii.js";
 import { awardFromExternalEventTrusted } from "./external-award-service.js";
 import { normalizePaymentWebhook } from "./payment-webhook-normalizer.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
@@ -83,7 +84,7 @@ function webhookLogContext({ provider, event = null, businessId = null, business
     businessId: businessId ?? event?.business_id ?? null,
     businessSlug: businessSlug ?? event?.business_slug ?? null,
     customerId: customerId ?? event?.customer_id ?? null,
-    customerPhone: customerPhone ?? event?.customer_phone ?? null,
+    customerPhone: maskPhone(customerPhone ?? event?.customer_phone ?? null),
     ...extra
   };
 }

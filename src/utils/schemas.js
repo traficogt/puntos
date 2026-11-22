@@ -96,7 +96,10 @@ function optionalHexColorSchema() {
 export const businessCustomerBrandingSchema = z.object({
   branding_mode: z.enum(["platform_led", "endorsed_brand", "white_label_ready"]).default("endorsed_brand"),
   customer_program_name: optionalTrimmedStringSchema(120),
-  customer_logo_url: optionalUrlSchema(1000),
+  customer_logo_url: optionalUrlSchema(1000).refine(
+    (value) => value === undefined || /^https:\/\//i.test(value),
+    { message: "El logo debe ser una URL https." }
+  ),
   qr_logo_enabled: z.boolean().optional(),
   primary_color: optionalHexColorSchema(),
   accent_color: optionalHexColorSchema(),

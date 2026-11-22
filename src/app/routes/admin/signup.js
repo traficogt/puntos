@@ -4,6 +4,7 @@ import { asyncRoute } from "../../../middleware/common.js";
 import { validate } from "../../../utils/validation.js";
 import { browserCookieMaxAge, cookieOpts, signStaffToken } from "../../../utils/auth-token.js";
 import { config } from "../../../config/index.js";
+import { timingSafeEqualString } from "../../../utils/timing-safe.js";
 import { createBusinessWithOwner } from "../../services/business-service.js";
 import { rateLimitByPhone, strictRateLimit } from "../../../middleware/rate-limit.js";
 import { passwordSchema } from "../../../utils/schemas.js";
@@ -36,7 +37,7 @@ adminSignupRoutes.post(
 
     if (config.SIGNUP_CAPTCHA_SECRET) {
       const providedToken = String(req.headers["x-signup-captcha"] || req.body?.captcha_token || "").trim();
-      if (!providedToken || providedToken !== config.SIGNUP_CAPTCHA_SECRET) {
+      if (!providedToken || !timingSafeEqualString(providedToken, config.SIGNUP_CAPTCHA_SECRET)) {
         return res.status(403).json({ error: "CAPTCHA verification failed" });
       }
     }

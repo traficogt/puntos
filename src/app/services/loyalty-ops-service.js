@@ -2,6 +2,7 @@ import {assertCheckoutCorrectionAllowed} from './pos-checkout-guard.js';
 import crypto from "node:crypto";
 import { dbQuery, withTransaction } from "../database.js";
 import { conflict, forbidden, notFound } from "../../utils/http-error.js";
+import { reverseCashback } from "./cashback-service.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 import { refreshCustomerDerivedState } from "./customer-derived-state.js";
@@ -302,10 +303,18 @@ export async function refundAwardTransactionWithClient(client, { staff, transact
       if (restored.rowCount) throw conflict("Transaction already reversed");
     }
     const businessResult = await client.query(
-      `SELECT program_json FROM businesses WHERE id = $1`,
+      `SELECT program_json, program_type FROM businesses WHERE id = $1`,
       [tx.business_id]
     );
     const allowNegative = allowNegativeRefundBalance(businessResult.rows?.[0]?.program_json ?? {});
+    if (businessResult.rows?.[0]?.program_type === "CASHBACK") {
+      await reverseCashback(client, {
+        businessId: tx.business_id,
+        customerId: tx.customer_id,
+        sourceTransactionId: tx.id,
+        meta: { via: "award_refund", request_id: requestId }
+      });
+    }
 
     const points = Number(tx.points || 0);
     let pointsEffect = 0;

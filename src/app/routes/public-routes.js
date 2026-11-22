@@ -342,7 +342,7 @@ publicRoutes.post("/public/business/register", strictRateLimit, asyncRoute(async
   // Optional shared secret for production; if set, require correct token
   if (config.REGISTRATION_API_KEY) {
     const tok = v.data.registration_token || req.headers["x-registration-token"];
-    if (tok !== config.REGISTRATION_API_KEY) {
+    if (!timingSafeEqualString(String(tok ?? ""), config.REGISTRATION_API_KEY)) {
       return res.status(401).json({ error: "Invalid registration token" });
     }
   }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { loadStoredValue, transferStoredValue, spendCashback, getCashbackBalance } from "../../src/app/services/cashback-service.js";
+import { loadStoredValue, transferStoredValue, spendCashback } from "../../src/app/services/cashback-service.js";
 
 const r2 = (n) => Math.round(Number(n) * 100) / 100;
 
@@ -19,13 +19,13 @@ function mockDb(initial = {}) {
       if (sql.includes("FROM cashback_accounts") && sql.includes("FOR UPDATE")) {
         return { rowCount: 1, rows: [{ balance_q: acct(params[0]).balance_q }] };
       }
-      if (sql.includes("SELECT balance_after_q FROM cashback_transactions") && sql.includes("TRANSFER_OUT")) {
+      if (sql.includes("FROM cashback_transactions") && sql.includes("TRANSFER_OUT")) {
         const row = txSeen.get(params[1]);
         return row && row.tx_type === "TRANSFER_OUT" ? { rowCount: 1, rows: [{ balance_after_q: row.balance_after_q }] } : { rowCount: 0, rows: [] };
       }
-      if (sql.includes("SELECT balance_after_q FROM cashback_transactions")) {
+      if (sql.includes("FROM cashback_transactions") && sql.includes("request_id = $2")) {
         const row = txSeen.get(params[1]);
-        return row ? { rowCount: 1, rows: [{ balance_after_q: row.balance_after_q }] } : { rowCount: 0, rows: [] };
+        return row ? { rowCount: 1, rows: [{ tx_type: row.tx_type, customer_id: row.customer_id, balance_after_q: row.balance_after_q }] } : { rowCount: 0, rows: [] };
       }
       if (sql.includes("INSERT INTO cashback_transactions")) {
         // TRANSFER_* inserts hardcode NULL for staff_user_id, so request_id/
@@ -38,7 +38,7 @@ function mockDb(initial = {}) {
           : sql.includes("'TRANSFER_IN'") ? "TRANSFER_IN"
           : sql.includes("'SPEND'") ? "SPEND" : "EARN";
         if (sql.includes("ON CONFLICT") && txSeen.has(reqId)) return { rowCount: 0, rows: [] };
-        txSeen.set(reqId, { tx_type: txType, balance_after_q: balAfter });
+        txSeen.set(reqId, { tx_type: txType, customer_id: params[2], balance_after_q: balAfter });
         return { rowCount: 1, rows: [{ id: params[0] }] };
       }
       if (sql.includes("SET balance_q = balance_q + $2") && sql.includes("lifetime_earned_q")) {

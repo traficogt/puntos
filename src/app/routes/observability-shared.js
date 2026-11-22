@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { config } from "../../config/index.js";
 import { dbQuery } from "../database.js";
+import { timingSafeEqualString } from "../../utils/timing-safe.js";
 
 const require = createRequire(import.meta.url);
 const pkg = require(path.join(process.cwd(), "package.json"));
@@ -22,7 +23,7 @@ export function hasValidMetricsToken(req) {
   const auth = String(req.headers.authorization || "");
   const bearer = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
   const header = String(req.headers["x-metrics-token"] || "").trim();
-  return bearer === configured || header === configured;
+  return timingSafeEqualString(bearer, configured) || timingSafeEqualString(header, configured);
 }
 
 export function buildProbeErrorBody(baseBody) {

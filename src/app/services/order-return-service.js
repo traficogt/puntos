@@ -5,6 +5,7 @@ import { BusinessRepo } from "../repositories/business-repository.js";
 import { OrderRepo } from "../repositories/order-repository.js";
 import { OrderReturnRepo } from "../repositories/order-return-repository.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
+import { reverseCashback } from "./cashback-service.js";
 
 function defaultMakeId() {
   return crypto.randomUUID();
@@ -249,6 +250,14 @@ async function processOrderReturnWithClient(deps, client, input) {
       [order.customer_id, pointsEffect]
     );
     assertSingleBalanceMutation(balanceUpdate, "posted reversal");
+    if (business.program_type === "CASHBACK") {
+      await reverseCashback(client, {
+        businessId: business.id,
+        customerId: order.customer_id,
+        sourceTransactionId: originalTransaction.id,
+        meta: { via: "order_return", external_return_id: externalReturnId }
+      });
+    }
     await markOriginalTransactionReturned(client, {
       transactionId: originalTransaction.id,
       reversalTransactionId,

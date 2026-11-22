@@ -187,8 +187,8 @@ staffRoutes.post("/staff/customer/lookup", csrfProtect, requireStaff, tenantCont
   const wallet = walletProgram(business);
   const walletBalance = wallet ? await getCashbackBalance(getDbClient(), out.customer.id) : null;
   res.json({ ok: true, ...out,
-    cashback: cbTerms && walletBalance ? { balance_q: walletBalance.balance_q, percent: cbTerms.percent } : null,
-    wallet: wallet && walletBalance ? { kind: wallet.kind, balance_q: walletBalance.balance_q, percent: wallet.kind === "CASHBACK" ? wallet.percent : null, bonus_percent: wallet.kind === "GIFT_CARD" ? wallet.bonus_percent : null } : null });
+    cashback: cbTerms && walletBalance ? { balance_q: Math.max(0, Number(walletBalance.balance_q)), percent: cbTerms.percent } : null,
+    wallet: wallet && walletBalance ? { kind: wallet.kind, balance_q: Math.max(0, Number(walletBalance.balance_q)), percent: wallet.kind === "CASHBACK" ? wallet.percent : null, bonus_percent: wallet.kind === "GIFT_CARD" ? wallet.bonus_percent : null } : null });
 }));
 
 

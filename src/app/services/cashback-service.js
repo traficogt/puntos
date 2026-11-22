@@ -8,7 +8,7 @@
 // 2026-11-20-cashback-ledger.sql and the pure helper cashback-model.js.
 
 import crypto from "node:crypto";
-import { badRequest } from "../../utils/http-error.js";
+import { badRequest, conflict } from "../../utils/http-error.js";
 
 function round2(n) {
   return Math.round(Number(n) * 100) / 100;
@@ -69,11 +69,15 @@ export async function spendCashback(
   if (!(spend > 0)) throw badRequest("El monto a usar debe ser mayor que cero.");
   const reqId = requestId || crypto.randomUUID();
   const already = await client.query(
-    `SELECT balance_after_q FROM cashback_transactions WHERE business_id = $1 AND request_id = $2`,
+    `SELECT tx_type, customer_id, balance_after_q FROM cashback_transactions WHERE business_id = $1 AND request_id = $2`,
     [businessId, reqId]
   );
   if (already.rows.length) {
-    return { spent_q: spend, balance_after_q: Number(already.rows[0].balance_after_q), replay: true };
+    const row = already.rows[0];
+    if (row.tx_type !== "SPEND" || row.customer_id !== customerId) {
+      throw conflict("El identificador de la operación ya se usó para otra transacción.");
+    }
+    return { spent_q: spend, balance_after_q: Number(row.balance_after_q), replay: true };
   }
   const balance = await lockAccount(client, businessId, customerId);
   if (spend - balance > 0.000001) throw badRequest("Saldo de cashback insuficiente.");
@@ -88,10 +92,14 @@ export async function spendCashback(
   );
   if (ins.rowCount !== 1) {
     const prev = await client.query(
-      `SELECT balance_after_q FROM cashback_transactions WHERE business_id = $1 AND request_id = $2`,
+      `SELECT tx_type, customer_id, balance_after_q FROM cashback_transactions WHERE business_id = $1 AND request_id = $2`,
       [businessId, reqId]
     );
-    return { spent_q: spend, balance_after_q: Number(prev.rows[0]?.balance_after_q ?? balance), replay: true };
+    const row = prev.rows[0];
+    if (!row || row.tx_type !== "SPEND" || row.customer_id !== customerId) {
+      throw conflict("El identificador de la operación ya se usó para otra transacción.");
+    }
+    return { spent_q: spend, balance_after_q: Number(row.balance_after_q), replay: true };
   }
   await client.query(
     `UPDATE cashback_accounts
@@ -100,6 +108,67 @@ export async function spendCashback(
     [customerId, spend]
   );
   return { spent_q: spend, balance_after_q: balanceAfter };
+}
+
+// Reverse the cashback a specific source transaction accrued, when that purchase
+// is refunded or returned. Idempotent per source transaction (a second refund of
+// the same sale is a no-op). Clamps to the member's available balance so it never
+// drives the balance negative (the cashback_accounts CHECK forbids it); any amount
+// already spent is reported as `shortfall_q` for auditing. Returns null when the
+// source accrued no cashback (non-cashback business, a pending award, or nothing
+// earned).
+export async function reverseCashback(
+  client,
+  { businessId, customerId, sourceTransactionId, meta = {} }
+) {
+  const earnedRow = await client.query(
+    `SELECT COALESCE(SUM(amount_q), 0) AS earned_q
+       FROM cashback_transactions
+      WHERE business_id = $1 AND source_transaction_id = $2 AND tx_type = 'EARN'`,
+    [businessId, sourceTransactionId]
+  );
+  const accrued = round2(Number(earnedRow.rows[0]?.earned_q ?? 0));
+  if (!(accrued > 0)) return null;
+  const dup = await client.query(
+    `SELECT balance_after_q FROM cashback_transactions
+      WHERE business_id = $1 AND source_transaction_id = $2 AND tx_type = 'REVERSE'`,
+    [businessId, sourceTransactionId]
+  );
+  if (dup.rows.length) {
+    return { reversed_q: 0, balance_after_q: Number(dup.rows[0].balance_after_q), replay: true };
+  }
+  const balance = await lockAccount(client, businessId, customerId);
+  // Full clawback: reverse everything the sale accrued, even if it drives the
+  // balance negative (the member must re-earn before spending again). The
+  // cashback_accounts non-negative CHECK was removed for this — see migration
+  // 2026-11-22-cashback-allow-negative.sql. Only CASHBACK-program refunds reach
+  // here, so gift-card wallets (same table, never reversed) stay >= 0.
+  const amount = accrued;
+  const shortfall = 0;
+  const reqId = `reverse:${sourceTransactionId}`;
+  const balanceAfter = round2(balance - amount);
+  const ins = await client.query(
+    `INSERT INTO cashback_transactions
+       (id, business_id, customer_id, staff_user_id, request_id, tx_type, amount_q, balance_after_q, source_transaction_id, meta)
+     VALUES ($1, $2, $3, $4, $5, 'REVERSE', $6, $7, $8, $9)
+     ON CONFLICT (business_id, request_id) DO NOTHING
+     RETURNING id`,
+    [crypto.randomUUID(), businessId, customerId, null, reqId, -amount, balanceAfter, sourceTransactionId, { ...meta, accrued_q: accrued, shortfall_q: shortfall }]
+  );
+  if (ins.rowCount !== 1) {
+    return { reversed_q: 0, balance_after_q: balance, shortfall_q: shortfall, replay: true };
+  }
+  if (amount > 0) {
+    await client.query(
+      `UPDATE cashback_accounts
+          SET balance_q = balance_q - $2,
+              lifetime_earned_q = GREATEST(0, lifetime_earned_q - $2),
+              updated_at = now()
+        WHERE customer_id = $1`,
+      [customerId, amount]
+    );
+  }
+  return { reversed_q: amount, balance_after_q: balanceAfter, shortfall_q: shortfall };
 }
 
 // Read a member's cashback balance. Returns zeros when there is no account row
