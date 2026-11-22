@@ -42,9 +42,9 @@ describe("plan matrix contract", () => {
     assert.equal(features.multi_branch, true);
     assert.equal(features.gift_cards, true);
     assert.equal(features.campaign_rules, true);
-    assert.equal(features.webhooks, true);
+    assert.equal(features.webhooks, false); // integration surface: Expande-only
     assert.equal(features.lifecycle_automation, true);
-    assert.equal(features.rbac_matrix, true);
+    assert.equal(features.rbac_matrix, false); // permission-matrix view: Expande-only
 
     assert.equal(features.external_awards, false);
     assert.equal(features.gamification, false);

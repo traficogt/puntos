@@ -10,6 +10,8 @@ import {
   Title,
   SimpleGrid,
   Accordion,
+  TextInput,
+  Textarea,
 } from "@mantine/core";
 import { LineChart } from "@mantine/charts";
 import {RewardExposurePanel,StaffActivityPanel} from "./ActivationInsights.jsx";
@@ -58,6 +60,7 @@ function GuidedStart({ features, onNavigate, hideWhenComplete = false }) {
   const [applying, setApplying] = useState(null);
   const [error, setError] = useState("");
   const [applied, setApplied] = useState(null);
+  const [concierge, setConcierge] = useState({ open: false, sending: false, sent: false, error: "", phone: "", type: "", time: "", note: "" });
   const program = useResource("/api/admin/launch/program", refresh);
   const rewards = useResource("/api/admin/reward-workspace", refresh);
   if (program.loading || rewards.loading || program.error || rewards.error) return null;
@@ -92,6 +95,59 @@ function GuidedStart({ features, onNavigate, hideWhenComplete = false }) {
     } finally { setApplying(null); }
   }
 
+  // Done-for-you onboarding ("exit #2"): the owner asks PuntosFieles to set the program up for them.
+  async function submitConcierge() {
+    if (isDemo) return;
+    if (concierge.phone.trim().length < 7) {
+      setConcierge((c) => ({ ...c, error: "Escribe un teléfono o WhatsApp donde podamos contactarte." }));
+      return;
+    }
+    setConcierge((c) => ({ ...c, sending: true, error: "" }));
+    try {
+      await api("/api/admin/concierge-request", { method: "POST", body: JSON.stringify({
+        phone: concierge.phone.trim(),
+        business_type: concierge.type || "Otro",
+        preferred_time: concierge.time.trim(),
+        note: concierge.note.trim(),
+      }) });
+      setConcierge((c) => ({ ...c, sending: false, sent: true }));
+    } catch (e) {
+      if (e.name !== "AbortError")
+        setConcierge((c) => ({ ...c, sending: false, error: e.message || "No se pudo enviar la solicitud. Inténtalo de nuevo." }));
+    }
+  }
+
+  // Offered at every incomplete step of setup, not only when choosing a preset.
+  const conciergeExit = !isDemo && (concierge.sent ? (
+          <Alert color="teal" title="¡Gracias! Te contactaremos pronto">
+            Dejaremos tu programa funcionando contigo. Mientras tanto puedes seguir configurando por tu cuenta y ajustarlo después.
+          </Alert>
+        ) : !concierge.open ? (
+          <Button variant="subtle" w="fit-content" onClick={() => setConcierge((c) => ({ ...c, open: true }))}>
+            Prefiero que PuntosFieles lo configure por mí
+          </Button>
+        ) : (
+          <Stack gap="sm" className="panel" p="md">
+            <Title order={3}>Lo configuramos contigo</Title>
+            <Text size="sm">Cuéntanos cómo contactarte y dejamos tu programa listo para operar.</Text>
+            {concierge.error && <Alert color="red" role="alert">{concierge.error}</Alert>}
+            <TextInput label="Teléfono o WhatsApp" required maxLength={25} value={concierge.phone} onChange={(e) => setConcierge((c) => ({ ...c, phone: e.currentTarget.value }))} />
+            <Select
+              label="Tipo de negocio"
+              value={concierge.type}
+              onChange={(value) => setConcierge((c) => ({ ...c, type: value || "" }))}
+              allowDeselect={false}
+              data={Array.from(new Set([...programPresets.map((p) => p.label), "Otro"])).map((label) => ({ value: label, label }))}
+            />
+            <TextInput label="Horario preferido para contactarte (opcional)" maxLength={120} value={concierge.time} onChange={(e) => setConcierge((c) => ({ ...c, time: e.currentTarget.value }))} />
+            <Textarea label="¿Algo que debamos saber? (opcional)" maxLength={1000} autosize minRows={2} value={concierge.note} onChange={(e) => setConcierge((c) => ({ ...c, note: e.currentTarget.value }))} />
+            <Group>
+              <Button loading={concierge.sending} onClick={submitConcierge}>Enviar solicitud</Button>
+              <Button variant="default" onClick={() => setConcierge((c) => ({ ...c, open: false, error: "" }))}>Cancelar</Button>
+            </Group>
+          </Stack>
+  ));
+
   if (applied)
     return (
       <Stack className="panel" gap="sm" p="md">
@@ -115,6 +171,7 @@ function GuidedStart({ features, onNavigate, hideWhenComplete = false }) {
           <Button onClick={() => onNavigate("automations")}>Activar notificaciones</Button>
           <Button variant="default" onClick={() => onNavigate("brand")}>Compartir mi QR</Button>
         </Group>
+        {conciergeExit}
       </Stack>
     );
 
@@ -147,6 +204,7 @@ function GuidedStart({ features, onNavigate, hideWhenComplete = false }) {
         <Button variant="subtle" w="fit-content" onClick={() => onNavigate("launch")}>
           Prefiero configurarlo manualmente
         </Button>
+        {conciergeExit}
       </Stack>
     );
 
@@ -164,6 +222,7 @@ function GuidedStart({ features, onNavigate, hideWhenComplete = false }) {
         </Group>
       </Stack>
       <Button w="fit-content" onClick={() => onNavigate("rewards")}>Siguiente: Agregar recompensa</Button>
+      {conciergeExit}
     </Stack>
   );
 }
@@ -186,6 +245,13 @@ export default function Overview({ features, onNavigate }) {
       <Stack gap="lg">
         <Title order={1}>Tu negocio, con perspectiva</Title>
         <GuidedStart features={features} onNavigate={onNavigate} />
+        {features.basic_reporting && (
+          <Stack className="panel" gap="xs" p="md">
+            <Title order={2}>Tus números básicos</Title>
+            <Text>Clientes activos, compras registradas, premios usados y la capacidad de tu plan están en Reportes, incluido en tu plan.</Text>
+            <BusinessLink href="/administracion/?seccion=reportes" display="inline-block">Abrir Reportes</BusinessLink>
+          </Stack>
+        )}
         <Locked feature="Análisis de resultados" />
         <Button w="fit-content" onClick={() => onNavigate("launch")}>
           Preparar mi programa
@@ -316,12 +382,8 @@ export default function Overview({ features, onNavigate }) {
           </>
         )
       )}
-      <FirstPurchaseReturns branchId={branch||null} refresh={refresh}/>
       {!result.loading && !result.error && data && (
           <>
-            <RewardExposurePanel branchId={branch||null} refresh={refresh}/>
-            <StaffActivityPanel branchId={branch||null} refresh={refresh}/>
-            <RedemptionReturns branchId={branch||null} refresh={refresh}/>
             {current.purchases === 0 && (
               <Alert
                 title="Todavía no hay compras en este período"
@@ -491,6 +553,17 @@ export default function Overview({ features, onNavigate }) {
               </section>
             </SimpleGrid>
             <Accordion variant="default">
+              <Accordion.Item value="detail">
+                <Accordion.Control>Ver análisis detallado</Accordion.Control>
+                <Accordion.Panel>
+                  <Stack gap="xl">
+                    <FirstPurchaseReturns branchId={branch||null} refresh={refresh}/>
+                    <RewardExposurePanel branchId={branch||null} refresh={refresh}/>
+                    <StaffActivityPanel branchId={branch||null} refresh={refresh}/>
+                    <RedemptionReturns branchId={branch||null} refresh={refresh}/>
+                  </Stack>
+                </Accordion.Panel>
+              </Accordion.Item>
               <Accordion.Item value="definitions">
                 <Accordion.Control>
                   Qué significan estos números

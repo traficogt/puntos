@@ -23,7 +23,9 @@ describe("owner dashboard packaging copy contract", () => {
 
   it("drives premium branding notice from the actual plan state", () => {
     assert.match(brandingForm, /state\??\.\s*planInfo\??\.\s*plan/i);
-    assert.match(brandingForm, /requiredPlanLabel\??\.\s*\("rbac_matrix"\)|requiredPlanLabel\("rbac_matrix"\)/);
+    // Premium branding is labelled from the branded-QR feature (Impulsa+), never another feature's tier.
+    assert.match(brandingForm, /requiredPlanLabel\??\.\s*\("branded_qr"\)|requiredPlanLabel\("branded_qr"\)/);
+    assert.doesNotMatch(brandingForm, /requiredPlanLabel\??\.?\s*\("rbac_matrix"\)/);
     assert.doesNotMatch(brandingForm, /Branding:\s\$\{/);
   });
 });

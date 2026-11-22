@@ -22,9 +22,10 @@ const PLAN_LABELS = {
   referrals: "NEGOCIO",
   gift_cards: "NEGOCIO",
   multi_branch: "NEGOCIO",
-  webhooks: "NEGOCIO",
+  branded_qr: "NEGOCIO",
+  webhooks: "EMPRESA",
   lifecycle_automation: "NEGOCIO",
-  rbac_matrix: "NEGOCIO",
+  rbac_matrix: "EMPRESA",
   gamification: "EMPRESA",
   external_awards: "EMPRESA"
 };

@@ -114,7 +114,8 @@ export function updateBrandingSummary($, app = null) {
   const planNotice = /** @type {HTMLElement | null} */ ($("#brandingPlanNotice"));
   const qrHint = /** @type {HTMLElement | null} */ ($("#brandingQrLogoHint"));
   const qrCheckbox = /** @type {HTMLInputElement | null} */ ($("#brandingQrLogoEnabled"));
-  const premiumPlan = app?.requiredPlanLabel?.("rbac_matrix") || "NEGOCIO";
+  // Premium branding unlocks with the branded-QR feature (Impulsa+); never borrow another feature's tier label.
+  const premiumPlan = app?.requiredPlanLabel?.("branded_qr") || "NEGOCIO";
   const activePlan = String(app?.state?.planInfo?.plan || "").toUpperCase();
   const canUsePremiumBranding = activePlan === "NEGOCIO" || activePlan === "EMPRESA";
   const canUseQrLogo = activePlan === "EMPRESA";

@@ -9,6 +9,13 @@ BASE_URL="${E2E_BASE_URL:-http://localhost:${E2E_PORT}}"
 # URL used by Playwright when running inside the compose network.
 INTERNAL_BASE_URL="${E2E_BASE_URL_INTERNAL:-http://api:3001}"
 RUNNER="${E2E_RUNNER:-docker}" # docker | host
+# In docker mode Playwright reaches the API as http://api:3001. The app canonicalises the
+# host (apex -> app.<host>), so APP_ORIGIN/MARKETING_ORIGIN must name that same internal
+# origin or every navigation is redirected to a hostname that does not exist (app.api).
+if [[ "$RUNNER" == "docker" ]]; then
+  export E2E_APP_ORIGIN="${E2E_APP_ORIGIN:-$INTERNAL_BASE_URL}"
+  export E2E_MARKETING_ORIGIN="${E2E_MARKETING_ORIGIN:-$INTERNAL_BASE_URL}"
+fi
 PLAYWRIGHT_OPTS=("$@")
 
 random_secret() {

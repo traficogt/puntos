@@ -64,7 +64,11 @@ export async function verifyTurnstile(token, remoteip) {
   return data.success === true;
 }
 
-export async function sendContactEmail({ name, business, contact, message }, { host = '' } = {}) {
+/**
+ * @param {{ name: string, business: string, contact: string, message: string, subject?: string }} payload
+ * @param {{ host?: string }} [options]
+ */
+export async function sendContactEmail({ name, business, contact, message, subject }, { host = '' } = {}) {
   const site = contactSite(host, config.CONTACT_TO);
   if (!site.to) {
     logger.info({ name, business, contact: maskContact(contact) }, "[CONTACT] CONTACT_TO not configured — logging only");
@@ -86,7 +90,7 @@ export async function sendContactEmail({ name, business, contact, message }, { h
   await transport.sendMail({
     from: config.CONTACT_FROM,
     to: site.to,
-    subject: `Solicitud de demo — ${business}`,
+    subject: subject || `Solicitud de demo — ${business}`,
     text: `Nombre: ${name}\nNegocio: ${business}\nContacto: ${contact}\n\nContexto:\n${message}`,
     html: buildEmailHtml({ name, business, contact, message }, site)
   });

@@ -14,6 +14,7 @@ import { adminFraudRoutes } from "./admin/fraud.js";
 import { adminAuditRoutes } from "./admin/audit.js";
 import { adminOpsRoutes } from "./admin/ops.js";
 import { adminRbacRoutes } from "./admin/rbac.js";
+import { adminConciergeRoutes } from "./admin/concierge.js";
 import { adminBrandingRoutes } from "./admin/branding-routes.js";
 
 export const adminRoutes = Router();
@@ -32,4 +33,5 @@ adminRoutes.use(adminFraudRoutes);
 adminRoutes.use(adminAuditRoutes);
 adminRoutes.use(adminOpsRoutes);
 adminRoutes.use(adminRbacRoutes);
+adminRoutes.use(adminConciergeRoutes);
 adminRoutes.use(adminBrandingRoutes);
