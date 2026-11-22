@@ -90,3 +90,9 @@ summary span { font-weight: 400; color: var(--muted); }
   .print-assumptions { display: block; white-space: pre-wrap; font-size: 10pt; margin-top: 18px; color: #000; }
 }
 @media (prefers-reduced-motion: reduce) { :root { scroll-behavior: auto; } }
+
+
+/* v4: plain-language verdict + felt-unit framing (reward-calculator clarity) */
+.budget-verdict{font-size:1.15rem;line-height:1.45;font-weight:600;margin:0 0 .6rem;}
+.payback-perday{font-weight:600;margin:.1rem 0 .4rem;}
+.per-sale-flow{margin:.2rem 0 .6rem;font-variant-numeric:tabular-nums;opacity:.85;}

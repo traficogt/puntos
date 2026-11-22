@@ -91,12 +91,34 @@ function renderPayback(input, result) {
       : estimate.balance === 0 ? 'cubrirías exactamente los costos incluidos.'
         : `quedarían ${balanceAmount(estimate.balance)} después de los premios y gastos incluidos.`);
   }
-  byId('return-explanation').textContent = 'También incluimos los premios que ganarían esas compras adicionales. No los cuentes otra vez en tu presupuesto inicial.';
+  const perDay = byId('per-day-note');
+  if (estimate.breakEven !== null && result.budget > 0) {
+    perDay.hidden = false;
+    perDay.textContent = `Es ${perDayPhrase(estimate.breakEven)} durante el mes.`;
+  } else { perDay.hidden = true; perDay.textContent = ''; }
+  byId('per-sale-flow').textContent = `De cada venta: ${money(input.keptPerSale)} ganas → ${money(estimate.rewardReserve)} al premio → ${money(estimate.availablePerSale)} neto.`;
+  byId('return-explanation').textContent = 'El premio que esas ventas van ganando ya está descontado arriba; no lo sumes otra vez al presupuesto.';
+}
+function perDayPhrase(breakEven) {
+  const perDay = breakEven / 30;
+  if (perDay < 1) return 'menos de 1 venta más al día';
+  const lo = Math.floor(perDay), hi = Math.ceil(perDay);
+  const label = lo === hi ? String(lo) : `${lo}–${hi}`;
+  const noun = (lo === hi && lo === 1) ? 'venta más al día' : 'ventas más al día';
+  return `≈ ${label} ${noun}`;
 }
 function render(focus = true) {
   clearErrors(); invalidate();
   const input = inputs(); const result = calculateSimple(input);
   if (result.errors && result.errors.length) { showErrors(result.errors); return; }
+  const verdict = byId('budget-verdict');
+  let verdictText = input.monthlyCosts === null
+    ? `${number(input.rewardCount)} premios te costarán ${money(result.budget)} al mes.`
+    : `Tu programa costaría ${money(result.budget)} al mes (premios y otros gastos).`;
+  if (result.estimate && result.estimate.breakEven !== null && result.budget > 0) {
+    verdictText += ` Se paga solo con ~${number(result.estimate.breakEven)} ventas extra (${perDayPhrase(result.estimate.breakEven)}).`;
+  }
+  verdict.textContent = verdictText;
   byId('budget-total').textContent = money(result.budget);
   byId('budget-calculation').textContent = `${number(input.rewardCount)} premios × ${money(input.rewardCost)} cada uno${input.monthlyCosts === null ? '.' : ` + ${money(input.monthlyCosts)} en otros gastos.`}`;
   byId('budget-exclusions').textContent = input.monthlyCosts === null
