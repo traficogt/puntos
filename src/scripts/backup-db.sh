@@ -41,16 +41,26 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Creating backup: ${OUT_FILE}"
-# Use the database container's local socket. Never pass application passwords
-# on the command line; BACKUP_DB_USER must be allowed to read all tenant rows.
-docker compose exec -T db pg_dump \
-    -U "$BACKUP_DB_USER" \
-    -d "$DB_NAME" \
-    --no-password \
-    --clean \
-    --if-exists \
-    --no-owner \
-    --no-privileges \
+# The database lives on the central DB VM (APP_DB_HOST). Dump it over the private
+# network with a PostgreSQL client at least as new as the server (pg_dump refuses
+# older clients), reading the password from the secrets directory *inside* the
+# client container so it never appears on a command line or in the process list.
+# BACKUP_DB_USER must be allowed to read all tenant rows: RLS would otherwise make
+# a non-superuser produce a silently EMPTY dump.
+APP_DB_HOST="${APP_DB_HOST:-10.10.1.51}"
+APP_DB_PORT="${APP_DB_PORT:-5432}"
+BACKUP_PG_CLIENT_IMAGE="${BACKUP_PG_CLIENT_IMAGE:-postgres:17}"
+: "${SECRETS_DIR:?SECRETS_DIR must point at the external secret directory}"
+if [[ -z "${BACKUP_DB_PASSWORD_FILE:-}" ]]; then
+  if [[ "$BACKUP_DB_USER" == "${DB_USER:-puntos_app}" ]]; then BACKUP_DB_PASSWORD_FILE="db_password"; else BACKUP_DB_PASSWORD_FILE="db_migrations_password"; fi
+fi
+docker run --rm --network host \
+    -v "${SECRETS_DIR}:/run/secrets:ro" \
+    -e PGHOST="$APP_DB_HOST" -e PGPORT="$APP_DB_PORT" \
+    -e PGUSER="$BACKUP_DB_USER" -e PGDATABASE="$DB_NAME" \
+    -e BACKUP_DB_PASSWORD_FILE="$BACKUP_DB_PASSWORD_FILE" \
+    "$BACKUP_PG_CLIENT_IMAGE" \
+    sh -c 'PGPASSWORD="$(cat "/run/secrets/${BACKUP_DB_PASSWORD_FILE}")" exec pg_dump --no-password --clean --if-exists --no-owner --no-privileges' \
   | gzip -9 > "$TMP_FILE"
 
 node src/scripts/verify-backup.mjs --file "$TMP_FILE" >/dev/null

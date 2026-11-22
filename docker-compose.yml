@@ -17,15 +17,14 @@ services:
     image: ${PUNTOS_API_IMAGE:-puntos-api}
     build: .
     restart: unless-stopped
-    depends_on:
-      - db
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3001}
       HEALTHCHECK_PORT: 3001
       HEALTHCHECK_PATH: /api/health
 
-      DB_HOST: db
+      # Central DB VM. Rollback: set APP_DB_HOST=db in .env and start the local db service.
+      DB_HOST: ${APP_DB_HOST:-10.10.1.51}
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-puntos}
       DB_USER: ${DB_USER:-puntos_app}
@@ -117,15 +116,14 @@ services:
     build: .
     restart: unless-stopped
     command: ["node", "src/app/worker.js"]
-    depends_on:
-      - db
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       WORKER_PORT: ${WORKER_PORT:-3002}
       HEALTHCHECK_PORT: 3002
       HEALTHCHECK_PATH: /health
 
-      DB_HOST: db
+      # Central DB VM. Rollback: set APP_DB_HOST=db in .env and start the local db service.
+      DB_HOST: ${APP_DB_HOST:-10.10.1.51}
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-puntos}
       DB_USER: ${DB_USER:-puntos_app}
