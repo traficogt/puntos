@@ -17,8 +17,8 @@
   <link rel="icon" href="/icon.svg?v=4" type="image/svg+xml">
   <link rel="stylesheet" href="/styles/fonts.css">
   <link rel="stylesheet" href="/styles/marketing.css?v=activation1">
-  <link rel="stylesheet" href="/calculator/calculator.css?v=2">
-  <script type="module" src="/calculator/calculator.js?v=2"></script>
+  <link rel="stylesheet" href="/calculator/calculator.css?v=3">
+  <script type="module" src="/calculator/calculator.js?v=3"></script>
 </head>
 <body class="page-marketing page-calculator">
   <a class="skip-link" href="#contenido">Saltar al contenido</a>
@@ -94,10 +94,10 @@
       </form>
       <p id="changed-note" class="calculator-notice" role="status" hidden>Los datos cambiaron. Vuelve al paso 3 y calcula para actualizar el resumen.</p>
       <section id="results" class="calculator-results" aria-labelledby="results-heading" hidden>
-        <div class="result-heading"><h2 id="results-heading" tabindex="-1">Tu escenario mensual.</h2><p id="result-context"></p></div>
+        <div class="result-heading"><h2 id="results-heading" tabindex="-1">Tu escenario mensual.</h2><p id="result-context"></p><p id="result-verdict" class="result-verdict"></p></div>
         <div id="result-warnings" class="calculator-notice" hidden></div>
         <div class="result-grid"><section aria-labelledby="full-heading"><h3 id="full-heading">Si se cumple el 100%</h3><dl id="full-totals" class="totals"></dl><p class="quiet">Conserva este presupuesto aunque elijas un canje menor para el mes.</p></section><section aria-labelledby="scenario-heading"><h3 id="scenario-heading">Con tu escenario de canjes</h3><dl id="scenario-totals" class="totals"></dl><p class="quiet" id="scenario-note"></p></section></div>
-        <div class="result-contribution"><div><h3>Compras para cubrir el presupuesto</h3><p class="threshold" id="break-even"></p><p id="break-even-note" class="quiet"></p><p id="full-break-even" class="quiet"></p></div><div><h3>Si ocurre tu hipótesis de compras</h3><dl id="contribution-totals" class="totals"></dl><p id="net-note" class="quiet"></p></div></div>
+        <div class="result-contribution"><div><h3>Compras para cubrir el presupuesto</h3><p class="threshold" id="break-even"></p><p id="break-even-perday" class="quiet"></p><p id="break-even-note" class="quiet"></p><p id="full-break-even" class="quiet"></p></div><div><h3>Si ocurre tu hipótesis de compras</h3><dl id="contribution-totals" class="totals"></dl><p id="net-note" class="quiet"></p></div></div>
         <details class="calculation-details"><summary>Ver premios y cómo se hizo la cuenta</summary><div class="table-scroll" tabindex="0" role="region" aria-label="Detalle de premios"><table><caption>Premios base: los de las compras adicionales se reservan por separado.</caption><thead><tr><th scope="col">Premio</th><th scope="col">Unidades al 100%</th><th scope="col">Costo al 100%</th><th scope="col">Unidades del escenario</th><th scope="col">Costo del escenario</th></tr></thead><tbody id="reward-breakdown"></tbody></table></div><div class="formula-copy"><p>Presupuesto del mes = costo de los premios base + gastos mensuales incluidos.</p><p>Contribución disponible por compra = importe medio × margen, o importe medio − costo variable. A ese resultado se le resta la reserva para nuevos premios.</p><p>Compras para cubrirlo = presupuesto ÷ contribución disponible por compra, redondeado hacia arriba. Se calcula también con el presupuesto de cumplimiento al 100%.</p><p>Contribución después del programa = compras adicionales × contribución disponible por compra − presupuesto del escenario.</p><p>Los importes se redondean para mostrarlos; el umbral usa valores sin redondear. La reserva por compra adicional siempre contempla el 100% de sus premios y no se reduce con el porcentaje de canje.</p><p>Esto no calcula utilidad neta, retorno observado ni una obligación contable. No incluye costos o pérdidas que no hayas anotado, ni predice cambios de demanda, precios o capacidad.</p></div></details>
         <div class="result-actions"><button class="button button-secondary" type="button" id="print-summary">Imprimir / guardar PDF</button><button class="text-button" type="button" id="download-summary">Descargar resumen de texto</button></div>
         <pre id="print-assumptions" class="print-assumptions"></pre>

@@ -170,3 +170,7 @@
   .calculator-notice { background: none; border: 1px solid #aaa; }
   .result-grid, .result-contribution { break-inside: avoid; }
 }
+
+
+/* v3: plain-language verdict (detailed calculator clarity) */
+.result-verdict{font-size:1.1rem;line-height:1.45;font-weight:600;margin:.4rem 0 0;}

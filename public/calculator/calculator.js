@@ -193,10 +193,26 @@ function warningsFor(result) {
   if (result.omittedOpportunity.length) warnings.push(`Capacidad sin valorar: ${result.omittedOpportunity.join(', ')}. No se ha sumado contribución perdida por desplazar otras ventas.`);
   return warnings;
 }
+function perDayPhrase(breakEven) {
+  const perDay = breakEven / 30;
+  if (perDay < 1) return 'menos de 1 venta más al día';
+  const lo = Math.floor(perDay), hi = Math.ceil(perDay);
+  const label = lo === hi ? String(lo) : `${lo}–${hi}`;
+  const noun = (lo === hi && lo === 1) ? 'venta más al día' : 'ventas más al día';
+  return `≈ ${label} ${noun}`;
+}
 function showResult(scenario, result) {
   const money = amount => formatMoney(amount, scenario.currency);
   const warnings = warningsFor(result);
   byId('result-context').textContent = `${scenario.currency} · Canje supuesto: ${number(scenario.redemptionPercent)}%${exampleLabel ? ` · Ejemplo ficticio: ${exampleLabel}` : ' · Datos introducidos por ti'}`;
+  const verdict = byId('result-verdict');
+  let verdictText = Number.isFinite(result.fullBudget)
+    ? `Cubrir el 100% de los premios costaría ${money(result.fullBudget)} al mes.`
+    : 'Completa el costo de los premios para ver el presupuesto del mes.';
+  if (Number.isFinite(result.fullBudget) && result.fullBreakEven !== null && result.fullBreakEven > 0) {
+    verdictText += ` Se paga solo con ~${number(result.fullBreakEven)} compras extra (${perDayPhrase(result.fullBreakEven)}).`;
+  }
+  verdict.textContent = verdictText;
   const notices = byId('result-warnings'); notices.replaceChildren(); notices.hidden = !warnings.length;
   warnings.forEach(warning => { const p = document.createElement('p'); p.textContent = warning; notices.append(p); });
   lines('full-totals', [
@@ -208,6 +224,10 @@ function showResult(scenario, result) {
     ['Gastos mensuales incluidos', money(result.monthlyCosts)], ['Presupuesto del escenario', money(result.scenarioBudget), true]]);
   byId('scenario-note').textContent = `Se cuentan ${number(result.rewards.reduce((sum, reward) => sum + reward.scenarioUnits, 0))} canjes completos de ${number(result.rewards.reduce((sum, reward) => sum + reward.units, 0))} unidades base.${result.fullRewardCost !== null ? ` La diferencia pendiente de cumplir es ${money(result.fullRewardCost - result.scenarioRewardCost)}.` : ''}`;
   byId('break-even').textContent = result.breakEven === null ? 'Aún sin umbral calculable' : `${number(result.breakEven)} compras adicionales`;
+  const perDayEl = byId('break-even-perday');
+  if (result.breakEven !== null && result.breakEven > 0) {
+    perDayEl.hidden = false; perDayEl.textContent = `Es ${perDayPhrase(result.breakEven)} durante el mes.`;
+  } else { perDayEl.hidden = true; perDayEl.textContent = ''; }
   const reasons = {
     unknown_rewards: 'Completa el costo de todos los premios para obtener el umbral.',
     unknown_purchase: 'Agrega el importe medio y el margen o costo variable de una compra.',
