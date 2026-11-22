@@ -27,7 +27,7 @@ export const DEFAULT_PLAN_FEATURES = {
     staff_management: true,
     fraud_monitoring: true,
     lifecycle_automation: false,
-    customer_export: false,
+    customer_export: true,
     rbac_matrix: false,
     analytics: false,
     tiers: false,
@@ -36,7 +36,7 @@ export const DEFAULT_PLAN_FEATURES = {
     multi_branch: false,
     webhooks: false,
     external_awards: false,
-    branded_qr: false,
+    branded_qr: true,
     campaign_rules: false
   },
   NEGOCIO: {

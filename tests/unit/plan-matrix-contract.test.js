@@ -15,7 +15,8 @@ describe("plan matrix contract", () => {
     assert.equal(features.analytics, false);
     assert.equal(features.tiers, false);
     assert.equal(features.referrals, false);
-    assert.equal(features.customer_export, false);
+    assert.equal(features.customer_export, true); // own-data export in every tier
+    assert.equal(features.branded_qr, true); // cosmetic join-QR branding in every tier
     assert.equal(features.multi_branch, false);
     assert.equal(features.gift_cards, false);
     assert.equal(features.webhooks, false);

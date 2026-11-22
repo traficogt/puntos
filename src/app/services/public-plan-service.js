@@ -1,4 +1,4 @@
-const names={EMPRENDEDOR:'Emprendedor',NEGOCIO:'Negocio',EMPRESA:'Empresa'};
+const names={EMPRENDEDOR:'Conecta',NEGOCIO:'Impulsa',EMPRESA:'Expande'};
 const rows=[['rewards','Puntos y recompensas'],['staff_management','Accesos para el equipo'],['analytics','Análisis de resultados'],['lifecycle_automation','Automatizaciones'],['branded_qr','QR con marca'],['referrals','Referidos'],['webhooks','Webhooks'],['external_awards','Puntos desde sistemas externos']];
 const escape=value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 export function publicPlanCatalog(plans){

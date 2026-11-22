@@ -70,21 +70,18 @@ test("branded enrollment QR requires the owner and paid feature within their ten
       assert.equal((await get('.svg?source_id=bad')).status,400);
       assert.equal((await post({source_id:own,registration_url:'https://outside.test'})).status,400);
     });
-    await t.test("enforces paid defaults, plan overrides and unknown plan rejection", async () => {
+    await t.test("branded QR is on every real plan, respects overrides and rejects unknown plans", async () => {
+      // Included on the entry tier too — cosmetic branding is part of the base.
       business.plan = "EMPRENDEDOR";
-      for (const path of ["", ".svg"]) {
-        const response = await get(path);
-        assert.equal(response.status, 403);
-        const data = await response.json();
-        assert.equal(data.code, "PLAN_FEATURE_LOCKED");
-        assert.equal(data.suggested_plan, "NEGOCIO");
-      }
-      assert.equal((await post()).status, 403);
+      assert.equal((await get("")).status, 200);
+      assert.equal((await get(".svg")).status, 200);
+      // A platform override can still switch it off (gate runs before body checks).
       business.plan = "NEGOCIO";
       overrides = { NEGOCIO: { branded_qr: false } };
       assert.equal((await get()).status, 403);
       assert.equal((await post()).status, 403);
       overrides = {};
+      // An unknown/unsupported plan is still rejected.
       business.plan = "UNKNOWN";
       assert.equal((await get()).status, 403);
       business.plan = "EMPRESA";
