@@ -341,9 +341,11 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     const effective = protectedCycle ? { ...programRule, program_type: protectedCycle.program_type, program_json: protectedCycle.earning_terms } : programRule;
     const cfg = effective.program_json || {};
     if (effective.program_type === "SPEND") {
-      el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Por gasto (${programRule.region?.currency || "GTQ"}). Tasa ${Number(cfg.points_per_q ?? 0.1)} pts/${programRule.region?.currency || "GTQ"} (${cfg.round || "ceil"}).`;
+      el.textContent = cfg.points_per_q == null
+        ? "Regla pendiente: el dueño debe configurar la regla de puntos antes de registrar compras."
+        : `Regla ${protectedCycle ? "protegida" : "activa"}: Por gasto (${programRule.region?.currency || "GTQ"}). Tasa ${Number(cfg.points_per_q)} pts/${programRule.region?.currency || "GTQ"} (${cfg.round || "ceil"}).`;
     } else if (effective.program_type === "VISIT") {
-      el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Por visita (${Number(cfg.points_per_visit ?? 10)} pts por visita).`;
+      el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Por visita (${Number(cfg.points_per_visit ?? 0)} pts por visita).`;
     } else if (effective.program_type === "DISCOUNT") {
       el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Descuento de miembro ${Number(cfg.percent_off ?? 0)}% en cada compra (sin puntos).`;
     } else if (effective.program_type === "STAMP") {
@@ -545,9 +547,9 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     if (effective.program_type === "VISIT") {
       preview = Math.max(0, (visits || 1) * Number(cfg.points_per_visit ?? 10));
     } else if (effective.program_type === "ITEM") {
-      preview = Math.max(0, (items || 1) * Number(cfg.points_per_item ?? 1));
+      preview = Math.max(0, (items || 1) * Number(cfg.points_per_item ?? 0));
     } else {
-      const rate = Number(cfg.points_per_q ?? 0.1);
+      const rate = Number(cfg.points_per_q ?? 0); // unconfigured rule previews 0; the server refuses the award
       const raw = amount * rate;
       const round = String(cfg.round ?? "ceil");
       preview = round === "floor" ? Math.floor(raw) : round === "round" ? Math.round(raw) : Math.ceil(raw);

@@ -65,6 +65,11 @@ function slot(name) {
 // Theme-aware accessor. Pages use DEMO_CATALOG.coffee.name / .points_cost / .description;
 // the proxy resolves each slot against the active theme at access time (which, for
 // module-level demo data, is import time — see setDemoTheme).
+/**
+ * Demo catalog keyed by item id. Typed explicitly so consumers (demo-api, demo-economics, demo-growth, ...)
+ * can index it by name under checkJs; the values are plain synthetic data.
+ * @type {Record<string, { name: string, description?: string, points_cost?: number, [extra: string]: unknown }>}
+ */
 export const DEMO_CATALOG = new Proxy({}, {
   get(_t, key) { return typeof key === 'string' && key in SLOTS ? slot(key) : undefined; },
   has(_t, key) { return typeof key === 'string' && key in SLOTS; },

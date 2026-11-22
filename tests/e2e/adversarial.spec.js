@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { apiPost, expectOk } from "./lib.js";
+import { apiGet, apiPost, apiPut, expectOk } from "./lib.js";
 
 // Service-worker lifecycle assertions run in the dedicated required PWA suite.
 test.use({ serviceWorkers: "block" });
@@ -32,6 +32,12 @@ async function createBusinessViaUi(page) {
   await expect(page.locator("#result")).toBeVisible();
   const slug = (await page.locator("#slug").textContent())?.trim();
   expect(slug).toBeTruthy();
+  // A new business has no earning rule until the owner chooses one; these flows award points,
+  // so set an explicit rule the way a preset would (1 pt per Q10).
+  const current = await apiGet(page, "/api/admin/launch/program");
+  expectOk(current, "launch program should be readable");
+  const configured = await apiPut(page, "/api/admin/launch/program", { program_type: "SPEND", rate: 0.1, round: "ceil", version: current.body.program.version });
+  expectOk(configured, "earning rule should be configured");
   return { slug, email, password };
 }
 

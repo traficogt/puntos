@@ -179,7 +179,7 @@ function GuidedStart({ features, onNavigate, hideWhenComplete = false }) {
     return (
       <Stack className="panel" gap="sm" p="md">
         <Title order={2}>Pon tu programa en marcha</Title>
-        <Text>Elige tu tipo de negocio y dejamos un programa listo para operar. Podrás ajustarlo después.</Text>
+        <Text>Elige cómo premiar a tus clientes: cada opción muestra su regla y podrás ajustarla después. Para una regla propia, configúralo manualmente.</Text>
         {error && <Alert color="red" role="alert">{error}</Alert>}
         <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="sm">
           {programPresets.map((preset) => (

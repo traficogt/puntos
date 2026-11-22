@@ -98,6 +98,7 @@ const theme = createTheme({
     ],
   },
 });
+/** @extends {React.Component<{ children?: React.ReactNode }, { failed: boolean }>} */
 class ErrorBoundary extends React.Component {
   state = { failed: false };
   static getDerivedStateFromError() {

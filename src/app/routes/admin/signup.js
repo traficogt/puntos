@@ -49,7 +49,8 @@ adminSignupRoutes.post(
       password: payload.password,
       category: payload.category ?? null,
       program_type: payload.program_type ?? "SPEND",
-      program_json: payload.program_json ?? { points_per_q: 0.1, round: "ceil" },
+      // No silent default rule: the owner chooses a model (preset or manual) before any points are awarded.
+      program_json: payload.program_json ?? {},
       slug: null
     });
 

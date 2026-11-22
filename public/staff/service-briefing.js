@@ -3,7 +3,7 @@ import {mountServiceOperations} from './service-operations.js';
 export function createPracticeSession(program,rewards=[]){
  const type=program?.program_type,cfg=program?.program_json||{};
  if(!['SPEND','VISIT','ITEM'].includes(type))throw new Error('No hay una configuración disponible para practicar.');
- const rate=Number(type==='SPEND'?cfg.points_per_q??0.1:type==='VISIT'?cfg.points_per_visit??10:cfg.points_per_item??1);
+ const rate=Number(type==='SPEND'?cfg.points_per_q??0:type==='VISIT'?cfg.points_per_visit??0:cfg.points_per_item??0);
  if(!Number.isFinite(rate)||rate<0||rate>100000)throw new Error('Revisa la configuración antes de practicar.');
  const round=type==='SPEND'&&['floor','round'].includes(cfg.round)?cfg.round:'ceil';
  const choices=rewards.filter(row=>row.active!==false&&Number.isSafeInteger(Number(row.points_cost))&&Number(row.points_cost)>0&&(!row.valid_until||new Date(row.valid_until)>new Date())).map(row=>({id:String(row.id),name:String(row.name),points_cost:Number(row.points_cost)}));

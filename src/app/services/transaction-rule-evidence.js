@@ -1,3 +1,4 @@
+import { badRequest } from '../../utils/http-error.js';
 import { dateTimeSchema } from '../../utils/date-time-schema.js';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
@@ -32,7 +33,7 @@ function ruleContent(rule, index) {
 /** Pure evaluator. Its safe evidence and award are produced by the same pass.
  * The supplied clock belongs to the server wrapper, never an offline capture.
  */
-export function evaluatePointRules(business, { amount_q = 0, visits = 0, items = 0 }, { now, timeZone }) {
+export function evaluatePointRules(business, { amount_q = 0, visits = 0, items = 0 }, { now, timeZone, requireRule = false }) {
   const type = business.program_type ?? 'SPEND', cfg = business.program_json ?? {};
   if (type === 'DISCOUNT' || type === 'CASHBACK' || type === 'GIFT_CARD') {
     // A discount program accrues no points; the benefit is applied as a counter
@@ -48,7 +49,19 @@ export function evaluatePointRules(business, { amount_q = 0, visits = 0, items =
       program, base_points: 0, rules: [], program_points: 0 } };
   }
   const programType = type === 'VISIT' || type === 'ITEM' || type === 'STAMP' ? type : 'SPEND';
-  const rate = programType === 'STAMP' ? 1 : Number(programType === 'VISIT' ? cfg.points_per_visit ?? 10 : programType === 'ITEM' ? cfg.points_per_item ?? 1 : cfg.points_per_q ?? 0.1);
+  // No implicit rate: a points program without an explicit, positive rule is not configured and
+  // must neither award (silently 0) nor assume a default. The owner picks a preset or sets it manually.
+  // Live computations (requireRule) refuse to award on a points program whose rule was never set:
+  // never an assumed default ratio. A rule that IS set keeps its existing semantics (including the
+  // legacy handling of malformed values); evidence/replay callers keep the legacy defaults so
+  // historical records still reconstruct.
+  const rawRate = programType === 'STAMP' ? 1 : programType === 'VISIT' ? cfg.points_per_visit : programType === 'ITEM' ? cfg.points_per_item : cfg.points_per_q;
+  if (requireRule && rawRate == null) {
+    const err = /** @type {Error & { code?: string }} */ (badRequest('Configura la regla de puntos de tu programa antes de registrar compras.'));
+    err.code = 'PROGRAM_NOT_CONFIGURED';
+    throw err;
+  }
+  const rate = programType === 'STAMP' ? 1 : Number(rawRate ?? (programType === 'VISIT' ? 10 : programType === 'ITEM' ? 1 : 0.1));
   const round = programType === 'SPEND' ? (['floor', 'round'].includes(String(cfg.round)) ? String(cfg.round) : 'ceil') : 'floor';
   const quantity = programType === 'STAMP' ? Math.floor((cfg.stamp_unit === 'item' ? items : visits) || 1) : programType === 'VISIT' ? Math.floor(visits || 1) : programType === 'ITEM' ? Math.floor(items || 1) : Number(amount_q);
   const raw = quantity * rate;

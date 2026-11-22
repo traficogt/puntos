@@ -43,9 +43,9 @@ export const LaunchProgramInput = z.object({
 });
 export function programBasics(business) {
  const config=business.program_json ?? {}, type=business.program_type ?? 'SPEND';
- const basics={program_type:type,points_per_q:config.points_per_q ?? 0.1,points_per_visit:config.points_per_visit ?? 10,points_per_item:config.points_per_item ?? 1,round:config.round ?? 'ceil',percent_off:config.percent_off ?? null,stamps_required:config.stamps_required ?? null,reward_label:config.reward_label ?? null,stamp_unit:config.stamp_unit ?? 'visit',head_start:config.head_start ?? null,cashback_percent:config.cashback_percent ?? null,load_bonus_percent:config.load_bonus_percent ?? null};
+ const basics={program_type:type,points_per_q:config.points_per_q ?? null,points_per_visit:config.points_per_visit ?? null,points_per_item:config.points_per_item ?? null,round:config.round ?? 'ceil',percent_off:config.percent_off ?? null,stamps_required:config.stamps_required ?? null,reward_label:config.reward_label ?? null,stamp_unit:config.stamp_unit ?? 'visit',head_start:config.head_start ?? null,cashback_percent:config.cashback_percent ?? null,load_bonus_percent:config.load_bonus_percent ?? null};
  const version=createHash('sha256').update(JSON.stringify(basics)).digest('hex');
- const raw=basics[rateKey[type]],rate=Number(raw);
+ const raw=basics[rateKey[type]],rate=raw==null?null:Number(raw);
  return {program_type:type,rate:Number.isFinite(rate)?rate:null,round:basics.round,percent_off:basics.percent_off,stamps_required:basics.stamps_required,reward_label:basics.reward_label,stamp_unit:basics.stamp_unit,head_start:basics.head_start,cashback_percent:basics.cashback_percent,load_bonus_percent:basics.load_bonus_percent,version};
 }
 export async function getLaunchProgram({businessId},query=dbQuery){

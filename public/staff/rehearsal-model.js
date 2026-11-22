@@ -10,7 +10,7 @@ export function applyRehearsalAction(previous,input){
  let outcome='completed',points=0;
  if(action==='signup'){if(state.signed_up)throw conflict('La inscripción ficticia ya está registrada.');state.signed_up=true;}
  if(action==='earn'){
-  const cfg=config.program_json??{},program={program_type:config.program_type,rate:Number(config.program_type==='SPEND'?cfg.points_per_q??0.1:config.program_type==='VISIT'?cfg.points_per_visit??10:cfg.points_per_item??1),round:cfg.round??'ceil'},quantity=input.quantity;
+  const cfg=config.program_json??{},program={program_type:config.program_type,rate:Number(config.program_type==='SPEND'?cfg.points_per_q??0:config.program_type==='VISIT'?cfg.points_per_visit??0:cfg.points_per_item??0),round:cfg.round??'ceil'},quantity=input.quantity;
   if(typeof quantity!=='number'||!Number.isFinite(quantity)||quantity<=0||quantity>1000000||program.program_type!=='SPEND'&&!Number.isSafeInteger(quantity)||!program.rate||program.rate<0)throw badRequest('Revisa la cantidad y la regla guardada.');
   points=({floor:Math.floor,round:Math.round,ceil:Math.ceil}[program.round]??Math.ceil)(quantity*program.rate);
   if(!Number.isSafeInteger(points)||points<1||state.points+points>2147483647)throw badRequest('La compra ficticia no produce puntos válidos.');state.points+=points;

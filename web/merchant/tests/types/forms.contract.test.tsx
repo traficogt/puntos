@@ -2,7 +2,7 @@ import { NumberInput, Select } from '../../src/inputs';
 import { useMerchantResource } from '../../src/typed-api';
 import type { ProgramForm, ProgramUpdate } from '../../src/types/api';
 
-const form: ProgramForm = { program_type: 'SPEND', rate: '', round: 'ceil', version: 'version' };
+const form: ProgramForm = { program_type: 'SPEND', rate: '', round: 'ceil', percent_off: null, stamps_required: null, head_start: null, reward_label: null, stamp_unit: 'visit', cashback_percent: null, load_bonus_percent: null, version: 'version' };
 // @ts-expect-error Unfinished form input is not a valid program mutation.
 const mutation: ProgramUpdate = form;
 void mutation;

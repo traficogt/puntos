@@ -66,7 +66,7 @@ export async function createBusinessWithOwner({
   if (!canUseProgramType(plan, programType)) {
     throw badRequest(`El tipo de programa ${programType} no está disponible en el plan ${plan}.`);
   }
-  const programJson = program_json ?? { points_per_q: 0.1, round: "ceil" }; // 1pt per Q10 default
+  const programJson = program_json ?? {}; // no silent default rule: the owner chooses (preset or manual)
 
   const branchId = id();
   const ownerId = id();
