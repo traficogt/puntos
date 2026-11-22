@@ -1,17 +1,4 @@
 services:
-  db:
-    image: postgres:16.15-alpine@sha256:aa6cb33cf4c19c765cefcf48d96176258800870a9a1e930ad126200f9d825139
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${DB_NAME:-puntos}
-      POSTGRES_USER: ${DB_USER:-loyalty}
-      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
-      TZ: ${TZ:-America/Guatemala}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ${SECRETS_DIR:?Set SECRETS_DIR to an external secret directory}:/run/secrets:ro
-    ports:
-      - "127.0.0.1:5432:5432"
 
   api:
     image: ${PUNTOS_API_IMAGE:-puntos-api}
@@ -211,5 +198,3 @@ services:
     volumes:
       - ${SECRETS_DIR:?Set SECRETS_DIR to an external secret directory}:/app/.secrets:ro
 
-volumes:
-  pgdata:
