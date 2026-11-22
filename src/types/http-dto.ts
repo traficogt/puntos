@@ -23,6 +23,8 @@ export interface AdminPlanResponse {
   plan: string;
   limits: Record<string, unknown>;
   features: Record<string, boolean>;
+  /** Soft-cap usage; active_customers is null if the count could not be computed. */
+  usage?: { active_customers: number | null };
 }
 
 export interface AdminProgramResponse {

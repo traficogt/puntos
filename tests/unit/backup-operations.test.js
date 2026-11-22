@@ -28,7 +28,7 @@ process.exit(process.env.MOCK_DUMP_FAILURE === '1' ? 1 : 0);
 `, { mode: 0o700 });
   const argsFile = path.join(root, "docker-args.json");
   const output = path.join(root, "backups");
-  const env = { ...process.env, PATH: `${root}:${process.env.PATH}`, DB_USER: "restricted-app", BACKUP_DB_USER: "backup-admin", MOCK_DOCKER_ARGS: argsFile, MOCK_SQL_DUMP: sqlDump };
+  const env = { ...process.env, PATH: `${root}:${process.env.PATH}`, DB_USER: "restricted-app", BACKUP_DB_USER: "backup-admin", SECRETS_DIR: root, MOCK_DOCKER_ARGS: argsFile, MOCK_SQL_DUMP: sqlDump };
   const run = (script, args = [], overrides = {}) => spawnSync("bash", [path.join(scripts, script), ...args], { cwd: root, env: { ...env, ...overrides }, encoding: "utf8" });
   return { root, output, argsFile, run, scripts };
 }
@@ -58,7 +58,15 @@ test("successful backups use the backup role and private files with verified met
   assert.equal(result.status, 0, result.stderr);
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const args = JSON.parse(await fs.readFile(argsFile, "utf8"));
-  assert.equal(args[args.indexOf("-U") + 1], "backup-admin");
+  // The dump runs as the dedicated backup role, never the application role, against the central DB
+  // over the network. The password is read from the mounted secrets directory *inside* the client
+  // container, so it is never a literal on any command line, and that directory is mounted read-only.
+  assert.ok(args.includes("PGUSER=backup-admin"), "pg_dump must run as the backup role");
+  assert.ok(!args.includes("PGUSER=restricted-app"), "pg_dump must not run as the application role");
+  assert.ok(args.some((arg) => /^PGHOST=.+/.test(arg)), "the client must target the configured database host");
+  assert.ok(args.some((arg) => /:\/run\/secrets:ro$/.test(arg)), "secrets must be mounted read-only into the client");
+  const passwordArgs = args.filter((arg) => arg.includes("PGPASSWORD="));
+  assert.ok(passwordArgs.length > 0 && passwordArgs.every((arg) => arg.includes('$(cat "/run/secrets/')), "the password must come from the secret file, never a literal");
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const files = await fs.readdir(output);
   assert.equal(files.length, 3);

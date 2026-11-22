@@ -13,7 +13,8 @@ export async function loadPlanInfo(api, state) {
   state.planInfo = {
     plan: out.plan || "",
     limits: out.limits || {},
-    features: out.features || {}
+    features: out.features || {},
+    usage: out.usage || {}
   };
 }
 

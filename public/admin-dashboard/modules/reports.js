@@ -66,7 +66,46 @@ export function registerReportsModule(app) {
     }
   }
 
+  // Soft-cap headroom. The active-customer cap never blocks a sale at the counter; this is the
+  // calm, out-of-band place where the owner sees how much room is left and can plan an upgrade.
+  function renderPlanUsage() {
+    const box = $("#reportesPlanUsage");
+    if (!box) return;
+    const info = app.state.planInfo || { plan: "", limits: {}, features: {} };
+    const limit = Number(info.limits && info.limits.activeCustomers);
+    const used = info.usage ? info.usage.active_customers : null;
+    box.replaceChildren();
+    if (used == null || !Number.isFinite(limit) || limit <= 0) {
+      box.textContent = "Capacidad del plan no disponible por el momento.";
+      return;
+    }
+    const unlimited = limit >= 999999;
+    const pct = unlimited ? 0 : Math.round((Number(used) / limit) * 100);
+    const title = document.createElement("strong");
+    title.textContent = unlimited
+      ? `${intFmt(used)} clientes activos (sin limite en tu plan)`
+      : `${intFmt(used)} de ${intFmt(limit)} clientes activos (${pct}%)`;
+    const bar = document.createElement("progress");
+    bar.className = "onboarding-progress-bar";
+    bar.max = 100;
+    bar.value = Math.min(100, Math.max(0, pct));
+    const note = document.createElement("div");
+    note.className = "small";
+    if (unlimited) note.textContent = "Clientes con visita o inscripcion en los ultimos 90 dias.";
+    else if (pct > 100) note.textContent = "Superaste el limite de clientes activos de tu plan. Tu programa sigue funcionando con normalidad y ningun cliente es rechazado en caja; para seguir creciendo con holgura, considera el siguiente plan.";
+    else if (pct >= 80) note.textContent = "Te estas acercando al limite de clientes activos de tu plan. Nada se bloquea en caja; es un buen momento para revisar el siguiente plan.";
+    else note.textContent = "Clientes con visita o inscripcion en los ultimos 90 dias. Tu plan tiene holgura.";
+    box.append(title, bar, note);
+    if (!unlimited && pct >= 80) {
+      const link = document.createElement("a");
+      link.href = "/precios"; link.target = "_blank"; link.rel = "noopener"; link.className = "text-link";
+      link.textContent = "Ver planes";
+      box.appendChild(link);
+    }
+  }
+
   async function load() {
+    renderPlanUsage();
     const box = $("#reportesKpis");
     if (box) box.textContent = "Cargando reporte...";
     try {

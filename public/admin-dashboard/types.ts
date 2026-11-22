@@ -23,6 +23,8 @@ export interface DashboardPlanInfo {
   plan: string;
   limits: Record<string, unknown>;
   features: Record<string, boolean>;
+  /** Soft-cap usage from /api/admin/plan; active_customers is null when unavailable. */
+  usage?: { active_customers?: number | null };
 }
 
 export interface DashboardState {
