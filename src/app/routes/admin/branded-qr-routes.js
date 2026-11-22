@@ -47,7 +47,7 @@ export function createAdminBrandedQrRoutes({
     if (!business || String(business.id) !== String(req.tenantId)) { res.status(404).json({ error: "Negocio no encontrado" }); return null; }
     const overrides = await getPlanFeatureOverrides();
     if (!["EMPRENDEDOR", "NEGOCIO", "EMPRESA"].includes(normalizePlan(business.plan)) || !hasPlanFeature(business.plan, "branded_qr", overrides)) {
-      res.status(403).json({ error: "El QR con marca no está disponible para tu negocio.", code: "PLAN_FEATURE_LOCKED", feature: "branded_qr", plan: business.plan });
+      res.status(403).json({ error: "El QR con marca está disponible desde el plan Negocio.", code: "PLAN_FEATURE_LOCKED", feature: "branded_qr", plan: business.plan, suggested_plan: "NEGOCIO" });
       return null;
     }
     return business;

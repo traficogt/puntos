@@ -4,7 +4,7 @@ import {listPlans} from '../../src/utils/plan.js';
 test('public catalog withholds provisional rates and provider message quotas while respecting live features',()=>{
  const data=publicPlanCatalog(listPlans({NEGOCIO:{analytics:false}}));
  assert.equal(data.pricing_status,'quotation');assert.equal(data.comparison_currency,'USD');
- assert.equal(data.plans[0].limits.activeCustomers,100);assert.equal(data.plans[1].features.analytics,false);
+ assert.equal(data.plans[0].limits.activeCustomers,300);assert.equal(data.plans[1].features.analytics,false);
  assert.doesNotMatch(JSON.stringify(data),/pricing_gtq|1490|3990|9990|included_messages|overage/);
  const html=renderPlanComparison(data);assert.match(html,/Solicitar cotización/);assert.doesNotMatch(html,/Q149|Q399|Q999|gratis|ilimitad/i);
 });

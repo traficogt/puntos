@@ -188,9 +188,9 @@ export async function awardPointsWithDeps(
 
   await settleCustomerPoints(cid, bid);
 
-  const limits = typedDeps.planLimits(business.plan);
-  const activeCount = await typedDeps.BusinessRepo.activeCustomerCount(bid);
-  if (activeCount > limits.activeCustomers) throw forbidden("Plan limit: active customers exceeded");
+  // Active-customer plan limits are a soft, billing-side cap: never block a scan at the
+  // counter. Earning always proceeds; upgrade pressure is surfaced to the owner out-of-band,
+  // not as a failed award in front of a waiting customer.
 
   let evaluated = typeof typedDeps.computePointsWithEvidence === "function"
     ? typedDeps.computePointsWithEvidence(business, { amount_q, visits, items }) : null;

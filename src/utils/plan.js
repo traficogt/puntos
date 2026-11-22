@@ -1,8 +1,8 @@
 const PLAN_ORDER = ["EMPRENDEDOR", "NEGOCIO", "EMPRESA"];
 
 const PLAN_LIMITS = {
-  EMPRENDEDOR: { activeCustomers: 100, rewards: 5, branches: 1 },
-  NEGOCIO: { activeCustomers: 500, rewards: 9999, branches: 3 },
+  EMPRENDEDOR: { activeCustomers: 300, rewards: 5, branches: 1 },
+  NEGOCIO: { activeCustomers: 2000, rewards: 9999, branches: 3 },
   EMPRESA: { activeCustomers: 999999, rewards: 9999, branches: 9999 }
 };
 
@@ -36,7 +36,7 @@ export const DEFAULT_PLAN_FEATURES = {
     multi_branch: false,
     webhooks: false,
     external_awards: false,
-    branded_qr: true,
+    branded_qr: false,
     campaign_rules: false
   },
   NEGOCIO: {
