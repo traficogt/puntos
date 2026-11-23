@@ -42,7 +42,7 @@ export function createConciergeRoutes({ sendEmail = sendContactEmail } = {}) {
       const v = validate(ConciergeRequestSchema, req.body);
       if (!v.ok) return res.status(400).json({ error: v.error });
       const business = await BusinessRepo.getById(req.tenantId);
-      if (!business) return res.status(404).json({ error: "Business not found" });
+      if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
       // The session only carries id/role; the owner e-mail lives on the staff row.
       const staffRow = await StaffRepo.getById(req.staff.id).catch(() => null);
       const ownerEmail = String(staffRow?.email || "").trim();

@@ -175,6 +175,17 @@ function isHttpsOrigin(origin) {
 }
 
 /**
+ * Write-through for config keys that are read live from the environment.
+ * Blank values remove the variable so the documented default applies again.
+ * @param {string} name
+ * @param {unknown} value
+ */
+function setLiveEnv(name, value) {
+  if (value === undefined || value === null || String(value) === "") delete process.env[name];
+  else process.env[name] = String(value);
+}
+
+/**
  * @param {string | undefined} value
  * @param {"strict" | "lax" | "none"} [fallback]
  * @returns {"strict" | "lax" | "none"}
@@ -213,6 +224,9 @@ export const config = {
   DB_PASSWORD: requireSecret("DB_PASSWORD", "CHANGE_ME", { minLen: 12 }),
   DB_MIGRATIONS_USER: envValue("DB_MIGRATIONS_USER", envValue("DB_USER", "loyalty")),
   DB_MIGRATIONS_PASSWORD: envValue("DB_MIGRATIONS_PASSWORD", envValue("DB_PASSWORD", "CHANGE_ME")),
+  // Per-process connection ceilings: request-pinned pool and transaction pool.
+  DB_POOL_MAX: Number(process.env.DB_POOL_MAX || 20),
+  DB_TX_POOL_MAX: Number(process.env.DB_TX_POOL_MAX || 10),
 
   // Auth (HS256)
   JWT_SECRET: requireSecret("JWT_SECRET", "CHANGE_ME_LONG_RANDOM", { minLen: 32 }),
@@ -274,6 +288,9 @@ export const config = {
   CONTACT_TO: envValue("CONTACT_TO", "gandhiponce@gmail.com"),
   CONTACT_FROM: envValue("CONTACT_FROM", "hola@puntosfieles.com"),
   CONTACT_TURNSTILE_SECRET: envValue("CONTACT_TURNSTILE_SECRET", ""),
+  // Public widget site key served to the support form. No production value lives
+  // in code: deployments that set the secret must also set the site key.
+  CONTACT_TURNSTILE_SITE_KEY: envValue("CONTACT_TURNSTILE_SITE_KEY", ""),
 
   // HTTP SMS Gateway (optional)
   SMS_GATEWAY_URL: envValue("SMS_GATEWAY_URL", ""),
@@ -288,6 +305,8 @@ export const config = {
 
   // Job queue driver: db | redis
   JOB_QUEUE_DRIVER: envValue("JOB_QUEUE_DRIVER", "db"),
+  // Keep the durable DB queue even when JOB_QUEUE_DRIVER=redis (operational override).
+  JOB_QUEUE_FORCE_DB: (process.env.JOB_QUEUE_FORCE_DB ?? "false") === "true",
 
   // Churn automation
   CHURN_DAYS: Number(process.env.CHURN_DAYS ?? 30),
@@ -296,6 +315,23 @@ export const config = {
   LEDGER_RECONCILE_HOUR_LOCAL: Number(process.env.LEDGER_RECONCILE_HOUR_LOCAL ?? 2),
   LEDGER_RECONCILE_LIMIT: Number(process.env.LEDGER_RECONCILE_LIMIT ?? 10000),
   LEDGER_RECONCILE_REPAIR: (process.env.LEDGER_RECONCILE_REPAIR ?? "false") === "true",
+  // Ledger certification artifacts. Read live from the environment (accessors)
+  // so operators and tests can repoint a running process without re-importing
+  // config; assigning writes the value back to the environment variable.
+  // Empty means the service default (<cwd>/artifacts/ledger-certifications).
+  get LEDGER_CERTIFICATION_OUTPUT_ROOT() {
+    return String(process.env.LEDGER_CERTIFICATION_OUTPUT_ROOT || "");
+  },
+  set LEDGER_CERTIFICATION_OUTPUT_ROOT(value) {
+    setLiveEnv("LEDGER_CERTIFICATION_OUTPUT_ROOT", value);
+  },
+  get LEDGER_CERTIFICATION_RETENTION_DAYS() {
+    const n = Number(process.env.LEDGER_CERTIFICATION_RETENTION_DAYS);
+    return Number.isInteger(n) && n > 0 ? n : 90;
+  },
+  set LEDGER_CERTIFICATION_RETENTION_DAYS(value) {
+    setLiveEnv("LEDGER_CERTIFICATION_RETENTION_DAYS", value);
+  },
 
   // Webhooks
   WEBHOOK_TIMEOUT_MS: Number(process.env.WEBHOOK_TIMEOUT_MS ?? 8000),
@@ -321,8 +357,25 @@ export const config = {
   REGISTRATION_API_KEY: envValue("REGISTRATION_API_KEY", ""),
 
   // Background jobs
+  // Run the scheduler's API share inside the API process. Off by default in
+  // production to avoid duplicate runners when horizontally scaling.
+  IN_PROCESS_WORKERS: (process.env.IN_PROCESS_WORKERS ?? (IS_PROD ? "false" : "true")) === "true",
   JOB_WORKER_INTERVAL_MS: Number(process.env.JOB_WORKER_INTERVAL_MS ?? 15000),
   JOB_WORKER_BATCH_SIZE: Number(process.env.JOB_WORKER_BATCH_SIZE ?? 10),
+
+  // Browser sessions (milliseconds). Empty values fall back to the defaults.
+  APP_SESSION_IDLE_MS: Number(process.env.APP_SESSION_IDLE_MS || 15 * 60 * 1000),
+  APP_SESSION_ABSOLUTE_MS: Number(process.env.APP_SESSION_ABSOLUTE_MS || 8 * 60 * 60 * 1000),
+  SUPER_SESSION_IDLE_MS: Number(process.env.SUPER_SESSION_IDLE_MS || 10 * 60 * 1000),
+  SUPER_SESSION_ABSOLUTE_MS: Number(process.env.SUPER_SESSION_ABSOLUTE_MS || 4 * 60 * 60 * 1000),
+  // How long a fresh re-authentication satisfies sensitive routes.
+  RECENT_REAUTH_WINDOW_MS: Number(process.env.RECENT_REAUTH_WINDOW_MS || 10 * 60 * 1000),
+
+  // Release metadata exposed by /health and build-info metrics (CI fallbacks kept).
+  RELEASE_SHA: String(process.env.RELEASE_SHA || process.env.GITHUB_SHA || "").trim(),
+  BUILD_TIMESTAMP: String(
+    process.env.BUILD_TIMESTAMP || process.env.GITHUB_RUN_STARTED_AT || "",
+  ).trim(),
 
   // Plans
   DEFAULT_PLAN: envValue("DEFAULT_PLAN", "EMPRENDEDOR"),
@@ -383,5 +436,10 @@ if (config.NODE_ENV === "production") {
   }
   if (!config.QR_PRIVATE_KEY_PEM || !config.QR_PUBLIC_KEY_PEM) {
     throw new Error("Missing QR_PRIVATE_KEY_PEM / QR_PUBLIC_KEY_PEM in production");
+  }
+  if (config.CONTACT_TURNSTILE_SECRET && !config.CONTACT_TURNSTILE_SITE_KEY) {
+    throw new Error(
+      "CONTACT_TURNSTILE_SITE_KEY is required in production when CONTACT_TURNSTILE_SECRET is set",
+    );
   }
 }

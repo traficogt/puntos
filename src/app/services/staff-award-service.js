@@ -48,7 +48,7 @@ function logAwardGuardAction({ businessId, staff, action, meta }) {
     ip: null,
     ua: null,
     meta: withImpersonationMeta(meta, staff),
-  }).catch(() => {});
+  }).catch((err) => logger.warn({ err, action }, "Audit log write failed (award guard)"));
 }
 
 async function settleCustomerPoints(customerId, businessId) {
@@ -97,7 +97,7 @@ async function enforceAwardGuards({
       action: "award.denied.max_visits",
       meta: { visits, max_visits: maxVisits, customer_id: customerId },
     });
-    throw forbidden(`Visits exceed max allowed (${maxVisits})`);
+    throw forbidden(`Las visitas superan el máximo permitido (${maxVisits})`);
   }
 
   if (maxItems > 0 && items > maxItems) {
@@ -107,7 +107,7 @@ async function enforceAwardGuards({
       action: "award.denied.max_items",
       meta: { items, max_items: maxItems, customer_id: customerId },
     });
-    throw forbidden(`Items exceed max allowed (${maxItems})`);
+    throw forbidden(`Los artículos superan el máximo permitido (${maxItems})`);
   }
 
   if (maxPointsPerTx > 0 && points > maxPointsPerTx) {
@@ -117,7 +117,7 @@ async function enforceAwardGuards({
       action: "award.denied.max_points_per_tx",
       meta: { points, max_points_per_tx: maxPointsPerTx, customer_id: customerId },
     });
-    throw forbidden(`Points exceed max allowed (${maxPointsPerTx})`);
+    throw forbidden(`Los puntos superan el máximo permitido (${maxPointsPerTx})`);
   }
 }
 
@@ -197,7 +197,12 @@ export async function awardPointsWithDeps(
           })
         : await typedDeps.verifyQrToken(customerQrToken);
   } catch (e) {
-    authorizationError = e?.statusCode ? e : badRequest(e?.message ?? "Invalid QR token");
+    authorizationError = e?.statusCode
+      ? e
+      : badRequest(
+          e?.message ?? "Código QR no válido",
+          e?.message == null ? "VALIDATION_ERROR" : undefined,
+        );
     if (!txId) throw authorizationError;
     try {
       decoded = nativeWallet
@@ -212,7 +217,7 @@ export async function awardPointsWithDeps(
   }
 
   const { bid, cid, jti, exp } = decoded;
-  if (bid !== staff.business_id) throw forbidden("QR token is for a different business");
+  if (bid !== staff.business_id) throw forbidden("El código QR pertenece a otro negocio");
 
   const requestFingerprint = crypto
     .createHash("sha256")
@@ -246,7 +251,7 @@ export async function awardPointsWithDeps(
       Number(t.items) !== normalizedItems ||
       ((nativeWallet || fingerprint) && fingerprint !== requestFingerprint)
     )
-      throw conflict("txId already used for a different transaction payload");
+      throw conflict("Este txId ya se usó para otra transacción");
     const bal = await client.query(
       `SELECT points, pending_points FROM customer_balances WHERE customer_id=$1`,
       [cid],
@@ -271,7 +276,7 @@ export async function awardPointsWithDeps(
   if (authorizationError) throw authorizationError;
 
   let business = await typedDeps.BusinessRepo.getById(bid);
-  if (!business) throw notFound("Business not found");
+  if (!business) throw notFound("Negocio no encontrado");
 
   await settleCustomerPoints(cid, bid);
 
@@ -350,7 +355,7 @@ export async function awardPointsWithDeps(
       `SELECT id FROM customers WHERE id=$1 AND business_id=$2 AND deleted_at IS NULL`,
       [cid, bid],
     );
-    if (!cust.rows.length) throw notFound("Customer not found");
+    if (!cust.rows.length) throw notFound("Cliente no encontrado");
 
     if (typeof typedDeps.protectedEarningBusiness === "function") {
       business = await typedDeps.protectedEarningBusiness(client, { business, customerId: cid });
@@ -396,8 +401,8 @@ export async function awardPointsWithDeps(
         actor_type: "STAFF",
         actor_id: staff.id,
         meta: withImpersonationMeta({ customer_id: cid, jti }, staff),
-      }).catch(() => {});
-      throw conflict("QR token already used (replay protection)");
+      }).catch((err) => logger.warn({ err, jti }, "Audit log write failed (award replay)"));
+      throw conflict("Este código QR ya se usó (protección contra repetición)");
     }
 
     const bonus =
@@ -488,7 +493,7 @@ export async function awardPointsWithDeps(
        RETURNING points, pending_points`,
       [cid, awardedPoints, awardStatus],
     );
-    if (balUpd.rowCount !== 1) throw notFound("Customer balance not found");
+    if (balUpd.rowCount !== 1) throw notFound("No se encontró el saldo del cliente");
 
     if (nativeWallet) {
       // Balance triggers lock passes too. Follow their balance-then-pass order
@@ -542,7 +547,12 @@ export async function awardPointsWithDeps(
         points: result.pointsAwarded,
         amount_q: normalizedAmountQ,
       })
-      .catch(() => {});
+      .catch((err) =>
+        logger.warn(
+          { err, transactionId: result.transactionId },
+          "Webhook enqueue failed after award",
+        ),
+      );
 
     await AuditRepo.log({
       id: id(),
@@ -562,7 +572,9 @@ export async function awardPointsWithDeps(
         },
         staff,
       ),
-    }).catch(() => {});
+    }).catch((err) =>
+      logger.warn({ err, transactionId: result.transactionId }, "Audit log write failed (award)"),
+    );
 
     // Complete dependent ledger work before the HTTP request releases its
     // tenant-scoped database client. Detached work could use a released client.

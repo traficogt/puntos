@@ -218,8 +218,9 @@ describe("recurring challenge state transitions", () => {
           static parse(value) {
             return originalDate.parse(value);
           }
+          /** @param {Parameters<typeof Date.UTC>} args */
           static UTC(...args) {
-            return originalDate.UTC.apply(originalDate, args);
+            return originalDate.UTC(...args);
           }
         }
       );

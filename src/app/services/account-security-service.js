@@ -13,6 +13,7 @@ import {
 import { assertPasswordAllowed } from "../../utils/password-policy.js";
 import { hashPassword, verifyPassword } from "../../utils/password-hash.js";
 import { badRequest, conflict, notFound, unauthorized } from "../../utils/http-error.js";
+import { logger } from "../../utils/logger.js";
 import { encryptSecret, decryptSecretMaybe } from "../../utils/secret-crypto.js";
 import {
   buildOtpAuthUri,
@@ -45,7 +46,7 @@ function normalizeEmail(value) {
 
 function requireTotpFormat(code) {
   const normalized = String(code || "").trim();
-  if (!/^\d{6}$/.test(normalized)) throw badRequest("Invalid MFA code");
+  if (!/^\d{6}$/.test(normalized)) throw badRequest("Código MFA inválido", "VALIDATION_ERROR");
   return normalized;
 }
 
@@ -94,11 +95,13 @@ async function logAudit({
     ip,
     ua,
     meta,
-  }).catch(() => {});
+  }).catch((err) => logger.warn({ err, action }, "Audit log write failed"));
 }
 
 async function logSecurity(event) {
-  await SecurityEventRepo.logPrivileged(event).catch(() => {});
+  await SecurityEventRepo.logPrivileged(event).catch((err) =>
+    logger.warn({ err, eventType: event?.event_type }, "Security event write failed"),
+  );
 }
 
 function resetNotificationLines(token) {
@@ -188,10 +191,13 @@ export async function completeStaffPasswordReset({
 }) {
   const active = await AuthActionTokenRepo.lookupActiveByTokenHash(hashActionToken(token));
   if (!active || active.purpose !== "STAFF_PASSWORD_RESET" || active.actor_type !== "STAFF") {
-    throw badRequest("Invalid or expired reset token");
+    throw badRequest(
+      "El enlace para restablecer la contraseña no es válido o ya venció",
+      "VALIDATION_ERROR",
+    );
   }
   const staff = await StaffRepo.getById(active.actor_id);
-  if (!staff || !staff.active) throw notFound("Staff not found");
+  if (!staff || !staff.active) throw notFound("Staff no encontrado");
   passwordContextForStaff(staff, newPassword);
   const passwordHash = await hashPassword(newPassword);
 
@@ -207,7 +213,12 @@ export async function completeStaffPasswordReset({
     actorType: "STAFF",
     actorId: staff.id,
     reason: "password_reset",
-  }).catch(() => {});
+  }).catch((err) =>
+    logger.warn(
+      { err, reason: "password_reset" },
+      "Browser session invalidation failed after security change",
+    ),
+  );
   await logSecurity({
     event_type: "staff_password_reset_completed",
     severity: "HIGH",
@@ -266,7 +277,10 @@ export async function completeSuperPasswordReset({
 }) {
   const active = await AuthActionTokenRepo.lookupActiveByTokenHash(hashActionToken(token));
   if (!active || active.purpose !== "SUPER_PASSWORD_RESET" || active.actor_type !== "SUPER") {
-    throw badRequest("Invalid or expired reset token");
+    throw badRequest(
+      "El enlace para restablecer la contraseña no es válido o ya venció",
+      "VALIDATION_ERROR",
+    );
   }
   const auth = await SuperAdminAuthRepo.getEffective();
   passwordContextForSuper(auth, newPassword);
@@ -279,7 +293,12 @@ export async function completeSuperPasswordReset({
     actorType: "SUPER",
     actorEmail: normalizeEmail(auth.email),
     reason: "password_reset",
-  }).catch(() => {});
+  }).catch((err) =>
+    logger.warn(
+      { err, reason: "password_reset" },
+      "Browser session invalidation failed after security change",
+    ),
+  );
   await logSecurity({
     event_type: "super_password_reset_completed",
     severity: "HIGH",
@@ -300,12 +319,12 @@ export async function completeSuperPasswordReset({
 export async function requestStaffEmailChange({ staff, newEmail, ip = null, ua = null }) {
   const freshStaff = await getStaffMfaRecord(staff.id);
   const normalizedNewEmail = normalizeEmail(newEmail);
-  if (!normalizedNewEmail) throw badRequest("Email required");
+  if (!normalizedNewEmail) throw badRequest("Falta el correo");
   if (normalizeEmail(freshStaff.email) === normalizedNewEmail)
-    throw conflict("New email matches current email");
+    throw conflict("El nuevo correo es igual al actual");
   const existing = await StaffRepo.getByEmail(normalizedNewEmail);
   if (existing && String(existing.id) !== String(freshStaff.id))
-    throw conflict("Email already in use");
+    throw conflict("Este correo ya está en uso");
 
   const requestId = id();
   const oldToken = randomActionToken();
@@ -379,16 +398,22 @@ async function maybeApplyStaffEmailChange(requestId, query = dbQuery) {
   const newToken = tokens.find((row) => row.purpose === "STAFF_EMAIL_CHANGE_NEW");
   if (!oldToken || !newToken || !oldToken.used_at || !newToken.used_at) return { applied: false };
   const staff = await StaffRepo.getById(oldToken.actor_id);
-  if (!staff) throw notFound("Staff not found");
+  if (!staff) throw notFound("Staff no encontrado");
   const newEmail = normalizeEmail(oldToken.payload?.new_email);
   const existing = await StaffRepo.getByEmail(newEmail);
-  if (existing && String(existing.id) !== String(staff.id)) throw conflict("Email already in use");
+  if (existing && String(existing.id) !== String(staff.id))
+    throw conflict("Este correo ya está en uso");
   await query(`UPDATE staff_users SET email = $2 WHERE id = $1`, [staff.id, newEmail]);
   await invalidateBrowserSessionsForActor({
     actorType: "STAFF",
     actorId: staff.id,
     reason: "email_change",
-  }).catch(() => {});
+  }).catch((err) =>
+    logger.warn(
+      { err, reason: "email_change" },
+      "Browser session invalidation failed after security change",
+    ),
+  );
   await sendSecurityNotification({
     businessId: staff.business_id,
     to: newEmail,
@@ -405,7 +430,10 @@ export async function confirmStaffEmailChange({ token, ip = null, ua: _ua = null
     active.actor_type !== "STAFF" ||
     !String(active.purpose || "").startsWith("STAFF_EMAIL_CHANGE_")
   ) {
-    throw badRequest("Invalid or expired email-change token");
+    throw badRequest(
+      "El enlace para cambiar el correo no es válido o ya venció",
+      "VALIDATION_ERROR",
+    );
   }
   const used = await AuthActionTokenRepo.markUsed(active.id, { confirmed: true });
   const result = await maybeApplyStaffEmailChange(used.request_id);
@@ -429,11 +457,11 @@ export async function requestSuperEmailChange({
 }) {
   const auth = await SuperAdminAuthRepo.getEffective();
   if (normalizeEmail(currentEmail) !== normalizeEmail(auth.email))
-    throw unauthorized("Invalid super admin credentials");
+    throw unauthorized("Credenciales de superadministrador inválidas", "VALIDATION_ERROR");
   const normalizedNewEmail = normalizeEmail(newEmail);
-  if (!normalizedNewEmail) throw badRequest("Email required");
+  if (!normalizedNewEmail) throw badRequest("Falta el correo");
   if (normalizedNewEmail === normalizeEmail(auth.email))
-    throw conflict("New email matches current email");
+    throw conflict("El nuevo correo es igual al actual");
 
   const requestId = id();
   const oldToken = randomActionToken();
@@ -504,7 +532,12 @@ async function maybeApplySuperEmailChange(requestId, query = dbQuery) {
     actorType: "SUPER",
     actorEmail: normalizeEmail(oldToken.payload?.old_email),
     reason: "email_change",
-  }).catch(() => {});
+  }).catch((err) =>
+    logger.warn(
+      { err, reason: "email_change" },
+      "Browser session invalidation failed after security change",
+    ),
+  );
   await sendSecurityNotification({
     to: newEmail,
     subject: "PuntosFieles • Correo super admin actualizado",
@@ -520,7 +553,10 @@ export async function confirmSuperEmailChange({ token, ip = null, ua: _ua = null
     active.actor_type !== "SUPER" ||
     !String(active.purpose || "").startsWith("SUPER_EMAIL_CHANGE_")
   ) {
-    throw badRequest("Invalid or expired email-change token");
+    throw badRequest(
+      "El enlace para cambiar el correo no es válido o ya venció",
+      "VALIDATION_ERROR",
+    );
   }
   const used = await AuthActionTokenRepo.markUsed(active.id, { confirmed: true });
   const result = await maybeApplySuperEmailChange(used.request_id);
@@ -536,7 +572,7 @@ export async function confirmSuperEmailChange({ token, ip = null, ua: _ua = null
 
 async function getStaffMfaRecord(staffId) {
   const staff = await StaffRepo.getById(staffId);
-  if (!staff) throw notFound("Staff not found");
+  if (!staff) throw notFound("Staff no encontrado");
   return staff;
 }
 
@@ -564,8 +600,9 @@ export async function startStaffMfaEnrollment({ staffId, businessId }) {
 export async function confirmStaffMfaEnrollment({ staffId, code, sessionId = null }) {
   const staff = await getStaffMfaRecord(staffId);
   const secret = decryptSecretMaybe(staff.mfa_pending_secret_enc || "");
-  if (!secret) throw conflict("No pending MFA enrollment");
-  if (!verifyTotp(secret, requireTotpFormat(code))) throw unauthorized("Invalid MFA code");
+  if (!secret) throw conflict("No hay una activación de MFA pendiente");
+  if (!verifyTotp(secret, requireTotpFormat(code)))
+    throw unauthorized("Código MFA inválido", "VALIDATION_ERROR");
   await dbQuery(
     `UPDATE staff_users
         SET mfa_enabled = true,
@@ -610,7 +647,12 @@ export async function disableStaffMfa({ staffId }) {
     actorType: "STAFF",
     actorId: staff.id,
     reason: "mfa_disabled",
-  }).catch(() => {});
+  }).catch((err) =>
+    logger.warn(
+      { err, reason: "mfa_disabled" },
+      "Browser session invalidation failed after security change",
+    ),
+  );
   await sendSecurityNotification({
     businessId: staff.business_id,
     to: staff.email,
@@ -640,8 +682,9 @@ export async function startSuperMfaEnrollment() {
 export async function confirmSuperMfaEnrollment({ code, sessionId = null }) {
   const auth = await SuperAdminAuthRepo.getEffective();
   const secret = decryptSecretMaybe(auth.mfa_pending_secret_enc || "");
-  if (!secret) throw conflict("No pending MFA enrollment");
-  if (!verifyTotp(secret, requireTotpFormat(code))) throw unauthorized("Invalid MFA code");
+  if (!secret) throw conflict("No hay una activación de MFA pendiente");
+  if (!verifyTotp(secret, requireTotpFormat(code)))
+    throw unauthorized("Código MFA inválido", "VALIDATION_ERROR");
   await SuperAdminAuthRepo.update({
     mfa_enabled: true,
     mfa_secret_enc: encryptSecret(secret),
@@ -672,7 +715,12 @@ export async function disableSuperMfa() {
     actorType: "SUPER",
     actorEmail: normalizeEmail(auth.email),
     reason: "mfa_disabled",
-  }).catch(() => {});
+  }).catch((err) =>
+    logger.warn(
+      { err, reason: "mfa_disabled" },
+      "Browser session invalidation failed after security change",
+    ),
+  );
   await sendSecurityNotification({
     to: auth.email,
     subject: "PuntosFieles • MFA super admin desactivado",
@@ -742,12 +790,12 @@ export async function verifySuperMfaForLogin(code) {
 export async function reauthenticateStaffSession({ staff, password, mfaCode, sessionId }) {
   const fresh = await getStaffMfaRecord(staff.id);
   const ok = await verifyPassword(password, fresh.password_hash);
-  if (!ok) throw unauthorized("Invalid credentials");
+  if (!ok) throw unauthorized("Credenciales inválidas", "VALIDATION_ERROR");
   if (fresh.mfa_enabled) {
     const secret = decryptSecretMaybe(fresh.mfa_secret_enc || "");
     const counter = secret ? verifyTotpCounter(secret, requireTotpFormat(mfaCode)) : null;
     if (counter === null || !(await consumeTotpCounter("STAFF_REAUTH", fresh.id, counter)))
-      throw unauthorized("Invalid MFA code");
+      throw unauthorized("Código MFA inválido", "VALIDATION_ERROR");
   }
   await markBrowserSessionReauthenticated({ sessionId, mfaVerified: Boolean(fresh.mfa_enabled) });
   await logAudit({
@@ -763,12 +811,12 @@ export async function reauthenticateStaffSession({ staff, password, mfaCode, ses
 export async function reauthenticateSuperSession({ password, mfaCode, sessionId }) {
   const auth = await SuperAdminAuthRepo.getEffective();
   const ok = auth.password_hash ? await verifyPassword(password, auth.password_hash) : false;
-  if (!ok) throw unauthorized("Invalid credentials");
+  if (!ok) throw unauthorized("Credenciales inválidas", "VALIDATION_ERROR");
   if (auth.mfa_enabled) {
     const secret = decryptSecretMaybe(auth.mfa_secret_enc || "");
     const counter = secret ? verifyTotpCounter(secret, requireTotpFormat(mfaCode)) : null;
     if (counter === null || !(await consumeTotpCounter("SUPER_REAUTH", "SUPER", counter)))
-      throw unauthorized("Invalid MFA code");
+      throw unauthorized("Código MFA inválido", "VALIDATION_ERROR");
   }
   await markBrowserSessionReauthenticated({ sessionId, mfaVerified: Boolean(auth.mfa_enabled) });
   return { ok: true };

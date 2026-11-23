@@ -109,7 +109,7 @@ export async function claimTargetedOffer(
     if (!isLedgerInteger(total))
       throw badRequest("Los puntos calculados exceden el límite permitido.");
     const max = Number(live.program_json?.award_guard?.max_points_per_tx ?? 0);
-    if (max > 0 && total > max) throw forbidden(`Points exceed max allowed (${max})`);
+    if (max > 0 && total > max) throw forbidden(`Los puntos superan el máximo permitido (${max})`);
     await client.query(
       `UPDATE growth_campaign_members SET bonus_transaction_id=$3::uuid,bonus_points_awarded=$4,claimed_at=clock_timestamp()
       WHERE business_id=$1::uuid AND id=$2::uuid`,

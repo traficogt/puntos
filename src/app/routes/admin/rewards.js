@@ -69,7 +69,7 @@ adminRewardsRoutes.post(
     const limits = planLimits(business.plan);
     const count = await BusinessRepo.countRewards(req.tenantId);
     if (count >= limits.rewards)
-      return res.status(403).json({ error: "Plan limit: rewards exceeded" });
+      return res.status(403).json({ error: "Tu plan no permite más recompensas" });
 
     const reward = await RewardRepo.create({
       id: makeId(),
@@ -117,7 +117,7 @@ adminRewardsRoutes.patch(
 
     const reward = await RewardRepo.getById(req.params.id);
     if (!reward || reward.business_id !== req.tenantId)
-      return res.status(404).json({ error: "Not found" });
+      return res.status(404).json({ error: "No encontrado" });
 
     if (scopedBranchIds !== undefined) {
       await RewardRepo.setBranches(req.params.id, scopedBranchIds);

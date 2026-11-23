@@ -1,5 +1,19 @@
 import { pool, runWithDbContext } from "../app/database.js";
 
+// Only API traffic reads the request-pinned connection (tenant and admin GUCs
+// travel with it). Static assets, HTML entry pages and marketing routes never
+// use it; the marketing plan page reads through its own transaction pool.
+export const PG_CLIENT_MOUNT_PATHS = ["/api"];
+
+/**
+ * Mounts withPgClient on the API prefixes only, so a CSS, JS, font or image
+ * request never holds one of the pool's connections.
+ * @param {import("express").Express} app
+ */
+export function mountPgClient(app) {
+  for (const mountPath of PG_CLIENT_MOUNT_PATHS) app.use(mountPath, withPgClient);
+}
+
 /**
  * Attaches a dedicated pg client to req.pgClient for the lifetime of the request.
  * Keeps request-scoped work on one connection until completion or disconnect.

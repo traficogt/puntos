@@ -1,6 +1,7 @@
+import { config } from "../../../../config/index.js";
 import { logger } from "../../../../utils/logger.js";
 
-export function createDevProvider({ environment = process.env.NODE_ENV || "production" } = {}) {
+export function createDevProvider({ environment = config.NODE_ENV } = {}) {
   return {
     name: "dev",
     canSend() {

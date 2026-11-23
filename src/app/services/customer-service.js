@@ -19,9 +19,9 @@ function id() {
 
 async function ensureRateLimits(repo, businessId, phone) {
   const recent = await repo.countRecent(businessId, phone, "60 seconds");
-  if (recent >= 1) throw tooManyRequests("Please wait before requesting another code");
+  if (recent >= 1) throw tooManyRequests("Espera un momento antes de solicitar otro código.");
   const hour = await repo.countRecent(businessId, phone, "1 hour");
-  if (hour >= 5) throw tooManyRequests("Too many verification codes requested");
+  if (hour >= 5) throw tooManyRequests("Solicitaste demasiados códigos de verificación.");
 }
 
 async function lockVerification(client, businessId, phone) {

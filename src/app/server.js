@@ -7,41 +7,31 @@ import { createEditorialReview } from "../middleware/editorial-review.js";
 import { createIllustrationReview } from "../middleware/illustration-review.js";
 import express from "express";
 import { createMobilePreview } from "../middleware/mobile-preview.js";
-import { processNativeWalletUpdates } from "./services/native-wallet/runtime.js";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import { isProbePath, requestComplexityLimit } from "../middleware/request-boundaries.js";
 import path from "node:path";
-import cron from "node-cron";
 import { randomUUID } from "node:crypto";
 
 import { logger, httpLogOptions } from "../utils/logger.js";
 import { config } from "../config/index.js";
-import { initDatabase, closeDatabase, withDbClientContext } from "./database.js";
+import { initDatabase, closeDatabase } from "./database.js";
 import { apiRoutes } from "./routes/index.js";
 import { defaultRequestBody, errorHandler, notFound } from "../middleware/common.js";
 import { csrfInit } from "../middleware/csrf.js";
-import { deliverPendingOnce } from "./services/webhook-service.js";
-import { syncConfiguredPosOnce } from "./services/pos-integration-service.js";
-import { BusinessRepo } from "./repositories/business-repository.js";
-import { runLifecycleOnce, createMarketingTick } from "./services/lifecycle-service.js";
-import { processPendingJobsOnce } from "./services/job-service.js";
-import { WebhookRepo } from "./repositories/webhook-repository.js";
-import { withPgClient } from "../middleware/pg-client.js";
+import { closeJobQueueRedis } from "./services/job-service.js";
+import { API, runStartupMaintenance, startScheduler, stopScheduler } from "./scheduler.js";
+import { mountPgClient } from "../middleware/pg-client.js";
 import { metricsMiddleware } from "../middleware/metrics.js";
-import { globalApiRateLimit } from "../middleware/rate-limit.js";
+import { closeRateLimitRedis, globalApiRateLimit } from "../middleware/rate-limit.js";
 import { isAllowedApiOrigin } from "../utils/cors-origin.js";
 import { resolveHostSplitRedirect, runtimeConfigForHost } from "../utils/app-host-routing.js";
 
 const app = express();
 // Preserve the existing bracket/array query contract across Express majors.
 app.set("query parser", "extended");
-// Default to off in production to avoid duplicate workers when horizontally scaling.
-const ENABLE_IN_PROCESS_JOBS =
-  (process.env.IN_PROCESS_WORKERS ?? (config.NODE_ENV === "production" ? "false" : "true")) ===
-  "true";
 
 // Prevent 304 responses on API endpoints (breaks fetch() logic in staff UI)
 app.set("etag", false);
@@ -137,7 +127,9 @@ app.use(
 );
 
 app.use(cookieParser());
-app.use(withPgClient);
+// Request-pinned DB connections only for API prefixes; static assets, HTML
+// entry pages and marketing routes never touch the pool.
+mountPgClient(app);
 app.use(csrfInit); // Initialize CSRF token for all requests
 app.use(metricsMiddleware);
 app.use(
@@ -246,78 +238,17 @@ app.use(notFound);
 app.use(errorHandler);
 
 let server;
-let webhookInterval;
-let jobInterval;
-let marketingInterval;
-const marketingTick = createMarketingTick();
-let posInterval;
-let nativeWalletInterval;
-let cronTask;
 
 async function start() {
   await initDatabase();
-  try {
-    await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => {
-      const reencrypted = await WebhookRepo.encryptPlaintextSecrets();
-      if (reencrypted > 0) {
-        logger.info({ reencrypted }, "Encrypted plaintext webhook endpoint secrets");
-      }
-      const rotatedWebhookSecrets = await WebhookRepo.rotateSecretsToCurrentKey();
-      if (rotatedWebhookSecrets > 0) {
-        logger.info(
-          { rotatedWebhookSecrets },
-          "Rotated webhook endpoint secrets to current encryption key",
-        );
-      }
-      const rotatedProgramSecrets = await BusinessRepo.rotateExternalAwardApiKeysToCurrent();
-      if (rotatedProgramSecrets > 0) {
-        logger.info(
-          { rotatedProgramSecrets },
-          "Rotated external award API keys to current encryption key",
-        );
-      }
-    });
-  } catch (e) {
-    logger.warn({ err: e?.message }, "Failed to run secret encryption maintenance");
-  }
+  // Rotates stored secrets to the current encryption key (runs regardless of IN_PROCESS_WORKERS).
+  await runStartupMaintenance(API);
 
-  if (ENABLE_IN_PROCESS_JOBS) {
-    nativeWalletInterval = setInterval(processNativeWalletUpdates, 60_000);
+  // Background jobs are declared once in ./scheduler.js. In production the API
+  // runs none by default so horizontally scaled instances do not duplicate the worker.
+  if (config.IN_PROCESS_WORKERS) {
     logger.info("Starting in-process job runners (IN_PROCESS_WORKERS=true)");
-    posInterval = setInterval(() => {
-      syncConfiguredPosOnce().catch(() => logger.warn("POS polling did not complete"));
-    }, 300_000);
-    // Webhook delivery worker (every minute)
-    webhookInterval = setInterval(() => {
-      deliverPendingOnce().catch((e) =>
-        logger.warn({ err: e?.message }, "deliverPendingOnce failed"),
-      );
-    }, 60_000);
-
-    // Background job worker
-    jobInterval = setInterval(() => {
-      processPendingJobsOnce({ limit: config.JOB_WORKER_BATCH_SIZE }).catch((e) =>
-        logger.warn({ err: e?.message }, "processPendingJobsOnce failed"),
-      );
-    }, config.JOB_WORKER_INTERVAL_MS);
-
-    // Saved rule schedules are evaluated every minute; both outboxes are
-    // processed independently even if incentive generation fails.
-    marketingInterval = setInterval(marketingTick, 60_000);
-
-    // Daily maintenance keeps its established business-calendar schedule.
-    const hour = String(config.CHURN_SEND_HOUR_LOCAL).padStart(2, "0");
-    cronTask = cron.schedule(
-      `0 ${hour} * * *`,
-      async () => {
-        try {
-          await runLifecycleOnce();
-        } catch {
-          logger.warn("Daily lifecycle maintenance did not complete");
-        }
-      },
-      { timezone: config.CRON_TZ },
-    );
+    startScheduler(API);
   } else {
     logger.info("IN_PROCESS_WORKERS=false: no background jobs started in API process");
   }
@@ -334,20 +265,17 @@ start().catch((e) => {
 
 function shutdown(signal) {
   logger.info({ signal }, "Shutting down gracefully");
-  if (webhookInterval) clearInterval(webhookInterval);
-  if (jobInterval) clearInterval(jobInterval);
-  if (marketingInterval) clearInterval(marketingInterval);
-  if (posInterval) clearInterval(posInterval);
-  if (nativeWalletInterval) clearInterval(nativeWalletInterval);
-  if (cronTask) cronTask.stop();
+  stopScheduler();
   server?.close?.(() => {
     logger.info("HTTP server closed");
   });
-  closeDatabase()
-    .catch((e) => logger.warn({ err: e?.message }, "Error closing DB pool"))
-    .finally(() => {
-      setTimeout(() => process.exit(0), 2000).unref();
-    });
+  Promise.allSettled([
+    closeDatabase().catch((e) => logger.warn({ err: e?.message }, "Error closing DB pool")),
+    closeJobQueueRedis(),
+    closeRateLimitRedis(),
+  ]).finally(() => {
+    setTimeout(() => process.exit(0), 2000).unref();
+  });
 }
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));

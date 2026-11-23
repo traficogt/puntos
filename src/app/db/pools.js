@@ -3,6 +3,21 @@ import { config } from "../../config/index.js";
 
 const { Pool } = pg;
 
+/**
+ * Pool ceilings come from the environment; a typo must not become a NaN-sized
+ * pool, so anything but a positive integer stops startup.
+ * @param {string} name
+ * @param {unknown} value
+ * @returns {number}
+ */
+function poolSize(name, value) {
+  const size = Number(value);
+  if (!Number.isInteger(size) || size < 1) {
+    throw new Error(`${name} must be a positive integer (got ${String(value)})`);
+  }
+  return size;
+}
+
 const applicationConnection = {
   host: config.DB_HOST,
   port: config.DB_PORT,
@@ -13,11 +28,17 @@ const applicationConnection = {
   connectionTimeoutMillis: 5_000,
 };
 
-export const pool = new Pool({ ...applicationConnection, max: 20 });
+export const pool = new Pool({
+  ...applicationConnection,
+  max: poolSize("DB_POOL_MAX", config.DB_POOL_MAX),
+});
 
 // A request retains its client until its response finishes. Transactions need
 // independent capacity or a full request pool would wait on its own releases.
-export const transactionPool = new Pool({ ...applicationConnection, max: 10 });
+export const transactionPool = new Pool({
+  ...applicationConnection,
+  max: poolSize("DB_TX_POOL_MAX", config.DB_TX_POOL_MAX),
+});
 
 export const migrationPool =
   config.DB_MIGRATIONS_USER || config.DB_MIGRATIONS_PASSWORD

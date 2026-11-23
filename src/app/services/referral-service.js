@@ -15,7 +15,7 @@ async function getCustomerBusinessId(customerId) {
   const customer = rows[0];
 
   if (!customer) {
-    throw notFound("Customer not found");
+    throw notFound("Cliente no encontrado");
   }
 
   return customer.business_id;
@@ -25,7 +25,7 @@ async function getEnabledSettings(businessId) {
   const settings = await ReferralRepository.getSettings(businessId);
 
   if (!settings?.enabled) {
-    throw forbidden("Referral program is not enabled");
+    throw forbidden("El programa de referidos no está activo");
   }
 
   return settings;
@@ -33,23 +33,23 @@ async function getEnabledSettings(businessId) {
 
 function assertReferralCodeUsable(code, newCustomerId, businessId) {
   if (!code) {
-    throw notFound("Invalid referral code");
+    throw notFound("Código de referido no válido", "VALIDATION_ERROR");
   }
 
   if (code.business_id !== businessId) {
-    throw badRequest("Referral code is for a different business");
+    throw badRequest("El código de referido pertenece a otro negocio");
   }
 
   if (code.expires_at && new Date(code.expires_at) < new Date()) {
-    throw badRequest("Referral code has expired");
+    throw badRequest("El código de referido ya venció");
   }
 
   if (code.max_uses && code.uses_count >= code.max_uses) {
-    throw badRequest("Referral code has reached maximum uses");
+    throw badRequest("El código de referido alcanzó su máximo de usos");
   }
 
   if (code.referrer_customer_id === newCustomerId) {
-    throw badRequest("You cannot use your own referral code");
+    throw badRequest("No puedes usar tu propio código de referido");
   }
 }
 
@@ -91,7 +91,7 @@ export async function completeAndRewardReferralWithDeps(deps, referralId) {
     const referral = referralRows[0];
 
     if (!referral) {
-      throw notFound("Referral not found");
+      throw notFound("Referido no encontrado");
     }
 
     if (referral.status !== "pending") {
@@ -207,7 +207,7 @@ export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerI
       [newCustomerId],
     );
     if (existing.rowCount > 0) {
-      throw badRequest("Customer has already been referred");
+      throw badRequest("Este cliente ya fue referido");
     }
 
     const codeUpdate = await client.query(
@@ -219,7 +219,7 @@ export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerI
       [code.id],
     );
     if (codeUpdate.rowCount !== 1) {
-      throw badRequest("Referral code has reached maximum uses");
+      throw badRequest("El código de referido alcanzó su máximo de usos");
     }
 
     let createdReferral;
@@ -234,7 +234,7 @@ export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerI
       createdReferral = rows[0];
     } catch (error) {
       if (String(error?.code) === "23505") {
-        throw badRequest("Customer has already been referred");
+        throw badRequest("Este cliente ya fue referido");
       }
       throw error;
     }

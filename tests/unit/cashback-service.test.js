@@ -6,13 +6,15 @@ import {
   reverseCashback,
   getCashbackBalance,
 } from "../../src/app/services/cashback-service.js";
+import { cashbackTerms } from "../../src/app/services/cashback-model.js";
 
 const r2 = (n) => Math.round(Number(n) * 100) / 100;
 
 // A faithful in-memory stand-in for the cashback_accounts row + the
 // cashback_transactions table (with the (business_id, request_id) unique index),
 // enough to exercise the service's balance math, idempotency and reversal
-// without a real database.
+// without a real database. NUMERIC columns come back as strings, as pg returns
+// them, and NUMERIC parameters are coerced the way Postgres would parse them.
 function mockClient() {
   const account = { balance_q: 0, lifetime_earned_q: 0, lifetime_spent_q: 0, exists: false };
   const txns = [];
@@ -26,7 +28,7 @@ function mockClient() {
         return { rowCount: 1, rows: [] };
       }
       if (S.includes("FROM cashback_accounts") && S.includes("FOR UPDATE")) {
-        return { rowCount: 1, rows: [{ balance_q: account.balance_q }] };
+        return { rowCount: 1, rows: [{ balance_q: account.balance_q.toFixed(2) }] };
       }
       if (S.includes("INSERT INTO cashback_transactions")) {
         const m = S.match(/'(EARN|SPEND|LOAD|TRANSFER_OUT|TRANSFER_IN|REVERSE)'/);
@@ -56,7 +58,7 @@ function mockClient() {
               t.business_id === bid && t.source_transaction_id === srcTx && t.tx_type === "EARN",
           )
           .reduce((s, t) => s + Number(t.amount_q), 0);
-        return { rowCount: 1, rows: [{ earned_q: earned }] };
+        return { rowCount: 1, rows: [{ earned_q: earned.toFixed(2) }] };
       }
       if (S.includes("source_transaction_id = $2 AND tx_type = 'REVERSE'")) {
         const [bid, srcTx] = params;
@@ -84,16 +86,19 @@ function mockClient() {
         };
       }
       if (S.includes("SET balance_q = balance_q + $2")) {
-        account.balance_q = r2(account.balance_q + params[1]);
-        account.lifetime_earned_q = r2(account.lifetime_earned_q + params[1]);
+        account.balance_q = r2(account.balance_q + Number(params[1]));
+        account.lifetime_earned_q = r2(account.lifetime_earned_q + Number(params[1]));
         return { rowCount: 1, rows: [] };
       }
       if (S.includes("SET balance_q = balance_q - $2")) {
-        account.balance_q = r2(account.balance_q - params[1]);
+        account.balance_q = r2(account.balance_q - Number(params[1]));
         if (S.includes("lifetime_spent_q"))
-          account.lifetime_spent_q = r2(account.lifetime_spent_q + params[1]);
+          account.lifetime_spent_q = r2(account.lifetime_spent_q + Number(params[1]));
         if (S.includes("lifetime_earned_q"))
-          account.lifetime_earned_q = Math.max(0, r2(account.lifetime_earned_q - params[1]));
+          account.lifetime_earned_q = Math.max(
+            0,
+            r2(account.lifetime_earned_q - Number(params[1])),
+          );
         return { rowCount: 1, rows: [] };
       }
       if (S.includes("balance_q, lifetime_earned_q, lifetime_spent_q FROM cashback_accounts")) {
@@ -102,9 +107,9 @@ function mockClient() {
           rowCount: 1,
           rows: [
             {
-              balance_q: account.balance_q,
-              lifetime_earned_q: account.lifetime_earned_q,
-              lifetime_spent_q: account.lifetime_spent_q,
+              balance_q: account.balance_q.toFixed(2),
+              lifetime_earned_q: account.lifetime_earned_q.toFixed(2),
+              lifetime_spent_q: account.lifetime_spent_q.toFixed(2),
             },
           ],
         };
@@ -254,4 +259,103 @@ test("getCashbackBalance: zero when there is no account yet", async () => {
     lifetime_earned_q: 0,
     lifetime_spent_q: 0,
   });
+});
+
+// ----- exact centavo arithmetic (utils/money.js) -----
+
+test("ledger: writes fixed two-decimal NUMERIC strings and reads pg strings back as numbers", async () => {
+  const c = mockClient();
+  await accrueCashback(c, { ...base, amountQ: 100, earnQ: 5, requestId: "tx-1" });
+  assert.equal(c.txns[0].amount_q, "5.00");
+  assert.equal(c.txns[0].balance_after_q, "5.00");
+  await spendCashback(c, { ...base, amountQ: 1.5, requestId: "sp-1" });
+  assert.equal(c.txns[1].amount_q, "-1.50");
+  assert.equal(c.txns[1].balance_after_q, "3.50");
+  assert.deepEqual(await getCashbackBalance(c, "c1"), {
+    balance_q: 3.5,
+    lifetime_earned_q: 5,
+    lifetime_spent_q: 1.5,
+  });
+});
+
+test("float trap: 33.30 at 15% accrues exactly 5.00 (Math.round(33.3 * 15) / 100 gave 4.99)", async () => {
+  const biz = { program_type: "CASHBACK", program_json: { cashback_percent: 15 } };
+  const terms = cashbackTerms(biz, { amount_q: 33.3 });
+  assert.equal(terms.earn_q, 5);
+  const c = mockClient();
+  const out = await accrueCashback(c, {
+    ...base,
+    amountQ: 33.3,
+    earnQ: terms.earn_q,
+    requestId: "tx-1",
+  });
+  assert.deepEqual(out, { earn_q: 5, balance_after_q: 5 });
+  assert.equal(c.txns[0].amount_q, "5.00");
+});
+
+test("float trap: three 19.99 purchases at 5% sum to exactly 3.00 and spend down to zero", async () => {
+  const biz = { program_type: "CASHBACK", program_json: { cashback_percent: 5 } };
+  const c = mockClient();
+  for (const id of ["tx-1", "tx-2", "tx-3"]) {
+    const { earn_q } = cashbackTerms(biz, { amount_q: 19.99 });
+    assert.equal(earn_q, 1); // 0.9995 -> 1.00
+    await accrueCashback(c, {
+      ...base,
+      amountQ: 19.99,
+      earnQ: earn_q,
+      requestId: id,
+      sourceTransactionId: id,
+    });
+  }
+  assert.equal(c.account.balance_q, 3);
+  await assert.rejects(
+    () => spendCashback(c, { ...base, amountQ: 3.01, requestId: "sp-over" }),
+    /insuficiente/i,
+  );
+  const out = await spendCashback(c, { ...base, amountQ: 3, requestId: "sp-all" });
+  assert.deepEqual(out, { spent_q: 3, balance_after_q: 0 });
+  assert.equal(c.account.balance_q, 0);
+  assert.equal(c.txns.at(-1).amount_q, "-3.00");
+  assert.equal(c.txns.at(-1).balance_after_q, "0.00");
+});
+
+test("exact compare: 0.10 + 0.20 of credit can be spent as exactly 0.30", async () => {
+  const c = mockClient();
+  await accrueCashback(c, { ...base, amountQ: 2, earnQ: 0.1, requestId: "tx-1" });
+  await accrueCashback(c, { ...base, amountQ: 4, earnQ: 0.2, requestId: "tx-2" });
+  const out = await spendCashback(c, { ...base, amountQ: 0.1 + 0.2, requestId: "sp-1" });
+  assert.deepEqual(out, { spent_q: 0.3, balance_after_q: 0 });
+  assert.equal(c.txns.at(-1).amount_q, "-0.30");
+  assert.equal(c.account.balance_q, 0);
+});
+
+test("spendCashback: rejected when it exceeds the balance by a single centavo", async () => {
+  const c = mockClient();
+  await accrueCashback(c, { ...base, amountQ: 100, earnQ: 5, requestId: "tx-1" });
+  await assert.rejects(
+    () => spendCashback(c, { ...base, amountQ: 5.01, requestId: "sp-x" }),
+    /insuficiente/i,
+  );
+  const out = await spendCashback(c, { ...base, amountQ: 5, requestId: "sp-y" });
+  assert.equal(out.balance_after_q, 0);
+});
+
+test("reverseCashback: claws back the exact accrued amount as a negative two-decimal string", async () => {
+  const c = mockClient();
+  await accrueCashback(c, {
+    ...base,
+    amountQ: 100,
+    earnQ: 5,
+    requestId: "tx-1",
+    sourceTransactionId: "tx-1",
+  });
+  await spendCashback(c, { ...base, amountQ: 4.99, requestId: "sp-1" }); // balance 0.01
+  assert.equal(c.account.balance_q, 0.01);
+  const out = await reverseCashback(c, { ...base, sourceTransactionId: "tx-1" });
+  assert.deepEqual(out, { reversed_q: 5, balance_after_q: -4.99, shortfall_q: 0 });
+  assert.equal(c.account.balance_q, -4.99);
+  const rev = c.txns.find((t) => t.tx_type === "REVERSE");
+  assert.equal(rev.amount_q, "-5.00");
+  assert.equal(rev.balance_after_q, "-4.99");
+  assert.equal(c.account.lifetime_earned_q, 0);
 });

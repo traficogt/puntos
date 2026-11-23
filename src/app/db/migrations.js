@@ -6,6 +6,53 @@ import { logger } from "../../utils/logger.js";
 import { pool, migrationPool } from "./pools.js";
 import { orderMigrations } from "./migration-order.js";
 
+// Every process that initializes the schema (API, worker, migrations CLI)
+// serializes on this session-level advisory lock, so containers that start
+// together cannot interleave schema.sql with each other's managed migrations.
+// Arbitrary but fixed: the ASCII bytes of "PFSC" (PuntosFieles schema).
+export const SCHEMA_LOCK_KEY = 0x50465343;
+const SCHEMA_LOCK_WAIT_NOTICE_MS = 2_000;
+
+/**
+ * Runs `fn` while holding the schema advisory lock on a dedicated connection.
+ * The lock is session-level, so it lives exactly as long as the connection: a
+ * failed unlock discards the connection instead of returning a locked session
+ * to the pool.
+ * @template T
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+export async function withSchemaLock(fn) {
+  const client = await migrationPool.connect();
+  let locked = false;
+  let destroy = false;
+  const waitNotice = setTimeout(() => {
+    logger.info("Waiting for another process to finish schema initialization...");
+  }, SCHEMA_LOCK_WAIT_NOTICE_MS);
+  waitNotice.unref?.();
+  try {
+    try {
+      await client.query("SELECT pg_advisory_lock($1::bigint)", [SCHEMA_LOCK_KEY]);
+      locked = true;
+    } catch (error) {
+      destroy = true;
+      throw error;
+    } finally {
+      clearTimeout(waitNotice);
+    }
+    return await fn();
+  } finally {
+    if (locked) {
+      try {
+        await client.query("SELECT pg_advisory_unlock($1::bigint)", [SCHEMA_LOCK_KEY]);
+      } catch {
+        destroy = true;
+      }
+    }
+    client.release(destroy);
+  }
+}
+
 async function checkSchemaExtensions() {
   try {
     const hasExtensions = async () => {
@@ -83,17 +130,20 @@ export async function initDatabase() {
 
   await enforceNonSuperRuntime();
 
-  logger.info("Initializing database schema (if needed)...");
-  await migrationPool.query(sql);
-  logger.info("Database ready.");
+  // schema.sql and the managed migrations form one critical section.
+  await withSchemaLock(async () => {
+    logger.info("Initializing database schema (if needed)...");
+    await migrationPool.query(sql);
+    logger.info("Database ready.");
 
-  await checkSchemaExtensions();
+    await checkSchemaExtensions();
 
-  if (config.AUTO_APPLY_MIGRATIONS) {
-    await runManagedMigrations();
-  } else {
-    logger.info("AUTO_APPLY_MIGRATIONS=false, skipping managed migrations.");
-  }
+    if (config.AUTO_APPLY_MIGRATIONS) {
+      await applyManagedMigrations();
+    } else {
+      logger.info("AUTO_APPLY_MIGRATIONS=false, skipping managed migrations.");
+    }
+  });
 }
 
 export async function applySchemaExtensions() {
@@ -119,6 +169,10 @@ export async function applySchemaExtensions() {
 }
 
 export async function runManagedMigrations() {
+  await withSchemaLock(applyManagedMigrations);
+}
+
+async function applyManagedMigrations() {
   await ensureMigrationTable();
   const migrationsDir = path.join(process.cwd(), "src", "app", "migrations");
 
@@ -158,6 +212,7 @@ export async function runManagedMigrations() {
 
     const startedAt = Date.now();
     const client = await migrationPool.connect();
+    let destroy = false;
     try {
       await client.query("BEGIN");
       await client.query(sql);
@@ -171,10 +226,13 @@ export async function runManagedMigrations() {
     } catch (error) {
       try {
         await client.query("ROLLBACK");
-      } catch {}
+      } catch {
+        // A failed rollback means the connection is unusable; do not pool it.
+        destroy = true;
+      }
       throw error;
     } finally {
-      client.release();
+      client.release(destroy);
     }
   }
 

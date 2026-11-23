@@ -34,13 +34,13 @@ function ttlConfigFor(actorType) {
   const normalized = String(actorType || "").toUpperCase();
   if (normalized === "SUPER") {
     return {
-      idleMs: Number(process.env.SUPER_SESSION_IDLE_MS || 10 * 60 * 1000),
-      absoluteMs: Number(process.env.SUPER_SESSION_ABSOLUTE_MS || 4 * 60 * 60 * 1000),
+      idleMs: config.SUPER_SESSION_IDLE_MS,
+      absoluteMs: config.SUPER_SESSION_ABSOLUTE_MS,
     };
   }
   return {
-    idleMs: Number(process.env.APP_SESSION_IDLE_MS || 15 * 60 * 1000),
-    absoluteMs: Number(process.env.APP_SESSION_ABSOLUTE_MS || 8 * 60 * 60 * 1000),
+    idleMs: config.APP_SESSION_IDLE_MS,
+    absoluteMs: config.APP_SESSION_ABSOLUTE_MS,
   };
 }
 

@@ -33,7 +33,7 @@ analyticsJobRoutes.get(
   asyncRoute(async (req, res) => {
     const job = await JobRepo.getById(String(req.params.id));
     if (!job || job.business_id !== req.tenantId) {
-      return res.status(404).json({ error: "Job not found" });
+      return res.status(404).json({ error: "Tarea no encontrada" });
     }
     return res.json({
       ok: true,

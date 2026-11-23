@@ -531,37 +531,50 @@ export async function resolveServiceCase(options, injected = {}) {
   });
 }
 
+// Messages thrown by staff-service redeemReward. The English forms remain so
+// errors recorded by older builds (and callers that still raise them) classify.
+const UNAVAILABLE_MESSAGES = new Map([
+  ["La recompensa no está disponible", "La recompensa no estaba disponible al intentar el canje."],
+  ["La recompensa venció", "La recompensa estaba vencida al intentar el canje."],
+  [
+    "La recompensa no tiene existencias",
+    "La recompensa no tenía existencias al intentar el canje.",
+  ],
+  [
+    "La recompensa no está disponible en esta sucursal",
+    "La recompensa no estaba disponible en esta sucursal.",
+  ],
+  ["Reward not available", "La recompensa no estaba disponible al intentar el canje."],
+  ["Reward expired", "La recompensa estaba vencida al intentar el canje."],
+  ["Reward out of stock", "La recompensa no tenía existencias al intentar el canje."],
+  ["Reward not available at this branch", "La recompensa no estaba disponible en esta sucursal."],
+]);
+const INSUFFICIENT_POINTS_MESSAGES = new Set(["Puntos insuficientes", "Insufficient points"]);
+const DAILY_LIMIT_PATTERN =
+  /^(Se alcanzó el límite diario de (canjes|esta recompensa)|Daily (redemption limit|limit reached for this reward))/;
+const COOLDOWN_PATTERN =
+  /^(Esta recompensa tiene un tiempo de espera entre canjes\.|Reward cooldown active\.)/;
+
 export function redemptionFailureKind(error) {
   const message = String(error?.message ?? "");
   if (![400, 403, 404, 409].includes(error?.statusCode)) return null;
+  if (UNAVAILABLE_MESSAGES.has(message)) return "unavailable";
   if (
-    message === "Reward not available" ||
-    message === "Reward expired" ||
-    message === "Reward out of stock" ||
-    message === "Reward not available at this branch"
-  )
-    return "unavailable";
-  if (
-    message === "Insufficient points" ||
-    /^Daily (redemption limit|limit reached for this reward)/.test(message) ||
-    /^Reward cooldown active\./.test(message)
+    INSUFFICIENT_POINTS_MESSAGES.has(message) ||
+    DAILY_LIMIT_PATTERN.test(message) ||
+    COOLDOWN_PATTERN.test(message)
   )
     return "redemption_failed";
   return null;
 }
 function redemptionFailureReason(error) {
-  const known = {
-    "Reward not available": "La recompensa no estaba disponible al intentar el canje.",
-    "Reward expired": "La recompensa estaba vencida al intentar el canje.",
-    "Reward out of stock": "La recompensa no tenía existencias al intentar el canje.",
-    "Reward not available at this branch": "La recompensa no estaba disponible en esta sucursal.",
-    "Insufficient points": "El saldo no alcanzaba para completar el canje.",
-  };
-  return Object.hasOwn(known, error.message)
-    ? known[error.message]
-    : String(error.message).startsWith("Reward cooldown")
-      ? "El intervalo entre canjes impedía completar este intento."
-      : "El límite de canjes impedía completar este intento.";
+  const message = String(error?.message ?? "");
+  if (UNAVAILABLE_MESSAGES.has(message)) return UNAVAILABLE_MESSAGES.get(message);
+  if (INSUFFICIENT_POINTS_MESSAGES.has(message))
+    return "El saldo no alcanzaba para completar el canje.";
+  return COOLDOWN_PATTERN.test(message)
+    ? "El intervalo entre canjes impedía completar este intento."
+    : "El límite de canjes impedía completar este intento.";
 }
 /** Only call after redeemReward rejected and its transaction has rolled back. */
 export async function recordFailedRedemption(

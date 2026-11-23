@@ -74,7 +74,7 @@ export function createSupportCaseRoutes({
   routes.get("/public/support/config", (_req, res) =>
     res.json({
       challengeRequired: Boolean(config.CONTACT_TURNSTILE_SECRET),
-      siteKey: process.env.CONTACT_TURNSTILE_SITE_KEY || "0x4AAAAAACxpjwCi9p0pY8BF",
+      siteKey: config.CONTACT_TURNSTILE_SITE_KEY,
       attachmentMaxBytes: 614400,
     }),
   );

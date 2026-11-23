@@ -25,7 +25,7 @@ export function createNativeWalletService({
   };
   async function requireCustomer(auth) {
     const c = await customerRepo.getById(auth.id);
-    if (!c || c.business_id !== auth.business_id) throw notFound("Customer not found");
+    if (!c || c.business_id !== auth.business_id) throw notFound("Cliente no encontrado");
   }
   async function status(auth) {
     const names = readyProviders();
@@ -57,7 +57,7 @@ export function createNativeWalletService({
       membershipToken: randomBytes(32).toString("base64url"),
       authenticationToken: randomBytes(32).toString("base64url"),
     });
-    if (!pass) throw notFound("Customer not found");
+    if (!pass) throw notFound("Cliente no encontrado");
     return withPassLock(pass.id, async () => {
       const snapshot = await repo.getSnapshot(pass.id);
       if (!snapshot || snapshot.revoked_at || snapshot.is_voided)

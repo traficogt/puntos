@@ -55,7 +55,7 @@ gamificationCustomerRoutes.get(
   asyncRoute(async (req, res) => {
     const leaderboardType = normalizeLeaderboardType(req.params.type);
     if (!leaderboardType) {
-      return res.status(400).json({ error: "Invalid leaderboard type" });
+      return res.status(400).json({ error: "Tipo de tabla de posiciones no válido" });
     }
 
     const position = await GamificationService.getCustomerPosition(

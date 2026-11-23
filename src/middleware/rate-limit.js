@@ -11,8 +11,17 @@ const ipLimitStore = new Map();
 
 let redisClient = null;
 let redisReady = false;
+let redisRequested = false;
 
-if (config.RATE_LIMIT_DRIVER === "redis" && String(config.REDIS_URL || "").trim()) {
+/**
+ * Create the shared Redis client on first use, never at import time. Until the
+ * connection is ready (or when Redis is not configured) the memory store is used.
+ */
+function ensureRedisClient() {
+  if (redisRequested) return;
+  redisRequested = true;
+  if (config.RATE_LIMIT_DRIVER !== "redis" || !String(config.REDIS_URL || "").trim()) return;
+
   redisClient = createClient({ url: config.REDIS_URL, RESP: 2 });
   redisClient.on("error", (err) => {
     redisReady = false;
@@ -31,6 +40,20 @@ if (config.RATE_LIMIT_DRIVER === "redis" && String(config.REDIS_URL || "").trim(
         "Redis rate-limit client failed to connect; using memory store",
       );
     });
+}
+
+/** Close the Redis client on shutdown (no-op when it was never created). */
+export async function closeRateLimitRedis() {
+  const client = redisClient;
+  redisClient = null;
+  redisReady = false;
+  if (!client) return;
+  try {
+    if (client.isOpen) await client.close();
+    else client.destroy();
+  } catch (err) {
+    logger.warn({ err: err?.message }, "Redis rate-limit client did not close cleanly");
+  }
 }
 
 setInterval(
@@ -75,8 +98,17 @@ function checkLimitMemory(store, key, maxRequests, windowMs) {
   return { allowed: true, remaining: maxRequests - record.count, resetIn };
 }
 
-async function checkLimitRedis(key, maxRequests, windowMs) {
-  return checkRedisRateLimit(redisClient, key, maxRequests, windowMs);
+/** Shared check: Redis when ready, otherwise (or on a Redis failure) the memory store. */
+async function checkLimit(store, key, maxRequests, windowMs) {
+  ensureRedisClient();
+  if (!redisReady) return checkLimitMemory(store, key, maxRequests, windowMs);
+  try {
+    return await checkRedisRateLimit(redisClient, key, maxRequests, windowMs);
+  } catch (err) {
+    // The key may carry an IP or phone number, so only the error is logged.
+    logger.warn({ err: err?.message }, "Redis rate-limit check failed; using memory store");
+    return checkLimitMemory(store, key, maxRequests, windowMs);
+  }
 }
 
 function getIp(req) {
@@ -94,11 +126,7 @@ export function rateLimitByIp(max = 120, windowMs = 60_000, opts = {}) {
       const ip = getIp(req);
       const key = `${keyPrefix}${ip}`;
 
-      const result = redisReady
-        ? await checkLimitRedis(key, max, windowMs).catch(() =>
-            checkLimitMemory(ipLimitStore, key, max, windowMs),
-          )
-        : checkLimitMemory(ipLimitStore, key, max, windowMs);
+      const result = await checkLimit(ipLimitStore, key, max, windowMs);
 
       setRateLimitHeaders(res, { max, remaining: result.remaining, resetIn: result.resetIn });
       if (!result.allowed) {
@@ -118,11 +146,7 @@ export function rateLimitByUser(max = 100, windowMs = 60_000) {
       if (!userId) return next();
 
       const key = `user:${userId}`;
-      const result = redisReady
-        ? await checkLimitRedis(key, max, windowMs).catch(() =>
-            checkLimitMemory(userLimitStore, key, max, windowMs),
-          )
-        : checkLimitMemory(userLimitStore, key, max, windowMs);
+      const result = await checkLimit(userLimitStore, key, max, windowMs);
 
       setRateLimitHeaders(res, { max, remaining: result.remaining, resetIn: result.resetIn });
       if (!result.allowed) {
@@ -146,11 +170,7 @@ export function rateLimitByPhone(max = 3, windowMs = 60_000, opts = {}) {
 
       const normalizedPhone = String(phone).replace(/\D/g, "");
       const key = `${keyPrefix}${normalizedPhone}`;
-      const result = redisReady
-        ? await checkLimitRedis(key, max, windowMs).catch(() =>
-            checkLimitMemory(phoneLimitStore, key, max, windowMs),
-          )
-        : checkLimitMemory(phoneLimitStore, key, max, windowMs);
+      const result = await checkLimit(phoneLimitStore, key, max, windowMs);
 
       setRateLimitHeaders(res, { max, remaining: result.remaining, resetIn: result.resetIn });
       if (!result.allowed) {

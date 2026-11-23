@@ -5,9 +5,10 @@ import { CustomerRepo } from "../repositories/customer-repository.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 import { badRequest } from "../../utils/http-error.js";
+import { pct, toMinor, toNumber } from "../../utils/money.js";
 import { lookupCustomerByQrToken } from "./staff-service.js";
 import { loadStoredValue, transferStoredValue } from "./cashback-service.js";
-import { giftCardTerms, loadBonus } from "./wallet-model.js";
+import { giftCardTerms } from "./wallet-model.js";
 
 // Staff tops up a member's gift-card wallet. Resolves the customer from the
 // scanned QR (same verification the award flow uses), checks the business runs
@@ -25,7 +26,9 @@ export async function loadGiftCardForStaff({
   const business = await BusinessRepo.getById(staff.business_id);
   const terms = giftCardTerms(business);
   if (!terms) throw badRequest("Este negocio no usa un programa de tarjeta de regalo.");
-  const bonus_q = loadBonus(terms.bonus_percent, amount_q);
+  // Bonus = amount * bonus_percent / 100 in exact centavo arithmetic, rounded
+  // half away from zero like the NUMERIC(12,2) ledger column.
+  const bonus_q = toNumber(pct(toMinor(amount_q), terms.bonus_percent));
   const result = await withTransaction((client) =>
     loadStoredValue(client, {
       businessId: staff.business_id,

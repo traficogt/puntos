@@ -61,3 +61,15 @@ test("engine: a CASHBACK purchase awards zero points", () => {
   };
   assert.equal(computePoints(business, { amount_q: 100 }), 0);
 });
+
+test("cashbackTerms: exact centavo math where float rounding misses (33.30 at 15% = 5.00)", () => {
+  const at = (amount_q, cashback_percent) =>
+    cashbackTerms({ program_type: "CASHBACK", program_json: { cashback_percent } }, { amount_q })
+      .earn_q;
+  assert.equal(at(33.3, 15), 5); // Math.round(33.3 * 15) / 100 === 4.99
+  assert.equal(at(4.1, 15), 0.62); // Math.round(4.1 * 15) / 100 === 0.61
+  assert.equal(at(16.9, 15), 2.54);
+  assert.equal(at(19.99, 5), 1); // 0.9995 -> 1.00
+  assert.equal(at("37.50", 5), 1.88); // NUMERIC string input
+  assert.equal(at(1.15, 10), 0.12); // 0.115 -> half away from zero
+});

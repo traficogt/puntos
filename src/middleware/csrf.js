@@ -48,7 +48,7 @@ function logDenied(req, method, reason) {
 
 function setCsrfCookies(res, token) {
   const cookieOptions = {
-    secure: process.env.NODE_ENV === "production",
+    secure: config.NODE_ENV === "production",
     sameSite: "strict",
     maxAge: CSRF_MAX_AGE_MS,
   };

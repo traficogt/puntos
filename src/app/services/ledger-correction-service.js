@@ -48,8 +48,8 @@ function id() {
 
 function normalizeReason(reason) {
   const value = String(reason || "").trim();
-  if (value.length < 8) throw badRequest("Reason is required");
-  if (value.length > 500) throw badRequest("Reason too long");
+  if (value.length < 8) throw badRequest("Describe el motivo con al menos 8 caracteres");
+  if (value.length > 500) throw badRequest("El motivo supera los 500 caracteres");
   return value;
 }
 
@@ -170,11 +170,11 @@ export async function requestLedgerCorrectionWithDeps(
   return deps.withTransaction(async (client) => {
     const row = await deps.readCustomerLedgerRow(client.query.bind(client), customerId);
     if (!row || String(row.business_id) !== String(businessId)) {
-      throw notFound("Customer not found");
+      throw notFound("Cliente no encontrado");
     }
 
     if (!isLedgerBalanceMismatch(row)) {
-      throw conflict("Customer balance already matches the ledger");
+      throw conflict("El saldo del cliente ya coincide con el historial de puntos");
     }
 
     const finding = buildLedgerFinding(row);
@@ -251,10 +251,10 @@ export async function applyLedgerCorrectionWithDeps(
       [correctionId, businessId],
     );
     const correction = rows[0];
-    if (!correction) throw notFound("Ledger correction not found");
-    if (correction.status !== "PENDING") throw conflict("Ledger correction is already resolved");
+    if (!correction) throw notFound("Corrección no encontrada");
+    if (correction.status !== "PENDING") throw conflict("Esta corrección ya fue resuelta");
     if (String(correction.requested_by_staff_id || "") === String(resolvedByStaffId)) {
-      throw forbidden("A different owner must apply the correction");
+      throw forbidden("Otro dueño debe aplicar la corrección");
     }
 
     // Serialize with live awards/redemptions before rebuilding the authoritative balance.
@@ -264,12 +264,12 @@ export async function applyLedgerCorrectionWithDeps(
     );
     const row = await deps.readCustomerLedgerRow(client.query.bind(client), correction.customer_id);
     if (!row || String(row.business_id) !== String(businessId)) {
-      throw notFound("Customer not found");
+      throw notFound("Cliente no encontrado");
     }
 
     const finding = buildLedgerFinding(row);
     if (!isLedgerBalanceMismatch(row)) {
-      throw conflict("Customer balance already matches the ledger");
+      throw conflict("El saldo del cliente ya coincide con el historial de puntos");
     }
 
     const adjustmentId = await deps.applyBalanceAdjustment(
@@ -346,10 +346,10 @@ export async function rejectLedgerCorrectionWithDeps(
       [correctionId, businessId],
     );
     const correction = rows[0];
-    if (!correction) throw notFound("Ledger correction not found");
-    if (correction.status !== "PENDING") throw conflict("Ledger correction is already resolved");
+    if (!correction) throw notFound("Corrección no encontrada");
+    if (correction.status !== "PENDING") throw conflict("Esta corrección ya fue resuelta");
     if (String(correction.requested_by_staff_id || "") === String(resolvedByStaffId)) {
-      throw forbidden("A different owner must reject the correction");
+      throw forbidden("Otro dueño debe rechazar la corrección");
     }
 
     await client.query(

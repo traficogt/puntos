@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { config } from "../../config/index.js";
 import { toCSV } from "../../utils/csv.js";
 
 function formatDate(date) {
@@ -56,11 +57,11 @@ function relativeArtifactPath(outputRoot, filePath) {
 function certificationOutputRoot(
   root = path.join(process.cwd(), "artifacts", "ledger-certifications"),
 ) {
-  return String(process.env.LEDGER_CERTIFICATION_OUTPUT_ROOT || root);
+  return String(config.LEDGER_CERTIFICATION_OUTPUT_ROOT || root);
 }
 
 function certificationRetentionDays() {
-  return parseRetentionDays(process.env.LEDGER_CERTIFICATION_RETENTION_DAYS, 90);
+  return parseRetentionDays(config.LEDGER_CERTIFICATION_RETENTION_DAYS, 90);
 }
 
 function readJsonFile(fsModule, filePath) {

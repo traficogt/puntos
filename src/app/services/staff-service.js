@@ -49,15 +49,18 @@ export async function lookupCustomerByQrTokenWithDeps(deps, { staff, customerQrT
       : await deps.verifyQrToken(customerQrToken);
   } catch (error) {
     if (isNativeWalletCode(customerQrToken) && error?.statusCode) throw error;
-    throw badRequest(error?.message ?? "Invalid QR token");
+    throw badRequest(
+      error?.message ?? "Código QR no válido",
+      error?.message == null ? "VALIDATION_ERROR" : undefined,
+    );
   }
 
   const { bid, cid } = decoded;
-  if (bid !== staff.business_id) throw forbidden("QR token is for a different business");
+  if (bid !== staff.business_id) throw forbidden("El código QR pertenece a otro negocio");
 
   const customer = await deps.CustomerRepo.getById(cid);
   if (!customer || customer.business_id !== staff.business_id || customer.deleted_at)
-    throw notFound("Customer not found");
+    throw notFound("Cliente no encontrado");
 
   return {
     customer: {
@@ -110,8 +113,8 @@ export async function staffLogin({ email, password, mfaCode = undefined }) {
       actor_type: "STAFF",
       actor_id: loginRow?.id ?? null,
       meta: { email: String(email || "").toLowerCase(), reason: "not_found_or_inactive" },
-    }).catch(() => {});
-    throw unauthorized("Invalid credentials");
+    }).catch((err) => logger.warn({ err }, "Security event write failed (staff_login_failed)"));
+    throw unauthorized("Credenciales inválidas", "VALIDATION_ERROR");
   }
 
   await setCurrentTenant(String(loginRow.business_id));
@@ -128,8 +131,8 @@ export async function staffLogin({ email, password, mfaCode = undefined }) {
       actor_type: "STAFF",
       actor_id: staff.id,
       meta: { email: String(email || "").toLowerCase(), reason: "wrong_password" },
-    }).catch(() => {});
-    throw unauthorized("Invalid credentials");
+    }).catch((err) => logger.warn({ err }, "Security event write failed (staff_login_failed)"));
+    throw unauthorized("Credenciales inválidas", "VALIDATION_ERROR");
   }
 
   if (needsPasswordRehash(staff.password_hash)) {
@@ -139,7 +142,9 @@ export async function staffLogin({ email, password, mfaCode = undefined }) {
           SET password_hash = $2
         WHERE id = $1`,
       [staff.id, upgradedHash],
-    ).catch(() => {});
+    ).catch((err) =>
+      logger.warn({ err, staffId: staff.id }, "Password hash upgrade failed; login continues"),
+    );
   }
 
   const mfaResult = await verifyStaffMfaForLogin(staff, mfaCode);
@@ -217,10 +222,16 @@ export async function redeemRewardWithDeps(
   { staff, customerId, rewardId, requestId = null },
 ) {
   const business = await deps.BusinessRepo.getById(staff.business_id);
-  if (!business) throw notFound("Business not found");
+  if (!business) throw notFound("Negocio no encontrado");
 
-  await deps.settlePendingPointsForCustomer(customerId, staff.business_id).catch(() => {});
-  await deps.expirePointsForCustomer(customerId, staff.business_id).catch(() => {});
+  await deps
+    .settlePendingPointsForCustomer(customerId, staff.business_id)
+    .catch((err) =>
+      logger.warn({ err, customerId }, "Pending points settlement failed before redemption"),
+    );
+  await deps
+    .expirePointsForCustomer(customerId, staff.business_id)
+    .catch((err) => logger.warn({ err, customerId }, "Points expiry failed before redemption"));
 
   const redemptionGuard = business.program_json?.redemption_guard ?? {};
   const maxRedemptionsPerDay = Math.max(
@@ -244,7 +255,7 @@ export async function redeemRewardWithDeps(
         replay.reward_name =
           (await deps.protectedRedemptionName(client, replay.id)) ?? replay.reward_name;
       if (replay.customer_id !== customerId || replay.reward_id !== rewardId) {
-        throw conflict("requestId already used for a different redemption");
+        throw conflict("Este requestId ya se usó para otro canje");
       }
       await AuditRepo.log({
         id: id(),
@@ -264,7 +275,12 @@ export async function redeemRewardWithDeps(
           },
           staff,
         ),
-      }).catch(() => {});
+      }).catch((err) =>
+        logger.warn(
+          { err, redemptionId: replay.id },
+          "Audit log write failed (reward.redeem.replay)",
+        ),
+      );
       logger.info(
         {
           businessId: staff.business_id,
@@ -308,18 +324,18 @@ export async function redeemRewardWithDeps(
       });
     }
     await assertNoPendingCheckout(client, { business: lockedBusiness ?? business, customerId });
-    if (!reward || !reward.active) throw notFound("Reward not available");
+    if (!reward || !reward.active) throw notFound("La recompensa no está disponible");
     if (reward.business_id !== staff.business_id)
-      throw forbidden("Reward belongs to different business");
+      throw forbidden("La recompensa pertenece a otro negocio");
     if (reward.valid_until && new Date(reward.valid_until) < new Date()) {
-      throw badRequest("Reward expired");
+      throw badRequest("La recompensa venció");
     }
 
     const scopedBranches =
       reward.protected_branch_ids ?? (await deps.RewardRepo.listBranchIds(rewardId));
     if (scopedBranches.length > 0) {
       if (!staff.branch_id || !scopedBranches.includes(String(staff.branch_id))) {
-        throw forbidden("Reward not available at this branch");
+        throw forbidden("La recompensa no está disponible en esta sucursal");
       }
     }
 
@@ -330,7 +346,7 @@ export async function redeemRewardWithDeps(
        FOR SHARE`,
       [customerId, staff.business_id],
     );
-    if (!customerResult.rows.length) throw notFound("Customer not found");
+    if (!customerResult.rows.length) throw notFound("Cliente no encontrado");
     if ((lockedBusiness ?? business).program_json?.pos_inventory_checks === true) {
       await assertRewardInventory(client, {
         businessId: staff.business_id,
@@ -350,7 +366,7 @@ export async function redeemRewardWithDeps(
         [staff.business_id, customerId, redemptionTimezone],
       );
       if (Number(daily.rows?.[0]?.c ?? 0) >= maxRedemptionsPerDay) {
-        throw conflict(`Daily redemption limit reached (${maxRedemptionsPerDay}/day)`);
+        throw conflict(`Se alcanzó el límite diario de canjes (${maxRedemptionsPerDay} por día)`);
       }
     }
 
@@ -367,7 +383,9 @@ export async function redeemRewardWithDeps(
         [staff.business_id, customerId, rewardId, redemptionTimezone],
       );
       if (Number(daily.rows?.[0]?.c ?? 0) >= maxRewardRedemptionsPerDay) {
-        throw conflict(`Daily limit reached for this reward (${maxRewardRedemptionsPerDay}/day)`);
+        throw conflict(
+          `Se alcanzó el límite diario de esta recompensa (${maxRewardRedemptionsPerDay} por día)`,
+        );
       }
     }
 
@@ -389,7 +407,9 @@ export async function redeemRewardWithDeps(
         const sinceHours = (Date.now() - last.getTime()) / (1000 * 60 * 60);
         if (sinceHours < rewardCooldownHours) {
           const wait = Math.ceil(rewardCooldownHours - sinceHours);
-          throw conflict(`Reward cooldown active. Try again in ~${wait}h.`);
+          throw conflict(
+            `Esta recompensa tiene un tiempo de espera entre canjes. Intenta de nuevo en ~${wait} h.`,
+          );
         }
       }
     }
@@ -403,7 +423,7 @@ export async function redeemRewardWithDeps(
        RETURNING points`,
       [customerId, cost],
     );
-    if (balanceUpdate.rowCount !== 1) throw conflict("Insufficient points");
+    if (balanceUpdate.rowCount !== 1) throw conflict("Puntos insuficientes");
 
     if (reward.stock !== null && reward.stock !== undefined) {
       const stockUpdate = await client.query(
@@ -412,7 +432,7 @@ export async function redeemRewardWithDeps(
          RETURNING stock`,
         [rewardId],
       );
-      if (stockUpdate.rowCount !== 1) throw conflict("Reward out of stock");
+      if (stockUpdate.rowCount !== 1) throw conflict("La recompensa no tiene existencias");
     }
 
     const redemptionId = id();
@@ -450,7 +470,7 @@ export async function redeemRewardWithDeps(
               replayAfterConflict.customer_id !== customerId ||
               replayAfterConflict.reward_id !== rewardId
             ) {
-              throw conflict("requestId already used for a different redemption");
+              throw conflict("Este requestId ya se usó para otro canje");
             }
             return {
               redemptionCode: replayAfterConflict.code,
@@ -519,7 +539,12 @@ export async function redeemRewardWithDeps(
         points_cost: out.pointsCost,
         code: out.redemptionCode,
       })
-      .catch(() => {});
+      .catch((err) =>
+        logger.warn(
+          { err, redemptionId: out.redemptionId },
+          "Webhook enqueue failed (reward.redeemed)",
+        ),
+      );
 
     await AuditRepo.log({
       id: id(),
@@ -540,7 +565,12 @@ export async function redeemRewardWithDeps(
         },
         staff,
       ),
-    }).catch(() => {});
+    }).catch((err) =>
+      logger.warn(
+        { err, redemptionId: out.redemptionId },
+        "Audit log write failed (reward.redeem)",
+      ),
+    );
   }
 
   return {

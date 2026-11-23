@@ -275,7 +275,8 @@ export async function reconcilePosRefund(
           await client.query("ROLLBACK TO SAVEPOINT pos_refund_ledger");
           await client.query("RELEASE SAVEPOINT pos_refund_ledger");
           reason =
-            error.statusCode === 409 && /negative balance/i.test(error.message)
+            error.statusCode === 409 &&
+            /negative balance|saldo en negativo|saldos negativos/i.test(error.message)
               ? "insufficient_balance"
               : "retryable_error";
         }

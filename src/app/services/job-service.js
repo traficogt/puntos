@@ -51,15 +51,44 @@ const HANDLERS = {
 };
 
 const REDIS_QUEUE_KEY = "pf:jobs:queue";
-const REDIS_FORCE_DB = (process.env.JOB_QUEUE_FORCE_DB ?? "false") === "true";
 
 let redis = null;
-if (!REDIS_FORCE_DB && config.JOB_QUEUE_DRIVER === "redis" && config.REDIS_URL) {
-  redis = createClient({ url: config.REDIS_URL, RESP: 2 });
-  redis.connect().catch((err) => {
+let redisRequested = false;
+
+/**
+ * Resolve the Redis queue client on first use, never at import time. Returns
+ * null when the durable DB queue is in use (unset REDIS_URL, db driver, or
+ * JOB_QUEUE_FORCE_DB). A failed initial connection falls back to the DB queue
+ * for the rest of the process, as before.
+ */
+function getJobQueueRedis() {
+  if (redisRequested) return redis;
+  redisRequested = true;
+  if (config.JOB_QUEUE_FORCE_DB || config.JOB_QUEUE_DRIVER !== "redis" || !config.REDIS_URL) {
+    return null;
+  }
+  const client = createClient({ url: config.REDIS_URL, RESP: 2 });
+  // Without a listener a socket error would be thrown as an uncaught exception.
+  client.on("error", (err) => logger.warn({ err: err?.message }, "Job queue: Redis client error"));
+  redis = client;
+  client.connect().catch((err) => {
     logger.warn({ err: err?.message }, "Job queue: failed to connect to Redis, falling back to DB");
-    redis = null;
+    if (redis === client) redis = null;
   });
+  return redis;
+}
+
+/** Close the Redis queue client on shutdown (no-op when it was never created). */
+export async function closeJobQueueRedis() {
+  const client = redis;
+  redis = null;
+  if (!client) return;
+  try {
+    if (client.isOpen) await client.close();
+    else client.destroy();
+  } catch (err) {
+    logger.warn({ err: err?.message }, "Job queue: Redis client did not close cleanly");
+  }
 }
 
 function isTrackedJob(job) {
@@ -84,6 +113,7 @@ function parseRedisQueueItem(item) {
       };
     }
   } catch {
+    // Not JSON: legacy queue items were bare job ids, which stay accepted.
     if (typeof item === "string" && item) {
       return { jobId: item, legacyJob: null };
     }
@@ -112,7 +142,9 @@ async function claimQueuedJobById(jobId) {
     } catch (e) {
       try {
         await client.query("ROLLBACK");
-      } catch {}
+      } catch {
+        // Best effort: the original error below is the one worth surfacing.
+      }
       throw e;
     }
   });
@@ -153,7 +185,9 @@ async function claimNextQueuedDbJob() {
     } catch (e) {
       try {
         await client.query("ROLLBACK");
-      } catch {}
+      } catch {
+        // Best effort: the original error below is the one worth surfacing.
+      }
       throw e;
     }
   });
@@ -194,7 +228,7 @@ export async function enqueueJob({ businessId = null, jobType, payload = {}, run
   return enqueueJobWithDeps(
     {
       jobRepo: JobRepo,
-      redisClient: redis,
+      redisClient: getJobQueueRedis(),
       logger,
     },
     { businessId, jobType, payload, runAfter },
@@ -202,9 +236,10 @@ export async function enqueueJob({ businessId = null, jobType, payload = {}, run
 }
 
 async function claimNextJob() {
-  if (redis) {
+  const queue = getJobQueueRedis();
+  if (queue) {
     while (true) {
-      const item = await redis.rPop(REDIS_QUEUE_KEY);
+      const item = await queue.rPop(REDIS_QUEUE_KEY);
       if (!item) break;
       const parsed = parseRedisQueueItem(item);
       if (parsed.jobId) {
@@ -254,7 +289,9 @@ export async function processPendingJobsOnce({ limit = 10 } = {}) {
       ? setInterval(() => {
           withDbClientContext({ platformAdmin: true, tenantId: null }, (client) =>
             heartbeatJob(client, job),
-          ).catch(() => logger.warn({ jobId: job.id }, "Job heartbeat failed"));
+          ).catch((err) =>
+            logger.warn({ jobId: job.id, err: err?.message }, "Job heartbeat failed"),
+          );
         }, 30000)
       : null;
     heartbeat?.unref();
@@ -298,11 +335,12 @@ export async function processPendingJobsOnce({ limit = 10 } = {}) {
 }
 
 export async function redisHealth() {
-  if (!redis) {
+  const queue = getJobQueueRedis();
+  if (!queue) {
     return { driver: "db", queueDepth: 0, healthy: true, redis: "disabled", lastError: null };
   }
   try {
-    const depth = await redis.lLen(REDIS_QUEUE_KEY);
+    const depth = await queue.lLen(REDIS_QUEUE_KEY);
     return { driver: "redis", queueDepth: depth ?? 0, healthy: true, redis: "ok", lastError: null };
   } catch (err) {
     logger.warn({ err: err?.message }, "Job queue: redis health failed");

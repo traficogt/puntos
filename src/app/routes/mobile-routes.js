@@ -167,7 +167,7 @@ export function createMobileRoutes(overrides = {}) {
         .invalidateBrowserSessionById(req.authSession.id, "customer_missing")
         .catch(() => {});
     }
-    return res.status(404).json({ error: "Customer not found", code: "CUSTOMER_NOT_FOUND" });
+    return res.status(404).json({ error: "Cliente no encontrado", code: "CUSTOMER_NOT_FOUND" });
   }
 
   function matchesCustomer(customer, auth) {

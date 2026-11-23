@@ -9,11 +9,11 @@ const pkg = require(path.join(process.cwd(), "package.json"));
 export const DEFAULT_METRICS_CACHE_TTL_MS = 60_000;
 
 function buildSha() {
-  return String(process.env.RELEASE_SHA || process.env.GITHUB_SHA || "").trim();
+  return config.RELEASE_SHA;
 }
 
 function buildTimestamp() {
-  return String(process.env.BUILD_TIMESTAMP || process.env.GITHUB_RUN_STARTED_AT || "").trim();
+  return config.BUILD_TIMESTAMP;
 }
 
 export function hasValidMetricsToken(req) {

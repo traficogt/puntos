@@ -48,6 +48,8 @@ it("records only known completed rejection errors and never substitutes a record
     { statusCode: 404, message: "Customer not found" },
     { statusCode: 403, message: "Reward belongs to different business" },
     { statusCode: 409, message: "requestId already used for a different redemption" },
+    { statusCode: 404, message: "Cliente no encontrado" },
+    { statusCode: 409, message: "Este requestId ya se usó para otro canje" },
   ])
     assert.equal(redemptionFailureKind(error), null);
   const requestId = randomUUID(),
@@ -77,6 +79,26 @@ it("records only known completed rejection errors and never substitutes a record
     }),
     id,
   );
+});
+it("classifies the Spanish redemption messages the staff service throws today, alongside the legacy English ones", () => {
+  for (const [message, kind] of [
+    ["La recompensa no está disponible", "unavailable"],
+    ["La recompensa venció", "unavailable"],
+    ["La recompensa no tiene existencias", "unavailable"],
+    ["La recompensa no está disponible en esta sucursal", "unavailable"],
+    ["Reward not available at this branch", "unavailable"],
+    ["Puntos insuficientes", "redemption_failed"],
+    ["Se alcanzó el límite diario de canjes (3 por día)", "redemption_failed"],
+    ["Se alcanzó el límite diario de esta recompensa (1 por día)", "redemption_failed"],
+    [
+      "Esta recompensa tiene un tiempo de espera entre canjes. Intenta de nuevo en ~2 h.",
+      "redemption_failed",
+    ],
+    ["Daily redemption limit reached (3/day)", "redemption_failed"],
+    ["Reward cooldown active. Try again in ~2h.", "redemption_failed"],
+    ["Este código QR ya se usó (protección contra repetición)", null],
+  ])
+    assert.equal(redemptionFailureKind({ statusCode: 409, message }), kind, message);
 });
 it("captures a case only after redemption rollback completes and rethrows the original error", async () => {
   assert.equal(typeof staffService.redeemRewardWithRecovery, "function");

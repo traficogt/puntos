@@ -51,7 +51,7 @@ adminBranchRoutes.post(
     const limits = planLimits(business.plan);
     const count = await BusinessRepo.countBranches(req.tenantId);
     if (count >= limits.branches)
-      return res.status(403).json({ error: "Plan limit: branches exceeded" });
+      return res.status(403).json({ error: "Tu plan no permite más sucursales" });
 
     const branch = await BranchRepo.create({
       id: makeId(),

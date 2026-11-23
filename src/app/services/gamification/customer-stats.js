@@ -25,6 +25,6 @@ GROUP BY c.id, c.business_id, cb.points, cl.total_spend, cl.total_visits, vs.cur
 
 export async function getCustomerGamificationStats(customerId, query = dbQuery) {
   const { rows } = await query(CUSTOMER_STATS_SQL, [customerId]);
-  if (!rows[0]) throw notFound("Customer not found");
+  if (!rows[0]) throw notFound("Cliente no encontrado");
   return rows[0];
 }

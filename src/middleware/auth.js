@@ -10,7 +10,7 @@ import {
 import { StaffRepo } from "../app/repositories/staff-repository.js";
 import { SuperAdminAuthRepo } from "../app/repositories/super-admin-auth-repository.js";
 
-const RECENT_REAUTH_WINDOW_MS = Number(process.env.RECENT_REAUTH_WINDOW_MS || 10 * 60 * 1000);
+const RECENT_REAUTH_WINDOW_MS = config.RECENT_REAUTH_WINDOW_MS;
 
 function rejectAuth(req, res, cookieName, code = "AUTH_REQUIRED") {
   if (cookieName) {

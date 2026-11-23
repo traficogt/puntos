@@ -43,7 +43,7 @@ function rejectMissingCustomer(req, res) {
     void invalidateBrowserSessionById(req.authSession.id, "customer_missing").catch(() => {});
   }
   res.clearCookie(config.CUSTOMER_COOKIE_NAME, { path: "/" });
-  res.status(404).json({ error: "Customer not found", code: "CUSTOMER_NOT_FOUND" });
+  res.status(404).json({ error: "Cliente no encontrado", code: "CUSTOMER_NOT_FOUND" });
 }
 
 customerRoutes.get(
@@ -52,7 +52,9 @@ customerRoutes.get(
   tenantContext,
   asyncRoute(async (req, res) => {
     if (!req.tenantId)
-      return res.status(400).json({ error: "Tenant context missing", code: "TENANT_REQUIRED" });
+      return res
+        .status(400)
+        .json({ error: "Contexto de negocio requerido", code: "TENANT_REQUIRED" });
     const auth = req.customerAuth;
     if (config.NODE_ENV !== "test") {
       await settlePendingPointsForCustomer(auth.id, auth.business_id).catch((err) => {

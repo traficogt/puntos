@@ -46,11 +46,15 @@ async function getOwnedTier(tierId, businessId, action) {
   const tier = await TierRepository.getById(tierId);
 
   if (!tier) {
-    throw notFound("Tier not found");
+    throw notFound("Nivel no encontrado");
   }
 
   if (tier.business_id !== businessId) {
-    throw forbidden(`Not authorized to ${action} this tier`);
+    throw forbidden(
+      action === "delete"
+        ? "No puedes eliminar un nivel de otro negocio"
+        : "No puedes editar un nivel de otro negocio",
+    );
   }
 
   return tier;
@@ -59,7 +63,7 @@ async function getOwnedTier(tierId, businessId, action) {
 async function ensureUniqueTierLevel(businessId, tierLevel) {
   const existingTiers = await TierRepository.listByBusiness(businessId);
   if (existingTiers.some((tier) => tier.tier_level === tierLevel)) {
-    throw badRequest(`Tier level ${tierLevel} already exists`);
+    throw badRequest(`Ya existe un nivel ${tierLevel}`);
   }
 }
 
@@ -143,7 +147,7 @@ async function checkTierProgression(customerId) {
     const customer = customerRows[0];
 
     if (!customer) {
-      throw notFound("Customer not found");
+      throw notFound("Cliente no encontrado");
     }
 
     const currentTierLevel = customer.tier_level || 0;
@@ -206,7 +210,9 @@ async function deleteTier(tierId, businessId) {
   await getOwnedTier(tierId, businessId, "delete");
 
   if (await countCustomersInTier(tierId)) {
-    throw badRequest("Cannot delete tier with active customers. Deactivate it instead.");
+    throw badRequest(
+      "No se puede eliminar un nivel con clientes activos. Desactívalo en su lugar.",
+    );
   }
 
   await TierRepository.delete(tierId);

@@ -106,7 +106,12 @@ staffRoutes.post(
       // requireStaff above still returns 401 for a missing or invalid session.
       if (
         error.statusCode === 401 &&
-        ["Invalid credentials", "Invalid MFA code"].includes(error.message)
+        [
+          "Credenciales inválidas",
+          "Código MFA inválido",
+          "Invalid credentials",
+          "Invalid MFA code",
+        ].includes(error.message)
       ) {
         return res.status(400).json({
           error:
@@ -230,7 +235,7 @@ staffRoutes.get(
   tenantContext,
   asyncRoute(async (req, res) => {
     const business = await BusinessRepo.getById(req.tenantId);
-    if (!business) return res.status(404).json({ error: "Business not found" });
+    if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
     res.json({
       ok: true,
       region: businessRegion(business),

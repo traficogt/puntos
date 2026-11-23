@@ -265,7 +265,7 @@ export async function refundAwardTransactionWithClient(
   const replay = await findExistingRefundByRequestId(client, staff.business_id, requestId);
   if (replay) {
     if (replay.original_transaction_id !== transactionId) {
-      throw conflict("requestId already used for a different refund");
+      throw conflict("Este requestId ya se usó para otro reembolso");
     }
     await AuditRepo.log({
       id: id(),
@@ -283,7 +283,9 @@ export async function refundAwardTransactionWithClient(
         },
         staff,
       ),
-    }).catch(() => {});
+    }).catch((err) =>
+      logger.warn({ err, transactionId }, "Audit log write failed (award.refund.replay)"),
+    );
     return {
       ok: true,
       transactionId,
@@ -305,12 +307,12 @@ export async function refundAwardTransactionWithClient(
     [transactionId],
   );
   const tx = rows[0];
-  if (!tx) throw notFound("Transaction not found");
+  if (!tx) throw notFound("Transacción no encontrada");
   if (tx.business_id !== staff.business_id)
-    throw forbidden("Transaction belongs to different business");
-  if (tx.source === "reversal") throw conflict("Cannot reverse a reversal transaction");
+    throw forbidden("La transacción pertenece a otro negocio");
+  if (tx.source === "reversal") throw conflict("No se puede revertir una reversión");
   if (tx.status === "REVERSED" || tx.reversed_transaction_id)
-    throw conflict("Transaction already reversed");
+    throw conflict("La transacción ya fue revertida");
   // Service restoration and legacy refunds both hold this original debit's
   // FOR UPDATE lock. Check after acquiring it so a concurrent restoration
   // cannot commit a credit between this check and the refund balance update.
@@ -326,7 +328,7 @@ export async function refundAwardTransactionWithClient(
          LIMIT 1`,
       [tx.business_id, tx.customer_id, tx.meta.redemption_id],
     );
-    if (restored.rowCount) throw conflict("Transaction already reversed");
+    if (restored.rowCount) throw conflict("La transacción ya fue revertida");
   }
   const businessResult = await client.query(
     `SELECT program_json, program_type FROM businesses WHERE id = $1`,
@@ -363,7 +365,7 @@ export async function refundAwardTransactionWithClient(
     );
     const currentPoints = Number(bal.rows?.[0]?.points ?? 0);
     if (!allowNegative && currentPoints + pointsEffect < 0) {
-      throw conflict("Refund would create negative balance");
+      throw conflict("El reembolso dejaría el saldo en negativo");
     }
     await client.query(
       `UPDATE customer_balances
@@ -427,7 +429,7 @@ export async function refundAwardTransactionWithClient(
   const newBalance = Number(newBal.rows?.[0]?.points ?? 0);
   const newPendingBalance = Number(newBal.rows?.[0]?.pending_points ?? 0);
   if (!allowNegative && newBalance < 0) {
-    throw conflict("Refund policy forbids negative balances");
+    throw conflict("La política de reembolsos no permite saldos negativos");
   }
 
   await AuditRepo.log({
@@ -450,7 +452,7 @@ export async function refundAwardTransactionWithClient(
       },
       staff,
     ),
-  }).catch(() => {});
+  }).catch((err) => logger.warn({ err, transactionId }, "Audit log write failed (award.refund)"));
 
   logger.info(
     {

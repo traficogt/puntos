@@ -24,9 +24,9 @@ test("positive reward flows update lifetime_points alongside current points", ()
   assert.match(referrals, /lifetime_points = lifetime_points \+ GREATEST\(\$1, 0\)/);
 });
 
-test("worker schedules ledger reconciliation and observability exports its metrics", () => {
+test("the job registry schedules ledger reconciliation and observability exports its metrics", () => {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const worker = fs.readFileSync(new URL("../../src/app/worker.js", import.meta.url), "utf8");
+  const worker = fs.readFileSync(new URL("../../src/app/scheduler.js", import.meta.url), "utf8");
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const observabilityRouter = fs.readFileSync(
     new URL("../../src/app/routes/observability-router.js", import.meta.url),

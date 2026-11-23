@@ -69,9 +69,9 @@ export async function verifyToken(token) {
 export function browserCookieMaxAge(actorType) {
   const normalized = String(actorType || "").toUpperCase();
   if (normalized === "SUPER") {
-    return Number(process.env.SUPER_SESSION_ABSOLUTE_MS || 4 * 60 * 60 * 1000);
+    return config.SUPER_SESSION_ABSOLUTE_MS;
   }
-  return Number(process.env.APP_SESSION_ABSOLUTE_MS || 8 * 60 * 60 * 1000);
+  return config.APP_SESSION_ABSOLUTE_MS;
 }
 
 function requestIsHttps(req) {

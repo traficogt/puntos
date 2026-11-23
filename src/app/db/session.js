@@ -91,6 +91,7 @@ export async function withDbClientContext(ctx, fn) {
   }
 
   const client = await pool.connect();
+  let destroy = false;
   try {
     return await run(client);
   } finally {
@@ -98,7 +99,11 @@ export async function withDbClientContext(ctx, fn) {
       await client.query(
         "SELECT set_config('app.current_tenant', '', false), set_config('app.platform_admin', '', false), set_config('app.webhook_ingest', '', false)",
       );
-    } catch {}
-    client.release();
+    } catch {
+      // Session settings could not be cleared (typically a dead connection):
+      // discard the client rather than hand its context to another caller.
+      destroy = true;
+    }
+    client.release(destroy);
   }
 }

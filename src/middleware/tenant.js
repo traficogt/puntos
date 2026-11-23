@@ -5,7 +5,9 @@ export function tenantContext(req, res, next) {
   const bizId = req.staff?.business_id || req.customerAuth?.business_id;
   if (!bizId) {
     if (config.ENFORCE_TENANT_CONTEXT) {
-      return res.status(400).json({ error: "Tenant context missing", code: "TENANT_REQUIRED" });
+      return res
+        .status(400)
+        .json({ error: "Contexto de negocio requerido", code: "TENANT_REQUIRED" });
     }
     return next();
   }

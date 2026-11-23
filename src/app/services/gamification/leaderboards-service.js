@@ -14,7 +14,7 @@ export async function getCustomerPosition(customerId, leaderboardType = "points"
   const { rows: customerData } = await dbQuery(`SELECT business_id FROM customers WHERE id = $1`, [
     customerId,
   ]);
-  if (!customerData[0]) throw notFound("Customer not found");
+  if (!customerData[0]) throw notFound("Cliente no encontrado");
 
   const { business_id: businessId } = customerData[0];
   if (leaderboardType === "points") {

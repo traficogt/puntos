@@ -100,7 +100,7 @@ export const ExternalAwardsSchema = z.object({
 export async function getBusinessOr404(res, tenantId) {
   const business = await BusinessRepo.getById(tenantId);
   if (!business) {
-    res.status(404).json({ error: "Business not found" });
+    res.status(404).json({ error: "Negocio no encontrado" });
     return null;
   }
   return business;

@@ -17,7 +17,7 @@ adminPlanRoutes.get(
   tenantContext,
   asyncRoute(async (req, res) => {
     const business = await BusinessRepo.getById(req.tenantId);
-    if (!business) return res.status(404).json({ error: "Business not found" });
+    if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
     const limits = planLimits(business.plan);
     const overrides = await PlanConfigService.getPlanFeatureOverrides().catch(() => ({}));
     const features = planFeaturesWithOverrides(business.plan, overrides);

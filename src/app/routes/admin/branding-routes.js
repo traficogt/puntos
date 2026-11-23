@@ -35,7 +35,7 @@ export function createAdminBrandingRoutes({
     asyncRoute(async (req, res) => {
       const business = await getBusiness(req.tenantId);
       res.set("Cache-Control", "private, no-store");
-      if (!business) return res.status(404).json({ error: "Business not found" });
+      if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
       return res.json({
         ok: true,
         business: { id: business.id, name: business.name, slug: business.slug },
@@ -50,7 +50,7 @@ export function createAdminBrandingRoutes({
     asyncRoute(async (req, res) => {
       const business = await getBusiness(req.tenantId);
       res.set("Cache-Control", "private, no-store");
-      if (!business) return res.status(404).json({ error: "Business not found" });
+      if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
       const svg = await QRCode.toString(registrationUrl(business), {
         type: "svg",
         errorCorrectionLevel: "M",
@@ -71,7 +71,7 @@ export function createAdminBrandingRoutes({
     tenantContext,
     asyncRoute(async (req, res) => {
       const business = await getBusiness(req.tenantId);
-      if (!business) return res.status(404).json({ error: "Business not found" });
+      if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
       /** @type {AdminBrandingResponse} */
       const response = {
         ok: true,
@@ -89,7 +89,7 @@ export function createAdminBrandingRoutes({
     tenantContext,
     asyncRoute(async (req, res) => {
       const business = await getBusiness(req.tenantId);
-      if (!business) return res.status(404).json({ error: "Business not found" });
+      if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
       const parsed = validate(businessCustomerBrandingSchema, req.body);
       if (!parsed.ok) return res.status(400).json({ error: parsed.error });
       if (

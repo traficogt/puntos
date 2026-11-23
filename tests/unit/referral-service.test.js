@@ -226,7 +226,7 @@ describe("applyReferralCode", () => {
           "cust-2",
           "b1",
         ),
-      /already been referred/i,
+      /ya fue referido/i,
     );
   });
 });

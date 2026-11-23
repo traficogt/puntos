@@ -44,3 +44,13 @@ test("a discount program accrues no points and still emits valid evidence", () =
   assert.equal(result.evidence.program_points, 0);
   assert.equal(result.evidence.base_points, 0);
 });
+
+test("memberDiscount: exact centavo math where float rounding misses (4.10 at 15% off = 0.62)", () => {
+  const off = (amount_q, percent_off) =>
+    memberDiscount({ program_type: "DISCOUNT", program_json: { percent_off } }, { amount_q })
+      .discount_q;
+  assert.equal(off(4.1, 15), 0.62); // Math.round(((4.1 * 15) / 100) * 100) / 100 === 0.61
+  assert.equal(off(33.3, 15), 5);
+  assert.equal(off(1.15, 10), 0.12);
+  assert.equal(off("99.90", 10), 9.99);
+});

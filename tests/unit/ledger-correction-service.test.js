@@ -100,7 +100,7 @@ describe("ledger correction service", () => {
         correctionId: "corr-1",
         resolvedByStaffId: "owner-1",
       }),
-      /different owner/i,
+      /otro dueño/i,
     );
     assert.equal(client.adjusted, false);
 

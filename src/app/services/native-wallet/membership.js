@@ -45,7 +45,7 @@ export async function resolveNativeWalletMembership(
     customer.deleted_at ||
     pass.customer_deleted_at
   )
-    throw notFound("Customer not found");
+    throw notFound("Cliente no encontrado");
   return {
     bid: pass.business_id,
     cid: pass.customer_id,

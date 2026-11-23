@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { asyncRoute } from "../../../middleware/common.js";
+import { logger } from "../../../utils/logger.js";
 import { validate } from "../../../utils/validation.js";
 import { csrfProtect } from "../../../middleware/csrf.js";
 import { requireOwner, requireRecentReauth, requireStaff } from "../../../middleware/auth.js";
@@ -69,7 +70,7 @@ adminStaffRoutes.post(
     }
 
     const existing = await StaffRepo.getByEmail(v.data.email);
-    if (existing) return res.status(409).json({ error: "Email already used" });
+    if (existing) return res.status(409).json({ error: "Este correo ya está en uso" });
 
     assertPasswordAllowed(v.data.password, {
       email: v.data.email,
@@ -186,7 +187,12 @@ adminStaffRoutes.patch(
         actorType: "STAFF",
         actorId: target.id,
         reason: "staff_security_change",
-      }).catch(() => {});
+      }).catch((err) =>
+        logger.warn(
+          { err, staffId: target.id },
+          "Browser session invalidation failed after staff security change",
+        ),
+      );
     }
 
     const updated = await StaffRepo.getById(req.params.id);

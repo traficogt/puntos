@@ -6,6 +6,16 @@ import { withTransaction } from "../database.js";
 import { badRequest, conflict, forbidden } from "../../utils/http-error.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
+import {
+  compare,
+  fromMinor,
+  isPositive,
+  isZero,
+  sub,
+  sum,
+  toMinor,
+  toNumber,
+} from "../../utils/money.js";
 
 function makeCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -29,6 +39,9 @@ async function assertGiftCardAccess(staff, { create = false } = {}) {
   return actor;
 }
 
+// Client-supplied amount: must be a positive finite number. Returned as the
+// number the regional decimal-scale check expects; the ledger math below works
+// on integer centavos (toMinor) once that check has passed.
 function validateMoney(v) {
   const n = Number(v);
   if (!Number.isFinite(n) || n <= 0) throw badRequest("Monto inválido");
@@ -95,8 +108,10 @@ function hydrateGiftCardSnapshot(existing) {
     qr_token: existing.qr_token,
     issued_to_name: meta.issued_to_name ?? existing.issued_to_name ?? null,
     issued_to_phone: meta.issued_to_phone ?? existing.issued_to_phone ?? null,
-    initial_amount_q: Number(meta.initial_amount_q ?? existing.initial_amount_q ?? 0),
-    balance_q: Number(meta.balance_after_q ?? existing.balance_after_q ?? existing.balance_q ?? 0),
+    initial_amount_q: toNumber(toMinor(meta.initial_amount_q ?? existing.initial_amount_q ?? 0)),
+    balance_q: toNumber(
+      toMinor(meta.balance_after_q ?? existing.balance_after_q ?? existing.balance_q ?? 0),
+    ),
     status: String(meta.status_after ?? existing.status ?? "ACTIVE"),
     expires_at: meta.expires_at ?? existing.expires_at ?? null,
     created_by: existing.created_by ?? null,
@@ -142,6 +157,7 @@ export async function createGiftCardWithDeps(
     }
 
     const region = await validateRegionalMoney(client, actor.business_id, amount);
+    const amountMinor = toMinor(amount);
     let card = null;
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const id = crypto.randomUUID();
@@ -162,8 +178,8 @@ export async function createGiftCardWithDeps(
             qr_token,
             issued_to_name ?? null,
             issued_to_phone ?? null,
-            amount,
-            amount,
+            fromMinor(amountMinor),
+            fromMinor(amountMinor),
             "ACTIVE",
             expires_at ?? null,
             actor.id,
@@ -217,14 +233,16 @@ export async function createGiftCardWithDeps(
         actor.id,
         requestId,
         "ISSUE",
-        amount,
-        amount,
+        fromMinor(amountMinor),
+        fromMinor(amountMinor),
         {
           currency: region.currency,
           issued_to_name: card.issued_to_name,
           issued_to_phone: card.issued_to_phone,
-          initial_amount_q: Number(card.initial_amount_q || amount),
-          balance_after_q: amount,
+          initial_amount_q: toNumber(
+            card.initial_amount_q == null ? amountMinor : toMinor(card.initial_amount_q),
+          ),
+          balance_after_q: toNumber(amountMinor),
           status_after: "ACTIVE",
           expires_at: card.expires_at ?? null,
         },
@@ -245,7 +263,7 @@ export async function createGiftCardWithDeps(
             gift_card_id: card.id,
             gift_card_tx_id: txId,
             request_id: requestId ?? null,
-            amount_q: amount,
+            amount_q: toNumber(amountMinor),
             currency: region.currency,
             code: card.code,
           },
@@ -296,6 +314,7 @@ export async function redeemGiftCardWithDeps(
     }
 
     const region = await validateRegionalMoney(client, actor.business_id, amount);
+    const amountMinor = toMinor(amount);
     const lock = await client.query(
       `SELECT * FROM gift_cards WHERE business_id = $1 AND (code = $2 OR qr_token = $2) FOR UPDATE`,
       [actor.business_id, code_or_token],
@@ -305,15 +324,16 @@ export async function redeemGiftCardWithDeps(
     if (card.status !== "ACTIVE") throw badRequest("Gift card no está activa");
     if (card.expires_at && new Date(card.expires_at).getTime() < Date.now())
       throw badRequest("Gift card vencida");
-    const current = Number(card.balance_q || 0);
-    if (amount > current) throw badRequest("Saldo insuficiente en la gift card");
+    // Exact centavo arithmetic on the NUMERIC string pg returns for balance_q.
+    const current = toMinor(card.balance_q);
+    if (compare(amountMinor, current) > 0) throw badRequest("Saldo insuficiente en la gift card");
 
-    const nextBalance = Number((current - amount).toFixed(2));
-    const nextStatus = nextBalance <= 0 ? "EXHAUSTED" : "ACTIVE";
+    const nextBalance = sub(current, amountMinor);
+    const nextStatus = isPositive(nextBalance) ? "ACTIVE" : "EXHAUSTED";
 
     await client.query(
       `UPDATE gift_cards SET balance_q = $2, status = $3, updated_at = now() WHERE id = $1`,
-      [card.id, nextBalance, nextStatus],
+      [card.id, fromMinor(nextBalance), nextStatus],
     );
     const txId = crypto.randomUUID();
     await client.query(
@@ -327,16 +347,16 @@ export async function redeemGiftCardWithDeps(
         actor.id,
         requestId,
         "REDEEM",
-        amount,
-        nextBalance,
+        fromMinor(amountMinor),
+        fromMinor(nextBalance),
         {
           currency: region.currency,
           note: note ?? null,
-          balance_after_q: nextBalance,
+          balance_after_q: toNumber(nextBalance),
           status_after: nextStatus,
           code: card.code,
           qr_token: card.qr_token,
-          initial_amount_q: Number(card.initial_amount_q || 0),
+          initial_amount_q: toNumber(toMinor(card.initial_amount_q)),
           issued_to_name: card.issued_to_name ?? null,
           issued_to_phone: card.issued_to_phone ?? null,
           expires_at: card.expires_at ?? null,
@@ -358,7 +378,7 @@ export async function redeemGiftCardWithDeps(
             gift_card_id: card.id,
             gift_card_tx_id: txId,
             request_id: requestId ?? null,
-            amount_q: amount,
+            amount_q: toNumber(amountMinor),
             currency: region.currency,
             code: card.code,
           },
@@ -366,7 +386,12 @@ export async function redeemGiftCardWithDeps(
         ),
       })
       .catch(() => {});
-    return { ...card, balance_q: nextBalance, status: nextStatus, currency: region.currency };
+    return {
+      ...card,
+      balance_q: toNumber(nextBalance),
+      status: nextStatus,
+      currency: region.currency,
+    };
   });
 }
 
@@ -404,25 +429,27 @@ export async function giftCardLedgerDetailsWithDeps(deps, { staff, code_or_token
   if (!card) throw badRequest("Gift card no encontrada");
 
   const transactions = await deps.GiftCardRepo.listTxByCard(card.id, 100);
-  const issueTotal = transactions
-    .filter((tx) => tx.tx_type === "ISSUE")
-    .reduce((sum, tx) => sum + Number(tx.amount_q || 0), 0);
-  const redeemTotal = transactions
-    .filter((tx) => tx.tx_type === "REDEEM")
-    .reduce((sum, tx) => sum + Number(tx.amount_q || 0), 0);
-  const expectedBalance = Number((issueTotal - redeemTotal).toFixed(2));
-  const storedBalance = Number(Number(card.balance_q || 0).toFixed(2));
-  const delta = Number((expectedBalance - storedBalance).toFixed(2));
+  // Exact centavo sums over the NUMERIC strings pg returns; a mismatch is any
+  // non-zero delta rather than a float comparison with a tolerance.
+  const issueTotal = sum(
+    transactions.filter((tx) => tx.tx_type === "ISSUE").map((tx) => toMinor(tx.amount_q)),
+  );
+  const redeemTotal = sum(
+    transactions.filter((tx) => tx.tx_type === "REDEEM").map((tx) => toMinor(tx.amount_q)),
+  );
+  const expectedBalance = sub(issueTotal, redeemTotal);
+  const storedBalance = toMinor(card.balance_q);
+  const delta = sub(expectedBalance, storedBalance);
 
   return {
     card,
     ledger: {
-      stored_balance_q: storedBalance,
-      expected_balance_q: expectedBalance,
-      issue_total_q: Number(issueTotal.toFixed(2)),
-      redeem_total_q: Number(redeemTotal.toFixed(2)),
-      delta_q: delta,
-      mismatch: Math.abs(delta) > 0.00001,
+      stored_balance_q: toNumber(storedBalance),
+      expected_balance_q: toNumber(expectedBalance),
+      issue_total_q: toNumber(issueTotal),
+      redeem_total_q: toNumber(redeemTotal),
+      delta_q: toNumber(delta),
+      mismatch: !isZero(delta),
     },
     transactions,
   };

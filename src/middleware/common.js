@@ -1,6 +1,8 @@
 import { config } from "../config/index.js";
 import { randomUUID } from "node:crypto";
+import { ZodError } from "zod";
 import { safeLogUrl } from "../utils/logger.js";
+import { inferErrorCode as inferCodeFromMessage, isApiErrorCode } from "../utils/http-error.js";
 
 export function asyncRoute(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -20,10 +22,23 @@ export function notFound(req, res) {
 
 // eslint-disable-next-line no-unused-vars
 export function errorHandler(err, req, res, next) {
-  const status = err?.statusCode ?? err?.status ?? 500;
   const requestId = req.id || req.headers["x-request-id"] || randomUUID();
+  let status = err?.statusCode ?? err?.status ?? 500;
   let msg = err?.message ?? "Error interno del servidor";
   let code = inferErrorCode(err, status);
+  /** @type {Array<{ field: string; message: string }> | null} */
+  let details = null;
+
+  if (err instanceof ZodError) {
+    // A schema that rejected inside a handler is a client error, not a crash.
+    status = 400;
+    msg = "Revisa los datos enviados.";
+    code = "VALIDATION_ERROR";
+    details = err.issues.map((issue) => ({
+      field: issue.path.join("."),
+      message: issue.message,
+    }));
+  }
 
   if (err?.type === "entity.parse.failed") {
     msg = "JSON invalido";
@@ -66,44 +81,18 @@ export function errorHandler(err, req, res, next) {
     error: msg,
     code,
     request_id: requestId,
+    ...(details ? { details } : {}),
     ...(recoveryCaseId ? { recoveryCaseId } : {}),
   });
 }
 
+/**
+ * An explicit, well-formed API code on the error wins (HttpError always carries
+ * one). Errors without a usable code fall back to the legacy message/status
+ * inference so existing paths keep their historical codes. Internal codes such
+ * as SQLSTATE values or Node system codes are never echoed.
+ */
 function inferErrorCode(err, status) {
-  if (typeof err?.code === "string" && err.code.trim()) return err.code.trim();
-  const msg = String(err?.message || "").toLowerCase();
-  if (
-    msg.includes("not authenticated") ||
-    msg.includes("no autenticado") ||
-    msg.includes("invalid token") ||
-    msg.includes("token invalido")
-  ) {
-    return "AUTH_REQUIRED";
-  }
-  if (
-    msg.includes("forbidden") ||
-    msg.includes("insufficient permission") ||
-    msg.includes("insufficient role")
-  ) {
-    return "FORBIDDEN";
-  }
-  if (
-    msg.includes("validation failed") ||
-    msg.includes("zod") ||
-    msg.includes("invalid") ||
-    msg.includes("bad request")
-  ) {
-    return "VALIDATION_ERROR";
-  }
-  if (msg.includes("not found") || msg.includes("no encontrado")) return "NOT_FOUND";
-  if (msg.includes("feature") && msg.includes("plan")) return "PLAN_FEATURE_LOCKED";
-  if (status === 401) return "AUTH_REQUIRED";
-  if (status === 403) return "FORBIDDEN";
-  if (status === 404) return "NOT_FOUND";
-  if (status === 409) return "CONFLICT";
-  if (status === 429) return "RATE_LIMITED";
-  if (status === 400) return "BAD_REQUEST";
-  if (status >= 500) return "INTERNAL_ERROR";
-  return "UNEXPECTED_ERROR";
+  if (isApiErrorCode(err?.code)) return err.code.trim();
+  return inferCodeFromMessage(err?.message, status);
 }

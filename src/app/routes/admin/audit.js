@@ -208,7 +208,7 @@ adminAuditRoutes.get(
   tenantContext,
   asyncRoute(async (req, res) => {
     const detail = await getAuditEventDetail(req.tenantId, String(req.params.id || ""));
-    if (!detail) return res.status(404).json({ error: "Audit event not found" });
+    if (!detail) return res.status(404).json({ error: "Evento de auditoría no encontrado" });
     return res.json({ ok: true, ...detail });
   }),
 );

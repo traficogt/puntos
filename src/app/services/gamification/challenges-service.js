@@ -23,7 +23,7 @@ async function sourceTransactionIsActive(sourceTransactionId, query = dbQuery) {
 
 async function getCustomerBusinessId(customerId, query = dbQuery) {
   const { rows } = await query(`SELECT business_id FROM customers WHERE id = $1`, [customerId]);
-  if (!rows[0]) throw notFound("Customer not found");
+  if (!rows[0]) throw notFound("Cliente no encontrado");
   return rows[0].business_id;
 }
 

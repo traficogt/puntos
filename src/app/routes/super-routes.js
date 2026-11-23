@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { config } from "../../config/index.js";
+import { logger } from "../../utils/logger.js";
 import {
   browserCookieMaxAge,
   signStaffToken,
@@ -119,7 +120,7 @@ superRoutes.post(
         ip: getRequestIp(req),
         actor_type: "SUPER_ADMIN",
         meta: { email: payload.email.toLowerCase() },
-      }).catch(() => {});
+      }).catch((err) => logger.warn({ err }, "Security event write failed (super_login_failed)"));
       return res.status(401).json({ error: "Credenciales inválidas" });
     }
     const mfaResult = await verifySuperMfaForLogin(payload.mfaCode);

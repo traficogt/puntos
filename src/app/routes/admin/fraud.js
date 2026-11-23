@@ -28,7 +28,7 @@ adminFraudRoutes.get(
     if (branchId) {
       const branch = await BranchRepo.getById(branchId);
       if (!branch || branch.business_id !== req.tenantId) {
-        return res.status(400).json({ error: "Invalid branch_id" });
+        return res.status(400).json({ error: "branch_id no válido" });
       }
     }
     const params = [req.tenantId, limit];

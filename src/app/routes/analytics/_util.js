@@ -9,7 +9,7 @@ export async function resolveBranchFilter(req, res) {
   if (!branchId) return null;
   const branch = await BranchRepo.getById(branchId);
   if (!branch || branch.business_id !== req.tenantId) {
-    res.status(400).json({ error: "Invalid branch_id" });
+    res.status(400).json({ error: "branch_id no válido" });
     return "__invalid__";
   }
   return branchId;

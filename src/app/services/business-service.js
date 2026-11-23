@@ -52,7 +52,7 @@ export async function createBusinessWithOwner({
   plan: providedPlan = undefined,
 }) {
   const slugBase = providedSlug || slugify(businessName);
-  if (!slugBase) throw badRequest("Invalid business name");
+  if (!slugBase) throw badRequest("Nombre de negocio no válido", "VALIDATION_ERROR");
   let slug = slugBase;
 
   const businessId = id();
@@ -146,8 +146,9 @@ export async function createBusinessWithOwner({
       const isEmailConflict =
         isUnique && (constraint.includes("email") || msg.toLowerCase().includes("email"));
 
-      if (isEmailConflict) throw conflict("Email already registered");
-      if (providedSlug && isSlugConflict) throw conflict("Slug already in use");
+      if (isEmailConflict) throw conflict("Este correo ya está registrado");
+      if (providedSlug && isSlugConflict)
+        throw conflict("Este identificador (slug) ya está en uso");
       if (isSlugConflict) continue;
       throw err;
     }

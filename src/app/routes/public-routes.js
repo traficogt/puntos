@@ -73,7 +73,7 @@ const ContactSchema = z.object({
 
 function rejectMissingCustomer(req, res) {
   res.clearCookie(config.CUSTOMER_COOKIE_NAME, { path: "/" });
-  return res.status(404).json({ error: "Customer not found", code: "CUSTOMER_NOT_FOUND" });
+  return res.status(404).json({ error: "Cliente no encontrado", code: "CUSTOMER_NOT_FOUND" });
 }
 
 function sanitizeCustomerBrandingForPublic(customerBrandingJson) {
@@ -93,7 +93,7 @@ async function lookupMagicLinkRecord(rawToken) {
 
 async function withMagicLinkDbContext(task) {
   try {
-    if (process.env.NODE_ENV === "test") {
+    if (config.NODE_ENV === "test") {
       return task();
     }
     return withDbClientContext({ platformAdmin: true, tenantId: null }, task);
@@ -444,7 +444,7 @@ publicRoutes.post(
     // Enforce provided slug uniqueness; service will adjust if necessary.
     const existingSlug = await BusinessRepo.getPublicBySlug(v.data.slug);
     if (existingSlug) {
-      return res.status(409).json({ error: "Slug already in use" });
+      return res.status(409).json({ error: "Este identificador (slug) ya está en uso" });
     }
 
     const { business } = await createBusinessWithOwner({

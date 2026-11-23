@@ -107,7 +107,7 @@ gamificationAdminRoutes.delete(
       req.params.id,
       req.tenantId,
     );
-    if (!deleted) return res.status(404).json({ error: "Not found" });
+    if (!deleted) return res.status(404).json({ error: "No encontrado" });
     res.json({ ok: true });
   }),
 );
@@ -175,7 +175,7 @@ gamificationAdminRoutes.put(
       req.tenantId,
       updates,
     );
-    if (!challenge) return res.status(404).json({ error: "Not found" });
+    if (!challenge) return res.status(404).json({ error: "No encontrado" });
     res.json({ ok: true, challenge });
   }),
 );
@@ -190,7 +190,7 @@ gamificationAdminRoutes.delete(
   asyncRoute(async (req, res) => {
     const GamificationRepository = await loadGamificationRepository();
     const deleted = await GamificationRepository.deleteChallengeScoped(req.params.id, req.tenantId);
-    if (!deleted) return res.status(404).json({ error: "Not found" });
+    if (!deleted) return res.status(404).json({ error: "No encontrado" });
     res.json({ ok: true });
   }),
 );
@@ -204,7 +204,7 @@ gamificationAdminRoutes.get(
   asyncRoute(async (req, res) => {
     const leaderboardType = normalizeLeaderboardType(req.params.type);
     if (!leaderboardType) {
-      return res.status(400).json({ error: "Invalid leaderboard type" });
+      return res.status(400).json({ error: "Tipo de tabla de posiciones no válido" });
     }
 
     const { timeframe, limit } = req.validatedQuery;

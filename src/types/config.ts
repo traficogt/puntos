@@ -17,6 +17,8 @@ export interface AppConfig {
   DB_PASSWORD: string;
   DB_MIGRATIONS_USER: string;
   DB_MIGRATIONS_PASSWORD: string;
+  DB_POOL_MAX: number;
+  DB_TX_POOL_MAX: number;
 
   JWT_SECRET: string;
 
@@ -61,6 +63,7 @@ export interface AppConfig {
   CONTACT_TO: string;
   CONTACT_FROM: string;
   CONTACT_TURNSTILE_SECRET: string;
+  CONTACT_TURNSTILE_SITE_KEY: string;
   SMS_GATEWAY_URL: string;
   SMS_GATEWAY_TOKEN: string;
 
@@ -69,6 +72,7 @@ export interface AppConfig {
   RATE_LIMIT_DRIVER: string;
   REDIS_URL: string;
   JOB_QUEUE_DRIVER: string;
+  JOB_QUEUE_FORCE_DB: boolean;
 
   CHURN_DAYS: number;
   CHURN_SEND_HOUR_LOCAL: number;
@@ -76,6 +80,9 @@ export interface AppConfig {
   LEDGER_RECONCILE_HOUR_LOCAL: number;
   LEDGER_RECONCILE_LIMIT: number;
   LEDGER_RECONCILE_REPAIR: boolean;
+  /** Read live from the environment; assignment writes through to it. */
+  LEDGER_CERTIFICATION_OUTPUT_ROOT: string;
+  LEDGER_CERTIFICATION_RETENTION_DAYS: number;
 
   WEBHOOK_TIMEOUT_MS: number;
   WEBHOOK_CONCURRENCY: number;
@@ -94,6 +101,16 @@ export interface AppConfig {
 
   JOB_WORKER_INTERVAL_MS: number;
   JOB_WORKER_BATCH_SIZE: number;
+  IN_PROCESS_WORKERS: boolean;
+
+  APP_SESSION_IDLE_MS: number;
+  APP_SESSION_ABSOLUTE_MS: number;
+  SUPER_SESSION_IDLE_MS: number;
+  SUPER_SESSION_ABSOLUTE_MS: number;
+  RECENT_REAUTH_WINDOW_MS: number;
+
+  RELEASE_SHA: string;
+  BUILD_TIMESTAMP: string;
 
   DEFAULT_PLAN: string;
   ENFORCE_TENANT_CONTEXT: boolean;

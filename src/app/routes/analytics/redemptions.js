@@ -19,7 +19,7 @@ analyticsRedemptionRoutes.get(
 
     const reward = rewardRows[0];
     if (!reward) {
-      return res.status(404).json({ error: "Reward not found" });
+      return res.status(404).json({ error: "Recompensa no encontrada" });
     }
 
     const { rows: recentRedemptions } = await dbQuery(
@@ -105,7 +105,7 @@ analyticsRedemptionRoutes.get(
 
     const redemption = rows[0];
     if (!redemption) {
-      return res.status(404).json({ error: "Redemption not found" });
+      return res.status(404).json({ error: "Canje no encontrado" });
     }
 
     const { rows: transactionRows } = await dbQuery(

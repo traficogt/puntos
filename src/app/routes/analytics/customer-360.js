@@ -44,7 +44,7 @@ analyticsCustomerRoutes.get(
     );
 
     if (!rows[0]) {
-      return res.status(404).json({ error: "Customer not found" });
+      return res.status(404).json({ error: "Cliente no encontrado" });
     }
 
     const customer = rows[0];
@@ -147,7 +147,7 @@ analyticsCustomerRoutes.get(
     );
 
     if (!rows[0]) {
-      return res.status(404).json({ error: "Customer not found" });
+      return res.status(404).json({ error: "Cliente no encontrado" });
     }
 
     const balanceRow = rows[0];
