@@ -1,9 +1,20 @@
 import { Router } from "express";
+import { z } from "zod";
 import { requireStaff, requireOwner } from "../../middleware/auth.js";
 import { tenantContext } from "../../middleware/tenant.js";
 import { csrfProtect } from "../../middleware/csrf.js";
 import { asyncRoute } from "../../middleware/common.js";
+import { validateRequest } from "../../utils/schemas.js";
 import * as services from "../services/pos-checkout-config.js";
+// Structural shape only; normalizeCheckoutSource in the service applies the strict
+// schema (UUID formats, ranges, unknown keys) and keeps its specific messages.
+const checkoutSourceShape = z.looseObject({
+  source: z.string(),
+  branchId: z.string().nullable(),
+  staffId: z.string(),
+  enabled: z.boolean(),
+  version: z.number(),
+});
 export function createPosCheckoutRoutes(deps = {}) {
   const router = Router(),
     s = { ...services, ...deps },
@@ -30,10 +41,11 @@ export function createPosCheckoutRoutes(deps = {}) {
   router.put(
     base,
     csrfProtect,
+    validateRequest(checkoutSourceShape),
     asyncRoute(async (req, res) => {
       if (Object.keys(req.query).length)
         return res.status(400).json({ error: "No se admiten filtros." });
-      res.json(await s.configureCheckoutSource({ ...actor(req), input: req.body }));
+      res.json(await s.configureCheckoutSource({ ...actor(req), input: req.validated }));
     }),
   );
   return router;

@@ -6,6 +6,7 @@ import { PlanConfigService } from "./plan-config-service.js";
 import { hasPlanFeature } from "../../utils/plan.js";
 import { badRequest, forbidden, notFound } from "../../utils/http-error.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
+import { mul, toMinor, toNumber } from "../../utils/money.js";
 import { readinessForBusiness } from "./merchant-data-readiness.js";
 import { businessRegion, regionalLocalDate, assertRegionAmount } from "./regional-settings.js";
 import { genuinePurchase } from "./second-visit-eligibility.js";
@@ -170,7 +171,7 @@ export function recommendSecondVisit(business, rewards = [], costPerPoint = null
     cost_per_point: known ? cost : null,
     cost_state: known ? "configured_estimate" : "unknown",
     maximum_points_commitment: maximum,
-    estimated_cost: known ? Math.round(maximum * cost * 100) / 100 : null,
+    estimated_cost: known ? toNumber(mul(toMinor(maximum), cost)) : null,
   };
 }
 export async function getSecondVisitControls({ businessId, now = new Date() }, injected = {}) {

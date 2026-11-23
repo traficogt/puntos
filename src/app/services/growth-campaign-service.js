@@ -10,6 +10,7 @@ import { validateCampaignPreflight } from "./campaign-preflight-service.js";
 import { snapshotCustomerAudience } from "./customer-audience-service.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 import { badRequest, conflict, forbidden, notFound } from "../../utils/http-error.js";
+import { hasMaxScale } from "../../utils/money.js";
 
 export function publicGrowthCampaign(row) {
   return {
@@ -116,7 +117,7 @@ export function validateCampaignTerms({
     !Number.isFinite(minimumPurchaseQ) ||
     minimumPurchaseQ < 0 ||
     minimumPurchaseQ > 999999.99 ||
-    Math.abs(minimumPurchaseQ * 100 - Math.round(minimumPurchaseQ * 100)) > 0.00001
+    !hasMaxScale(minimumPurchaseQ, 2)
   )
     throw badRequest("Revisa el nombre, los puntos y la compra mínima.");
   if (

@@ -10,7 +10,12 @@ import { RewardRepo } from "../../repositories/reward-repository.js";
 import { BusinessRepo } from "../../repositories/business-repository.js";
 import { planLimits } from "../../../utils/plan.js";
 import { dbQuery } from "../../database.js";
-import { rewardCreateSchema, rewardUpdateSchema } from "../../../utils/schemas.js";
+import {
+  rewardCreateSchema,
+  rewardUpdateSchema,
+  uuidParamsSchema,
+  validateParams,
+} from "../../../utils/schemas.js";
 import { makeId } from "./_util.js";
 
 export const adminRewardsRoutes = Router();
@@ -94,6 +99,7 @@ adminRewardsRoutes.patch(
   csrfProtect,
   rateLimitByUser(100, 60_000),
   requirePlanFeature("rewards"),
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
     const v = validate(rewardUpdateSchema, req.body);
     if (!v.ok) return res.status(400).json({ error: v.error });
@@ -115,14 +121,14 @@ adminRewardsRoutes.patch(
       delete patch.branch_ids;
     }
 
-    const reward = await RewardRepo.getById(req.params.id);
+    const reward = await RewardRepo.getById(req.validatedParams.id);
     if (!reward || reward.business_id !== req.tenantId)
       return res.status(404).json({ error: "No encontrado" });
 
     if (scopedBranchIds !== undefined) {
-      await RewardRepo.setBranches(req.params.id, scopedBranchIds);
+      await RewardRepo.setBranches(req.validatedParams.id, scopedBranchIds);
     }
-    const updated = await RewardRepo.update(req.params.id, patch);
+    const updated = await RewardRepo.update(req.validatedParams.id, patch);
     return res.json({ ok: true, reward: updated });
   }),
 );

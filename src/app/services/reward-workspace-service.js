@@ -4,6 +4,7 @@ import { z } from "zod";
 import { withTransaction } from "../database.js";
 import { badRequest, conflict, forbidden, notFound } from "../../utils/http-error.js";
 import { planFeaturesWithOverrides, planLimits } from "../../utils/plan.js";
+import { hasMaxScale } from "../../utils/money.js";
 import { PlanConfigService } from "./plan-config-service.js";
 import { businessRegion, assertRegionAmount } from "./regional-settings.js";
 import {
@@ -31,7 +32,7 @@ const cost = z
   .finite()
   .min(0)
   .max(1000000)
-  .refine((value) => Math.abs(value * 100 - Math.round(value * 100)) < 0.000001)
+  .refine((value) => hasMaxScale(value, 2))
   .nullable();
 const mappingSchema = z
   .object({

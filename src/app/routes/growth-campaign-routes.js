@@ -17,6 +17,7 @@ import {
 } from "../services/campaign-collision-service.js";
 import { Router } from "express";
 import { z } from "zod";
+import { hasMaxScale } from "../../utils/money.js";
 import { requireStaff, requireOwner, requireCustomer } from "../../middleware/auth.js";
 import { tenantContext } from "../../middleware/tenant.js";
 import { requirePlanFeature } from "../../middleware/plan-feature.js";
@@ -58,7 +59,7 @@ const Money = z
   .finite()
   .min(0)
   .max(999999.99)
-  .refine((value) => Math.abs(value * 100 - Math.round(value * 100)) <= 0.00001);
+  .refine((value) => hasMaxScale(value, 2));
 const CreateBody = z
   .object({
     request_id: uuid,

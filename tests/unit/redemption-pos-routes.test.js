@@ -362,6 +362,37 @@ it("mapping payloads enforce bounded references, precision, strict identities an
   );
   assert.equal(transactions.length, 1);
 });
+it("rejects structurally malformed manual and mapping payloads with field details before the service runs", async () => {
+  const manualOut = await request(`${admin}/${redemptionId}`, {
+    method: "POST",
+    body: { ...manual, version: "0", attested: "true" },
+  });
+  assert.equal(manualOut.status, 400);
+  assert.equal(manualOut.body.code, "VALIDATION_ERROR");
+  assert.equal(manualOut.body.error, "Revisa los datos enviados.");
+  assert.deepEqual(manualOut.body.details.map((detail) => detail.field).sort(), [
+    "attested",
+    "version",
+  ]);
+  const mappingOut = await request(`${mappings}/${rewardId}`, {
+    method: "PUT",
+    body: { ...mapping, quantity: "1", itemKind: "inventory" },
+  });
+  assert.equal(mappingOut.status, 400);
+  assert.equal(mappingOut.body.code, "VALIDATION_ERROR");
+  assert.deepEqual(mappingOut.body.details.map((detail) => detail.field).sort(), [
+    "itemKind",
+    "quantity",
+  ]);
+  assert.equal(calls.length, 0);
+  assert.equal(transactions.length, 0);
+  // Well-formed payloads still reach the service with every key intact.
+  assert.equal(
+    (await request(`${admin}/${redemptionId}`, { method: "POST", body: manual })).status,
+    200,
+  );
+  assert.deepEqual(calls.at(-1).input.input, manual);
+});
 it("does not expose deletes or bypass mutations on list endpoints", async () => {
   for (const operation of [
     { path: admin, method: "POST", body: manual },

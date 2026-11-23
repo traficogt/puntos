@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { dbQuery, getDbTenantId } from "../database.js";
 import { badRequest, notFound } from "../../utils/http-error.js";
+import { mul, toMinor, toNumber } from "../../utils/money.js";
 import { businessRegion } from "./regional-settings.js";
 import { activityAttributionSql } from "./activity-attribution.js";
 
@@ -96,7 +97,9 @@ export async function getRewardExposure({ businessId, branchId = null, now = new
       ...row.points,
       scope: "business",
       cost_per_point_q: cost,
-      scenario_cost_q: cost === null ? null : Math.round(row.points.outstanding * cost * 100) / 100,
+      // points × numeric(20,6) cost, exact, rounded once to the centavo
+      scenario_cost_q:
+        cost === null ? null : toNumber(mul(toMinor(row.points.outstanding), row.cost_per_point_q)),
     },
     completed: {
       ...row.completed,

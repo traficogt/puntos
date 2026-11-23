@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { hasMaxScale } from "../../utils/money.js";
 export const MeasurementPlanInput = z
   .object({
     version: z.literal(1).optional(),
@@ -14,7 +15,7 @@ const amount = z
   .finite()
   .min(0)
   .max(999999999.99)
-  .refine((v) => Math.abs(v * 100 - Math.round(v * 100)) < 0.00001)
+  .refine((v) => hasMaxScale(v, 2))
   .nullable()
   .default(null);
 export const MeasurementCostInput = z

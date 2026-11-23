@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncRoute } from "../../../middleware/common.js";
 import { validate } from "../../../utils/validation.js";
-import { validateQuery } from "../../../utils/schemas.js";
+import { uuidParamsSchema, validateParams, validateQuery } from "../../../utils/schemas.js";
 import { csrfProtect } from "../../../middleware/csrf.js";
 import { requireOwner } from "../../../middleware/auth.js";
 import { AnalyticsRepository } from "../../repositories/analytics-repository.js";
@@ -55,13 +55,14 @@ analyticsSegmentRoutes.post(
 
 analyticsSegmentRoutes.get(
   "/admin/analytics/segments/:id",
+  validateParams(uuidParamsSchema),
   validateQuery(SegmentCustomersQuerySchema),
   asyncRoute(async (req, res) => {
     const { limit, offset } = req.validatedQuery;
 
     const customers = await AnalyticsRepository.getSegmentCustomers(
       req.tenantId,
-      req.params.id,
+      req.validatedParams.id,
       limit,
       offset,
     );

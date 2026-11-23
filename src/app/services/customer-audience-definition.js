@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { badRequest } from "../../utils/http-error.js";
+import { hasMaxScale } from "../../utils/money.js";
 
 const NumericRule = z
   .object({
@@ -15,9 +16,7 @@ const NumericRule = z
   })
   .strict()
   .refine((rule) =>
-    rule.field === "spend_q"
-      ? Math.abs(rule.value * 100 - Math.round(rule.value * 100)) <= 0.00001
-      : Number.isInteger(rule.value),
+    rule.field === "spend_q" ? hasMaxScale(rule.value, 2) : Number.isInteger(rule.value),
   );
 const BooleanRule = z
   .object({

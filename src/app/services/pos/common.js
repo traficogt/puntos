@@ -4,6 +4,7 @@ import { badRequest, forbidden, unauthorized } from "../../../utils/http-error.j
 import { normalizePhone } from "../../../utils/phone.js";
 import { timingSafeEqualString } from "../../../utils/timing-safe.js";
 import { isLedgerAmount, isLedgerInteger } from "../../../utils/ledger-limits.js";
+import { toMinor, toNumber } from "../../../utils/money.js";
 import { normalizePurchaseOccurredAt } from "../purchase-event-time.js";
 
 export function normalizePosSale(input, business = {}) {
@@ -41,7 +42,7 @@ export function normalizePosSale(input, business = {}) {
     saleId: saleId.trim(),
     source: source.trim(),
     customerPhone,
-    amountQ: Math.round(amountQ * 100) / 100,
+    amountQ: toNumber(toMinor(amountQ)),
     currency: region.currency,
     visits: 1,
     items,

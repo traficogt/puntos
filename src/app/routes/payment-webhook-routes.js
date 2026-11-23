@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { asyncRoute } from "../../middleware/common.js";
-import { validateQuery } from "../../utils/schemas.js";
+import { uuidParamsSchema, validateParams, validateQuery } from "../../utils/schemas.js";
 import { requireStaff, requireStaffRoles } from "../../middleware/auth.js";
 import { csrfProtect } from "../../middleware/csrf.js";
 import { moderateRateLimit } from "../../middleware/rate-limit.js";
@@ -26,13 +26,17 @@ export const PaymentWebhookListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 
+// Only the route parameter is checked here: the provider name selects the shared
+// secret, so the service normalizes it first anyway. The payload itself is read
+// strictly after the signature has been verified inside processPaymentWebhook.
+const WebhookProviderParamsSchema = z.object({ provider: z.string().trim().min(1) });
+
 paymentWebhookRoutes.post(
   "/public/payments/webhook/:provider",
   moderateRateLimit,
+  validateParams(WebhookProviderParamsSchema),
   asyncRoute(async (req, res) => {
-    const provider = String(req.params.provider || "")
-      .trim()
-      .toLowerCase();
+    const provider = req.validatedParams.provider.toLowerCase();
     const secretHeader = String(req.headers["x-webhook-secret"] || "");
     const signatureHeader = String(
       req.headers["x-signature"] || req.headers["x-provider-signature"] || "",
@@ -98,13 +102,14 @@ paymentWebhookRoutes.post(
   requireStaff,
   tenantContext,
   requireStaffRoles("OWNER", "MANAGER"),
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
     const v = validate(ResolveSchema, req.body);
     if (!v.ok) return res.status(400).json({ error: v.error });
 
     const out = await resolvePaymentWebhookEventForBusiness({
       businessId: req.tenantId,
-      eventId: req.params.id,
+      eventId: req.validatedParams.id,
       customerId: v.data.customerId,
       customerPhone: v.data.customerPhone,
     });

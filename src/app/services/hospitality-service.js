@@ -2,6 +2,7 @@ import { businessRegion, assertRegionAmount } from "./regional-settings.js";
 import { randomUUID } from "node:crypto";
 import { withTransaction } from "../database.js";
 import { badRequest, conflict, forbidden, notFound } from "../../utils/http-error.js";
+import { hasMaxScale } from "../../utils/money.js";
 import {
   fingerprint,
   requestIdentity,
@@ -14,7 +15,7 @@ const money = (value) =>
   Number.isFinite(value) &&
   value >= 0 &&
   value <= 1000000 &&
-  Math.abs(value * 100 - Math.round(value * 100)) < 0.000001;
+  hasMaxScale(value, 2);
 export async function createHospitalityGrant(options, injected = {}) {
   const {
     businessId,

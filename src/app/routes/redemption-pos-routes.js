@@ -5,10 +5,33 @@ import { Permission } from "../../utils/permissions.js";
 import { tenantContext } from "../../middleware/tenant.js";
 import { csrfProtect } from "../../middleware/csrf.js";
 import { asyncRoute } from "../../middleware/common.js";
+import { validateRequest } from "../../utils/schemas.js";
 import * as services from "../services/redemption-pos-service.js";
 import * as mappingServices from "../services/reward-pos-mapping-service.js";
 const uuid = z.guid(),
   empty = z.object({}).strict();
+// Structural shapes only (required keys, primitive types). The services apply
+// the strict schemas from redemption-pos-model.js, including unknown-key
+// rejection, which is why unknown keys pass through here.
+const manualFulfillmentShape = z.looseObject({
+  requestId: z.string(),
+  version: z.number(),
+  action: z.enum(["recorded", "not_required", "review", "reviewed"]),
+  receiptRef: z.string().optional(),
+  reason: z.string(),
+  attested: z.boolean(),
+});
+const rewardPosMappingShape = z.looseObject({
+  source: z.string(),
+  branchId: z.string().nullable(),
+  productRef: z.string(),
+  itemName: z.string(),
+  itemKind: z.enum(["product", "service"]),
+  quantity: z.number(),
+  enabled: z.boolean(),
+  inventoryRequired: z.boolean().optional(),
+  version: z.number(),
+});
 const query = z
   .object({
     status: z
@@ -70,6 +93,7 @@ export function createRedemptionPosRoutes(deps = {}) {
     router.post(
       `${base}/:redemptionId`,
       csrfProtect,
+      validateRequest(manualFulfillmentShape),
       asyncRoute(async (req, res) => {
         if (!uuid.safeParse(req.params.redemptionId).success || !empty.safeParse(req.query).success)
           return invalid(res);
@@ -77,7 +101,7 @@ export function createRedemptionPosRoutes(deps = {}) {
           await s.recordManualFulfillment({
             ...actor(req),
             redemptionId: req.params.redemptionId.toLowerCase(),
-            input: req.body,
+            input: req.validated,
           }),
         );
       }),
@@ -104,6 +128,7 @@ export function createRedemptionPosRoutes(deps = {}) {
   router.put(
     `${base}/:rewardId`,
     csrfProtect,
+    validateRequest(rewardPosMappingShape),
     asyncRoute(async (req, res) => {
       if (!uuid.safeParse(req.params.rewardId).success || !empty.safeParse(req.query).success)
         return invalid(res);
@@ -112,7 +137,7 @@ export function createRedemptionPosRoutes(deps = {}) {
           businessId: req.tenantId,
           staff: req.staff,
           rewardId: req.params.rewardId.toLowerCase(),
-          input: req.body,
+          input: req.validated,
         }),
       );
     }),

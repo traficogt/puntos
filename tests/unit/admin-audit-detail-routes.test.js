@@ -99,15 +99,33 @@ async function runRoute(routePath, req) {
   return res;
 }
 
+const AUDIT_ID = "11111111-1111-4111-8111-111111111111";
+
 describe("admin audit detail route", () => {
+  it("rejects a non-UUID audit event id before querying", () => {
+    const layer = adminAuditRoutes.stack.find((entry) => entry.route?.path === "/admin/audit/:id");
+    const validateParams = layer.route.stack.find((entry) => entry.name === "validateParams");
+    assert.ok(validateParams, "Expected a validateParams layer");
+    const res = /** @type {any} */ (makeRes());
+    let nextCalled = false;
+    validateParams.handle(/** @type {any} */ ({ params: { id: "audit-1" } }), res, () => {
+      nextCalled = true;
+    });
+    assert.equal(nextCalled, false);
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.body.code, "VALIDATION_ERROR");
+    assert.equal(res.body.details[0].field, "id");
+  });
+
   it("returns linked operational context for an audit event", async () => {
     const res = await runRoute("/admin/audit/:id", {
       method: "GET",
-      path: "/admin/audit/audit-1",
-      url: "/admin/audit/audit-1",
-      originalUrl: "/admin/audit/audit-1",
+      path: `/admin/audit/${AUDIT_ID}`,
+      url: `/admin/audit/${AUDIT_ID}`,
+      originalUrl: `/admin/audit/${AUDIT_ID}`,
       tenantId: "biz-1",
-      params: { id: "audit-1" },
+      validatedParams: { id: AUDIT_ID },
+      params: { id: AUDIT_ID },
     });
 
     assert.equal(res.statusCode, 200);

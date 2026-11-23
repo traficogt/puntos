@@ -283,6 +283,23 @@ test("authorized owner calls use the session tenant and respect configured plan 
   assert.equal(calls.length, ADMIN_ENDPOINTS.length);
 });
 
+test("owner CSV uploads reject a malformed envelope with field details before the service runs", async (t) => {
+  const { deps, calls } = adminDeps(t);
+  await withServer(createAdminPosRoutes(deps), async (request) => {
+    for (const path of ["/admin/pos/csv/preview", "/admin/pos/csv/import"]) {
+      const response = await request("POST", path, { body: { csv: 42, columns: "saleId" } });
+      assert.equal(response.status, 400, path);
+      assert.equal(response.body.code, "VALIDATION_ERROR");
+      assert.equal(response.body.error, "Revisa los datos enviados.");
+      assert.deepEqual(response.body.details.map((detail) => detail.field).sort(), [
+        "columns",
+        "csv",
+      ]);
+    }
+  });
+  assert.deepEqual(calls, []);
+});
+
 test("owner service validation errors flow through the shared error handler", async (t) => {
   const { deps } = adminDeps(t);
   deps.configurePosIntegration = async () => {
@@ -423,13 +440,66 @@ test("public POS checks plan feature overrides for the resolved business", async
   }
 });
 
+test("public POS rejects a malformed sale envelope with field details only after authenticating", async () => {
+  const { deps, calls } = publicDeps();
+  await withServer(createPosRoutes(deps), async (request) => {
+    const anonymous = await request("POST", "/public/pos/cafe-gt/sales", {
+      body: { ...SALE, amountQ: "25" },
+      csrf: false,
+    });
+    assert.equal(anonymous.status, 401);
+    assert.equal(anonymous.body.details, undefined);
+    const response = await request("POST", "/public/pos/cafe-gt/sales", {
+      body: { ...SALE, amountQ: "25", status: "refunded" },
+      csrf: false,
+      headers: { authorization: "Bearer route-test-pos-key" },
+    });
+    assert.equal(response.status, 400);
+    assert.equal(response.body.code, "VALIDATION_ERROR");
+    assert.equal(response.body.error, "Revisa los datos enviados.");
+    assert.deepEqual(response.body.details.map((detail) => detail.field).sort(), [
+      "amountQ",
+      "status",
+    ]);
+    // Optional fields the service treats as absent keep passing the envelope check.
+    const tolerant = await request("POST", "/public/pos/cafe-gt/sales", {
+      body: { ...SALE, source: null, items: null, occurredAt: null, extra: "ignored" },
+      csrf: false,
+      headers: { authorization: "Bearer route-test-pos-key" },
+    });
+    assert.equal(tolerant.status, 200);
+  });
+  assert.equal(calls.filter(([name]) => name === "ingest").length, 1);
+});
+
+const REDEMPTION_ID = "11111111-1111-4111-8111-111111111111";
+const REDEMPTION_BODIES = {
+  lookup: { source: "test", code: "ABCDEF12" },
+  mappings: { source: "test" },
+  events: {
+    eventId: "line:1:recorded",
+    redemptionId: REDEMPTION_ID,
+    source: "test",
+    orderId: "order:1",
+    lineId: "line:1",
+    productRef: "product:1",
+    quantity: 1,
+    currency: "GTQ",
+    mappingId: REDEMPTION_ID,
+    mappingVersion: 1,
+    kind: "recorded",
+    stockStatus: "pending",
+    lineTotal: 0,
+  },
+};
+
 for (const [path, handler] of [
   ["lookup", "lookupPosRedemption"],
   ["mappings", "getPosRewardMappings"],
   ["events", "recordPosFulfillmentEvent"],
 ])
   test(`redemption ${path} requires HMAC, tenant and appropriate recovery gates`, async () => {
-    const body = { source: "test" },
+    const body = REDEMPTION_BODIES[path],
       signature = crypto
         .createHmac("sha256", "route-test-pos-key")
         .update(JSON.stringify(body))

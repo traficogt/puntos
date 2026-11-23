@@ -1,13 +1,15 @@
 import { Router } from "express";
 import { asyncRoute } from "../../../middleware/common.js";
+import { uuidParamsSchema, validateParams } from "../../../utils/schemas.js";
 import { dbQuery } from "../../database.js";
 
 export const analyticsRedemptionRoutes = Router();
 
 analyticsRedemptionRoutes.get(
   "/admin/analytics/rewards/:id/redemptions",
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
-    const rewardId = String(req.params.id || "");
+    const rewardId = req.validatedParams.id;
 
     const { rows: rewardRows } = await dbQuery(
       `SELECT id, business_id, name, description, points_cost, active, stock
@@ -75,8 +77,9 @@ analyticsRedemptionRoutes.get(
 
 analyticsRedemptionRoutes.get(
   "/admin/analytics/redemptions/:id",
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
-    const redemptionId = String(req.params.id || "");
+    const redemptionId = req.validatedParams.id;
 
     const { rows } = await dbQuery(
       `SELECT

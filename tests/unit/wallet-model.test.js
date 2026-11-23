@@ -33,6 +33,19 @@ test("loadBonus: percent of the amount, rounded to cents, never negative", () =>
   assert.equal(loadBonus(7.5, 33), 2.48); // 2.475 -> 2.48
   assert.equal(loadBonus(10, -5), 0);
   assert.equal(loadBonus(-10, 100), 0);
+  assert.equal(loadBonus(10, NaN), 0);
+  assert.equal(loadBonus(10, Infinity), 0);
+  assert.equal(loadBonus(10, "100.00"), 10);
+});
+
+test("loadBonus: same exact centavo arithmetic as the gift-card ledger", () => {
+  // Ties that Math.round(amount * percent) / 100 lands below: 0.29 * 50% = 0.145.
+  assert.equal(Math.round(0.29 * 50) / 100, 0.14);
+  assert.equal(loadBonus(50, 0.29), 0.15);
+  assert.equal(loadBonus(25, 0.58), 0.15); // 0.145 -> 0.15
+  assert.equal(loadBonus(5, 19.99), 1); // 0.9995 -> 1.00
+  assert.equal(loadBonus(100, 19.99), 19.99);
+  assert.equal(loadBonus(150, 10), 10); // percent clamps at 100
 });
 
 test("walletProgram: describes CASHBACK and GIFT_CARD, null otherwise", () => {

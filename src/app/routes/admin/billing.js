@@ -6,6 +6,7 @@ import { validateQuery } from "../../../utils/schemas.js";
 import { requireOwner, requireStaff } from "../../../middleware/auth.js";
 import { tenantContext } from "../../../middleware/tenant.js";
 import { toCSV } from "../../../utils/csv.js";
+import { div, fromMinor, sub, toMinor } from "../../../utils/money.js";
 import { dbQuery } from "../../database.js";
 import { BillingRepo } from "../../repositories/billing-repository.js";
 
@@ -56,15 +57,18 @@ adminBillingRoutes.get(
     );
 
     const csvRows = rows.map((r) => {
-      const gross = Number(r.monto_bruto_q || 0);
-      const net = gross / 1.12;
-      const iva = gross - net;
+      // Prices include the 12% IVA: the taxable base is bruto / 1.12 rounded once
+      // to the centavo and the tax is the remainder, so the three columns of
+      // every row add up exactly.
+      const gross = toMinor(r.monto_bruto_q);
+      const net = div(gross, "1.12");
+      const iva = sub(gross, net);
       return {
         fecha: r.fecha,
         transacciones: Number(r.transacciones || 0),
-        monto_bruto_q: gross.toFixed(2),
-        base_sin_iva_q: net.toFixed(2),
-        iva_12_q: iva.toFixed(2),
+        monto_bruto_q: fromMinor(gross),
+        base_sin_iva_q: fromMinor(net),
+        iva_12_q: fromMinor(iva),
       };
     });
 

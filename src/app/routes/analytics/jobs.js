@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { asyncRoute } from "../../../middleware/common.js";
-import { validateQuery } from "../../../utils/schemas.js";
+import { uuidParamsSchema, validateParams, validateQuery } from "../../../utils/schemas.js";
 import { requireOwner } from "../../../middleware/auth.js";
 import { csrfProtect } from "../../../middleware/csrf.js";
 import { enqueueJob } from "../../services/job-service.js";
@@ -30,8 +30,9 @@ analyticsJobRoutes.post(
 analyticsJobRoutes.get(
   "/admin/jobs/:id",
   requireOwner,
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
-    const job = await JobRepo.getById(String(req.params.id));
+    const job = await JobRepo.getById(req.validatedParams.id);
     if (!job || job.business_id !== req.tenantId) {
       return res.status(404).json({ error: "Tarea no encontrada" });
     }

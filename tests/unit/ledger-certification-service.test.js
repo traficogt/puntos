@@ -287,4 +287,59 @@ describe("ledger certification service", () => {
     });
     assert.match(csv, /TOTAL,,10,5,0,0,0,50.00,10.00,0,OK,0,0,0/);
   });
+
+  it("totals gift-card NUMERIC strings in whole centavos, free of float drift", async () => {
+    const days = ["0.10", "0.20", "0.30", "19.99", "0.01", "0.07"];
+    const report = await readLedgerCertificationReportWithDeps(
+      {
+        dbQuery: async (sql) => {
+          const text = String(sql);
+          if (text.includes("FROM businesses"))
+            return { rows: [{ id: "biz-4", name: "Cafe Exacto", slug: "cafe-exacto" }] };
+          if (text.includes("WITH days AS"))
+            return {
+              rows: days.map((amount, index) => ({
+                day: `2026-03-0${index + 1}`,
+                points_issued: 0,
+                points_redeemed: 0,
+                points_reversed: 0,
+                points_expired: 0,
+                adjustment_points: 0,
+                gift_cards_issued_q: amount,
+                gift_cards_redeemed_q: "0.10",
+                replay_events: 0,
+              })),
+            };
+          return { rows: [] };
+        },
+      },
+      "biz-4",
+      "2026-03-01",
+      "2026-03-06",
+    );
+    // Float accumulation of these strings is 20.669999999999998 / 0.6000000000000001.
+    assert.equal(report.summary.gift_cards_issued_q, 20.67);
+    assert.equal(report.summary.gift_cards_redeemed_q, 0.6);
+    assert.equal(report.summary.points_issued, 0);
+    assert.equal(report.certification_status, "OK");
+    assert.deepEqual(
+      Object.keys(report.summary).slice(0, 8),
+      [
+        "points_issued",
+        "points_redeemed",
+        "points_reversed",
+        "points_expired",
+        "adjustment_points",
+        "gift_cards_issued_q",
+        "gift_cards_redeemed_q",
+        "replay_events",
+      ],
+      "JSON shape of the summary is unchanged",
+    );
+    assert.equal(report.daily_rows[3].gift_cards_issued_q, 19.99);
+    const csv = ledgerCertificationCsv(report);
+    assert.match(csv, /^row_type,date,/);
+    assert.match(csv, /TOTAL,,0,0,0,0,0,20\.67,0\.60,0,OK,/m);
+    assert.match(csv, /DAY,2026-03-04,0,0,0,0,0,19\.99,0\.10,0,/m);
+  });
 });

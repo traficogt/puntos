@@ -1,4 +1,6 @@
 // PostgreSQL ledger columns use INT for points/counts and NUMERIC(10,2) for money.
+import { hasMaxScale } from "./money.js";
+
 export const MAX_LEDGER_INTEGER = 2147483647;
 export const MAX_LEDGER_AMOUNT_Q = 99999999.99;
 
@@ -19,6 +21,6 @@ export function isLedgerAmount(value) {
     Number.isFinite(value) &&
     value >= 0 &&
     value <= MAX_LEDGER_AMOUNT_Q &&
-    Math.abs(value * 100 - Math.round(value * 100)) <= 0.00001
+    hasMaxScale(value, 2)
   );
 }

@@ -6,8 +6,10 @@ import {
   add,
   assertMoney,
   compare,
+  div,
   eq,
   fromMinor,
+  hasMaxScale,
   isMoney,
   isNegative,
   isPositive,
@@ -300,6 +302,72 @@ test("pct takes a percentage of minor units exactly (cashback, discount, load bo
   assert.equal(pct(0, 15), 0);
   assert.throws(() => pct(12.5, 10), TypeError);
   assert.throws(() => pct(100, "ten"), TypeError);
+});
+
+test("div divides minor units by a decimal divisor exactly, then rounds once", () => {
+  // IVA-inclusive prices: 59.97 / 1.12 = 53.5446... -> 53.54
+  assert.equal(div(5997, "1.12"), 5354);
+  assert.equal(div(5997, 1.12), 5354);
+  assert.equal(div(11200, "1.12"), 10000);
+  assert.equal(div(1000, 3), 333);
+  assert.equal(div(2000, 3), 667); // 6.666... -> 6.67
+  assert.equal(div(-2000, 3), -667); // half away from zero
+  assert.equal(div(2000, -3), -667);
+  assert.equal(div(1, 2), 1); // 0.005 -> 0.01
+  assert.equal(div(1, 2, { rounding: "half-even" }), 0);
+  assert.equal(div(1, 2, { rounding: "down" }), 0);
+  assert.equal(div(1234, 1), 1234);
+  assert.equal(div(1234, "0.5"), 2468);
+  assert.equal(div(0, 7), 0);
+  // Exact ties that binary floats get wrong: 0.42 / 1.12 is exactly 0.375.
+  assert.equal((0.42 / 1.12).toFixed(2), "0.37");
+  assert.equal(div(42, "1.12"), 38);
+  assert.throws(() => div(100, 0), RangeError);
+  assert.throws(() => div(100, "0.00"), RangeError);
+  assert.throws(() => div(1.5, 2), TypeError);
+  assert.throws(() => div(100, "three"), TypeError);
+  assert.throws(() => div(100, 2, { rounding: "bogus" }), RangeError);
+});
+
+test("hasMaxScale checks the number of decimals exactly", () => {
+  assert.ok(hasMaxScale(12.34, 2));
+  assert.ok(hasMaxScale(12.3, 2));
+  assert.ok(hasMaxScale(12, 2));
+  assert.ok(hasMaxScale(0, 2));
+  assert.ok(hasMaxScale(-0.5, 2));
+  assert.ok(hasMaxScale(99999999.99, 2));
+  assert.ok(hasMaxScale(999999999.99, 2));
+  assert.ok(hasMaxScale("1.500", 2)); // trailing zeros do not add scale
+  assert.ok(hasMaxScale("12.34", 2));
+  assert.ok(hasMaxScale(5n, 0));
+  assert.ok(hasMaxScale(2000, 0));
+  assert.ok(hasMaxScale(1e21, 0));
+  assert.ok(hasMaxScale(0.123456, 6));
+  assert.ok(hasMaxScale(1000, 6));
+  assert.ok(!hasMaxScale(1.005, 2));
+  assert.ok(!hasMaxScale(1.001, 2));
+  assert.ok(!hasMaxScale(2000.5, 0));
+  assert.ok(!hasMaxScale(40.001, 2));
+  assert.ok(!hasMaxScale(1e-7, 6)); // String(1e-7) is "1e-7"
+  assert.ok(!hasMaxScale(0.0000001, 6));
+  assert.ok(!hasMaxScale(1.0000001, 6));
+  // The epsilon test accepted float noise; the exact one does not.
+  assert.ok(!hasMaxScale(0.1 + 0.2, 2));
+  assert.ok(!hasMaxScale(1.00000001, 2));
+  assert.ok(!hasMaxScale(99999999.985, 2));
+  // Non-numbers are simply false, never a throw.
+  assert.ok(!hasMaxScale(NaN, 2));
+  assert.ok(!hasMaxScale(Infinity, 2));
+  assert.ok(!hasMaxScale(-Infinity, 2));
+  assert.ok(!hasMaxScale(null, 2));
+  assert.ok(!hasMaxScale(undefined, 2));
+  assert.ok(!hasMaxScale("", 2));
+  assert.ok(!hasMaxScale("abc", 2));
+  assert.ok(!hasMaxScale({}, 2));
+  assert.ok(!hasMaxScale(true, 2));
+  assert.ok(hasMaxScale(12.34)); // default scale is 2
+  assert.throws(() => hasMaxScale(1, -1), RangeError);
+  assert.throws(() => hasMaxScale(1, 1.5), RangeError);
 });
 
 // ----- comparisons -----

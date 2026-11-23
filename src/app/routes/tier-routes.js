@@ -6,6 +6,7 @@ import { asyncRoute } from "../../middleware/common.js";
 import { csrfProtect } from "../../middleware/csrf.js";
 import { requirePlanFeature } from "../../middleware/plan-feature.js";
 import { validate } from "../../utils/validation.js";
+import { uuidParamsSchema, validateParams } from "../../utils/schemas.js";
 import { tenantContext } from "../../middleware/tenant.js";
 
 const router = Router();
@@ -70,6 +71,7 @@ router.put(
   requireOwner,
   tenantContext,
   requirePlanFeature("tiers"),
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
     const v = validate(TierUpdateSchema, req.body);
     if (!v.ok) return res.status(400).json({ error: v.error });
@@ -88,7 +90,7 @@ router.put(
       if (v.data[key] !== undefined) updates[key] = v.data[key];
     }
 
-    const tier = await TierService.updateTier(req.params.id, req.tenantId, updates);
+    const tier = await TierService.updateTier(req.validatedParams.id, req.tenantId, updates);
     res.json({ ok: true, tier });
   }),
 );
@@ -100,8 +102,9 @@ router.delete(
   requireOwner,
   tenantContext,
   requirePlanFeature("tiers"),
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
-    await TierService.deleteTier(req.params.id, req.tenantId);
+    await TierService.deleteTier(req.validatedParams.id, req.tenantId);
     res.json({ ok: true });
   }),
 );

@@ -217,22 +217,20 @@ export async function redeemCheckoutWithinTransaction(client, payload, captureCo
   );
 }
 
-export async function redeemRewardWithDeps(
-  deps,
-  { staff, customerId, rewardId, requestId = null },
-) {
-  const business = await deps.BusinessRepo.getById(staff.business_id);
-  if (!business) throw notFound("Negocio no encontrado");
+// --- redeemReward phases ----------------------------------------------------
 
+async function settleBeforeRedemption(deps, customerId, businessId) {
   await deps
-    .settlePendingPointsForCustomer(customerId, staff.business_id)
+    .settlePendingPointsForCustomer(customerId, businessId)
     .catch((err) =>
       logger.warn({ err, customerId }, "Pending points settlement failed before redemption"),
     );
   await deps
-    .expirePointsForCustomer(customerId, staff.business_id)
+    .expirePointsForCustomer(customerId, businessId)
     .catch((err) => logger.warn({ err, customerId }, "Points expiry failed before redemption"));
+}
 
+function redemptionGuardLimits(business) {
   const redemptionGuard = business.program_json?.redemption_guard ?? {};
   const maxRedemptionsPerDay = Math.max(
     0,
@@ -246,133 +244,151 @@ export async function redeemRewardWithDeps(
     0,
     Math.floor(Number(redemptionGuard.reward_cooldown_hours ?? 0)),
   );
+  return { maxRedemptionsPerDay, maxRewardRedemptionsPerDay, rewardCooldownHours };
+}
 
-  const out = await deps.withTransaction(async (client) => {
-    await lockRedemptionRequest(client, staff.business_id, requestId);
-    const replay = await findExistingRedemptionByRequestId(client, staff.business_id, requestId);
-    if (replay) {
-      if (typeof deps.protectedRedemptionName === "function")
-        replay.reward_name =
-          (await deps.protectedRedemptionName(client, replay.id)) ?? replay.reward_name;
-      if (replay.customer_id !== customerId || replay.reward_id !== rewardId) {
-        throw conflict("Este requestId ya se usó para otro canje");
-      }
-      await AuditRepo.log({
-        id: id(),
-        business_id: staff.business_id,
-        actor_type: "STAFF",
-        actor_id: staff.id,
-        action: "reward.redeem.replay",
-        ip: null,
-        ua: null,
-        meta: withImpersonationMeta(
-          {
-            redemption_id: replay.id,
-            reward_id: rewardId,
-            customer_id: customerId,
-            request_id: requestId ?? null,
-            code: replay.code,
-          },
-          staff,
-        ),
-      }).catch((err) =>
-        logger.warn(
-          { err, redemptionId: replay.id },
-          "Audit log write failed (reward.redeem.replay)",
-        ),
-      );
-      logger.info(
-        {
-          businessId: staff.business_id,
-          customerId,
-          rewardId,
-          requestId,
-          redemptionId: replay.id,
-          staffId: staff.id,
-          replay: true,
-        },
-        "Staff redeem replay returned existing redemption",
-      );
-      return {
-        redemptionCode: replay.code,
-        rewardName: replay.reward_name,
-        newBalance: replay.balance_after,
-        redemptionId: replay.id,
-        pointsCost: replay.points_cost,
-        replay: true,
-      };
-    }
+function replayRedemptionResult(replay) {
+  return {
+    redemptionCode: replay.code,
+    rewardName: replay.reward_name,
+    newBalance: replay.balance_after,
+    redemptionId: replay.id,
+    pointsCost: replay.points_cost,
+    replay: true,
+  };
+}
 
-    const lockedBusiness =
-      typeof deps.lockProtectedRedemptionBusiness === "function"
-        ? await deps.lockProtectedRedemptionBusiness(client, staff.business_id)
-        : business;
-    const redemptionTimezone = regionTimezone(lockedBusiness ?? business);
-    const rewardResult = await client.query(`SELECT * FROM rewards WHERE id=$1 FOR UPDATE`, [
+// Returns the already-completed redemption for an acknowledged requestId, or
+// null when this request has not been seen before.
+async function replayExistingRedemption(client, deps, { staff, customerId, rewardId, requestId }) {
+  const replay = await findExistingRedemptionByRequestId(client, staff.business_id, requestId);
+  if (!replay) return null;
+  if (typeof deps.protectedRedemptionName === "function")
+    replay.reward_name =
+      (await deps.protectedRedemptionName(client, replay.id)) ?? replay.reward_name;
+  if (replay.customer_id !== customerId || replay.reward_id !== rewardId) {
+    throw conflict("Este requestId ya se usó para otro canje");
+  }
+  await AuditRepo.log({
+    id: id(),
+    business_id: staff.business_id,
+    actor_type: "STAFF",
+    actor_id: staff.id,
+    action: "reward.redeem.replay",
+    ip: null,
+    ua: null,
+    meta: withImpersonationMeta(
+      {
+        redemption_id: replay.id,
+        reward_id: rewardId,
+        customer_id: customerId,
+        request_id: requestId ?? null,
+        code: replay.code,
+      },
+      staff,
+    ),
+  }).catch((err) =>
+    logger.warn({ err, redemptionId: replay.id }, "Audit log write failed (reward.redeem.replay)"),
+  );
+  logger.info(
+    {
+      businessId: staff.business_id,
+      customerId,
       rewardId,
-    ]);
-    let reward = rewardResult.rows[0];
-    if (
-      reward &&
-      reward.business_id === staff.business_id &&
-      typeof deps.protectedRedemptionReward === "function"
-    ) {
-      reward = await deps.protectedRedemptionReward(client, {
-        businessId: staff.business_id,
-        customerId,
-        reward,
-      });
-    }
-    await assertNoPendingCheckout(client, { business: lockedBusiness ?? business, customerId });
-    if (!reward || !reward.active) throw notFound("La recompensa no está disponible");
-    if (reward.business_id !== staff.business_id)
-      throw forbidden("La recompensa pertenece a otro negocio");
-    if (reward.valid_until && new Date(reward.valid_until) < new Date()) {
-      throw badRequest("La recompensa venció");
-    }
+      requestId,
+      redemptionId: replay.id,
+      staffId: staff.id,
+      replay: true,
+    },
+    "Staff redeem replay returned existing redemption",
+  );
+  return replayRedemptionResult(replay);
+}
 
-    const scopedBranches =
-      reward.protected_branch_ids ?? (await deps.RewardRepo.listBranchIds(rewardId));
-    if (scopedBranches.length > 0) {
-      if (!staff.branch_id || !scopedBranches.includes(String(staff.branch_id))) {
-        throw forbidden("La recompensa no está disponible en esta sucursal");
-      }
-    }
+// Locks business → reward (then the pending-checkout guard) and validates the
+// reward is redeemable by this business right now.
+async function lockRedeemableReward(client, deps, { staff, business, customerId, rewardId }) {
+  const lockedBusiness =
+    typeof deps.lockProtectedRedemptionBusiness === "function"
+      ? await deps.lockProtectedRedemptionBusiness(client, staff.business_id)
+      : business;
+  const redemptionTimezone = regionTimezone(lockedBusiness ?? business);
+  const rewardResult = await client.query(`SELECT * FROM rewards WHERE id=$1 FOR UPDATE`, [
+    rewardId,
+  ]);
+  let reward = rewardResult.rows[0];
+  if (
+    reward &&
+    reward.business_id === staff.business_id &&
+    typeof deps.protectedRedemptionReward === "function"
+  ) {
+    reward = await deps.protectedRedemptionReward(client, {
+      businessId: staff.business_id,
+      customerId,
+      reward,
+    });
+  }
+  await assertNoPendingCheckout(client, { business: lockedBusiness ?? business, customerId });
+  if (!reward || !reward.active) throw notFound("La recompensa no está disponible");
+  if (reward.business_id !== staff.business_id)
+    throw forbidden("La recompensa pertenece a otro negocio");
+  if (reward.valid_until && new Date(reward.valid_until) < new Date()) {
+    throw badRequest("La recompensa venció");
+  }
+  return { lockedBusiness, redemptionTimezone, reward };
+}
 
-    const customerResult = await client.query(
-      `SELECT id
+async function assertRewardBranchScope(deps, { staff, reward, rewardId }) {
+  const scopedBranches =
+    reward.protected_branch_ids ?? (await deps.RewardRepo.listBranchIds(rewardId));
+  if (scopedBranches.length > 0) {
+    if (!staff.branch_id || !scopedBranches.includes(String(staff.branch_id))) {
+      throw forbidden("La recompensa no está disponible en esta sucursal");
+    }
+  }
+}
+
+async function lockRedeemingCustomer(client, { staff, customerId, rewardId, business }) {
+  const customerResult = await client.query(
+    `SELECT id
        FROM customers
        WHERE id=$1 AND business_id=$2 AND deleted_at IS NULL
        FOR SHARE`,
-      [customerId, staff.business_id],
-    );
-    if (!customerResult.rows.length) throw notFound("Cliente no encontrado");
-    if ((lockedBusiness ?? business).program_json?.pos_inventory_checks === true) {
-      await assertRewardInventory(client, {
-        businessId: staff.business_id,
-        rewardId,
-        branchId: staff.branch_id ?? null,
-      });
-    }
+    [customerId, staff.business_id],
+  );
+  if (!customerResult.rows.length) throw notFound("Cliente no encontrado");
+  if (business.program_json?.pos_inventory_checks === true) {
+    await assertRewardInventory(client, {
+      businessId: staff.business_id,
+      rewardId,
+      branchId: staff.branch_id ?? null,
+    });
+  }
+}
 
-    if (maxRedemptionsPerDay > 0) {
-      const daily = await client.query(
-        `SELECT COUNT(*)::int AS c
+async function enforceRedemptionGuards(
+  client,
+  { staff, customerId, rewardId, redemptionTimezone, limits },
+) {
+  const { maxRedemptionsPerDay, maxRewardRedemptionsPerDay, rewardCooldownHours } = limits;
+  if (maxRedemptionsPerDay > 0) {
+    const daily = await client.query(
+      `SELECT COUNT(*)::int AS c
          FROM redemptions
          WHERE business_id = $1
            AND status <> 'CANCELLED'
            AND customer_id = $2
            AND created_at >= (date_trunc('day', now() AT TIME ZONE $3) AT TIME ZONE $3)`,
-        [staff.business_id, customerId, redemptionTimezone],
-      );
-      if (Number(daily.rows?.[0]?.c ?? 0) >= maxRedemptionsPerDay) {
-        throw conflict(`Se alcanzó el límite diario de canjes (${maxRedemptionsPerDay} por día)`);
-      }
+      [staff.business_id, customerId, redemptionTimezone],
+    );
+    if (Number(daily.rows?.[0]?.c ?? 0) >= maxRedemptionsPerDay) {
+      throw conflict(`Se alcanzó el límite diario de canjes (${maxRedemptionsPerDay} por día)`);
     }
+  }
 
-    if (maxRewardRedemptionsPerDay > 0) {
-      const daily = await client.query(
-        `SELECT COUNT(*)::int AS c
+  if (maxRewardRedemptionsPerDay > 0) {
+    const daily = await client.query(
+      `SELECT COUNT(*)::int AS c
          FROM redemptions r
          LEFT JOIN reward_entitlement_fulfillments f ON f.redemption_id = r.id
          WHERE r.business_id = $1
@@ -380,18 +396,18 @@ export async function redeemRewardWithDeps(
            AND r.customer_id = $2
            AND COALESCE(f.original_reward_id, r.reward_id) = $3
            AND r.created_at >= (date_trunc('day', now() AT TIME ZONE $4) AT TIME ZONE $4)`,
-        [staff.business_id, customerId, rewardId, redemptionTimezone],
+      [staff.business_id, customerId, rewardId, redemptionTimezone],
+    );
+    if (Number(daily.rows?.[0]?.c ?? 0) >= maxRewardRedemptionsPerDay) {
+      throw conflict(
+        `Se alcanzó el límite diario de esta recompensa (${maxRewardRedemptionsPerDay} por día)`,
       );
-      if (Number(daily.rows?.[0]?.c ?? 0) >= maxRewardRedemptionsPerDay) {
-        throw conflict(
-          `Se alcanzó el límite diario de esta recompensa (${maxRewardRedemptionsPerDay} por día)`,
-        );
-      }
     }
+  }
 
-    if (rewardCooldownHours > 0) {
-      const latest = await client.query(
-        `SELECT r.created_at
+  if (rewardCooldownHours > 0) {
+    const latest = await client.query(
+      `SELECT r.created_at
          FROM redemptions r
          LEFT JOIN reward_entitlement_fulfillments f ON f.redemption_id = r.id
          WHERE r.business_id = $1
@@ -400,178 +416,266 @@ export async function redeemRewardWithDeps(
            AND COALESCE(f.original_reward_id, r.reward_id) = $3
          ORDER BY r.created_at DESC
          LIMIT 1`,
-        [staff.business_id, customerId, rewardId],
-      );
-      const last = latest.rows?.[0]?.created_at ? new Date(latest.rows[0].created_at) : null;
-      if (last) {
-        const sinceHours = (Date.now() - last.getTime()) / (1000 * 60 * 60);
-        if (sinceHours < rewardCooldownHours) {
-          const wait = Math.ceil(rewardCooldownHours - sinceHours);
-          throw conflict(
-            `Esta recompensa tiene un tiempo de espera entre canjes. Intenta de nuevo en ~${wait} h.`,
-          );
-        }
+      [staff.business_id, customerId, rewardId],
+    );
+    const last = latest.rows?.[0]?.created_at ? new Date(latest.rows[0].created_at) : null;
+    if (last) {
+      const sinceHours = (Date.now() - last.getTime()) / (1000 * 60 * 60);
+      if (sinceHours < rewardCooldownHours) {
+        const wait = Math.ceil(rewardCooldownHours - sinceHours);
+        throw conflict(
+          `Esta recompensa tiene un tiempo de espera entre canjes. Intenta de nuevo en ~${wait} h.`,
+        );
       }
     }
+  }
+}
 
-    const cost = Number(reward.points_cost);
-    const balanceUpdate = await client.query(
-      `UPDATE customer_balances
+async function debitRedemptionBalance(client, customerId, cost) {
+  const balanceUpdate = await client.query(
+    `UPDATE customer_balances
        SET points = points - $2,
            updated_at=now()
        WHERE customer_id=$1 AND points >= $2
        RETURNING points`,
-      [customerId, cost],
-    );
-    if (balanceUpdate.rowCount !== 1) throw conflict("Puntos insuficientes");
+    [customerId, cost],
+  );
+  if (balanceUpdate.rowCount !== 1) throw conflict("Puntos insuficientes");
+  return balanceUpdate;
+}
 
-    if (reward.stock !== null && reward.stock !== undefined) {
-      const stockUpdate = await client.query(
-        `UPDATE rewards SET stock = stock - 1
+async function decrementRewardStock(client, reward, rewardId) {
+  if (reward.stock !== null && reward.stock !== undefined) {
+    const stockUpdate = await client.query(
+      `UPDATE rewards SET stock = stock - 1
          WHERE id=$1 AND stock > 0
          RETURNING stock`,
-        [rewardId],
-      );
-      if (stockUpdate.rowCount !== 1) throw conflict("La recompensa no tiene existencias");
-    }
+      [rewardId],
+    );
+    if (stockUpdate.rowCount !== 1) throw conflict("La recompensa no tiene existencias");
+  }
+}
 
-    const redemptionId = id();
-    let code = "";
-    for (let i = 0; i < 5; i += 1) {
-      code = crypto.randomBytes(4).toString("hex").toUpperCase();
-      try {
-        await client.query(
-          `INSERT INTO redemptions
+// Inserts the redemption with a fresh code, retrying on code collisions. A
+// unique violation that turns out to be a concurrent replay of this requestId
+// yields that redemption instead of a new row.
+async function insertRedemptionRow(
+  client,
+  { staff, customerId, rewardId, requestId, redemptionId, cost, balanceAfter },
+) {
+  let code = "";
+  for (let i = 0; i < 5; i += 1) {
+    code = crypto.randomBytes(4).toString("hex").toUpperCase();
+    try {
+      await client.query(
+        `INSERT INTO redemptions
            (id, business_id, branch_id, reward_id, customer_id, staff_user_id, code, points_cost, status, redeemed_at, request_id, balance_after)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'REDEEMED', now(), $9, $10)`,
-          [
-            redemptionId,
-            staff.business_id,
-            staff.branch_id ?? null,
-            rewardId,
-            customerId,
-            staff.id,
-            code,
-            cost,
-            requestId,
-            balanceUpdate.rows[0].points,
-          ],
+        [
+          redemptionId,
+          staff.business_id,
+          staff.branch_id ?? null,
+          rewardId,
+          customerId,
+          staff.id,
+          code,
+          cost,
+          requestId,
+          balanceAfter,
+        ],
+      );
+      break;
+    } catch (e) {
+      if (String(e?.code) === "23505") {
+        const replayAfterConflict = await findExistingRedemptionByRequestId(
+          client,
+          staff.business_id,
+          requestId,
         );
-        break;
-      } catch (e) {
-        if (String(e?.code) === "23505") {
-          const replayAfterConflict = await findExistingRedemptionByRequestId(
-            client,
-            staff.business_id,
-            requestId,
-          );
-          if (replayAfterConflict) {
-            if (
-              replayAfterConflict.customer_id !== customerId ||
-              replayAfterConflict.reward_id !== rewardId
-            ) {
-              throw conflict("Este requestId ya se usó para otro canje");
-            }
-            return {
-              redemptionCode: replayAfterConflict.code,
-              rewardName: replayAfterConflict.reward_name,
-              newBalance: replayAfterConflict.balance_after,
-              redemptionId: replayAfterConflict.id,
-              pointsCost: replayAfterConflict.points_cost,
-              replay: true,
-            };
+        if (replayAfterConflict) {
+          if (
+            replayAfterConflict.customer_id !== customerId ||
+            replayAfterConflict.reward_id !== rewardId
+          ) {
+            throw conflict("Este requestId ya se usó para otro canje");
           }
-          if (i < 4) continue;
+          return { code: "", replay: replayRedemptionResult(replayAfterConflict) };
         }
-        throw e;
+        if (i < 4) continue;
       }
+      throw e;
     }
+  }
+  return { code, replay: null };
+}
 
-    // Capture cost only for this newly completed redemption, in the same
-    // transaction as the balance/stock changes. Replays return above unchanged.
-    await snapshotCompletedRedemption(client, { businessId: staff.business_id, redemptionId });
-    if (typeof deps.completeLegacyProtectedRedemption === "function") {
-      await deps.completeLegacyProtectedRedemption(client, {
-        businessId: staff.business_id,
-        staff,
-        customerId,
-        redemptionId,
-        reward,
-        pointsCost: cost,
-        requestId,
-      });
-    }
-
-    await client.query(
-      `INSERT INTO transactions (id, business_id, branch_id, customer_id, staff_user_id, amount_q, points, source, meta)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [
-        id(),
-        staff.business_id,
-        staff.branch_id ?? null,
-        customerId,
-        staff.id,
-        0,
-        -cost,
-        "redeem",
-        { reward_id: rewardId, redemption_id: redemptionId, code, request_id: requestId },
-      ],
-    );
-
-    if (!deps.deferVisit)
-      await client.query(`UPDATE customers SET last_visit_at=now() WHERE id=$1`, [customerId]);
-
-    return {
-      redemptionCode: code,
-      rewardName: reward.name,
-      newBalance: balanceUpdate.rows[0].points,
+async function recordRedemptionLedger(
+  client,
+  deps,
+  { staff, customerId, rewardId, requestId, redemptionId, reward, cost, code },
+) {
+  // Capture cost only for this newly completed redemption, in the same
+  // transaction as the balance/stock changes. Replays return above unchanged.
+  await snapshotCompletedRedemption(client, { businessId: staff.business_id, redemptionId });
+  if (typeof deps.completeLegacyProtectedRedemption === "function") {
+    await deps.completeLegacyProtectedRedemption(client, {
+      businessId: staff.business_id,
+      staff,
+      customerId,
       redemptionId,
+      reward,
       pointsCost: cost,
-    };
+      requestId,
+    });
+  }
+
+  await client.query(
+    `INSERT INTO transactions (id, business_id, branch_id, customer_id, staff_user_id, amount_q, points, source, meta)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    [
+      id(),
+      staff.business_id,
+      staff.branch_id ?? null,
+      customerId,
+      staff.id,
+      0,
+      -cost,
+      "redeem",
+      { reward_id: rewardId, redemption_id: redemptionId, code, request_id: requestId },
+    ],
+  );
+
+  if (!deps.deferVisit)
+    await client.query(`UPDATE customers SET last_visit_at=now() WHERE id=$1`, [customerId]);
+}
+
+// The locked write path: replay check, business → reward → customer locks,
+// guards, balance debit, stock, redemption row and ledger entry.
+async function commitRedemption(client, deps, redemption) {
+  const { staff, customerId, rewardId, requestId, business, limits } = redemption;
+  await lockRedemptionRequest(client, staff.business_id, requestId);
+  const replay = await replayExistingRedemption(client, deps, redemption);
+  if (replay) return replay;
+
+  const { lockedBusiness, redemptionTimezone, reward } = await lockRedeemableReward(
+    client,
+    deps,
+    redemption,
+  );
+  await assertRewardBranchScope(deps, { staff, reward, rewardId });
+  await lockRedeemingCustomer(client, {
+    staff,
+    customerId,
+    rewardId,
+    business: lockedBusiness ?? business,
+  });
+  await enforceRedemptionGuards(client, {
+    staff,
+    customerId,
+    rewardId,
+    redemptionTimezone,
+    limits,
   });
 
-  if (!out.replay) {
-    deps
-      .enqueueWebhookEvent(staff.business_id, "reward.redeemed", {
-        redemption_id: out.redemptionId,
-        customer_id: customerId,
-        reward_id: rewardId,
-        points_cost: out.pointsCost,
-        code: out.redemptionCode,
-      })
-      .catch((err) =>
-        logger.warn(
-          { err, redemptionId: out.redemptionId },
-          "Webhook enqueue failed (reward.redeemed)",
-        ),
-      );
+  const cost = Number(reward.points_cost);
+  const balanceUpdate = await debitRedemptionBalance(client, customerId, cost);
+  await decrementRewardStock(client, reward, rewardId);
 
-    await AuditRepo.log({
-      id: id(),
-      business_id: staff.business_id,
-      actor_type: "STAFF",
-      actor_id: staff.id,
-      action: "reward.redeem",
-      ip: null,
-      ua: null,
-      meta: withImpersonationMeta(
-        {
-          redemption_id: out.redemptionId,
-          reward_id: rewardId,
-          customer_id: customerId,
-          transaction_request_id: requestId ?? null,
-          code: out.redemptionCode,
-          points_cost: out.pointsCost,
-        },
-        staff,
-      ),
-    }).catch((err) =>
+  const redemptionId = id();
+  const inserted = await insertRedemptionRow(client, {
+    staff,
+    customerId,
+    rewardId,
+    requestId,
+    redemptionId,
+    cost,
+    balanceAfter: balanceUpdate.rows[0].points,
+  });
+  if (inserted.replay) return inserted.replay;
+  const { code } = inserted;
+
+  await recordRedemptionLedger(client, deps, {
+    staff,
+    customerId,
+    rewardId,
+    requestId,
+    redemptionId,
+    reward,
+    cost,
+    code,
+  });
+
+  return {
+    redemptionCode: code,
+    rewardName: reward.name,
+    newBalance: balanceUpdate.rows[0].points,
+    redemptionId,
+    pointsCost: cost,
+  };
+}
+
+// Post-commit side effects for a newly created redemption (never for replays).
+// The webhook enqueue is fire-and-forget; the audit write is awaited.
+async function publishRedemption(deps, { staff, customerId, rewardId, requestId }, out) {
+  deps
+    .enqueueWebhookEvent(staff.business_id, "reward.redeemed", {
+      redemption_id: out.redemptionId,
+      customer_id: customerId,
+      reward_id: rewardId,
+      points_cost: out.pointsCost,
+      code: out.redemptionCode,
+    })
+    .catch((err) =>
       logger.warn(
         { err, redemptionId: out.redemptionId },
-        "Audit log write failed (reward.redeem)",
+        "Webhook enqueue failed (reward.redeemed)",
       ),
     );
-  }
+
+  await AuditRepo.log({
+    id: id(),
+    business_id: staff.business_id,
+    actor_type: "STAFF",
+    actor_id: staff.id,
+    action: "reward.redeem",
+    ip: null,
+    ua: null,
+    meta: withImpersonationMeta(
+      {
+        redemption_id: out.redemptionId,
+        reward_id: rewardId,
+        customer_id: customerId,
+        transaction_request_id: requestId ?? null,
+        code: out.redemptionCode,
+        points_cost: out.pointsCost,
+      },
+      staff,
+    ),
+  }).catch((err) =>
+    logger.warn({ err, redemptionId: out.redemptionId }, "Audit log write failed (reward.redeem)"),
+  );
+}
+
+export async function redeemRewardWithDeps(
+  deps,
+  { staff, customerId, rewardId, requestId = null },
+) {
+  const business = await deps.BusinessRepo.getById(staff.business_id);
+  if (!business) throw notFound("Negocio no encontrado");
+
+  await settleBeforeRedemption(deps, customerId, staff.business_id);
+
+  const redemption = {
+    staff,
+    customerId,
+    rewardId,
+    requestId,
+    business,
+    limits: redemptionGuardLimits(business),
+  };
+  const out = await deps.withTransaction((client) => commitRedemption(client, deps, redemption));
+
+  if (!out.replay) await publishRedemption(deps, redemption, out);
 
   return {
     redemptionCode: out.redemptionCode,

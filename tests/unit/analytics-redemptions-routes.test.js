@@ -101,6 +101,9 @@ function makeRes() {
   };
 }
 
+const REWARD_ID = "11111111-1111-4111-8111-111111111111";
+const REDEMPTION_ID = "22222222-2222-4222-8222-222222222222";
+
 async function runRoute(routePath, req) {
   const layer = analyticsRedemptionRoutes.stack.find((entry) => entry.route?.path === routePath);
   if (!layer) throw new Error(`Route not found: ${routePath}`);
@@ -108,6 +111,12 @@ async function runRoute(routePath, req) {
   const handlers = layer.route.stack.map((entry) => entry.handle);
   for (const handler of handlers) {
     await new Promise((resolve, reject) => {
+      // Middleware that answers the request (for example a validation 400) never calls next.
+      res.json = (payload) => {
+        res.body = payload;
+        resolve(undefined);
+        return res;
+      };
       try {
         const maybe = handler(req, res, (err) => (err ? reject(err) : resolve(undefined)));
         if (maybe && typeof maybe.then === "function") maybe.then(resolve).catch(reject);
@@ -116,19 +125,39 @@ async function runRoute(routePath, req) {
         reject(error);
       }
     });
+    if (res.body !== null) break;
   }
   return res;
 }
 
 describe("analytics redemption routes", () => {
+  it("rejects non-UUID reward and redemption ids before querying", async () => {
+    for (const [routePath, id] of [
+      ["/admin/analytics/rewards/:id/redemptions", "reward-1"],
+      ["/admin/analytics/redemptions/:id", "red-1"],
+    ]) {
+      const res = await runRoute(routePath, {
+        method: "GET",
+        path: routePath.replace(":id", id),
+        url: routePath.replace(":id", id),
+        originalUrl: routePath.replace(":id", id),
+        tenantId: "biz-1",
+        params: { id },
+      });
+      assert.equal(res.statusCode, 400);
+      assert.equal(res.body.code, "VALIDATION_ERROR");
+      assert.equal(res.body.details[0].field, "id");
+    }
+  });
+
   it("returns reward-level recent redemptions with mismatch summary", async () => {
     const res = await runRoute("/admin/analytics/rewards/:id/redemptions", {
       method: "GET",
-      path: "/admin/analytics/rewards/reward-1/redemptions",
-      url: "/admin/analytics/rewards/reward-1/redemptions",
-      originalUrl: "/admin/analytics/rewards/reward-1/redemptions",
+      path: `/admin/analytics/rewards/${REWARD_ID}/redemptions`,
+      url: `/admin/analytics/rewards/${REWARD_ID}/redemptions`,
+      originalUrl: `/admin/analytics/rewards/${REWARD_ID}/redemptions`,
       tenantId: "biz-1",
-      params: { id: "reward-1" },
+      params: { id: REWARD_ID },
     });
 
     assert.equal(res.statusCode, 200);
@@ -142,11 +171,11 @@ describe("analytics redemption routes", () => {
   it("returns redemption drilldown with linked transaction consistency", async () => {
     const res = await runRoute("/admin/analytics/redemptions/:id", {
       method: "GET",
-      path: "/admin/analytics/redemptions/red-1",
-      url: "/admin/analytics/redemptions/red-1",
-      originalUrl: "/admin/analytics/redemptions/red-1",
+      path: `/admin/analytics/redemptions/${REDEMPTION_ID}`,
+      url: `/admin/analytics/redemptions/${REDEMPTION_ID}`,
+      originalUrl: `/admin/analytics/redemptions/${REDEMPTION_ID}`,
       tenantId: "biz-1",
-      params: { id: "red-1" },
+      params: { id: REDEMPTION_ID },
     });
 
     assert.equal(res.statusCode, 200);

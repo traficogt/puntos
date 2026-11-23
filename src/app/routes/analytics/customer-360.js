@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { asyncRoute } from "../../../middleware/common.js";
+import { uuidParamsSchema, validateParams } from "../../../utils/schemas.js";
 import { dbQuery } from "../../database.js";
 import {
   buildLedgerFinding,
@@ -10,8 +11,9 @@ export const analyticsCustomerRoutes = Router();
 
 analyticsCustomerRoutes.get(
   "/admin/analytics/customer/:id",
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
-    const customerId = req.params.id;
+    const customerId = req.validatedParams.id;
 
     const { rows } = await dbQuery(
       `SELECT
@@ -101,8 +103,9 @@ analyticsCustomerRoutes.get(
 
 analyticsCustomerRoutes.get(
   "/admin/analytics/customer/:id/ledger",
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
-    const customerId = req.params.id;
+    const customerId = req.validatedParams.id;
 
     const { rows } = await dbQuery(
       `WITH tx_agg AS (

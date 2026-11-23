@@ -9,7 +9,9 @@ import {
   paginationSchema,
   rewardCreateSchema,
   staffLoginSchema,
+  uuidParamsSchema,
   uuidSchema,
+  validateParams,
   validateQuery,
   validateRequest,
   verifyJoinCodeSchema,
@@ -40,7 +42,9 @@ test("validation middleware retains HTTP 400 field details for invalid bodies an
   });
   assert.equal(nextCalled, false);
   assert.equal(response.statusCode, 400);
-  assert.equal(response.body.error, "Validation failed");
+  // Same text and code the error middleware uses for an escaped ZodError.
+  assert.equal(response.body.error, "Revisa los datos enviados.");
+  assert.equal(response.body.code, "VALIDATION_ERROR");
   assert.equal(response.body.details[0].field, "password");
   assert.equal(typeof response.body.details[0].message, "string");
   const queryResponse = responseRecorder();
@@ -49,8 +53,28 @@ test("validation middleware retains HTTP 400 field details for invalid bodies an
   });
   assert.equal(nextCalled, false);
   assert.equal(queryResponse.statusCode, 400);
-  assert.equal(queryResponse.body.error, "Invalid query parameters");
+  assert.equal(queryResponse.body.error, "Parámetros de consulta inválidos");
+  assert.equal(queryResponse.body.code, "VALIDATION_ERROR");
   assert.equal(queryResponse.body.details[0].field, "limit");
+  const paramsResponse = responseRecorder();
+  validateParams(uuidParamsSchema)({ params: { id: "not-a-uuid" } }, paramsResponse, () => {
+    nextCalled = true;
+  });
+  assert.equal(nextCalled, false);
+  assert.equal(paramsResponse.statusCode, 400);
+  assert.equal(paramsResponse.body.error, "Parámetros de ruta inválidos");
+  assert.equal(paramsResponse.body.code, "VALIDATION_ERROR");
+  assert.equal(paramsResponse.body.details[0].field, "id");
+  const validParams = { params: { id: "11111111-1111-4111-8111-111111111111" } };
+  validateParams(uuidParamsSchema)(validParams, responseRecorder(), () => {
+    nextCalled = true;
+  });
+  assert.equal(nextCalled, true);
+  assert.equal(validParams.validatedParams.id, validParams.params.id);
+  // Express names route layers after the middleware function.
+  assert.equal(validateRequest(staffLoginSchema).name, "validateRequest");
+  assert.equal(validateQuery(paginationSchema).name, "validateQuery");
+  assert.equal(validateParams(uuidParamsSchema).name, "validateParams");
   const validation = validate(staffLoginSchema, {});
   assert.ok("fieldErrors" in validation.error);
   assert.ok("password" in validation.error.fieldErrors);

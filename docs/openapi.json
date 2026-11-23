@@ -1128,7 +1128,7 @@
           "OWNER"
         ],
         "x-plan-features": [
-          "analytics"
+          "basic_reporting"
         ]
       }
     },
@@ -2772,6 +2772,26 @@
         ],
         "x-plan-features": [
           "gamification"
+        ]
+      }
+    },
+    "/api/v1/admin/concierge-request": {
+      "post": {
+        "summary": "Derived POST /api/v1/admin/concierge-request",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
         ]
       }
     },
@@ -7385,6 +7405,23 @@
         "x-tenant-context": true
       }
     },
+    "/api/v1/customer/giftcard/transfer": {
+      "post": {
+        "summary": "Derived POST /api/v1/customer/giftcard/transfer",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true
+      }
+    },
     "/api/v1/customer/growth-offers": {
       "get": {
         "summary": "Derived GET /api/v1/customer/growth-offers",
@@ -9513,6 +9550,26 @@
         }
       }
     },
+    "/api/v1/staff/cashback/spend": {
+      "post": {
+        "summary": "Derived POST /api/v1/staff/cashback/spend",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-permissions": [
+          "staff.award"
+        ]
+      }
+    },
     "/api/v1/staff/customer/lookup": {
       "post": {
         "summary": "Derived POST /api/v1/staff/customer/lookup",
@@ -9730,6 +9787,26 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/staff/giftcard/load": {
+      "post": {
+        "summary": "Derived POST /api/v1/staff/giftcard/load",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-permissions": [
+          "staff.award"
+        ]
       }
     },
     "/api/v1/staff/hospitality": {
@@ -11994,7 +12071,11 @@
             "enum": [
               "SPEND",
               "VISIT",
-              "ITEM"
+              "ITEM",
+              "DISCOUNT",
+              "STAMP",
+              "CASHBACK",
+              "GIFT_CARD"
             ]
           },
           "program_json": {
@@ -12915,7 +12996,11 @@
             "enum": [
               "SPEND",
               "VISIT",
-              "ITEM"
+              "ITEM",
+              "DISCOUNT",
+              "STAMP",
+              "CASHBACK",
+              "GIFT_CARD"
             ]
           },
           "program_json": {

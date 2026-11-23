@@ -1,9 +1,28 @@
 import { Router } from "express";
+import { z } from "zod";
 import { requireStaff, requireOwner } from "../../middleware/auth.js";
 import { tenantContext } from "../../middleware/tenant.js";
 import { csrfProtect } from "../../middleware/csrf.js";
 import { asyncRoute } from "../../middleware/common.js";
+import { uuidParamsSchema, validateParams, validateRequest } from "../../utils/schemas.js";
 import * as imports from "../services/customer-import-job-service.js";
+// Structural shapes only. importJobPreviewSchema / importJobCreateSchema in the
+// service stay authoritative (size limits, UUIDs, strict keys) and keep their
+// owner-facing messages for semantic problems such as an oversized file.
+const existingPolicy = z.enum(["skip", "reject"]).optional();
+const importPreviewShape = z.looseObject({
+  csv: z.string(),
+  columns: z.record(z.string(), z.unknown()).optional(),
+  existing_policy: existingPolicy,
+});
+const importCreateShape = z.looseObject({
+  csv: z.string(),
+  columns: z.record(z.string(), z.unknown()),
+  existing_policy: existingPolicy,
+  request_id: z.string(),
+  label: z.string(),
+  confirmed: z.boolean(),
+});
 export function createCustomerImportJobRoutes(deps = {}) {
   const s = { ...imports, ...deps },
     router = Router(),
@@ -35,26 +54,35 @@ export function createCustomerImportJobRoutes(deps = {}) {
   router.post(
     `${base}/preview`,
     csrfProtect,
+    validateRequest(importPreviewShape),
     asyncRoute(async (req, res) =>
-      res.json(await s.previewCustomerImportJob({ ...actor(req), input: req.body })),
+      res.json(await s.previewCustomerImportJob({ ...actor(req), input: req.validated })),
     ),
   );
   router.post(
     base,
     csrfProtect,
+    validateRequest(importCreateShape),
     asyncRoute(async (req, res) =>
-      res.status(202).json(await s.createCustomerImportJob({ ...actor(req), input: req.body })),
+      res
+        .status(202)
+        .json(await s.createCustomerImportJob({ ...actor(req), input: req.validated })),
     ),
   );
   for (const action of ["cancel", "retry"])
     router.post(
       `${base}/:id/${action}`,
       csrfProtect,
+      validateParams(uuidParamsSchema),
       asyncRoute(async (req, res) => {
         if (Object.keys(req.body ?? {}).length)
           return res.status(400).json({ error: "Esta acción no admite otros datos." });
         return res.json(
-          await s.controlCustomerImportJob({ ...actor(req), id: req.params.id, action }),
+          await s.controlCustomerImportJob({
+            ...actor(req),
+            id: req.validatedParams.id,
+            action,
+          }),
         );
       }),
     );

@@ -5,6 +5,7 @@ import { PlanConfigService } from "./plan-config-service.js";
 import { hasPlanFeature } from "../../utils/plan.js";
 import { badRequest, forbidden, notFound } from "../../utils/http-error.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
+import { hasMaxScale, mul, pct, sub, toMinor, toNumber } from "../../utils/money.js";
 import { reportingPurchase } from "./reporting-purchase.js";
 
 const defaults = {
@@ -12,7 +13,6 @@ const defaults = {
   getPlanFeatureOverrides: () => PlanConfigService.getPlanFeatureOverrides(),
 };
 const numberOrNull = (value) => (value === null || value === undefined ? null : Number(value));
-const rounded = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
 
 function boundedNullable(value, max, precision) {
   if (value === null) return;
@@ -21,7 +21,7 @@ function boundedNullable(value, max, precision) {
     !Number.isFinite(value) ||
     value < 0 ||
     value > max ||
-    Math.abs(value * 10 ** precision - Math.round(value * 10 ** precision)) > 0.000001
+    !hasMaxScale(value, precision)
   ) {
     throw badRequest("Ingresa un importe válido o deja el campo vacío.");
   }
@@ -207,10 +207,17 @@ export async function getRewardEconomics(
   const settings = row.settings ?? { gross_margin_pct: null, cost_per_point_q: null };
   settings.gross_margin_pct = numberOrNull(settings.gross_margin_pct);
   settings.cost_per_point_q = numberOrNull(settings.cost_per_point_q);
-  const gross =
+  // Exact centavo arithmetic: sales and costs arrive as decimals, the margin has
+  // two decimals and the cost per point six; each estimate rounds once.
+  const grossMinor =
     settings.gross_margin_pct === null
       ? null
-      : rounded((observed.recorded_sales_q * settings.gross_margin_pct) / 100);
+      : pct(toMinor(observed.recorded_sales_q), settings.gross_margin_pct);
+  const gross = grossMinor === null ? null : toNumber(grossMinor);
+  const pointsCost = (points) =>
+    settings.cost_per_point_q === null
+      ? null
+      : toNumber(mul(toMinor(points), settings.cost_per_point_q));
   const reason =
     gross === null
       ? "missing_gross_margin"
@@ -233,16 +240,12 @@ export async function getRewardEconomics(
     estimates: {
       gross_margin_before_rewards_q: gross,
       margin_after_rewards_q:
-        reason === null ? rounded(gross - observed.known_reward_cost_q) : null,
+        grossMinor === null || reason !== null
+          ? null
+          : toNumber(sub(grossMinor, toMinor(observed.known_reward_cost_q))),
       margin_unavailable_reason: reason,
-      outstanding_points_cost_q:
-        settings.cost_per_point_q === null
-          ? null
-          : rounded(observed.outstanding_points * settings.cost_per_point_q),
-      pending_points_cost_q:
-        settings.cost_per_point_q === null
-          ? null
-          : rounded(observed.pending_points * settings.cost_per_point_q),
+      outstanding_points_cost_q: pointsCost(observed.outstanding_points),
+      pending_points_cost_q: pointsCost(observed.pending_points),
     },
     rewards: row.rewards,
     rewards_pagination: {

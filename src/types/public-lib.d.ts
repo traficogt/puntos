@@ -1,4 +1,13 @@
-export function api(path: string, opts?: RequestInit): Promise<any>;
+export interface ApiOptions extends RequestInit {
+  /**
+   * Keep the server's `error` text and `code` verbatim: no code-to-Spanish mapping, no English
+   * fallback translation and no "(Ref: id)" suffix. The message is "" when the response carried
+   * no error text.
+   */
+  rawError?: boolean;
+}
+export function api(path: string, opts?: ApiOptions): Promise<any>;
+export function readCookieCsrfToken(): string;
 export function apiUrl(path: string): string;
 export function publicUrl(path: string): string;
 export function appUrl(path: string): string;

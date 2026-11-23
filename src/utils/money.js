@@ -295,6 +295,51 @@ export function pct(minor, percent, { rounding = "half-up" } = {}) {
 }
 
 /**
+ * Divide minor units by a non-zero decimal divisor (number or string) exactly,
+ * then round once to a whole minor unit: div(5997, "1.12") -> 5354 (59.97 of
+ * IVA-inclusive sales is 53.5446... before tax), div(1000, 3) -> 333.
+ * @param {number} minor
+ * @param {unknown} divisor
+ * @param {{ rounding?: string }} [options]
+ * @returns {number}
+ */
+export function div(minor, divisor, { rounding = "half-up" } = {}) {
+  assertMoney(minor);
+  const mode = normalizeRounding(rounding);
+  const d = parseDecimal(divisor, "divisor");
+  if (d.unscaled === 0n) throw new RangeError("money: divisor must not be zero");
+  const numerator = BigInt(minor) * 10n ** BigInt(d.scale) * (d.neg ? -1n : 1n);
+  return toSafeInteger(divRound(numerator, d.unscaled, mode), "quotient");
+}
+
+/**
+ * True when `value` is a decimal with at most `scale` fractional digits, read
+ * exactly: hasMaxScale(12.34, 2), hasMaxScale("1.500", 2) and hasMaxScale(5, 0)
+ * are true; hasMaxScale(1.005, 2), hasMaxScale(0.1 + 0.2, 2) and
+ * hasMaxScale(1e-7, 6) are false. Replaces the epsilon test
+ * Math.abs(x * 100 - Math.round(x * 100)) < 1e-9, which accepted float noise and
+ * whose tolerance depended on the magnitude of x. Anything that is not a finite
+ * number, a numeric string or a bigint is false; null and undefined are false.
+ * @param {unknown} value
+ * @param {number} [scale]
+ * @returns {boolean}
+ */
+export function hasMaxScale(value, scale = DEFAULT_SCALE) {
+  const maxScale = normalizeScale(scale);
+  if (typeof value !== "number" && typeof value !== "string" && typeof value !== "bigint") {
+    return false;
+  }
+  let parsed;
+  try {
+    parsed = parseDecimal(value, "value");
+  } catch {
+    return false;
+  }
+  if (parsed.scale <= maxScale) return true;
+  return parsed.unscaled % 10n ** BigInt(parsed.scale - maxScale) === 0n;
+}
+
+/**
  * @param {number} a
  * @param {number} b
  * @returns {-1 | 0 | 1}

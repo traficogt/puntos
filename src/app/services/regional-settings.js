@@ -1,6 +1,7 @@
 import { DateTime, IANAZone } from "luxon";
 
 import { REGIONAL_COUNTRIES, REGIONAL_CURRENCY_CODES } from "../../../public/regional-catalog.js";
+import { hasMaxScale } from "../../utils/money.js";
 export { REGIONAL_COUNTRIES } from "../../../public/regional-catalog.js";
 const currencies = new Set(REGIONAL_CURRENCY_CODES);
 function bad(message) {
@@ -46,12 +47,7 @@ export function assertRegionAmount(amount, currency, business) {
     throw Object.assign(bad(`La moneda debe ser ${region.currency}. PF no realiza conversiones.`), {
       code: "CURRENCY_MISMATCH",
     });
-  const scale = 10 ** region.minorUnits;
-  if (
-    !Number.isFinite(amount) ||
-    amount < 0 ||
-    Math.abs(amount * scale - Math.round(amount * scale)) > 1e-7
-  )
+  if (!Number.isFinite(amount) || amount < 0 || !hasMaxScale(amount, region.minorUnits))
     throw bad(`El importe admite ${region.minorUnits} decimales en ${region.currency}.`);
   return amount;
 }

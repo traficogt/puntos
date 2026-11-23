@@ -11,7 +11,7 @@ import { StaffRepo } from "../../repositories/staff-repository.js";
 import { BranchRepo } from "../../repositories/branch-repository.js";
 import { dbQuery } from "../../database.js";
 import { makeId } from "./_util.js";
-import { passwordSchema } from "../../../utils/schemas.js";
+import { passwordSchema, uuidParamsSchema, validateParams } from "../../../utils/schemas.js";
 import { invalidateBrowserSessionsForActor } from "../../services/auth-session-service.js";
 import { hashPassword } from "../../../utils/password-hash.js";
 import { assertPasswordAllowed } from "../../../utils/password-policy.js";
@@ -119,11 +119,12 @@ adminStaffRoutes.patch(
   tenantContext,
   csrfProtect,
   requirePlanFeature("staff_management"),
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
     const v = validate(StaffUpdateSchema, req.body);
     if (!v.ok) return res.status(400).json({ error: v.error });
 
-    const target = await StaffRepo.getById(req.params.id);
+    const target = await StaffRepo.getById(req.validatedParams.id);
     if (!target || target.business_id !== req.tenantId) {
       return res.status(404).json({ error: "Staff no encontrado" });
     }
@@ -168,7 +169,7 @@ adminStaffRoutes.patch(
     }
     if (!fields.length) return res.status(400).json({ error: "Sin cambios" });
 
-    params.push(req.params.id, req.tenantId);
+    params.push(req.validatedParams.id, req.tenantId);
     await dbQuery(
       `UPDATE staff_users
        SET ${fields.join(", ")}
@@ -195,7 +196,7 @@ adminStaffRoutes.patch(
       );
     }
 
-    const updated = await StaffRepo.getById(req.params.id);
+    const updated = await StaffRepo.getById(req.validatedParams.id);
     return res.json({
       ok: true,
       staff: {

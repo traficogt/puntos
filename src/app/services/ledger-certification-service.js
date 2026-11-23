@@ -3,6 +3,10 @@ import path from "node:path";
 
 import { config } from "../../config/index.js";
 import { toCSV } from "../../utils/csv.js";
+import { add, fromMinor, toMinor, toNumber } from "../../utils/money.js";
+
+/** Fixed two-decimal text for a Q amount the report holds as a JSON number. */
+const moneyText = (value) => fromMinor(toMinor(value));
 
 function formatDate(date) {
   return date.toISOString().slice(0, 10);
@@ -287,6 +291,8 @@ export async function readLedgerCertificationReportWithDeps(deps, businessId, fr
     replay_events: Number(row.replay_events || 0),
   }));
 
+  // Points are integers; the gift-card Q totals accumulate in whole centavos so
+  // the certification never reports drift that is only float accumulation.
   const totals = daily.reduce(
     (acc, row) => {
       acc.points_issued += row.points_issued;
@@ -294,8 +300,11 @@ export async function readLedgerCertificationReportWithDeps(deps, businessId, fr
       acc.points_reversed += row.points_reversed;
       acc.points_expired += row.points_expired;
       acc.adjustment_points += row.adjustment_points;
-      acc.gift_cards_issued_q += row.gift_cards_issued_q;
-      acc.gift_cards_redeemed_q += row.gift_cards_redeemed_q;
+      acc.gift_cards_issued_q = add(acc.gift_cards_issued_q, toMinor(row.gift_cards_issued_q));
+      acc.gift_cards_redeemed_q = add(
+        acc.gift_cards_redeemed_q,
+        toMinor(row.gift_cards_redeemed_q),
+      );
       acc.replay_events += row.replay_events;
       return acc;
     },
@@ -305,7 +314,7 @@ export async function readLedgerCertificationReportWithDeps(deps, businessId, fr
       points_reversed: 0,
       points_expired: 0,
       adjustment_points: 0,
-      gift_cards_issued_q: 0,
+      gift_cards_issued_q: 0, // centavos until the summary converts them
       gift_cards_redeemed_q: 0,
       replay_events: 0,
     },
@@ -313,8 +322,8 @@ export async function readLedgerCertificationReportWithDeps(deps, businessId, fr
 
   const summary = {
     ...totals,
-    gift_cards_issued_q: Number(totals.gift_cards_issued_q.toFixed(2)),
-    gift_cards_redeemed_q: Number(totals.gift_cards_redeemed_q.toFixed(2)),
+    gift_cards_issued_q: toNumber(totals.gift_cards_issued_q),
+    gift_cards_redeemed_q: toNumber(totals.gift_cards_redeemed_q),
     pending_corrections_count: Number(status.pending_corrections_count || 0),
     negative_balance_count: Number(status.negative_balance_count || 0),
     latest_reconciliation_mismatches: Number(status.latest_reconciliation_mismatches || 0),
@@ -353,8 +362,8 @@ export function toCertificationCsvRows(report) {
     points_reversed: report.summary.points_reversed,
     points_expired: report.summary.points_expired,
     adjustment_points: report.summary.adjustment_points,
-    gift_cards_issued_q: report.summary.gift_cards_issued_q.toFixed(2),
-    gift_cards_redeemed_q: report.summary.gift_cards_redeemed_q.toFixed(2),
+    gift_cards_issued_q: moneyText(report.summary.gift_cards_issued_q),
+    gift_cards_redeemed_q: moneyText(report.summary.gift_cards_redeemed_q),
     replay_events: report.summary.replay_events,
     certification_status: report.certification_status,
     pending_corrections_count: report.summary.pending_corrections_count,
@@ -374,8 +383,8 @@ export function toCertificationCsvRows(report) {
     points_reversed: row.points_reversed,
     points_expired: row.points_expired,
     adjustment_points: row.adjustment_points,
-    gift_cards_issued_q: row.gift_cards_issued_q.toFixed(2),
-    gift_cards_redeemed_q: row.gift_cards_redeemed_q.toFixed(2),
+    gift_cards_issued_q: moneyText(row.gift_cards_issued_q),
+    gift_cards_redeemed_q: moneyText(row.gift_cards_redeemed_q),
     replay_events: row.replay_events,
     certification_status: "",
     pending_corrections_count: "",

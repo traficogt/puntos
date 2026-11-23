@@ -81,16 +81,20 @@ pool.query = async (sql) => {
 };
 pool.connect = async () => ({ query: pool.query, release() {} });
 
+const CUSTOMER_ID = "11111111-1111-4111-8111-111111111111";
+
 function makeRes() {
   return {
     statusCode: 200,
     body: null,
+    onJson: null,
     status(code) {
       this.statusCode = code;
       return this;
     },
     json(payload) {
       this.body = payload;
+      if (typeof this.onJson === "function") this.onJson();
       return this;
     },
   };
@@ -103,6 +107,8 @@ async function runRoute(routePath, req) {
   const handlers = layer.route.stack.map((entry) => entry.handle);
   for (const handler of handlers) {
     await new Promise((resolve, reject) => {
+      // Middleware that answers the request (for example a validation 400) never calls next.
+      res.onJson = resolve;
       try {
         const maybe = handler(req, res, (err) => (err ? reject(err) : resolve(undefined)));
         if (maybe && typeof maybe.then === "function") maybe.then(resolve).catch(reject);
@@ -111,12 +117,13 @@ async function runRoute(routePath, req) {
         reject(error);
       }
     });
+    if (res.body !== null) break;
   }
   return res;
 }
 
 describe("analytics customer ledger route", () => {
-  it("returns a customer-level ledger explanation with deltas and recent events", async () => {
+  it("rejects a non-UUID customer id before querying", async () => {
     const res = await runRoute("/admin/analytics/customer/:id/ledger", {
       method: "GET",
       path: "/admin/analytics/customer/cust-1/ledger",
@@ -124,6 +131,21 @@ describe("analytics customer ledger route", () => {
       originalUrl: "/admin/analytics/customer/cust-1/ledger",
       tenantId: "biz-1",
       params: { id: "cust-1" },
+    });
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.body.code, "VALIDATION_ERROR");
+    assert.equal(res.body.details[0].field, "id");
+  });
+
+  it("returns a customer-level ledger explanation with deltas and recent events", async () => {
+    const res = await runRoute("/admin/analytics/customer/:id/ledger", {
+      method: "GET",
+      path: `/admin/analytics/customer/${CUSTOMER_ID}/ledger`,
+      url: `/admin/analytics/customer/${CUSTOMER_ID}/ledger`,
+      originalUrl: `/admin/analytics/customer/${CUSTOMER_ID}/ledger`,
+      tenantId: "biz-1",
+      params: { id: CUSTOMER_ID },
     });
 
     assert.equal(res.statusCode, 200);

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-COMPOSE_ARGS=(-f docker-compose.e2e.standalone.yml -p "${E2E_COMPOSE_PROJECT:-puntos-e2e}")
+COMPOSE_ARGS=(--env-file /dev/null -f docker-compose.e2e.standalone.yml -p "${E2E_COMPOSE_PROJECT:-puntos-e2e}")
 E2E_PORT="${E2E_PORT:-3101}"
 # Host URL used for health checks (published port).
 BASE_URL="${E2E_BASE_URL:-http://localhost:${E2E_PORT}}"

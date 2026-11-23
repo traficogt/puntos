@@ -31,7 +31,17 @@ const operations = [
   },
   { path: "/customer-import-jobs", method: "GET" },
   { path: "/customer-import-jobs/preview", method: "POST", body: { csv: "phone\n55550001" } },
-  { path: "/customer-import-jobs", method: "POST", body: {} },
+  {
+    path: "/customer-import-jobs",
+    method: "POST",
+    body: {
+      csv: "phone\n55550001",
+      columns: { phone: "phone" },
+      request_id: randomUUID(),
+      label: "Lote inicial",
+      confirmed: true,
+    },
+  },
   { path: `/customer-import-jobs/${id}/cancel`, method: "POST", body: {} },
   { path: `/customer-import-jobs/${id}/retry`, method: "POST", body: {} },
 ];
@@ -121,6 +131,38 @@ it("uses session tenant and rejects query-selected tenants on every operation", 
     assert.equal(calls.at(-1).input.businessId, businessId);
   }
   assert.equal(calls.length, operations.length);
+});
+it("rejects malformed import payloads and job ids with field details before any service call", async () => {
+  const create = operations.find((x) => x.path === "/customer-import-jobs" && x.method === "POST");
+  let out = await req({ ...create, body: { csv: 5, columns: "phone", confirmed: "yes" } });
+  assert.equal(out.status, 400);
+  let body = await out.json();
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.equal(body.error, "Revisa los datos enviados.");
+  assert.deepEqual(body.details.map((d) => d.field).sort(), [
+    "columns",
+    "confirmed",
+    "csv",
+    "label",
+    "request_id",
+  ]);
+  out = await req({
+    path: "/customer-import-jobs/preview",
+    method: "POST",
+    body: { csv: "phone\n55550001", existing_policy: "merge" },
+  });
+  assert.equal(out.status, 400);
+  assert.equal((await out.json()).details[0].field, "existing_policy");
+  out = await req({ path: "/customer-import-jobs/not-a-uuid/cancel", method: "POST", body: {} });
+  assert.equal(out.status, 400);
+  body = await out.json();
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.equal(body.details[0].field, "id");
+  assert.equal(calls.length, 0);
+  // Unknown keys are left for the service's strict schema to judge.
+  out = await req({ ...create, body: { ...create.body, source: "legacy" } });
+  assert.equal(out.status, 202);
+  assert.deepEqual(calls.at(-1).input.input, { ...create.body, source: "legacy" });
 });
 it("cancellation and retry reject extra payloads before mutation", async () => {
   for (const op of operations.filter(

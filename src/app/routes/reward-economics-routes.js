@@ -5,6 +5,7 @@ import { tenantContext } from "../../middleware/tenant.js";
 import { requirePlanFeature } from "../../middleware/plan-feature.js";
 import { csrfProtect } from "../../middleware/csrf.js";
 import { asyncRoute } from "../../middleware/common.js";
+import { hasMaxScale } from "../../utils/money.js";
 import * as services from "../services/reward-economics-service.js";
 import {
   getServiceRestorationCosts,
@@ -17,7 +18,7 @@ const decimal = (max, places) =>
     .finite()
     .min(0)
     .max(max)
-    .refine((value) => Math.abs(value * 10 ** places - Math.round(value * 10 ** places)) < 0.000001)
+    .refine((value) => hasMaxScale(value, places))
     .nullable();
 const settingsBody = z
   .object({ gross_margin_pct: decimal(100, 2), cost_per_point_q: decimal(1000, 6) })

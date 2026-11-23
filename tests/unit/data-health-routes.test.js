@@ -77,6 +77,34 @@ test("a staff session cannot read platform-wide health", async () => {
   assert.equal(r.status, 401);
   assert.equal(calls.length, before);
 });
+test("health configuration rejects a malformed body with field details before the service runs", async () => {
+  const before = calls.length;
+  const csrf = "fixture-data-health-csrf";
+  const headers = {
+    cookie: `${cookie}; pf_csrf=${csrf}`,
+    origin,
+    "x-csrf-token": csrf,
+    "content-type": "application/json",
+  };
+  let r = await fetch(origin + "/api/admin/data-health", {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ version: "short", sources: "none" }),
+  });
+  assert.equal(r.status, 400);
+  const body = await r.json();
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.equal(body.error, "Revisa los datos enviados.");
+  assert.deepEqual(body.details.map((d) => d.field).sort(), ["sources", "version"]);
+  assert.equal(calls.length, before);
+  r = await fetch(origin + "/api/admin/data-health", {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ version: "0".repeat(64), sources: [] }),
+  });
+  assert.equal(r.status, 200);
+  assert.deepEqual(calls.at(-1).input, { version: "0".repeat(64), sources: [] });
+});
 test("health configuration writes require the CSRF token", async () => {
   const before = calls.length;
   const r = await fetch(origin + "/api/admin/data-health", {

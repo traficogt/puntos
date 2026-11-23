@@ -1,4 +1,5 @@
 import { badRequest } from "../../utils/http-error.js";
+import { sub, sum, toMinor, toNumber } from "../../utils/money.js";
 
 const PLAN_FIELDS = [
   "version",
@@ -138,10 +139,12 @@ const COST_FIELDS = [
   "outstanding_reward_cost_q",
 ];
 const INCURRED_FIELDS = ["fulfillment_cost_q", "messaging_cost_q", "other_cost_q"];
-const money = (value) =>
-  value == null || !Number.isFinite(value)
-    ? null
-    : Math.round((value + Number.EPSILON) * 100) / 100;
+// Q amounts in whole centavos (null when unknown); `money` is the JSON number.
+const minor = (value) => (value == null || !Number.isFinite(value) ? null : toMinor(value));
+const money = (value) => {
+  const cents = minor(value);
+  return cents == null ? null : toNumber(cents);
+};
 const comparableSales = (group) =>
   group != null &&
   Number.isSafeInteger(group.members) &&
@@ -176,25 +179,29 @@ export function campaignContribution({ treatment, control, costs = null } = {}) 
       ? treatment.recorded_sales_q / treatment.members - control.recorded_sales_q / control.members
       : null;
   const incrementalSales = perMember == null ? null : perMember * treatment.members;
-  const gross =
+  // The per-member difference is a quotient and stays a float until it is
+  // rounded to the centavo; from the gross contribution on, every step is exact
+  // centavo arithmetic (the merchant's costs have at most two decimals).
+  const gross = minor(
     incrementalSales == null || inputs.gross_margin_pct == null
       ? null
-      : (incrementalSales * inputs.gross_margin_pct) / 100;
+      : (incrementalSales * inputs.gross_margin_pct) / 100,
+  );
   const incurred = INCURRED_FIELDS.every((key) => inputs[key] != null)
-    ? INCURRED_FIELDS.reduce((sum, key) => sum + inputs[key], 0)
+    ? sum(INCURRED_FIELDS.map((key) => toMinor(inputs[key])))
     : null;
-  const net = gross == null || incurred == null ? null : gross - incurred;
+  const net = gross == null || incurred == null ? null : sub(gross, incurred);
   return {
     sales_difference_per_member_q: money(perMember),
     incremental_recorded_sales_q: money(incrementalSales),
-    incremental_gross_contribution_q: money(gross),
-    incurred_cost_q: money(incurred),
-    estimated_incremental_contribution_q: money(net),
+    incremental_gross_contribution_q: gross == null ? null : toNumber(gross),
+    incurred_cost_q: incurred == null ? null : toNumber(incurred),
+    estimated_incremental_contribution_q: net == null ? null : toNumber(net),
     outstanding_reward_cost_q: money(inputs.outstanding_reward_cost_q),
     scenario_including_outstanding_q:
       net == null || inputs.outstanding_reward_cost_q == null
         ? null
-        : money(net - inputs.outstanding_reward_cost_q),
+        : toNumber(sub(net, toMinor(inputs.outstanding_reward_cost_q))),
     missing_inputs: missing,
     source: "merchant_estimate",
     limitations: [

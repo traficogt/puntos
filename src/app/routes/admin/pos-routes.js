@@ -1,11 +1,20 @@
 import { Router } from "express";
+import { z } from "zod";
 import { asyncRoute } from "../../../middleware/common.js";
 import { requireOwner, requireStaff } from "../../../middleware/auth.js";
 import { csrfProtect } from "../../../middleware/csrf.js";
 import { tenantContext } from "../../../middleware/tenant.js";
 import { requirePlanFeature } from "../../../middleware/plan-feature.js";
+import { validateRequest } from "../../../utils/schemas.js";
 import * as PosIntegrationService from "../../services/pos-integration-service.js";
 import * as PosRefundService from "../../services/pos-refund-service.js";
+
+// Envelope only: the CSV normalizer keeps its own column, source and unit checks
+// (which depend on whether columns were supplied) and its owner-facing messages.
+const posCsvShape = z.looseObject({
+  csv: z.string(),
+  columns: z.record(z.string(), z.unknown()).optional(),
+});
 
 export function createAdminPosRoutes(deps = {}) {
   const router = Router();
@@ -47,8 +56,9 @@ export function createAdminPosRoutes(deps = {}) {
     "/admin/pos/csv/preview",
     ...guards,
     csrfProtect,
+    validateRequest(posCsvShape),
     asyncRoute(async (req, res) => {
-      return res.json(await service.previewCsv(req.tenantId, req.body));
+      return res.json(await service.previewCsv(req.tenantId, req.validated));
     }),
   );
 
@@ -56,8 +66,9 @@ export function createAdminPosRoutes(deps = {}) {
     "/admin/pos/csv/import",
     ...guards,
     csrfProtect,
+    validateRequest(posCsvShape),
     asyncRoute(async (req, res) => {
-      return res.json(await service.importCsv(req.tenantId, req.body));
+      return res.json(await service.importCsv(req.tenantId, req.validated));
     }),
   );
 

@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { config } from "../../config/index.js";
+import { z } from "zod";
 import { asyncRoute } from "../../middleware/common.js";
 import { requireSuperAdmin } from "../../middleware/auth.js";
 import { csrfProtect } from "../../middleware/csrf.js";
+import { uuidSchema, validateParams } from "../../utils/schemas.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
 import { CustomerRepo } from "../repositories/customer-repository.js";
 import { StaffRepo } from "../repositories/staff-repository.js";
@@ -11,11 +13,14 @@ import { InternalMagicLinkCreateSchema, logSuperAudit } from "./super-support.js
 
 export const superMagicLinkRoutes = Router();
 
+const BusinessParamsSchema = z.object({ businessId: uuidSchema });
+
 superMagicLinkRoutes.get(
   "/super/businesses/:businessId/staff",
   requireSuperAdmin,
+  validateParams(BusinessParamsSchema),
   asyncRoute(async (req, res) => {
-    const businessId = String(req.params.businessId || "");
+    const { businessId } = req.validatedParams;
     const business = await BusinessRepo.getById(businessId);
     if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
     const rows = await StaffRepo.listByBusiness(businessId);
@@ -33,8 +38,9 @@ superMagicLinkRoutes.get(
 superMagicLinkRoutes.get(
   "/super/businesses/:businessId/customers",
   requireSuperAdmin,
+  validateParams(BusinessParamsSchema),
   asyncRoute(async (req, res) => {
-    const businessId = String(req.params.businessId || "");
+    const { businessId } = req.validatedParams;
     const business = await BusinessRepo.getById(businessId);
     if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
     const rows = await CustomerRepo.listByBusiness(businessId, 200);

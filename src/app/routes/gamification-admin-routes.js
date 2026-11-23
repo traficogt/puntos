@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireOwner, requireStaff } from "../../middleware/auth.js";
 import { asyncRoute } from "../../middleware/common.js";
-import { validateQuery } from "../../utils/schemas.js";
+import { uuidParamsSchema, validateParams, validateQuery } from "../../utils/schemas.js";
 import { csrfProtect } from "../../middleware/csrf.js";
 import { requirePlanFeature } from "../../middleware/plan-feature.js";
 import { validate } from "../../utils/validation.js";
@@ -67,6 +67,7 @@ gamificationAdminRoutes.put(
   requireOwner,
   tenantContext,
   requirePlanFeature("gamification"),
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
     const v = validate(AchievementUpdateSchema, req.body);
     if (!v.ok) return res.status(400).json({ error: v.error });
@@ -84,9 +85,9 @@ gamificationAdminRoutes.put(
       if (v.data[key] !== undefined) updates[key] = v.data[key];
     }
 
-    const GamificationRepository = await loadGamificationRepository();
-    const achievement = await GamificationRepository.updateAchievementScoped(
-      req.params.id,
+    const repo = await loadGamificationRepository();
+    const achievement = await repo.updateAchievementScoped(
+      req.validatedParams.id,
       req.tenantId,
       updates,
     );
@@ -101,12 +102,10 @@ gamificationAdminRoutes.delete(
   requireOwner,
   tenantContext,
   requirePlanFeature("gamification"),
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
-    const GamificationRepository = await loadGamificationRepository();
-    const deleted = await GamificationRepository.deleteAchievementScoped(
-      req.params.id,
-      req.tenantId,
-    );
+    const repo = await loadGamificationRepository();
+    const deleted = await repo.deleteAchievementScoped(req.validatedParams.id, req.tenantId);
     if (!deleted) return res.status(404).json({ error: "No encontrado" });
     res.json({ ok: true });
   }),
@@ -160,6 +159,7 @@ gamificationAdminRoutes.put(
   requireOwner,
   tenantContext,
   requirePlanFeature("gamification"),
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
     const v = validate(ChallengeUpdateSchema, req.body);
     if (!v.ok) return res.status(400).json({ error: v.error });
@@ -169,9 +169,9 @@ gamificationAdminRoutes.put(
       if (v.data[key] !== undefined) updates[key] = v.data[key];
     }
 
-    const GamificationRepository = await loadGamificationRepository();
-    const challenge = await GamificationRepository.updateChallengeScoped(
-      req.params.id,
+    const repo = await loadGamificationRepository();
+    const challenge = await repo.updateChallengeScoped(
+      req.validatedParams.id,
       req.tenantId,
       updates,
     );
@@ -187,9 +187,10 @@ gamificationAdminRoutes.delete(
   requireOwner,
   tenantContext,
   requirePlanFeature("gamification"),
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
-    const GamificationRepository = await loadGamificationRepository();
-    const deleted = await GamificationRepository.deleteChallengeScoped(req.params.id, req.tenantId);
+    const repo = await loadGamificationRepository();
+    const deleted = await repo.deleteChallengeScoped(req.validatedParams.id, req.tenantId);
     if (!deleted) return res.status(404).json({ error: "No encontrado" });
     res.json({ ok: true });
   }),

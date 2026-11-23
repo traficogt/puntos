@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { DateTime } from "luxon";
 import { withTransaction } from "../database.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
+import { toMinor } from "../../utils/money.js";
 import { businessRegion, assertRegionAmount } from "./regional-settings.js";
 import {
   fingerprint,
@@ -163,8 +164,13 @@ export async function createSupplierAgreement(options, deps = {}) {
         : ends;
     assertRegionAmount(options.unit_amount, options.currency, business);
     assertRegionAmount(options.cap_amount, options.currency, business);
-    const unit = Math.round(options.unit_amount * 10 ** region.minorUnits),
-      cap = Math.round(options.cap_amount * 10 ** region.minorUnits);
+    // Exact conversion to the region's minor units (centavos; whole pesos for
+    // CLP). Anything above 1e9 major units fails the bounds below anyway, so it
+    // becomes NaN here instead of overflowing the safe-integer range.
+    const minor = (amount) =>
+      amount > 1e9 ? Number.NaN : toMinor(amount, { scale: region.minorUnits });
+    const unit = minor(options.unit_amount),
+      cap = minor(options.cap_amount);
     if (
       !Number.isSafeInteger(unit) ||
       unit <= 0 ||

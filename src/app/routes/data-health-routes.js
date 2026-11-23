@@ -10,6 +10,7 @@ import {
   healthSettingsSchema,
 } from "../services/data-health-service.js";
 import { getPlatformOperationsHealth } from "../services/platform-health-service.js";
+import { validationErrorBody } from "../../utils/schemas.js";
 const empty = z.object({}).strict();
 const page = z
   .object({
@@ -46,8 +47,9 @@ export function createDataHealthRoutes(injected = {}) {
     tenantContext,
     csrfProtect,
     asyncRoute(async (req, res) => {
+      if (!empty.safeParse(req.query).success) return invalid(res);
       const input = healthSettingsSchema.safeParse(req.body);
-      if (!input.success || !empty.safeParse(req.query).success) return invalid(res);
+      if (!input.success) return res.status(400).json(validationErrorBody(input.error));
       return res.json(
         await s.saveDataHealth({
           businessId: req.tenantId,

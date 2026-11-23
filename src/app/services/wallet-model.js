@@ -4,6 +4,7 @@
 // (cashback_accounts / cashback_transactions, see cashback-service.js). No DB.
 
 import { cashbackTerms } from "./cashback-model.js";
+import { pct, toMinor, toNumber } from "../../utils/money.js";
 
 export function giftCardTerms(business) {
   if (!business || business.program_type !== "GIFT_CARD") return null;
@@ -12,11 +13,13 @@ export function giftCardTerms(business) {
   return { bonus_percent };
 }
 
-// Bonus Q added to a load of amount_q at the configured bonus percent.
+// Bonus Q added to a load of amount_q at the configured bonus percent. Same
+// exact centavo arithmetic as the gift-card ledger (gift-card-program-service).
 export function loadBonus(bonus_percent, amount_q) {
-  const pct = Math.min(100, Math.max(0, Number(bonus_percent) || 0));
-  const amt = Math.max(0, Number(amount_q) || 0);
-  return Math.round(amt * pct) / 100;
+  const percent = Math.min(100, Math.max(0, Number(bonus_percent) || 0));
+  const amt = Number(amount_q);
+  if (!Number.isFinite(amt) || amt <= 0) return 0;
+  return toNumber(pct(toMinor(amt), percent));
 }
 
 // One descriptor for whichever program keeps a member wallet, so the customer

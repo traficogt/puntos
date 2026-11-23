@@ -1,3 +1,5 @@
+import { fromMinor, mul, toMinor, toNumber } from "../../utils/money.js";
+
 function dateKey(value) {
   if (!value) return null;
   const date = new Date(value);
@@ -73,9 +75,13 @@ function churnRiskScore(daysSinceLastPurchase, purchaseFrequency) {
   return Number(Math.min(1, daysFactor + frequencyFactor).toFixed(2));
 }
 
+// Two years of purchases at the observed monthly frequency, as a Q amount.
+// The frequency has two decimals, so 24 × frequency is an exact decimal and the
+// average ticket (a NUMERIC(10,2) string) is multiplied by it with one rounding.
 function predictedLtv(avgTransactionValue, purchaseFrequency) {
   if (!(purchaseFrequency > 0)) return 0;
-  return Number((Number(avgTransactionValue || 0) * (purchaseFrequency * 12 * 2)).toFixed(2));
+  const purchasesInTwoYears = fromMinor(mul(toMinor(purchaseFrequency), 24));
+  return toNumber(mul(toMinor(avgTransactionValue || 0), purchasesInTwoYears));
 }
 
 export async function refreshCustomerDerivedState(client, customerId) {

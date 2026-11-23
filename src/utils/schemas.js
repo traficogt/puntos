@@ -282,42 +282,74 @@ export const branchFilterQuerySchema = z.object({
 
 // Validation helpers
 
-export function validateRequest(schema) {
-  return (req, res, next) => {
-    try {
-      req.validated = schema.parse(req.body);
-      next();
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({
-          error: "Validation failed",
-          details: error.issues.map((e) => ({
-            field: e.path.join("."),
-            message: e.message,
-          })),
-        });
+// Same user-facing text and code the error middleware uses for a ZodError that
+// escapes a handler, so clients see one validation contract regardless of
+// whether the schema ran as middleware or inside the handler.
+export const VALIDATION_ERROR_CODE = "VALIDATION_ERROR";
+export const VALIDATION_FAILED_MESSAGE = "Revisa los datos enviados.";
+export const INVALID_QUERY_MESSAGE = "Parámetros de consulta inválidos";
+export const INVALID_PARAMS_MESSAGE = "Parámetros de ruta inválidos";
+
+/** @param {z.ZodError} error */
+export function zodIssueDetails(error) {
+  return error.issues.map((issue) => ({
+    field: issue.path.join("."),
+    message: issue.message,
+  }));
+}
+
+/**
+ * Body of a 400 validation response: `{ error, code, details }`.
+ * @param {z.ZodError} error
+ * @param {string} [message]
+ */
+export function validationErrorBody(error, message = VALIDATION_FAILED_MESSAGE) {
+  return { error: message, code: VALIDATION_ERROR_CODE, details: zodIssueDetails(error) };
+}
+
+function validateSource(name, source, target, message) {
+  return (schema) => {
+    const middleware = (req, res, next) => {
+      try {
+        req[target] = schema.parse(req[source]);
+        next();
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json(validationErrorBody(error, message));
+        }
+        next(error);
       }
-      next(error);
-    }
+    };
+    // Express records the function name as the layer name, which lets tests and
+    // tooling locate the validation step in a route stack.
+    Object.defineProperty(middleware, "name", { value: name });
+    return middleware;
   };
 }
 
-export function validateQuery(schema) {
-  return (req, res, next) => {
-    try {
-      req.validatedQuery = schema.parse(req.query);
-      next();
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({
-          error: "Invalid query parameters",
-          details: error.issues.map((e) => ({
-            field: e.path.join("."),
-            message: e.message,
-          })),
-        });
-      }
-      next(error);
-    }
-  };
-}
+/** Parses `req.body`; the result is available as `req.validated`. */
+export const validateRequest = validateSource(
+  "validateRequest",
+  "body",
+  "validated",
+  VALIDATION_FAILED_MESSAGE,
+);
+
+/** Parses `req.query`; the result is available as `req.validatedQuery`. */
+export const validateQuery = validateSource(
+  "validateQuery",
+  "query",
+  "validatedQuery",
+  INVALID_QUERY_MESSAGE,
+);
+
+/** Parses `req.params`; the result is available as `req.validatedParams`. */
+export const validateParams = validateSource(
+  "validateParams",
+  "params",
+  "validatedParams",
+  INVALID_PARAMS_MESSAGE,
+);
+
+/** Route parameter schema for a single `:id` segment that must be a UUID. */
+export const uuidParamsSchema = z.object({ id: uuidSchema });

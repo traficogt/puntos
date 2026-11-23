@@ -2,7 +2,7 @@ import { dateTimeSchema } from "../../../utils/date-time-schema.js";
 import { Router } from "express";
 import { z } from "zod";
 import { asyncRoute } from "../../../middleware/common.js";
-import { validateQuery } from "../../../utils/schemas.js";
+import { uuidParamsSchema, validateParams, validateQuery } from "../../../utils/schemas.js";
 import { requireOwner, requireStaff } from "../../../middleware/auth.js";
 import { tenantContext } from "../../../middleware/tenant.js";
 import { toCSV } from "../../../utils/csv.js";
@@ -206,8 +206,9 @@ adminAuditRoutes.get(
   requireStaff,
   requireOwner,
   tenantContext,
+  validateParams(uuidParamsSchema),
   asyncRoute(async (req, res) => {
-    const detail = await getAuditEventDetail(req.tenantId, String(req.params.id || ""));
+    const detail = await getAuditEventDetail(req.tenantId, req.validatedParams.id);
     if (!detail) return res.status(404).json({ error: "Evento de auditoría no encontrado" });
     return res.json({ ok: true, ...detail });
   }),

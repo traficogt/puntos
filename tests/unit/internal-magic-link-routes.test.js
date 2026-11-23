@@ -235,6 +235,7 @@ test("super business staff endpoint filters inactive and unsupported roles", asy
     const res = await runFinalHandler(layer, {
       method: "GET",
       params: { businessId },
+      validatedParams: { businessId },
       superAdmin: { email: "super@example.com" },
     });
 
@@ -269,6 +270,7 @@ test("super business customer endpoint returns a bounded list", async () => {
     const res = await runFinalHandler(layer, {
       method: "GET",
       params: { businessId },
+      validatedParams: { businessId },
       superAdmin: { email: "super@example.com" },
     });
 
@@ -293,6 +295,7 @@ test("super business staff endpoint returns 404 when the business does not exist
     const res = await runFinalHandler(layer, {
       method: "GET",
       params: { businessId: "11111111-1111-4111-8111-111111111111" },
+      validatedParams: { businessId: "11111111-1111-4111-8111-111111111111" },
       superAdmin: { email: "super@example.com" },
     });
 
