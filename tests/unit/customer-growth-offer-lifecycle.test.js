@@ -80,7 +80,11 @@ const { initCustomerPage } = await import(
       .replace(/(['"])\.\/load\.js\1/, JSON.stringify(loadUrl))
       .replace(/(['"])\.\/network\.js\1/, JSON.stringify(networkStub))
       .replace(/(['"])\.\/qr\.js\1/, JSON.stringify(qrStub))
-      .replace(/(['"])\.\/session\.js\1/, JSON.stringify(sessionUrl)),
+      .replace(/(['"])\.\/session\.js\1/, JSON.stringify(sessionUrl))
+      .replace(
+        '"../session-epoch.js"',
+        JSON.stringify(new URL("../../public/session-epoch.js", import.meta.url).href),
+      ),
   )
 );
 

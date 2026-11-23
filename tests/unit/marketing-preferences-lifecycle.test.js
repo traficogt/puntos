@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
+import { createSessionEpoch } from "../../public/session-epoch.js";
 
 // eslint-disable-next-line security/detect-non-literal-fs-filename -- Fixed repository fixture.
 const source = await readFile(
@@ -40,6 +41,7 @@ async function setup({ token = "" } = {}) {
     window: { addEventListener: (event, callback) => events.set(event, callback) },
     getCustomerEpoch: () => state.epoch,
     readCustomerStorage: () => "",
+    createSessionEpoch,
     api: async (url, options) => {
       calls.push({ url, options });
       if (options.method) {
@@ -70,8 +72,29 @@ async function setup({ token = "" } = {}) {
     events.get(token ? "unsubscribeButton:click" : "preferencesForm:submit")({
       preventDefault() {},
     });
-  return { byId, events, state, calls, choose, visibility, save };
+  return { byId, events, state, calls, choose, visibility, save, settle };
 }
+
+test("another tab changing the customer session reloads the preferences; unrelated keys do not", async () => {
+  const h = await setup();
+  assert.equal(h.calls.length, 1);
+  h.events.get("storage")({ key: "pf_unrelated", newValue: "1" });
+  await h.settle();
+  assert.equal(h.calls.length, 1);
+  for (const key of ["pf_customer_epoch", "pf_customer_identity", "pf_customer_blocked", null]) {
+    h.events.get("storage")({ key, newValue: null });
+    await h.settle();
+  }
+  assert.equal(h.calls.length, 5);
+});
+
+test("unsubscribe links ignore customer session storage events", async () => {
+  const h = await setup({ token: "fixture-unsubscribe" });
+  h.events.get("storage")({ key: "pf_customer_epoch", newValue: "other" });
+  h.events.get("storage")({ key: null, newValue: null });
+  await h.settle();
+  assert.equal(h.calls.length, 1);
+});
 
 test("switching tabs preserves an unsaved preference after revalidating the same customer", async () => {
   const h = await setup();

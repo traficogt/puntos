@@ -1,3 +1,4 @@
+import { api as sharedApi, readCookieCsrfToken } from "/lib.js";
 const $ = (id) => document.getElementById(id);
 const form = $("support-form");
 const stateNames = {
@@ -69,48 +70,54 @@ function previewDiagnostics() {
   );
   return d;
 }
-// This public page deliberately keeps its own transport instead of the shared
-// client in /lib.js: the form shows the support service's Spanish copy verbatim
-// (the shared client replaces coded errors such as NOT_FOUND and appends a request
-// reference), uses distinct copy for connectivity failures and throttling, and
-// downloads the attachment as a blob. The CSRF token comes from the same
-// pf_csrf_readable cookie the shared client reads (base64url, so decoding is a no-op).
-function csrf() {
-  return decodeURIComponent(
-    document.cookie
-      .split("; ")
-      .find((v) => v.startsWith("pf_csrf_readable="))
-      ?.split("=")
-      .slice(1)
-      .join("=") || "",
-  );
+// This public form shows the support service's Spanish copy verbatim, so it asks the
+// shared client for the raw error (no code mapping, no request reference) and adds its
+// own copy only for connectivity failures, throttling and responses without a message.
+// The attachment downloads as a blob, which the shared JSON client cannot return, so
+// that one request keeps a direct fetch with the same CSRF cookie the client reads.
+function failure(error) {
+  if (error?.status === undefined)
+    return new Error(
+      "No pudimos conectar. Conservamos lo que escribiste: revisa tu conexión y vuelve a intentar.",
+    );
+  const message =
+    error.status === 429
+      ? "Ya recibimos varios intentos. Espera antes de volver a enviar."
+      : error.message || "No pudimos completar la solicitud. Vuelve a intentar.";
+  return Object.assign(new Error(message), { status: error.status });
 }
-async function api(path, body, { binary = false } = {}) {
-  let response;
+async function api(path, body) {
   try {
-    response = await fetch(`/api/public/support/${path}`, {
+    return await sharedApi(`/api/public/support/${path}`, {
       method: "POST",
       credentials: "same-origin",
-      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf() },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      rawError: true,
+    });
+  } catch (error) {
+    throw failure(error);
+  }
+}
+async function downloadAttachment(body) {
+  let response;
+  try {
+    response = await fetch("/api/public/support/attachment", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": readCookieCsrfToken() },
       body: JSON.stringify(body),
       cache: "no-store",
     });
   } catch {
-    throw new Error(
-      "No pudimos conectar. Conservamos lo que escribiste: revisa tu conexión y vuelve a intentar.",
-    );
+    throw failure(null);
   }
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    const error = new Error(
-      response.status === 429
-        ? "Ya recibimos varios intentos. Espera antes de volver a enviar."
-        : data.error || "No pudimos completar la solicitud. Vuelve a intentar.",
-    );
-    error.status = response.status;
-    throw error;
-  }
-  return binary ? response.blob() : response.json();
+  if (response.ok) return response.blob();
+  const data = await response.json().catch(() => ({}));
+  throw failure({
+    status: response.status,
+    message: typeof data.error === "string" ? data.error : "",
+  });
 }
 function caseLink() {
   return `${location.origin}/soporte#caso=${trackingToken}`;
@@ -314,7 +321,7 @@ $("copy-case-link").addEventListener("click", async () => {
 });
 $("show-attachment").addEventListener("click", async () => {
   try {
-    const blob = await api("attachment", { trackingToken }, { binary: true });
+    const blob = await downloadAttachment({ trackingToken });
     if (caseImageUrl) URL.revokeObjectURL(caseImageUrl);
     caseImageUrl = URL.createObjectURL(blob);
     $("case-attachment").src = caseImageUrl;
@@ -347,12 +354,9 @@ async function init() {
   previewDiagnostics();
   await openFragment();
   try {
-    const config = await fetch("/api/public/support/config", {
+    const config = await sharedApi("/api/public/support/config", {
       cache: "no-store",
       credentials: "same-origin",
-    }).then((r) => {
-      if (!r.ok) throw new Error();
-      return r.json();
     });
     if (config.challengeRequired && !trackingToken) {
       await new Promise((resolve, reject) => {

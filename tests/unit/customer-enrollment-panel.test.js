@@ -81,12 +81,17 @@ test("customer invitation panel keeps actions bound to the loaded staff session"
   ).catch(() => "");
   assert.ok(source, "the persistent invitation panel must exist");
   const moduleUrl = `data:text/javascript;base64,${Buffer.from(
-    source.replace(
-      '"../logout-controller.js"',
-      JSON.stringify(
-        `data:text/javascript,${encodeURIComponent("export const captureDashboardSession=()=>globalThis.__invitation.capture();export const isDashboardSessionBlocked=()=>globalThis.__invitation.blocked();")}`,
+    source
+      .replace(
+        '"../logout-controller.js"',
+        JSON.stringify(
+          `data:text/javascript,${encodeURIComponent("export const captureDashboardSession=()=>globalThis.__invitation.capture();export const isDashboardSessionBlocked=()=>globalThis.__invitation.blocked();")}`,
+        ),
+      )
+      .replace(
+        '"../../session-epoch.js"',
+        JSON.stringify(new URL("../../public/session-epoch.js", import.meta.url).href),
       ),
-    ),
   ).toString("base64")}`;
   const { createCustomerEnrollment } = await import(moduleUrl);
   const originals = new Map();
@@ -239,6 +244,27 @@ test("customer invitation panel keeps actions bound to the loaded staff session"
       await f.events.get("#customerEnrollmentRetry:click")();
       f.events.get("#customerEnrollmentQr:load")();
       assert.equal(f.app.$("#customerEnrollmentQr").hidden, false);
+    },
+  );
+  await t.test(
+    "another tab's staff logout or new staff session clears the invitation",
+    async () => {
+      const f = fixture();
+      install(f);
+      const panel = createCustomerEnrollment(f.app);
+      await panel.load();
+      const storage = f.events.get("window:storage");
+      storage({ key: "pf_customer_epoch", newValue: "customer" });
+      storage({ key: "pf_staff_logout_pending", newValue: null });
+      assert.equal(f.app.$("#customerEnrollmentUrl").value, f.data.registration_url);
+      storage({ key: "pf_staff_logout_pending", newValue: "1" });
+      assert.equal(f.app.$("#customerEnrollmentUrl").value, "");
+      assert.equal(f.app.$("#customerEnrollmentCopy").disabled, true);
+      await panel.load();
+      assert.equal(f.app.$("#customerEnrollmentUrl").value, f.data.registration_url);
+      storage({ key: "pf_staff_epoch", newValue: "next-session" });
+      assert.equal(f.app.$("#customerEnrollmentUrl").value, "");
+      assert.equal(f.app.$("#customerEnrollmentDownload").href, "");
     },
   );
   await t.test(

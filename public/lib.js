@@ -49,7 +49,8 @@ function withBase(path, base) {
   return base ? `${base}${normalizedPath}` : normalizedPath;
 }
 
-function readCookieCsrfToken() {
+/** The readable CSRF cookie set by the server; "" outside a document or when no cookie is set. */
+export function readCookieCsrfToken() {
   if (typeof document === "undefined") return "";
   return (
     document.cookie
@@ -147,7 +148,16 @@ export function isNativeShell() {
   );
 }
 
-export async function api(path, opts = {}) {
+/**
+ * Shared JSON client. Failed responses throw an `Error` carrying `status`, `code`, `requestId`
+ * and, when the server offers one, `recoveryCaseId`.
+ * @param {string} path
+ * @param {RequestInit & { rawError?: boolean }} [opts] `rawError: true` keeps the server's `error`
+ *   text and `code` verbatim: no code-to-Spanish mapping, no English fallback translation and no
+ *   "(Ref: id)" suffix. The message is "" when the response carried no error text, so the caller
+ *   can show its own copy. Public forms that display the service's Spanish copy as written use it.
+ */
+export async function api(path, { rawError = false, ...opts } = {}) {
   const csrfToken = readCookieCsrfToken() || readStoredCsrfToken();
 
   const headers = new Headers(opts.headers || {});
@@ -175,9 +185,10 @@ export async function api(path, opts = {}) {
   if (!res.ok) {
     const code = typeof data?.code === "string" ? data.code : "";
     const requestId = data?.request_id || res.headers.get("x-request-id") || "";
-    const rawError = typeof data?.error === "string" ? data.error : "";
-    let err =
-      rawError === "MFA_REQUIRED"
+    const serverError = typeof data?.error === "string" ? data.error : "";
+    let err = rawError
+      ? (data?.error ?? "")
+      : serverError === "MFA_REQUIRED"
         ? "Se requiere código MFA"
         : ERROR_BY_CODE[code] || data?.error || `HTTP ${res.status}`;
     if (err && typeof err === "object") {
@@ -199,7 +210,7 @@ export async function api(path, opts = {}) {
     }
     // Fallback for older servers that still answer in English. Current servers send Spanish
     // text plus a stable `code`; Spanish messages pass through these anchored patterns unchanged.
-    if (typeof err === "string") {
+    if (!rawError && typeof err === "string") {
       err = err.replace(
         /^Feature '([^']+)' not available in current plan$/,
         "La funcionalidad '$1' no esta disponible en tu plan actual",
@@ -257,7 +268,7 @@ export async function api(path, opts = {}) {
     const message = typeof err === "string" ? err : JSON.stringify(err);
     const wrapped =
       /** @type {Error & { code?: string; requestId?: string; status?: number; recoveryCaseId?: string }} */ (
-        new Error(requestId ? `${message} (Ref: ${requestId})` : message)
+        new Error(requestId && !rawError ? `${message} (Ref: ${requestId})` : message)
       );
     wrapped.code = code || undefined;
     wrapped.status = res.status;

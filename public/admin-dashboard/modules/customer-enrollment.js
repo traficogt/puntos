@@ -1,4 +1,7 @@
 import { captureDashboardSession, isDashboardSessionBlocked } from "../logout-controller.js";
+import { createSessionEpoch } from "../../session-epoch.js";
+
+const session = createSessionEpoch("staff");
 
 /** @param {import("../types.js").AdminDashboardApp} app */
 export function createCustomerEnrollment(app) {
@@ -132,11 +135,7 @@ export function createCustomerEnrollment(app) {
     if (retry) retry.hidden = false;
   });
   window.addEventListener("storage", (event) => {
-    if (
-      event.key === "pf_staff_epoch" ||
-      (event.key === "pf_staff_logout_pending" && event.newValue === "1")
-    )
-      invalidate();
+    if (session.supersededBy(event)) invalidate();
   });
   window.addEventListener("pagehide", invalidate);
   window.addEventListener("pageshow", (event) => {

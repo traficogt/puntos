@@ -11,9 +11,12 @@ import {
   isCustomerAuthError,
   readCustomerStorage,
 } from "./session.js";
+import { createSessionEpoch } from "../session-epoch.js";
 import { createWalletNavigation, walletDestination } from "./wallet-navigation.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
+
+const session = createSessionEpoch("customer");
 
 /**
  * @param {(selector: string) => Element | null} $
@@ -232,19 +235,13 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   window.addEventListener("focus", () => ignore(refreshWallet({ silent: true })));
   window.addEventListener("hashchange", () => destinationNavigation.navigate());
   window.addEventListener("storage", (event) => {
-    if (
-      event.key !== "pf_customer_epoch" &&
-      event.key !== "pf_customer_identity" &&
-      event.key !== "pf_customer_blocked" &&
-      event.key !== null
-    )
-      return;
+    if (!session.changedBy(event)) return;
     destinationNavigation.pause();
     clearWalletView($);
     dispose();
     // Removing identity means logout or verification is still in progress.
     // Revalidate only after a later focus or a completed identity change.
-    if (event.key === "pf_customer_identity" && event.newValue)
+    if (event.key === session.keys.linked.identity && event.newValue)
       ignore(refreshWallet({ silent: true }));
   });
   document.addEventListener("visibilitychange", () => {

@@ -1,5 +1,7 @@
 import { api } from "/lib.js";
 import { getCustomerEpoch, readCustomerStorage } from "/customer/session.js";
+import { createSessionEpoch } from "/session-epoch.js";
+const session = createSessionEpoch("customer");
 const byId = (id) => document.getElementById(id);
 const status = byId("preferencesStatus");
 const token = new URLSearchParams(location.search).get("token");
@@ -169,11 +171,7 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted) load();
 });
 window.addEventListener("storage", (event) => {
-  if (
-    !token &&
-    ["pf_customer_epoch", "pf_customer_identity", "pf_customer_blocked", null].includes(event.key)
-  )
-    load();
+  if (!token && session.changedBy(event)) load();
 });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) clearView({ preserveDraft: true });

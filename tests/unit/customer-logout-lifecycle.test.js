@@ -46,6 +46,10 @@ const { initCustomerPage } = await import(
       .replace(
         '"./session.js"',
         JSON.stringify(new URL("../../public/customer/session.js", import.meta.url).href),
+      )
+      .replace(
+        '"../session-epoch.js"',
+        JSON.stringify(new URL("../../public/session-epoch.js", import.meta.url).href),
       ),
   )
 );

@@ -44,6 +44,10 @@ const { initCustomerAuthEntry } = await import(
       .replace(
         '"./customer/session.js"',
         JSON.stringify(new URL("../../public/customer/session.js", import.meta.url).href),
+      )
+      .replace(
+        '"./session-epoch.js"',
+        JSON.stringify(new URL("../../public/session-epoch.js", import.meta.url).href),
       ),
   )
 );
@@ -382,6 +386,27 @@ test("another tab changing the customer epoch prevents an old completion from sa
   await h.$("#btnAppleWallet").onclick();
   assert.equal(location.href, "");
   assert.equal(h.$("#done").hidden, true);
+});
+
+test("another tab wiping storage prevents an old completion from saving", async (t) => {
+  const { h, events, saved } = setup(t);
+  await initCustomerAuthEntry({ mode: "register" });
+  await events["#btnVerify:click"]();
+  saved.clear();
+  await events["window:storage"]({ key: null });
+  await h.$("#btnAppleWallet").onclick();
+  assert.equal(location.href, "");
+  assert.equal(h.$("#done").hidden, true);
+});
+
+test("other customer keys changing without a new epoch leave the completion in place", async (t) => {
+  const { h, events, saved } = setup(t);
+  await initCustomerAuthEntry({ mode: "register" });
+  await events["#btnVerify:click"]();
+  saved.set("pf_customer_blocked", "1");
+  await events["window:storage"]({ key: "pf_customer_blocked", newValue: "1" });
+  await events["window:storage"]({ key: "pf_customer_identity", newValue: null });
+  assert.equal(h.$("#done").hidden, false);
 });
 
 test("a network failure after successful verification retries the session instead of reusing the consumed code", async (t) => {

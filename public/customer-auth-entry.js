@@ -10,8 +10,10 @@ import {
 } from "./customer/session.js";
 import { renderNativeWallet } from "./customer/native-wallet.js";
 import { walletDestination } from "./customer/wallet-navigation.js";
+import { createSessionEpoch } from "./session-epoch.js";
 
 const returningSlugKey = "pf_customer_joined_slug";
+const session = createSessionEpoch("customer");
 
 function normalizedPhone(value, country = "GT") {
   const digits = String(value || "").replace(/\D/g, "");
@@ -482,7 +484,8 @@ export async function initCustomerAuthEntry({ mode }) {
   });
 
   window.addEventListener("storage", (event) => {
-    if ((event.key === "pf_customer_epoch" || event.key === null) && !current()) resetCompletion();
+    if ((session.supersededBy(event) || session.storageClearedBy(event)) && !current())
+      resetCompletion();
   });
   window.addEventListener("online", refreshWallet);
   window.addEventListener("pagehide", () => {
