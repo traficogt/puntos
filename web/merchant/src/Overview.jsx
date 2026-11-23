@@ -22,6 +22,7 @@ import { BusinessLink, Failure, Loading, Locked, number, money, periodDate } fro
 import { launchReadiness } from "./launch-model.js";
 import { merchantApi } from "./typed-api";
 import { programPresets } from "./program-presets.js";
+import { OwnerProgressCard } from "./OwnerProgress.tsx";
 function Comparison({ current, previous, rate = false }) {
   if (
     previous === null ||
@@ -245,6 +246,7 @@ export default function Overview({ features, onNavigate }) {
       <Stack gap="lg">
         <Title order={1}>Tu negocio, con perspectiva</Title>
         <GuidedStart features={features} onNavigate={onNavigate} />
+        <OwnerProgressCard onNavigate={onNavigate} />
         {features.basic_reporting && (
           <Stack className="panel" gap="xs" p="md">
             <Title order={2}>Tus números básicos</Title>
@@ -279,6 +281,7 @@ export default function Overview({ features, onNavigate }) {
   return (
     <Stack gap="xl">
       <GuidedStart features={features} onNavigate={onNavigate} hideWhenComplete />
+      <OwnerProgressCard onNavigate={onNavigate} />
       <div>
         <Title order={1}>Tu negocio, con perspectiva</Title>
         <Text className="intro">

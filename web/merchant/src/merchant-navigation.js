@@ -4,6 +4,7 @@
 // tools live under "Avanzado" so the main flow stays small and legible.
 export const dailyNavigation = [
   { page: "overview", label: "Inicio" },
+  { page: "progress", label: "Tu progreso" },
   { page: "reports", label: "Reportes" },
   { page: "fulfillment", label: "Canjes y caja" },
   { page: "cases", label: "Atención al cliente" },
@@ -82,6 +83,7 @@ export const navigationGroups = [
 // out so a first-time visitor is not overwhelmed.
 export const demoNavigation = [
   { page: "overview", label: "Inicio" },
+  { page: "progress", label: "Tu progreso" },
   { page: "launch", label: "Preparar mi programa" },
   { page: "rewards", label: "Recompensas" },
   { page: "automations", label: "Notificaciones automáticas" },

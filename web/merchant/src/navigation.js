@@ -1,5 +1,6 @@
 const fragments = {
   overview: "resumen",
+  progress: "tu-progreso",
   customers: "clientes",
   team: "personal",
   branches: "sucursales",

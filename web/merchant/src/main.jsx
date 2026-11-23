@@ -42,6 +42,7 @@ const OwnerGiftCards = lazy(() => import('./OwnerGiftCards.tsx'));
 const OwnerReports = lazy(() => import('./OwnerReports.tsx'));
 const OwnerProgramLimits = lazy(() => import('./OwnerProgramLimits.tsx'));
 const OwnerOnboarding = lazy(() => import('./OwnerOnboarding.tsx'));
+const OwnerProgress = lazy(() => import('./OwnerProgress.tsx'));
 const RewardsWorkspace = lazy(() => import('./RewardsWorkspace.jsx'));
 const Fulfillment = lazy(() => import('./Fulfillment.jsx'));
 const RegionSettings = lazy(() => import('./RegionSettings.jsx'));
@@ -388,6 +389,8 @@ function Merchant({ staff }) {
                 {page === "overview" ? (
                   <><ActivationSetup region={region.data} features={plan.data?.features||{}} onNavigate={navigate} onConfigure={section=>{setFocusSection(section);navigate('automations');}}/>
                   <Overview features={plan.data?.features || {}} onNavigate={navigate}/></>
+                ) : page === "progress" ? (
+                  <OwnerProgress staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "customers" ? (
                   <OwnerCustomers staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "team" ? (

@@ -39,3 +39,26 @@ const id: string | undefined = owner.customers[0]?.id;
 void id;
 // @ts-expect-error A caller-owned response contract also rejects invented fields.
 owner.staff;
+
+// "Tu progreso": the read is typed, writes name their endpoint and payload, and nothing invents a score.
+const progress = await client.get('/api/admin/owner-progress');
+const stepsDone: number = progress.launch.done_count;
+void stepsDone;
+const goalKey: string | undefined = progress.goal?.key;
+void goalKey;
+// @ts-expect-error The progress payload carries no composite score.
+progress.score;
+await client.post('/api/admin/owner-progress/acknowledge', { keys: ['programa_en_marcha'] });
+await client.post('/api/admin/owner-progress/goal', { key: 'monthly_review' });
+await client.post('/api/admin/owner-progress/goal', { dismiss: 'returning_5' });
+// @ts-expect-error A goal change names either a goal or a dismissal, never both.
+await client.post('/api/admin/owner-progress/goal', { key: 'monthly_review', dismiss: 'monthly_review' });
+// @ts-expect-error Review decisions are keep or adjust.
+await client.post('/api/admin/owner-progress/review', { decision: 'delete' });
+await client.post('/api/admin/owner-progress/review', { decision: 'adjust', note: 'Recompensa más cercana' });
+// @ts-expect-error Visibility is a boolean, not text.
+await client.post('/api/admin/owner-progress/visibility', { hidden: 'yes' });
+// @ts-expect-error The acknowledge body lists milestone keys.
+await client.post('/api/admin/owner-progress/acknowledge', { key: 'first_customer' });
+// @ts-expect-error The progress read is not a mutation endpoint.
+await client.post('/api/admin/owner-progress', {});

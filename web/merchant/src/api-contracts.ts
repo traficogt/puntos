@@ -1,4 +1,4 @@
-import type { MerchantPutPayloads, MerchantReadResponses } from './types/api';
+import type { MerchantPostPayloads, MerchantPostResponses, MerchantPutPayloads, MerchantReadResponses } from './types/api';
 
 export type MerchantTransport = (path: string, options?: RequestInit) => Promise<unknown>;
 type ReadOptions = Omit<RequestInit, 'method' | 'body'>;
@@ -14,6 +14,9 @@ export function createMerchantApi(transport: MerchantTransport) {
     },
     async put<Path extends keyof MerchantPutPayloads>(path: Path, payload: MerchantPutPayloads[Path], options?: WriteOptions): Promise<MerchantReadResponses[Path]> {
       return await transport(path, { ...options, method: 'PUT', body: JSON.stringify(payload) }) as MerchantReadResponses[Path];
+    },
+    async post<Path extends keyof MerchantPostPayloads>(path: Path, payload: MerchantPostPayloads[Path], options?: WriteOptions): Promise<MerchantPostResponses[Path]> {
+      return await transport(path, { ...options, method: 'POST', body: JSON.stringify(payload) }) as MerchantPostResponses[Path];
     },
   };
 }

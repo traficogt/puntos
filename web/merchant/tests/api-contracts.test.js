@@ -22,3 +22,14 @@ test('merchant reads retain transport errors and cancellation options', async ()
   });
   await assert.rejects(client.get('/api/admin/launch/program', { signal: controller.signal }), actual => actual === error);
 });
+
+test('merchant posts serialize the owner-progress payloads with the shared transport options', async () => {
+  const calls = [];
+  const client = createMerchantApi(async (path, options) => { calls.push({ path, options }); return { ok: true }; });
+  assert.deepEqual(await client.post('/api/admin/owner-progress/goal', { dismiss: 'returning_5' }), { ok: true });
+  await client.post('/api/admin/owner-progress/review', { decision: 'keep', note: 'Sin cambios' }, { keepalive: true });
+  assert.deepEqual(calls, [
+    { path: '/api/admin/owner-progress/goal', options: { method: 'POST', body: JSON.stringify({ dismiss: 'returning_5' }) } },
+    { path: '/api/admin/owner-progress/review', options: { keepalive: true, method: 'POST', body: JSON.stringify({ decision: 'keep', note: 'Sin cambios' }) } },
+  ]);
+});
