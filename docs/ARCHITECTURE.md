@@ -1,7 +1,8 @@
 # Architecture
 
 Orientation for engineers joining PuntosFieles. Every statement below was checked
-against the tree at commit `f8ce5c0` (2026-11-23); file paths are repository-relative.
+against the tree at commit `f8ce5c0` (2026-11-23) and re-verified after the later waves of
+the same day (`919d3dc` .. `5e2b33d`); file paths are repository-relative.
 Where the code and older documents disagree, this file describes the code and names
 the stale document. Recommendations are marked as such.
 
@@ -62,8 +63,16 @@ defaults now assume the owner's central DB VM.
 preview, not a product surface.
 
 Three UI stacks is a known cost. `docs/FRONTEND_MIGRATION_PLAN.md` proposes an incremental
-React + Vite migration; only `web/merchant` has followed it. **Consolidation is an open
-decision**, not a plan in progress.
+React + Vite migration; only `web/merchant` has followed it. The owner wants the
+owner-facing UI to converge on the merchant app; `docs/product/2026-11-23-owner-ui-consolidation.md`
+is the gap table. Status after `cfc1932`: every vanilla owner module except the deep analytics
+suite (dashboard narrative, RFM, ROI, cohorts, IVA CSV, recalculation, payment-webhook
+mapping, anomalies, reconciliation, certification, audit), reward redemption ledger inspection
+and automation templates has a merchant equivalent (`OwnerBranding`, `OwnerTiers`,
+`OwnerProgramLimits`, `OwnerGamification`, `OwnerGiftCards`, `OwnerOnboarding`,
+`OwnerReports` were added; branches, staff, rewards, program rule, referrals, POS and
+automations already existed). Nothing on the vanilla side was removed or redirected; retiring
+`/administracion/` is a separate owner decision, so **three stacks remain until then**.
 
 ## 2. Request lifecycle and tenancy
 
@@ -130,9 +139,8 @@ connection errored. Nested use re-enters the context with the new client.
 schema `app`, enables and `FORCE`s RLS on tenant tables and defines policies over
 `app.current_tenant`, `app.platform_admin` and `app.webhook_ingest`. The runtime role must
 be `NOSUPERUSER` (`enforceNonSuperRuntime` in `src/app/db/migrations.js` refuses to start
-otherwise, except in `NODE_ENV=test`). `docs/TENANT_RLS.md` remains the policy reference,
-but its statement that `withPgClient` runs for every request is stale: it runs for `/api`
-only.
+otherwise, except in `NODE_ENV=test`). `docs/TENANT_RLS.md` is the policy reference (its
+request-lifecycle section now matches: `withPgClient` runs for `/api` only).
 
 **Two DB-access idioms.** Counted with `grep` on 2026-11-23:
 
@@ -155,8 +163,8 @@ request-scoped single statements. Never call `pool.query` from routes or service
 
 Counts: 100 route files, 180 service files, 38 repository files. SQL lives in services
 (864 explicit query calls plus 65 ambient) — `src/app/repositories/` holds 90 query calls
-in total and is **not** a general data-access layer. `docs/ARQUITECTURA_8_5.md` lists
-"repositorios de datos" as a layer; read that as aspiration.
+in total and is **not** a general data-access layer (`docs/ARQUITECTURA_8_5.md`, which listed
+"repositorios de datos" as a layer, is now a pointer to this file).
 
 What actually lives in `src/app/repositories/`:
 
@@ -190,14 +198,14 @@ in `src/app/routes`:
 
 | Idiom | Count | Failure response |
 | --- | --- | --- |
-| `schema.safeParse(req.body)` inline | 253 | handler-specific, usually `res.status(400).json({ error: "Payload inválido" })` without `code` |
-| `validate(schema, body)` from `src/utils/validation.js` | 57 (12 files) | `res.status(400).json({ error: v.error })` where `error` is zod's `flattenError` object (`formErrors`/`fieldErrors`), no `code` |
-| `validateQuery(schema)` middleware (`src/utils/schemas.js`) | 21 | `{ error: "Invalid query parameters", details }`, no `code`, no `request_id` |
-| `validateRequest(schema)` middleware | 0 | defined, unused |
+| `schema.safeParse(req.body)` inline | 78 | handler-specific, usually `res.status(400).json({ error: "Payload inválido" })` without `code` |
+| `validate(schema, body)` from `src/utils/validation.js` | 54 (24 files) | `res.status(400).json({ error: v.error })` where `error` is zod's `flattenError` object (`formErrors`/`fieldErrors`), no `code` |
+| `validateQuery(schema)` / `validateParams(schema)` middleware (`src/utils/schemas.js`) | 22 / 22 | `validationErrorBody(error)` → `{ error, code: "VALIDATION_ERROR", details }` |
+| `validateRequest(schema)` middleware | 8 | same shared body; `req.validated` carries the parsed value |
 
-Counts are for commit `f8ce5c0`. An uncommitted change to `src/utils/schemas.js` is in
-progress in the working tree (a shared `validationErrorBody` and a `validateParams`
-helper); re-verify this table against the tree once it lands.
+Counts are `grep` totals over `src/app/routes` on 2026-11-23 (after `99aa734`, which moved
+validation to the route level and introduced the shared `validationErrorBody` and
+`validateParams`). The two legacy idioms still answer without a `code`.
 
 Only errors that reach `errorHandler` get the canonical envelope. A `ZodError` thrown from
 a handler becomes `400 VALIDATION_ERROR` with `details: [{ field, message }]`; this is the
@@ -236,8 +244,10 @@ ones include `CONFLICT`, `BAD_REQUEST`, `UNEXPECTED_ERROR`.
 
 **Known wart:** staff login failures are `401` with `code: "VALIDATION_ERROR"`
 (`src/app/services/staff-service.js` lines 117 and 135, kept for backward compatibility
-with the staff login page). Super-admin login failures return `401 { error }` with no code
-at all (`src/app/routes/super-routes.js:124`).
+with the staff login page). Super-admin login failures (`src/app/routes/super-routes.js`)
+answer inline, so they bypass the error handler; they now send `code: "AUTH_REQUIRED"`
+explicitly, the value `inferErrorCode("Credenciales inválidas", 401)` derives
+(`tests/unit/super-login-code.test.js` pins the equality).
 
 ## 5. Money and ledgers
 
@@ -434,6 +444,18 @@ Helpers and guardrails worth knowing:
   `tests/unit/migrations-schema-lock.test.js`, `scheduler-registry.test.js`,
   `error-middleware.test.js`, `money.test.js`, `config-production.test.js` cover the
   `5c084b4` changes.
+- **Type checking**: `npm run typecheck` runs `tsc` over `tsconfig.json` (`checkJs`,
+  `strict` off, but `strictFunctionTypes`, `strictBindCallApply`, `noImplicitThis`,
+  `alwaysStrict`, `noFallthroughCasesInSwitch`, `useUnknownInCatchVariables`,
+  `noImplicitReturns` and `noImplicitOverride` on, zero errors). `npm run typecheck:strict`
+  runs `tsconfig.strict.json`, which extends the base with `strictNullChecks` and
+  `strictPropertyInitialization` and excludes `tests/**`: the application layer
+  (`src/app/services`, `routes`, `db`, `repositories`) is clean (`ce8dac0`), about 372
+  errors remain in `src/utils`, `src/middleware`, `src/config`, `src/scripts` and the
+  allowlisted browser files, so the strict configuration is not a CI gate yet. Catch blocks
+  narrow through `src/utils/error-shape.js`. `web/merchant` has its own base and strict
+  configurations, both run by its `typecheck` script in CI. See
+  `docs/TYPESCRIPT_ADOPTION.md`.
 - CI (`.github/workflows/ci.yml`): migration lock check, typecheck (root and
   `web/merchant`), lint, `format:check`, browser gates, `npm test`, OpenAPI freshness
   (`openapi:generate` + `git diff --exit-code`), migrate, `rls-check`, `security-scan`,
@@ -476,14 +498,58 @@ Related existing keys: `JOB_WORKER_INTERVAL_MS` (15 000), `JOB_WORKER_BATCH_SIZE
 `JOB_QUEUE_DRIVER` (`db`), `RATE_LIMIT_DRIVER` (`memory`), `REDIS_URL`, `CRON_TZ`,
 `CHURN_SEND_HOUR_LOCAL`, `LEDGER_RECONCILE_LIMIT`, `LEDGER_RECONCILE_REPAIR`.
 
-## 10. Known debt and open decisions
+## 10. Owner progress ("Tu progreso")
 
-- **Three UI stacks** (vanilla PWA, React/Mantine merchant dashboard, Expo native app).
-  Consolidation direction is undecided; `docs/FRONTEND_MIGRATION_PLAN.md` is a proposal.
-- **TypeScript strictness.** `strict` is off. Measured on this tree with `tsc` 7.0.2:
-  `--strictNullChecks` adds 2 276 errors and `--noImplicitAny` adds 13 044. Only
-  `strictFunctionTypes`, `strictBindCallApply`, `noImplicitThis`, `alwaysStrict` and
-  `noFallthroughCasesInSwitch` are on (zero errors).
+Design of record: `docs/product/2026-11-23-owner-progress.md` (v2). Landed in `83ae51c`
+(server) and `aeec174` (merchant UI).
+
+- **Service** `src/app/services/owner-progress-service.js`: `loadOwnerProgressFacts` runs one
+  parameterized facts query under the tenant context; `buildOwnerProgress` is a pure model
+  over those facts: `LAUNCH_STEPS` (rules, card, practice, team, live), fourteen `MILESTONES`
+  with strict counting (genuine awards exclude reversals, rehearsals and imported history; a
+  returning customer needs genuine awards on two calendar days in the business timezone),
+  `GOALS` (one suggested at a time, 30-day dismissal), `computeMomentum` (weekly counter, a
+  freeze every 8 weeks) and the explicit review (`keep`/`adjust`, due after 30 days).
+  `getOwnerProgress`, `acknowledgeOwnerProgressMilestones`, `setOwnerProgressGoal`,
+  `recordOwnerProgressReview`, `setOwnerProgressVisibility` persist the owner's choices and
+  audit them; `ownerProgressBriefLine` feeds the weekly owner brief for treatment businesses.
+- **Routes** `src/app/routes/owner-progress-routes.js`: `GET /api/admin/owner-progress` and
+  `POST /api/admin/owner-progress/{acknowledge,goal,review,visibility}` (`requireStaff`,
+  `requireOwner`, `tenantContext`, CSRF on writes, `validateRequest` with strict zod bodies,
+  no plan-feature gate, `Cache-Control: no-store`). When the platform mode is `off` every
+  route answers `404 NOT_FOUND`. `src/app/routes/super-owner-progress-routes.js`:
+  `GET/PUT /api/super/platform-settings/owner-progress` (`requireSuperAdmin`), logged as
+  `super.owner_progress.update`.
+- **Tables** (`src/app/migrations/2026-11-23-owner-progress.sql`, additive):
+  `owner_progress_milestones (business_id, key, reached_at, acknowledged_at)`,
+  `owner_progress_state (business_id, hidden, current_goal, dismissed_goals jsonb,
+  last_review_at, last_review_decision, freezes_used, updated_at)`, both with RLS enabled and
+  forced under the `tenant_isolation` policy, and `businesses.owner_progress_variant`
+  (`treatment` | `holdout` | NULL).
+- **Settings**: `platform_settings` key `owner_progress` = `{ mode: off | checklist | full,
+  holdout_pct: 0..100 }` (`PlatformSettingsRepo.getOwnerProgress/setOwnerProgress`,
+  defaults `full` / `0`, normalized by `resolveOwnerProgressSettings`). The variant is
+  assigned deterministically on a business's first read
+  (`assignOwnerProgressVariant`: `sha256(business_id)` first 32 bits mod 100 `< holdout_pct`
+  → holdout) and never reassigned, so a holdout share changed later applies only to
+  businesses not yet read. Activation insights and platform health expose
+  `owner_progress_variant`.
+- **UI**: `web/merchant/src/OwnerProgress.tsx` (`#tu-progreso`, "Tu progreso" in the daily
+  menu) and `OwnerProgressCard` on the Overview; `demo-owner-progress.ts` drives
+  `/demostracion/#tu-progreso`; the merchant goal list is pinned to the server's `GOAL_KEYS`
+  by a root unit test. Help article: `help/docs/negocio/tu-progreso.md`. Real-DB coverage:
+  `tests/integration/owner-progress.test.js` (`npm run test:db`).
+
+## 11. Known debt and open decisions
+
+- **Three UI stacks** (vanilla PWA, React/Mantine merchant dashboard, Expo native app)
+  until the vanilla owner dashboard is retired. The merchant app now covers every owner
+  module except the deep analytics suite (section 1); retiring `/administracion/` and porting
+  that suite are owner decisions, not plans in progress.
+- **TypeScript strictness.** `strict` is off. `strictNullChecks` is clean for the application
+  layer only (`npm run typecheck:strict`, about 372 errors left in the infrastructure and
+  browser halves); `--noImplicitAny` adds about 13 000 errors and is not scheduled
+  (section 8, `docs/TYPESCRIPT_ADOPTION.md`).
 - **Native app gaps.** `apps/customer/src` has no `CASHBACK`, `GIFT_CARD`, `STAMP` or
   `DISCOUNT` program handling and no `expo-updates`, so parity requires a store release.
   Releases are owner-triggered only (`AGENTS.md`).
@@ -492,21 +558,15 @@ Related existing keys: `JOB_WORKER_INTERVAL_MS` (15 000), `JOB_WORKER_BATCH_SIZE
   `customer-modern.css`/`operations-modern.css` overrides use; `public/styles/base.css`
   still defines the older application palette (`--bg #f4ede4`, `--text #241712`,
   `--accent #b8572f`, `--accent-3 #d7a554`) with its own dark theme.
-- **Runtime-referenced assets stay unversioned.** `?v=` values in `public/` pages are
-  content hashes written by `npm run sw:build`, but assets requested from JavaScript by
-  string literal (`/styles/demand-notebook.css`, the admin dashboard fragments, ES module
-  imports) and the server-rendered guides (`src/content/guides/render.js`, hand-written
-  `?v=4`) are not rewritten; they rely on `max-age=0` revalidation and the worker's
-  network-first fetch. See `RUNTIME_REFERENCED_ASSETS` in
-  `src/scripts/build-asset-versions.mjs`.
 - **`src/app/repositories/` naming.** The folder name promises a data layer it is not
   (section 3). Renaming is cheap in code but churns imports across 68 files; decide before
   adding more repositories.
-- **Validation response shapes.** Four idioms (section 4). At least 45 literal
-  `res.status(400).json({ error: "..." })` responses and every `validate()` failure response
-  carry no `code`. `validateRequest` is dead code.
-- **Login error codes.** Staff login returns `401 VALIDATION_ERROR`; super login returns
-  `401` without a code (section 4).
+- **Validation response shapes.** Four idioms (section 4). The inline `safeParse` responses
+  and every `validate()` failure response still carry no `code`; the shared middleware
+  (`validateQuery`, `validateParams`, `validateRequest`) does.
+- **Login error codes.** Staff login returns `401 VALIDATION_ERROR` (section 4); super
+  login now carries `AUTH_REQUIRED`. Changing the staff value would break the installed
+  staff login page's handling, so it stays.
 - **`LEDGER_RECONCILE_HOUR_LOCAL`** is configured and passed to the worker but unused; the
   daily job runs at `CHURN_SEND_HOUR_LOCAL`.
 - **Third-party analytics on authenticated pages.** `https://privatrack.com` is allowed by
@@ -516,8 +576,19 @@ Related existing keys: `JOB_WORKER_INTERVAL_MS` (15 000), `JOB_WORKER_BATCH_SIZE
 - **Hard limits to know.** Campaign audience snapshots are capped at 200 customers
   (`growth-campaign-service.js:203`, `LIMIT 200 FOR SHARE` at line 279); customer imports
   commit in chunks of 100 rows per job tick (`customer-import-job-service.js:233`).
-- **Stale documents.** `docs/TENANT_RLS.md` ("`withPgClient` runs for every request"),
-  `docs/ARQUITECTURA_8_5.md` (repositories as a layer; `database.js` already split),
-  `QUICKSTART.md` ("Postgres is exposed on 127.0.0.1:5432 in the dev profile" — compose no
-  longer has a `db` service) and `docs/TYPESCRIPT_ADOPTION.md` (`jsconfig.json`; the
-  project uses `tsconfig.json`).
+- **No marker for test or pilot-seed customer accounts.** Owner progress counts "genuine"
+  awards by excluding reversals, rehearsals and imported history, but a customer created
+  for a test or a pilot seed is indistinguishable from a real one (`owner-progress-service.js`,
+  help article). A plain branded-QR download is likewise not persisted, so it cannot satisfy
+  the card step on its own.
+- **Holdout applies only to businesses not yet read.** The owner-progress variant is
+  persisted on first read and never reassigned (section 10); raising `holdout_pct` later
+  does not move existing treatment businesses into the holdout.
+- **Help source lock.** `help/reviewed-sources.json` is behind the code: 41 locked sources
+  changed since the 2026-11-18 review (mostly Prettier/typing reformatting and `?v=` asset
+  versioning, but also `Overview.jsx`, the navigation modules and `OwnerSettings.tsx`), and
+  `python3 help/scripts/check.py` also reports eight new owner routes without a guide
+  (`reportes`, `niveles`, `limites`, `logros-y-retos`, `tarjetas-de-regalo`, `identidad`,
+  `puesta-en-marcha`, `tu-progreso`). `review-sources.py --record-reviewed` is an
+  attestation that the guides were re-read, so it was not run; the help author has to add
+  the guides and re-baseline.

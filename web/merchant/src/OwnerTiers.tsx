@@ -4,19 +4,25 @@ import {NumberInput} from './inputs';
 import {request, useOwnerResource, useOwnerMutation, useOwnerDirty, mayDiscard, OwnerLoading, OwnerError, OwnerRestricted} from './owner-workspace';
 import type {OwnerPageProps, OwnerRequest} from './owner-workspace';
 
-// GET /api/admin/tiers returns per-tier stats (id, name, tier_level, customer_count…); the full row
-// (min_points, points_multiplier, perks, color, icon_url) comes back from POST/PUT. Fields may be absent.
+// GET /api/admin/tiers returns every tier's full rule (min_points, points_multiplier, perks, color,
+// icon_url, ...) next to its statistics (customer_count, avg_points, total_points), so the editor
+// prefills from the list; POST/PUT answer with the row alone. Numeric columns may arrive as strings.
+// Optional markers stay so an older server that sent statistics only still renders.
 export interface Tier {
   id: string;
   name: string;
   tier_level: number | string;
   min_points?: number | string | null;
+  min_spend?: number | string | null;
+  min_visits?: number | string | null;
   points_multiplier?: number | string | null;
   perks?: string[] | null;
   color?: string | null;
   icon_url?: string | null;
   active?: boolean;
   customer_count?: number | string | null;
+  avg_points?: number | string | null;
+  total_points?: number | string | null;
 }
 export interface TierForm {name: string; tier_level: number | string; min_points: number | string; points_multiplier: number | string; color: string; icon_url: string; perks: string}
 const HEX = /^#[0-9A-Fa-f]{6}$/;
@@ -48,7 +54,7 @@ export function tierIssue(form: TierForm, editing: boolean): string | null {
   if (perks.length > 30 || perks.some(perk => perk.length > 200)) return 'Hasta 30 beneficios de 200 caracteres cada uno.';
   return null;
 }
-/** Creation sends the whole rule; an edit sends only what changed, so values the list did not return are preserved. */
+/** Creation sends the whole rule; an edit sends only what changed, so untouched values stay as stored. */
 export function tierPayload(form: TierForm, initial: TierForm, editing: boolean) {
   const payload: Record<string, unknown> = {};
   const changed = (key: keyof TierForm) => !editing || JSON.stringify(form[key]) !== JSON.stringify(initial[key]);

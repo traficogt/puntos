@@ -136,12 +136,29 @@ export const TierRepository = {
     return rows;
   },
 
+  /**
+   * Every tier of the business with its full rule (min_points, points_multiplier, perks,
+   * color, icon_url, ...) plus membership statistics. Owner editors prefill from this list,
+   * so the rule columns ride along with the stats; nothing was removed from the shape.
+   * Grouping by the primary key lets the other loyalty_tiers columns be selected directly.
+   */
   async getTierStats(businessId) {
     const { rows } = await dbQuery(
-      `SELECT 
+      `SELECT
          lt.id,
+         lt.business_id,
          lt.name,
          lt.tier_level,
+         lt.min_points,
+         lt.min_spend,
+         lt.min_visits,
+         lt.points_multiplier,
+         lt.perks,
+         lt.color,
+         lt.icon_url,
+         lt.active,
+         lt.created_at,
+         lt.updated_at,
          COUNT(ct.customer_id) as customer_count,
          AVG(cb.points) as avg_points,
          SUM(cb.points) as total_points
@@ -149,7 +166,7 @@ export const TierRepository = {
        LEFT JOIN customer_tiers ct ON lt.id = ct.tier_id
        LEFT JOIN customer_balances cb ON ct.customer_id = cb.customer_id
        WHERE lt.business_id = $1
-       GROUP BY lt.id, lt.name, lt.tier_level
+       GROUP BY lt.id
        ORDER BY lt.tier_level ASC`,
       [businessId],
     );

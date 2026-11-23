@@ -17,9 +17,10 @@ export function createOwnerProgramDemoApi(now = () => new Date('2026-11-10T18:00
   let sequence = 300;
   let branding: CustomerBranding = {branding_mode: 'endorsed_brand', customer_program_name: 'Club Jacaranda', neutral_theme: 'warm', powered_by_visible: true, primary_color: '#6D3524', accent_color: '#D7A554', wallet_headline: 'Tu café de siempre, con premios', join_headline: 'Únete al Club Jacaranda'};
   const tiers: Tier[] = [
-    {id: uuid(1), name: 'Bronce', tier_level: 1, min_points: 0, points_multiplier: 1, perks: ['Acceso al programa'], color: '#CD7F32', icon_url: '🥉', active: true, customer_count: 142},
-    {id: uuid(2), name: 'Plata', tier_level: 2, min_points: 1500, points_multiplier: 1.25, perks: ['Puntos ×1.25', 'Un postre al mes'], color: '#C0C0C0', icon_url: '🥈', active: true, customer_count: 31},
-    {id: uuid(3), name: 'Oro', tier_level: 3, min_points: 5000, points_multiplier: 1.5, perks: ['Puntos ×1.5', 'Invitación a catas'], color: '#D4AF37', icon_url: '🥇', active: true, customer_count: 0},
+    // Mirrors GET /api/admin/tiers: the full rule next to the membership statistics.
+    {id: uuid(1), name: 'Bronce', tier_level: 1, min_points: 0, min_spend: null, min_visits: null, points_multiplier: 1, perks: ['Acceso al programa'], color: '#CD7F32', icon_url: '🥉', active: true, customer_count: 142, avg_points: 310.5, total_points: 44091},
+    {id: uuid(2), name: 'Plata', tier_level: 2, min_points: 1500, min_spend: null, min_visits: null, points_multiplier: 1.25, perks: ['Puntos ×1.25', 'Un postre al mes'], color: '#C0C0C0', icon_url: '🥈', active: true, customer_count: 31, avg_points: 2140, total_points: 66340},
+    {id: uuid(3), name: 'Oro', tier_level: 3, min_points: 5000, min_spend: null, min_visits: null, points_multiplier: 1.5, perks: ['Puntos ×1.5', 'Invitación a catas'], color: '#D4AF37', icon_url: '🥇', active: true, customer_count: 0, avg_points: null, total_points: null},
   ];
   const achievements: Achievement[] = [
     {id: uuid(11), name: 'Primera visita', description: 'Registra tu primera compra.', icon_url: '☕', requirement_type: 'visits', requirement_value: 1, points_reward: 20, active: true},
@@ -63,7 +64,7 @@ export function createOwnerProgramDemoApi(now = () => new Date('2026-11-10T18:00
       if (method === 'POST') {
         const level = whole(body.tier_level);
         if (tiers.some(tier => Number(tier.tier_level) === level)) throw fail('Ya existe un nivel con ese orden.', 400);
-        const tier: Tier = {id: uuid(++sequence), name: text(body.name), tier_level: level, min_points: whole(body.min_points), points_multiplier: Number(body.points_multiplier ?? 1), perks: Array.isArray(body.perks) ? body.perks.map(String) : [], color: text(body.color, '') || null, icon_url: text(body.icon_url, '') || null, active: true, customer_count: 0};
+        const tier: Tier = {id: uuid(++sequence), name: text(body.name), tier_level: level, min_points: whole(body.min_points), min_spend: null, min_visits: null, points_multiplier: Number(body.points_multiplier ?? 1), perks: Array.isArray(body.perks) ? body.perks.map(String) : [], color: text(body.color, '') || null, icon_url: text(body.icon_url, '') || null, active: true, customer_count: 0, avg_points: null, total_points: null};
         tiers.push(tier); tiers.sort((a, b) => Number(a.tier_level) - Number(b.tier_level));
         return {ok: true, tier};
       }

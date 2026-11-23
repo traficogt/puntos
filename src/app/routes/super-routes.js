@@ -121,7 +121,9 @@ superRoutes.post(
         actor_type: "SUPER_ADMIN",
         meta: { email: payload.email.toLowerCase() },
       }).catch((err) => logger.warn({ err }, "Security event write failed (super_login_failed)"));
-      return res.status(401).json({ error: "Credenciales inválidas" });
+      // Explicit code equal to what inferErrorCode("Credenciales inválidas", 401) derives, so the
+      // body gains a stable `code` without changing its value (tests/unit/super-login-code.test.js).
+      return res.status(401).json({ error: "Credenciales inválidas", code: "AUTH_REQUIRED" });
     }
     const mfaResult = await verifySuperMfaForLogin(payload.mfaCode);
     const token = await signSuperToken({

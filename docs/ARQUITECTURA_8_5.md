@@ -1,24 +1,15 @@
 # Arquitectura actual
 
-La aplicación sigue un enfoque de monolito modular:
+Este documento fue reemplazado por [ARCHITECTURE.md](ARCHITECTURE.md), que describe el
+código tal como existe (verificado contra el árbol el 2026-11-23).
 
-- rutas HTTP por dominio en `src/app/routes`
-- servicios de negocio en `src/app/services`
-- repositorios de datos en `src/app/repositories`
-- middleware transversal en `src/middleware`
-- utilidades compartidas en `src/utils`
+Notas para quien llegue desde una referencia antigua:
 
-## Piezas relevantes
-- `src/app/database.js`: pool, transacciones, bootstrap de schema y migraciones
-- `src/app/worker.js`: procesamiento de jobs y entregas asíncronas
-- `public/admin-dashboard`: dashboard administrativo modularizado por áreas
-
-## Deuda técnica vigente
-- `database.js` concentra demasiadas responsabilidades
-- algunos servicios de dominio siguen siendo grandes
-- hay dashboards frontend que todavía mezclan fetch, estado y render
-
-## Dirección recomendada
-1. separar `database.js` en pool, transacciones y migraciones
-2. dividir servicios grandes por responsabilidad
-3. seguir moviendo el dashboard admin a controladores más pequeños por módulo
+- `src/app/database.js` ya está dividido: `src/app/db/pools.js`, `db/context.js`,
+  `db/session.js`, `db/transactions.js` y `db/migrations.js`; `database.js` solo reexporta.
+- `src/app/repositories/` **no** es una capa general de acceso a datos. El SQL vive en los
+  servicios; un repositorio se justifica solo para acceso a filas compartido por varios
+  servicios o para modelos de lectura de analítica (ver "Layering reality" en ARCHITECTURE.md).
+- El panel administrativo tiene tres pilas de interfaz (PWA vanilla, React + Mantine en
+  `web/merchant`, app Expo); el estado de la consolidación está en
+  `docs/product/2026-11-23-owner-ui-consolidation.md`.

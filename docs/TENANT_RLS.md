@@ -5,7 +5,9 @@ This document describes the production tenant isolation model implemented via:
 - request-scoped DB sessions (per HTTP request)
 - explicit background worker DB contexts
 
-If you change anything related to tenant scoping, read this first.
+If you change anything related to tenant scoping, read this first. The request lifecycle
+itself is described in [ARCHITECTURE.md](ARCHITECTURE.md) section 2; this file is the policy
+reference. Verified against the code on 2026-11-23.
 
 ## Goals / Invariants
 
@@ -32,10 +34,14 @@ If you change anything related to tenant scoping, read this first.
   - `src/app/migrations/2026-02-27-tenant-rls-webhook-ingest.sql`
   - other `src/app/migrations/2026-02-27-tenant-rls-*.sql`
 - Request-scoped DB session + GUC cleanup:
-  - `src/middleware/pg-client.js`
+  - `src/middleware/pg-client.js` (`mountPgClient`, `withPgClient`; mounted on `/api` only)
   - `src/middleware/tenant.js`
+- Ambient DB context (AsyncLocalStorage) and GUC setters:
+  - `src/app/db/context.js`, `src/app/db/session.js` (`dbQuery`, `setCurrentTenant`,
+    `setPlatformAdmin`, `setWebhookIngest`, `withDbClientContext`; re-exported by
+    `src/app/database.js`)
 - Background job / worker contexts:
-  - `src/app/database.js` (`withDbClientContext`)
+  - `withDbClientContext` (same module)
 
 ## RLS Behavior (What the DB Enforces)
 
@@ -63,7 +69,8 @@ When `app.platform_admin` is set:
 Important:
 - Platform admin is a *GUC*, not a DB role. It is only safe because:
   - it is set by strongly authenticated server code, and
-  - it is cleared on connection release (`withPgClient`), and
+  - it is cleared on connection release (`withPgClient` for `/api` requests; a connection
+    whose GUCs cannot be reset is destroyed instead of returned to the pool), and
   - background workers use explicit `withDbClientContext`.
 
 ### 4) Webhook ingest (`app.webhook_ingest = 'true'`)
@@ -80,9 +87,19 @@ Without granting broad cross-tenant read/write access.
 
 ### HTTP request (normal)
 
-1) `withPgClient` runs for every request and creates a request-scoped pg client.
-2) `tenantContext` sets `req.tenantId` and calls `setCurrentTenant(req.tenantId)` before continuing.
-3) Repositories use `dbQuery(...)` which automatically uses the request/tx client from AsyncLocalStorage.
+1) `mountPgClient(app)` mounts `withPgClient` on `PG_CLIENT_MOUNT_PATHS = ["/api"]` **only**
+   (`src/middleware/pg-client.js`, enforced by `tests/unit/pg-client-mount-scope.test.js`).
+   Every `/api` request gets a request-scoped pg client (`req.pgClient`) that is released,
+   or destroyed if its GUCs cannot be reset, when the response finishes. Static assets, HTML
+   entry pages and marketing/help routes never take a pool connection, so code running there
+   must not expect a request-scoped client.
+2) `requireStaff` / `requireCustomer` call `setCurrentTenant(session.business_id)` and
+   `requireSuperAdmin` calls `setPlatformAdmin(true)` (`src/middleware/auth.js`).
+   `tenantContext` sets `req.tenantId`, applies `setCurrentTenant(req.tenantId)` and rejects
+   requests without a business with `400 TENANT_REQUIRED` when `ENFORCE_TENANT_CONTEXT` is on
+   (the default).
+3) Services and repositories use `dbQuery(...)` (or the explicit `client` handed out by
+   `withTransaction`) which uses the request/tx client from AsyncLocalStorage.
 
 Do:
 - Add `tenantContext` to any route that touches tenant tables.
@@ -134,6 +151,8 @@ See:
 Run:
 - `npm run ops:rls-check`
 - `npm run ops:migrate:lock-check`
+- `npm run test:db` (every `RUN_INTEGRATION` suite against a real PostgreSQL under the
+  restricted runtime role with RLS enforced)
 
 This script validates:
 - strict isolation with no tenant set
