@@ -419,16 +419,17 @@ export function capture(
       spawnFailed = false,
       forcedKill;
     function stop() {
-      if (!child.pid) return;
+      const pid = child.pid;
+      if (!pid) return;
       try {
-        process.kill(-child.pid, "SIGTERM");
+        process.kill(-pid, "SIGTERM");
       } catch (_error) {
         /* Process group already stopped. */
       }
       if (!forcedKill)
         forcedKill = setTimeout(() => {
           try {
-            process.kill(-child.pid, "SIGKILL");
+            process.kill(-pid, "SIGKILL");
           } catch (_error) {
             /* Process group already stopped. */
           }

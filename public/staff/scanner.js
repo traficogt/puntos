@@ -8,6 +8,7 @@
  */
 export function createScanner(ctx, { session, surface }) {
   const { $, toast, state, run, element, input } = ctx;
+  /** @type {BarcodeDetector | null} */
   let detector = null;
   let lastScannedToken = "";
   let lastScannedAt = 0;
@@ -60,10 +61,11 @@ export function createScanner(ctx, { session, surface }) {
   }
 
   async function scanLoop() {
-    if (state.sessionEnded || !state.scanning || !detector) return;
+    const activeDetector = detector;
+    if (state.sessionEnded || !state.scanning || !activeDetector) return;
     const video = /** @type {HTMLVideoElement} */ ($("#video"));
     await run(async () => {
-      const codes = await detector.detect(video);
+      const codes = await activeDetector.detect(video);
       if (codes && codes[0] && codes[0].rawValue) {
         const token = String(codes[0].rawValue || "").trim();
         const now = Date.now();

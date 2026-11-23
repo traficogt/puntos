@@ -12,16 +12,33 @@ const labels = {
   reviewed: "Revisado",
   unknown: "Histórico sin evidencia",
 };
+/**
+ * Fulfillment record and redemption as returned by `/api/staff/redemption-pos/:id`.
+ * @typedef {{
+ *   status?: string,
+ *   version?: number,
+ *   receiptRef?: string | null,
+ *   method?: string | null,
+ *   orderId?: string | null,
+ *   returnedQuantity?: number | null,
+ * }} PosFulfillment
+ * @typedef {{ id?: string, customer_id?: string, points_restored?: boolean }} PosRedemption
+ */
 export function mountPosRecording({ container, api, getContext }) {
   if (!container) return { contextChanged() {}, showRedemption() {}, destroy() {} };
   let destroyed = false,
     generation = 0,
-    selected = null,
-    pending = null,
-    busy = false,
-    loaded = null,
-    updateControls = null,
-    scope = null;
+    busy = false;
+  /** @type {{ redemptionId?: string, redemptionCode: string } | null} */
+  let selected = null;
+  /** @type {{ key: string, requestId: string } | null} */
+  let pending = null;
+  /** @type {{ fulfillment?: PosFulfillment | null, redemption?: PosRedemption | null } | null} */
+  let loaded = null;
+  /** @type {(() => void) | null} */
+  let updateControls = null;
+  /** @type {string | null} */
+  let scope = null;
   const contextKey = () => {
     const c = getContext();
     return JSON.stringify([c.customerId, c.staffId, c.businessId, c.branchId ?? null]);
@@ -49,6 +66,7 @@ export function mountPosRecording({ container, api, getContext }) {
   function renderRecord() {
     body.replaceChildren();
     updateControls = null;
+    if (!loaded) return;
     const record = loaded.fulfillment,
       state = record?.status ?? "unknown",
       redemption = loaded.redemption;
@@ -64,14 +82,14 @@ export function mountPosRecording({ container, api, getContext }) {
     if (record?.method === "manual")
       body.append(node("p", "Declaración del equipo. Las existencias se comprueban en el POS."));
     if (record?.orderId) body.append(node("p", `Venta POS: ${record.orderId}`));
-    if (record?.returnedQuantity > 0)
+    if ((record?.returnedQuantity ?? 0) > 0)
       body.append(
         node(
           "p",
-          `Cantidad devuelta: ${record.returnedQuantity}. Se conserva la evidencia original.`,
+          `Cantidad devuelta: ${record?.returnedQuantity}. Se conserva la evidencia original.`,
         ),
       );
-    if (redemption.points_restored)
+    if (redemption?.points_restored)
       body.append(
         node(
           "p",
@@ -82,7 +100,7 @@ export function mountPosRecording({ container, api, getContext }) {
       state === "pending" &&
       !record?.method &&
       !record?.returnedQuantity &&
-      !redemption.points_restored;
+      !redemption?.points_restored;
     if (!canRecord) {
       const link = node("a", "Resolver una incidencia de entrega");
       link.href = "#staffServiceCases";
@@ -152,9 +170,9 @@ export function mountPosRecording({ container, api, getContext }) {
     update();
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      if (save.disabled || busy || !online() || scope !== contextKey()) return;
+      const redemptionId = selected?.redemptionId;
+      if (save.disabled || busy || !online() || scope !== contextKey() || !redemptionId) return;
       const token = generation,
-        redemptionId = selected.redemptionId,
         payload = {
           version: record?.version ?? 0,
           action: action.value,

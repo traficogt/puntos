@@ -12,8 +12,9 @@ export function mountOwnerOperations(container, api) {
     element.addEventListener("click", run);
     return element;
   };
-  let pending = false,
-    pendingRequest = null;
+  let pending = false;
+  /** @type {{ key: string, id: string } | null} */
+  let pendingRequest = null;
   async function mutate(path, body) {
     if (pending) return;
     pending = true;

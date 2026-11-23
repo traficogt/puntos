@@ -2369,6 +2369,11 @@ function buildDerivedSummary(method, pathname) {
   return `Derived ${method.toUpperCase()} ${pathname}`;
 }
 
+/**
+ * @param {string} method
+ * @param {string} pathname
+ * @param {ReturnType<typeof collectRouteMiddlewareMeta> | null} [routeMeta]
+ */
 function buildDerivedOperation(method, pathname, routeMeta = null) {
   const operation = {
     summary: buildDerivedSummary(method, pathname),

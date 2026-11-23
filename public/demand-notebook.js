@@ -13,7 +13,26 @@ const states = {
   available: "Disponible",
   declined: "No prevista",
 };
-/** One mounted form per session; staff links the currently selected member only. */
+/**
+ * @typedef {{
+ *   category: string,
+ *   topic: string,
+ *   note: string,
+ *   reward_id: string | null,
+ *   product_context: string | null,
+ *   customer_id?: string | null,
+ * }} DemandNotebookBody
+ */
+
+/**
+ * One mounted form per session; staff links the currently selected member only.
+ * @param {{
+ *   container: Element | null,
+ *   source?: string,
+ *   getContext?: () => { customerId?: string | null, rewardId?: string | null },
+ *   request?: (path: string, options?: RequestInit) => Promise<Record<string, unknown> | null>,
+ * }} options
+ */
 export function mountDemandNotebook({
   container,
   source = "customer",
@@ -21,7 +40,7 @@ export function mountDemandNotebook({
   request = api,
 }) {
   if (!container || !["staff", "customer"].includes(source))
-    return { destroy() {}, refresh: async () => {} };
+    return { ready: Promise.resolve(), refresh: async () => {}, setPaused() {}, destroy() {} };
   if (!document.getElementById("pf-demand-notebook-style")) {
     const link = document.createElement("link");
     link.id = "pf-demand-notebook-style";
@@ -32,9 +51,10 @@ export function mountDemandNotebook({
   const prefix = `demand-${crypto.randomUUID()}`,
     abort = new AbortController();
   let busy = false,
-    pending = null,
     paused = false,
     refreshError = "";
+  /** @type {{ key: string, body: DemandNotebookBody & { request_id: string } } | null} */
+  let pending = null;
   const make = (tag, text) => {
     const element = document.createElement(tag);
     if (text) element.textContent = text;
@@ -122,13 +142,13 @@ export function mountDemandNotebook({
         (option) => option.value === selectedReward,
       )?.textContent;
       reward.replaceChildren(none);
-      for (const row of data.rewards ?? []) {
+      const rewards = Array.isArray(data?.rewards) ? data?.rewards : [];
+      for (const row of rewards) {
         const option = make("option", row.name);
         option.value = row.id;
         reward.append(option);
       }
-      if ((data.rewards ?? []).some((row) => row.id === selectedReward))
-        reward.value = selectedReward;
+      if (rewards.some((row) => row.id === selectedReward)) reward.value = selectedReward;
       else if (selectedReward && pending?.body.reward_id === selectedReward) {
         // A catalog change must not change the body/key of an uncertain retry.
         const label = previousLabel?.endsWith(" (envío pendiente)")
@@ -141,10 +161,11 @@ export function mountDemandNotebook({
         reward.value = selectedReward;
       }
       history.replaceChildren();
-      if (source === "customer" && data.requests?.length) {
+      const requests = Array.isArray(data?.requests) ? data?.requests : [];
+      if (source === "customer" && requests.length) {
         history.append(make("h3", "Tus pedidos"));
         const list = make("ul");
-        for (const row of data.requests) {
+        for (const row of requests) {
           const item = make("li", `${row.topic} · ${states[row.status] ?? row.status}`);
           list.append(item);
         }
@@ -189,7 +210,7 @@ export function mountDemandNotebook({
         pending = null;
         form.reset();
         await refresh();
-        notice.textContent = result.deduplicated
+        notice.textContent = result?.deduplicated
           ? "Este cliente ya tiene un pedido de este tema. Se conserva un solo registro."
           : "Pedido guardado. El negocio podrá revisarlo.";
       } catch (error) {

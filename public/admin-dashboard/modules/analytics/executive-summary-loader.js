@@ -9,19 +9,16 @@ import { renderExecutiveSummary } from "./executive-summary.js";
  *
  * @param {{
  *   $: AdminDashboardApp["$"],
- *   deps: {
- *     loadRoiReport: (prefetched?: unknown) => Promise<unknown>,
- *     loadAlertsCenter: (prefetched?: unknown) => Promise<unknown>
- *   },
- *   roiPrefetchPromise: Promise<unknown>,
- *   alertsPrefetchPromise: Promise<unknown>,
+ *   deps: Pick<import("../../types.js").AnalyticsDashboardDeps, "loadRoiReport" | "loadAlertsCenter">,
+ *   roiPrefetchPromise: Promise<{ roi?: Record<string, unknown> } | null>,
+ *   alertsPrefetchPromise: Promise<{ alerts?: Array<Record<string, unknown>> } | null>,
  *   summary: Record<string, unknown>,
  *   branchLabel: string,
  *   branchPerformance: Array<Record<string, unknown>>,
  *   branchId: string | null,
- *   churnDataPromise: Promise<{ count?: number; customers?: Array<unknown> } | null>
+ *   churnDataPromise: Promise<{ count?: number; customers?: import("../../types.js").AnalyticsChurnCustomer[] } | null>
  * }} params
- * @returns {Promise<{ count?: number; customers?: Array<unknown> } | null>}
+ * @returns {Promise<{ count?: number; customers?: import("../../types.js").AnalyticsChurnCustomer[] } | null>}
  */
 export async function hydrateExecutiveSummary({
   $,

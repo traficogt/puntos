@@ -621,15 +621,20 @@ export async function setOwnerProgressGoal(options, injected = {}) {
     ...(options.dismiss ? { dismiss: options.dismiss } : {}),
   });
   const current = normalizeState(await readState(query, options.businessId));
+  const dismissKey = input.dismiss;
   const patch = input.key
     ? { current_goal: input.key }
-    : {
-        current_goal: current.current_goal === input.dismiss ? null : current.current_goal,
-        dismissed_goals: JSON.stringify({
-          ...current.dismissed_goals,
-          [input.dismiss]: now.toISOString(),
-        }),
-      };
+    : dismissKey
+      ? {
+          current_goal: current.current_goal === dismissKey ? null : current.current_goal,
+          dismissed_goals: JSON.stringify({
+            ...current.dismissed_goals,
+            [dismissKey]: now.toISOString(),
+          }),
+        }
+      : null;
+  // The schema guarantees exactly one of key/dismiss; this keeps the narrowing explicit.
+  if (!patch) throw badRequest("Indica una meta para elegir o una para descartar.");
   await upsertState(query, options.businessId, patch, now);
   await audit(injected, options, "owner_progress.goal", input);
   return { ok: true, progress: await getOwnerProgress({ ...options, settings, now }, injected) };

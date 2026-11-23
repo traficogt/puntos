@@ -28,8 +28,9 @@ export function createPracticeSession(program, rewards = []) {
       name: String(row.name),
       points_cost: Number(row.points_cost),
     }));
-  let balance = 200,
-    redemption = null;
+  let balance = 200;
+  /** @type {{ reward_id: string, points: number } | null} */
+  let redemption = null;
   return {
     snapshot: () => ({
       points: balance,

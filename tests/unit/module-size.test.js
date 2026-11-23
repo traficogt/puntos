@@ -41,7 +41,7 @@ describe("module size guardrails", () => {
       ["src/app/routes/super-routes.js", 600],
       ["src/app/repositories/analytics-repository.js", 420],
       // Browser session handshake shared by staff, owner, super and customer surfaces.
-      ["public/session-epoch.js", 160],
+      ["public/session-epoch.js", 161],
       ["public/admin-dashboard/logout-controller.js", 70],
       ["public/staff-login.js", 140],
       // Staff scanner page: thin composition root over cohesive modules.

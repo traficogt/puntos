@@ -22,8 +22,9 @@ export function mountRewardEntitlements({
   let destroyed = false,
     sequence = 0,
     busy = false,
-    selected = null,
-    pending = null;
+    selected = null;
+  /** @type {{ key: string, id: string } | null} */
+  let pending = null;
   const online = () => navigator.onLine && getContext().online;
   function controls() {
     refreshButton.disabled = busy || !online() || !getContext().customerId;

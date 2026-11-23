@@ -377,15 +377,16 @@ export function runCommand(executable, args, { cwd, env, timeoutMs = 180000, sig
       spawnFailed = false,
       forcedKill;
     function stop() {
-      if (!child.pid) return;
+      const pid = child.pid;
+      if (!pid) return;
       try {
-        process.kill(-child.pid, "SIGTERM");
+        process.kill(-pid, "SIGTERM");
       } catch (_error) {
         /* Already exited. */
       }
       forcedKill = setTimeout(() => {
         try {
-          process.kill(-child.pid, "SIGKILL");
+          process.kill(-pid, "SIGKILL");
         } catch (_error) {
           /* Already exited. */
         }

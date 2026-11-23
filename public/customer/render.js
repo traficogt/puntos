@@ -130,7 +130,7 @@ export function renderRewards($, points, rewards, options = {}) {
       div.className = "card cus-reward-card";
       if (can) div.classList.add("cus-reward-ready");
       const heading = document.createElement("h2");
-      heading.textContent = r.name;
+      heading.textContent = r.name ?? "";
       const desc = document.createElement("p");
       desc.textContent = r.description || "";
       const row = document.createElement("div");
@@ -172,7 +172,9 @@ export function renderRewards($, points, rewards, options = {}) {
     }
   }
   const inventoryRefresh = nextInventoryRefresh(rewards, now);
-  const deadlines = [inventoryRefresh, deadline].filter((at) => Number.isFinite(at) && at > now);
+  const deadlines = [inventoryRefresh, deadline].flatMap((at) =>
+    typeof at === "number" && Number.isFinite(at) && at > now ? [at] : [],
+  );
   const refreshAt = deadlines.length ? Math.min(...deadlines) : null;
   if (refreshAt) {
     const marker = box.firstChild;
@@ -194,6 +196,7 @@ export function renderRewards($, points, rewards, options = {}) {
  * @param {(selector: string) => Element | null} $
  * @param {CustomerTransaction[] | undefined} transactions
  * @param {CustomerRedemption[] | undefined} redemptions
+ * @param {{ locale?: string, timezone?: string, currency?: string }} [region]
  */
 export function renderHistory($, transactions, redemptions, region = undefined) {
   const whenInRegion = (value) =>
@@ -233,12 +236,12 @@ export function renderHistory($, transactions, redemptions, region = undefined) 
           ["EXPIRED", "Vencido; no disponible"],
         ]);
         const kind = t.provenance?.kind;
-        const label = kinds.get(kind) || "Origen no documentado";
+        const label = kinds.get(kind ?? "") || "Origen no documentado";
         const bonus =
           kind === "purchase" && t.provenance?.includes_bonus === true
             ? " · Incluye bonificación"
             : "";
-        const status = statuses.get(t.provenance?.status) || "Estado no documentado";
+        const status = statuses.get(t.provenance?.status ?? "") || "Estado no documentado";
         const amt =
           kind === "purchase" && t.amount_q != null && Number(t.amount_q) > 0
             ? ` · Compra: ${moneyInRegion(t.amount_q)}`
@@ -260,7 +263,7 @@ export function renderHistory($, transactions, redemptions, region = undefined) 
             ["CANCELED", "Cancelado"],
             ["REVERSED", "Revertido"],
             ["EXPIRED", "Vencido"],
-          ]).get(r.status) ||
+          ]).get(r.status ?? "") ||
           (r.status ? "Estado no documentado" : r.redeemed_at ? "Completado" : "Pendiente");
         return `${r.reward_name || "Recompensa"} · ${status}\n${when} · Costo registrado: ${r.points_cost} pts · Código: ${r.code}`;
       })
@@ -370,8 +373,8 @@ export function renderAchievements($, data) {
 
   // Show top 2 in progress
   const topInProgress = inProgress
-    .filter((a) => a.progress > 0)
-    .sort((a, b) => b.progress - a.progress)
+    .filter((a) => (a.progress ?? 0) > 0)
+    .sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0))
     .slice(0, 2);
 
   if (topInProgress.length > 0) {
@@ -404,7 +407,7 @@ export function renderAchievements($, data) {
       const progressBar = document.createElement("progress");
       progressBar.className = "progress-inline progress-blue progress-thin progress-line";
       progressBar.max = 100;
-      progressBar.value = ach.progress;
+      progressBar.value = ach.progress ?? 0;
       content.appendChild(progressBar);
       row.appendChild(content);
       wrapper.appendChild(row);

@@ -1,4 +1,19 @@
-/** Render a read-only activity summary, separate from the current card balance. */
+/**
+ * @typedef {{
+ *   period: { start: string, end: string },
+ *   as_of: string,
+ *   points: { earned: number, redeemed: number, expired: number, adjustments: number },
+ *   balance: { pending: number },
+ *   rewards: { completed: number },
+ * }} CustomerStatement
+ */
+
+/**
+ * Render a read-only activity summary, separate from the current card balance.
+ * @param {(selector: string) => Element | null} $
+ * @param {CustomerStatement | null | undefined} statement
+ * @param {{ isLive?: boolean, region?: { locale?: string, timezone?: string } }} [options]
+ */
 export function renderStatement($, statement, { isLive = false, region = undefined } = {}) {
   const root = $("#customerStatement");
   if (!root) return;
@@ -38,12 +53,14 @@ export function renderStatement($, statement, { isLive = false, region = undefin
   );
   const list = document.createElement("dl");
   list.className = "cus-statement-totals";
-  for (const [label, value, signed] of [
+  /** @type {[string, number, boolean][]} */
+  const totals = [
     ["Puntos sumados", statement.points.earned, false],
     ["Usados en canjes", statement.points.redeemed, false],
     ["Vencidos", statement.points.expired, false],
     ["Ajustes y restituciones", statement.points.adjustments, true],
-  ]) {
+  ];
+  for (const [label, value, signed] of totals) {
     const row = document.createElement("div");
     const term = document.createElement("dt");
     term.textContent = label;

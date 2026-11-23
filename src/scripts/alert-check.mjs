@@ -24,6 +24,11 @@ function arg(name, fallback = "") {
  * @param {unknown} condition
  * @param {string} message
  */
+/**
+ * @param {unknown} condition
+ * @param {string} message
+ * @returns {asserts condition}
+ */
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }

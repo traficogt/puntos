@@ -6,6 +6,28 @@ import {
   isCustomerAuthError,
   onCustomerViewClear,
 } from "./session.js";
+/**
+ * Controller handed back by mountDemandNotebook (kept structural: tests rewrite this
+ * module's import specifiers by string, so no import() type may name that module).
+ * @typedef {{
+ *   ready: Promise<void>,
+ *   refresh: () => Promise<void>,
+ *   setPaused: (value: boolean) => void,
+ *   destroy: () => void,
+ * }} DemandNotebookController
+ */
+/**
+ * @typedef {{
+ *   owner: string,
+ *   epoch: ReturnType<typeof getCustomerEpoch>,
+ *   container: Element,
+ *   api: typeof import("/lib.js").api,
+ *   isCurrent: () => boolean,
+ *   paused: boolean,
+ *   controller: DemandNotebookController | null,
+ * }} MountedDemand
+ */
+/** @type {MountedDemand | null} */
 let mounted = null;
 let version = 0;
 export function clearCustomerDemand() {
@@ -13,6 +35,7 @@ export function clearCustomerDemand() {
   mounted?.controller?.destroy();
   mounted = null;
 }
+/** @param {{ businessId: string, customerId: string } | null} [identity] */
 export function pauseCustomerDemand(identity = null) {
   if (
     mounted &&
@@ -26,6 +49,14 @@ export function pauseCustomerDemand(identity = null) {
   }
 }
 onCustomerViewClear(clearCustomerDemand);
+/**
+ * @param {{
+ *   api: typeof import("/lib.js").api,
+ *   $: (selector: string) => HTMLElement | null,
+ *   isCurrent: () => boolean,
+ *   identity?: { businessId: string, customerId: string } | null,
+ * }} deps
+ */
 export async function loadCustomerDemand({ api, $, isCurrent, identity = getCustomerIdentity() }) {
   const container = $("#customerDemand");
   if (!container || !isCurrent()) return;
@@ -41,11 +72,11 @@ export async function loadCustomerDemand({ api, $, isCurrent, identity = getCust
     const record = mounted;
     record.api = api;
     record.isCurrent = isCurrent;
-    await record.controller.ready;
+    await record.controller?.ready;
     if (record === mounted && isCurrent() && epoch === getCustomerEpoch()) {
       record.paused = false;
-      record.controller.setPaused(false);
-      await record.controller.refresh();
+      record.controller?.setPaused(false);
+      await record.controller?.refresh();
     }
     return;
   }
@@ -53,6 +84,7 @@ export async function loadCustomerDemand({ api, $, isCurrent, identity = getCust
   try {
     const { mountDemandNotebook } = await import("../demand-notebook.js");
     if (current !== version || !isCurrent()) return;
+    /** @type {MountedDemand} */
     const record = { owner, epoch, container, api, isCurrent, paused: false, controller: null };
     mounted = record;
     const active = () => mounted === record && current === version && epoch === getCustomerEpoch();

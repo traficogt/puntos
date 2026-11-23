@@ -99,7 +99,11 @@ export async function loadAll({ api, $, toast, silent = false }) {
       const snapshot = await getCustomerCacheSnapshot(identity).catch(() => null);
       if (!isCurrent()) return { status: "superseded" };
       const me = snapshot?.sections?.me;
-      if (me?.business?.id === identity.businessId && me?.customer?.id === identity.customerId) {
+      if (
+        me &&
+        me.business?.id === identity.businessId &&
+        me.customer?.id === identity.customerId
+      ) {
         await renderFromMe({ api, $, toast, isCurrent, identity }, me, false, snapshot);
         return { status: "offline" };
       }

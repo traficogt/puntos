@@ -2,6 +2,7 @@
 /** @typedef {import("./types.js").SuperMagicLinkResponse} SuperMagicLinkResponse */
 /** @typedef {import("./types.js").SuperPageContext} SuperPageContext */
 /** @typedef {import("./types.js").SuperStaffListResponse} SuperStaffListResponse */
+/** @typedef {import("./types.js").SuperStaffRow | import("./types.js").SuperCustomerRow} SuperMagicActorRow */
 
 const MAGIC_TARGET_OPTIONS = {
   staff: [
@@ -35,11 +36,20 @@ export function createMagicLinks(ctx) {
     return select("#magicTarget");
   }
 
+  /**
+   * Staff rows carry a role; customer rows do not.
+   * @param {SuperMagicActorRow | null} actorRow
+   */
+  function actorRole(actorRow) {
+    return String(actorRow && "role" in actorRow ? actorRow.role : "").toUpperCase();
+  }
+
   function getMagicSelectedActor() {
     const actorId = getMagicActorSelect().value;
     return state.magicActorRows.find((row) => String(row.id) === String(actorId)) || null;
   }
 
+  /** @param {SuperMagicActorRow | null} [actorRow] */
   function setMagicCopy(actorRow = null) {
     const box = element("#magicLinkCopy");
     const mode = getMagicMode();
@@ -47,7 +57,7 @@ export function createMagicLinks(ctx) {
       box.textContent = "Uso interno · Reutilizable hasta vencer";
       return;
     }
-    const role = String(actorRow?.role || "").toUpperCase();
+    const role = actorRole(actorRow);
     box.textContent = role === "OWNER" ? "Uso interno · Un solo uso" : "Uso interno · Un solo uso";
   }
 
@@ -55,6 +65,7 @@ export function createMagicLinks(ctx) {
     element("#magicLinkOutput").textContent = text || "(sin enlace generado)";
   }
 
+  /** @param {SuperMagicActorRow | null} [actorRow] */
   function renderMagicTargetOptions(actorRow = null) {
     const mode = getMagicMode();
     const targetSel = getMagicTargetSelect();
@@ -68,7 +79,7 @@ export function createMagicLinks(ctx) {
       if (
         mode === "staff" &&
         target.value === "admin-dashboard" &&
-        String(actorRow?.role || "").toUpperCase() !== "OWNER"
+        actorRole(actorRow) !== "OWNER"
       ) {
         opt.disabled = true;
       }
@@ -78,10 +89,10 @@ export function createMagicLinks(ctx) {
     const current = targetSel.value;
     const preferred = mode === "customer" ? "customer-wallet" : current || "staff";
     const allowedValues = allowed.map((target) => target.value);
-    const actorRole = String(actorRow?.role || "").toUpperCase();
+    const selectedRole = actorRole(actorRow);
     const nextTarget =
       allowedValues.includes(preferred) &&
-      !(preferred === "admin-dashboard" && mode === "staff" && actorRole !== "OWNER")
+      !(preferred === "admin-dashboard" && mode === "staff" && selectedRole !== "OWNER")
         ? preferred
         : allowedValues[0];
     targetSel.value = nextTarget;

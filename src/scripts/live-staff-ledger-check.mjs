@@ -19,9 +19,29 @@ const superPassword = arg("--super-password", process.env.SUPER_ADMIN_PASSWORD |
 const forwardedFor =
   process.env.TEST_CLIENT_IP || `198.51.100.${Math.max(10, Math.floor(Math.random() * 200))}`;
 
+/**
+ * @param {unknown} condition
+ * @param {string} message
+ * @returns {asserts condition}
+ */
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
+
+/**
+ * JSON fields this smoke check reads from API responses. Every field is optional
+ * because each step asserts what it needs before using it.
+ * @typedef {{
+ *   business?: { id?: string, slug?: string },
+ *   customer?: { id?: string, points?: number },
+ *   reward?: { id?: string },
+ *   token?: string,
+ *   transactionId?: string,
+ *   reversalTransactionId?: string,
+ *   redemptionCode?: string,
+ *   newBalance?: number,
+ * }} SmokeBody
+ */
 
 function applySetCookieJar(jar, response) {
   const values =
@@ -72,11 +92,13 @@ async function request(jar, path, options = {}) {
   });
   applySetCookieJar(jar, response);
   const text = await response.text();
+  /** @type {SmokeBody | null} */
   let data = null;
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
-    data = text;
+    // Non-JSON bodies carry no fields this check reads.
+    data = null;
   }
   return { status: response.status, data };
 }
@@ -85,8 +107,10 @@ async function waitForStableCustomer(
   customerJar,
   { attempts = 12, delayMs = 250, stableReads = 2 } = {},
 ) {
+  /** @type {number | null} */
   let lastPoints = null;
   let stableCount = 0;
+  /** @type {Awaited<ReturnType<typeof request>> | null} */
   let latest = null;
 
   for (let i = 0; i < attempts; i += 1) {
@@ -106,6 +130,7 @@ async function waitForStableCustomer(
     await sleep(delayMs);
   }
 
+  assert(latest, "customer me was never read while waiting for stability");
   return latest;
 }
 

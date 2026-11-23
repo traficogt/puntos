@@ -35,9 +35,10 @@ export async function loadStaffSession({ api, $, state }) {
   try {
     const data = await api("/api/staff/me");
     if (!isCurrent()) return false;
-    state.currentStaff = data.staff;
+    state.currentStaff = data.staff ?? null;
+    const role = state.currentStaff?.role;
 
-    if (!["OWNER", "MANAGER"].includes(state.currentStaff.role)) {
+    if (!role || !["OWNER", "MANAGER"].includes(role)) {
       setHidden($("#needLogin"), false);
       setHidden($("#main"), true);
       return false;
@@ -52,7 +53,7 @@ export async function loadStaffSession({ api, $, state }) {
       if (node instanceof HTMLInputElement)
         node.step = program.region?.minorUnits === 0 ? "1" : "0.01";
     });
-    state.managerMode = state.currentStaff.role === "MANAGER";
+    state.managerMode = role === "MANAGER";
     setHidden($("#needLogin"), true);
     setHidden($("#main"), false);
     const businessName = $("#businessName");

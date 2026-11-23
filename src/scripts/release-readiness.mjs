@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable security/detect-non-literal-fs-filename -- Explicit checkout and newly-created private output paths. */
 import { readFile, mkdir, realpath, writeFile } from "node:fs/promises";
-import { resolve, relative, isAbsolute, join, dirname } from "node:path";
+import { resolve, relative, isAbsolute, join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { domainSuites } from "./run-domain-integration-isolated.mjs";
 import {
@@ -216,7 +216,7 @@ export async function main(args = process.argv.slice(2)) {
   if ([...selected].some((id) => !checks.some((check) => check.id === id)))
     throw new Error("Unknown check");
   const requestedOutput = resolve(options["--output"]);
-  const output = join(await realpath(dirname(requestedOutput)), requestedOutput.split("/").at(-1));
+  const output = join(await realpath(dirname(requestedOutput)), basename(requestedOutput));
   const within = relative(cwd, output);
   if (!within || (!within.startsWith("../") && !isAbsolute(within)))
     throw new Error("Output must be outside the checkout");

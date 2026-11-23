@@ -32,6 +32,7 @@ export function createAwardQueue({
   withLock = async (_scope, fn) => fn(),
 }) {
   let tail = Promise.resolve();
+  /** @type {Promise<{ synced: number, attempted: number, failed: number }> | null} */
   let syncFlight = null;
   /** @template T @param {() => Promise<T>} task @returns {Promise<T>} */
   function exclusive(task) {

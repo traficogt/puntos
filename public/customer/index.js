@@ -63,6 +63,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     );
   }
   let refreshInFlight = false;
+  /** @type {number | null} */
   let refreshTimer = null;
   let loggingOut = false;
   let refreshPending = false;
@@ -199,7 +200,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
           message += "Ninguno todavía.\n\n";
         } else {
           earned.forEach((a) => {
-            message += `${a.icon_url || "🏆"} ${a.name}\n   ${a.description || ""}\n   Obtenido: ${new Date(a.earned_at).toLocaleDateString()}\n\n`;
+            message += `${a.icon_url || "🏆"} ${a.name}\n   ${a.description || ""}\n   Obtenido: ${new Date(a.earned_at ?? "").toLocaleDateString()}\n\n`;
           });
         }
 

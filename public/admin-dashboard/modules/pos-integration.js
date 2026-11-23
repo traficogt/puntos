@@ -36,6 +36,8 @@ const number = (value) => Math.max(0, Number(value) || 0);
 export function registerPosIntegration(app) {
   const root = app.$("#externalAwardsSection");
   if (!root) return;
+  // Non-null binding for the hoisted function declarations below.
+  const section = root;
   const el = (id) => /** @type {HTMLElement} */ (root.querySelector(`#${id}`));
   const input = (id) => /** @type {HTMLInputElement} */ (el(id));
   const button = (id) => /** @type {HTMLButtonElement} */ (el(id));
@@ -47,7 +49,9 @@ export function registerPosIntegration(app) {
   let dirty = false;
   let bound = false;
   let csv = "";
+  /** @type {{ summary?: { ready?: unknown } } | null} */
   let csvPreview = null;
+  /** @type {{ summary?: { ready?: unknown } } | null} */
   let loyversePreview = null;
   let fileVersion = 0;
 
@@ -96,7 +100,7 @@ export function registerPosIntegration(app) {
   }
   function updateControls() {
     controls.disabled = busy || !loaded;
-    root.setAttribute("aria-busy", String(busy));
+    section.setAttribute("aria-busy", String(busy));
     button("posSave").disabled = busy || !loaded;
     button("posSave").textContent =
       mode() === "loyverse" ? "Guardar y verificar conexión" : "Guardar conexión";
@@ -381,10 +385,11 @@ export function registerPosIntegration(app) {
     });
   }
   async function syncLoyverse() {
-    if (!active() || !loyversePreview || busy) return;
+    const preview = loyversePreview;
+    if (!active() || !preview || busy) return;
     await run("Confirma la sincronización de ventas.", async () => {
       const confirmed = await app.confirm(
-        `Ventas listas en la revisión: ${number(loyversePreview.summary?.ready)}. ¿Sincronizar el siguiente grupo de ventas de Loyverse y asignar sus puntos? Las ventas repetidas se omiten.`,
+        `Ventas listas en la revisión: ${number(preview.summary?.ready)}. ¿Sincronizar el siguiente grupo de ventas de Loyverse y asignar sus puntos? Las ventas repetidas se omiten.`,
       );
       if (!confirmed) {
         feedback("Sincronización cancelada. No se asignaron puntos.");

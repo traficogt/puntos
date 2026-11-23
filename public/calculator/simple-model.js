@@ -50,7 +50,8 @@ export function calculateSimple(input) {
       max: LIMITS.units,
     });
   }
-  if (errors.length) return { errors };
+  // A null amount here always comes with a recorded validation error.
+  if (errors.length || rewardCost === null || rewardCount === null) return { errors };
   // Currency inputs are validated to minor units. Keep the per-purchase
   // division rational so cancellation cannot add a spurious whole purchase.
   const scale = BigInt(10 ** precision);
@@ -60,6 +61,16 @@ export function calculateSimple(input) {
   const budgetMinor = rewardBudgetMinor + minor(monthlyCosts ?? 0);
   const rewardBudget = Number(rewardBudgetMinor) / Number(scale);
   const budget = Number(budgetMinor) / Number(scale);
+  /** @type {{
+   *   keptPerSale: number,
+   *   rewardEvery: number,
+   *   additionalSales: number | null,
+   *   rewardReserve: number,
+   *   availablePerSale: number,
+   *   breakEven: number | null,
+   *   balance: number | null,
+   *   reason: "limit" | "nonpositive" | null,
+   * } | null} */
   let estimate = null;
   const totals = [rewardBudget, budget];
   if (input.includeReturn) {
@@ -92,7 +103,7 @@ export function calculateSimple(input) {
       balance,
       reason: tooLarge ? "limit" : availableNumerator <= 0n ? "nonpositive" : null,
     };
-    if (additionalSales !== null)
+    if (additionalSales !== null && balance !== null)
       totals.push(additionalSales * keptPerSale, additionalSales * rewardReserve, balance);
   }
   if (totals.some((value) => !Number.isFinite(value) || Math.abs(value) > LIMITS.total)) {

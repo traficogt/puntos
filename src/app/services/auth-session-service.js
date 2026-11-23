@@ -129,6 +129,10 @@ function memoryInvalidateByActor({ actorType, actorId = null, actorEmail = null,
   return count;
 }
 
+/**
+ * @param {{ actorType: string, actorId?: string | null, actorEmail?: string | null, businessId?: string | null, role?: string | null, branchId?: string | null, impersonatedBy?: string | null, reauthVerified?: boolean, mfaVerified?: boolean, meta?: Record<string, unknown> }} session
+ * @param {Parameters<typeof AuthSessionRepo.create>[1] | null} [transactionQuery]
+ */
 export async function createBrowserSession(
   {
     actorType,

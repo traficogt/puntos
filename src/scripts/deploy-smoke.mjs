@@ -122,6 +122,7 @@ async function expectHtml(pathname) {
  * @returns {Promise<void>}
  */
 async function expectStaticAsset(pathname, { origin = "", mustContain = [] } = {}) {
+  /** @type {Record<string, string>} */
   const headers = origin ? { Origin: origin } : {};
   const response = await request(pathname, { headers });
   assert(response.ok, `${pathname} returned HTTP ${response.status}`);
@@ -147,11 +148,12 @@ async function expectStaticAsset(pathname, { origin = "", mustContain = [] } = {
  * @returns {string}
  */
 function cookieHeader(response) {
+  const single = response.headers.get("set-cookie");
   const cookies =
     typeof response.headers.getSetCookie === "function"
       ? response.headers.getSetCookie()
-      : response.headers.get("set-cookie")
-        ? [response.headers.get("set-cookie")]
+      : single
+        ? [single]
         : [];
   return cookies
     .map((value) => value.split(";", 1)[0])

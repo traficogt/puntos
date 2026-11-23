@@ -71,10 +71,12 @@ function readSessionStorage(key) {
 /**
  * True when the server already considers the session gone, so a pending logout
  * can be marked complete without a successful revocation round-trip.
- * @param {{ status?: number, code?: string } | null | undefined} error
+ * @param {unknown} error
  */
 export function isRevokedSessionError(error) {
-  return error?.status === 401 || String(error?.code || "").startsWith("AUTH_");
+  if (!error || typeof error !== "object") return false;
+  if ("status" in error && error.status === 401) return true;
+  return "code" in error && String(error.code || "").startsWith("AUTH_");
 }
 
 /**

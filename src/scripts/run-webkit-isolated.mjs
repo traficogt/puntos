@@ -116,7 +116,8 @@ async function main() {
         headers: incoming.headers,
       },
       (response) => {
-        outgoing.writeHead(response.statusCode, response.headers);
+        // A client response always carries a status; 502 covers the typed gap.
+        outgoing.writeHead(response.statusCode ?? 502, response.headers);
         response.pipe(outgoing);
       },
     );

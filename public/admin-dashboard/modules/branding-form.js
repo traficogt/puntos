@@ -1,8 +1,8 @@
 /** @typedef {import("../types.js").CustomerBrandingConfig} CustomerBrandingConfig */
 /** @typedef {import("../types.js").QueryFn} QueryFn */
 /** @type {{
- *   branding_mode: import("../types.js").CustomerBrandingConfig["branding_mode"],
- *   neutral_theme: import("../types.js").CustomerBrandingConfig["neutral_theme"],
+ *   branding_mode: NonNullable<import("../types.js").CustomerBrandingConfig["branding_mode"]>,
+ *   neutral_theme: NonNullable<import("../types.js").CustomerBrandingConfig["neutral_theme"]>,
  *   powered_by_visible: boolean
  * }} */
 const DEFAULT_BRANDING = {
@@ -98,7 +98,7 @@ export function fillBrandingForm($, branding = {}) {
     ...(branding || {}),
   };
 
-  field($, "#brandingMode").value = next.branding_mode;
+  field($, "#brandingMode").value = next.branding_mode ?? DEFAULT_BRANDING.branding_mode;
   field($, "#brandingProgramName").value = next.customer_program_name || "";
   field($, "#brandingLogoUrl").value = next.customer_logo_url || "";
   const qrCheckbox = /** @type {HTMLInputElement | null} */ ($("#brandingQrLogoEnabled"));

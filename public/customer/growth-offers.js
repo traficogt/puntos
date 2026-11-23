@@ -5,6 +5,14 @@ export function clearGrowthOffers($) {
   if (list) list.replaceChildren();
   setHidden($("#growthOffersSection"), true);
 }
+/**
+ * @param {{
+ *   api: typeof import("/lib.js").api,
+ *   $: (selector: string) => HTMLElement | null,
+ *   isCurrent: () => boolean,
+ *   region?: { locale?: string, currency?: string, timezone?: string },
+ * }} deps
+ */
 export async function loadGrowthOffers({ api, $, isCurrent, region = undefined }) {
   clearGrowthOffers($);
   const list = $("#growthOffers");

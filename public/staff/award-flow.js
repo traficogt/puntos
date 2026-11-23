@@ -63,7 +63,7 @@ export function createAwardFlow(ctx, { session, surface }) {
 
   /** Re-adopts awards left mid-sync by a previous page and paints the queue. */
   async function prepareQueue() {
-    await requeueSyncingAwards(session.currentScope());
+    await requeueSyncingAwards(session.currentScope() ?? undefined);
     await refreshQueue();
   }
 
@@ -83,7 +83,9 @@ export function createAwardFlow(ctx, { session, surface }) {
       txId: uuidv4(),
       meta: { ui: "staff" },
       client_ts: new Date().toISOString(),
-      ...(session.hasOfflineGrant() ? { offlineGrant: state.offlineGrant.grant } : {}),
+      ...(session.hasOfflineGrant() && state.offlineGrant
+        ? { offlineGrant: state.offlineGrant.grant }
+        : {}),
     };
     if (
       !Number.isFinite(payload.amount_q) ||

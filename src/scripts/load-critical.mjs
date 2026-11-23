@@ -87,11 +87,12 @@ async function timedFetch(url, init = {}) {
  * @returns {string}
  */
 function cookieHeader(response) {
+  const single = response.headers.get("set-cookie");
   const cookies =
     typeof response.headers.getSetCookie === "function"
       ? response.headers.getSetCookie()
-      : response.headers.get("set-cookie")
-        ? [response.headers.get("set-cookie")]
+      : single
+        ? [single]
         : [];
   return cookies
     .map((value) => value.split(";", 1)[0])
@@ -189,6 +190,7 @@ async function main() {
       const index = cursor++;
       const target = targets[index % targets.length];
       const record = stats.get(target.label);
+      if (!record) throw new Error(`Missing load record for target ${target.label}`);
       try {
         const { response, durationMs } = await timedFetch(target.url, target.init);
         record.total += 1;

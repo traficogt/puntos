@@ -102,7 +102,7 @@ function renderOfflineSections($, snapshot) {
 }
 
 /**
- * @param {{ api: (path: string, opts?: RequestInit) => Promise<any>; $: (selector: string) => Element | null; toast: (message: string) => void; isCurrent?: () => boolean; identity?: {businessId: string, customerId: string} }} deps
+ * @param {{ api: (path: string, opts?: RequestInit) => Promise<any>; $: (selector: string) => Element | null; toast: (message: string) => void; isCurrent?: () => boolean; identity?: {businessId: string, customerId: string} | null }} deps
  * @param {CustomerMeResponse} me
  * @param {boolean} isLive
  * @param {{ sections?: Record<string, any>, latestUpdatedAt?: string } | null} [snapshot]
@@ -113,11 +113,13 @@ export async function renderFromMe(
   isLive,
   snapshot = null,
 ) {
-  identity ||= { businessId: me.business.id, customerId: me.customer.id };
+  // Callers validate both ids before rendering; the fallback only shapes the identity object.
+  identity ||= { businessId: me.business?.id ?? "", customerId: me.customer?.id ?? "" };
+  const cacheScope = identity;
   if (!isCurrent()) return { status: "superseded" };
-  safeEl($, "#customerStatement")?.replaceChildren();
-  if (isLive && safeEl($, "#customerStatement"))
-    safeEl($, "#customerStatement").textContent = "Cargando tu resumen…";
+  const statementEl = safeEl($, "#customerStatement");
+  statementEl?.replaceChildren();
+  if (isLive && statementEl) statementEl.textContent = "Cargando tu resumen…";
   for (const selector of [
     "#rewards",
     "#nextReward",
@@ -243,7 +245,7 @@ export async function renderFromMe(
       try {
         const data = await api(path);
         if (!isCurrent()) return;
-        await Promise.resolve(putCustomerCache(key, data, identity)).catch(() => {});
+        await Promise.resolve(putCustomerCache(key, data, cacheScope)).catch(() => {});
         if (isCurrent()) render(data, true);
       } catch (error) {
         if (!isCurrent()) return;

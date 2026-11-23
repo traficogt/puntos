@@ -10,6 +10,12 @@ const userLimitStore = new Map();
 const phoneLimitStore = new Map();
 const ipLimitStore = new Map();
 
+/** @param {string} url */
+function createRateLimitRedisClient(url) {
+  return createClient({ url, RESP: 2 });
+}
+
+/** @type {ReturnType<typeof createRateLimitRedisClient> | null} */
 let redisClient = null;
 let redisReady = false;
 let redisRequested = false;
@@ -23,12 +29,13 @@ function ensureRedisClient() {
   redisRequested = true;
   if (config.RATE_LIMIT_DRIVER !== "redis" || !String(config.REDIS_URL || "").trim()) return;
 
-  redisClient = createClient({ url: config.REDIS_URL, RESP: 2 });
-  redisClient.on("error", (err) => {
+  const client = createRateLimitRedisClient(config.REDIS_URL);
+  redisClient = client;
+  client.on("error", (err) => {
     redisReady = false;
     logger.warn({ err: err?.message }, "Redis rate-limit client error; using memory store");
   });
-  redisClient
+  client
     .connect()
     .then(() => {
       redisReady = true;

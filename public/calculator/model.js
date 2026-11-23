@@ -104,7 +104,8 @@ export function calculateLoyalty(input) {
         : null;
     // Both operands are bounded integers after validation. Basis points avoid
     // a floating product turning an exact whole redemption into an extra unit.
-    const scenarioUnits = Math.ceil((units * Math.round(percent * 100)) / 10000);
+    // A null operand means a validation error is already recorded; the result is discarded.
+    const scenarioUnits = Math.ceil(((units ?? 0) * Math.round((percent ?? 0) * 100)) / 10000);
     const totalCost = unitCost === null ? null : unitCost + (opportunityCost ?? 0);
     const cost = (count) => (count === 0 ? 0 : totalCost === null ? null : count * totalCost);
     return {
@@ -135,6 +136,7 @@ export function calculateLoyalty(input) {
     max: LIMITS.units,
     places: 0,
   });
+  /** @type {number | null} */
   let contributionPerPurchase = null;
   if (purchase.mode === "margin") {
     const margin = read(purchase.marginPercent, "marginPercent", {
@@ -148,6 +150,7 @@ export function calculateLoyalty(input) {
     const variableCost = read(purchase.variableCost, "variableCost", { optional: true });
     if (average !== null && variableCost !== null) contributionPerPurchase = average - variableCost;
   } else errors.push({ field: "marginMode", message: "Elige margen o costo variable." });
+  /** @type {number | null} */
   let allowance = null;
   if (purchase.allowanceMode === "amount")
     allowance = read(purchase.rewardAllowance, "rewardAllowance", { optional: true, places: 6 });
@@ -166,7 +169,7 @@ export function calculateLoyalty(input) {
     (costs.subscription ?? 0) +
     (costs.messaging ?? 0) +
     (costs.operations ?? 0) +
-    (costs.setup > 0 ? costs.setup / setupMonths : 0);
+    (costs.setup > 0 && setupMonths !== null ? costs.setup / setupMonths : 0);
   const unknownRewards = rewards.filter((reward) => reward.fullCost === null);
   const knownFullRewardCost = rewards.reduce((sum, reward) => sum + (reward.fullCost ?? 0), 0);
   const knownScenarioRewardCost = rewards.reduce(
@@ -188,7 +191,7 @@ export function calculateLoyalty(input) {
       ? "unknown_purchase"
       : allowance === null
         ? "unknown_allowance"
-        : availablePerPurchase <= 0
+        : availablePerPurchase !== null && availablePerPurchase <= 0
           ? "nonpositive_contribution"
           : null;
   const threshold = (budget) => {

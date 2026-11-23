@@ -1,3 +1,5 @@
+/** A request body key paired with the id that keeps its retries idempotent. */
+/** @typedef {{ key: string, requestId: string }} IdempotentRequest */
 const labels = {
   original_fulfilled: "Se entregó el beneficio original",
   alternative_accepted: "El cliente aceptó una alternativa",
@@ -76,13 +78,16 @@ export function mountServiceCases({ container, api, getContext }) {
   let destroyed = false,
     busy = false,
     selection = null,
-    reportPending = null,
     redemptions = [],
     detailRow = null,
-    resolvePending = null,
     refreshSequence = 0,
-    detailSequence = 0,
-    updateResolutionControls = null;
+    detailSequence = 0;
+  /** @type {IdempotentRequest | null} */
+  let reportPending = null;
+  /** @type {IdempotentRequest | null} */
+  let resolvePending = null;
+  /** @type {(() => void) | null} */
+  let updateResolutionControls = null;
   const online = () => navigator.onLine && getContext().online;
   function message(text) {
     status.textContent = text;
@@ -91,6 +96,12 @@ export function mountServiceCases({ container, api, getContext }) {
     reportButton.disabled = busy || !online() || !getContext().customerId;
     updateResolutionControls?.();
   }
+  /**
+   * Reuse the request id while the payload is unchanged so retries stay idempotent.
+   * @param {unknown} payload
+   * @param {IdempotentRequest | null} prior
+   * @returns {IdempotentRequest}
+   */
   function stable(payload, prior) {
     const key = JSON.stringify(payload);
     return prior?.key === key ? prior : { key, requestId: crypto.randomUUID() };
@@ -246,6 +257,7 @@ export function mountServiceCases({ container, api, getContext }) {
     followReason.maxLength = 500;
     followReason.rows = 2;
     management.append(followLabel, followReason);
+    /** @type {IdempotentRequest | null} */
     let managePending = null;
     async function manage(action, extra = {}) {
       if (busy || !online() || followReason.value.trim().length < 3) {

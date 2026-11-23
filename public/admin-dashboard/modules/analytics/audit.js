@@ -174,6 +174,7 @@ export function createAnalyticsAuditController(app) {
 
   async function loadAuditTimeline() {
     const box = $("#auditTimeline");
+    if (!box) return;
     const from = /** @type {HTMLInputElement | null} */ ($("#auditFrom"))?.value;
     const to = /** @type {HTMLInputElement | null} */ ($("#auditTo"))?.value;
     const impersonatedOnly = Boolean(

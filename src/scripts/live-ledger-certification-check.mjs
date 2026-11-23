@@ -16,9 +16,27 @@ const superPassword = arg("--super-password", process.env.SUPER_ADMIN_PASSWORD |
 const forwardedFor =
   process.env.TEST_CLIENT_IP || `198.51.100.${Math.max(10, Math.floor(Math.random() * 200))}`;
 
+/**
+ * @param {unknown} condition
+ * @param {string} message
+ * @returns {asserts condition}
+ */
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
+
+/**
+ * JSON fields this smoke check reads from API responses. Every field is optional
+ * because each step asserts what it needs before using it.
+ * @typedef {{
+ *   ok?: boolean,
+ *   business?: { id?: string, slug?: string, name?: string },
+ *   period?: { from?: string, to?: string },
+ *   daily_rows?: unknown[],
+ *   summary?: { points_issued?: number, gift_cards_issued_q?: number },
+ *   certification_status?: string,
+ * }} SmokeBody
+ */
 
 function applySetCookieJar(jar, response) {
   const values =
@@ -61,11 +79,13 @@ async function request(jar, path, options = {}) {
   });
   applySetCookieJar(jar, response);
   const text = await response.text();
+  /** @type {SmokeBody | null} */
   let data = null;
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
-    data = text;
+    // Non-JSON bodies (CSV, HTML) stay available as `text`.
+    data = null;
   }
   return { response, status: response.status, data, text };
 }

@@ -42,6 +42,11 @@ export function parseMagicLinkArgs(argv) {
  * @param {unknown} condition
  * @param {string} message
  */
+/**
+ * @param {unknown} condition
+ * @param {string} message
+ * @returns {asserts condition}
+ */
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -79,8 +84,8 @@ function validateMagicLinkArgs(args) {
 /**
  * @param {{ actorType: string, staffId: string, email: string, customerId: string }} args
  * @param {{
- *   StaffRepo?: { getById(id: string): Promise<unknown>, getByEmail(email: string): Promise<unknown> },
- *   CustomerRepo?: { getById(id: string): Promise<unknown> }
+ *   StaffRepo: { getById(id: string): Promise<unknown>, getByEmail(email: string): Promise<unknown> },
+ *   CustomerRepo: { getById(id: string): Promise<unknown> }
  * }} deps
  * @returns {Promise<unknown>}
  */
@@ -159,49 +164,51 @@ export async function createMagicLinkCli(options = {}) {
   validateMagicLinkArgs(parsed);
 
   const defaultDeps = options.config ? {} : await loadDefaultDeps();
-  const deps = {
+  // Local bindings keep the assertion narrowing available inside the callbacks below.
+  const {
+    config,
+    withDbClientContext,
+    closeDatabase,
+    buildInternalMagicLink,
+    StaffRepo,
+    CustomerRepo,
+  } = {
     ...defaultDeps,
     ...options,
   };
 
-  assert(deps.config, "Falta configuración de ejecución.");
-  assert(typeof deps.withDbClientContext === "function", "Falta el contexto de base de datos.");
-  assert(typeof deps.closeDatabase === "function", "Falta el cierre de base de datos.");
-  assert(typeof deps.buildInternalMagicLink === "function", "Falta el servicio de magic links.");
+  assert(config, "Falta configuración de ejecución.");
+  assert(typeof withDbClientContext === "function", "Falta el contexto de base de datos.");
+  assert(typeof closeDatabase === "function", "Falta el cierre de base de datos.");
+  assert(typeof buildInternalMagicLink === "function", "Falta el servicio de magic links.");
   assert(
-    deps.StaffRepo &&
-      typeof deps.StaffRepo.getById === "function" &&
-      typeof deps.StaffRepo.getByEmail === "function",
+    StaffRepo &&
+      typeof StaffRepo.getById === "function" &&
+      typeof StaffRepo.getByEmail === "function",
     "Falta el repositorio de staff.",
   );
   assert(
-    deps.CustomerRepo && typeof deps.CustomerRepo.getById === "function",
+    CustomerRepo && typeof CustomerRepo.getById === "function",
     "Falta el repositorio de clientes.",
   );
 
   try {
-    /** @type {{ StaffRepo: { getById(id: string): Promise<unknown>, getByEmail(email: string): Promise<unknown> }, CustomerRepo: { getById(id: string): Promise<unknown> } }} */
-    const actorDeps = {
-      StaffRepo: deps.StaffRepo,
-      CustomerRepo: deps.CustomerRepo,
-    };
-    const output = await deps.withDbClientContext(
-      { platformAdmin: true, tenantId: null },
-      async () => {
-        const actor = await resolveMagicLinkActor(parsed, actorDeps);
-        const link = await deps.buildInternalMagicLink({
-          actorType: parsed.actorType,
-          actor,
-          target: parsed.target,
-          createdBy: "terminal",
-          origin: deps.config.APP_ORIGIN || deps.config.PUBLIC_WEB_ORIGIN,
-        });
-        return formatMagicLinkOutput(link);
-      },
-    );
+    const origin = config.APP_ORIGIN || config.PUBLIC_WEB_ORIGIN;
+    assert(origin, "Falta APP_ORIGIN (o PUBLIC_WEB_ORIGIN) para construir el enlace.");
+    const output = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => {
+      const actor = await resolveMagicLinkActor(parsed, { StaffRepo, CustomerRepo });
+      const link = await buildInternalMagicLink({
+        actorType: parsed.actorType,
+        actor,
+        target: parsed.target,
+        createdBy: "terminal",
+        origin,
+      });
+      return formatMagicLinkOutput(link);
+    });
     return String(output);
   } finally {
-    await Promise.resolve(deps.closeDatabase()).catch(() => {});
+    await Promise.resolve(closeDatabase()).catch(() => {});
   }
 }
 

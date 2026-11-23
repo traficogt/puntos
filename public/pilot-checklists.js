@@ -57,6 +57,10 @@ const capabilityInstructions = {
   pos_installation:
     "Registra una venta desde el POS y comprueba el resultado en PF con el sistema y las versiones indicados en este piloto.",
 };
+/**
+ * @param {number} version
+ * @param {Record<string, boolean> | null} [capabilities] Required from checklist version 3 on.
+ */
 export function pilotChecksForVersion(version, capabilities = null) {
   if (![1, 2, 3].includes(version)) throw new Error("Versión de pruebas no reconocida.");
   const checks = [...original, ...(version >= 2 ? fulfillment : [])].map(

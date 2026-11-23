@@ -53,7 +53,9 @@ export function waitForQrLogoAsset(logoUrl, { ImageCtor = Image, timeoutMs = 150
  * @param {{ $: (selector: string) => Element | null; toast: (message: string) => void }} deps
  */
 export function createQrController({ $, toast }) {
+  /** @type {ReturnType<typeof setInterval> | null} */
   let qrTimer = null;
+  /** @type {Date | null} */
   let lastExp = null;
   let generation = 0;
   let inFlight = false;

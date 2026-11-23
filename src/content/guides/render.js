@@ -1,5 +1,7 @@
 const arrow = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
 
+/** @typedef {(typeof import("./catalog.js").guideCatalog)["articles"][number]} GuideArticle */
+
 export function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -18,6 +20,20 @@ function formatDate(value) {
   }).format(new Date(`${value}T00:00:00Z`));
 }
 
+/**
+ * @param {{
+ *   title: string,
+ *   description: string | undefined,
+ *   canonical: string,
+ *   content: string,
+ *   indexable: boolean,
+ *   articleSchema?: Record<string, unknown> | null,
+ *   hub?: boolean,
+ *   hero?: GuideArticle["hero"] | null,
+ *   preview?: boolean,
+ *   guidesPath?: string,
+ * }} options
+ */
 function shell({
   title,
   description,
@@ -131,6 +147,9 @@ function imageMarkup(
   return `<img src="${escapeHtml(image.src)}"${srcset} width="${image.width}" height="${image.height}" alt="${escapeHtml(image.alt)}" decoding="async"${eager ? ' fetchpriority="high"' : ' loading="lazy"'}/>`;
 }
 
+/**
+ * @param {{ origin: string, articles: readonly GuideArticle[], previewPath?: string | null }} options
+ */
 export function renderGuidesHub({ origin, articles, previewPath = null }) {
   const articlePath = (slug) => `${previewPath || "/guias/"}${slug}`;
   articles = [...articles].sort((a, b) =>
@@ -192,6 +211,13 @@ function renderReferences(references = []) {
     .join("")}</ol></section>`;
 }
 
+/**
+ * @param {{
+ *   origin: string,
+ *   article: GuideArticle,
+ *   preview?: { indexPath: string, articles: readonly GuideArticle[] } | null,
+ * }} options
+ */
 export function renderGuideArticle({ origin, article, preview = null }) {
   const guidesPath = preview?.indexPath || "/guias/";
   const canonical = new URL(`${guidesPath}${article.slug}`, origin).href;

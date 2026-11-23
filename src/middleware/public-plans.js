@@ -4,6 +4,15 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { PlanConfigService } from "../app/services/plan-config-service.js";
 import { publicPlanCatalog, renderPlanComparison } from "../app/services/public-plan-service.js";
+
+/**
+ * @param {{
+ *   publicDir: string,
+ *   marketingOrigin?: string | null,
+ *   appOrigin?: string | null,
+ *   listPlans?: () => ReturnType<typeof PlanConfigService.listPlans>,
+ * }} options
+ */
 export function createPublicPlans({
   publicDir,
   marketingOrigin = null,

@@ -79,8 +79,9 @@ export function createSearchVisibility({
           `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${searchablePaths.map((path) => `  <url><loc>${xmlEscape(new URL(path, marketing).href)}</loc>${articleDates.get(path) ? `<lastmod>${articleDates.get(path)}</lastmod>` : ""}</url>`).join("\n")}\n</urlset>\n`,
         );
     }
-    if (publicHost && !appOnlyHost && aliases.has(req.path)) {
-      const target = new URL(aliases.get(req.path), marketing);
+    const alias = aliases.get(req.path);
+    if (publicHost && !appOnlyHost && alias !== undefined) {
+      const target = new URL(alias, marketing);
       target.search = new URL(req.originalUrl, marketing).search;
       return res.redirect(301, target.href);
     }

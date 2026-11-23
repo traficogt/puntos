@@ -13,6 +13,7 @@ function normalizeLimit(limit) {
   return Math.max(1, Math.min(50_000, Math.floor(Number(limit) || 0) || 5_000));
 }
 
+/** @param {{ businessId?: string | null, customerId?: string | null }} scope */
 function reconciliationScope({ businessId = null, customerId = null }) {
   if (customerId) return "customer";
   if (businessId) return "business";
@@ -59,6 +60,10 @@ export function buildLedgerFinding(row) {
   };
 }
 
+/**
+ * @param {typeof dbQuery} query
+ * @param {{ businessId?: string | null, customerId?: string | null, limit?: number }} [options]
+ */
 async function readLedgerRows(query, { businessId = null, customerId = null, limit = 5_000 } = {}) {
   const cappedLimit = normalizeLimit(limit);
   const countResult = await query(
@@ -118,6 +123,9 @@ async function readLedgerRows(query, { businessId = null, customerId = null, lim
   };
 }
 
+/**
+ * @param {{ businessId?: string | null, customerId?: string | null, repair?: boolean, limit?: number }} [options]
+ */
 async function insertRun({
   businessId = null,
   customerId = null,
@@ -226,6 +234,9 @@ async function repairBalance(client, finding) {
   );
 }
 
+/**
+ * @param {{ businessId?: string | null, customerId?: string | null, limit?: number, repair?: boolean, persist?: boolean }} [options]
+ */
 export async function runLedgerReconciliation({
   businessId = null,
   customerId = null,

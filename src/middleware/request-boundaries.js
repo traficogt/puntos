@@ -12,7 +12,9 @@ export function requestComplexityLimit(req, res, next) {
   const pending = [{ value: req.body, depth: 0 }];
   let nodes = 0;
   while (pending.length) {
-    const { value, depth } = pending.pop();
+    const next = pending.pop();
+    if (!next) break;
+    const { value, depth } = next;
     if (++nodes > 5000 || depth > 24)
       return res.status(413).json({ error: "El contenido de la solicitud es demasiado complejo." });
     if (value && typeof value === "object") {

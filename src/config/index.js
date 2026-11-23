@@ -48,6 +48,20 @@ function readFileValue(fileVarName) {
 }
 
 /**
+ * Read `NAME_FILE` (secret file) first, then `NAME`, then the fallback. With a
+ * string fallback the result is always a string, which the config shape relies on.
+ * @overload
+ * @param {string} name
+ * @param {string} fallback
+ * @returns {string}
+ */
+/**
+ * @overload
+ * @param {string} name
+ * @param {string | undefined} [fallback]
+ * @returns {string | undefined}
+ */
+/**
  * @param {string} name
  * @param {string | undefined} [fallback]
  * @returns {string | undefined}

@@ -1,3 +1,21 @@
+/**
+ * Saved rehearsal as returned by `/api/staff/service-operations/rehearsal`. The
+ * fields this module reads are named; the server owns the full shape.
+ * @typedef {{ id: string, version: number, state: RehearsalState }} RehearsalSession
+ * @typedef {{
+ *   config: { program_type: string, rewards: { id: string, name: string, points_cost: number }[] },
+ *   points: number,
+ *   signed_up: boolean,
+ *   redemption: unknown,
+ *   history: { action: string, outcome: string, points?: number | null }[],
+ *   complete: boolean,
+ * }} RehearsalState
+ * @typedef {{
+ *   readiness?: { blockers?: string[] } | null,
+ *   current?: boolean,
+ *   session?: RehearsalSession | null,
+ * }} RehearsalConfiguration
+ */
 let sequence = 0;
 const node = (tag, text) => {
   const el = document.createElement(tag);
@@ -30,10 +48,13 @@ export function mountServiceOperations({ container, api }) {
   container.append(root);
   feedback.setAttribute("role", "status");
   let destroyed = false,
-    busy = false,
-    pending = null,
-    session = null,
-    configuration = null;
+    busy = false;
+  /** @type {{ key: string, requestId: string } | null} */
+  let pending = null;
+  /** @type {RehearsalSession | null} */
+  let session = null;
+  /** @type {RehearsalConfiguration | null} */
+  let configuration = null;
   const base = "/api/staff/service-operations";
   function labeled(label, control, suffix) {
     control.id = `${prefix}-${suffix}`;
@@ -48,12 +69,12 @@ export function mountServiceOperations({ container, api }) {
     root.querySelectorAll("button").forEach((el) => {
       el.disabled = true;
     });
-    const payload = action === "start" ? {} : { version: session.version, action, ...input },
+    const payload = action === "start" ? {} : { version: session?.version, action, ...input },
       key = JSON.stringify([session?.id, action, payload]);
     if (pending?.key !== key) pending = { key, requestId: crypto.randomUUID() };
     try {
       const result = await api(
-        action === "start" ? `${base}/rehearsal` : `${base}/rehearsal/${session.id}/step`,
+        action === "start" ? `${base}/rehearsal` : `${base}/rehearsal/${session?.id}/step`,
         { method: "POST", body: JSON.stringify({ ...payload, requestId: pending.requestId }) },
       );
       session = result.session;
@@ -228,7 +249,7 @@ export function mountServiceOperations({ container, api }) {
       );
     if (rehearsal.status === "fulfilled") {
       configuration = rehearsal.value;
-      session = configuration.session;
+      session = configuration?.session ?? null;
       renderPractice();
     } else
       practice.append(

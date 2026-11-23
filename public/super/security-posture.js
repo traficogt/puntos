@@ -52,7 +52,7 @@ export function createSecurityPosture(ctx, { reloadBusinesses }) {
           return;
         }
         const lines = recent.map((event) => {
-          const when = new Date(event.created_at).toLocaleString();
+          const when = new Date(event.created_at ?? "").toLocaleString();
           return `${when} | ${event.event_type} | ${event.method || "-"} ${event.route || "-"} | ${event.ip || "-"} | ${JSON.stringify(event.meta || {})}`;
         });
         element("#securityRecent").textContent = lines.join("\n");

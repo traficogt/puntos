@@ -296,7 +296,7 @@ export async function runStartupMaintenance(role) {
  * @param {{
  *   every?: (fn: () => void, ms: number) => unknown,
  *   clear?: (handle: unknown) => void,
- *   schedule?: (expression: string, fn: () => Promise<void>, options: { timezone: string }) => { stop: () => void },
+ *   schedule?: (expression: string, fn: () => Promise<void>, options: { timezone?: string }) => { stop: () => void },
  * }} [timers] Overridable for tests; defaults to the process timers and node-cron.
  */
 export function startScheduler(
@@ -330,11 +330,14 @@ export function startScheduler(
         "Scheduled daily maintenance",
       );
     } else {
-      const work = /** @type {ScheduledWork} */ (job);
+      const { everyMs, run } = job;
+      if (everyMs === undefined || !run)
+        throw new Error(`Scheduled job ${job.name} needs everyMs and run`);
+      const work = { name: job.name, runsIn: job.runsIn, run };
       const tick = () => runGuarded(work, role, "Scheduled job did not complete");
-      const handle = every(tick, job.everyMs);
+      const handle = every(tick, everyMs);
       active.push({ name: job.name, kind: "interval", handle, stop: () => clear(handle) });
-      logger.info({ role, job: job.name, everyMs: job.everyMs }, "Scheduled background job");
+      logger.info({ role, job: job.name, everyMs }, "Scheduled background job");
     }
     started.push(job.name);
   }

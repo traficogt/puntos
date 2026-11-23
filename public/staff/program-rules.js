@@ -10,21 +10,22 @@ import { SELECTION_PROMPT_COPY } from "./page-context.js";
 export function createProgramRules(ctx) {
   const { state, element, input } = ctx;
 
-  function effectiveRule() {
+  /** @param {NonNullable<StaffPageContext["state"]["programRule"]>} programRule */
+  function effectiveRule(programRule) {
     return state.protectedCycle
       ? {
-          ...state.programRule,
+          ...programRule,
           program_type: state.protectedCycle.program_type,
           program_json: state.protectedCycle.earning_terms,
         }
-      : state.programRule;
+      : programRule;
   }
 
   function renderProgramInfo() {
     const el = element("#programInfo");
     if (!el || !state.programRule) return;
     const { programRule, protectedCycle } = state;
-    const effective = effectiveRule();
+    const effective = effectiveRule(programRule);
     const cfg = effective.program_json || {};
     const mode = protectedCycle ? "protegida" : "activa";
     const currency = programRule.region?.currency || "GTQ";
@@ -84,7 +85,7 @@ export function createProgramRules(ctx) {
       out.textContent = SELECTION_PROMPT_COPY;
       return;
     }
-    const effective = effectiveRule();
+    const effective = effectiveRule(programRule);
     const cfg = effective.program_json || {};
     const amount = Number(input("#amount").value || 0);
     const visits = Math.floor(Number(input("#visits").value || 0));

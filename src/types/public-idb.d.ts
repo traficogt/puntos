@@ -1,8 +1,22 @@
-export interface StaffQueueScope { businessId: string; staffId: string; }
-export interface CustomerCacheScope { businessId: string; customerId: string; }
-export function addAward(award: Partial<import("../../public/staff/types.js").QueuedStaffAward> & { txId: string }): Promise<unknown>;
-export function listAwards(options?: Partial<StaffQueueScope> & { statuses?: string[] }): Promise<import("../../public/staff/types.js").QueuedStaffAward[]>;
-export function updateAward(txId: string, patch: Record<string, unknown>, scope?: StaffQueueScope): Promise<unknown>;
+export interface StaffQueueScope {
+  businessId: string;
+  staffId: string;
+}
+export interface CustomerCacheScope {
+  businessId: string;
+  customerId: string;
+}
+export function addAward(
+  award: Partial<import("../../public/staff/types.js").QueuedStaffAward> & { txId: string },
+): Promise<unknown>;
+export function listAwards(
+  options?: Partial<StaffQueueScope> & { statuses?: string[] },
+): Promise<import("../../public/staff/types.js").QueuedStaffAward[]>;
+export function updateAward(
+  txId: string,
+  patch: Record<string, unknown>,
+  scope?: StaffQueueScope,
+): Promise<unknown>;
 export function getAwardQueueStats(scope?: StaffQueueScope): Promise<{
   total: number;
   queued: number;
@@ -15,9 +29,18 @@ export function getAwardQueueStats(scope?: StaffQueueScope): Promise<{
 export function requeueSyncingAwards(scope?: StaffQueueScope): Promise<unknown>;
 export function deleteAward(txId: string, scope?: StaffQueueScope): Promise<unknown>;
 export function clearAwards(): Promise<unknown>;
-export function putCustomerCache(key: string, data: unknown, scope: CustomerCacheScope): Promise<unknown>;
+export function putCustomerCache(
+  key: string,
+  data: unknown,
+  scope: CustomerCacheScope,
+): Promise<unknown>;
+/** Cached wallet sections by key; `me` is written by the wallet loader with the card response. */
+export interface CustomerCacheSections {
+  me?: import("../../public/types.js").CustomerMeResponse;
+  [key: string]: unknown;
+}
 export function getCustomerCacheSnapshot(scope?: CustomerCacheScope): Promise<{
-  sections: Record<string, unknown>;
+  sections: CustomerCacheSections;
   updatedAt: Record<string, string>;
   latestUpdatedAt: string;
 }>;

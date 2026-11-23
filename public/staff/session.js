@@ -41,8 +41,10 @@ export function isNetworkFailure(error) {
 export function createStaffSession(ctx, hooks) {
   const { api, toast, state, run, element } = ctx;
   const epoch = createSessionEpoch("staff");
+  /** @type {Promise<boolean | null> | null} */
   let authFlight = null;
   let logoutPending = false;
+  /** @type {Promise<boolean | null> | null} */
   let logoutFlight = null;
 
   function currentScope() {
@@ -175,7 +177,8 @@ export function createStaffSession(ctx, hooks) {
   async function loadPermissions() {
     const out = /** @type {StaffPermissionsResponse} */ (await api("/api/staff/permissions"));
     const matrix = out.matrix || {};
-    const perms = Array.isArray(matrix[state.staff.role]) ? matrix[state.staff.role] : [];
+    const role = state.staff?.role ?? "";
+    const perms = Array.isArray(matrix[role]) ? matrix[role] : [];
     state.permissionSet = new Set(perms);
     hooks.applyUiPermissions();
   }
@@ -217,7 +220,8 @@ export function createStaffSession(ctx, hooks) {
         await loadProgramRule();
         if (
           hasPerm("staff.award") &&
-          (!hasOfflineGrant() || Date.parse(state.offlineGrant.expiresAt) < Date.now() + 300000)
+          (!hasOfflineGrant() ||
+            Date.parse(state.offlineGrant?.expiresAt ?? "") < Date.now() + 300000)
         ) {
           try {
             const grant = await api("/api/staff/offline-grant");

@@ -174,6 +174,7 @@ export async function api(path, { rawError = false, ...opts } = {}) {
   });
 
   const txt = await res.text();
+  /** @type {Record<string, unknown> | null} */
   let data = null;
   try {
     data = txt ? JSON.parse(txt) : null;
@@ -184,7 +185,9 @@ export async function api(path, { rawError = false, ...opts } = {}) {
 
   if (!res.ok) {
     const code = typeof data?.code === "string" ? data.code : "";
-    const requestId = data?.request_id || res.headers.get("x-request-id") || "";
+    const bodyRequestId = data?.request_id;
+    const requestId =
+      (typeof bodyRequestId === "string" && bodyRequestId) || res.headers.get("x-request-id") || "";
     const serverError = typeof data?.error === "string" ? data.error : "";
     let err = rawError
       ? (data?.error ?? "")
@@ -192,9 +195,11 @@ export async function api(path, { rawError = false, ...opts } = {}) {
         ? "Se requiere código MFA"
         : ERROR_BY_CODE[code] || data?.error || `HTTP ${res.status}`;
     if (err && typeof err === "object") {
-      const formErrors = Array.isArray(err.formErrors) ? err.formErrors.filter(Boolean) : [];
+      // A non-null object narrows to `object`; read its optional fields through a record view.
+      const shape = /** @type {Record<string, unknown>} */ (err);
+      const formErrors = Array.isArray(shape.formErrors) ? shape.formErrors.filter(Boolean) : [];
       const fieldErrors =
-        err.fieldErrors && typeof err.fieldErrors === "object" ? err.fieldErrors : {};
+        shape.fieldErrors && typeof shape.fieldErrors === "object" ? shape.fieldErrors : {};
       const firstFieldError = Object.entries(fieldErrors).find(
         ([, v]) => Array.isArray(v) && v.length > 0,
       );
@@ -431,6 +436,7 @@ function openModal({
     messageEl.textContent = message || "";
     body.appendChild(messageEl);
 
+    /** @type {HTMLInputElement | null} */
     let inputEl = null;
     if (input) {
       inputEl = document.createElement("input");

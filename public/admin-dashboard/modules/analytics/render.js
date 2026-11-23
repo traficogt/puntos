@@ -409,15 +409,16 @@ export function renderBranchBenchmark($, { branchRows, globalRows, branchLabel }
  */
 export function renderSummaryTiles({ $, summary, app }) {
   const summaryEl = $("#analyticsSummary");
+  if (!summaryEl) return;
   summaryEl.replaceChildren();
   const grid = document.createElement("div");
   grid.className = "analytics-kpi-grid";
   [
-    { value: Number(summary.total_customers || 0), label: "Clientes totales", money: false },
-    { value: Number(summary.new_customers_30d || 0), label: "Nuevos (30d)", money: false },
-    { value: Number(summary.high_churn_risk_count || 0), label: "En riesgo", money: false },
+    { value: Number(summary?.total_customers || 0), label: "Clientes totales", money: false },
+    { value: Number(summary?.new_customers_30d || 0), label: "Nuevos (30d)", money: false },
+    { value: Number(summary?.high_churn_risk_count || 0), label: "En riesgo", money: false },
     {
-      value: Number(summary.avg_customer_spend || 0).toFixed(2),
+      value: Number(summary?.avg_customer_spend || 0).toFixed(2),
       label: "Gasto promedio",
       money: true,
     },
@@ -441,7 +442,8 @@ export function renderSummaryTiles({ $, summary, app }) {
 
   const scope = $("#analyticsScopeHint");
   if (scope) scope.textContent = `Vista actual: ${app.selectedBranchLabel()}`;
-  $("#lastCalc").textContent = new Date().toLocaleString();
+  const lastCalc = $("#lastCalc");
+  if (lastCalc) lastCalc.textContent = new Date().toLocaleString();
 }
 
 /**
@@ -449,6 +451,7 @@ export function renderSummaryTiles({ $, summary, app }) {
  */
 export function renderRfmDistribution({ $, dashboard, app }) {
   const rfmContainer = $("#rfmDist");
+  if (!rfmContainer) return;
   rfmContainer.replaceChildren();
   const rfmDist = /** @type {AnalyticsRfmSegment[]} */ (
     Array.isArray(dashboard.rfm_distribution) ? dashboard.rfm_distribution : []
@@ -488,10 +491,11 @@ export function renderRfmDistribution({ $, dashboard, app }) {
  */
 export function renderRevenueTrend({ $, dashboard, app }) {
   const trendContainer = $("#revenueTrend");
-  trendContainer.replaceChildren();
   const activityRows = /** @type {AnalyticsActivityRow[]} */ (
     Array.isArray(dashboard.recent_activity) ? dashboard.recent_activity : []
   );
+  if (!trendContainer) return activityRows;
+  trendContainer.replaceChildren();
   if (!activityRows.length) {
     app.setSmallMessage(trendContainer, "No hay actividad reciente para graficar.");
     return activityRows;
@@ -531,6 +535,7 @@ export function renderRevenueTrend({ $, dashboard, app }) {
  */
 export function renderChurnList({ $, churnCustomers, app }) {
   const churnContainer = $("#churnList");
+  if (!churnContainer) return;
   churnContainer.replaceChildren();
   if (!churnCustomers.length) {
     app.setSmallMessage(churnContainer, "¡Todos los clientes están activos!");
@@ -545,7 +550,7 @@ export function renderChurnList({ $, churnCustomers, app }) {
 
     const left = document.createElement("div");
     const name = document.createElement("strong");
-    name.textContent = customer.name || customer.phone;
+    name.textContent = customer.name || customer.phone || "";
     left.appendChild(name);
     const days = document.createElement("div");
     days.className = "small";
@@ -556,7 +561,7 @@ export function renderChurnList({ $, churnCustomers, app }) {
     right.className = "row gap-8";
     const risk = document.createElement("span");
     risk.className = "badge";
-    risk.textContent = `Riesgo: ${(customer.churn_risk_score * 100).toFixed(0)}%`;
+    risk.textContent = `Riesgo: ${(Number(customer.churn_risk_score) * 100).toFixed(0)}%`;
     const spend = document.createElement("span");
     spend.className = "badge";
     spend.textContent = `${regionalMoney(customer.total_spend || 0)} gastado`;
@@ -576,6 +581,7 @@ export function renderBranchPerformance({ $, dashboard, app }) {
   const perfRows = /** @type {AnalyticsBranchPerformanceRow[]} */ (
     Array.isArray(dashboard.branch_performance) ? dashboard.branch_performance : []
   );
+  if (!perfContainer) return perfRows;
   perfContainer.replaceChildren();
   if (!perfRows.length) {
     app.setSmallMessage(perfContainer, "No hay sucursales o no hay actividad reciente.");
@@ -633,7 +639,7 @@ export function ensureLedgerCertificationDates($) {
 }
 
 /**
- * @param {{ $: (selector: string) => HTMLElement | null; api: (path: string, options?: Record<string, unknown>) => Promise<unknown> }} args
+ * @param {{ $: (selector: string) => HTMLElement | null; api: (path: string, options?: Record<string, unknown>) => Promise<Parameters<typeof renderLedgerCertification>[1]> }} args
  */
 export async function loadLedgerCertification({ $, api }) {
   ensureLedgerCertificationDates($);
@@ -650,7 +656,7 @@ export async function loadLedgerCertification({ $, api }) {
 }
 
 /**
- * @param {{ $: (selector: string) => HTMLElement | null; api: (path: string, options?: Record<string, unknown>) => Promise<unknown> }} args
+ * @param {{ $: (selector: string) => HTMLElement | null; api: (path: string, options?: Record<string, unknown>) => Promise<Parameters<typeof renderLedgerCertificationArchive>[1]> }} args
  */
 export async function loadLedgerCertificationArchive({ $, api }) {
   const archive = await api("/api/admin/analytics/ledger-certification/archive");
@@ -725,7 +731,7 @@ export async function rejectLedgerCorrection({ api, toast, loadAnalytics }, corr
 }
 
 /**
- * @param {{ $: (selector: string) => HTMLElement | null; api: (path: string, options?: Record<string, unknown>) => Promise<unknown> }} args
+ * @param {{ $: (selector: string) => HTMLElement | null; api: (path: string, options?: Record<string, unknown>) => Promise<Parameters<typeof renderLedgerCorrections>[1]> }} args
  */
 export async function loadLedgerCorrections({ $, api }) {
   const corrections = await api("/api/admin/analytics/ledger-corrections");
