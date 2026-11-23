@@ -17,9 +17,11 @@ adminFraudRoutes.get(
   tenantContext,
   requirePlanFeature("fraud_monitoring"),
   requireStaffPermission(Permission.ADMIN_SUSPICIOUS_VIEW),
-  validateQuery(branchFilterQuerySchema.extend({
-    limit: z.coerce.number().int().min(1).max(200).default(50)
-  })),
+  validateQuery(
+    branchFilterQuerySchema.extend({
+      limit: z.coerce.number().int().min(1).max(200).default(50),
+    }),
+  ),
   asyncRoute(async (req, res) => {
     const { limit } = req.validatedQuery;
     const branchId = req.validatedQuery.branch_id ? String(req.validatedQuery.branch_id) : null;
@@ -61,10 +63,10 @@ adminFraudRoutes.get(
          ${branchClause}
        ORDER BY t.created_at DESC
        LIMIT $2`,
-      params
+      params,
     );
     return res.json({ ok: true, awards: rows });
-  })
+  }),
 );
 
 adminFraudRoutes.get(
@@ -72,9 +74,11 @@ adminFraudRoutes.get(
   requireStaff,
   requireOwner,
   tenantContext,
-  validateQuery(z.object({
-    limit: z.coerce.number().int().min(1).max(200).default(50)
-  })),
+  validateQuery(
+    z.object({
+      limit: z.coerce.number().int().min(1).max(200).default(50),
+    }),
+  ),
   asyncRoute(async (req, res) => {
     const { limit } = req.validatedQuery;
     const perType = Math.max(5, Math.min(50, Math.ceil(limit / 4)));
@@ -93,7 +97,7 @@ adminFraudRoutes.get(
            AND COALESCE((meta->'guard'->>'suspicious')::boolean, false) = true
          ORDER BY created_at DESC
          LIMIT $2`,
-        [businessId, perType]
+        [businessId, perType],
       ),
       dbQuery(
         `SELECT
@@ -107,7 +111,7 @@ adminFraudRoutes.get(
            AND status = 'FAILED'
          ORDER BY created_at DESC
          LIMIT $2`,
-        [businessId, perType]
+        [businessId, perType],
       ),
       dbQuery(
         `SELECT
@@ -122,7 +126,7 @@ adminFraudRoutes.get(
            AND d.status = 'FAILED'
          ORDER BY d.created_at DESC
          LIMIT $2`,
-        [businessId, perType]
+        [businessId, perType],
       ),
       dbQuery(
         `SELECT
@@ -136,19 +140,14 @@ adminFraudRoutes.get(
            AND status IN ('FAILED', 'PENDING_MAPPING')
          ORDER BY created_at DESC
          LIMIT $2`,
-        [businessId, perType]
-      )
+        [businessId, perType],
+      ),
     ]);
 
-    const alerts = [
-      ...suspiciousRes.rows,
-      ...jobsRes.rows,
-      ...webhookRes.rows,
-      ...paymentRes.rows
-    ]
+    const alerts = [...suspiciousRes.rows, ...jobsRes.rows, ...webhookRes.rows, ...paymentRes.rows]
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, limit);
 
     return res.json({ ok: true, alerts });
-  })
+  }),
 );

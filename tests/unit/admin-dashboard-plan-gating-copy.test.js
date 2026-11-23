@@ -3,11 +3,20 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 // eslint-disable-next-line security/detect-non-literal-fs-filename
-const brandingFragment = fs.readFileSync(new URL("../../public/admin-dashboard/fragments/branding.html", import.meta.url), "utf8");
+const brandingFragment = fs.readFileSync(
+  new URL("../../public/admin-dashboard/fragments/branding.html", import.meta.url),
+  "utf8",
+);
 // eslint-disable-next-line security/detect-non-literal-fs-filename
-const programFragment = fs.readFileSync(new URL("../../public/admin-dashboard/fragments/program.html", import.meta.url), "utf8");
+const programFragment = fs.readFileSync(
+  new URL("../../public/admin-dashboard/fragments/program.html", import.meta.url),
+  "utf8",
+);
 // eslint-disable-next-line security/detect-non-literal-fs-filename
-const brandingForm = fs.readFileSync(new URL("../../public/admin-dashboard/modules/branding-form.js", import.meta.url), "utf8");
+const brandingForm = fs.readFileSync(
+  new URL("../../public/admin-dashboard/modules/branding-form.js", import.meta.url),
+  "utf8",
+);
 
 describe("owner dashboard packaging copy contract", () => {
   it("keeps branding upsell concise and operational", () => {
@@ -24,7 +33,10 @@ describe("owner dashboard packaging copy contract", () => {
   it("drives premium branding notice from the actual plan state", () => {
     assert.match(brandingForm, /state\??\.\s*planInfo\??\.\s*plan/i);
     // Premium branding is labelled from the branded-QR feature (Impulsa+), never another feature's tier.
-    assert.match(brandingForm, /requiredPlanLabel\??\.\s*\("branded_qr"\)|requiredPlanLabel\("branded_qr"\)/);
+    assert.match(
+      brandingForm,
+      /requiredPlanLabel\??\.\s*\("branded_qr"\)|requiredPlanLabel\("branded_qr"\)/,
+    );
     assert.doesNotMatch(brandingForm, /requiredPlanLabel\??\.?\s*\("rbac_matrix"\)/);
     assert.doesNotMatch(brandingForm, /Branding:\s\$\{/);
   });

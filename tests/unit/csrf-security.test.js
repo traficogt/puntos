@@ -18,7 +18,7 @@ function makeRes() {
     json(payload) {
       this.body = payload;
       return this;
-    }
+    },
   };
 }
 
@@ -35,7 +35,7 @@ function baseReq(overrides = {}) {
       if (String(name).toLowerCase() === "host") return "app.test";
       return undefined;
     },
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -57,8 +57,8 @@ describe("csrf security", () => {
     const req = baseReq({
       headers: {
         "x-csrf-token": "token-123",
-        referer: "http://alt.test/admin"
-      }
+        referer: "http://alt.test/admin",
+      },
     });
     const res = makeRes();
     let called = false;
@@ -80,8 +80,8 @@ describe("csrf security", () => {
       },
       headers: {
         "x-csrf-token": "token-123",
-        origin: "http://localhost:3001"
-      }
+        origin: "http://localhost:3001",
+      },
     });
     const res = makeRes();
     let called = false;
@@ -96,7 +96,7 @@ describe("csrf security", () => {
 
   it("rejects missing origin and referer", async () => {
     const req = baseReq({
-      headers: { "x-csrf-token": "token-123" }
+      headers: { "x-csrf-token": "token-123" },
     });
     const res = makeRes();
     let called = false;
@@ -114,8 +114,8 @@ describe("csrf security", () => {
     const req = baseReq({
       headers: {
         "x-csrf-token": "token-123",
-        origin: "https://evil.example"
-      }
+        origin: "https://evil.example",
+      },
     });
     const res = makeRes();
     let called = false;

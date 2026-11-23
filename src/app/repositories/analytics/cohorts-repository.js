@@ -7,20 +7,20 @@ export function cohortSqlConfigForType(cohortType = "monthly") {
       return {
         cohortType: "weekly",
         truncUnit: "week",
-        cohortLabelSql: "to_char(DATE_TRUNC('week', cl.first_purchase_at), 'IYYY-\"W\"IW')"
+        cohortLabelSql: "to_char(DATE_TRUNC('week', cl.first_purchase_at), 'IYYY-\"W\"IW')",
       };
     case "quarterly":
       return {
         cohortType: "quarterly",
         truncUnit: "quarter",
-        cohortLabelSql: "to_char(DATE_TRUNC('quarter', cl.first_purchase_at), 'YYYY-\"Q\"Q')"
+        cohortLabelSql: "to_char(DATE_TRUNC('quarter', cl.first_purchase_at), 'YYYY-\"Q\"Q')",
       };
     case "monthly":
     default:
       return {
         cohortType: "monthly",
         truncUnit: "month",
-        cohortLabelSql: "to_char(DATE_TRUNC('month', cl.first_purchase_at), 'YYYY-MM')"
+        cohortLabelSql: "to_char(DATE_TRUNC('month', cl.first_purchase_at), 'YYYY-MM')",
       };
   }
 }
@@ -39,7 +39,7 @@ export const cohortRepository = {
          AND c.deleted_at IS NULL
          AND cl.first_purchase_at IS NOT NULL
        GROUP BY DATE_TRUNC('${cfg.truncUnit}', cl.first_purchase_at)`,
-      [businessId]
+      [businessId],
     );
 
     for (const cohort of cohortData) {
@@ -52,13 +52,7 @@ export const cohortRepository = {
            customer_count = $5,
            created_at = now()
          RETURNING *`,
-        [
-          businessId,
-          cohort.cohort_name,
-          cohort.cohort_date,
-          cfg.cohortType,
-          cohort.customer_count
-        ]
+        [businessId, cohort.cohort_name, cohort.cohort_date, cfg.cohortType, cohort.customer_count],
       );
 
       const cohortId = rows[0].id;
@@ -71,7 +65,7 @@ export const cohortRepository = {
          WHERE c.business_id = $1
            AND DATE_TRUNC('${cfg.truncUnit}', cl.first_purchase_at) = $3
          ON CONFLICT (customer_id, cohort_id) DO NOTHING`,
-        [businessId, cohortId, cohort.cohort_date]
+        [businessId, cohortId, cohort.cohort_date],
       );
     }
   },
@@ -119,8 +113,8 @@ export const cohortRepository = {
          COALESCE(revenue, 0) as revenue
        FROM retention
        ORDER BY cohort_date DESC, month_number ASC`,
-      [businessId, months]
+      [businessId, months],
     );
     return rows;
-  }
+  },
 };

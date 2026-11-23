@@ -1,23 +1,52 @@
 import { one, exec } from "./base.js";
-import { decryptProgramSecrets, encryptProgramSecrets, rotateProgramSecretsToCurrent, sanitizeProgramForClient } from "../../utils/program-secrets.js";
+import {
+  decryptProgramSecrets,
+  encryptProgramSecrets,
+  rotateProgramSecretsToCurrent,
+  sanitizeProgramForClient,
+} from "../../utils/program-secrets.js";
 
 function normalizeBusinessRecord(record) {
   if (!record) return record;
   return {
     ...record,
-    program_json: decryptProgramSecrets(record.program_json)
+    program_json: decryptProgramSecrets(record.program_json),
   };
 }
 
 export const BusinessRepo = {
-  async create({ id, name, slug, email, phone, password_hash, category, plan, program_type, program_json }) {
+  async create({
+    id,
+    name,
+    slug,
+    email,
+    phone,
+    password_hash,
+    category,
+    plan,
+    program_type,
+    program_json,
+  }) {
     const storedProgram = encryptProgramSecrets(program_json);
-    return normalizeBusinessRecord(await one(
-      `INSERT INTO businesses (id, name, slug, email, phone, password_hash, category, plan, program_type, program_json)
+    return normalizeBusinessRecord(
+      await one(
+        `INSERT INTO businesses (id, name, slug, email, phone, password_hash, category, plan, program_type, program_json)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
-      [id, name, slug, email, phone ?? null, password_hash, category ?? null, plan, program_type, storedProgram]
-    ));
+        [
+          id,
+          name,
+          slug,
+          email,
+          phone ?? null,
+          password_hash,
+          category ?? null,
+          plan,
+          program_type,
+          storedProgram,
+        ],
+      ),
+    );
   },
 
   async getById(id) {
@@ -38,18 +67,24 @@ export const BusinessRepo = {
       `SELECT business_id AS id, slug, name, category, program_type, program_json, customer_branding_json
        FROM business_public
        WHERE slug=$1`,
-      [slug]
+      [slug],
     );
-    return business ? { ...business, program_json: sanitizeProgramForClient(business.program_json) } : null;
+    return business
+      ? { ...business, program_json: sanitizeProgramForClient(business.program_json) }
+      : null;
   },
 
   async countRewards(businessId) {
-    const r = await one(`SELECT COUNT(*)::int AS c FROM rewards WHERE business_id=$1`, [businessId]);
+    const r = await one(`SELECT COUNT(*)::int AS c FROM rewards WHERE business_id=$1`, [
+      businessId,
+    ]);
     return r?.c ?? 0;
   },
 
   async countBranches(businessId) {
-    const r = await one(`SELECT COUNT(*)::int AS c FROM branches WHERE business_id=$1`, [businessId]);
+    const r = await one(`SELECT COUNT(*)::int AS c FROM branches WHERE business_id=$1`, [
+      businessId,
+    ]);
     return r?.c ?? 0;
   },
 
@@ -63,7 +98,7 @@ export const BusinessRepo = {
          OR
          (last_visit_at IS NULL AND imported_at IS NULL AND created_at >= now() - interval '90 days')
        )`,
-      [businessId]
+      [businessId],
     );
     return r?.c ?? 0;
   },
@@ -85,8 +120,12 @@ export const BusinessRepo = {
     const storedProgram = encryptProgramSecrets(submittedProgram);
     const lifecycle = submittedProgram.lifecycle;
     const missingManagedLifecycleKeys = [
-      "birthday_monthly_points_cap", "winback_monthly_points_cap", "minimum_contact_days"
-    ].filter(key => !lifecycle || typeof lifecycle !== "object" || !Object.hasOwn(lifecycle, key));
+      "birthday_monthly_points_cap",
+      "winback_monthly_points_cap",
+      "minimum_contact_days",
+    ].filter(
+      (key) => !lifecycle || typeof lifecycle !== "object" || !Object.hasOwn(lifecycle, key),
+    );
     // Merge the current row, not an earlier read: polling and key rotation can
     // change integration state while the owner is editing ordinary program rules.
     const externalAwardsSql = preserveIntegrations
@@ -122,21 +161,25 @@ export const BusinessRepo = {
   async updateLifecycle(businessId, patch) {
     // Templates change only their declared lifecycle fields. A previous full
     // program read must not replace concurrent guided controls or other rules.
-    return normalizeBusinessRecord(await one(
-      `UPDATE businesses SET program_json=jsonb_set(COALESCE(program_json,'{}'::jsonb), '{lifecycle}',
+    return normalizeBusinessRecord(
+      await one(
+        `UPDATE businesses SET program_json=jsonb_set(COALESCE(program_json,'{}'::jsonb), '{lifecycle}',
          (CASE WHEN jsonb_typeof(program_json->'lifecycle')='object'
             THEN program_json->'lifecycle' ELSE '{}'::jsonb END) || $2::jsonb), updated_at=now()
        WHERE id=$1 RETURNING *`,
-      [businessId, patch]
-    ));
+        [businessId, patch],
+      ),
+    );
   },
 
   async updateCampaignRules(businessId, rules) {
-    return normalizeBusinessRecord(await one(
-      `UPDATE businesses SET program_json=jsonb_set(COALESCE(program_json,'{}'::jsonb), '{campaign_rules}', $2::jsonb), updated_at=now()
+    return normalizeBusinessRecord(
+      await one(
+        `UPDATE businesses SET program_json=jsonb_set(COALESCE(program_json,'{}'::jsonb), '{campaign_rules}', $2::jsonb), updated_at=now()
        WHERE id=$1 RETURNING *`,
-      [businessId, JSON.stringify(rules)]
-    ));
+        [businessId, JSON.stringify(rules)],
+      ),
+    );
   },
 
   async updateExternalAwards(businessId, patch) {
@@ -146,7 +189,7 @@ export const BusinessRepo = {
          (CASE WHEN jsonb_typeof(program_json->'external_awards')='object'
             THEN program_json->'external_awards' ELSE '{}'::jsonb END) || $2::jsonb), updated_at=now()
        WHERE id=$1`,
-      [businessId, stored]
+      [businessId, stored],
     );
     return this.getById(businessId);
   },
@@ -161,7 +204,7 @@ export const BusinessRepo = {
       `UPDATE businesses
        SET customer_branding_json=$2, updated_at=now()
        WHERE id=$1`,
-      [businessId, branding]
+      [businessId, branding],
     );
     return this.getById(businessId);
   },
@@ -171,7 +214,7 @@ export const BusinessRepo = {
       `SELECT customer_branding_json
        FROM businesses
        WHERE id=$1`,
-      [businessId]
+      [businessId],
     );
     return row?.customer_branding_json ?? null;
   },
@@ -180,19 +223,29 @@ export const BusinessRepo = {
     const rows = await one(
       `SELECT COALESCE(json_agg(json_build_object('id', id, 'program_json', program_json)), '[]'::json) AS items
        FROM businesses`,
-      []
+      [],
     );
     const items = rows?.items ?? [];
     let rotated = 0;
     for (const row of items) {
       const current = row.program_json;
       const next = rotateProgramSecretsToCurrent(current);
-      const currKey = JSON.stringify([current?.external_awards?.api_key ?? null, current?.pos_integration?.loyverse?.access_token ?? null]);
-      const nextKey = JSON.stringify([next?.external_awards?.api_key ?? null, next?.pos_integration?.loyverse?.access_token ?? null]);
+      const currKey = JSON.stringify([
+        current?.external_awards?.api_key ?? null,
+        current?.pos_integration?.loyverse?.access_token ?? null,
+      ]);
+      const nextKey = JSON.stringify([
+        next?.external_awards?.api_key ?? null,
+        next?.pos_integration?.loyverse?.access_token ?? null,
+      ]);
       if (currKey === nextKey) continue;
-      await exec(`UPDATE businesses SET program_json=$2 WHERE id=$1 AND program_json=$3::jsonb`, [row.id, next, current]);
+      await exec(`UPDATE businesses SET program_json=$2 WHERE id=$1 AND program_json=$3::jsonb`, [
+        row.id,
+        next,
+        current,
+      ]);
       rotated += 1;
     }
     return rotated;
-  }
+  },
 };

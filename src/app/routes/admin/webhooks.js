@@ -16,7 +16,7 @@ export const adminWebhookRoutes = Router();
 export const WebhookSchema = z.object({
   url: z.string().url(),
   secret: z.string().min(8),
-  events: z.array(z.string()).min(1)
+  events: z.array(z.string()).min(1),
 });
 
 adminWebhookRoutes.get(
@@ -31,10 +31,10 @@ adminWebhookRoutes.get(
       ...ep,
       secret: undefined,
       secret_masked: maskSecret(ep.secret),
-      has_secret: Boolean(ep.secret)
+      has_secret: Boolean(ep.secret),
     }));
     return res.json({ ok: true, endpoints: safeEndpoints });
-  })
+  }),
 );
 
 adminWebhookRoutes.post(
@@ -51,7 +51,7 @@ adminWebhookRoutes.post(
     try {
       await validateWebhookUrl(v.data.url, {
         requireHttps: config.WEBHOOK_REQUIRE_HTTPS,
-        allowlist: config.WEBHOOK_ALLOWLIST
+        allowlist: config.WEBHOOK_ALLOWLIST,
       });
     } catch (e) {
       return res.status(400).json({ error: e?.message ?? "Invalid webhook URL" });
@@ -63,7 +63,7 @@ adminWebhookRoutes.post(
       url: v.data.url,
       secret: v.data.secret,
       events: v.data.events,
-      active: true
+      active: true,
     });
 
     return res.json({
@@ -72,8 +72,8 @@ adminWebhookRoutes.post(
         ...ep,
         secret: undefined,
         secret_masked: maskSecret(ep.secret),
-        has_secret: Boolean(ep.secret)
-      }
+        has_secret: Boolean(ep.secret),
+      },
     });
-  })
+  }),
 );

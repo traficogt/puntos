@@ -16,7 +16,7 @@ async function sourceTransactionIsActive(sourceTransactionId, query) {
      FROM transactions
      WHERE id = $1
      FOR UPDATE`,
-    [sourceTransactionId]
+    [sourceTransactionId],
   );
   const tx = rows[0];
   return Boolean(tx && tx.status === "POSTED" && !tx.reversed_transaction_id);
@@ -50,7 +50,7 @@ async function awardAchievementPoints(client, stats, customerId, achievement, co
          lifetime_points = lifetime_points + GREATEST($1, 0),
          updated_at = now()
      WHERE customer_id = $2`,
-    [achievement.points_reward, customerId]
+    [achievement.points_reward, customerId],
   );
   await client.query(
     `INSERT INTO transactions
@@ -64,9 +64,9 @@ async function awardAchievementPoints(client, stats, customerId, achievement, co
       JSON.stringify({
         achievement_id: achievement.id,
         achievement_name: achievement.name,
-        source_transaction_id: context.sourceTransactionId || null
-      })
-    ]
+        source_transaction_id: context.sourceTransactionId || null,
+      }),
+    ],
   );
   return rewardTransactionId;
 }
@@ -76,7 +76,7 @@ export async function createDefaultAchievements(businessId) {
   for (const achievementData of DEFAULT_ACHIEVEMENTS) {
     const achievement = await GamificationRepository.createAchievement({
       business_id: businessId,
-      ...achievementData
+      ...achievementData,
     });
     achievements.push(achievement);
   }
@@ -86,7 +86,7 @@ export async function createDefaultAchievements(businessId) {
 export async function checkAndAwardAchievements(customerId, _eventType = null, context = {}) {
   return withTransaction(async (client) => {
     const q = client.query.bind(client);
-    if (!await sourceTransactionIsActive(context.sourceTransactionId || null, q)) {
+    if (!(await sourceTransactionIsActive(context.sourceTransactionId || null, q))) {
       return [];
     }
     const stats = await getCustomerGamificationStats(customerId, client.query.bind(client));
@@ -98,24 +98,30 @@ export async function checkAndAwardAchievements(customerId, _eventType = null, c
       const alreadyEarned = await GamificationRepository.checkAchievementEarned(
         customerId,
         achievement.id,
-        client.query.bind(client)
+        client.query.bind(client),
       );
       if (alreadyEarned) continue;
 
       const currentValue = achievementProgressValue(stats, achievement.requirement_type);
       if (currentValue < Number(achievement.requirement_value || 0)) continue;
-      if (!await sourceTransactionIsActive(context.sourceTransactionId || null, q)) continue;
+      if (!(await sourceTransactionIsActive(context.sourceTransactionId || null, q))) continue;
 
-      const rewardTransactionId = await awardAchievementPoints(client, stats, customerId, achievement, context);
+      const rewardTransactionId = await awardAchievementPoints(
+        client,
+        stats,
+        customerId,
+        achievement,
+        context,
+      );
       await GamificationRepository.awardAchievement(
         customerId,
         achievement.id,
         100,
         {
           sourceTransactionId: context.sourceTransactionId || null,
-          rewardTransactionId
+          rewardTransactionId,
         },
-        q
+        q,
       );
       newlyEarned.push(achievement);
     }
@@ -140,12 +146,12 @@ export async function getCustomerAchievementsWithProgress(customerId) {
         progress,
         current,
         total,
-        earned: false
+        earned: false,
       };
     });
 
   return {
     earned: earned.map((item) => ({ ...item, earned: true })),
-    inProgress
+    inProgress,
   };
 }

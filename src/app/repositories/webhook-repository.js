@@ -7,7 +7,7 @@ export const WebhookRepo = {
     await exec(
       `INSERT INTO webhook_endpoints (id, business_id, url, secret, events, active)
        VALUES ($1,$2,$3,$4,$5,$6)`,
-      [id, business_id, url, storedSecret, JSON.stringify(events ?? []), active ?? true]
+      [id, business_id, url, storedSecret, JSON.stringify(events ?? []), active ?? true],
     );
     return this.getEndpoint(id);
   },
@@ -18,7 +18,7 @@ export const WebhookRepo = {
        FROM webhook_endpoints
        WHERE secret IS NOT NULL
          AND secret NOT LIKE 'enc:v1:%'
-         AND secret NOT LIKE 'enc:v2:%'`
+         AND secret NOT LIKE 'enc:v2:%'`,
     );
     let updated = 0;
     for (const row of rows) {
@@ -34,7 +34,7 @@ export const WebhookRepo = {
     const rows = await many(
       `SELECT id, secret
        FROM webhook_endpoints
-       WHERE secret IS NOT NULL`
+       WHERE secret IS NOT NULL`,
     );
     let rotated = 0;
     for (const row of rows) {
@@ -47,7 +47,9 @@ export const WebhookRepo = {
   },
 
   async listEndpoints(businessId) {
-    return many(`SELECT * FROM webhook_endpoints WHERE business_id=$1 ORDER BY created_at DESC`, [businessId]);
+    return many(`SELECT * FROM webhook_endpoints WHERE business_id=$1 ORDER BY created_at DESC`, [
+      businessId,
+    ]);
   },
 
   async getEndpoint(id) {
@@ -57,13 +59,13 @@ export const WebhookRepo = {
   async enqueueDelivery({ id, endpoint_id, event, payload }) {
     await exec(
       `INSERT INTO webhook_deliveries (id, endpoint_id, event, payload) VALUES ($1,$2,$3,$4)`,
-      [id, endpoint_id, event, JSON.stringify(payload)]
+      [id, endpoint_id, event, JSON.stringify(payload)],
     );
   },
 
-	  async claimPending(limit = 20, maxAttempts = 3) {
-	    return many(
-	      `WITH c AS (
+  async claimPending(limit = 20, maxAttempts = 3) {
+    return many(
+      `WITH c AS (
 	         SELECT d.id, e.url, e.secret, e.business_id, d.event, d.payload
 	         FROM webhook_deliveries d
 	         JOIN webhook_endpoints e ON e.id=d.endpoint_id
@@ -79,9 +81,9 @@ export const WebhookRepo = {
 	       FROM c
 	       WHERE d.id=c.id
 	       RETURNING d.id, d.endpoint_id, d.event, d.payload, d.attempts, c.url, c.secret, c.business_id`,
-	      [limit, maxAttempts]
-	    );
-	  },
+      [limit, maxAttempts],
+    );
+  },
 
   async markSent(id) {
     await exec(`UPDATE webhook_deliveries SET status='SENT', sent_at=now() WHERE id=$1`, [id]);
@@ -94,7 +96,7 @@ export const WebhookRepo = {
            last_error = $2,
            status = CASE WHEN attempts + 1 >= $3 THEN 'FAILED' ELSE 'PENDING' END
        WHERE id=$1`,
-      [id, error, maxAttempts]
+      [id, error, maxAttempts],
     );
-  }
+  },
 };

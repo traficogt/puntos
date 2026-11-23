@@ -66,7 +66,7 @@ export const rfmRepository = {
          updated_at = now()
        FROM rfm_scores rs
        WHERE cl.customer_id = rs.customer_id`,
-      [businessId]
+      [businessId],
     );
   },
 
@@ -86,7 +86,7 @@ export const rfmRepository = {
        FROM customers c
        WHERE c.id = cl.customer_id 
          AND c.business_id = $1`,
-      [businessId]
+      [businessId],
     );
   },
 
@@ -107,8 +107,8 @@ export const rfmRepository = {
          AND cl.predicted_ltv > 0
        ORDER BY cl.predicted_ltv DESC
        LIMIT $2`,
-      [businessId, limit]
+      [businessId, limit],
     );
     return rows;
-  }
+  },
 };

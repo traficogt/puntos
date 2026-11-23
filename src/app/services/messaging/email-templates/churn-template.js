@@ -1,4 +1,9 @@
-import { renderBaseEmailTemplate, renderHtmlParagraphs, renderPoweredByText, renderTextParagraphs } from "./base-template.js";
+import {
+  renderBaseEmailTemplate,
+  renderHtmlParagraphs,
+  renderPoweredByText,
+  renderTextParagraphs,
+} from "./base-template.js";
 
 export function renderChurnEmail({ branding, subject = "", title = "", intro = "", lines = [] }) {
   const resolvedSubject = String(subject || `${branding.brandName}: te extrañamos`).trim();
@@ -13,7 +18,7 @@ export function renderChurnEmail({ branding, subject = "", title = "", intro = "
       eyebrow: "Vuelve pronto",
       title: resolvedTitle,
       footerText: "Tu programa de lealtad sigue listo para tu próxima visita.",
-      bodyHtml: renderHtmlParagraphs(safeLines)
-    })
+      bodyHtml: renderHtmlParagraphs(safeLines),
+    }),
   };
 }

@@ -9,10 +9,13 @@ import { config } from "../../src/config/index.js";
 
 describe("impersonation provenance", () => {
   it("adds impersonation metadata when present", () => {
-    const meta = withImpersonationMeta({ action: "test" }, { impersonated_by: "super@example.com" });
+    const meta = withImpersonationMeta(
+      { action: "test" },
+      { impersonated_by: "super@example.com" },
+    );
     assert.deepEqual(meta, {
       action: "test",
-      impersonated_by_super_admin_email: "super@example.com"
+      impersonated_by_super_admin_email: "super@example.com",
     });
   });
 
@@ -23,7 +26,7 @@ describe("impersonation provenance", () => {
       business_id: "business-1",
       role: "OWNER",
       branch_id: "branch-1",
-      active: true
+      active: true,
     });
 
     const token = await signStaffToken({
@@ -31,18 +34,18 @@ describe("impersonation provenance", () => {
       bid: "business-1",
       role: "OWNER",
       brid: "branch-1",
-      imp: "super@example.com"
+      imp: "super@example.com",
     });
 
     const req = /** @type {any} */ ({
       cookies: {
-        [config.STAFF_COOKIE_NAME]: token
-      }
+        [config.STAFF_COOKIE_NAME]: token,
+      },
     });
     const res = /** @type {any} */ ({
       status() {
         throw new Error("should not reject");
-      }
+      },
     });
 
     try {
@@ -55,7 +58,7 @@ describe("impersonation provenance", () => {
         business_id: "business-1",
         role: "OWNER",
         branch_id: "branch-1",
-        impersonated_by: "super@example.com"
+        impersonated_by: "super@example.com",
       });
     } finally {
       StaffRepo.getById = originalGetById;

@@ -1,5 +1,6 @@
 const panels = new WeakMap();
-const OFFLINE_MESSAGE = "Tu tarjeta guardada sigue disponible sin conexión. El saldo se actualiza al recuperar la conexión.";
+const OFFLINE_MESSAGE =
+  "Tu tarjeta guardada sigue disponible sin conexión. El saldo se actualiza al recuperar la conexión.";
 
 function hidden(element, value) {
   if (!element) return;
@@ -8,16 +9,35 @@ function hidden(element, value) {
 }
 
 function isAuthError(error) {
-  return error?.status === 401 || String(error?.code || "").startsWith("AUTH_") || error?.code === "CUSTOMER_NOT_FOUND";
+  return (
+    error?.status === 401 ||
+    String(error?.code || "").startsWith("AUTH_") ||
+    error?.code === "CUSTOMER_NOT_FOUND"
+  );
 }
 
 function safeDestination(provider, url) {
   if (provider === "apple") return url === "/api/customer/wallet/apple/download";
-  return typeof url === "string" && /^https:\/\/pay\.google\.com\/gp\/v\/save\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(url);
+  return (
+    typeof url === "string" &&
+    /^https:\/\/pay\.google\.com\/gp\/v\/save\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(
+      url,
+    )
+  );
 }
 
 /** Native issuance URLs stay in this request's memory and never enter browser storage. */
-export async function renderNativeWallet({ api, $, identity, isCurrent = () => true, navigate = (url) => location.assign(url), isOnline = () => navigator.onLine }, isLive) {
+export async function renderNativeWallet(
+  {
+    api,
+    $,
+    identity,
+    isCurrent = () => true,
+    navigate = (url) => location.assign(url),
+    isOnline = () => navigator.onLine,
+  },
+  isLive,
+) {
   const root = $("#billeteras");
   if (!root || !isCurrent()) return;
   const owner = `${identity.businessId}:${identity.customerId}`;
@@ -30,9 +50,18 @@ export async function renderNativeWallet({ api, $, identity, isCurrent = () => t
   const status = $("#nativeWalletStatus");
   const previous = panels.get(root);
   const controls = [apple, google, revoke, confirm, cancel];
-  const setDisabled = (value) => controls.forEach(control => { if (control) control.disabled = value; });
-  if (isLive && previous?.ready && previous.owner === owner && root.dataset.nativeWalletOwner === owner
-      && !root.hidden && (previous.busy || !confirmation.hidden)) {
+  const setDisabled = (value) =>
+    controls.forEach((control) => {
+      if (control) control.disabled = value;
+    });
+  if (
+    isLive &&
+    previous?.ready &&
+    previous.owner === owner &&
+    root.dataset.nativeWalletOwner === owner &&
+    !root.hidden &&
+    (previous.busy || !confirmation.hidden)
+  ) {
     previous.isCurrent = isCurrent;
     return;
   }
@@ -51,7 +80,8 @@ export async function renderNativeWallet({ api, $, identity, isCurrent = () => t
 
   const state = { owner, isCurrent, live: true, busy: false, ready: false };
   panels.set(root, state);
-  const current = () => panels.get(root) === state && root.dataset.nativeWalletOwner === owner && state.isCurrent();
+  const current = () =>
+    panels.get(root) === state && root.dataset.nativeWalletOwner === owner && state.isCurrent();
   const canAct = () => current() && !root.hidden && state.live && isOnline() && !state.busy;
   if (!previous?.ready || previous.owner !== owner) hidden(root, true);
   setDisabled(true);
@@ -82,9 +112,10 @@ export async function renderNativeWallet({ api, $, identity, isCurrent = () => t
     hidden(google, available.google !== true);
     hidden($("#nativeWalletActions"), !canIssue);
     const description = $("#nativeWalletDescription");
-    if (description) description.textContent = canIssue
-      ? "Guárdala en tu teléfono para mostrarla en caja. El saldo se actualiza con conexión."
-      : "Tienes tarjetas guardadas. Puedes desactivarlas; guardar una nueva no está disponible por ahora.";
+    if (description)
+      description.textContent = canIssue
+        ? "Guárdala en tu teléfono para mostrarla en caja. El saldo se actualiza con conexión."
+        : "Tienes tarjetas guardadas. Puedes desactivarlas; guardar una nueva no está disponible por ahora.";
     hidden(revoke, !hasPasses);
     setDisabled(!isOnline());
     if (!isOnline()) status.textContent = OFFLINE_MESSAGE;
@@ -100,7 +131,8 @@ export async function renderNativeWallet({ api, $, identity, isCurrent = () => t
     state.busy = true;
     setDisabled(true);
     root.setAttribute("aria-busy", "true");
-    status.textContent = provider === "revoke" ? "Desactivando tarjetas…" : "Preparando tu tarjeta…";
+    status.textContent =
+      provider === "revoke" ? "Desactivando tarjetas…" : "Preparando tu tarjeta…";
     try {
       const result = await api(`/api/customer/wallet/${provider}`, { method: "POST", body: "{}" });
       if (!current() || root.hidden) return;
@@ -112,7 +144,10 @@ export async function renderNativeWallet({ api, $, identity, isCurrent = () => t
         (apple.hidden ? google : apple)?.focus();
       } else {
         if (!safeDestination(provider, result?.url)) throw new Error("Invalid destination");
-        if (!state.live || !isOnline()) { status.textContent = OFFLINE_MESSAGE; return; }
+        if (!state.live || !isOnline()) {
+          status.textContent = OFFLINE_MESSAGE;
+          return;
+        }
         hidden(revoke, false);
         status.textContent = "Continúa en tu billetera para guardar la tarjeta.";
         navigate(result.url);
@@ -138,6 +173,9 @@ export async function renderNativeWallet({ api, $, identity, isCurrent = () => t
     hidden(confirmation, false);
     confirm.focus();
   };
-  cancel.onclick = () => { hidden(confirmation, true); revoke.focus(); };
-  confirm.onclick = () => confirmation.hidden ? undefined : mutate("revoke");
+  cancel.onclick = () => {
+    hidden(confirmation, true);
+    revoke.focus();
+  };
+  confirm.onclick = () => (confirmation.hidden ? undefined : mutate("revoke"));
 }

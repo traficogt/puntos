@@ -8,7 +8,7 @@
 const DEFAULT_BRANDING = {
   branding_mode: "endorsed_brand",
   neutral_theme: "warm",
-  powered_by_visible: true
+  powered_by_visible: true,
 };
 
 /**
@@ -56,13 +56,21 @@ export function buildBrandingPayload($) {
   const brandingModeValue = field($, "#brandingMode").value;
   /** @type {import("../types.js").CustomerBrandingConfig["branding_mode"]} */
   let brandingMode = DEFAULT_BRANDING.branding_mode;
-  if (brandingModeValue === "platform_led" || brandingModeValue === "endorsed_brand" || brandingModeValue === "white_label_ready") {
+  if (
+    brandingModeValue === "platform_led" ||
+    brandingModeValue === "endorsed_brand" ||
+    brandingModeValue === "white_label_ready"
+  ) {
     brandingMode = brandingModeValue;
   }
   const neutralThemeValue = field($, "#brandingNeutralTheme").value;
   /** @type {import("../types.js").CustomerBrandingConfig["neutral_theme"]} */
   let neutralTheme = DEFAULT_BRANDING.neutral_theme;
-  if (neutralThemeValue === "warm" || neutralThemeValue === "neutral" || neutralThemeValue === "cool") {
+  if (
+    neutralThemeValue === "warm" ||
+    neutralThemeValue === "neutral" ||
+    neutralThemeValue === "cool"
+  ) {
     neutralTheme = neutralThemeValue;
   }
 
@@ -76,7 +84,7 @@ export function buildBrandingPayload($) {
     neutral_theme: neutralTheme,
     powered_by_visible: checkbox($, "#brandingPoweredByVisible").checked,
     wallet_headline: trimOptional(field($, "#brandingWalletHeadline").value),
-    join_headline: trimOptional(field($, "#brandingJoinHeadline").value)
+    join_headline: trimOptional(field($, "#brandingJoinHeadline").value),
   };
 }
 
@@ -87,7 +95,7 @@ export function buildBrandingPayload($) {
 export function fillBrandingForm($, branding = {}) {
   const next = {
     ...DEFAULT_BRANDING,
-    ...(branding || {})
+    ...(branding || {}),
   };
 
   field($, "#brandingMode").value = next.branding_mode;
@@ -120,11 +128,12 @@ export function updateBrandingSummary($, app = null) {
   const canUsePremiumBranding = activePlan === "NEGOCIO" || activePlan === "EMPRESA";
   const canUseQrLogo = activePlan === "EMPRESA";
 
-  const modeCopy = payload.branding_mode === "platform_led"
-    ? "PuntosFieles lidera la experiencia y el negocio aparece como programa participante."
-    : payload.branding_mode === "white_label_ready"
-      ? "El negocio queda al frente y PuntosFieles puede pasar a una mención mínima."
-      : "La experiencia mostrará el negocio y mantendrá a PuntosFieles como respaldo visible.";
+  const modeCopy =
+    payload.branding_mode === "platform_led"
+      ? "PuntosFieles lidera la experiencia y el negocio aparece como programa participante."
+      : payload.branding_mode === "white_label_ready"
+        ? "El negocio queda al frente y PuntosFieles puede pasar a una mención mínima."
+        : "La experiencia mostrará el negocio y mantendrá a PuntosFieles como respaldo visible.";
 
   if (hint) hint.textContent = modeCopy;
   if (planNotice) {
@@ -148,7 +157,7 @@ export function updateBrandingSummary($, app = null) {
     `Programa: ${payload.customer_program_name || "usa nombre del negocio"}`,
     `Titular wallet: ${payload.wallet_headline || "predeterminado"}`,
     `Titular registro: ${payload.join_headline || "predeterminado"}`,
-    `Powered by: ${payload.powered_by_visible ? "visible" : "oculto"}`
+    `Powered by: ${payload.powered_by_visible ? "visible" : "oculto"}`,
   ];
   summary.textContent = pieces.join("\n");
 }

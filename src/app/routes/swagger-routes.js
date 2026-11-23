@@ -24,8 +24,8 @@ if (spec) {
     swaggerOptions: {
       displayRequestDuration: true,
       docExpansion: "list",
-      persistAuthorization: true
-    }
+      persistAuthorization: true,
+    },
   };
   router.use("/api/docs", swaggerUi.serve, swaggerUi.setup(spec, options));
   router.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(spec, options));

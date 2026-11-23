@@ -5,11 +5,7 @@ import { tenantContext } from "../../../middleware/tenant.js";
 import { requirePlanFeature } from "../../../middleware/plan-feature.js";
 import { validate } from "../../../utils/validation.js";
 import { BusinessRepo } from "../../repositories/business-repository.js";
-import {
-  ExternalAwardsSchema,
-  formatExternalAwards,
-  getBusinessOr404
-} from "./program-support.js";
+import { ExternalAwardsSchema, formatExternalAwards, getBusinessOr404 } from "./program-support.js";
 
 export function registerProgramExternalRoutes(router) {
   router.get(
@@ -22,7 +18,7 @@ export function registerProgramExternalRoutes(router) {
       const business = await getBusinessOr404(res, req.tenantId);
       if (!business) return;
       return res.json({ ok: true, external_awards: formatExternalAwards(business.program_json) });
-    })
+    }),
   );
 
   router.put(
@@ -39,16 +35,19 @@ export function registerProgramExternalRoutes(router) {
       if (!business) return;
 
       const current = business.program_json?.external_awards ?? {};
-      const nextApiKey = v.data.api_key !== undefined ? String(v.data.api_key) : String(current.api_key || "");
+      const nextApiKey =
+        v.data.api_key !== undefined ? String(v.data.api_key) : String(current.api_key || "");
       if (v.data.enabled && !nextApiKey) {
-        return res.status(400).json({ error: "api_key es requerida cuando la integración está habilitada" });
+        return res
+          .status(400)
+          .json({ error: "api_key es requerida cuando la integración está habilitada" });
       }
 
       const updated = await BusinessRepo.updateExternalAwards(req.tenantId, {
         enabled: v.data.enabled,
-        ...(v.data.api_key === undefined ? {} : { api_key: nextApiKey })
+        ...(v.data.api_key === undefined ? {} : { api_key: nextApiKey }),
       });
       return res.json({ ok: true, external_awards: formatExternalAwards(updated.program_json) });
-    })
+    }),
   );
 }

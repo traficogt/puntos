@@ -1,5 +1,10 @@
 import { setHidden } from "/lib.js";
-import { rewardsWithState, nextInventoryRefresh, getRewardViewModel, rewardProgressText } from "./rewards.js";
+import {
+  rewardsWithState,
+  nextInventoryRefresh,
+  getRewardViewModel,
+  rewardProgressText,
+} from "./rewards.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
 /** @typedef {import("../types.js").CustomerReferralCodeData} CustomerReferralCodeData */
@@ -19,7 +24,7 @@ function safeEl($, id) {
 }
 
 /** @type {WeakMap<HTMLElement,number>} */
-const rewardFreshnessTimers=new WeakMap();
+const rewardFreshnessTimers = new WeakMap();
 
 /**
  * @param {(selector: string) => Element | null} $
@@ -38,23 +43,57 @@ export function renderRewards($, points, rewards, options = {}) {
   const { progress, isLive = true } = options;
   const now = Date.now();
   const deadline = Date.parse(progress?.next_refresh_at ?? "");
-  const stale = !isLive || Number.isFinite(deadline) && deadline <= now;
-  const savedMessage = !isLive ? "Datos guardados. Actualiza la tarjeta para consultar tu recompensa." : "Actualiza la tarjeta para confirmar la disponibilidad de tu recompensa.";
+  const stale = !isLive || (Number.isFinite(deadline) && deadline <= now);
+  const savedMessage = !isLive
+    ? "Datos guardados. Actualiza la tarjeta para consultar tu recompensa."
+    : "Actualiza la tarjeta para confirmar la disponibilidad de tu recompensa.";
   rewards = progress?.choices ?? rewards;
   points = progress ? progress.available_points : points;
   const { sorted, eligible, next, remain } = rewardsWithState(points, rewards, now);
   const target = progress ? progress.reward : next ? { ...next, remaining_points: remain } : null;
-  const targetChoice = target && sorted.find(entry => entry.reward.id === target.id);
-  const selected = !stale && target && getRewardViewModel(points, target, now).available &&
-    (!targetChoice || targetChoice.available) ? target : null;
-  const number = value => new Intl.NumberFormat("es").format(value);
-  const date = value => new Intl.DateTimeFormat(options.region?.locale || "es-GT", { dateStyle: "medium", timeStyle: "short", timeZone: options.region?.timezone || "America/Guatemala" }).format(new Date(value));
-  const text = (id, value) => { const element = safeEl($, id); if (element) element.textContent = value; };
-  text("#nextReward", stale ? savedMessage : selected ? rewardProgressText(points, selected)
-    : "No hay una recompensa disponible ahora. Consulta las opciones en caja.");
-  text("#nextRewardBalance", selected ? `${number(points)} puntos disponibles · ${number(selected.points_cost)} puntos de costo` : "");
-  text("#nextRewardConditions", selected ? (progress?.conditions || "Sujeto a disponibilidad al canjear.").replace(/\d{4}-\d{2}-\d{2}T[\d:.]+Z/g, date) + " En caja se confirman las condiciones del canje." : "");
-  text("#nextRewardEarning", !stale ? progress?.earning ?? "" : "");
+  const targetChoice = target && sorted.find((entry) => entry.reward.id === target.id);
+  const selected =
+    !stale &&
+    target &&
+    getRewardViewModel(points, target, now).available &&
+    (!targetChoice || targetChoice.available)
+      ? target
+      : null;
+  const number = (value) => new Intl.NumberFormat("es").format(value);
+  const date = (value) =>
+    new Intl.DateTimeFormat(options.region?.locale || "es-GT", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: options.region?.timezone || "America/Guatemala",
+    }).format(new Date(value));
+  const text = (id, value) => {
+    const element = safeEl($, id);
+    if (element) element.textContent = value;
+  };
+  text(
+    "#nextReward",
+    stale
+      ? savedMessage
+      : selected
+        ? rewardProgressText(points, selected)
+        : "No hay una recompensa disponible ahora. Consulta las opciones en caja.",
+  );
+  text(
+    "#nextRewardBalance",
+    selected
+      ? `${number(points)} puntos disponibles · ${number(selected.points_cost)} puntos de costo`
+      : "",
+  );
+  text(
+    "#nextRewardConditions",
+    selected
+      ? (progress?.conditions || "Sujeto a disponibilidad al canjear.").replace(
+          /\d{4}-\d{2}-\d{2}T[\d:.]+Z/g,
+          date,
+        ) + " En caja se confirman las condiciones del canje."
+      : "",
+  );
+  text("#nextRewardEarning", !stale ? (progress?.earning ?? "") : "");
 
   if (!rewards?.length) {
     const card = document.createElement("div");
@@ -68,12 +107,18 @@ export function renderRewards($, points, rewards, options = {}) {
     const callout = document.createElement("div");
     callout.className = "card cus-rewards-callout";
     const title = document.createElement("h2");
-    title.textContent = stale ? "Actualiza la disponibilidad" : eligible.length > 0
-      ? `Tus puntos alcanzan para ${eligible.length} opción${eligible.length === 1 ? "" : "es"}`
-      : selected ? `Tu próxima opción: ${selected.name}` : "Consulta la disponibilidad en caja";
+    title.textContent = stale
+      ? "Actualiza la disponibilidad"
+      : eligible.length > 0
+        ? `Tus puntos alcanzan para ${eligible.length} opción${eligible.length === 1 ? "" : "es"}`
+        : selected
+          ? `Tu próxima opción: ${selected.name}`
+          : "Consulta la disponibilidad en caja";
     const description = document.createElement("p");
     description.className = "small";
-    description.textContent = stale ? savedMessage : "Muestra tu QR en caja. Allí se confirman la disponibilidad y las condiciones antes de canjear; no se reserva una recompensa.";
+    description.textContent = stale
+      ? savedMessage
+      : "Muestra tu QR en caja. Allí se confirman la disponibilidad y las condiciones antes de canjear; no se reserva una recompensa.";
     callout.append(title, description);
     box.appendChild(callout);
 
@@ -95,11 +140,27 @@ export function renderRewards($, points, rewards, options = {}) {
       cost.textContent = `Costo: ${number(r.points_cost)} puntos`;
       const state = document.createElement("span");
       state.className = "badge";
-      state.textContent = stale ? "Disponibilidad pendiente de actualizar" : !available ? statusLabel : can ? "Tienes los puntos necesarios" : `Te faltan ${number(remainingPoints)} puntos`;
+      state.textContent = stale
+        ? "Disponibilidad pendiente de actualizar"
+        : !available
+          ? statusLabel
+          : can
+            ? "Tienes los puntos necesarios"
+            : `Te faltan ${number(remainingPoints)} puntos`;
       row.append(cost, state);
       const hint = document.createElement("p");
       hint.className = "small cus-reward-note";
-      hint.textContent = [r.protected ? "Condiciones originales protegidas." : "", r.branch_labels?.length ? `Canje en: ${r.branch_labels.join(", ")}.` : r.branch_ids?.length ? "Válido en las sucursales del beneficio original. Confirma en caja." : "Canje en las sucursales del negocio.", r.valid_until ? `Vigencia: ${date(r.valid_until)}.` : ""].filter(Boolean).join(" ");
+      hint.textContent = [
+        r.protected ? "Condiciones originales protegidas." : "",
+        r.branch_labels?.length
+          ? `Canje en: ${r.branch_labels.join(", ")}.`
+          : r.branch_ids?.length
+            ? "Válido en las sucursales del beneficio original. Confirma en caja."
+            : "Canje en las sucursales del negocio.",
+        r.valid_until ? `Vigencia: ${date(r.valid_until)}.` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
       div.append(heading, desc, row, hint);
       if (inventoryNote) {
         const evidence = document.createElement("p");
@@ -111,14 +172,21 @@ export function renderRewards($, points, rewards, options = {}) {
     }
   }
   const inventoryRefresh = nextInventoryRefresh(rewards, now);
-  const deadlines = [inventoryRefresh, deadline].filter(at => Number.isFinite(at) && at > now);
+  const deadlines = [inventoryRefresh, deadline].filter((at) => Number.isFinite(at) && at > now);
   const refreshAt = deadlines.length ? Math.min(...deadlines) : null;
   if (refreshAt) {
     const marker = box.firstChild;
-    rewardFreshnessTimers.set(box, window.setTimeout(() => {
-      // A cleared or replaced account must never be restored by an old deadline.
-      if (box.isConnected && box.firstChild === marker && options.isCurrent?.() !== false) renderRewards($, points, rewards, options);
-    }, Math.min(2147483647, Math.max(1, refreshAt - Date.now()))));
+    rewardFreshnessTimers.set(
+      box,
+      window.setTimeout(
+        () => {
+          // A cleared or replaced account must never be restored by an old deadline.
+          if (box.isConnected && box.firstChild === marker && options.isCurrent?.() !== false)
+            renderRewards($, points, rewards, options);
+        },
+        Math.min(2147483647, Math.max(1, refreshAt - Date.now())),
+      ),
+    );
   }
 }
 
@@ -128,35 +196,75 @@ export function renderRewards($, points, rewards, options = {}) {
  * @param {CustomerRedemption[] | undefined} redemptions
  */
 export function renderHistory($, transactions, redemptions, region = undefined) {
-  const whenInRegion = value => new Intl.DateTimeFormat(region?.locale || "es-GT", { dateStyle: "short", timeStyle: "short", timeZone: region?.timezone || "America/Guatemala" }).format(new Date(value));
-  const moneyInRegion = value => new Intl.NumberFormat(region?.locale || "es-GT", { style: "currency", currency: region?.currency || "GTQ" }).format(Number(value));
-  const txText = (transactions || []).slice(0, 12).map((t) => {
-    const when = whenInRegion(t.created_at);
-    const pts = t.points_delta >= 0 ? `+${t.points_delta}` : String(t.points_delta);
-    const kinds = new Map([
-      ['purchase', 'Compra'], ['referral_bonus', 'Bono por referido'], ['achievement_bonus', 'Bono por logro'],
-      ['challenge_bonus', 'Bono por reto'], ['birthday_bonus', 'Bono de cumpleaños'], ['other_bonus', 'Bonificación'],
-      ['redemption', 'Canje'], ['expiry', 'Vencimiento de puntos'], ['adjustment', 'Corrección de puntos'],
-      ['reversal', 'Reversión de puntos'], ['opening_balance', 'Saldo inicial importado']
-    ]);
-    const statuses = new Map([
-      ['POSTED', 'Registrado'], ['PENDING', 'Pendiente de confirmar; no disponible'],
-      ['REVERSED', 'Revertido; no disponible'], ['EXPIRED', 'Vencido; no disponible']
-    ]);
-    const kind = t.provenance?.kind;
-    const label = kinds.get(kind) || 'Origen no documentado';
-    const bonus = kind === 'purchase' && t.provenance?.includes_bonus === true ? ' · Incluye bonificación' : '';
-    const status = statuses.get(t.provenance?.status) || 'Estado no documentado';
-    const amt = kind === 'purchase' && t.amount_q != null && Number(t.amount_q) > 0 ? ` · Compra: ${moneyInRegion(t.amount_q)}` : "";
-    return `${label}${bonus} · ${status}\n${when} · ${pts} pts${amt}`;
-  }).join("\n\n") || "(sin registros)";
+  const whenInRegion = (value) =>
+    new Intl.DateTimeFormat(region?.locale || "es-GT", {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone: region?.timezone || "America/Guatemala",
+    }).format(new Date(value));
+  const moneyInRegion = (value) =>
+    new Intl.NumberFormat(region?.locale || "es-GT", {
+      style: "currency",
+      currency: region?.currency || "GTQ",
+    }).format(Number(value));
+  const txText =
+    (transactions || [])
+      .slice(0, 12)
+      .map((t) => {
+        const when = whenInRegion(t.created_at);
+        const pts = t.points_delta >= 0 ? `+${t.points_delta}` : String(t.points_delta);
+        const kinds = new Map([
+          ["purchase", "Compra"],
+          ["referral_bonus", "Bono por referido"],
+          ["achievement_bonus", "Bono por logro"],
+          ["challenge_bonus", "Bono por reto"],
+          ["birthday_bonus", "Bono de cumpleaños"],
+          ["other_bonus", "Bonificación"],
+          ["redemption", "Canje"],
+          ["expiry", "Vencimiento de puntos"],
+          ["adjustment", "Corrección de puntos"],
+          ["reversal", "Reversión de puntos"],
+          ["opening_balance", "Saldo inicial importado"],
+        ]);
+        const statuses = new Map([
+          ["POSTED", "Registrado"],
+          ["PENDING", "Pendiente de confirmar; no disponible"],
+          ["REVERSED", "Revertido; no disponible"],
+          ["EXPIRED", "Vencido; no disponible"],
+        ]);
+        const kind = t.provenance?.kind;
+        const label = kinds.get(kind) || "Origen no documentado";
+        const bonus =
+          kind === "purchase" && t.provenance?.includes_bonus === true
+            ? " · Incluye bonificación"
+            : "";
+        const status = statuses.get(t.provenance?.status) || "Estado no documentado";
+        const amt =
+          kind === "purchase" && t.amount_q != null && Number(t.amount_q) > 0
+            ? ` · Compra: ${moneyInRegion(t.amount_q)}`
+            : "";
+        return `${label}${bonus} · ${status}\n${when} · ${pts} pts${amt}`;
+      })
+      .join("\n\n") || "(sin registros)";
 
-  const rdText = (redemptions || []).slice(0, 12).map((r) => {
-    const when = whenInRegion(r.created_at);
-    const status = new Map([['REDEEMED', 'Completado'], ['PENDING', 'Pendiente'], ['CANCELLED', 'Cancelado'], ['CANCELED', 'Cancelado'], ['REVERSED', 'Revertido'], ['EXPIRED', 'Vencido']]).get(r.status)
-      || (r.status ? 'Estado no documentado' : r.redeemed_at ? 'Completado' : 'Pendiente');
-    return `${r.reward_name || 'Recompensa'} · ${status}\n${when} · Costo registrado: ${r.points_cost} pts · Código: ${r.code}`;
-  }).join("\n\n") || "(sin canjes)";
+  const rdText =
+    (redemptions || [])
+      .slice(0, 12)
+      .map((r) => {
+        const when = whenInRegion(r.created_at);
+        const status =
+          new Map([
+            ["REDEEMED", "Completado"],
+            ["PENDING", "Pendiente"],
+            ["CANCELLED", "Cancelado"],
+            ["CANCELED", "Cancelado"],
+            ["REVERSED", "Revertido"],
+            ["EXPIRED", "Vencido"],
+          ]).get(r.status) ||
+          (r.status ? "Estado no documentado" : r.redeemed_at ? "Completado" : "Pendiente");
+        return `${r.reward_name || "Recompensa"} · ${status}\n${when} · Costo registrado: ${r.points_cost} pts · Código: ${r.code}`;
+      })
+      .join("\n\n") || "(sin canjes)";
 
   const txEl = safeEl($, "#tx");
   const rdEl = safeEl($, "#red");
@@ -181,7 +289,7 @@ export function renderTier($, tier) {
     1: "🥉", // Bronze
     2: "🥈", // Silver
     3: "🥇", // Gold
-    4: "💎" // Platinum
+    4: "💎", // Platinum
   };
 
   const iconEl = safeEl($, "#tierIcon");
@@ -195,7 +303,8 @@ export function renderTier($, tier) {
   if (multEl) multEl.textContent = `${tier.points_multiplier || 1.0}x puntos`;
 
   if (tier.points_to_next_tier && tier.next_tier_name) {
-    if (progEl) progEl.textContent = `${tier.points_to_next_tier} puntos más para ${tier.next_tier_name}`;
+    if (progEl)
+      progEl.textContent = `${tier.points_to_next_tier} puntos más para ${tier.next_tier_name}`;
     const progress = ((tier.current_points || 0) / (tier.next_tier_points || 1)) * 100;
     if (barEl) /** @type {HTMLProgressElement} */ (barEl).value = Math.min(100, progress);
   } else {
@@ -340,7 +449,7 @@ export function renderReferralStats($, stats) {
   const rows = [
     ["📊 Amigos invitados:", total],
     ["✅ Completados:", completed],
-    ["🎁 Puntos ganados:", points]
+    ["🎁 Puntos ganados:", points],
   ];
   rows.forEach(([label, value]) => {
     const line = document.createElement("div");

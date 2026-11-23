@@ -8,9 +8,8 @@ const runIntegration = process.env.RUN_INTEGRATION === "true";
 const integrationDescribe = runIntegration ? describe : describe.skip;
 
 function applySetCookieJar(jar, response) {
-  const values = typeof response.headers.getSetCookie === "function"
-    ? response.headers.getSetCookie()
-    : [];
+  const values =
+    typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
   for (const raw of values) {
     const first = String(raw || "").split(";")[0];
     const eq = first.indexOf("=");
@@ -20,7 +19,9 @@ function applySetCookieJar(jar, response) {
 }
 
 function cookieHeader(jar) {
-  return Array.from(jar.entries()).map(([key, value]) => `${key}=${value}`).join("; ");
+  return Array.from(jar.entries())
+    .map(([key, value]) => `${key}=${value}`)
+    .join("; ");
 }
 
 function csrfTokenFromJar(jar) {
@@ -42,15 +43,16 @@ integrationDescribe("Staff ledger idempotency integration", () => {
   const superPassword = process.env.SUPER_ADMIN_PASSWORD;
   let forwardedFor;
   beforeEach(() => {
-    forwardedFor = process.env.TEST_CLIENT_IP
-      || `198.19.${crypto.randomInt(1, 255)}.${crypto.randomInt(1, 255)}`;
+    forwardedFor =
+      process.env.TEST_CLIENT_IP ||
+      `198.19.${crypto.randomInt(1, 255)}.${crypto.randomInt(1, 255)}`;
   });
 
   async function request(jar, path, options = {}) {
     const headers = {
       "Content-Type": "application/json",
       "X-Forwarded-For": forwardedFor,
-      ...(options.headers || {})
+      ...(options.headers || {}),
     };
     const cookie = cookieHeader(jar);
     if (cookie) headers.Cookie = cookie;
@@ -62,12 +64,16 @@ integrationDescribe("Staff ledger idempotency integration", () => {
 
     const response = await fetch(`${baseUrl}${path}`, {
       ...options,
-      headers
+      headers,
     });
     applySetCookieJar(jar, response);
     const text = await response.text();
     let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
     return { response, data, status: response.status };
   }
 
@@ -103,8 +109,8 @@ integrationDescribe("Staff ledger idempotency integration", () => {
         email: ownerEmail,
         password,
         category: "cafe",
-        plan: "EMPRESA"
-      })
+        plan: "EMPRESA",
+      }),
     });
     assert.equal(createdBusiness.status, 201);
     const businessId = createdBusiness.data?.business?.id;
@@ -112,11 +118,15 @@ integrationDescribe("Staff ledger idempotency integration", () => {
     assert.ok(businessId);
     assert.ok(businessSlug);
 
-    const impersonate = await request(superJar, `/api/super/impersonate/${encodeURIComponent(businessId)}`, {
-      method: "POST",
-      csrf: true,
-      body: "{}"
-    });
+    const impersonate = await request(
+      superJar,
+      `/api/super/impersonate/${encodeURIComponent(businessId)}`,
+      {
+        method: "POST",
+        csrf: true,
+        body: "{}",
+      },
+    );
     assert.equal(impersonate.status, 200);
     for (const [key, value] of superJar.entries()) {
       if (key === config.STAFF_COOKIE_NAME || key.startsWith("pf_csrf")) ownerJar.set(key, value);
@@ -126,15 +136,23 @@ integrationDescribe("Staff ledger idempotency integration", () => {
   }
 
   async function createCustomerAndQr(customerJar, businessSlug) {
-    const customerPhone = `+50255${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`;
+    const customerPhone = `+50255${Math.floor(Math.random() * 1000000)
+      .toString()
+      .padStart(6, "0")}`;
     const joinPath = `/api/public/business/${encodeURIComponent(businessSlug)}/join`;
     const requested = await request(customerJar, `${joinPath}/request-code`, {
-      method: "POST", body: JSON.stringify({ phone: customerPhone, name: "Ledger Test Customer" })
+      method: "POST",
+      body: JSON.stringify({ phone: customerPhone, name: "Ledger Test Customer" }),
     });
     assert.equal(requested.status, 200);
-    const code = resolveJoinCode({ requestCodeData: requested.data, businessSlug, phone: customerPhone });
+    const code = resolveJoinCode({
+      requestCodeData: requested.data,
+      businessSlug,
+      phone: customerPhone,
+    });
     const verified = await request(customerJar, `${joinPath}/verify`, {
-      method: "POST", body: JSON.stringify({ phone: customerPhone, code, name: "Ledger Test Customer" })
+      method: "POST",
+      body: JSON.stringify({ phone: customerPhone, code, name: "Ledger Test Customer" }),
     });
     assert.equal(verified.status, 200);
     assert.ok(customerJar.get(config.CUSTOMER_COOKIE_NAME));
@@ -145,7 +163,7 @@ integrationDescribe("Staff ledger idempotency integration", () => {
     const qr = await request(customerJar, "/api/public/customer/qr", {
       method: "POST",
       csrf: true,
-      body: "{}"
+      body: "{}",
     });
     assert.equal(qr.status, 200);
     assert.ok(qr.data?.token);
@@ -155,7 +173,9 @@ integrationDescribe("Staff ledger idempotency integration", () => {
 
   it("deduplicates concurrent reward redeem requests by requestId", async () => {
     if (!superEmail || !superPassword) {
-      throw new Error("SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD are required for this integration test");
+      throw new Error(
+        "SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD are required for this integration test",
+      );
     }
 
     const superJar = new Map();
@@ -164,7 +184,7 @@ integrationDescribe("Staff ledger idempotency integration", () => {
 
     const login = await request(superJar, "/api/super/login", {
       method: "POST",
-      body: JSON.stringify({ email: superEmail, password: superPassword })
+      body: JSON.stringify({ email: superEmail, password: superPassword }),
     });
     assert.equal(login.status, 200);
 
@@ -178,8 +198,8 @@ integrationDescribe("Staff ledger idempotency integration", () => {
       body: JSON.stringify({
         name: `Reward ${rand}`,
         description: "Idempotent redeem integration reward",
-        points_cost: 5
-      })
+        points_cost: 5,
+      }),
     });
     assert.equal(createdReward.status, 200);
     const rewardId = createdReward.data?.reward?.id;
@@ -191,8 +211,8 @@ integrationDescribe("Staff ledger idempotency integration", () => {
       body: JSON.stringify({
         customerQrToken: qrToken,
         amount_q: 50,
-        txId: crypto.randomUUID()
-      })
+        txId: crypto.randomUUID(),
+      }),
     });
     assert.equal(award.status, 200);
 
@@ -206,13 +226,13 @@ integrationDescribe("Staff ledger idempotency integration", () => {
       request(cloneJar(ownerJar), "/api/staff/redeem", {
         method: "POST",
         csrf: true,
-        body: payload
+        body: payload,
       }),
       request(cloneJar(ownerJar), "/api/staff/redeem", {
         method: "POST",
         csrf: true,
-        body: payload
-      })
+        body: payload,
+      }),
     ]);
 
     assert.equal(redeemA.status, 200);
@@ -224,7 +244,7 @@ integrationDescribe("Staff ledger idempotency integration", () => {
     const replayRedeem = await request(ownerJar, "/api/staff/redeem", {
       method: "POST",
       csrf: true,
-      body: payload
+      body: payload,
     });
     assert.equal(replayRedeem.status, 200);
     assert.equal(replayRedeem.data?.redemptionCode, redeemA.data?.redemptionCode);
@@ -237,7 +257,9 @@ integrationDescribe("Staff ledger idempotency integration", () => {
 
   it("deduplicates concurrent award requests by txId", async () => {
     if (!superEmail || !superPassword) {
-      throw new Error("SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD are required for this integration test");
+      throw new Error(
+        "SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD are required for this integration test",
+      );
     }
 
     const superJar = new Map();
@@ -246,31 +268,35 @@ integrationDescribe("Staff ledger idempotency integration", () => {
 
     const login = await request(superJar, "/api/super/login", {
       method: "POST",
-      body: JSON.stringify({ email: superEmail, password: superPassword })
+      body: JSON.stringify({ email: superEmail, password: superPassword }),
     });
     assert.equal(login.status, 200);
 
     const rand = Math.random().toString(36).slice(2, 9);
-    const { businessSlug } = await createBusinessAndOwnerSession(superJar, ownerJar, `${rand}-award`);
+    const { businessSlug } = await createBusinessAndOwnerSession(
+      superJar,
+      ownerJar,
+      `${rand}-award`,
+    );
     const { qrToken } = await createCustomerAndQr(customerJar, businessSlug);
 
     const txId = crypto.randomUUID();
     const payload = JSON.stringify({
       customerQrToken: qrToken,
       amount_q: 50,
-      txId
+      txId,
     });
     const [awardA, awardB] = await Promise.all([
       request(cloneJar(ownerJar), "/api/staff/award", {
         method: "POST",
         csrf: true,
-        body: payload
+        body: payload,
       }),
       request(cloneJar(ownerJar), "/api/staff/award", {
         method: "POST",
         csrf: true,
-        body: payload
-      })
+        body: payload,
+      }),
     ]);
 
     assert.equal(awardA.status, 200);
@@ -284,14 +310,17 @@ integrationDescribe("Staff ledger idempotency integration", () => {
 
     const history = await request(customerJar, "/api/customer/history");
     assert.equal(history.status, 200);
-    const matchingTransactions = (history.data?.transactions || [])
-      .filter((row) => row.id === awardA.data?.transactionId);
+    const matchingTransactions = (history.data?.transactions || []).filter(
+      (row) => row.id === awardA.data?.transactionId,
+    );
     assert.equal(matchingTransactions.length, 1);
   });
 
   it("deduplicates concurrent refund requests by requestId", async () => {
     if (!superEmail || !superPassword) {
-      throw new Error("SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD are required for this integration test");
+      throw new Error(
+        "SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD are required for this integration test",
+      );
     }
 
     const superJar = new Map();
@@ -300,12 +329,16 @@ integrationDescribe("Staff ledger idempotency integration", () => {
 
     const login = await request(superJar, "/api/super/login", {
       method: "POST",
-      body: JSON.stringify({ email: superEmail, password: superPassword })
+      body: JSON.stringify({ email: superEmail, password: superPassword }),
     });
     assert.equal(login.status, 200);
 
     const rand = Math.random().toString(36).slice(2, 9);
-    const { businessSlug } = await createBusinessAndOwnerSession(superJar, ownerJar, `${rand}-refund`);
+    const { businessSlug } = await createBusinessAndOwnerSession(
+      superJar,
+      ownerJar,
+      `${rand}-refund`,
+    );
     const { qrToken } = await createCustomerAndQr(customerJar, businessSlug);
 
     const award = await request(ownerJar, "/api/staff/award", {
@@ -314,8 +347,8 @@ integrationDescribe("Staff ledger idempotency integration", () => {
       body: JSON.stringify({
         customerQrToken: qrToken,
         amount_q: 50,
-        txId: crypto.randomUUID()
-      })
+        txId: crypto.randomUUID(),
+      }),
     });
     assert.equal(award.status, 200);
     const transactionId = award.data?.transactionId;
@@ -324,19 +357,19 @@ integrationDescribe("Staff ledger idempotency integration", () => {
     const payload = JSON.stringify({
       transactionId,
       requestId: crypto.randomUUID(),
-      reason: "duplicate refund integration"
+      reason: "duplicate refund integration",
     });
     const [refundA, refundB] = await Promise.all([
       request(cloneJar(ownerJar), "/api/staff/refund", {
         method: "POST",
         csrf: true,
-        body: payload
+        body: payload,
       }),
       request(cloneJar(ownerJar), "/api/staff/refund", {
         method: "POST",
         csrf: true,
-        body: payload
-      })
+        body: payload,
+      }),
     ]);
 
     assert.equal(refundA.status, 200);
@@ -346,12 +379,15 @@ integrationDescribe("Staff ledger idempotency integration", () => {
     const replayRefund = await request(ownerJar, "/api/staff/refund", {
       method: "POST",
       csrf: true,
-      body: payload
+      body: payload,
     });
     assert.equal(replayRefund.status, 200);
     assert.equal(replayRefund.data?.reversalTransactionId, refundA.data?.reversalTransactionId);
 
     const afterMe = await waitForStableCustomer(customerJar);
-    assert.equal(Number(afterMe.data?.customer?.points ?? 0), Number(refundA.data?.newBalance ?? 0));
+    assert.equal(
+      Number(afterMe.data?.customer?.points ?? 0),
+      Number(refundA.data?.newBalance ?? 0),
+    );
   });
 });

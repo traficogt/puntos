@@ -16,9 +16,15 @@ test("customer return page keeps only minimal Spanish re-entry copy after removi
 
   assert.match(html, /Tu tarjeta se abre con el enlace del negocio\./);
   assert.match(html, /Si tu sesión venció, usa el acceso del negocio para entrar de nuevo\./);
-  assert.match(html, /Pide al negocio su enlace de acceso o escanea el código de registro en caja\./);
+  assert.match(
+    html,
+    /Pide al negocio su enlace de acceso o escanea el código de registro en caja\./,
+  );
   assert.match(joinHtml, /Activa tu tarjeta/);
-  assert.match(joinHtml, /Confirma tu teléfono para activar tu tarjeta del negocio por primera vez\./);
+  assert.match(
+    joinHtml,
+    /Confirma tu teléfono para activar tu tarjeta del negocio por primera vez\./,
+  );
   assert.match(joinHtml, /id="email"/);
   assert.match(joinHtml, /id="joinEntryContext"/);
   assert.doesNotMatch(html, /id="joinFeedback"/);
@@ -27,5 +33,8 @@ test("customer return page keeps only minimal Spanish re-entry copy after removi
   assert.doesNotMatch(js, /setEntryFeedback\(\$, "#joinFeedback"/);
   assert.doesNotMatch(js, /btnGoJoin|joinFeedback|slugEl/);
   assert.match(joinJs, /mode: "register"/);
-  assert.match(loadJs, /location\.href = `\/ingresar\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=sesion-vencida/);
+  assert.match(
+    loadJs,
+    /location\.href = `\/ingresar\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=sesion-vencida/,
+  );
 });

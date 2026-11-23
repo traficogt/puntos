@@ -31,11 +31,14 @@ describe("account security routes", () => {
       "/staff/security/mfa/confirm",
       "/staff/security/mfa/disable",
       "/staff/security/email-change",
-      "/staff/security/lockdown"
+      "/staff/security/lockdown",
     ];
     for (const path of staffSensitive) {
       const layer = assertRoute(staffRoutes, path, "post");
-      assert.ok(layer.route.stack.some((entry) => entry.handle?.__openapi?.recentReauth), `${path} should require recent reauth`);
+      assert.ok(
+        layer.route.stack.some((entry) => entry.handle?.__openapi?.recentReauth),
+        `${path} should require recent reauth`,
+      );
     }
 
     const superSensitive = [
@@ -44,11 +47,14 @@ describe("account security routes", () => {
       "/super/security/mfa/disable",
       "/super/security/email-change",
       "/super/security/lockdown",
-      "/super/security/rotate-secrets"
+      "/super/security/rotate-secrets",
     ];
     for (const path of superSensitive) {
       const layer = assertRoute(superRoutes, path, "post");
-      assert.ok(layer.route.stack.some((entry) => entry.handle?.__openapi?.recentReauth), `${path} should require recent reauth`);
+      assert.ok(
+        layer.route.stack.some((entry) => entry.handle?.__openapi?.recentReauth),
+        `${path} should require recent reauth`,
+      );
     }
   });
 });

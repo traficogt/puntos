@@ -1,17 +1,199 @@
-const $=id=>document.getElementById(id),form=$('case-update');
-const names={new:'Recibido',open:'En revisión',waiting:'Esperando respuesta',resolved:'Resuelto',closed:'Cerrado'};
-const categories={access:'Acceso',points:'Puntos',reward:'Canje o recompensa',scan:'Escaneo',business:'Configuración',privacy:'Privacidad o seguridad',other:'Otra consulta'};
-let selected=null,offset=0,attempt=null;
-const csrf=()=>decodeURIComponent(document.cookie.split('; ').find(v=>v.startsWith('pf_csrf_readable='))?.split('=').slice(1).join('=')||'');
-async function api(path,body,method=body?'PATCH':'GET'){const response=await fetch(`/api/super/support/${path}`,{method,credentials:'same-origin',cache:'no-store',headers:body?{'Content-Type':'application/json','X-CSRF-Token':csrf()}:undefined,body:body?JSON.stringify(body):undefined});if(response.status===401||response.status===403){$('admin-login').hidden=false;$('admin-workspace').hidden=true;throw new Error('La sesión de administración no está disponible.');}const data=await response.json();if(!response.ok)throw new Error(data.error||'No pudimos completar la solicitud.');return data;}
-function report(error){$('admin-feedback').textContent=error.message||'No pudimos conectar. Vuelve a intentar; lo escrito se conserva.';}
-async function loadQueue(){const f=new FormData($('queue-filters')),query={search:String(f.get('search')||''),offset,...(f.get('status')?{status:String(f.get('status'))}:{})};const data=await api('search',query,'POST');$('admin-workspace').hidden=false;$('admin-login').hidden=true;$('queue-count').textContent=data.cases.length?`${offset+1}–${offset+data.cases.length} · Más recientes primero`:'No hay casos con estos filtros.';$('queue-prev').disabled=offset===0;$('queue-next').disabled=data.cases.length<50;$('support-queue').replaceChildren(...data.cases.map(row=>{const li=document.createElement('li'),button=document.createElement('button'),title=document.createElement('strong'),meta=document.createElement('span'),contact=document.createElement('span');button.type='button';button.setAttribute('aria-current',String(selected?.id===row.id));title.textContent=row.reference;meta.textContent=`${names[row.status]} · ${categories[row.category]||row.category}`;contact.textContent=`${row.name} · ${row.business_label||row.email}`;button.append(title,meta,contact);button.addEventListener('click',()=>loadCase(row.id).catch(report));li.append(button);return li;}));}
-function render(data){selected=data.case;attempt=null;$('admin-case').hidden=false;$('admin-case-title').textContent=selected.reference;$('admin-description').textContent=selected.description;const entries=[['Nombre',selected.name],['Correo',selected.email],['Negocio indicado',selected.business_label||'Sin indicar'],['Categoría',categories[selected.category]||selected.category],['Estado',names[selected.status]]];$('admin-case-meta').replaceChildren(...entries.flatMap(([k,v])=>{const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=k;dd.textContent=v;return [dt,dd];}));$('admin-diagnostics').textContent=JSON.stringify({diagnostico:selected.diagnostics||'No compartido',sesionVerificada:selected.actor_type?{tipo:selected.actor_type,negocio:selected.business_id,actor:selected.actor_id}:'Sin sesión vinculada'},null,2);$('admin-attachment').hidden=!data.attachment;$('admin-attachment').href=`/api/super/support/cases/${selected.id}/attachment`;$('admin-events').replaceChildren(...data.events.map(e=>{const li=document.createElement('li'),title=document.createElement('strong'),time=document.createElement('time'),text=document.createElement('p');li.dataset.internal=String(e.visibility==='internal');title.textContent=e.visibility==='internal'?'Nota interna':e.kind==='customer'?'Cliente':'Respuesta visible al cliente';time.textContent=` · ${new Date(e.created_at).toLocaleString('es-GT')}${e.actor_email?` · ${e.actor_email}`:''}`;text.textContent=e.message||`Estado: ${names[e.details.to]||e.details.to||names[selected.status]}`;li.append(title,time,text);return li;}));form.elements.namedItem('status').value=selected.status;form.elements.namedItem('assignedTo').value=selected.assigned_to||'';form.elements.namedItem('message').value='';form.elements.namedItem('visibility').value='internal';visibility();}
-async function loadCase(id){render(await api(`cases/${id}`));await loadQueue();}
-function visibility(){$('visibility-help').textContent=form.elements.namedItem('visibility').value==='public'?'El cliente verá este mensaje en su enlace privado. No se enviará por correo.':'Esta nota solo será visible para administración central.';}
-form.elements.namedItem('visibility').addEventListener('change',visibility);
-$('queue-filters').addEventListener('submit',e=>{e.preventDefault();offset=0;loadQueue().catch(report);});
-$('queue-prev').addEventListener('click',()=>{offset=Math.max(0,offset-50);loadQueue().catch(report);});$('queue-next').addEventListener('click',()=>{offset+=50;loadQueue().catch(report);});
-$('admin-refresh').addEventListener('click',()=>loadCase(selected.id).catch(report));
-form.addEventListener('submit',async e=>{e.preventDefault();const button=form.querySelector('button');button.disabled=true;try{const f=new FormData(form),content={version:selected.version,status:f.get('status'),assignedTo:f.get('assignedTo')||null,message:f.get('message'),visibility:f.get('visibility')};if(!attempt||JSON.stringify(attempt.content)!==JSON.stringify(content))attempt={requestId:crypto.randomUUID(),content};const data=await api(`cases/${selected.id}`,{requestId:attempt.requestId,...attempt.content});render(data);$('admin-feedback').textContent='Seguimiento guardado.';await loadQueue();}catch(error){report(error);}finally{button.disabled=false;}});
+const $ = (id) => document.getElementById(id),
+  form = $("case-update");
+const names = {
+  new: "Recibido",
+  open: "En revisión",
+  waiting: "Esperando respuesta",
+  resolved: "Resuelto",
+  closed: "Cerrado",
+};
+const categories = {
+  access: "Acceso",
+  points: "Puntos",
+  reward: "Canje o recompensa",
+  scan: "Escaneo",
+  business: "Configuración",
+  privacy: "Privacidad o seguridad",
+  other: "Otra consulta",
+};
+let selected = null,
+  offset = 0,
+  attempt = null;
+const csrf = () =>
+  decodeURIComponent(
+    document.cookie
+      .split("; ")
+      .find((v) => v.startsWith("pf_csrf_readable="))
+      ?.split("=")
+      .slice(1)
+      .join("=") || "",
+  );
+async function api(path, body, method = body ? "PATCH" : "GET") {
+  const response = await fetch(`/api/super/support/${path}`, {
+    method,
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: body ? { "Content-Type": "application/json", "X-CSRF-Token": csrf() } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (response.status === 401 || response.status === 403) {
+    $("admin-login").hidden = false;
+    $("admin-workspace").hidden = true;
+    throw new Error("La sesión de administración no está disponible.");
+  }
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "No pudimos completar la solicitud.");
+  return data;
+}
+function report(error) {
+  $("admin-feedback").textContent =
+    error.message || "No pudimos conectar. Vuelve a intentar; lo escrito se conserva.";
+}
+async function loadQueue() {
+  const f = new FormData($("queue-filters")),
+    query = {
+      search: String(f.get("search") || ""),
+      offset,
+      ...(f.get("status") ? { status: String(f.get("status")) } : {}),
+    };
+  const data = await api("search", query, "POST");
+  $("admin-workspace").hidden = false;
+  $("admin-login").hidden = true;
+  $("queue-count").textContent = data.cases.length
+    ? `${offset + 1}–${offset + data.cases.length} · Más recientes primero`
+    : "No hay casos con estos filtros.";
+  $("queue-prev").disabled = offset === 0;
+  $("queue-next").disabled = data.cases.length < 50;
+  $("support-queue").replaceChildren(
+    ...data.cases.map((row) => {
+      const li = document.createElement("li"),
+        button = document.createElement("button"),
+        title = document.createElement("strong"),
+        meta = document.createElement("span"),
+        contact = document.createElement("span");
+      button.type = "button";
+      button.setAttribute("aria-current", String(selected?.id === row.id));
+      title.textContent = row.reference;
+      meta.textContent = `${names[row.status]} · ${categories[row.category] || row.category}`;
+      contact.textContent = `${row.name} · ${row.business_label || row.email}`;
+      button.append(title, meta, contact);
+      button.addEventListener("click", () => loadCase(row.id).catch(report));
+      li.append(button);
+      return li;
+    }),
+  );
+}
+function render(data) {
+  selected = data.case;
+  attempt = null;
+  $("admin-case").hidden = false;
+  $("admin-case-title").textContent = selected.reference;
+  $("admin-description").textContent = selected.description;
+  const entries = [
+    ["Nombre", selected.name],
+    ["Correo", selected.email],
+    ["Negocio indicado", selected.business_label || "Sin indicar"],
+    ["Categoría", categories[selected.category] || selected.category],
+    ["Estado", names[selected.status]],
+  ];
+  $("admin-case-meta").replaceChildren(
+    ...entries.flatMap(([k, v]) => {
+      const dt = document.createElement("dt"),
+        dd = document.createElement("dd");
+      dt.textContent = k;
+      dd.textContent = v;
+      return [dt, dd];
+    }),
+  );
+  $("admin-diagnostics").textContent = JSON.stringify(
+    {
+      diagnostico: selected.diagnostics || "No compartido",
+      sesionVerificada: selected.actor_type
+        ? { tipo: selected.actor_type, negocio: selected.business_id, actor: selected.actor_id }
+        : "Sin sesión vinculada",
+    },
+    null,
+    2,
+  );
+  $("admin-attachment").hidden = !data.attachment;
+  $("admin-attachment").href = `/api/super/support/cases/${selected.id}/attachment`;
+  $("admin-events").replaceChildren(
+    ...data.events.map((e) => {
+      const li = document.createElement("li"),
+        title = document.createElement("strong"),
+        time = document.createElement("time"),
+        text = document.createElement("p");
+      li.dataset.internal = String(e.visibility === "internal");
+      title.textContent =
+        e.visibility === "internal"
+          ? "Nota interna"
+          : e.kind === "customer"
+            ? "Cliente"
+            : "Respuesta visible al cliente";
+      time.textContent = ` · ${new Date(e.created_at).toLocaleString("es-GT")}${e.actor_email ? ` · ${e.actor_email}` : ""}`;
+      text.textContent =
+        e.message || `Estado: ${names[e.details.to] || e.details.to || names[selected.status]}`;
+      li.append(title, time, text);
+      return li;
+    }),
+  );
+  form.elements.namedItem("status").value = selected.status;
+  form.elements.namedItem("assignedTo").value = selected.assigned_to || "";
+  form.elements.namedItem("message").value = "";
+  form.elements.namedItem("visibility").value = "internal";
+  visibility();
+}
+async function loadCase(id) {
+  render(await api(`cases/${id}`));
+  await loadQueue();
+}
+function visibility() {
+  $("visibility-help").textContent =
+    form.elements.namedItem("visibility").value === "public"
+      ? "El cliente verá este mensaje en su enlace privado. No se enviará por correo."
+      : "Esta nota solo será visible para administración central.";
+}
+form.elements.namedItem("visibility").addEventListener("change", visibility);
+$("queue-filters").addEventListener("submit", (e) => {
+  e.preventDefault();
+  offset = 0;
+  loadQueue().catch(report);
+});
+$("queue-prev").addEventListener("click", () => {
+  offset = Math.max(0, offset - 50);
+  loadQueue().catch(report);
+});
+$("queue-next").addEventListener("click", () => {
+  offset += 50;
+  loadQueue().catch(report);
+});
+$("admin-refresh").addEventListener("click", () => loadCase(selected.id).catch(report));
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const button = form.querySelector("button");
+  button.disabled = true;
+  try {
+    const f = new FormData(form),
+      content = {
+        version: selected.version,
+        status: f.get("status"),
+        assignedTo: f.get("assignedTo") || null,
+        message: f.get("message"),
+        visibility: f.get("visibility"),
+      };
+    if (!attempt || JSON.stringify(attempt.content) !== JSON.stringify(content))
+      attempt = { requestId: crypto.randomUUID(), content };
+    const data = await api(`cases/${selected.id}`, {
+      requestId: attempt.requestId,
+      ...attempt.content,
+    });
+    render(data);
+    $("admin-feedback").textContent = "Seguimiento guardado.";
+    await loadQueue();
+  } catch (error) {
+    report(error);
+  } finally {
+    button.disabled = false;
+  }
+});
 loadQueue().catch(report);

@@ -9,9 +9,8 @@ const runIntegration = process.env.RUN_INTEGRATION === "true";
 const integrationDescribe = runIntegration ? describe : describe.skip;
 
 function applySetCookieJar(jar, response) {
-  const values = typeof response.headers.getSetCookie === "function"
-    ? response.headers.getSetCookie()
-    : [];
+  const values =
+    typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
   for (const raw of values) {
     const first = String(raw || "").split(";")[0];
     const eq = first.indexOf("=");
@@ -21,7 +20,9 @@ function applySetCookieJar(jar, response) {
 }
 
 function cookieHeader(jar) {
-  return Array.from(jar.entries()).map(([key, value]) => `${key}=${value}`).join("; ");
+  return Array.from(jar.entries())
+    .map(([key, value]) => `${key}=${value}`)
+    .join("; ");
 }
 
 function csrfTokenFromJar(jar) {
@@ -31,7 +32,7 @@ function csrfTokenFromJar(jar) {
 async function waitFor(check, { timeoutMs = 8000, intervalMs = 250 } = {}) {
   const start = Date.now();
   let lastError = null;
-  while ((Date.now() - start) < timeoutMs) {
+  while (Date.now() - start < timeoutMs) {
     try {
       const result = await check();
       if (result) return result;
@@ -47,7 +48,9 @@ async function waitFor(check, { timeoutMs = 8000, intervalMs = 250 } = {}) {
 integrationDescribe("Refund + Gamification Integration", () => {
   const baseUrl = process.env.TEST_API_URL || "http://localhost:3001";
   const browserOrigin = new URL(baseUrl).origin;
-  const forwardedFor = process.env.TEST_CLIENT_IP || `198.19.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
+  const forwardedFor =
+    process.env.TEST_CLIENT_IP ||
+    `198.19.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
   const superEmail = process.env.SUPER_ADMIN_EMAIL;
   const superPassword = process.env.SUPER_ADMIN_PASSWORD;
 
@@ -56,8 +59,16 @@ integrationDescribe("Refund + Gamification Integration", () => {
       host: process.env.TEST_DB_HOST || process.env.DB_HOST || "localhost",
       port: Number(process.env.TEST_DB_PORT || process.env.DB_PORT || 5432),
       database: process.env.TEST_DB_NAME || process.env.DB_NAME || "puntos",
-      user: process.env.TEST_DB_USER || process.env.DB_MIGRATIONS_USER || process.env.DB_USER || "postgres",
-      password: process.env.TEST_DB_PASSWORD || process.env.DB_MIGRATIONS_PASSWORD || process.env.DB_PASSWORD || ""
+      user:
+        process.env.TEST_DB_USER ||
+        process.env.DB_MIGRATIONS_USER ||
+        process.env.DB_USER ||
+        "postgres",
+      password:
+        process.env.TEST_DB_PASSWORD ||
+        process.env.DB_MIGRATIONS_PASSWORD ||
+        process.env.DB_PASSWORD ||
+        "",
     });
   }
 
@@ -65,7 +76,7 @@ integrationDescribe("Refund + Gamification Integration", () => {
     const headers = {
       "Content-Type": "application/json",
       "X-Forwarded-For": forwardedFor,
-      ...(options.headers || {})
+      ...(options.headers || {}),
     };
     const cookie = cookieHeader(jar);
     if (cookie) headers.Cookie = cookie;
@@ -77,18 +88,24 @@ integrationDescribe("Refund + Gamification Integration", () => {
 
     const response = await fetch(`${baseUrl}${path}`, {
       ...options,
-      headers
+      headers,
     });
     applySetCookieJar(jar, response);
     const text = await response.text();
     let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
     return { response, data, status: response.status };
   }
 
   it("reverses earned achievements and challenge rewards when the qualifying purchase is refunded", async () => {
     if (!superEmail || !superPassword) {
-      throw new Error("SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD are required for this integration test");
+      throw new Error(
+        "SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD are required for this integration test",
+      );
     }
 
     const db = createAdminClient();
@@ -99,124 +116,139 @@ integrationDescribe("Refund + Gamification Integration", () => {
       const ownerJar = new Map();
       const customerJar = new Map();
 
-    const superLogin = await request(superJar, "/api/super/login", {
-      method: "POST",
-      body: JSON.stringify({ email: superEmail, password: superPassword })
-    });
-    assert.equal(superLogin.status, 200);
+      const superLogin = await request(superJar, "/api/super/login", {
+        method: "POST",
+        body: JSON.stringify({ email: superEmail, password: superPassword }),
+      });
+      assert.equal(superLogin.status, 200);
 
-    const rand = Math.random().toString(36).slice(2, 9);
-    const ownerEmail = `owner-gamify-${rand}@example.com`;
-    const password = "OrchardLanternMarble2026!";
+      const rand = Math.random().toString(36).slice(2, 9);
+      const ownerEmail = `owner-gamify-${rand}@example.com`;
+      const password = "OrchardLanternMarble2026!";
 
-    const createdBusiness = await request(superJar, "/api/super/businesses", {
-      method: "POST",
-      csrf: true,
-      body: JSON.stringify({
-        businessName: `Gamify Refund ${rand}`,
-        email: ownerEmail,
-        password,
-        category: "cafe",
-        plan: "EMPRESA"
-      })
-    });
-    assert.equal(createdBusiness.status, 201);
-    const businessId = createdBusiness.data?.business?.id;
-    const businessSlug = createdBusiness.data?.business?.slug;
-    assert.ok(businessId, "expected business id");
-    assert.ok(businessSlug, "expected business slug");
+      const createdBusiness = await request(superJar, "/api/super/businesses", {
+        method: "POST",
+        csrf: true,
+        body: JSON.stringify({
+          businessName: `Gamify Refund ${rand}`,
+          email: ownerEmail,
+          password,
+          category: "cafe",
+          plan: "EMPRESA",
+        }),
+      });
+      assert.equal(createdBusiness.status, 201);
+      const businessId = createdBusiness.data?.business?.id;
+      const businessSlug = createdBusiness.data?.business?.slug;
+      assert.ok(businessId, "expected business id");
+      assert.ok(businessSlug, "expected business slug");
 
-    const impersonate = await request(superJar, `/api/super/impersonate/${encodeURIComponent(businessId)}`, {
-      method: "POST",
-      csrf: true,
-      body: "{}"
-    });
-    assert.equal(impersonate.status, 200);
-    for (const [key, value] of superJar.entries()) {
-      if (key === config.STAFF_COOKIE_NAME || key.startsWith("pf_csrf")) ownerJar.set(key, value);
-    }
+      const impersonate = await request(
+        superJar,
+        `/api/super/impersonate/${encodeURIComponent(businessId)}`,
+        {
+          method: "POST",
+          csrf: true,
+          body: "{}",
+        },
+      );
+      assert.equal(impersonate.status, 200);
+      for (const [key, value] of superJar.entries()) {
+        if (key === config.STAFF_COOKIE_NAME || key.startsWith("pf_csrf")) ownerJar.set(key, value);
+      }
 
-    const createAchievement = await request(ownerJar, "/api/admin/achievements", {
-      method: "POST",
-      csrf: true,
-      body: JSON.stringify({
-        name: `Q50 spender ${rand}`,
-        requirement_type: "spend",
-        requirement_value: 50,
-        points_reward: 7,
-        active: true
-      })
-    });
-    assert.equal(createAchievement.status, 201);
+      const createAchievement = await request(ownerJar, "/api/admin/achievements", {
+        method: "POST",
+        csrf: true,
+        body: JSON.stringify({
+          name: `Q50 spender ${rand}`,
+          requirement_type: "spend",
+          requirement_value: 50,
+          points_reward: 7,
+          active: true,
+        }),
+      });
+      assert.equal(createAchievement.status, 201);
 
-    const createChallenge = await request(ownerJar, "/api/admin/challenges", {
-      method: "POST",
-      csrf: true,
-      body: JSON.stringify({
-        name: `5 point push ${rand}`,
-        description: "Single-purchase challenge",
-        challenge_type: "milestone",
-        requirement_type: "points",
-        requirement_value: 5,
-        reward_points: 3,
-        start_date: new Date(Date.now() - 60_000).toISOString(),
-        active: true
-      })
-    });
-    assert.equal(createChallenge.status, 201);
+      const createChallenge = await request(ownerJar, "/api/admin/challenges", {
+        method: "POST",
+        csrf: true,
+        body: JSON.stringify({
+          name: `5 point push ${rand}`,
+          description: "Single-purchase challenge",
+          challenge_type: "milestone",
+          requirement_type: "points",
+          requirement_value: 5,
+          reward_points: 3,
+          start_date: new Date(Date.now() - 60_000).toISOString(),
+          active: true,
+        }),
+      });
+      assert.equal(createChallenge.status, 201);
 
-    const customerPhone = `+50255${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`;
-    const requestCode = await request(customerJar, `/api/public/business/${encodeURIComponent(businessSlug)}/join/request-code`, {
-      method: "POST",
-      body: JSON.stringify({
+      const customerPhone = `+50255${Math.floor(Math.random() * 1000000)
+        .toString()
+        .padStart(6, "0")}`;
+      const requestCode = await request(
+        customerJar,
+        `/api/public/business/${encodeURIComponent(businessSlug)}/join/request-code`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            phone: customerPhone,
+            name: "Customer Refund Test",
+          }),
+        },
+      );
+      assert.equal(requestCode.status, 200);
+      const devCode = resolveJoinCode({
+        requestCodeData: requestCode.data,
+        businessSlug,
         phone: customerPhone,
-        name: "Customer Refund Test"
-      })
-    });
-    assert.equal(requestCode.status, 200);
-    const devCode = resolveJoinCode({
-      requestCodeData: requestCode.data,
-      businessSlug,
-      phone: customerPhone
-    });
-    assert.ok(devCode, "expected join code for customer verification");
+      });
+      assert.ok(devCode, "expected join code for customer verification");
 
-    const verifyJoin = await request(customerJar, `/api/public/business/${encodeURIComponent(businessSlug)}/join/verify`, {
-      method: "POST",
-      body: JSON.stringify({
-        phone: customerPhone,
-        code: devCode,
-        name: "Customer Refund Test"
-      })
-    });
-    assert.equal(verifyJoin.status, 200);
-    const customerId = verifyJoin.data?.customer?.id;
-    assert.ok(customerId, "expected customer id");
+      const verifyJoin = await request(
+        customerJar,
+        `/api/public/business/${encodeURIComponent(businessSlug)}/join/verify`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            phone: customerPhone,
+            code: devCode,
+            name: "Customer Refund Test",
+          }),
+        },
+      );
+      assert.equal(verifyJoin.status, 200);
+      const customerId = verifyJoin.data?.customer?.id;
+      assert.ok(customerId, "expected customer id");
 
-    const qr = await request(customerJar, "/api/public/customer/qr", {
-      method: "POST",
-      csrf: true,
-      body: "{}"
-    });
-    assert.equal(qr.status, 200);
-    assert.ok(qr.data?.token, "expected QR token");
+      const qr = await request(customerJar, "/api/public/customer/qr", {
+        method: "POST",
+        csrf: true,
+        body: "{}",
+      });
+      assert.equal(qr.status, 200);
+      assert.ok(qr.data?.token, "expected QR token");
 
       const award = await request(ownerJar, "/api/staff/award", {
-      method: "POST",
-      csrf: true,
-      body: JSON.stringify({
-        customerQrToken: qr.data.token,
-        amount_q: 50,
-        txId: crypto.randomUUID()
-      })
-    });
-    assert.equal(award.status, 200);
-    const purchaseTransactionId = award.data?.transactionId;
-    assert.ok(purchaseTransactionId, "expected purchase transaction id");
+        method: "POST",
+        csrf: true,
+        body: JSON.stringify({
+          customerQrToken: qr.data.token,
+          amount_q: 50,
+          txId: crypto.randomUUID(),
+        }),
+      });
+      assert.equal(award.status, 200);
+      const purchaseTransactionId = award.data?.transactionId;
+      assert.ok(purchaseTransactionId, "expected purchase transaction id");
 
-      await waitFor(async () => {
-        const { rows } = await db.query(
-          `SELECT
+      await waitFor(
+        async () => {
+          const { rows } = await db.query(
+            `SELECT
              EXISTS (
                SELECT 1
                FROM customer_achievements ca
@@ -234,23 +266,25 @@ integrationDescribe("Refund + Gamification Integration", () => {
              ) AS challenge_completed
            FROM customer_balances cb
            WHERE cb.customer_id = $1`,
-          [customerId, `Q50 spender ${rand}`, `5 point push ${rand}`]
-        );
-        const state = rows[0];
-        if (!state) return false;
-        if (!state.achievement_earned) return false;
-        if (!state.challenge_completed) return false;
-        return state;
-      }, { timeoutMs: 12_000, intervalMs: 400 });
+            [customerId, `Q50 spender ${rand}`, `5 point push ${rand}`],
+          );
+          const state = rows[0];
+          if (!state) return false;
+          if (!state.achievement_earned) return false;
+          if (!state.challenge_completed) return false;
+          return state;
+        },
+        { timeoutMs: 12_000, intervalMs: 400 },
+      );
 
       const refund = await request(ownerJar, "/api/staff/refund", {
-      method: "POST",
-      csrf: true,
-      body: JSON.stringify({
-        transactionId: purchaseTransactionId,
-        requestId: crypto.randomUUID(),
-        reason: "integration refund"
-      })
+        method: "POST",
+        csrf: true,
+        body: JSON.stringify({
+          transactionId: purchaseTransactionId,
+          requestId: crypto.randomUUID(),
+          reason: "integration refund",
+        }),
       });
       assert.equal(refund.status, 200);
       assert.ok(Number(refund.data?.gamificationReconciliation?.achievementsRevoked || 0) >= 1);
@@ -265,14 +299,21 @@ integrationDescribe("Refund + Gamification Integration", () => {
       assert.equal(achievementsAfter.status, 200);
       const earnedAfter = achievementsAfter.data?.earned || [];
       const inProgressAfter = achievementsAfter.data?.inProgress || [];
-      assert.equal(earnedAfter.some((item) => item.name === `Q50 spender ${rand}`), false);
-      const achievementProgress = inProgressAfter.find((item) => item.name === `Q50 spender ${rand}`);
+      assert.equal(
+        earnedAfter.some((item) => item.name === `Q50 spender ${rand}`),
+        false,
+      );
+      const achievementProgress = inProgressAfter.find(
+        (item) => item.name === `Q50 spender ${rand}`,
+      );
       assert.ok(achievementProgress, "achievement should return to in-progress list");
       assert.equal(Number(achievementProgress.current || 0), 0);
 
       const challengesAfter = await request(customerJar, "/api/customer/challenges");
       assert.equal(challengesAfter.status, 200);
-      const challengeAfter = (challengesAfter.data?.challenges || []).find((item) => item.name === `5 point push ${rand}`);
+      const challengeAfter = (challengesAfter.data?.challenges || []).find(
+        (item) => item.name === `5 point push ${rand}`,
+      );
       assert.ok(challengeAfter, "challenge should still be visible");
       assert.equal(Boolean(challengeAfter.completed), false);
       assert.equal(Number(challengeAfter.progress || 0), 0);

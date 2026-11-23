@@ -8,7 +8,10 @@ test("join page exposes inline feedback for request and verify actions", () => {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const js = fs.readFileSync(new URL("../../public/join.js", import.meta.url), "utf8");
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const shared = fs.readFileSync(new URL("../../public/customer-auth-entry.js", import.meta.url), "utf8");
+  const shared = fs.readFileSync(
+    new URL("../../public/customer-auth-entry.js", import.meta.url),
+    "utf8",
+  );
 
   assert.match(html, /id="joinRequestFeedback"/);
   assert.match(html, /id="joinVerifyFeedback"/);

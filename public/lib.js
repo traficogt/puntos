@@ -17,7 +17,7 @@ const ERROR_BY_CODE = {
   BAD_JSON: "JSON invalido",
   VALIDATION_ERROR: "Validacion fallida",
   INTERNAL_ERROR: "Error interno del servidor",
-  RATE_LIMITED: "Demasiadas solicitudes, intenta de nuevo en un momento"
+  RATE_LIMITED: "Demasiadas solicitudes, intenta de nuevo en un momento",
 };
 
 let csrfTokenMemory = "";
@@ -51,10 +51,12 @@ function withBase(path, base) {
 
 function readCookieCsrfToken() {
   if (typeof document === "undefined") return "";
-  return document.cookie
-    .split("; ")
-    .find((row) => row.startsWith(`${CSRF_COOKIE}=`))
-    ?.split("=")[1] || "";
+  return (
+    document.cookie
+      .split("; ")
+      .find((row) => row.startsWith(`${CSRF_COOKIE}=`))
+      ?.split("=")[1] || ""
+  );
 }
 
 function readStoredCsrfToken() {
@@ -119,7 +121,7 @@ export function hydrateShellLinks(root = document) {
     "app-login": () => appUrl("/equipo/ingresar/"),
     "app-scanner": () => appUrl("/equipo/escaner/"),
     "app-dashboard": () => appUrl("/administracion/"),
-    "customer-wallet": () => appUrl("/mi-tarjeta/")
+    "customer-wallet": () => appUrl("/mi-tarjeta/"),
   };
 
   root.querySelectorAll("[data-shell-link]").forEach((node) => {
@@ -132,12 +134,17 @@ export function hydrateShellLinks(root = document) {
 }
 
 export function isNativeShell() {
-  const shell = String(readRuntimeConfig().shell || "").trim().toLowerCase();
-  const protocol = typeof location !== "undefined" ? String(location.protocol || "").toLowerCase() : "";
-  return shell === "capacitor"
-    || shell === "native"
-    || protocol === "capacitor:"
-    || protocol === "ionic:";
+  const shell = String(readRuntimeConfig().shell || "")
+    .trim()
+    .toLowerCase();
+  const protocol =
+    typeof location !== "undefined" ? String(location.protocol || "").toLowerCase() : "";
+  return (
+    shell === "capacitor" ||
+    shell === "native" ||
+    protocol === "capacitor:" ||
+    protocol === "ionic:"
+  );
 }
 
 export async function api(path, opts = {}) {
@@ -153,25 +160,33 @@ export async function api(path, opts = {}) {
   const res = await fetch(apiUrl(path), {
     credentials: "include",
     ...opts,
-    headers
+    headers,
   });
 
   const txt = await res.text();
   let data = null;
-  try { data = txt ? JSON.parse(txt) : null; } catch { data = { raw: txt }; }
+  try {
+    data = txt ? JSON.parse(txt) : null;
+  } catch {
+    data = { raw: txt };
+  }
   storeCsrfToken(res.headers.get("x-csrf-token") || data?.csrfToken || "");
 
   if (!res.ok) {
     const code = typeof data?.code === "string" ? data.code : "";
     const requestId = data?.request_id || res.headers.get("x-request-id") || "";
     const rawError = typeof data?.error === "string" ? data.error : "";
-    let err = rawError === "MFA_REQUIRED"
-      ? "Se requiere código MFA"
-      : (ERROR_BY_CODE[code] || data?.error || `HTTP ${res.status}`);
+    let err =
+      rawError === "MFA_REQUIRED"
+        ? "Se requiere código MFA"
+        : ERROR_BY_CODE[code] || data?.error || `HTTP ${res.status}`;
     if (err && typeof err === "object") {
       const formErrors = Array.isArray(err.formErrors) ? err.formErrors.filter(Boolean) : [];
-      const fieldErrors = err.fieldErrors && typeof err.fieldErrors === "object" ? err.fieldErrors : {};
-      const firstFieldError = Object.entries(fieldErrors).find(([, v]) => Array.isArray(v) && v.length > 0);
+      const fieldErrors =
+        err.fieldErrors && typeof err.fieldErrors === "object" ? err.fieldErrors : {};
+      const firstFieldError = Object.entries(fieldErrors).find(
+        ([, v]) => Array.isArray(v) && v.length > 0,
+      );
       if (firstFieldError) {
         const [field, messages] = firstFieldError;
         const first = String(messages[0] || "").trim();
@@ -185,7 +200,7 @@ export async function api(path, opts = {}) {
     if (typeof err === "string") {
       err = err.replace(
         /^Feature '([^']+)' not available in current plan$/,
-        "La funcionalidad '$1' no esta disponible en tu plan actual"
+        "La funcionalidad '$1' no esta disponible en tu plan actual",
       );
       err = err.replace(/^Not authenticated$/, "No autenticado");
       err = err.replace(/^no auth$/i, "No autenticado");
@@ -193,22 +208,43 @@ export async function api(path, opts = {}) {
       err = err.replace(/^Server error$/i, "Error interno del servidor");
       err = err.replace(/^Internal server error$/i, "Error interno del servidor");
       err = err.replace(/^Validation failed$/i, "Validación fallida");
-      err = err.replace(/^must contain at least 1 character\(s\)$/i, "Debe contener al menos 1 carácter");
+      err = err.replace(
+        /^must contain at least 1 character\(s\)$/i,
+        "Debe contener al menos 1 carácter",
+      );
       err = err.replace(/^Missing businessId$/i, "Falta el negocio");
-      err = err.replace(/^Referral settings not found$/i, "No se encontro la configuracion de referidos");
+      err = err.replace(
+        /^Referral settings not found$/i,
+        "No se encontro la configuracion de referidos",
+      );
       err = err.replace(/^WhatsApp Cloud env not configured$/i, "WhatsApp no esta configurado");
       err = err.replace(/^SMTP env not configured$/i, "Correo SMTP no esta configurado");
       err = err.replace(/^SMS_GATEWAY_URL missing$/i, "Falta configurar SMS_GATEWAY_URL");
-      err = err.replace(/^NO_DELIVERY_PROVIDER(?::.*)?$/i, "No se pudo enviar el código por los canales disponibles.");
+      err = err.replace(
+        /^NO_DELIVERY_PROVIDER(?::.*)?$/i,
+        "No se pudo enviar el código por los canales disponibles.",
+      );
       err = err.replace(/^Business not found$/i, "Negocio no encontrado");
       err = err.replace(/^Phone required$/i, "Falta el teléfono");
       err = err.replace(/^Code required$/i, "Falta el código");
-      err = err.replace(/^No valid code\. Request a new one\.$/i, "No hay un código válido. Solicita uno nuevo.");
+      err = err.replace(
+        /^No valid code\. Request a new one\.$/i,
+        "No hay un código válido. Solicita uno nuevo.",
+      );
       err = err.replace(/^Invalid code$/i, "Código inválido");
-      err = err.replace(/^Please wait before requesting another code$/i, "Espera un momento antes de solicitar otro código.");
-      err = err.replace(/^Too many verification codes requested$/i, "Solicitaste demasiados códigos de verificación.");
+      err = err.replace(
+        /^Please wait before requesting another code$/i,
+        "Espera un momento antes de solicitar otro código.",
+      );
+      err = err.replace(
+        /^Too many verification codes requested$/i,
+        "Solicitaste demasiados códigos de verificación.",
+      );
       err = err.replace(/^Unknown MESSAGE_PROVIDER: .+$/i, "Proveedor de mensajeria no reconocido");
-      err = err.replace(/^Failed to generate unique referral code$/i, "No se pudo generar un codigo unico de referido");
+      err = err.replace(
+        /^Failed to generate unique referral code$/i,
+        "No se pudo generar un codigo unico de referido",
+      );
       err = err.replace(/^HTTP 401$/i, "No autenticado");
       err = err.replace(/^HTTP 403$/i, "No autorizado");
       err = err.replace(/^HTTP 404$/i, "No encontrado");
@@ -217,20 +253,29 @@ export async function api(path, opts = {}) {
       }
     }
     const message = typeof err === "string" ? err : JSON.stringify(err);
-    const wrapped = /** @type {Error & { code?: string; requestId?: string; status?: number; recoveryCaseId?: string }} */ (
-      new Error(requestId ? `${message} (Ref: ${requestId})` : message)
-    );
+    const wrapped =
+      /** @type {Error & { code?: string; requestId?: string; status?: number; recoveryCaseId?: string }} */ (
+        new Error(requestId ? `${message} (Ref: ${requestId})` : message)
+      );
     wrapped.code = code || undefined;
     wrapped.status = res.status;
     wrapped.requestId = requestId || undefined;
-    if (typeof data?.recoveryCaseId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.recoveryCaseId)) wrapped.recoveryCaseId = data.recoveryCaseId;
+    if (
+      typeof data?.recoveryCaseId === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.recoveryCaseId)
+    )
+      wrapped.recoveryCaseId = data.recoveryCaseId;
     throw wrapped;
   }
   return data;
 }
 
-export function $(sel) { return document.querySelector(sel); }
-export function $all(sel) { return [...document.querySelectorAll(sel)]; }
+export function $(sel) {
+  return document.querySelector(sel);
+}
+export function $all(sel) {
+  return [...document.querySelectorAll(sel)];
+}
 
 /**
  * @param {HTMLElement | null | undefined} el
@@ -264,14 +309,18 @@ export function registerServiceWorker() {
   let refreshing = false;
   let hadController = Boolean(navigator.serviceWorker.controller);
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!hadController) { hadController = true; return; }
+    if (!hadController) {
+      hadController = true;
+      return;
+    }
     if (suppressReloadOnControl) return;
     if (refreshing) return;
     refreshing = true;
     location.reload();
   });
 
-  return navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" })
+  return navigator.serviceWorker
+    .register("/sw.js", { scope: "/", updateViaCache: "none" })
     .then((registration) => {
       registration.update().catch(() => {});
 
@@ -296,7 +345,9 @@ export function registerServiceWorker() {
 }
 
 export function toast(msg) {
-  const t = /** @type {(HTMLElement & { _to?: ReturnType<typeof setTimeout> }) | null} */ (document.querySelector("#toast"));
+  const t = /** @type {(HTMLElement & { _to?: ReturnType<typeof setTimeout> }) | null} */ (
+    document.querySelector("#toast")
+  );
   if (!t) {
     if (document?.body) {
       modalAlert(msg).catch(() => {});
@@ -321,9 +372,7 @@ export function fmtQ(n) {
 
 export function isStrongPassword(value) {
   const password = String(value || "");
-  return password.length >= 8
-    && password.length <= 128
-    && password.trim().length >= 1;
+  return password.length >= 8 && password.length <= 128 && password.trim().length >= 1;
 }
 
 export function passwordRequirementsText() {
@@ -334,7 +383,18 @@ function canRenderModal() {
   return typeof document !== "undefined" && Boolean(document.body);
 }
 
-function openModal({ title, message, pre = false, input = false, inputType = "text", value = "", placeholder = "", confirmText = "OK", cancelText = "Cancelar", showCancel = false }) {
+function openModal({
+  title,
+  message,
+  pre = false,
+  input = false,
+  inputType = "text",
+  value = "",
+  placeholder = "",
+  confirmText = "OK",
+  cancelText = "Cancelar",
+  showCancel = false,
+}) {
   if (!canRenderModal()) return Promise.resolve(input ? null : false);
   return new Promise((resolve) => {
     const backdrop = document.createElement("div");
@@ -436,7 +496,7 @@ export function modalAlert(message, opts = {}) {
     message,
     pre: Boolean(opts.pre),
     confirmText: opts.confirmText || "OK",
-    showCancel: false
+    showCancel: false,
   });
 }
 
@@ -446,7 +506,7 @@ export function modalConfirm(message, opts = {}) {
     message,
     confirmText: opts.confirmText || "Aceptar",
     cancelText: opts.cancelText || "Cancelar",
-    showCancel: true
+    showCancel: true,
   }).then((result) => Boolean(result));
 }
 
@@ -460,14 +520,14 @@ export function modalPrompt(message, opts = {}) {
     placeholder: opts.placeholder || "",
     confirmText: opts.confirmText || "Guardar",
     cancelText: opts.cancelText || "Cancelar",
-    showCancel: true
+    showCancel: true,
   });
 }
 
 export function uuidv4() {
   if (crypto.randomUUID) return crypto.randomUUID();
   // fallback
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15;
     const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
@@ -476,12 +536,17 @@ export function uuidv4() {
 
 function isIos() {
   const ua = navigator.userAgent || "";
-  return /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return (
+    /iPhone|iPad|iPod/i.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
 }
 
 function isStandalone() {
-  return window.matchMedia?.("(display-mode: standalone)")?.matches
-    || Boolean((/** @type {Navigator & { standalone?: boolean }} */ (navigator)).standalone);
+  return (
+    window.matchMedia?.("(display-mode: standalone)")?.matches ||
+    Boolean(/** @type {Navigator & { standalone?: boolean }} */ (navigator).standalone)
+  );
 }
 
 export function mountIosInstallHint() {
@@ -525,13 +590,41 @@ export function mountIosInstallHint() {
 }
 
 // Keep previously shared section bookmarks usable after the Spanish URL migration.
-const legacySections = new Map([["nativeWalletSection", "billeteras"], ["operationsMain", "contenido"], ["mainCard", "planes"], ["securityCard", "seguridad"], ["businessCard", "negocios"]]);
+const legacySections = new Map([
+  ["nativeWalletSection", "billeteras"],
+  ["operationsMain", "contenido"],
+  ["mainCard", "planes"],
+  ["securityCard", "seguridad"],
+  ["businessCard", "negocios"],
+]);
 if (typeof location !== "undefined" && typeof history !== "undefined") {
   const section = legacySections.get(location.hash?.slice(1));
   if (section) history.replaceState(null, "", `${location.pathname}${location.search}#${section}`);
 }
 
-let browserRegion = {currency:"GTQ",locale:"es-GT",timezone:"America/Guatemala",minorUnits:2};
-export function setBrowserRegion(region) { browserRegion = {currency:"GTQ",locale:"es-GT",timezone:"America/Guatemala",minorUnits:2,...region}; }
-export function currentBrowserRegion() { return browserRegion; }
-export function regionalMoney(value) { return new Intl.NumberFormat(browserRegion.locale, {style:"currency",currency:browserRegion.currency,minimumFractionDigits:browserRegion.minorUnits,maximumFractionDigits:browserRegion.minorUnits}).format(Number(value)||0); }
+let browserRegion = {
+  currency: "GTQ",
+  locale: "es-GT",
+  timezone: "America/Guatemala",
+  minorUnits: 2,
+};
+export function setBrowserRegion(region) {
+  browserRegion = {
+    currency: "GTQ",
+    locale: "es-GT",
+    timezone: "America/Guatemala",
+    minorUnits: 2,
+    ...region,
+  };
+}
+export function currentBrowserRegion() {
+  return browserRegion;
+}
+export function regionalMoney(value) {
+  return new Intl.NumberFormat(browserRegion.locale, {
+    style: "currency",
+    currency: browserRegion.currency,
+    minimumFractionDigits: browserRegion.minorUnits,
+    maximumFractionDigits: browserRegion.minorUnits,
+  }).format(Number(value) || 0);
+}

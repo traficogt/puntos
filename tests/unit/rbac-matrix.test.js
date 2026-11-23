@@ -20,7 +20,7 @@ function makeRes() {
     json(payload) {
       this.payload = payload;
       return this;
-    }
+    },
   });
 }
 
@@ -72,6 +72,9 @@ describe("RBAC route wiring", () => {
   it("guards critical staff routes with explicit permission checks", () => {
     const routesPath = path.join(process.cwd(), "src", "app", "routes", "staff-routes.js");
     const src = fs.readFileSync(routesPath, "utf8");
-    assert.ok(src.includes("requireStaffPermission"), "Staff routes should use requireStaffPermission");
+    assert.ok(
+      src.includes("requireStaffPermission"),
+      "Staff routes should use requireStaffPermission",
+    );
   });
 });

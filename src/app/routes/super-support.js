@@ -11,20 +11,27 @@ import { createBusinessWithOwner } from "../services/business-service.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 import { hashPassword } from "../../utils/password-hash.js";
 import { assertPasswordAllowed } from "../../utils/password-policy.js";
-import { CHANNEL_POLICIES, WALLET_BROADCAST_DAILY_CEIL, WALLET_BROADCAST_MONTHLY_CEIL } from "../services/wallet-broadcast-config.js";
+import {
+  CHANNEL_POLICIES,
+  WALLET_BROADCAST_DAILY_CEIL,
+  WALLET_BROADCAST_MONTHLY_CEIL,
+} from "../services/wallet-broadcast-config.js";
 
 export const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
-  mfaCode: z.string().regex(/^\d{6}$/).optional()
+  mfaCode: z
+    .string()
+    .regex(/^\d{6}$/)
+    .optional(),
 });
 
 export const UpdatePlanSchema = z.object({
-  plan: z.string().min(3).max(40)
+  plan: z.string().min(3).max(40),
 });
 
 export const UpdatePlanFeaturesSchema = z.object({
-  features: z.record(z.string(), z.boolean())
+  features: z.record(z.string(), z.boolean()),
 });
 
 // Platform-owner-only per-business wallet-broadcast control. Caps are clamped again
@@ -33,7 +40,10 @@ export const SetWalletBroadcastSchema = z.object({
   enabled: z.boolean(),
   daily_cap: z.number().int().min(1).max(WALLET_BROADCAST_DAILY_CEIL).optional(),
   monthly_cap: z.number().int().min(1).max(WALLET_BROADCAST_MONTHLY_CEIL).optional(),
-  channel_policy: z.string().refine((value) => CHANNEL_POLICIES.includes(value), "channel_policy inválido").optional()
+  channel_policy: z
+    .string()
+    .refine((value) => CHANNEL_POLICIES.includes(value), "channel_policy inválido")
+    .optional(),
 });
 
 export const CreateBusinessSchema = z.object({
@@ -42,9 +52,11 @@ export const CreateBusinessSchema = z.object({
   phone: z.string().min(6).optional(),
   password: passwordSchema,
   category: z.string().optional(),
-  program_type: z.enum(["SPEND", "VISIT", "ITEM", "DISCOUNT", "STAMP", "CASHBACK", "GIFT_CARD"]).optional(),
+  program_type: z
+    .enum(["SPEND", "VISIT", "ITEM", "DISCOUNT", "STAMP", "CASHBACK", "GIFT_CARD"])
+    .optional(),
   program_json: z.record(z.string(), z.any()).optional(),
-  plan: z.string().min(3).max(40).optional()
+  plan: z.string().min(3).max(40).optional(),
 });
 
 export const CreateBusinessUserSchema = z.object({
@@ -55,7 +67,7 @@ export const CreateBusinessUserSchema = z.object({
   role: z.enum(["OWNER", "MANAGER", "CASHIER"]).optional(),
   branch_id: z.guid().optional(),
   can_manage_gift_cards: z.boolean().optional(),
-  allow_multi_owner: z.boolean().optional()
+  allow_multi_owner: z.boolean().optional(),
 });
 
 export const InternalMagicLinkCreateSchema = z.discriminatedUnion("actorType", [
@@ -63,14 +75,14 @@ export const InternalMagicLinkCreateSchema = z.discriminatedUnion("actorType", [
     actorType: z.literal("staff"),
     actorId: z.guid(),
     businessId: z.guid(),
-    target: z.enum(["staff", "admin-dashboard"])
+    target: z.enum(["staff", "admin-dashboard"]),
   }),
   z.object({
     actorType: z.literal("customer"),
     actorId: z.guid(),
     businessId: z.guid(),
-    target: z.literal("customer-wallet")
-  })
+    target: z.literal("customer-wallet"),
+  }),
 ]);
 
 export function getSupportedPlans() {
@@ -102,7 +114,7 @@ export async function createSuperBusiness(payload) {
     program_type: payload.program_type ?? "SPEND",
     program_json: payload.program_json ?? { points_per_q: 0.1, round: "ceil" },
     plan: desiredPlan ?? undefined,
-    slug: null
+    slug: null,
   });
 }
 
@@ -115,7 +127,9 @@ export async function createSuperBusinessUser(businessId, payload) {
 
   const requestedRole = payload.role ?? "MANAGER";
   if (requestedRole === "OWNER" && !payload.allow_multi_owner) {
-    throw badRequest("Crear un OWNER adicional requiere allow_multi_owner=true (confirmación explícita)");
+    throw badRequest(
+      "Crear un OWNER adicional requiere allow_multi_owner=true (confirmación explícita)",
+    );
   }
 
   let branchId = payload.branch_id || null;
@@ -133,7 +147,7 @@ export async function createSuperBusinessUser(businessId, payload) {
     email: payload.email,
     name: payload.name,
     businessName: business.name,
-    phone: payload.phone
+    phone: payload.phone,
   });
   const passwordHash = await hashPassword(payload.password);
   const user = await StaffRepo.create({
@@ -144,14 +158,14 @@ export async function createSuperBusinessUser(businessId, payload) {
     email: payload.email,
     phone: payload.phone ?? null,
     role: requestedRole,
-    password_hash: passwordHash
+    password_hash: passwordHash,
   });
 
   if (payload.can_manage_gift_cards !== undefined || user.role === "OWNER") {
-    await dbQuery(
-      `UPDATE staff_users SET can_manage_gift_cards = $2 WHERE id = $1`,
-      [user.id, user.role === "OWNER" ? true : Boolean(payload.can_manage_gift_cards)]
-    );
+    await dbQuery(`UPDATE staff_users SET can_manage_gift_cards = $2 WHERE id = $1`, [
+      user.id,
+      user.role === "OWNER" ? true : Boolean(payload.can_manage_gift_cards),
+    ]);
   }
 
   return StaffRepo.getById(user.id);
@@ -168,7 +182,7 @@ export async function logSuperAudit({ action, businessId, req, superAdminEmail, 
     ua: req.headers["user-agent"] || null,
     meta: {
       super_admin_email: superAdminEmail,
-      ...meta
-    }
+      ...meta,
+    },
   }).catch(() => {});
 }

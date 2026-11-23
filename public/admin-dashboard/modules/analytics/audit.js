@@ -22,7 +22,7 @@ export function createAnalyticsAuditController(app) {
     return {
       from: params.get("audit_from") || "",
       to: params.get("audit_to") || "",
-      impersonatedOnly: params.get("audit_impersonated") === "1"
+      impersonatedOnly: params.get("audit_impersonated") === "1",
     };
   }
 
@@ -30,14 +30,18 @@ export function createAnalyticsAuditController(app) {
     const { from, to, impersonatedOnly } = readAuditFiltersFromUrl();
     if ($("#auditFrom")) /** @type {HTMLInputElement} */ (field("#auditFrom")).value = from;
     if ($("#auditTo")) /** @type {HTMLInputElement} */ (field("#auditTo")).value = to;
-    if ($("#auditShowImpersonatedOnly")) /** @type {HTMLInputElement} */ (field("#auditShowImpersonatedOnly")).checked = impersonatedOnly;
+    if ($("#auditShowImpersonatedOnly"))
+      /** @type {HTMLInputElement} */ (field("#auditShowImpersonatedOnly")).checked =
+        impersonatedOnly;
   }
 
   function syncAuditFiltersToUrl() {
     const params = new URLSearchParams(window.location.search);
     const from = /** @type {HTMLInputElement | null} */ ($("#auditFrom"))?.value || "";
     const to = /** @type {HTMLInputElement | null} */ ($("#auditTo"))?.value || "";
-    const impersonatedOnly = Boolean(/** @type {HTMLInputElement | null} */ ($("#auditShowImpersonatedOnly"))?.checked);
+    const impersonatedOnly = Boolean(
+      /** @type {HTMLInputElement | null} */ ($("#auditShowImpersonatedOnly"))?.checked,
+    );
 
     if (from) params.set("audit_from", from);
     else params.delete("audit_from");
@@ -64,7 +68,9 @@ export function createAnalyticsAuditController(app) {
 
     const from = /** @type {HTMLInputElement | null} */ ($("#auditFrom"))?.value || "";
     const to = /** @type {HTMLInputElement | null} */ ($("#auditTo"))?.value || "";
-    const impersonatedOnly = Boolean(/** @type {HTMLInputElement | null} */ ($("#auditShowImpersonatedOnly"))?.checked);
+    const impersonatedOnly = Boolean(
+      /** @type {HTMLInputElement | null} */ ($("#auditShowImpersonatedOnly"))?.checked,
+    );
 
     let rangeLabel = "eventos recientes";
     if (from && to) rangeLabel = `del ${formatAuditDateLabel(from)} al ${formatAuditDateLabel(to)}`;
@@ -82,7 +88,8 @@ export function createAnalyticsAuditController(app) {
     const to = /** @type {HTMLInputElement | null} */ ($("#auditTo"))?.value;
     if (from) params.set("from", from);
     if (to) params.set("to", to);
-    if (/** @type {HTMLInputElement | null} */ ($("#auditShowImpersonatedOnly"))?.checked) params.set("impersonated_only", "1");
+    if (/** @type {HTMLInputElement | null} */ ($("#auditShowImpersonatedOnly"))?.checked)
+      params.set("impersonated_only", "1");
     params.set("limit", "5000");
     const q = params.toString();
     window.open(`/api/admin/audit.csv${q ? `?${q}` : ""}`, "_blank");
@@ -100,7 +107,7 @@ export function createAnalyticsAuditController(app) {
       `Evento: ${detail.event.action}`,
       `Fecha: ${detail.event.created_at ? new Date(detail.event.created_at).toLocaleString() : "—"}`,
       `Actor: ${detail.event.actor_name || detail.event.actor_email || detail.event.actor_type || "sistema"}`,
-      ""
+      "",
     ];
 
     if (detail.linked?.transaction) {
@@ -114,14 +121,18 @@ export function createAnalyticsAuditController(app) {
     if (detail.linked?.reversal_transaction) {
       const tx = detail.linked.reversal_transaction;
       lines.push(`Reversa: ${tx.id}`);
-      lines.push(`Estado: ${tx.status} • Puntos: ${Number(tx.points || 0)} • Motivo: ${tx.reversal_reason || "—"}`);
+      lines.push(
+        `Estado: ${tx.status} • Puntos: ${Number(tx.points || 0)} • Motivo: ${tx.reversal_reason || "—"}`,
+      );
       lines.push("");
     }
 
     if (detail.linked?.redemption) {
       const redemption = detail.linked.redemption;
       lines.push(`Canje: ${redemption.code} • ${redemption.reward_name}`);
-      lines.push(`Cliente: ${redemption.customer_name || "—"} • ${redemption.customer_phone || "—"}`);
+      lines.push(
+        `Cliente: ${redemption.customer_name || "—"} • ${redemption.customer_phone || "—"}`,
+      );
       lines.push(`Costo: ${Number(redemption.points_cost || 0)} pts`);
       lines.push("");
     }
@@ -135,7 +146,9 @@ export function createAnalyticsAuditController(app) {
 
     if (detail.linked?.gift_card_transaction) {
       const tx = detail.linked.gift_card_transaction;
-      lines.push(`Movimiento gift card: ${tx.tx_type} • ${regionalMoney(tx.amount_q || 0)} • saldo ${regionalMoney(tx.balance_after_q || 0)}`);
+      lines.push(
+        `Movimiento gift card: ${tx.tx_type} • ${regionalMoney(tx.amount_q || 0)} • saldo ${regionalMoney(tx.balance_after_q || 0)}`,
+      );
       lines.push("");
     }
 
@@ -161,7 +174,9 @@ export function createAnalyticsAuditController(app) {
     const box = $("#auditTimeline");
     const from = /** @type {HTMLInputElement | null} */ ($("#auditFrom"))?.value;
     const to = /** @type {HTMLInputElement | null} */ ($("#auditTo"))?.value;
-    const impersonatedOnly = Boolean(/** @type {HTMLInputElement | null} */ ($("#auditShowImpersonatedOnly"))?.checked);
+    const impersonatedOnly = Boolean(
+      /** @type {HTMLInputElement | null} */ ($("#auditShowImpersonatedOnly"))?.checked,
+    );
     try {
       syncAuditFiltersToUrl();
       renderAuditScopeHint();
@@ -193,11 +208,12 @@ export function createAnalyticsAuditController(app) {
         summary.textContent = `${when} • ${actor} • ${ev.action}`;
         summaryRow.appendChild(summary);
 
-        const inspectable = ev.meta?.transaction_id
-          || ev.meta?.reversal_transaction_id
-          || ev.meta?.redemption_id
-          || ev.meta?.gift_card_id
-          || ev.meta?.gift_card_tx_id;
+        const inspectable =
+          ev.meta?.transaction_id ||
+          ev.meta?.reversal_transaction_id ||
+          ev.meta?.redemption_id ||
+          ev.meta?.gift_card_id ||
+          ev.meta?.gift_card_tx_id;
         if (inspectable) {
           const button = document.createElement("button");
           button.className = "secondary";
@@ -236,7 +252,9 @@ export function createAnalyticsAuditController(app) {
     $("#btnRefreshAudit")?.addEventListener("click", () => loadAuditTimeline().catch(() => {}));
     $("#auditFrom")?.addEventListener("change", () => loadAuditTimeline().catch(() => {}));
     $("#auditTo")?.addEventListener("change", () => loadAuditTimeline().catch(() => {}));
-    $("#auditShowImpersonatedOnly")?.addEventListener("change", () => loadAuditTimeline().catch(() => {}));
+    $("#auditShowImpersonatedOnly")?.addEventListener("change", () =>
+      loadAuditTimeline().catch(() => {}),
+    );
     window.addEventListener("popstate", () => {
       applyAuditFiltersFromUrl();
       loadAuditTimeline().catch(() => {});
@@ -245,6 +263,6 @@ export function createAnalyticsAuditController(app) {
 
   return {
     init,
-    loadAuditTimeline
+    loadAuditTimeline,
   };
 }

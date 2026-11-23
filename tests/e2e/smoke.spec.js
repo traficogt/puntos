@@ -9,7 +9,9 @@ test("homepage loads and exposes the demo CTA", async ({ page }) => {
   await useRandomClientIp(page);
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 1 })).toContainText(/se repite/i);
-  const demoLink = page.locator(".marketing-hero").getByRole("link", { name: "Probar la demo", exact: true });
+  const demoLink = page
+    .locator(".marketing-hero")
+    .getByRole("link", { name: "Probar la demo", exact: true });
   await expect(demoLink).toBeVisible();
   await expect(demoLink).toHaveAttribute("href", "/demostracion/");
 });
@@ -21,7 +23,7 @@ test("homepage styles are applied", async ({ page }) => {
   const styles = await page.evaluate(() => ({
     pageBg: getComputedStyle(document.documentElement).backgroundColor,
     h1Font: getComputedStyle(document.querySelector("h1")).fontFamily,
-    heroDisplay: getComputedStyle(document.querySelector(".marketing-hero")).display
+    heroDisplay: getComputedStyle(document.querySelector(".marketing-hero")).display,
   }));
 
   expect(styles.pageBg).toBe("rgb(247, 245, 239)");
@@ -51,7 +53,9 @@ test("logged-out customer page shows the entry shell", async ({ page, context })
   await page.goto("/c", { waitUntil: "domcontentloaded" });
 
   await expect(page.locator("#needLogin")).toBeVisible();
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(/tarjeta digital vive aqui|tu tarjeta/i);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(
+    /tarjeta digital vive aqui|tu tarjeta/i,
+  );
   await expect(page.locator(".cus-entry-note")).toContainText("enlace de acceso");
 });
 

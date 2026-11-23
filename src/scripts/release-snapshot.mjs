@@ -62,7 +62,10 @@ async function fetchJson(baseUrl, pathname, timeoutMs) {
 
 function migrationFiles() {
   const migrationsDir = path.join(process.cwd(), "src", "app", "migrations");
-  return fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort();
+  return fs
+    .readdirSync(migrationsDir)
+    .filter((file) => file.endsWith(".sql"))
+    .sort();
 }
 
 export async function captureReleaseSnapshot({
@@ -72,7 +75,7 @@ export async function captureReleaseSnapshot({
   imageRef = process.env.RELEASE_IMAGE_REF || "",
   buildSha = process.env.RELEASE_SHA || process.env.GITHUB_SHA || "",
   releaseTag = process.env.RELEASE_TAG || process.env.GITHUB_REF_NAME || "",
-  allowPendingMigrations = false
+  allowPendingMigrations = false,
 } = {}) {
   const health = await fetchJson(baseUrl, "/api/health", timeoutMs);
   const ready = await fetchJson(baseUrl, "/api/ready", timeoutMs);
@@ -86,7 +89,9 @@ export async function captureReleaseSnapshot({
   const pending = files.filter((file) => !appliedVersions.has(file));
 
   if (!allowPendingMigrations && pending.length) {
-    throw new Error(`Refusing to snapshot release state with pending migrations: ${pending.join(", ")}`);
+    throw new Error(
+      `Refusing to snapshot release state with pending migrations: ${pending.join(", ")}`,
+    );
   }
 
   const snapshot = {
@@ -96,7 +101,7 @@ export async function captureReleaseSnapshot({
       version: info.version || null,
       build_sha: buildSha || info.build_sha || null,
       image_ref: imageRef || null,
-      release_tag: releaseTag || null
+      release_tag: releaseTag || null,
     },
     health,
     ready,
@@ -104,12 +109,13 @@ export async function captureReleaseSnapshot({
     migrations: {
       applied_count: applied.length,
       applied_versions: applied.map((entry) => entry.version),
-      pending_versions: pending
-    }
+      pending_versions: pending,
+    },
   };
 
-  const resolvedOutput = outputPath
-    || path.join(process.cwd(), "artifacts", "releases", `release_snapshot_${nowStamp()}.json`);
+  const resolvedOutput =
+    outputPath ||
+    path.join(process.cwd(), "artifacts", "releases", `release_snapshot_${nowStamp()}.json`);
   ensureDir(path.dirname(resolvedOutput));
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   fs.writeFileSync(resolvedOutput, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
@@ -122,7 +128,10 @@ async function main() {
   const timeoutMs = Number(cliArg("--timeout-ms", process.env.SNAPSHOT_TIMEOUT_MS || "5000"));
   const imageRef = cliArg("--image-ref", process.env.RELEASE_IMAGE_REF || "");
   const buildSha = cliArg("--build-sha", process.env.RELEASE_SHA || process.env.GITHUB_SHA || "");
-  const releaseTag = cliArg("--release-tag", process.env.RELEASE_TAG || process.env.GITHUB_REF_NAME || "");
+  const releaseTag = cliArg(
+    "--release-tag",
+    process.env.RELEASE_TAG || process.env.GITHUB_REF_NAME || "",
+  );
   const allowPendingMigrations = hasFlag("--allow-pending-migrations");
 
   try {
@@ -133,7 +142,7 @@ async function main() {
       imageRef,
       buildSha,
       releaseTag,
-      allowPendingMigrations
+      allowPendingMigrations,
     });
     console.log(`Release snapshot written to ${path.relative(process.cwd(), result.outputPath)}`);
   } finally {

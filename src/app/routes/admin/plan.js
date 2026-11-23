@@ -26,7 +26,13 @@ adminPlanRoutes.get(
     // A usage failure must never break plan info (the dashboard gates on it), hence the null fallback.
     const activeCustomers = await BusinessRepo.activeCustomerCount(req.tenantId).catch(() => null);
     /** @type {AdminPlanResponse} */
-    const response = { ok: true, plan: business.plan, limits, features, usage: { active_customers: activeCustomers } };
+    const response = {
+      ok: true,
+      plan: business.plan,
+      limits,
+      features,
+      usage: { active_customers: activeCustomers },
+    };
     return res.json(response);
-  })
+  }),
 );

@@ -32,7 +32,7 @@ async function getActiveIdentifier(deps, businessId, identifierType, identifierV
     getClient(deps),
     businessId,
     identifierType,
-    identifierValue
+    identifierValue,
   );
 }
 
@@ -46,7 +46,7 @@ async function getAnyIdentifier(deps, businessId, identifierType, identifierValu
     getClient(deps),
     businessId,
     identifierType,
-    identifierValue
+    identifierValue,
   );
 }
 
@@ -62,7 +62,12 @@ export async function linkContactIdentifierWithDeps(deps, input) {
   if (!identifierValue) throw badRequest("identifierValue is required");
 
   const customer = await requireScopedCustomer(deps, businessId, customerId);
-  const activeIdentifier = await getActiveIdentifier(deps, businessId, identifierType, identifierValue);
+  const activeIdentifier = await getActiveIdentifier(
+    deps,
+    businessId,
+    identifierType,
+    identifierValue,
+  );
 
   if (activeIdentifier) {
     if (String(activeIdentifier.customer_id) !== String(customer.id)) {
@@ -71,7 +76,12 @@ export async function linkContactIdentifierWithDeps(deps, input) {
     return activeIdentifier;
   }
 
-  const existingIdentifier = await getAnyIdentifier(deps, businessId, identifierType, identifierValue);
+  const existingIdentifier = await getAnyIdentifier(
+    deps,
+    businessId,
+    identifierType,
+    identifierValue,
+  );
   if (existingIdentifier) {
     if (String(existingIdentifier.customer_id) !== String(customer.id)) {
       throw conflict("identifier is already assigned to another customer");
@@ -91,7 +101,7 @@ export async function linkContactIdentifierWithDeps(deps, input) {
     identifier_value: identifierValue,
     label: input?.label ?? null,
     meta: input?.meta ?? {},
-    active: true
+    active: true,
   });
 }
 
@@ -129,7 +139,7 @@ export async function unlinkContactIdentifierWithDeps(deps, input) {
     getClient(deps),
     businessId,
     identifierType,
-    identifierValue
+    identifierValue,
   );
 
   if (!deactivated) {

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   applyLedgerCorrectionWithDeps,
   rejectLedgerCorrectionWithDeps,
-  requestLedgerCorrectionWithDeps
+  requestLedgerCorrectionWithDeps,
 } from "../../src/app/services/ledger-correction-service.js";
 
 /**
@@ -19,7 +19,7 @@ function makeDeps({ client, row, correction } = {}) {
       client.adjusted = true;
       return "adj-1";
     },
-    correction
+    correction,
   };
 }
 
@@ -30,7 +30,7 @@ describe("ledger correction service", () => {
       query: async (sql, params) => {
         calls.push([String(sql), params]);
         return { rows: [], rowCount: 1 };
-      }
+      },
     };
     const deps = makeDeps({
       client,
@@ -42,15 +42,15 @@ describe("ledger correction service", () => {
         stored_pending_points: 0,
         expected_pending_points: 0,
         stored_lifetime_points: 10,
-        expected_lifetime_points: 25
-      }
+        expected_lifetime_points: 25,
+      },
     });
 
     const out = await requestLedgerCorrectionWithDeps(deps, {
       businessId: "biz-1",
       customerId: "cust-1",
       requestedByStaffId: "owner-1",
-      reason: "Balance drift verified against transaction ledger"
+      reason: "Balance drift verified against transaction ledger",
     });
 
     assert.equal(out.ok, true);
@@ -65,18 +65,20 @@ describe("ledger correction service", () => {
       query: async (sql) => {
         if (String(sql).includes("FROM ledger_balance_corrections")) {
           return {
-            rows: [{
-              id: "corr-1",
-              business_id: "biz-1",
-              customer_id: "cust-1",
-              status: "PENDING",
-              requested_by_staff_id: "owner-1"
-            }],
-            rowCount: 1
+            rows: [
+              {
+                id: "corr-1",
+                business_id: "biz-1",
+                customer_id: "cust-1",
+                status: "PENDING",
+                requested_by_staff_id: "owner-1",
+              },
+            ],
+            rowCount: 1,
           };
         }
         return { rows: [], rowCount: 1 };
-      }
+      },
     };
     const deps = makeDeps({
       client,
@@ -88,24 +90,24 @@ describe("ledger correction service", () => {
         stored_pending_points: 0,
         expected_pending_points: 0,
         stored_lifetime_points: 10,
-        expected_lifetime_points: 25
-      }
+        expected_lifetime_points: 25,
+      },
     });
 
     await assert.rejects(
       applyLedgerCorrectionWithDeps(deps, {
         businessId: "biz-1",
         correctionId: "corr-1",
-        resolvedByStaffId: "owner-1"
+        resolvedByStaffId: "owner-1",
       }),
-      /different owner/i
+      /different owner/i,
     );
     assert.equal(client.adjusted, false);
 
     const out = await applyLedgerCorrectionWithDeps(deps, {
       businessId: "biz-1",
       correctionId: "corr-1",
-      resolvedByStaffId: "owner-2"
+      resolvedByStaffId: "owner-2",
     });
     assert.equal(out.ok, true);
     assert.equal(out.correction.status, "APPLIED");
@@ -120,21 +122,23 @@ describe("ledger correction service", () => {
         const text = String(sql);
         if (text.includes("FROM ledger_balance_corrections")) {
           return {
-            rows: [{
-              id: "corr-2",
-              business_id: "biz-1",
-              customer_id: "cust-9",
-              status: "PENDING",
-              requested_by_staff_id: "owner-1"
-            }],
-            rowCount: 1
+            rows: [
+              {
+                id: "corr-2",
+                business_id: "biz-1",
+                customer_id: "cust-9",
+                status: "PENDING",
+                requested_by_staff_id: "owner-1",
+              },
+            ],
+            rowCount: 1,
           };
         }
         if (text.includes("UPDATE ledger_balance_corrections")) {
           updates += 1;
         }
         return { rows: [], rowCount: 1 };
-      }
+      },
     };
     const deps = makeDeps({ client, row: null });
 
@@ -142,7 +146,7 @@ describe("ledger correction service", () => {
       businessId: "biz-1",
       correctionId: "corr-2",
       resolvedByStaffId: "owner-2",
-      reason: "Reviewed and determined no manual correction should be applied"
+      reason: "Reviewed and determined no manual correction should be applied",
     });
 
     assert.equal(out.ok, true);

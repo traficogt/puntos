@@ -2,7 +2,7 @@ const STORAGE_KEY = "pf-theme";
 const THEME_MEDIA = "(prefers-color-scheme: dark)";
 const THEME_COLOR_BY_MODE = {
   dark: "#0b0f14",
-  light: "#f3f6fa"
+  light: "#f3f6fa",
 };
 
 function isTheme(value) {

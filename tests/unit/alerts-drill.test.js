@@ -6,7 +6,11 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 
-const credentialNames = ["E2E_APP_DB_PASSWORD", "E2E_DB_ADMIN_PASSWORD", "E2E_SUPER_ADMIN_PASSWORD"];
+const credentialNames = [
+  "E2E_APP_DB_PASSWORD",
+  "E2E_DB_ADMIN_PASSWORD",
+  "E2E_SUPER_ADMIN_PASSWORD",
+];
 
 async function fixture(t, script = "alerts-drill.sh") {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "puntos-alerts-test-"));
@@ -16,11 +20,17 @@ async function fixture(t, script = "alerts-drill.sh") {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   await fs.mkdir(scripts, { recursive: true });
   for (const name of [script, "wait-for-api.sh"]) {
-    await fs.copyFile(new URL(`../../src/scripts/${name}`, import.meta.url), path.join(scripts, name));
+    await fs.copyFile(
+      new URL(`../../src/scripts/${name}`, import.meta.url),
+      path.join(scripts, name),
+    );
   }
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   await fs.mkdir(path.join(root, "deploy/e2e"), { recursive: true });
-  await fs.copyFile(new URL("../../deploy/e2e/api.env", import.meta.url), path.join(root, "deploy/e2e/api.env"));
+  await fs.copyFile(
+    new URL("../../deploy/e2e/api.env", import.meta.url),
+    path.join(root, "deploy/e2e/api.env"),
+  );
   const eventsPath = path.join(root, "commands.jsonl");
   const command = `#!/usr/bin/env node
 const fs = require('node:fs');
@@ -60,13 +70,17 @@ if (name === 'docker') {
         E2E_RUNNER: "docker",
         TEST_API_URL: "",
         ...Object.fromEntries(credentialNames.map((name) => [name, ""])),
-        ...overrides
+        ...overrides,
       },
       encoding: "utf8",
-      timeout: 10000
+      timeout: 10000,
     });
     // eslint-disable-next-line security/detect-non-literal-fs-filename
-    const events = (await fs.readFile(eventsPath, "utf8")).trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+    const events = (await fs.readFile(eventsPath, "utf8"))
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
     return { result, events };
   };
   return { run };
@@ -83,25 +97,43 @@ test("alert drill exports fresh private credentials before Compose and retains t
     assert.ok(dockerEvents[0].args.includes("up"));
     assert.ok(dockerEvents[1].args.includes("down"));
     const credentials = dockerEvents[0].credentials;
-    assert.ok(credentialNames.every((name) => credentials[name].randomHex), "Each password must have 24 random bytes");
+    assert.ok(
+      credentialNames.every((name) => credentials[name].randomHex),
+      "Each password must have 24 random bytes",
+    );
     assert.equal(new Set(credentialNames.map((name) => credentials[name].hash)).size, 3);
-    assert.deepEqual(dockerEvents[1].credentials, credentials, "Cleanup must use the same Compose environment");
-    assert.equal(events.filter((event) => event.name === "npm").length, 2, "Both alert checks must run");
+    assert.deepEqual(
+      dockerEvents[1].credentials,
+      credentials,
+      "Cleanup must use the same Compose environment",
+    );
+    assert.equal(
+      events.filter((event) => event.name === "npm").length,
+      2,
+      "Both alert checks must run",
+    );
     fingerprints.push(credentialNames.map((name) => credentials[name].hash));
   }
-  assert.ok(fingerprints[0].every((value, index) => value !== fingerprints[1][index]), "Each drill must receive new credentials");
+  assert.ok(
+    fingerprints[0].every((value, index) => value !== fingerprints[1][index]),
+    "Each drill must receive new credentials",
+  );
 });
 
 test("alert drill preserves explicit test credentials without printing or passing them as command arguments", async (t) => {
   const { run } = await fixture(t);
-  const overrides = Object.fromEntries(credentialNames.map((name) => [name, randomBytes(24).toString("hex")]));
+  const overrides = Object.fromEntries(
+    credentialNames.map((name) => [name, randomBytes(24).toString("hex")]),
+  );
   const { result, events } = await run(overrides);
   assert.equal(result.status, 0, result.stderr);
   for (const name of credentialNames) {
     const expectedHash = createHash("sha256").update(overrides[name]).digest("hex");
     assert.ok(events.every((event) => event.credentials[name].hash === expectedHash));
     assert.ok(events.every((event) => !event.containsCredential));
-    assert.ok(!`${result.stdout}${result.stderr}${JSON.stringify(events)}`.includes(overrides[name]));
+    assert.ok(
+      !`${result.stdout}${result.stderr}${JSON.stringify(events)}`.includes(overrides[name]),
+    );
   }
 });
 
@@ -115,9 +147,15 @@ test("isolated E2E launcher bootstraps fresh Compose credentials before starting
     const credentials = dockerEvents[0].credentials;
     assert.ok(credentialNames.every((name) => credentials[name].randomHex));
     assert.equal(new Set(credentialNames.map((name) => credentials[name].hash)).size, 3);
-    assert.ok(dockerEvents.some((event) => event.args.includes("e2e") && event.args.includes("run")));
+    assert.ok(
+      dockerEvents.some((event) => event.args.includes("e2e") && event.args.includes("run")),
+    );
     assert.ok(dockerEvents.at(-1).args.includes("down"));
-    assert.ok(dockerEvents.every((event) => JSON.stringify(event.credentials) === JSON.stringify(credentials)));
+    assert.ok(
+      dockerEvents.every(
+        (event) => JSON.stringify(event.credentials) === JSON.stringify(credentials),
+      ),
+    );
     fingerprints.push(credentialNames.map((name) => credentials[name].hash));
   }
   assert.ok(fingerprints[0].every((value, index) => value !== fingerprints[1][index]));
@@ -140,10 +178,19 @@ test("isolated live ledger checks retain the super email seeded by the Compose f
   assert.equal(result.status, 0, result.stderr);
   // Fixed repository test configuration, independent of operator environment files.
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const fixtureEnvironment = await fs.readFile(new URL("../../deploy/e2e/api.env", import.meta.url), "utf8");
+  const fixtureEnvironment = await fs.readFile(
+    new URL("../../deploy/e2e/api.env", import.meta.url),
+    "utf8",
+  );
   const fixtureEmail = fixtureEnvironment.match(/^SUPER_ADMIN_EMAIL=(.+)$/m)?.[1];
   assert.ok(fixtureEmail);
-  const ledgerChecks = events.filter((event) => event.args.some((arg) => /^src\/scripts\/live-(?:ledger-(?:certification|correction)|staff-ledger)-check\.mjs$/.test(arg)));
+  const ledgerChecks = events.filter((event) =>
+    event.args.some((arg) =>
+      /^src\/scripts\/live-(?:ledger-(?:certification|correction)|staff-ledger)-check\.mjs$/.test(
+        arg,
+      ),
+    ),
+  );
   assert.equal(ledgerChecks.length, 3);
   for (const event of ledgerChecks) {
     const emailOverride = event.args.find((arg) => arg.startsWith("SUPER_ADMIN_EMAIL="));
@@ -157,20 +204,29 @@ test("host E2E runner receives the fixture identity and generated API password i
   const { result, events } = await run({
     E2E_RUNNER: "host",
     SUPER_ADMIN_EMAIL: "unrelated-admin@example.invalid",
-    SUPER_ADMIN_PASSWORD: ambientPassword
+    SUPER_ADMIN_PASSWORD: ambientPassword,
   });
   assert.equal(result.status, 0, result.stderr);
   const runner = events.find((event) => event.name === "npx");
   assert.ok(runner?.args.includes("playwright"));
   // Fixed repository test configuration, independent of operator environment files.
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const fixtureEnvironment = await fs.readFile(new URL("../../deploy/e2e/api.env", import.meta.url), "utf8");
+  const fixtureEnvironment = await fs.readFile(
+    new URL("../../deploy/e2e/api.env", import.meta.url),
+    "utf8",
+  );
   const fixtureEmail = fixtureEnvironment.match(/^SUPER_ADMIN_EMAIL=(.+)$/m)?.[1];
   assert.ok(fixtureEmail);
   assert.equal(runner.login.email, fixtureEmail);
   const generatedPasswordHash = events[0].credentials.E2E_SUPER_ADMIN_PASSWORD.hash;
   assert.equal(runner.login.passwordHash, generatedPasswordHash);
-  assert.notEqual(runner.login.passwordHash, createHash("sha256").update(ambientPassword).digest("hex"));
-  assert.ok(!runner.containsCredential, "The generated password belongs in the runner environment, not command arguments");
+  assert.notEqual(
+    runner.login.passwordHash,
+    createHash("sha256").update(ambientPassword).digest("hex"),
+  );
+  assert.ok(
+    !runner.containsCredential,
+    "The generated password belongs in the runner environment, not command arguments",
+  );
   assert.ok(!`${result.stdout}${result.stderr}${JSON.stringify(events)}`.includes(ambientPassword));
 });

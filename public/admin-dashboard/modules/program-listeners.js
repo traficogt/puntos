@@ -17,7 +17,7 @@ const SUMMARY_FIELDS = [
   "#pointsExpirationDays",
   "#redeemMaxPerDay",
   "#redeemMaxPerRewardDay",
-  "#redeemCooldownHours"
+  "#redeemCooldownHours",
 ];
 
 /**
@@ -55,11 +55,25 @@ export function initProgramListeners(app, actions) {
 
   $("#btnSaveProgram")?.addEventListener("click", () => actions.saveProgramRule().catch(() => {}));
   $("#btnRefreshSuspicious")?.addEventListener("click", fire(actions.loadSuspiciousAwards));
-  $("#btnLoadCampaignRules")?.addEventListener("click", () => actions.loadCampaignRules().catch(() => {}));
-  $("#btnSaveCampaignRules")?.addEventListener("click", () => actions.saveCampaignRules().catch(() => {}));
-  $("#btnLoadExternalAwards")?.addEventListener("click", () => actions.loadExternalAwards().catch(() => {}));
-  $("#btnSaveExternalAwards")?.addEventListener("click", () => actions.saveExternalAwards().catch(() => {}));
-  $("#btnTplCafeBasico")?.addEventListener("click", () => actions.applyAutomationTemplate("cafeteria_basico").catch(() => {}));
-  $("#btnTplReactivacion")?.addEventListener("click", () => actions.applyAutomationTemplate("reactivacion_fuerte").catch(() => {}));
-  $("#btnTplSoloAlertas")?.addEventListener("click", () => actions.applyAutomationTemplate("solo_alertas").catch(() => {}));
+  $("#btnLoadCampaignRules")?.addEventListener("click", () =>
+    actions.loadCampaignRules().catch(() => {}),
+  );
+  $("#btnSaveCampaignRules")?.addEventListener("click", () =>
+    actions.saveCampaignRules().catch(() => {}),
+  );
+  $("#btnLoadExternalAwards")?.addEventListener("click", () =>
+    actions.loadExternalAwards().catch(() => {}),
+  );
+  $("#btnSaveExternalAwards")?.addEventListener("click", () =>
+    actions.saveExternalAwards().catch(() => {}),
+  );
+  $("#btnTplCafeBasico")?.addEventListener("click", () =>
+    actions.applyAutomationTemplate("cafeteria_basico").catch(() => {}),
+  );
+  $("#btnTplReactivacion")?.addEventListener("click", () =>
+    actions.applyAutomationTemplate("reactivacion_fuerte").catch(() => {}),
+  );
+  $("#btnTplSoloAlertas")?.addEventListener("click", () =>
+    actions.applyAutomationTemplate("solo_alertas").catch(() => {}),
+  );
 }

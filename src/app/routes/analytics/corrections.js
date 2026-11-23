@@ -9,7 +9,7 @@ import {
   applyLedgerCorrection,
   listLedgerCorrections,
   rejectLedgerCorrection,
-  requestLedgerCorrection
+  requestLedgerCorrection,
 } from "../../services/ledger-correction-service.js";
 
 export const analyticsCorrectionRoutes = Router();
@@ -18,11 +18,11 @@ const CorrectionCreateSchema = z.object({
   customerId: z.guid(),
   reason: z.string().min(8).max(500),
   sourceRunId: z.guid().optional(),
-  sourceFindingId: z.guid().optional()
+  sourceFindingId: z.guid().optional(),
 });
 
 const CorrectionRejectSchema = z.object({
-  reason: z.string().min(8).max(500)
+  reason: z.string().min(8).max(500),
 });
 
 analyticsCorrectionRoutes.get(
@@ -30,10 +30,10 @@ analyticsCorrectionRoutes.get(
   asyncRoute(async (req, res) => {
     const corrections = await listLedgerCorrections({
       businessId: req.tenantId,
-      limit: Number(req.query?.limit || 50)
+      limit: Number(req.query?.limit || 50),
     });
     return res.json({ ok: true, corrections });
-  })
+  }),
 );
 
 analyticsCorrectionRoutes.post(
@@ -52,11 +52,11 @@ analyticsCorrectionRoutes.post(
       sourceRunId: v.data.sourceRunId ?? null,
       sourceFindingId: v.data.sourceFindingId ?? null,
       ip: req.ip,
-      ua: req.get?.("user-agent") || null
+      ua: req.get?.("user-agent") || null,
     });
 
     return res.status(201).json(out);
-  })
+  }),
 );
 
 analyticsCorrectionRoutes.post(
@@ -69,10 +69,10 @@ analyticsCorrectionRoutes.post(
       correctionId: req.params.id,
       resolvedByStaffId: req.staff.id,
       ip: req.ip,
-      ua: req.get?.("user-agent") || null
+      ua: req.get?.("user-agent") || null,
     });
     return res.json(out);
-  })
+  }),
 );
 
 analyticsCorrectionRoutes.post(
@@ -89,8 +89,8 @@ analyticsCorrectionRoutes.post(
       resolvedByStaffId: req.staff.id,
       reason: v.data.reason,
       ip: req.ip,
-      ua: req.get?.("user-agent") || null
+      ua: req.get?.("user-agent") || null,
     });
     return res.json(out);
-  })
+  }),
 );

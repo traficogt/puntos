@@ -1,6 +1,6 @@
 import { badRequest } from "../../../utils/http-error.js";
 import { normalizePhone } from "../../../utils/phone.js";
-import { normalizePurchaseOccurredAt } from '../purchase-event-time.js';
+import { normalizePurchaseOccurredAt } from "../purchase-event-time.js";
 
 const MAX_BYTES = 200 * 1024;
 const MAX_ROWS = 100;
@@ -29,7 +29,8 @@ function detectDelimiter(csv) {
       if (!quoted && char === ";") semicolons += 1;
     }
   }
-  if (commas && semicolons) throw badRequest("El encabezado CSV mezcla comas y punto y coma; usa un solo separador.");
+  if (commas && semicolons)
+    throw badRequest("El encabezado CSV mezcla comas y punto y coma; usa un solo separador.");
   return semicolons ? ";" : ",";
 }
 
@@ -38,7 +39,8 @@ function parseDocument(input, limits = {}) {
   const maxBytes = Math.min(750 * 1024, limits.bytes ?? MAX_BYTES);
   const maxRows = Math.min(5000, limits.rows ?? MAX_ROWS);
   if (typeof input !== "string") throw badRequest("El CSV debe ser texto.");
-  if (new TextEncoder().encode(input).length > maxBytes) throw badRequest(`El CSV no puede superar ${maxBytes / 1024} KB.`);
+  if (new TextEncoder().encode(input).length > maxBytes)
+    throw badRequest(`El CSV no puede superar ${maxBytes / 1024} KB.`);
   const csv = input.replace(/^\uFEFF/, "");
   const delimiter = detectDelimiter(csv);
   /** @type {CsvRow[]} */
@@ -55,7 +57,8 @@ function parseDocument(input, limits = {}) {
     if (fields.length || field.trim() || quotedRecord) {
       fields.push(field);
       records.push({ row: recordLine, values: fields });
-      if (records.length > maxRows + 1) throw badRequest(`El CSV admite hasta ${maxRows} filas de datos; divide el archivo.`);
+      if (records.length > maxRows + 1)
+        throw badRequest(`El CSV admite hasta ${maxRows} filas de datos; divide el archivo.`);
     }
     fields = [];
     field = "";
@@ -99,16 +102,20 @@ function parseDocument(input, limits = {}) {
       throw badRequest(`CSV inválido en la fila ${recordLine}: revisa las comillas.`);
     } else field += char;
   }
-  if (state === "quoted") throw badRequest(`CSV inválido en la fila ${recordLine}: falta cerrar las comillas.`);
+  if (state === "quoted")
+    throw badRequest(`CSV inválido en la fila ${recordLine}: falta cerrar las comillas.`);
   finishRecord();
   if (!records.length) throw badRequest("El CSV debe incluir encabezados.");
-  const headers = records[0].values.map(value => value.trim());
-  if (headers.some(value => !value) || new Set(headers).size !== headers.length) {
+  const headers = records[0].values.map((value) => value.trim());
+  if (headers.some((value) => !value) || new Set(headers).size !== headers.length) {
     throw badRequest("Los encabezados CSV deben ser únicos y no estar vacíos.");
   }
   const rows = records.slice(1);
   for (const { row, values } of rows) {
-    if (values.length !== headers.length) throw badRequest(`La fila ${row} tiene ${values.length} columnas; se esperaban ${headers.length}.`);
+    if (values.length !== headers.length)
+      throw badRequest(
+        `La fila ${row} tiene ${values.length} columnas; se esperaban ${headers.length}.`,
+      );
   }
   return { headers, rows, delimiter };
 }
@@ -125,15 +132,18 @@ export function parsePosCsv(csv, limits = {}) {
 }
 
 function mapColumns(headers, columns) {
-  if (!columns || typeof columns !== "object" || Array.isArray(columns)) throw badRequest("Selecciona las columnas del CSV.");
+  if (!columns || typeof columns !== "object" || Array.isArray(columns))
+    throw badRequest("Selecciona las columnas del CSV.");
   /** @type {Record<string, number>} */
   const mapping = {};
   for (const [name, header] of Object.entries(columns)) {
     if (!COLUMN_NAMES.includes(name)) throw badRequest(`Columna de destino desconocida: ${name}.`);
     if (!REQUIRED_COLUMNS.includes(name) && (header === "" || header == null)) continue;
-    if (typeof header !== "string" || !headers.includes(header)) throw badRequest(`Selecciona un encabezado válido para ${name}.`);
+    if (typeof header !== "string" || !headers.includes(header))
+      throw badRequest(`Selecciona un encabezado válido para ${name}.`);
     const index = headers.indexOf(header);
-    if (Object.values(mapping).includes(index)) throw badRequest("Cada campo debe usar una columna diferente.");
+    if (Object.values(mapping).includes(index))
+      throw badRequest("Cada campo debe usar una columna diferente.");
     mapping[name] = index;
   }
   for (const name of REQUIRED_COLUMNS) {
@@ -144,13 +154,18 @@ function mapColumns(headers, columns) {
 
 function parseAmount(value, amountUnit, delimiter, minorUnits = 2) {
   const input = value.trim();
-  const pattern = amountUnit === "minor" ? /^\d+$/ : delimiter === ";" ? /^\d+(?:[.,]\d{1,2})?$/ : /^\d+(?:\.\d{1,2})?$/;
+  const pattern =
+    amountUnit === "minor"
+      ? /^\d+$/
+      : delimiter === ";"
+        ? /^\d+(?:[.,]\d{1,2})?$/
+        : /^\d+(?:\.\d{1,2})?$/;
   if (!pattern.test(input)) return null;
   const [whole, decimal = ""] = input.replace(",", ".").split(".");
   const centsText = amountUnit === "minor" ? whole : `${whole}${decimal.padEnd(2, "0")}`;
   const cents = Number(centsText);
   if (!Number.isSafeInteger(cents) || cents < 0) return null;
-  return amountUnit === "minor" ? cents / (10 ** minorUnits) : cents / 100;
+  return amountUnit === "minor" ? cents / 10 ** minorUnits : cents / 100;
 }
 
 /**
@@ -158,14 +173,21 @@ function parseAmount(value, amountUnit, delimiter, minorUnits = 2) {
  * This pure normalizer never looks up or enrolls customers and never awards points.
  * @param {{csv: unknown, source?: unknown, columns?: unknown, amountUnit?: unknown, assumePaid?: unknown}} args
  */
-export function normalizePosCsv({ csv, source, columns, amountUnit = "major", assumePaid = false }, region = {currency:"GTQ",country:"GT",minorUnits:2}) {
+export function normalizePosCsv(
+  { csv, source, columns, amountUnit = "major", assumePaid = false },
+  region = { currency: "GTQ", country: "GT", minorUnits: 2 },
+) {
   const { headers, rows, delimiter } = parseDocument(csv);
   if (columns === undefined) return { headers, sales: [], issues: [] };
   const mapping = mapColumns(headers, columns);
-  if (mapping.status === undefined && assumePaid !== true) throw badRequest("Selecciona el estado de pago o confirma que todas las ventas están pagadas.");
-  if (amountUnit !== "major" && amountUnit !== "minor") throw badRequest("La unidad del monto debe ser major o minor.");
+  if (mapping.status === undefined && assumePaid !== true)
+    throw badRequest("Selecciona el estado de pago o confirma que todas las ventas están pagadas.");
+  if (amountUnit !== "major" && amountUnit !== "minor")
+    throw badRequest("La unidad del monto debe ser major o minor.");
   if (typeof source !== "string" || !/^[\p{L}\p{N}][\p{L}\p{N} ._:-]{0,59}$/u.test(source.trim())) {
-    throw badRequest("La fuente debe tener entre 1 y 60 letras, números, espacios, puntos, guiones o dos puntos.");
+    throw badRequest(
+      "La fuente debe tener entre 1 y 60 letras, números, espacios, puntos, guiones o dos puntos.",
+    );
   }
   const stableSource = source.trim();
   const counts = new Map();
@@ -177,29 +199,58 @@ export function normalizePosCsv({ csv, source, columns, amountUnit = "major", as
   const issues = [];
   for (const { row, values } of rows) {
     const saleId = values[mapping.saleId].trim();
-    const issue = (code, message, status = "error") => issues.push({ row, saleId, source: stableSource,
-      ...(mapping.occurredAt === undefined ? {} : { occurredAt: values[mapping.occurredAt].trim() }), code, message, status });
+    const issue = (code, message, status = "error") =>
+      issues.push({
+        row,
+        saleId,
+        source: stableSource,
+        ...(mapping.occurredAt === undefined
+          ? {}
+          : { occurredAt: values[mapping.occurredAt].trim() }),
+        code,
+        message,
+        status,
+      });
     if (saleId && counts.get(saleId) > 1) {
-      issue("DUPLICATE_SALE_ID", "El ID de venta aparece varias veces en este CSV; revisa todas sus filas.");
+      issue(
+        "DUPLICATE_SALE_ID",
+        "El ID de venta aparece varias veces en este CSV; revisa todas sus filas.",
+      );
       continue;
     }
-    if (mapping.status !== undefined && !PAID_STATUSES.has(values[mapping.status].trim().toLowerCase())) {
-      issue("UNPAID_STATUS", "Solo se importan ventas con estado paid, completed, pagado o pagada.", "ignored");
+    if (
+      mapping.status !== undefined &&
+      !PAID_STATUSES.has(values[mapping.status].trim().toLowerCase())
+    ) {
+      issue(
+        "UNPAID_STATUS",
+        "Solo se importan ventas con estado paid, completed, pagado o pagada.",
+        "ignored",
+      );
       continue;
     }
     if (!saleId || saleId.length > 200 || /[\p{Cc}\p{Cf}]/u.test(saleId)) {
-      issue("INVALID_SALE_ID", "La venta necesita un ID estable de 1 a 200 caracteres sin caracteres de control.");
+      issue(
+        "INVALID_SALE_ID",
+        "La venta necesita un ID estable de 1 a 200 caracteres sin caracteres de control.",
+      );
       continue;
     }
     const phone = values[mapping.customerPhone].trim();
-    const customerPhone = normalizePhone(phone,region.country);
+    const customerPhone = normalizePhone(phone, region.country);
     if (!/^[+\d() .-]+$/.test(phone) || !/^\d{8,15}$/.test(customerPhone)) {
-      issue("INVALID_CUSTOMER_PHONE", "La venta necesita un teléfono válido de un cliente ya inscrito.");
+      issue(
+        "INVALID_CUSTOMER_PHONE",
+        "La venta necesita un teléfono válido de un cliente ya inscrito.",
+      );
       continue;
     }
-    const amountQ = parseAmount(values[mapping.amountQ], amountUnit, delimiter,region.minorUnits);
-    if (amountQ === null || region.minorUnits===0 && !Number.isInteger(amountQ)) {
-      issue("INVALID_AMOUNT", "Usa un monto no negativo sin separadores de miles, con hasta dos decimales; los centavos deben ser enteros.");
+    const amountQ = parseAmount(values[mapping.amountQ], amountUnit, delimiter, region.minorUnits);
+    if (amountQ === null || (region.minorUnits === 0 && !Number.isInteger(amountQ))) {
+      issue(
+        "INVALID_AMOUNT",
+        "Usa un monto no negativo sin separadores de miles, con hasta dos decimales; los centavos deben ser enteros.",
+      );
       continue;
     }
     const itemText = mapping.items === undefined ? "0" : values[mapping.items].trim();
@@ -209,9 +260,25 @@ export function normalizePosCsv({ csv, source, columns, amountUnit = "major", as
       continue;
     }
     let occurredAt = null;
-    try { occurredAt = normalizePurchaseOccurredAt(mapping.occurredAt === undefined ? null : values[mapping.occurredAt].trim()); }
-    catch { issue('INVALID_OCCURRED_AT', 'Usa una fecha ISO válida con zona horaria que no sea futura.'); continue; }
-    sales.push({ row, saleId, source: stableSource, customerPhone, amountQ, currency: region.currency, visits: 1, items, ...(occurredAt ? { occurredAt } : {}) });
+    try {
+      occurredAt = normalizePurchaseOccurredAt(
+        mapping.occurredAt === undefined ? null : values[mapping.occurredAt].trim(),
+      );
+    } catch {
+      issue("INVALID_OCCURRED_AT", "Usa una fecha ISO válida con zona horaria que no sea futura.");
+      continue;
+    }
+    sales.push({
+      row,
+      saleId,
+      source: stableSource,
+      customerPhone,
+      amountQ,
+      currency: region.currency,
+      visits: 1,
+      items,
+      ...(occurredAt ? { occurredAt } : {}),
+    });
   }
   return { headers, sales, issues };
 }

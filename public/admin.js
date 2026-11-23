@@ -1,4 +1,13 @@
-import { api, $, registerServiceWorker, toast, isStrongPassword, passwordRequirementsText, setHidden, hydrateShellLinks } from "/lib.js";
+import {
+  api,
+  $,
+  registerServiceWorker,
+  toast,
+  isStrongPassword,
+  passwordRequirementsText,
+  setHidden,
+  hydrateShellLinks,
+} from "/lib.js";
 
 /** @typedef {import("./types.js").AdminSignupPayload} AdminSignupPayload */
 /** @typedef {import("./types.js").AdminSignupResponse} AdminSignupResponse */
@@ -45,9 +54,7 @@ function updateProgramPreview() {
     const round = select("#round").value;
     const raw = 100 * rate;
     const val =
-      round === "floor" ? Math.floor(raw) :
-      round === "round" ? Math.round(raw) :
-      Math.ceil(raw);
+      round === "floor" ? Math.floor(raw) : round === "round" ? Math.round(raw) : Math.ceil(raw);
     text = `Vista previa: Q100 ≈ ${val} puntos.`;
   } else if (t === "VISIT") {
     text = `Vista previa: cada visita suma ${Number(input("#points_per_visit").value || 0)} puntos.`;
@@ -61,7 +68,7 @@ function updateProgress() {
   const required = [
     input("#businessName").value.trim().length > 1,
     input("#email").value.trim().includes("@"),
-    isStrongPassword(input("#password").value)
+    isStrongPassword(input("#password").value),
   ];
   const score = required.filter(Boolean).length;
   const pct = Math.max(20, Math.round((score / required.length) * 100));
@@ -89,12 +96,20 @@ element("#btnCreate").addEventListener("click", async () => {
   try {
     btn.disabled = true;
     btn.textContent = "Creando...";
-    const program_type = /** @type {AdminSignupPayload["program_type"]} */ (select("#program_type").value);
+    const program_type = /** @type {AdminSignupPayload["program_type"]} */ (
+      select("#program_type").value
+    );
     /** @type {Record<string, unknown>} */
     let program_json = {};
-    if (program_type === "SPEND") program_json = { points_per_q: Number(input("#points_per_q").value), round: select("#round").value };
-    if (program_type === "VISIT") program_json = { points_per_visit: Number(input("#points_per_visit").value) };
-    if (program_type === "ITEM") program_json = { points_per_item: Number(input("#points_per_item").value) };
+    if (program_type === "SPEND")
+      program_json = {
+        points_per_q: Number(input("#points_per_q").value),
+        round: select("#round").value,
+      };
+    if (program_type === "VISIT")
+      program_json = { points_per_visit: Number(input("#points_per_visit").value) };
+    if (program_type === "ITEM")
+      program_json = { points_per_item: Number(input("#points_per_item").value) };
 
     /** @type {AdminSignupPayload} */
     const payload = {
@@ -104,14 +119,16 @@ element("#btnCreate").addEventListener("click", async () => {
       password: input("#password").value,
       category: input("#category").value,
       program_type,
-      program_json
+      program_json,
     };
 
     if (!isStrongPassword(payload.password)) {
       throw new Error(passwordRequirementsText());
     }
 
-    const out = /** @type {AdminSignupResponse} */ (await api("/api/admin/signup", { method: "POST", body: JSON.stringify(payload) }));
+    const out = /** @type {AdminSignupResponse} */ (
+      await api("/api/admin/signup", { method: "POST", body: JSON.stringify(payload) })
+    );
     setHidden(element("#result"), false);
     element("#slug").textContent = out.business.slug;
     const join = `${location.origin}/registro/${out.business.slug}`;

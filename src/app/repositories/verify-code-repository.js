@@ -3,10 +3,13 @@ import { one, exec } from "./base.js";
 export const VerifyCodeRepo = {
   async create({ id, business_id, phone, code_hash, expires_at }) {
     // Keep request history for rate limits while invalidating superseded codes.
-    await exec(`UPDATE verify_codes SET expires_at=LEAST(expires_at, clock_timestamp()) WHERE business_id=$1 AND phone=$2`, [business_id, phone]);
+    await exec(
+      `UPDATE verify_codes SET expires_at=LEAST(expires_at, clock_timestamp()) WHERE business_id=$1 AND phone=$2`,
+      [business_id, phone],
+    );
     await exec(
       `INSERT INTO verify_codes (id, business_id, phone, code_hash, expires_at) VALUES ($1,$2,$3,$4,$5)`,
-      [id, business_id, phone, code_hash, expires_at]
+      [id, business_id, phone, code_hash, expires_at],
     );
   },
 
@@ -19,7 +22,7 @@ export const VerifyCodeRepo = {
          AND failed_attempts < 5
          AND (blocked_until IS NULL OR blocked_until <= now())
        ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
-      [businessId, phone]
+      [businessId, phone],
     );
   },
 
@@ -28,7 +31,7 @@ export const VerifyCodeRepo = {
       `SELECT COUNT(*)::int AS c
        FROM verify_codes
        WHERE business_id=$1 AND phone=$2 AND created_at >= now() - ($3)::interval`,
-      [businessId, phone, interval]
+      [businessId, phone, interval],
     );
     return r?.c ?? 0;
   },
@@ -38,7 +41,10 @@ export const VerifyCodeRepo = {
   },
 
   async invalidateById(id) {
-    await exec(`UPDATE verify_codes SET expires_at=LEAST(expires_at, clock_timestamp()) WHERE id=$1`, [id]);
+    await exec(
+      `UPDATE verify_codes SET expires_at=LEAST(expires_at, clock_timestamp()) WHERE id=$1`,
+      [id],
+    );
   },
 
   async consume(id) {
@@ -46,7 +52,7 @@ export const VerifyCodeRepo = {
       `UPDATE verify_codes SET expires_at=clock_timestamp()
        WHERE id=$1 AND expires_at > clock_timestamp() AND failed_attempts < 5
        AND (blocked_until IS NULL OR blocked_until <= clock_timestamp()) RETURNING id`,
-      [id]
+      [id],
     );
   },
 
@@ -60,7 +66,7 @@ export const VerifyCodeRepo = {
              ELSE blocked_until
            END
        WHERE id = $1`,
-      [id]
+      [id],
     );
-  }
+  },
 };

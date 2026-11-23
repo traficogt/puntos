@@ -1,4 +1,11 @@
-import { clearWalletView, getCustomerEpoch, getCustomerIdentity, invalidateCustomerIdentity, isCustomerAuthError, onCustomerViewClear } from './session.js';
+import {
+  clearWalletView,
+  getCustomerEpoch,
+  getCustomerIdentity,
+  invalidateCustomerIdentity,
+  isCustomerAuthError,
+  onCustomerViewClear,
+} from "./session.js";
 let mounted = null;
 let version = 0;
 export function clearCustomerDemand() {
@@ -7,18 +14,29 @@ export function clearCustomerDemand() {
   mounted = null;
 }
 export function pauseCustomerDemand(identity = null) {
-  if (mounted && (mounted.epoch !== getCustomerEpoch()
-      || (identity && mounted.owner !== JSON.stringify([identity.businessId, identity.customerId])))) return clearCustomerDemand();
-  if (mounted) { mounted.paused = true; mounted.controller?.setPaused(true); }
+  if (
+    mounted &&
+    (mounted.epoch !== getCustomerEpoch() ||
+      (identity && mounted.owner !== JSON.stringify([identity.businessId, identity.customerId])))
+  )
+    return clearCustomerDemand();
+  if (mounted) {
+    mounted.paused = true;
+    mounted.controller?.setPaused(true);
+  }
 }
 onCustomerViewClear(clearCustomerDemand);
 export async function loadCustomerDemand({ api, $, isCurrent, identity = getCustomerIdentity() }) {
-  const container = $('#customerDemand');
+  const container = $("#customerDemand");
   if (!container || !isCurrent()) return;
   if (!identity?.businessId || !identity?.customerId) return clearCustomerDemand();
   const owner = JSON.stringify([identity.businessId, identity.customerId]);
   const epoch = getCustomerEpoch();
-  if (mounted && (mounted.owner !== owner || mounted.epoch !== epoch || mounted.container !== container)) clearCustomerDemand();
+  if (
+    mounted &&
+    (mounted.owner !== owner || mounted.epoch !== epoch || mounted.container !== container)
+  )
+    clearCustomerDemand();
   if (mounted) {
     const record = mounted;
     record.api = api;
@@ -33,36 +51,47 @@ export async function loadCustomerDemand({ api, $, isCurrent, identity = getCust
   }
   const current = ++version;
   try {
-    const { mountDemandNotebook } = await import('../demand-notebook.js');
+    const { mountDemandNotebook } = await import("../demand-notebook.js");
     if (current !== version || !isCurrent()) return;
     const record = { owner, epoch, container, api, isCurrent, paused: false, controller: null };
     mounted = record;
     const active = () => mounted === record && current === version && epoch === getCustomerEpoch();
-    record.controller = mountDemandNotebook({ container, source: 'customer', request: async (path, options) => {
-      if (!active() || record.paused || !record.isCurrent()) throw new DOMException('La sesión cambió.', 'AbortError');
-      try {
-        const result = await record.api(path, options);
-        // A response already in flight still belongs to this session during a
-        // background refresh. Identity changes or logout invalidate it.
-        if (!active()) throw new DOMException('La sesión cambió.', 'AbortError');
-        return result;
-      } catch (error) {
-        if (active() && isCustomerAuthError(error)) {
-          invalidateCustomerIdentity();
-          clearWalletView($);
-          const login = $('#needLogin');
-          if (login) { login.hidden = false; login.classList.toggle('is-hidden', false); }
-          const subtitle = $('#customerEntrySubtitle');
-          if (subtitle) subtitle.textContent = 'Tu sesión venció. Ingresa de nuevo para consultar tus pedidos.';
+    record.controller = mountDemandNotebook({
+      container,
+      source: "customer",
+      request: async (path, options) => {
+        if (!active() || record.paused || !record.isCurrent())
+          throw new DOMException("La sesión cambió.", "AbortError");
+        try {
+          const result = await record.api(path, options);
+          // A response already in flight still belongs to this session during a
+          // background refresh. Identity changes or logout invalidate it.
+          if (!active()) throw new DOMException("La sesión cambió.", "AbortError");
+          return result;
+        } catch (error) {
+          if (active() && isCustomerAuthError(error)) {
+            invalidateCustomerIdentity();
+            clearWalletView($);
+            const login = $("#needLogin");
+            if (login) {
+              login.hidden = false;
+              login.classList.toggle("is-hidden", false);
+            }
+            const subtitle = $("#customerEntrySubtitle");
+            if (subtitle)
+              subtitle.textContent =
+                "Tu sesión venció. Ingresa de nuevo para consultar tus pedidos.";
+          }
+          throw error;
         }
-        throw error;
-      }
-    } });
+      },
+    });
     await record.controller.ready;
   } catch {
     if (current === version && isCurrent()) {
       clearCustomerDemand();
-      container.textContent = 'No pudimos cargar tus pedidos. Actualiza la tarjeta para volver a intentar.';
+      container.textContent =
+        "No pudimos cargar tus pedidos. Actualiza la tarjeta para volver a intentar.";
     }
   }
 }

@@ -20,7 +20,7 @@ const {
   DB_MIGRATIONS_USER,
   DB_MIGRATIONS_PASSWORD,
   DB_USER,
-  DB_PASSWORD
+  DB_PASSWORD,
 } = process.env;
 
 export const APP_TABLE_PRIVILEGES = {
@@ -159,7 +159,7 @@ export const APP_TABLE_PRIVILEGES = {
   native_wallet_passes: ["SELECT", "INSERT", "UPDATE"],
   native_wallet_registrations: ["SELECT", "INSERT", "UPDATE", "DELETE"],
   wallet_passes: ["SELECT"],
-  wallet_pass_updates: ["SELECT"]
+  wallet_pass_updates: ["SELECT"],
 };
 
 export const APP_PUBLIC_TABLES = Object.keys(APP_TABLE_PRIVILEGES);
@@ -179,7 +179,7 @@ export const APP_FUNCTION_SIGNATURES = [
   "app.security_event_log(uuid,text,text,uuid,text,text,text,text,uuid,jsonb)",
   "app.staff_login_lookup(text)",
   "app.sync_business_public()",
-  "app.sync_staff_login_index()"
+  "app.sync_staff_login_index()",
 ];
 
 function quoteIdent(value) {
@@ -206,8 +206,9 @@ export function buildGrantPlan({ appDbUser, dbName }) {
 
   const grantStatements = Array.from(grantGroups.entries())
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([privileges, tables]) =>
-      `GRANT ${privileges} ON TABLE ${tables.join(", ")} TO ${appDbUserIdent}`
+    .map(
+      ([privileges, tables]) =>
+        `GRANT ${privileges} ON TABLE ${tables.join(", ")} TO ${appDbUserIdent}`,
     );
 
   return {
@@ -225,7 +226,7 @@ export function buildGrantPlan({ appDbUser, dbName }) {
       `GRANT UPDATE (wallet_location_enabled, wallet_latitude, wallet_longitude) ON TABLE public."branches" TO ${appDbUserIdent}`,
       `GRANT USAGE, SELECT ON SEQUENCE public.native_wallet_revision_seq TO ${appDbUserIdent}`,
       "CREATE SCHEMA IF NOT EXISTS app",
-      `GRANT USAGE ON SCHEMA app TO ${appDbUserIdent}`
+      `GRANT USAGE ON SCHEMA app TO ${appDbUserIdent}`,
     ],
     grantFunctionsSql: `DO $$
     DECLARE
@@ -237,7 +238,7 @@ export function buildGrantPlan({ appDbUser, dbName }) {
           EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO %I', fn_sig, ${appDbUserLiteral});
         END IF;
       END LOOP;
-    END$$;`
+    END$$;`,
   };
 }
 
@@ -251,7 +252,9 @@ async function main() {
   const connPass = DB_MIGRATIONS_PASSWORD || DB_PASSWORD;
 
   if (!connUser || !connPass) {
-    console.error("DB_MIGRATIONS_USER/DB_MIGRATIONS_PASSWORD (or DB_USER/DB_PASSWORD) are required to create roles.");
+    console.error(
+      "DB_MIGRATIONS_USER/DB_MIGRATIONS_PASSWORD (or DB_USER/DB_PASSWORD) are required to create roles.",
+    );
     process.exit(1);
   }
 
@@ -260,7 +263,7 @@ async function main() {
     port: Number(DB_PORT),
     database: DB_NAME,
     user: connUser,
-    password: connPass
+    password: connPass,
   });
 
   await client.connect();
@@ -287,7 +290,9 @@ async function main() {
     await client.query("COMMIT");
     console.log(`App role '${APP_DB_USER}' ensured with explicit runtime grants.`);
   } catch (err) {
-    try { await client.query("ROLLBACK"); } catch {}
+    try {
+      await client.query("ROLLBACK");
+    } catch {}
     throw err;
   } finally {
     await client.end();

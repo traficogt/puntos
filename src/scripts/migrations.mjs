@@ -1,13 +1,21 @@
 import fs from "node:fs";
 import path from "node:path";
-import { closeDatabase, initDatabase, listManagedMigrations, runManagedMigrations } from "../app/database.js";
+import {
+  closeDatabase,
+  initDatabase,
+  listManagedMigrations,
+  runManagedMigrations,
+} from "../app/database.js";
 
 const cmd = process.argv[2] || "status";
 const migrationsDir = path.join(process.cwd(), "src", "app", "migrations");
 
 function migrationFiles() {
   if (!fs.existsSync(migrationsDir)) return [];
-  return fs.readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort();
+  return fs
+    .readdirSync(migrationsDir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
 }
 
 async function printStatus() {

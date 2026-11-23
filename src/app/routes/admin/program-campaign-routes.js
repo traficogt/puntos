@@ -18,8 +18,12 @@ export function registerProgramCampaignRoutes(router) {
     asyncRoute(async (req, res) => {
       const business = await getBusinessOr404(res, req.tenantId);
       if (!business) return;
-      return res.json({ ok: true, timezone: config.CRON_TZ || "UTC", rules: business.program_json?.campaign_rules ?? [] });
-    })
+      return res.json({
+        ok: true,
+        timezone: config.CRON_TZ || "UTC",
+        rules: business.program_json?.campaign_rules ?? [],
+      });
+    }),
   );
 
   router.put(
@@ -36,9 +40,10 @@ export function registerProgramCampaignRoutes(router) {
       if (!business) return;
 
       const updated = await BusinessRepo.updateCampaignRules(
-        req.tenantId, v.data.rules.map((rule) => ({ ...rule, active: rule.active !== false }))
+        req.tenantId,
+        v.data.rules.map((rule) => ({ ...rule, active: rule.active !== false })),
       );
       return res.json({ ok: true, rules: updated.program_json?.campaign_rules ?? [] });
-    })
+    }),
   );
 }

@@ -1,4 +1,4 @@
-import { MessageProviderError } from './providers/http-provider.js';
+import { MessageProviderError } from "./providers/http-provider.js";
 
 /**
  * @typedef {{
@@ -28,7 +28,9 @@ import { MessageProviderError } from './providers/http-provider.js';
  */
 export function createMessageRouter({ order, providers }) {
   return {
-    canSend(message) { return order.some(name => Boolean(providers[name]?.canSend(message))); },
+    canSend(message) {
+      return order.some((name) => Boolean(providers[name]?.canSend(message)));
+    },
     /**
      * @param {RoutedMessage} message
      */
@@ -45,7 +47,7 @@ export function createMessageRouter({ order, providers }) {
             ok: true,
             attempts,
             provider: name,
-            providerId: out?.providerId ?? name
+            providerId: out?.providerId ?? name,
           };
         } catch (error) {
           // Do not send a second copy when a provider may have accepted the first.
@@ -59,6 +61,6 @@ export function createMessageRouter({ order, providers }) {
         }
       }
       return { ok: false, attempts, error: "NO_DELIVERY_PROVIDER" };
-    }
+    },
   };
 }

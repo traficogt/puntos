@@ -19,10 +19,9 @@ analyticsRfmRoutes.get(
          AND c.deleted_at IS NULL
        GROUP BY rfm_score
        ORDER BY rfm_score DESC`,
-      [req.tenantId]
+      [req.tenantId],
     );
 
     return res.json({ ok: true, distribution: rows });
-  })
+  }),
 );
-

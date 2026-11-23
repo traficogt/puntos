@@ -18,7 +18,7 @@ test("branding form serializes the allowed customer-facing fields and preserves 
     "#brandingNeutralTheme": { value: "warm" },
     "#brandingPoweredByVisible": { checked: false },
     "#brandingWalletHeadline": { value: "Tus puntos en Cafe Bourbon" },
-    "#brandingJoinHeadline": { value: "Unete y gana beneficios" }
+    "#brandingJoinHeadline": { value: "Unete y gana beneficios" },
   });
 
   assert.deepEqual(buildBrandingPayload($), {
@@ -31,7 +31,7 @@ test("branding form serializes the allowed customer-facing fields and preserves 
     neutral_theme: "warm",
     powered_by_visible: false,
     wallet_headline: "Tus puntos en Cafe Bourbon",
-    join_headline: "Unete y gana beneficios"
+    join_headline: "Unete y gana beneficios",
   });
 });
 
@@ -48,8 +48,8 @@ test("customer branding helpers derive visibility and fallback copy from brandin
         accent_color: "#d7a554",
         powered_by_visible: false,
         wallet_headline: "Tus puntos en Cafe Bourbon",
-        join_headline: "Unete y gana beneficios"
-      }
+        join_headline: "Unete y gana beneficios",
+      },
     }),
     {
       businessName: "Cafe Bourbon",
@@ -64,8 +64,8 @@ test("customer branding helpers derive visibility and fallback copy from brandin
       joinHeadline: "Unete y gana beneficios",
       navKicker: "Programa activo",
       navTitle: "Recompensas Cafe Bourbon",
-      joinSubtitle: "Confirma tu telefono para acumular puntos en Cafe Bourbon."
-    }
+      joinSubtitle: "Confirma tu telefono para acumular puntos en Cafe Bourbon.",
+    },
   );
 });
 

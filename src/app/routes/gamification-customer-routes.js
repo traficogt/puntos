@@ -14,9 +14,11 @@ gamificationCustomerRoutes.get(
   tenantContext,
   requirePlanFeature("gamification"),
   asyncRoute(async (req, res) => {
-    const achievements = await GamificationService.getCustomerAchievementsWithProgress(req.customerAuth.id);
+    const achievements = await GamificationService.getCustomerAchievementsWithProgress(
+      req.customerAuth.id,
+    );
     res.json({ ok: true, ...achievements });
-  })
+  }),
 );
 
 gamificationCustomerRoutes.get(
@@ -25,9 +27,12 @@ gamificationCustomerRoutes.get(
   tenantContext,
   requirePlanFeature("gamification"),
   asyncRoute(async (req, res) => {
-    const challenges = await GamificationService.getCustomerChallenges(req.customerAuth.id, req.customerAuth.business_id);
+    const challenges = await GamificationService.getCustomerChallenges(
+      req.customerAuth.id,
+      req.customerAuth.business_id,
+    );
     res.json({ ok: true, challenges });
-  })
+  }),
 );
 
 gamificationCustomerRoutes.get(
@@ -39,7 +44,7 @@ gamificationCustomerRoutes.get(
     const GamificationRepository = await loadGamificationRepository();
     const streak = await GamificationRepository.getCustomerStreak(req.customerAuth.id);
     res.json({ ok: true, streak: streak || { current_streak: 0, longest_streak: 0 } });
-  })
+  }),
 );
 
 gamificationCustomerRoutes.get(
@@ -53,7 +58,10 @@ gamificationCustomerRoutes.get(
       return res.status(400).json({ error: "Invalid leaderboard type" });
     }
 
-    const position = await GamificationService.getCustomerPosition(req.customerAuth.id, leaderboardType);
+    const position = await GamificationService.getCustomerPosition(
+      req.customerAuth.id,
+      leaderboardType,
+    );
     res.json({ ok: true, position });
-  })
+  }),
 );

@@ -21,7 +21,15 @@ function getQueuedAwards() {
 
 hydrateShellLinks();
 
-initStaffPage({ api, $, toast, uuidv4, addAward: putQueuedAward, listAwards: getQueuedAwards, deleteAward }).catch((e) => {
+initStaffPage({
+  api,
+  $,
+  toast,
+  uuidv4,
+  addAward: putQueuedAward,
+  listAwards: getQueuedAwards,
+  deleteAward,
+}).catch((e) => {
   console.error(e);
   toast(e?.message || "Error");
 });

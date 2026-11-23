@@ -23,7 +23,7 @@ export function renderAnalyticsStory($, summary) {
     `Clientes totales: ${Number(summary?.total_customers || 0)}`,
     `Nuevos 30d: ${Number(summary?.new_customers_30d || 0)}`,
     `En riesgo: ${Number(summary?.high_churn_risk_count || 0)}`,
-    `Gasto promedio: ${regionalMoney(summary?.avg_customer_spend || 0)}`
+    `Gasto promedio: ${regionalMoney(summary?.avg_customer_spend || 0)}`,
   ].forEach((text) => {
     const div = document.createElement("div");
     div.className = "badge";
@@ -50,9 +50,10 @@ export function renderSmartAlerts($, summary) {
   const box = $("#smartAlerts");
   if (!box) return;
   const risk = Number(summary?.high_churn_risk_count || 0);
-  box.textContent = risk > 0
-    ? `Sugerencia: activa win-back para ${risk} clientes en riesgo.`
-    : "Sin alertas críticas de churn.";
+  box.textContent =
+    risk > 0
+      ? `Sugerencia: activa win-back para ${risk} clientes en riesgo.`
+      : "Sin alertas críticas de churn.";
 }
 
 /**
@@ -69,7 +70,9 @@ export function renderBranchCompareTable($, perfRows) {
   }
   perfRows.forEach((rowData) => {
     const line = document.createElement("div");
-    const label = rowData.branch_code ? `${rowData.branch_name} (${rowData.branch_code})` : rowData.branch_name;
+    const label = rowData.branch_code
+      ? `${rowData.branch_name} (${rowData.branch_code})`
+      : rowData.branch_name;
     line.textContent = `${label}: ${regionalMoney(rowData.revenue_30d || 0)} • Tx ${Number(rowData.tx_30d || 0)} • Canjes ${Number(rowData.redemptions_30d || 0)}`;
     box.appendChild(line);
   });
@@ -101,7 +104,7 @@ export function renderLedgerReconciliation($, payload) {
     `Última corrida: ${latestRun.completed_at ? new Date(String(latestRun.completed_at)).toLocaleString() : "en progreso"}`,
     `Clientes revisados: ${Number(latestRun.checked_customers || 0)}`,
     `Descuadres detectados: ${Number(latestRun.mismatched_customers || 0)}`,
-    `Auto-reparados: ${Number(latestRun.repaired_customers || 0)}`
+    `Auto-reparados: ${Number(latestRun.repaired_customers || 0)}`,
   ];
   summary.textContent = summaryLines.join("\n");
 
@@ -111,7 +114,9 @@ export function renderLedgerReconciliation($, payload) {
     recent.textContent = recentRuns
       .slice(0, 5)
       .map((run) => {
-        const when = run.completed_at ? new Date(String(run.completed_at)).toLocaleString() : "en progreso";
+        const when = run.completed_at
+          ? new Date(String(run.completed_at)).toLocaleString()
+          : "en progreso";
         return `${when} • revisados ${Number(run.checked_customers || 0)} • descuadres ${Number(run.mismatched_customers || 0)} • reparados ${Number(run.repaired_customers || 0)}`;
       })
       .join("\n");
@@ -158,7 +163,7 @@ export function renderLedgerCertification($, payload) {
     `Ajustes manuales: ${Number(s.adjustment_points || 0)} pts`,
     `Gift cards emitidas: ${regionalMoney(s.gift_cards_issued_q || 0)} • redimidas: ${regionalMoney(s.gift_cards_redeemed_q || 0)}`,
     `Riesgos abiertos: correcciones pendientes ${Number(s.pending_corrections_count || 0)} • balances negativos ${Number(s.negative_balance_count || 0)} • descuadres última conciliación ${Number(s.latest_reconciliation_mismatches || 0)}`,
-    `Última conciliación completada: ${s.latest_reconciliation_completed_at ? new Date(String(s.latest_reconciliation_completed_at)).toLocaleString() : "sin registro"}`
+    `Última conciliación completada: ${s.latest_reconciliation_completed_at ? new Date(String(s.latest_reconciliation_completed_at)).toLocaleString() : "sin registro"}`,
   ].join("\n");
 
   if (!dailyRows.length) {
@@ -168,9 +173,10 @@ export function renderLedgerCertification($, payload) {
 
   rowsBox.textContent = dailyRows
     .slice(0, 31)
-    .map((row) => (
-      `${String(row.date)} • emitidos ${Number(row.points_issued || 0)} • canjeados ${Number(row.points_redeemed || 0)} • reversados ${Number(row.points_reversed || 0)} • expirados ${Number(row.points_expired || 0)} • ajustes ${Number(row.adjustment_points || 0)} • GC emitidas ${regionalMoney(row.gift_cards_issued_q || 0)} • GC redimidas ${regionalMoney(row.gift_cards_redeemed_q || 0)} • replays ${Number(row.replay_events || 0)}`
-    ))
+    .map(
+      (row) =>
+        `${String(row.date)} • emitidos ${Number(row.points_issued || 0)} • canjeados ${Number(row.points_redeemed || 0)} • reversados ${Number(row.points_reversed || 0)} • expirados ${Number(row.points_expired || 0)} • ajustes ${Number(row.adjustment_points || 0)} • GC emitidas ${regionalMoney(row.gift_cards_issued_q || 0)} • GC redimidas ${regionalMoney(row.gift_cards_redeemed_q || 0)} • replays ${Number(row.replay_events || 0)}`,
+    )
     .join("\n");
 }
 
@@ -189,7 +195,7 @@ export function renderLedgerCertificationArchive($, payload) {
 
   summary.textContent = [
     `Días disponibles: ${days.length}`,
-    `Retención: ${retentionDays || 0} días`
+    `Retención: ${retentionDays || 0} días`,
   ].join(" • ");
 
   list.replaceChildren();
@@ -207,7 +213,7 @@ export function renderLedgerCertificationArchive($, payload) {
       String(day.date || "—"),
       `estado ${String(day.certification_status || "UNKNOWN")}`,
       `${String(day.period?.from || "—")} a ${String(day.period?.to || "—")}`,
-      day.generated_at ? new Date(String(day.generated_at)).toLocaleString() : "sin timestamp"
+      day.generated_at ? new Date(String(day.generated_at)).toLocaleString() : "sin timestamp",
     ].join(" • ");
 
     const actions = document.createElement("div");
@@ -246,7 +252,7 @@ export function renderValueAnomalies($, payload) {
     `Replays deduplicados (24h): ${Number(s.replay_events_24h || 0)}`,
     `Reversas (24h): ${Number(s.reversals_24h || 0)}`,
     `Correcciones pendientes: ${Number(s.pending_corrections_count || 0)}`,
-    `Descuadres última conciliación: ${Number(s.latest_reconciliation_mismatches || 0)}`
+    `Descuadres última conciliación: ${Number(s.latest_reconciliation_mismatches || 0)}`,
   ].join("\n");
 
   const lines = [];
@@ -267,16 +273,22 @@ export function renderValueAnomalies($, payload) {
     });
   }
 
-  const negativeBalances = Array.isArray(payload?.negative_balances) ? payload.negative_balances : [];
+  const negativeBalances = Array.isArray(payload?.negative_balances)
+    ? payload.negative_balances
+    : [];
   if (negativeBalances.length) {
     lines.push(lines.length ? "" : "");
     lines.push("Clientes con saldo negativo:");
     negativeBalances.slice(0, 5).forEach((row) => {
-      lines.push(`- ${row.name || row.phone || String(row.id).slice(0, 8)}: ${Number(row.points || 0)} pts`);
+      lines.push(
+        `- ${row.name || row.phone || String(row.id).slice(0, 8)}: ${Number(row.points || 0)} pts`,
+      );
     });
   }
 
-  breakdown.textContent = lines.length ? lines.join("\n") : "Sin anomalías relevantes en este momento.";
+  breakdown.textContent = lines.length
+    ? lines.join("\n")
+    : "Sin anomalías relevantes en este momento.";
 }
 
 /**
@@ -305,7 +317,7 @@ export function renderLedgerCorrections($, payload) {
       `estado ${String(correction.status || "PENDING")}`,
       `pts ${Number(correction.requested_stored_points || 0)} -> ${Number(correction.requested_expected_points || 0)}`,
       `pend ${Number(correction.requested_stored_pending_points || 0)} -> ${Number(correction.requested_expected_pending_points || 0)}`,
-      `life ${Number(correction.requested_stored_lifetime_points || 0)} -> ${Number(correction.requested_expected_lifetime_points || 0)}`
+      `life ${Number(correction.requested_stored_lifetime_points || 0)} -> ${Number(correction.requested_expected_lifetime_points || 0)}`,
     ].join(" • ");
 
     const reason = document.createElement("div");
@@ -344,7 +356,12 @@ export function renderBranchBenchmark($, { branchRows, globalRows, branchLabel }
   const box = $("#branchBenchmark");
   if (!box) return;
   box.replaceChildren();
-  if (!Array.isArray(branchRows) || !Array.isArray(globalRows) || !branchRows.length || !globalRows.length) {
+  if (
+    !Array.isArray(branchRows) ||
+    !Array.isArray(globalRows) ||
+    !branchRows.length ||
+    !globalRows.length
+  ) {
     box.textContent = "(sin datos)";
     return;
   }
@@ -360,7 +377,9 @@ export function renderBranchBenchmark($, { branchRows, globalRows, branchLabel }
   };
   const branchMap = mapByDate(branchRows);
   const globalMap = mapByDate(globalRows);
-  const dates = Array.from(new Set([...branchMap.keys(), ...globalMap.keys()])).sort().slice(-10);
+  const dates = Array.from(new Set([...branchMap.keys(), ...globalMap.keys()]))
+    .sort()
+    .slice(-10);
 
   const rowsWrap = document.createElement("div");
   rowsWrap.className = "benchmark-list";
@@ -397,7 +416,11 @@ export function renderSummaryTiles({ $, summary, app }) {
     { value: Number(summary.total_customers || 0), label: "Clientes totales", money: false },
     { value: Number(summary.new_customers_30d || 0), label: "Nuevos (30d)", money: false },
     { value: Number(summary.high_churn_risk_count || 0), label: "En riesgo", money: false },
-    { value: Number(summary.avg_customer_spend || 0).toFixed(2), label: "Gasto promedio", money: true }
+    {
+      value: Number(summary.avg_customer_spend || 0).toFixed(2),
+      label: "Gasto promedio",
+      money: true,
+    },
   ].forEach(({ value, label, money }) => {
     const card = document.createElement("div");
     card.className = "metric-tile";
@@ -427,13 +450,20 @@ export function renderSummaryTiles({ $, summary, app }) {
 export function renderRfmDistribution({ $, dashboard, app }) {
   const rfmContainer = $("#rfmDist");
   rfmContainer.replaceChildren();
-  const rfmDist = /** @type {AnalyticsRfmSegment[]} */ (Array.isArray(dashboard.rfm_distribution) ? dashboard.rfm_distribution : []);
+  const rfmDist = /** @type {AnalyticsRfmSegment[]} */ (
+    Array.isArray(dashboard.rfm_distribution) ? dashboard.rfm_distribution : []
+  );
   if (!rfmDist.length) {
     app.setSmallMessage(rfmContainer, "No hay datos RFM todavía.");
     return;
   }
 
-  const segName = { Champions: "Campeones", Loyal: "Leales", "At Risk": "En riesgo", Lost: "Perdidos" };
+  const segName = {
+    Champions: "Campeones",
+    Loyal: "Leales",
+    "At Risk": "En riesgo",
+    Lost: "Perdidos",
+  };
   const total = rfmDist.reduce((acc, row) => acc + Number(row.count || 0), 0) || 1;
   rfmDist.forEach((segment) => {
     const row = document.createElement("div");
@@ -459,7 +489,9 @@ export function renderRfmDistribution({ $, dashboard, app }) {
 export function renderRevenueTrend({ $, dashboard, app }) {
   const trendContainer = $("#revenueTrend");
   trendContainer.replaceChildren();
-  const activityRows = /** @type {AnalyticsActivityRow[]} */ (Array.isArray(dashboard.recent_activity) ? dashboard.recent_activity : []);
+  const activityRows = /** @type {AnalyticsActivityRow[]} */ (
+    Array.isArray(dashboard.recent_activity) ? dashboard.recent_activity : []
+  );
   if (!activityRows.length) {
     app.setSmallMessage(trendContainer, "No hay actividad reciente para graficar.");
     return activityRows;
@@ -469,24 +501,27 @@ export function renderRevenueTrend({ $, dashboard, app }) {
   const max = Math.max(...values, 1);
   const bars = document.createElement("div");
   bars.className = "trend-bars";
-  activityRows.slice().reverse().forEach((row) => {
-    const revenue = Number(row.revenue || 0);
-    const line = document.createElement("div");
-    line.className = "trend-row";
-    const label = document.createElement("span");
-    label.className = "small";
-    label.textContent = new Date(row.date).toLocaleDateString();
-    const bar = document.createElement("progress");
-    bar.className = "trend-progress";
-    bar.max = 100;
-    bar.value = Math.max(4, Math.round((revenue / max) * 100));
-    bar.title = `${new Date(row.date).toLocaleDateString()} • ${regionalMoney(revenue)}`;
-    const value = document.createElement("span");
-    value.className = "small";
-    value.textContent = `${regionalMoney(revenue)}`;
-    line.append(label, bar, value);
-    bars.appendChild(line);
-  });
+  activityRows
+    .slice()
+    .reverse()
+    .forEach((row) => {
+      const revenue = Number(row.revenue || 0);
+      const line = document.createElement("div");
+      line.className = "trend-row";
+      const label = document.createElement("span");
+      label.className = "small";
+      label.textContent = new Date(row.date).toLocaleDateString();
+      const bar = document.createElement("progress");
+      bar.className = "trend-progress";
+      bar.max = 100;
+      bar.value = Math.max(4, Math.round((revenue / max) * 100));
+      bar.title = `${new Date(row.date).toLocaleDateString()} • ${regionalMoney(revenue)}`;
+      const value = document.createElement("span");
+      value.className = "small";
+      value.textContent = `${regionalMoney(revenue)}`;
+      line.append(label, bar, value);
+      bars.appendChild(line);
+    });
   trendContainer.appendChild(bars);
   return activityRows;
 }
@@ -538,7 +573,9 @@ export function renderChurnList({ $, churnCustomers, app }) {
  */
 export function renderBranchPerformance({ $, dashboard, app }) {
   const perfContainer = $("#branchPerformance");
-  const perfRows = /** @type {AnalyticsBranchPerformanceRow[]} */ (Array.isArray(dashboard.branch_performance) ? dashboard.branch_performance : []);
+  const perfRows = /** @type {AnalyticsBranchPerformanceRow[]} */ (
+    Array.isArray(dashboard.branch_performance) ? dashboard.branch_performance : []
+  );
   perfContainer.replaceChildren();
   if (!perfRows.length) {
     app.setSmallMessage(perfContainer, "No hay sucursales o no hay actividad reciente.");
@@ -554,7 +591,9 @@ export function renderBranchPerformance({ $, dashboard, app }) {
       app.applyBranchDrilldown(rowData.branch_id).catch(() => {});
     });
     const name = document.createElement("span");
-    name.textContent = rowData.branch_code ? `${rowData.branch_name} (${rowData.branch_code})` : rowData.branch_name;
+    name.textContent = rowData.branch_code
+      ? `${rowData.branch_name} (${rowData.branch_code})`
+      : rowData.branch_name;
     const track = document.createElement("progress");
     track.className = "branch-track";
     track.max = 100;
@@ -604,7 +643,9 @@ export async function loadLedgerCertification({ $, api }) {
   if (from) params.set("from", from);
   if (to) params.set("to", to);
   const query = params.toString();
-  const certification = await api(`/api/admin/analytics/ledger-certification${query ? `?${query}` : ""}`);
+  const certification = await api(
+    `/api/admin/analytics/ledger-certification${query ? `?${query}` : ""}`,
+  );
   renderLedgerCertification($, certification);
 }
 
@@ -627,7 +668,10 @@ export function exportLedgerCertificationCsv($) {
   if (from) params.set("from", from);
   if (to) params.set("to", to);
   const query = params.toString();
-  window.open(apiUrl(`/api/admin/analytics/ledger-certification.csv${query ? `?${query}` : ""}`), "_blank");
+  window.open(
+    apiUrl(`/api/admin/analytics/ledger-certification.csv${query ? `?${query}` : ""}`),
+    "_blank",
+  );
 }
 
 /**
@@ -642,7 +686,7 @@ export async function requestLedgerCorrection({ $, api, toast, loadAnalytics }) 
   }
   await api("/api/admin/analytics/ledger-corrections", {
     method: "POST",
-    body: JSON.stringify({ customerId, reason })
+    body: JSON.stringify({ customerId, reason }),
   });
   const customerIdEl = input($, "#ledgerCorrectionCustomerId");
   const reasonEl = input($, "#ledgerCorrectionReason");
@@ -659,7 +703,7 @@ export async function requestLedgerCorrection({ $, api, toast, loadAnalytics }) 
 export async function applyLedgerCorrection({ api, toast, loadAnalytics }, correctionId) {
   await api(`/api/admin/analytics/ledger-corrections/${encodeURIComponent(correctionId)}/apply`, {
     method: "POST",
-    body: "{}"
+    body: "{}",
   });
   toast("Corrección aplicada.");
   await loadAnalytics();
@@ -674,7 +718,7 @@ export async function rejectLedgerCorrection({ api, toast, loadAnalytics }, corr
   if (!reason) return;
   await api(`/api/admin/analytics/ledger-corrections/${encodeURIComponent(correctionId)}/reject`, {
     method: "POST",
-    body: JSON.stringify({ reason })
+    body: JSON.stringify({ reason }),
   });
   toast("Corrección rechazada.");
   await loadAnalytics();

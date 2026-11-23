@@ -15,12 +15,12 @@ export const CreateSegmentSchema = z.object({
   segment_type: z.enum(["rfm", "behavioral", "custom"]),
   criteria: z.record(z.string(), z.any()).default({}),
   auto_update: z.boolean().optional(),
-  color: z.string().max(20).optional()
+  color: z.string().max(20).optional(),
 });
 
 export const SegmentCustomersQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(100),
-  offset: z.coerce.number().int().min(0).default(0)
+  offset: z.coerce.number().int().min(0).default(0),
 });
 
 analyticsSegmentRoutes.get(
@@ -28,7 +28,7 @@ analyticsSegmentRoutes.get(
   asyncRoute(async (req, res) => {
     const segments = await AnalyticsRepository.listSegments(req.tenantId);
     return res.json({ ok: true, segments });
-  })
+  }),
 );
 
 analyticsSegmentRoutes.post(
@@ -45,12 +45,12 @@ analyticsSegmentRoutes.post(
       segment_type: v.data.segment_type,
       criteria: v.data.criteria,
       auto_update: v.data.auto_update !== false,
-      color: v.data.color
+      color: v.data.color,
     };
 
     const segment = await AnalyticsRepository.createSegment(segmentData);
     return res.status(201).json({ ok: true, segment });
-  })
+  }),
 );
 
 analyticsSegmentRoutes.get(
@@ -59,8 +59,13 @@ analyticsSegmentRoutes.get(
   asyncRoute(async (req, res) => {
     const { limit, offset } = req.validatedQuery;
 
-    const customers = await AnalyticsRepository.getSegmentCustomers(req.tenantId, req.params.id, limit, offset);
+    const customers = await AnalyticsRepository.getSegmentCustomers(
+      req.tenantId,
+      req.params.id,
+      limit,
+      offset,
+    );
 
     return res.json({ ok: true, customers, limit, offset });
-  })
+  }),
 );

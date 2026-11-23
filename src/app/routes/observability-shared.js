@@ -30,11 +30,14 @@ export function buildProbeErrorBody(baseBody) {
   return {
     ...baseBody,
     error: "Service unavailable",
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }
 
-export function createCachedMetricSection(load, { ttlMs = DEFAULT_METRICS_CACHE_TTL_MS, now = Date.now } = {}) {
+export function createCachedMetricSection(
+  load,
+  { ttlMs = DEFAULT_METRICS_CACHE_TTL_MS, now = Date.now } = {},
+) {
   let cache = null;
   let inFlight = null;
 
@@ -68,7 +71,7 @@ export async function checkDatabaseStatus() {
   const checks = {
     service: "ok",
     database: "unknown",
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
   let healthy = true;
 
@@ -109,7 +112,9 @@ export async function appendSharedMetrics(metrics) {
     SELECT 'redemptions', count(*) FROM redemptions
   `);
   for (const row of tableStats.rows) {
-    metrics.push(`# HELP puntos_table_rows_${row.table_name} Number of rows in ${row.table_name} table`);
+    metrics.push(
+      `# HELP puntos_table_rows_${row.table_name} Number of rows in ${row.table_name} table`,
+    );
     metrics.push(`# TYPE puntos_table_rows_${row.table_name} gauge`);
     metrics.push(`puntos_table_rows_${row.table_name} ${row.row_count}`);
   }
@@ -124,7 +129,9 @@ export async function appendSharedMetrics(metrics) {
   for (const row of webhookStats.rows) {
     webhookCounts[row.status] = parseInt(row.count, 10);
   }
-  metrics.push(`# HELP puntos_webhook_deliveries_24h Webhook deliveries in last 24 hours by status`);
+  metrics.push(
+    `# HELP puntos_webhook_deliveries_24h Webhook deliveries in last 24 hours by status`,
+  );
   metrics.push(`# TYPE puntos_webhook_deliveries_24h gauge`);
   metrics.push(`puntos_webhook_deliveries_24h{status="pending"} ${webhookCounts.PENDING}`);
   metrics.push(`puntos_webhook_deliveries_24h{status="sent"} ${webhookCounts.SENT}`);
@@ -140,17 +147,25 @@ export async function appendSharedMetrics(metrics) {
     APPLIED: 0,
     FAILED: 0,
     PENDING_MAPPING: 0,
-    IGNORED: 0
+    IGNORED: 0,
   };
   for (const row of paymentWebhookStats.rows) {
     paymentWebhookCounts[row.status] = Number(row.count);
   }
-  metrics.push(`# HELP puntos_payment_webhook_events_24h Payment webhook events in last 24 hours by status`);
+  metrics.push(
+    `# HELP puntos_payment_webhook_events_24h Payment webhook events in last 24 hours by status`,
+  );
   metrics.push(`# TYPE puntos_payment_webhook_events_24h gauge`);
-  metrics.push(`puntos_payment_webhook_events_24h{status="applied"} ${paymentWebhookCounts.APPLIED}`);
+  metrics.push(
+    `puntos_payment_webhook_events_24h{status="applied"} ${paymentWebhookCounts.APPLIED}`,
+  );
   metrics.push(`puntos_payment_webhook_events_24h{status="failed"} ${paymentWebhookCounts.FAILED}`);
-  metrics.push(`puntos_payment_webhook_events_24h{status="pending_mapping"} ${paymentWebhookCounts.PENDING_MAPPING}`);
-  metrics.push(`puntos_payment_webhook_events_24h{status="ignored"} ${paymentWebhookCounts.IGNORED}`);
+  metrics.push(
+    `puntos_payment_webhook_events_24h{status="pending_mapping"} ${paymentWebhookCounts.PENDING_MAPPING}`,
+  );
+  metrics.push(
+    `puntos_payment_webhook_events_24h{status="ignored"} ${paymentWebhookCounts.IGNORED}`,
+  );
 
   const paymentWebhookBacklog = await dbQuery(`
     SELECT EXTRACT(EPOCH FROM (now() - MIN(created_at))) AS age_seconds
@@ -158,9 +173,13 @@ export async function appendSharedMetrics(metrics) {
     WHERE status = 'PENDING_MAPPING'
   `);
   const pendingMappingAgeSeconds = Number(paymentWebhookBacklog.rows?.[0]?.age_seconds ?? 0);
-  metrics.push(`# HELP puntos_payment_webhook_pending_mapping_oldest_age_seconds Age of the oldest payment webhook waiting for customer mapping`);
+  metrics.push(
+    `# HELP puntos_payment_webhook_pending_mapping_oldest_age_seconds Age of the oldest payment webhook waiting for customer mapping`,
+  );
   metrics.push(`# TYPE puntos_payment_webhook_pending_mapping_oldest_age_seconds gauge`);
-  metrics.push(`puntos_payment_webhook_pending_mapping_oldest_age_seconds ${pendingMappingAgeSeconds.toFixed(0)}`);
+  metrics.push(
+    `puntos_payment_webhook_pending_mapping_oldest_age_seconds ${pendingMappingAgeSeconds.toFixed(0)}`,
+  );
 
   const pointsStats = await dbQuery(`
     SELECT
@@ -198,18 +217,34 @@ export async function appendSharedMetrics(metrics) {
   `);
   const latestRun = reconciliationLatest.rows?.[0] || {};
   const lastCompletedTs = Number(reconciliationLast.rows?.[0]?.last_completed_ts ?? 0);
-  metrics.push(`# HELP puntos_ledger_reconciliation_last_completed_timestamp Unix timestamp of the latest completed ledger reconciliation run`);
+  metrics.push(
+    `# HELP puntos_ledger_reconciliation_last_completed_timestamp Unix timestamp of the latest completed ledger reconciliation run`,
+  );
   metrics.push(`# TYPE puntos_ledger_reconciliation_last_completed_timestamp gauge`);
-  metrics.push(`puntos_ledger_reconciliation_last_completed_timestamp ${lastCompletedTs.toFixed(0)}`);
-  metrics.push(`# HELP puntos_ledger_reconciliation_checked_customers_total Customers checked in the latest completed ledger reconciliation run`);
+  metrics.push(
+    `puntos_ledger_reconciliation_last_completed_timestamp ${lastCompletedTs.toFixed(0)}`,
+  );
+  metrics.push(
+    `# HELP puntos_ledger_reconciliation_checked_customers_total Customers checked in the latest completed ledger reconciliation run`,
+  );
   metrics.push(`# TYPE puntos_ledger_reconciliation_checked_customers_total gauge`);
-  metrics.push(`puntos_ledger_reconciliation_checked_customers_total ${Number(latestRun.checked_customers || 0)}`);
-  metrics.push(`# HELP puntos_ledger_reconciliation_mismatched_customers_total Customers with balance drift in the latest completed ledger reconciliation run`);
+  metrics.push(
+    `puntos_ledger_reconciliation_checked_customers_total ${Number(latestRun.checked_customers || 0)}`,
+  );
+  metrics.push(
+    `# HELP puntos_ledger_reconciliation_mismatched_customers_total Customers with balance drift in the latest completed ledger reconciliation run`,
+  );
   metrics.push(`# TYPE puntos_ledger_reconciliation_mismatched_customers_total gauge`);
-  metrics.push(`puntos_ledger_reconciliation_mismatched_customers_total ${Number(latestRun.mismatched_customers || 0)}`);
-  metrics.push(`# HELP puntos_ledger_reconciliation_repaired_customers_total Customers auto-repaired in the latest completed ledger reconciliation run`);
+  metrics.push(
+    `puntos_ledger_reconciliation_mismatched_customers_total ${Number(latestRun.mismatched_customers || 0)}`,
+  );
+  metrics.push(
+    `# HELP puntos_ledger_reconciliation_repaired_customers_total Customers auto-repaired in the latest completed ledger reconciliation run`,
+  );
   metrics.push(`# TYPE puntos_ledger_reconciliation_repaired_customers_total gauge`);
-  metrics.push(`puntos_ledger_reconciliation_repaired_customers_total ${Number(latestRun.repaired_customers || 0)}`);
+  metrics.push(
+    `puntos_ledger_reconciliation_repaired_customers_total ${Number(latestRun.repaired_customers || 0)}`,
+  );
 
   const anomalyStats = await dbQuery(`
     SELECT
@@ -249,15 +284,23 @@ export async function appendSharedMetrics(metrics) {
   metrics.push(`# HELP puntos_negative_balances_total Customers with negative point balances`);
   metrics.push(`# TYPE puntos_negative_balances_total gauge`);
   metrics.push(`puntos_negative_balances_total ${Number(anomaly.negative_balances || 0)}`);
-  metrics.push(`# HELP puntos_reversals_24h_total Reversal transactions created in the last 24 hours`);
+  metrics.push(
+    `# HELP puntos_reversals_24h_total Reversal transactions created in the last 24 hours`,
+  );
   metrics.push(`# TYPE puntos_reversals_24h_total gauge`);
   metrics.push(`puntos_reversals_24h_total ${Number(anomaly.reversals_24h || 0)}`);
-  metrics.push(`# HELP puntos_value_replay_events_24h_total Deduplicated value-changing replay events in the last 24 hours`);
+  metrics.push(
+    `# HELP puntos_value_replay_events_24h_total Deduplicated value-changing replay events in the last 24 hours`,
+  );
   metrics.push(`# TYPE puntos_value_replay_events_24h_total gauge`);
   metrics.push(`puntos_value_replay_events_24h_total ${Number(anomaly.replay_events_24h || 0)}`);
-  metrics.push(`# HELP puntos_pending_ledger_corrections_total Pending manual ledger corrections awaiting owner review`);
+  metrics.push(
+    `# HELP puntos_pending_ledger_corrections_total Pending manual ledger corrections awaiting owner review`,
+  );
   metrics.push(`# TYPE puntos_pending_ledger_corrections_total gauge`);
-  metrics.push(`puntos_pending_ledger_corrections_total ${Number(anomaly.pending_corrections || 0)}`);
+  metrics.push(
+    `puntos_pending_ledger_corrections_total ${Number(anomaly.pending_corrections || 0)}`,
+  );
 }
 
 export function appendProcessMetrics(metrics) {
@@ -274,7 +317,7 @@ export function appendProcessMetrics(metrics) {
   metrics.push(`# HELP puntos_build_info Build and runtime identity`);
   metrics.push(`# TYPE puntos_build_info gauge`);
   metrics.push(
-    `puntos_build_info{service="${info.service}",version="${info.version}",environment="${info.environment}",build_sha="${info.build_sha || "unknown"}"} 1`
+    `puntos_build_info{service="${info.service}",version="${info.version}",environment="${info.environment}",build_sha="${info.build_sha || "unknown"}"} 1`,
   );
 }
 
@@ -286,7 +329,12 @@ export async function appendBillingMetrics(metrics) {
       AND event_type IN ('message.sent','message.failed','webhook.sent','webhook.failed')
     GROUP BY event_type
   `);
-  const billingMap = { "message.sent": 0, "message.failed": 0, "webhook.sent": 0, "webhook.failed": 0 };
+  const billingMap = {
+    "message.sent": 0,
+    "message.failed": 0,
+    "webhook.sent": 0,
+    "webhook.failed": 0,
+  };
   for (const row of billingAgg.rows) {
     billingMap[row.event_type] = Number(row.count);
   }
@@ -322,7 +370,9 @@ export async function appendBackgroundJobMetrics(metrics) {
     LIMIT 1
   `);
   const ageSeconds = Number(oldestQueued.rows?.[0]?.age_seconds ?? 0);
-  metrics.push(`# HELP puntos_jobs_oldest_age_seconds Age of oldest queued job (negative means scheduled in future)`);
+  metrics.push(
+    `# HELP puntos_jobs_oldest_age_seconds Age of oldest queued job (negative means scheduled in future)`,
+  );
   metrics.push(`# TYPE puntos_jobs_oldest_age_seconds gauge`);
   metrics.push(`puntos_jobs_oldest_age_seconds ${ageSeconds.toFixed(0)}`);
 
@@ -335,10 +385,16 @@ export async function appendBackgroundJobMetrics(metrics) {
     WHERE status = 'RUNNING' OR completed_at >= now() - interval '24 hours'
   `);
   const running = runningAges.rows?.[0] || {};
-  metrics.push(`# HELP puntos_jobs_running_oldest_age_seconds Age of the oldest running background job`);
+  metrics.push(
+    `# HELP puntos_jobs_running_oldest_age_seconds Age of the oldest running background job`,
+  );
   metrics.push(`# TYPE puntos_jobs_running_oldest_age_seconds gauge`);
-  metrics.push(`puntos_jobs_running_oldest_age_seconds ${Number(running.oldest_running_age_seconds || 0).toFixed(0)}`);
-  metrics.push(`# HELP puntos_jobs_running_stale_total Background jobs still running after 15 minutes`);
+  metrics.push(
+    `puntos_jobs_running_oldest_age_seconds ${Number(running.oldest_running_age_seconds || 0).toFixed(0)}`,
+  );
+  metrics.push(
+    `# HELP puntos_jobs_running_stale_total Background jobs still running after 15 minutes`,
+  );
   metrics.push(`# TYPE puntos_jobs_running_stale_total gauge`);
   metrics.push(`puntos_jobs_running_stale_total ${Number(running.stale_running_count || 0)}`);
   metrics.push(`# HELP puntos_jobs_failed_24h Background jobs failed in the last 24 hours`);
@@ -365,6 +421,6 @@ export function serviceInfo() {
     build_timestamp: buildTimestamp() || null,
     uptime_seconds: process.uptime(),
     node_version: process.version,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }

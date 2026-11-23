@@ -4,10 +4,22 @@ import fs from "node:fs";
 import path from "node:path";
 
 const htmlPath = path.join(process.cwd(), "public/admin-dashboard.html");
-const analyticsDashboardPath = path.join(process.cwd(), "public/admin-dashboard/modules/analytics/dashboard.js");
-const executiveSummaryLoaderPath = path.join(process.cwd(), "public/admin-dashboard/modules/analytics/executive-summary-loader.js");
-const executiveSummaryPath = path.join(process.cwd(), "public/admin-dashboard/modules/analytics/executive-summary.js");
-const analyticsOperationsPath = path.join(process.cwd(), "public/admin-dashboard/modules/analytics/operations.js");
+const analyticsDashboardPath = path.join(
+  process.cwd(),
+  "public/admin-dashboard/modules/analytics/dashboard.js",
+);
+const executiveSummaryLoaderPath = path.join(
+  process.cwd(),
+  "public/admin-dashboard/modules/analytics/executive-summary-loader.js",
+);
+const executiveSummaryPath = path.join(
+  process.cwd(),
+  "public/admin-dashboard/modules/analytics/executive-summary.js",
+);
+const analyticsOperationsPath = path.join(
+  process.cwd(),
+  "public/admin-dashboard/modules/analytics/operations.js",
+);
 
 test("admin dashboard exposes a growth-first executive summary layer", () => {
   const html = fs.readFileSync(htmlPath, "utf8");
@@ -24,16 +36,28 @@ test("analytics dashboard delegates executive summary rendering to a dedicated m
   const summaryJs = fs.readFileSync(executiveSummaryPath, "utf8");
   const operationsJs = fs.readFileSync(analyticsOperationsPath, "utf8");
 
-  assert.match(dashboardJs, /import\s*\{\s*hydrateExecutiveSummary\s*\}\s*from\s*["']\.\/executive-summary-loader\.js["']/);
+  assert.match(
+    dashboardJs,
+    /import\s*\{\s*hydrateExecutiveSummary\s*\}\s*from\s*["']\.\/executive-summary-loader\.js["']/,
+  );
   assert.match(dashboardJs, /const churnData = await hydrateExecutiveSummary\(/);
   assert.match(dashboardJs, /const roiPrefetchPromise = api\("\/api\/admin\/roi\?days=30"\)/);
-  assert.match(dashboardJs, /const alertsPrefetchPromise = api\("\/api\/admin\/alerts\?limit=60"\)/);
+  assert.match(
+    dashboardJs,
+    /const alertsPrefetchPromise = api\("\/api\/admin\/alerts\?limit=60"\)/,
+  );
   assert.doesNotMatch(dashboardJs, /Promise\.allSettled/);
   assert.doesNotMatch(dashboardJs, /const roiReport = await loadRoiReport/);
   assert.doesNotMatch(dashboardJs, /const alertsCenter = await loadAlertsCenter/);
   assert.doesNotMatch(dashboardJs, /renderExecutiveSummary/);
-  assert.match(dashboardJs, /#btnRefreshRoi"\)\?\.addEventListener\("click", \(\) => loadAnalytics\(\)\.catch\(\(\) => \{\}\)\)/);
-  assert.match(dashboardJs, /#btnRefreshAlerts"\)\?\.addEventListener\("click", \(\) => loadAnalytics\(\)\.catch\(\(\) => \{\}\)\)/);
+  assert.match(
+    dashboardJs,
+    /#btnRefreshRoi"\)\?\.addEventListener\("click", \(\) => loadAnalytics\(\)\.catch\(\(\) => \{\}\)\)/,
+  );
+  assert.match(
+    dashboardJs,
+    /#btnRefreshAlerts"\)\?\.addEventListener\("click", \(\) => loadAnalytics\(\)\.catch\(\(\) => \{\}\)\)/,
+  );
   assert.match(loaderJs, /Promise\.allSettled/);
   assert.match(loaderJs, /roiPrefetchPromise/);
   assert.match(loaderJs, /alertsPrefetchPromise/);
@@ -51,8 +75,14 @@ test("analytics dashboard delegates executive summary rendering to a dedicated m
 test("executive summary keeps ROI or cost semantics separate from attributed revenue growth", () => {
   const summaryJs = fs.readFileSync(executiveSummaryPath, "utf8");
 
-  assert.doesNotMatch(summaryJs, /setText\(\$, "#adminKpiRoi", formatSignedPercent\(metrics\.roiGrowth\)\)/);
-  assert.match(summaryJs, /setText\(\$, "#adminKpiAttributedRevenueDelta", metrics\.roiGrowth !== null/);
+  assert.doesNotMatch(
+    summaryJs,
+    /setText\(\$, "#adminKpiRoi", formatSignedPercent\(metrics\.roiGrowth\)\)/,
+  );
+  assert.match(
+    summaryJs,
+    /setText\(\s*\$,\s*"#adminKpiAttributedRevenueDelta",\s*metrics\.roiGrowth !== null/,
+  );
 });
 
 test("executive summary avoids top-branch fallbacks and qualifies global branch-mode actions", () => {
@@ -66,7 +96,13 @@ test("executive summary avoids top-branch fallbacks and qualifies global branch-
 test("executive summary keeps missing alerts and branch retention in an explicit unknown state", () => {
   const summaryJs = fs.readFileSync(executiveSummaryPath, "utf8");
 
-  assert.doesNotMatch(summaryJs, /Array\.isArray\(alertsCenter\?\.alerts\) \? alertsCenter\.alerts\.length : 0/);
-  assert.match(summaryJs, /if \(branchId\) \{\s*return null;\s*\}\s*if \(roi\?\.repeat_rate_pct !== null && roi\?\.repeat_rate_pct !== undefined\)/);
+  assert.doesNotMatch(
+    summaryJs,
+    /Array\.isArray\(alertsCenter\?\.alerts\) \? alertsCenter\.alerts\.length : 0/,
+  );
+  assert.match(
+    summaryJs,
+    /if \(branchId\) \{\s*return null;\s*\}\s*if \(roi\?\.repeat_rate_pct !== null && roi\?\.repeat_rate_pct !== undefined\)/,
+  );
   assert.match(summaryJs, /sin lectura de alertas operativas/);
 });

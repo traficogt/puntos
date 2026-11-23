@@ -27,8 +27,14 @@ const concurrency = Number(arg("--concurrency", process.env.LOAD_CONCURRENCY || 
 const timeoutMs = Number(arg("--timeout-ms", process.env.LOAD_TIMEOUT_MS || "5000"));
 const maxP95Ms = Number(arg("--max-p95-ms", process.env.LOAD_MAX_P95_MS || "750"));
 const maxErrorRate = Number(arg("--max-error-rate", process.env.LOAD_MAX_ERROR_RATE || "0.02"));
-const superEmail = arg("--super-email", process.env.LOAD_SUPER_EMAIL || process.env.SUPER_ADMIN_EMAIL || "");
-const superPassword = arg("--super-password", process.env.LOAD_SUPER_PASSWORD || process.env.SUPER_ADMIN_PASSWORD || "");
+const superEmail = arg(
+  "--super-email",
+  process.env.LOAD_SUPER_EMAIL || process.env.SUPER_ADMIN_EMAIL || "",
+);
+const superPassword = arg(
+  "--super-password",
+  process.env.LOAD_SUPER_PASSWORD || process.env.SUPER_ADMIN_PASSWORD || "",
+);
 const requireSuper = hasFlag("--require-super");
 
 /**
@@ -81,9 +87,12 @@ async function timedFetch(url, init = {}) {
  * @returns {string}
  */
 function cookieHeader(response) {
-  const cookies = typeof response.headers.getSetCookie === "function"
-    ? response.headers.getSetCookie()
-    : (response.headers.get("set-cookie") ? [response.headers.get("set-cookie")] : []);
+  const cookies =
+    typeof response.headers.getSetCookie === "function"
+      ? response.headers.getSetCookie()
+      : response.headers.get("set-cookie")
+        ? [response.headers.get("set-cookie")]
+        : [];
   return cookies
     .map((value) => value.split(";", 1)[0])
     .filter(Boolean)
@@ -95,14 +104,17 @@ function cookieHeader(response) {
  */
 async function getSuperCookie() {
   if (!superEmail || !superPassword) {
-    assert(!requireSuper, "Critical load auth scenario requested but super credentials are missing.");
+    assert(
+      !requireSuper,
+      "Critical load auth scenario requested but super credentials are missing.",
+    );
     return "";
   }
 
   const { response } = await timedFetch(new URL("/api/super/login", baseUrl), {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: superEmail, password: superPassword })
+    body: JSON.stringify({ email: superEmail, password: superPassword }),
   });
   assert(response.ok, `/api/super/login returned HTTP ${response.status}`);
   const cookie = cookieHeader(response);
@@ -119,35 +131,39 @@ async function buildTargets() {
     {
       label: "health",
       url: new URL("/api/health", baseUrl),
-      validate: (response) => response.ok
+      validate: (response) => response.ok,
     },
     {
       label: "ready",
       url: new URL("/api/ready", baseUrl),
-      validate: (response) => response.ok
+      validate: (response) => response.ok,
     },
     {
       label: "info",
       url: new URL("/api/info", baseUrl),
-      validate: (response) => response.ok
+      validate: (response) => response.ok,
     },
     {
       label: "openapi",
       url: new URL("/api/v1/openapi.json", baseUrl),
-      validate: (response) => response.ok
-    }
+      validate: (response) => response.ok,
+    },
   ];
 
   if (scenario === "public") return publicTargets;
 
   const cookie = await getSuperCookie();
   /** @type {LoadTarget[]} */
-  const authTargets = cookie ? [{
-    label: "super-me",
-    url: new URL("/api/super/me", baseUrl),
-    init: { headers: { cookie } },
-    validate: (response) => response.ok
-  }] : [];
+  const authTargets = cookie
+    ? [
+        {
+          label: "super-me",
+          url: new URL("/api/super/me", baseUrl),
+          init: { headers: { cookie } },
+          validate: (response) => response.ok,
+        },
+      ]
+    : [];
 
   if (scenario === "auth") {
     assert(authTargets.length > 0, "Auth scenario requires super credentials.");
@@ -188,7 +204,9 @@ async function main() {
     }
   }
 
-  console.log(`LOAD base_url=${baseUrl} scenario=${scenario} requests=${totalRequests} concurrency=${concurrency}`);
+  console.log(
+    `LOAD base_url=${baseUrl} scenario=${scenario} requests=${totalRequests} concurrency=${concurrency}`,
+  );
   await Promise.all(Array.from({ length: Math.max(1, concurrency) }, worker));
 
   let overallFailures = 0;
@@ -203,9 +221,13 @@ async function main() {
     const p95 = percentile(record.durations, 95);
     overallP95 = Math.max(overallP95, p95);
     const errorRate = record.failures / record.total;
-    console.log(`LOAD ${label} total=${record.total} failures=${record.failures} error_rate=${(errorRate * 100).toFixed(2)}% avg=${formatMs(avg)} p95=${formatMs(p95)}`);
+    console.log(
+      `LOAD ${label} total=${record.total} failures=${record.failures} error_rate=${(errorRate * 100).toFixed(2)}% avg=${formatMs(avg)} p95=${formatMs(p95)}`,
+    );
     if (errorRate > maxErrorRate) {
-      throw new Error(`${label} exceeded error rate threshold (${(errorRate * 100).toFixed(2)}% > ${(maxErrorRate * 100).toFixed(2)}%)`);
+      throw new Error(
+        `${label} exceeded error rate threshold (${(errorRate * 100).toFixed(2)}% > ${(maxErrorRate * 100).toFixed(2)}%)`,
+      );
     }
     if (p95 > maxP95Ms) {
       throw new Error(`${label} exceeded p95 threshold (${formatMs(p95)} > ${formatMs(maxP95Ms)})`);
@@ -213,7 +235,9 @@ async function main() {
   }
 
   const overallErrorRate = overallTotal ? overallFailures / overallTotal : 1;
-  console.log(`LOAD overall total=${overallTotal} failures=${overallFailures} error_rate=${(overallErrorRate * 100).toFixed(2)}% worst_p95=${formatMs(overallP95)}`);
+  console.log(
+    `LOAD overall total=${overallTotal} failures=${overallFailures} error_rate=${(overallErrorRate * 100).toFixed(2)}% worst_p95=${formatMs(overallP95)}`,
+  );
   console.log("LOAD PASS");
 }
 

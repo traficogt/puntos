@@ -19,7 +19,7 @@ export const TierCreateSchema = z.object({
   points_multiplier: z.number().min(1).max(20).optional(),
   perks: z.array(z.string().max(200)).max(30).optional(),
   color: z.string().max(20).optional().nullable(),
-  icon_url: z.string().max(300).optional().nullable()
+  icon_url: z.string().max(300).optional().nullable(),
 });
 
 export const TierUpdateSchema = TierCreateSchema.partial();
@@ -33,7 +33,7 @@ router.get(
   asyncRoute(async (req, res) => {
     const tiers = await TierService.getBusinessTiersWithStats(req.tenantId);
     res.json({ ok: true, tiers });
-  })
+  }),
 );
 
 router.post(
@@ -55,12 +55,12 @@ router.post(
       points_multiplier: v.data.points_multiplier,
       perks: v.data.perks,
       color: v.data.color,
-      icon_url: v.data.icon_url
+      icon_url: v.data.icon_url,
     };
 
     const tier = await TierService.createTier(req.tenantId, tierData);
     res.status(201).json({ ok: true, tier });
-  })
+  }),
 );
 
 router.put(
@@ -74,13 +74,23 @@ router.put(
     const v = validate(TierUpdateSchema, req.body);
     if (!v.ok) return res.status(400).json({ error: v.error });
     const updates = {};
-    for (const key of ["name", "min_points", "min_spend", "min_visits", "points_multiplier", "perks", "color", "icon_url", "active"]) {
+    for (const key of [
+      "name",
+      "min_points",
+      "min_spend",
+      "min_visits",
+      "points_multiplier",
+      "perks",
+      "color",
+      "icon_url",
+      "active",
+    ]) {
       if (v.data[key] !== undefined) updates[key] = v.data[key];
     }
 
     const tier = await TierService.updateTier(req.params.id, req.tenantId, updates);
     res.json({ ok: true, tier });
-  })
+  }),
 );
 
 router.delete(
@@ -93,7 +103,7 @@ router.delete(
   asyncRoute(async (req, res) => {
     await TierService.deleteTier(req.params.id, req.tenantId);
     res.json({ ok: true });
-  })
+  }),
 );
 
 router.get(
@@ -105,7 +115,7 @@ router.get(
     const customerId = req.customerAuth.id;
     const tierInfo = await TierService.getCustomerTierInfo(customerId);
     res.json({ ok: true, tier: tierInfo });
-  })
+  }),
 );
 
 export default router;

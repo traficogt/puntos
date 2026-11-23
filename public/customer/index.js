@@ -5,7 +5,12 @@ import { loadAll } from "./load.js";
 import { setOnlineBadge } from "./network.js";
 import { createQrController } from "./qr.js";
 import { registerServiceWorker } from "/lib.js";
-import { clearWalletView, invalidateCustomerIdentity, isCustomerAuthError, readCustomerStorage } from "./session.js";
+import {
+  clearWalletView,
+  invalidateCustomerIdentity,
+  isCustomerAuthError,
+  readCustomerStorage,
+} from "./session.js";
 import { createWalletNavigation, walletDestination } from "./wallet-navigation.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
@@ -48,7 +53,11 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     await clearCustomerCache().catch(() => {});
     entryParams.delete("sesion");
     const destination = walletDestination((location.hash || "").slice(1));
-    window.history?.replaceState(null, "", `${location.pathname}${entryParams.size ? `?${entryParams}` : ""}${destination ? `#${destination}` : ""}`);
+    window.history?.replaceState(
+      null,
+      "",
+      `${location.pathname}${entryParams.size ? `?${entryParams}` : ""}${destination ? `#${destination}` : ""}`,
+    );
   }
   let refreshInFlight = false;
   let refreshTimer = null;
@@ -60,7 +69,10 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
 
   async function refreshWallet({ silent = true } = {}) {
     if (loggingOut) return;
-    if (refreshInFlight) { refreshPending = true; return; }
+    if (refreshInFlight) {
+      refreshPending = true;
+      return;
+    }
     refreshInFlight = true;
     destinationNavigation.pause();
     const btn = /** @type {HTMLButtonElement | null} */ (safeEl($, "#btnRefreshWallet"));
@@ -79,7 +91,10 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
         btn.disabled = false;
         btn.textContent = previousText;
       }
-      if (refreshPending) { refreshPending = false; ignore(refreshWallet({ silent: true })); }
+      if (refreshPending) {
+        refreshPending = false;
+        ignore(refreshWallet({ silent: true }));
+      }
     }
   }
 
@@ -101,7 +116,10 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
       if (!isCustomerAuthError(error)) {
         loggingOut = false;
         const logout = safeEl($, "#btnLogout");
-        if (logout) { logout.hidden = false; logout.classList.toggle("is-hidden", false); }
+        if (logout) {
+          logout.hidden = false;
+          logout.classList.toggle("is-hidden", false);
+        }
         toast("No se pudo cerrar la sesión del servidor. Conéctate e intenta salir de nuevo.");
         return;
       }
@@ -121,18 +139,30 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     const btn = /** @type {HTMLButtonElement | null} */ (safeEl($, "#btnGiftTransfer"));
     const recipient_phone = phoneEl ? String(phoneEl.value || "").trim() : "";
     const amount_q = amtEl ? Number(amtEl.value || 0) : 0;
-    if (!recipient_phone) { if (statusEl) statusEl.textContent = "Ingresa el teléfono de quien recibe."; return; }
-    if (!(amount_q > 0)) { if (statusEl) statusEl.textContent = "Ingresa un monto a regalar."; return; }
+    if (!recipient_phone) {
+      if (statusEl) statusEl.textContent = "Ingresa el teléfono de quien recibe.";
+      return;
+    }
+    if (!(amount_q > 0)) {
+      if (statusEl) statusEl.textContent = "Ingresa un monto a regalar.";
+      return;
+    }
     if (btn) btn.disabled = true;
     if (statusEl) statusEl.textContent = "Enviando…";
     try {
-      const out = await api("/api/customer/giftcard/transfer", { method: "POST", body: JSON.stringify({ recipient_phone, amount_q, requestId: crypto.randomUUID() }) });
-      if (statusEl) statusEl.textContent = `Regalaste Q${Number(out.transferred_q).toFixed(2)}. Tu nuevo saldo: Q${Number(out.balance_after_q).toFixed(2)}.`;
+      const out = await api("/api/customer/giftcard/transfer", {
+        method: "POST",
+        body: JSON.stringify({ recipient_phone, amount_q, requestId: crypto.randomUUID() }),
+      });
+      if (statusEl)
+        statusEl.textContent = `Regalaste Q${Number(out.transferred_q).toFixed(2)}. Tu nuevo saldo: Q${Number(out.balance_after_q).toFixed(2)}.`;
       if (amtEl) amtEl.value = "0";
       if (phoneEl) phoneEl.value = "";
       await loadAll({ api, $, toast, silent: true });
     } catch (error) {
-      if (statusEl) statusEl.textContent = (error && error.message) ? error.message : "No se pudo regalar el saldo.";
+      if (statusEl)
+        statusEl.textContent =
+          error && error.message ? error.message : "No se pudo regalar el saldo.";
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -141,42 +171,50 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
   $("#btnCopyCode")?.addEventListener("click", () => {
     const code = /** @type {HTMLInputElement | null} */ ($("#referralCode"))?.value || "";
     if (code && code !== "N/A" && code !== "---") {
-      navigator.clipboard.writeText(code).then(() => {
-        toast("¡Código copiado! Compártelo con tus amigos.");
-      }).catch(() => {
-        toast(`No se pudo copiar. Copia manualmente: ${code}`);
-      });
+      navigator.clipboard
+        .writeText(code)
+        .then(() => {
+          toast("¡Código copiado! Compártelo con tus amigos.");
+        })
+        .catch(() => {
+          toast(`No se pudo copiar. Copia manualmente: ${code}`);
+        });
     }
   });
 
   $("#btnViewAllAchievements")?.addEventListener("click", async () => {
-    await run(async () => {
-      const achData = /** @type {CustomerAchievementsResponse} */ (await api("/api/customer/achievements"));
-      const earned = achData.earned || [];
-      const inProgress = achData.inProgress || [];
+    await run(
+      async () => {
+        const achData = /** @type {CustomerAchievementsResponse} */ (
+          await api("/api/customer/achievements")
+        );
+        const earned = achData.earned || [];
+        const inProgress = achData.inProgress || [];
 
-      let message = "🏆 LOGROS OBTENIDOS:\n\n";
-      if (earned.length === 0) {
-        message += "Ninguno todavía.\n\n";
-      } else {
-        earned.forEach((a) => {
-          message += `${a.icon_url || "🏆"} ${a.name}\n   ${a.description || ""}\n   Obtenido: ${new Date(a.earned_at).toLocaleDateString()}\n\n`;
-        });
-      }
+        let message = "🏆 LOGROS OBTENIDOS:\n\n";
+        if (earned.length === 0) {
+          message += "Ninguno todavía.\n\n";
+        } else {
+          earned.forEach((a) => {
+            message += `${a.icon_url || "🏆"} ${a.name}\n   ${a.description || ""}\n   Obtenido: ${new Date(a.earned_at).toLocaleDateString()}\n\n`;
+          });
+        }
 
-      message += "\n⏳ EN PROGRESO:\n\n";
-      if (inProgress.length === 0) {
-        message += "Todos completados!";
-      } else {
-        inProgress.forEach((a) => {
-          message += `${a.icon_url || "⏳"} ${a.name} (${a.progress}%)\n   ${a.description || ""}\n   Progreso: ${a.current}/${a.total}\n\n`;
-        });
-      }
+        message += "\n⏳ EN PROGRESO:\n\n";
+        if (inProgress.length === 0) {
+          message += "Todos completados!";
+        } else {
+          inProgress.forEach((a) => {
+            message += `${a.icon_url || "⏳"} ${a.name} (${a.progress}%)\n   ${a.description || ""}\n   Progreso: ${a.current}/${a.total}\n\n`;
+          });
+        }
 
-      await modalAlert(message, { title: "Tus logros", pre: true });
-    }, () => {
-      toast("No se pudieron cargar los logros");
-    });
+        await modalAlert(message, { title: "Tus logros", pre: true });
+      },
+      () => {
+        toast("No se pudieron cargar los logros");
+      },
+    );
   });
 
   window.addEventListener("online", () => {
@@ -185,17 +223,29 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
       $("#btnLogout")?.dispatchEvent(new Event("click"));
     } else ignore(refreshWallet({ silent: true }));
   });
-  window.addEventListener("offline", () => { destinationNavigation.pause(); setOnlineBadge($); clearGrowthOffers($); clearRewardEntitlements($); });
+  window.addEventListener("offline", () => {
+    destinationNavigation.pause();
+    setOnlineBadge($);
+    clearGrowthOffers($);
+    clearRewardEntitlements($);
+  });
   window.addEventListener("focus", () => ignore(refreshWallet({ silent: true })));
   window.addEventListener("hashchange", () => destinationNavigation.navigate());
-  window.addEventListener("storage", event => {
-    if (event.key !== "pf_customer_epoch" && event.key !== "pf_customer_identity" && event.key !== "pf_customer_blocked" && event.key !== null) return;
+  window.addEventListener("storage", (event) => {
+    if (
+      event.key !== "pf_customer_epoch" &&
+      event.key !== "pf_customer_identity" &&
+      event.key !== "pf_customer_blocked" &&
+      event.key !== null
+    )
+      return;
     destinationNavigation.pause();
     clearWalletView($);
     dispose();
     // Removing identity means logout or verification is still in progress.
     // Revalidate only after a later focus or a completed identity change.
-    if (event.key === "pf_customer_identity" && event.newValue) ignore(refreshWallet({ silent: true }));
+    if (event.key === "pf_customer_identity" && event.newValue)
+      ignore(refreshWallet({ silent: true }));
   });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") ignore(refreshWallet({ silent: true }));
@@ -213,11 +263,15 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     ignore(refreshWallet({ silent: true }));
   }, 15000);
 
-  window.addEventListener("beforeunload", () => {
-    destinationNavigation.pause();
-    if (refreshTimer) window.clearInterval(refreshTimer);
-    dispose();
-  }, { once: true });
+  window.addEventListener(
+    "beforeunload",
+    () => {
+      destinationNavigation.pause();
+      if (refreshTimer) window.clearInterval(refreshTimer);
+      dispose();
+    },
+    { once: true },
+  );
 
   ignore(registerServiceWorker());
 }

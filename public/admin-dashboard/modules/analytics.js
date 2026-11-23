@@ -19,7 +19,7 @@ export function registerAnalyticsModule(app) {
     loadJobsStatus: operations.loadJobsStatus,
     loadPaymentPending: operations.loadPaymentPending,
     loadAlertsCenter: operations.loadAlertsCenter,
-    loadAuditTimeline: audit.loadAuditTimeline
+    loadAuditTimeline: audit.loadAuditTimeline,
   };
   const dashboard = createAnalyticsDashboardController(app, deps);
   /** @type {AnalyticsModuleControllers} */
@@ -39,6 +39,6 @@ export function registerAnalyticsModule(app) {
   app.registerTab("analytics", {
     feature: "analytics",
     allowManager: false,
-    load: controllers.dashboard.loadAnalytics
+    load: controllers.dashboard.loadAnalytics,
   });
 }

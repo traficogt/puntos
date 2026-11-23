@@ -13,14 +13,24 @@ export function createCustomerEnrollment(app) {
   let current = () => false;
   let ready = false;
 
-  const scope = () => JSON.stringify([app.state.currentStaff?.id, app.state.currentStaff?.business_id, app.state.currentStaff?.role]);
+  const scope = () =>
+    JSON.stringify([
+      app.state.currentStaff?.id,
+      app.state.currentStaff?.business_id,
+      app.state.currentStaff?.role,
+    ]);
   const allowed = () => app.state.currentStaff?.role === "OWNER" && !isDashboardSessionBlocked();
-  function message(text) { if (feedback) feedback.textContent = text; }
+  function message(text) {
+    if (feedback) feedback.textContent = text;
+  }
   function clear() {
     ready = false;
     if (field) field.value = "";
     if (copy) copy.disabled = true;
-    if (qr) { qr.hidden = true; qr.removeAttribute("src"); }
+    if (qr) {
+      qr.hidden = true;
+      qr.removeAttribute("src");
+    }
     if (download) {
       download.removeAttribute("href");
       download.setAttribute("aria-disabled", "true");
@@ -40,7 +50,10 @@ export function createCustomerEnrollment(app) {
     const request = ++generation;
     clear();
     if (retry) retry.hidden = true;
-    if (!allowed()) { invalidate(); return; }
+    if (!allowed()) {
+      invalidate();
+      return;
+    }
     const session = captureDashboardSession();
     const staffScope = scope();
     const businessId = String(app.state.currentStaff.business_id);
@@ -52,9 +65,17 @@ export function createCustomerEnrollment(app) {
       const data = await app.api("/api/admin/customer-enrollment");
       if (!valid()) return;
       const url = new URL(data.registration_url);
-      if (String(data.business?.id) !== businessId || !data.business?.slug ||
-          !["https:", "http:"].includes(url.protocol) || url.username || url.password || url.search || url.hash ||
-          url.pathname !== `/registro/${encodeURIComponent(data.business.slug)}`) throw new Error("Invalid invitation scope");
+      if (
+        String(data.business?.id) !== businessId ||
+        !data.business?.slug ||
+        !["https:", "http:"].includes(url.protocol) ||
+        url.username ||
+        url.password ||
+        url.search ||
+        url.hash ||
+        url.pathname !== `/registro/${encodeURIComponent(data.business.slug)}`
+      )
+        throw new Error("Invalid invitation scope");
       if (field) field.value = url.href;
       if (copy) copy.disabled = false;
       if (download) {
@@ -76,7 +97,10 @@ export function createCustomerEnrollment(app) {
   }
 
   copy?.addEventListener("click", async () => {
-    if (!ready || !current() || !field) { invalidate(); return; }
+    if (!ready || !current() || !field) {
+      invalidate();
+      return;
+    }
     const valid = current;
     const url = field.value;
     try {
@@ -92,21 +116,32 @@ export function createCustomerEnrollment(app) {
     }
   });
   retry?.addEventListener("click", load);
-  download?.addEventListener("click", event => {
-    if (!ready || !current()) { event.preventDefault(); invalidate(); }
+  download?.addEventListener("click", (event) => {
+    if (!ready || !current()) {
+      event.preventDefault();
+      invalidate();
+    }
   });
-  qr?.addEventListener("load", () => { if (ready && current()) qr.hidden = false; });
+  qr?.addEventListener("load", () => {
+    if (ready && current()) qr.hidden = false;
+  });
   qr?.addEventListener("error", () => {
     if (!ready || !current()) return;
     qr.hidden = true;
     message("El enlace está listo, pero no pudimos cargar el QR. Puedes volver a intentarlo.");
     if (retry) retry.hidden = false;
   });
-  window.addEventListener("storage", event => {
-    if (event.key === "pf_staff_epoch" || event.key === "pf_staff_logout_pending" && event.newValue === "1") invalidate();
+  window.addEventListener("storage", (event) => {
+    if (
+      event.key === "pf_staff_epoch" ||
+      (event.key === "pf_staff_logout_pending" && event.newValue === "1")
+    )
+      invalidate();
   });
   window.addEventListener("pagehide", invalidate);
-  window.addEventListener("pageshow", event => { if (event.persisted) void load(); });
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) void load();
+  });
   clear();
   return { load };
 }

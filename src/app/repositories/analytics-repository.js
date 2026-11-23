@@ -9,5 +9,5 @@ export const AnalyticsRepository = {
   ...rfmRepository,
   ...churnRepository,
   ...segmentRepository,
-  ...cohortRepository
+  ...cohortRepository,
 };

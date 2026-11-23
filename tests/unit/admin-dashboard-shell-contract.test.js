@@ -46,7 +46,7 @@ test("admin dashboard core updates shell chrome from active tab state", () => {
   assert.match(core, /const TAB_PRESENTATION =/);
   assert.match(
     core,
-    /function updateDashboardChrome\([\s\S]*?const overviewScope = \$\("#adminOverviewScope"\);\n    if \(overviewScope\) overviewScope\.textContent = selectedScopeLabel\(\);\n    const growthScope = \$\("#adminGrowthScope"\);\n    if \(growthScope\) growthScope\.textContent = selectedScopeLabel\(\);/
+    /function updateDashboardChrome\([\s\S]*?const overviewScope = \$\("#adminOverviewScope"\);\n    if \(overviewScope\) overviewScope\.textContent = selectedScopeLabel\(\);\n    const growthScope = \$\("#adminGrowthScope"\);\n    if \(growthScope\) growthScope\.textContent = selectedScopeLabel\(\);/,
   );
   assert.match(core, /adminOverviewTab/);
   assert.match(core, /adminStageDesc/);

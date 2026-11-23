@@ -26,7 +26,7 @@ test("marketing host sends customer registration and team routes to the app orig
     path: "/registro/cafe-bourbon",
     originalUrl: "/registro/cafe-bourbon",
     appOrigin: "http://app.localhost:3001",
-    marketingOrigin: "http://localhost:3001"
+    marketingOrigin: "http://localhost:3001",
   });
 
   const staffRedirect = resolveHostSplitRedirect({
@@ -34,7 +34,7 @@ test("marketing host sends customer registration and team routes to the app orig
     path: "/staff/login",
     originalUrl: "/staff/login",
     appOrigin: "http://app.localhost:3001",
-    marketingOrigin: "http://localhost:3001"
+    marketingOrigin: "http://localhost:3001",
   });
 
   assert.equal(registroRedirect, "http://app.localhost:3001/registro/cafe-bourbon");

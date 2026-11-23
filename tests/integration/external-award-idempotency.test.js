@@ -6,7 +6,14 @@ import pg from "pg";
 import { awardFromExternalEventWithDeps } from "../../src/app/services/external-award-service.js";
 import { BusinessRepo } from "../../src/app/repositories/business-repository.js";
 import { CustomerRepo } from "../../src/app/repositories/customer-repository.js";
-import { closeDatabase, dbQuery, runWithDbContext, setCurrentTenant, withDbClientContext, withTransaction } from "../../src/app/database.js";
+import {
+  closeDatabase,
+  dbQuery,
+  runWithDbContext,
+  setCurrentTenant,
+  withDbClientContext,
+  withTransaction,
+} from "../../src/app/database.js";
 
 const runIntegration = process.env.RUN_INTEGRATION === "true";
 const integrationDescribe = runIntegration ? describe : describe.skip;
@@ -33,15 +40,17 @@ async function createFixture() {
       program_json: {
         external_awards: {
           enabled: true,
-          api_key: "test-secret"
-        }
-      }
+          api_key: "test-secret",
+        },
+      },
     });
     await CustomerRepo.create({
       id: customerId,
       business_id: businessId,
-      phone: `+50255${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`,
-      name: "External Award Customer"
+      phone: `+50255${Math.floor(Math.random() * 1000000)
+        .toString()
+        .padStart(6, "0")}`,
+      name: "External Award Customer",
     });
   });
 
@@ -57,8 +66,16 @@ after(async () => {
     host: process.env.TEST_DB_HOST || process.env.DB_HOST || "localhost",
     port: Number(process.env.TEST_DB_PORT || process.env.DB_PORT || 5432),
     database: process.env.TEST_DB_NAME || process.env.DB_NAME || "puntos",
-    user: process.env.TEST_DB_USER || process.env.DB_MIGRATIONS_USER || process.env.DB_USER || "postgres",
-    password: process.env.TEST_DB_PASSWORD || process.env.DB_MIGRATIONS_PASSWORD || process.env.DB_PASSWORD || ""
+    user:
+      process.env.TEST_DB_USER ||
+      process.env.DB_MIGRATIONS_USER ||
+      process.env.DB_USER ||
+      "postgres",
+    password:
+      process.env.TEST_DB_PASSWORD ||
+      process.env.DB_MIGRATIONS_PASSWORD ||
+      process.env.DB_PASSWORD ||
+      "",
   });
   try {
     await client.connect();
@@ -81,40 +98,46 @@ integrationDescribe("External award idempotency integration", () => {
       withTransaction,
       setCurrentTenant,
       BusinessRepo: {
-        getPublicBySlug: async (candidateSlug) => (candidateSlug === slug ? { id: businessId, slug } : null),
-        getById: async (id) => (id === businessId ? {
-          id: businessId,
-          program_json: {
-            pending_points_hold_days: holdDays,
-            external_awards: {
-              enabled: true,
-              api_key: "test-secret"
-            }
-          }
-        } : null)
+        getPublicBySlug: async (candidateSlug) =>
+          candidateSlug === slug ? { id: businessId, slug } : null,
+        getById: async (id) =>
+          id === businessId
+            ? {
+                id: businessId,
+                program_json: {
+                  pending_points_hold_days: holdDays,
+                  external_awards: {
+                    enabled: true,
+                    api_key: "test-secret",
+                  },
+                },
+              }
+            : null,
       },
       CustomerRepo: {
-        getById: async (id) => (id === customerId ? { id: customerId, business_id: businessId } : null),
-        getByBusinessAndPhone: async () => null
+        getById: async (id) =>
+          id === customerId ? { id: customerId, business_id: businessId } : null,
+        getByBusinessAndPhone: async () => null,
       },
       computePoints: () => pointsAwarded,
-      timingSafeEqualString: (a, b) => a === b
+      timingSafeEqualString: (a, b) => a === b,
     };
 
-    const invoke = (meta) => runWithDbContext({ tenantId: null, platformAdmin: false, webhookIngest: false }, () => (
-      awardFromExternalEventWithDeps(deps, {
-        businessSlug: slug,
-        apiKey: undefined,
-        externalEventId,
-        customerId,
-        customerPhone: undefined,
-        amount_q: 50,
-        visits: 1,
-        items: 2,
-        meta,
-        skipApiKeyCheck: true
-      })
-    ));
+    const invoke = (meta) =>
+      runWithDbContext({ tenantId: null, platformAdmin: false, webhookIngest: false }, () =>
+        awardFromExternalEventWithDeps(deps, {
+          businessSlug: slug,
+          apiKey: undefined,
+          externalEventId,
+          customerId,
+          customerPhone: undefined,
+          amount_q: 50,
+          visits: 1,
+          items: 2,
+          meta,
+          skipApiKeyCheck: true,
+        }),
+      );
 
     const meta = { source: "integration", receipt: { amount: 50, currency: "GTQ" } };
     const [first, second] = await Promise.all([invoke(meta), invoke(meta)]);
@@ -125,29 +148,42 @@ integrationDescribe("External award idempotency integration", () => {
     assert.equal(Number(first.pointsAwarded), Number(second.pointsAwarded));
     assert.ok(first.replay === true || second.replay === true);
     holdDays = 3;
-    const replay = await invoke({ receipt: { currency: "GTQ", amount: 50 }, source: "integration" });
+    const replay = await invoke({
+      receipt: { currency: "GTQ", amount: 50 },
+      source: "integration",
+    });
     assert.equal(replay.transactionId, first.transactionId);
     assert.equal(replay.status, "POSTED");
     assert.equal(replay.replay, true);
-    await assert.rejects(invoke({ ...meta, source: "changed-payload" }), { statusCode: 409, message: /different payload/ });
+    await assert.rejects(invoke({ ...meta, source: "changed-payload" }), {
+      statusCode: 409,
+      message: /different payload/,
+    });
 
-    const { rows: txRows } = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => (
-      dbQuery(
-        `SELECT id, points, source, meta->>'external_event_id' AS external_event_id
+    const { rows: txRows } = await withDbClientContext(
+      { platformAdmin: true, tenantId: null },
+      async () =>
+        dbQuery(
+          `SELECT id, points, source, meta->>'external_event_id' AS external_event_id
          FROM transactions
          WHERE business_id = $1
            AND customer_id = $2
            AND source = 'external'
            AND meta->>'external_event_id' = $3`,
-        [businessId, customerId, externalEventId]
-      )
-    ));
+          [businessId, customerId, externalEventId],
+        ),
+    );
     assert.equal(txRows.length, 1);
     assert.equal(String(txRows[0].external_event_id), externalEventId);
 
-    const { rows: balanceRows } = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => (
-      dbQuery("SELECT points, pending_points, lifetime_points FROM customer_balances WHERE customer_id = $1", [customerId])
-    ));
+    const { rows: balanceRows } = await withDbClientContext(
+      { platformAdmin: true, tenantId: null },
+      async () =>
+        dbQuery(
+          "SELECT points, pending_points, lifetime_points FROM customer_balances WHERE customer_id = $1",
+          [customerId],
+        ),
+    );
     assert.equal(balanceRows.length, 1);
     assert.equal(Number(balanceRows[0].points), Number(txRows[0].points));
     assert.equal(Number(balanceRows[0].pending_points), 0);

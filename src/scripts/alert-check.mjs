@@ -62,7 +62,9 @@ function parseMetrics(text) {
   const samples = new Map();
   for (const line of text.split(/\r?\n/)) {
     if (!line || line.startsWith("#")) continue;
-    const match = line.match(/^([a-zA-Z_:][a-zA-Z0-9_:]*)(?:\{([^}]*)\})?\s+(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)$/i);
+    const match = line.match(
+      /^([a-zA-Z_:][a-zA-Z0-9_:]*)(?:\{([^}]*)\})?\s+(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)$/i,
+    );
     if (!match) continue;
     const [, name, rawLabels = "", rawValue] = match;
     const labels = parseLabels(rawLabels);
@@ -93,7 +95,10 @@ function getMetric(samples, name, labels = {}) {
  */
 function ensureMetric(samples, name, labels = {}) {
   const value = getMetric(samples, name, labels);
-  assert(value !== undefined, `Missing metric ${name}${Object.keys(labels).length ? ` ${JSON.stringify(labels)}` : ""}`);
+  assert(
+    value !== undefined,
+    `Missing metric ${name}${Object.keys(labels).length ? ` ${JSON.stringify(labels)}` : ""}`,
+  );
   return value;
 }
 
@@ -141,8 +146,8 @@ async function fetchMetrics(baseUrl, metricsPath, metricsToken, warmupPaths = []
 
   const response = await fetch(new URL(metricsPath, baseUrl), {
     headers: {
-      authorization: `Bearer ${metricsToken}`
-    }
+      authorization: `Bearer ${metricsToken}`,
+    },
   });
   assert(response.ok, `${metricsPath} returned HTTP ${response.status}`);
   return parseMetrics(await response.text());
@@ -159,7 +164,10 @@ function hasAnySample(samples, metricName) {
 const baseUrl = arg("--base-url", process.env.ALERT_BASE_URL || "http://localhost:3001");
 const apiBaseUrl = arg("--api-base-url", process.env.ALERT_API_BASE_URL || baseUrl);
 const workerBaseUrl = arg("--worker-base-url", process.env.ALERT_WORKER_BASE_URL || "");
-const metricsToken = arg("--metrics-token", process.env.ALERT_METRICS_TOKEN || process.env.METRICS_TOKEN || "");
+const metricsToken = arg(
+  "--metrics-token",
+  process.env.ALERT_METRICS_TOKEN || process.env.METRICS_TOKEN || "",
+);
 /** @type {AlertMode} */
 const mode = /** @type {AlertMode} */ (arg("--mode", process.env.ALERT_MODE || "presence"));
 /** @type {AlertScope} */
@@ -168,7 +176,7 @@ const allowAlerts = new Set(
   String(arg("--allow-alerts", process.env.ALERT_ALLOW_ALERTS || ""))
     .split(",")
     .map((value) => value.trim())
-    .filter(Boolean)
+    .filter(Boolean),
 );
 
 const validModes = new Set(["presence", "evaluate"]);
@@ -189,7 +197,7 @@ const apiPresenceMetrics = [
   ["puntos_pending_ledger_corrections_total"],
   ["puntos_build_info"],
   ["puntos_process_memory_bytes"],
-  ["puntos_process_uptime_seconds"]
+  ["puntos_process_uptime_seconds"],
 ];
 
 /** @type {MetricRequirement[]} */
@@ -206,7 +214,7 @@ const workerPresenceMetrics = [
   ["puntos_churn_last_sent_timestamp"],
   ["puntos_db_connections_active"],
   ["puntos_build_info"],
-  ["puntos_process_uptime_seconds"]
+  ["puntos_process_uptime_seconds"],
 ];
 
 /**
@@ -231,7 +239,7 @@ function buildApiChecks(samples) {
     checks.push({
       name: "PuntosMetricsCollectionFailing",
       value: getMetricOrDefault(samples, "puntos_metrics_error", 0),
-      ok: (value) => value <= 0
+      ok: (value) => value <= 0,
     });
   } else {
     report("PuntosMetricsCollectionFailing", "clear", "value=0 (metric absent)");
@@ -250,43 +258,43 @@ function buildWorkerChecks(samples) {
     {
       name: "PuntosWebhookFailures24h",
       value: ensureMetric(samples, "puntos_webhook_deliveries_24h", { status: "failed" }),
-      ok: (value) => value <= 5
+      ok: (value) => value <= 5,
     },
     {
       name: "PuntosPaymentWebhookPendingMappingOld",
       value: ensureMetric(samples, "puntos_payment_webhook_pending_mapping_oldest_age_seconds"),
-      ok: (value) => value <= 900
+      ok: (value) => value <= 900,
     },
     {
       name: "PuntosJobBacklogOld",
       value: ensureMetric(samples, "puntos_jobs_oldest_age_seconds"),
-      ok: (value) => value <= 900
+      ok: (value) => value <= 900,
     },
     {
       name: "PuntosJobFailuresPresent",
       value: ensureMetric(samples, "puntos_jobs_total", { status: "failed" }),
-      ok: (value) => value <= 0
+      ok: (value) => value <= 0,
     },
     {
       name: "PuntosRunningJobsStale",
       value: ensureMetric(samples, "puntos_jobs_running_stale_total"),
-      ok: (value) => value <= 0
+      ok: (value) => value <= 0,
     },
     {
       name: "PuntosRedisQueueHealthFailing",
       value: ensureMetric(samples, "puntos_job_queue_depth"),
-      ok: (value) => value >= 0
+      ok: (value) => value >= 0,
     },
     {
       name: "PuntosChurnSchedulerStale",
       value: churnLastSent > 0 ? Math.max(0, Math.floor(Date.now() / 1000) - churnLastSent) : 0,
-      ok: (value) => churnLastSent <= 0 || value <= 172800
+      ok: (value) => churnLastSent <= 0 || value <= 172800,
     },
     {
       name: "PuntosDbConnectionsHigh",
       value: ensureMetric(samples, "puntos_db_connections_active"),
-      ok: (value) => value <= 40
-    }
+      ok: (value) => value <= 40,
+    },
   ];
 }
 
@@ -317,12 +325,12 @@ async function main() {
   }
 
   if (needsApi) {
-    const apiSamples = await fetchMetrics(
-      apiBaseUrl,
-      "/api/metrics",
-      metricsToken,
-      ["/api/health", "/api/ready", "/api/info", "/api/v1/openapi.json"]
-    );
+    const apiSamples = await fetchMetrics(apiBaseUrl, "/api/metrics", metricsToken, [
+      "/api/health",
+      "/api/ready",
+      "/api/info",
+      "/api/v1/openapi.json",
+    ]);
 
     checkPresence(apiSamples, apiPresenceMetrics, "scope=api");
     if (mode === "evaluate") {
@@ -331,12 +339,12 @@ async function main() {
   }
 
   if (needsWorker) {
-    const workerSamples = await fetchMetrics(
-      workerBaseUrl,
-      "/metrics",
-      metricsToken,
-      ["/health", "/ready", "/info", "/queue/health"]
-    );
+    const workerSamples = await fetchMetrics(workerBaseUrl, "/metrics", metricsToken, [
+      "/health",
+      "/ready",
+      "/info",
+      "/queue/health",
+    ]);
 
     checkPresence(workerSamples, workerPresenceMetrics, "scope=worker");
     if (mode === "evaluate") {

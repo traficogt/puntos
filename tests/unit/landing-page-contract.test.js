@@ -11,5 +11,9 @@ test("landing content is never gated behind a scroll-reveal script", () => {
   assert.doesNotMatch(html, /class="[^"]*\breveal\b/);
   assert.doesNotMatch(js, /classList\.add\("reveal-ready"\)/);
   assert.match(html, /<main\s+id="contenido"/);
-  assert.match(html, /<noscript>/, "contact form explains the verification requirement without JavaScript");
+  assert.match(
+    html,
+    /<noscript>/,
+    "contact form explains the verification requirement without JavaScript",
+  );
 });

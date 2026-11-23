@@ -19,8 +19,8 @@ export const GiftCardRepo = {
         card.balance_q,
         card.status ?? "ACTIVE",
         card.expires_at ?? null,
-        card.created_by ?? null
-      ]
+        card.created_by ?? null,
+      ],
     );
     return this.getById(card.id);
   },
@@ -30,23 +30,23 @@ export const GiftCardRepo = {
   },
 
   async getByCodeOrToken(businessId, codeOrToken) {
-    return one(
-      `SELECT * FROM gift_cards WHERE business_id = $1 AND (code = $2 OR qr_token = $2)`,
-      [businessId, codeOrToken]
-    );
+    return one(`SELECT * FROM gift_cards WHERE business_id = $1 AND (code = $2 OR qr_token = $2)`, [
+      businessId,
+      codeOrToken,
+    ]);
   },
 
   async listByBusiness(businessId, limit = 100) {
     return many(
       `SELECT * FROM gift_cards WHERE business_id = $1 ORDER BY created_at DESC LIMIT $2`,
-      [businessId, limit]
+      [businessId, limit],
     );
   },
 
   async updateBalanceAndStatus(id, balance, status) {
     await exec(
       `UPDATE gift_cards SET balance_q = $2, status = $3, updated_at = now() WHERE id = $1`,
-      [id, balance, status]
+      [id, balance, status],
     );
     return this.getById(id);
   },
@@ -64,15 +64,15 @@ export const GiftCardRepo = {
         tx.tx_type,
         tx.amount_q,
         tx.balance_after_q,
-        tx.meta ?? {}
-      ]
+        tx.meta ?? {},
+      ],
     );
   },
 
   async listTxByCard(giftCardId, limit = 50) {
     return many(
       `SELECT * FROM gift_card_transactions WHERE gift_card_id = $1 ORDER BY created_at DESC LIMIT $2`,
-      [giftCardId, limit]
+      [giftCardId, limit],
     );
-  }
+  },
 };

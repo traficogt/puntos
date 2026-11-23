@@ -44,7 +44,8 @@ export function registerOpsModule(app) {
       title.textContent = "Excelente: onboarding completo";
       const detail = document.createElement("div");
       detail.className = "small";
-      detail.textContent = "Ya cubriste los pasos clave. Ahora enfócate en retención y recompensas.";
+      detail.textContent =
+        "Ya cubriste los pasos clave. Ahora enfócate en retención y recompensas.";
       nextCard.append(title, detail);
     }
     box.appendChild(nextCard);
@@ -96,27 +97,30 @@ export function registerOpsModule(app) {
     if (!box) return;
     box.textContent = "Actualizando checklist...";
     try {
-      const [
-        programOut,
-        rewardsOut,
-        staffOut,
-        branchesOut,
-        analyticsOut
-      ] = await Promise.all([
+      const [programOut, rewardsOut, staffOut, branchesOut, analyticsOut] = await Promise.all([
         api("/api/admin/program").catch(() => ({})),
-        app.hasFeature("rewards") ? api("/api/admin/rewards").catch(() => ({})) : Promise.resolve({}),
-        app.hasFeature("staff_management") ? api("/api/admin/staff").catch(() => ({})) : Promise.resolve({}),
-        app.hasFeature("multi_branch") ? api("/api/admin/branches").catch(() => ({})) : Promise.resolve({}),
-        app.hasFeature("analytics") ? api("/api/admin/analytics/dashboard").catch(() => ({})) : Promise.resolve({})
+        app.hasFeature("rewards")
+          ? api("/api/admin/rewards").catch(() => ({}))
+          : Promise.resolve({}),
+        app.hasFeature("staff_management")
+          ? api("/api/admin/staff").catch(() => ({}))
+          : Promise.resolve({}),
+        app.hasFeature("multi_branch")
+          ? api("/api/admin/branches").catch(() => ({}))
+          : Promise.resolve({}),
+        app.hasFeature("analytics")
+          ? api("/api/admin/analytics/dashboard").catch(() => ({}))
+          : Promise.resolve({}),
       ]);
 
       const programType = String(programOut?.program_type || "SPEND");
       const programJson = programOut?.program_json || {};
-      const pointsRateOk = programType === "SPEND"
-        ? Number(programJson.points_per_q || 0) > 0
-        : programType === "VISIT"
-          ? Number(programJson.points_per_visit || 0) > 0
-          : Number(programJson.points_per_item || 0) > 0;
+      const pointsRateOk =
+        programType === "SPEND"
+          ? Number(programJson.points_per_q || 0) > 0
+          : programType === "VISIT"
+            ? Number(programJson.points_per_visit || 0) > 0
+            : Number(programJson.points_per_item || 0) > 0;
 
       const rewardsCount = Array.isArray(rewardsOut?.rewards) ? rewardsOut.rewards.length : 0;
       const staffCount = Array.isArray(staffOut?.staff) ? staffOut.staff.length : 0;
@@ -129,36 +133,36 @@ export function registerOpsModule(app) {
           detail: "Configura el tipo y la tasa (gasto/visita/item).",
           required: true,
           done: pointsRateOk,
-          action: { label: "Ir a regla", selector: "#ownerConfigCard" }
+          action: { label: "Ir a regla", selector: "#ownerConfigCard" },
         },
         {
           label: "Recompensas",
           detail: "Crea al menos 1 recompensa para que el cliente vea valor rápido.",
           required: true,
           done: rewardsCount > 0,
-          action: { label: "Ir a recompensas", tab: "rewards", selector: "#rewardName" }
+          action: { label: "Ir a recompensas", tab: "rewards", selector: "#rewardName" },
         },
         {
           label: "Personal",
           detail: "Crea al menos 1 cajero/manager para operar escaneos.",
           required: true,
           done: staffCount >= 2, // OWNER + at least one extra
-          action: { label: "Ir a personal", tab: "staff", selector: "#staffEmail" }
+          action: { label: "Ir a personal", tab: "staff", selector: "#staffEmail" },
         },
         {
           label: "Sucursales",
           detail: "Configura ubicaciones si operas multi-sucursal.",
           required: false,
           done: !app.hasFeature("multi_branch") || branchesCount > 0,
-          action: { label: "Ir a sucursales", tab: "branches", selector: "#branchName" }
+          action: { label: "Ir a sucursales", tab: "branches", selector: "#branchName" },
         },
         {
           label: "Analítica",
           detail: "Revisa el tablero para detectar oportunidades y riesgos.",
           required: false,
           done: !app.hasFeature("analytics") || hasAnalytics,
-          action: { label: "Ir a analítica", tab: "analytics" }
-        }
+          action: { label: "Ir a analítica", tab: "analytics" },
+        },
       ];
 
       renderOwnerOnboardingChecklist(items);
@@ -176,7 +180,7 @@ export function registerOpsModule(app) {
         "2) Escanear QR interno de prueba",
         "3) Confirmar regla de puntos",
         "4) Revisar recompensas activas y stock",
-        "5) Revisar alertas críticas"
+        "5) Revisar alertas críticas",
       ],
       cierre: [
         "SOP CIERRE - PUNTOSFIELES",
@@ -185,7 +189,7 @@ export function registerOpsModule(app) {
         "2) Validar canjes y gift cards",
         "3) Exportar reporte IVA del día",
         "4) Revisar jobs fallidos",
-        "5) Cerrar sesión en terminales"
+        "5) Cerrar sesión en terminales",
       ],
       entrenamiento: [
         "GUIA RAPIDA PERSONAL - PUNTOSFIELES",
@@ -194,8 +198,8 @@ export function registerOpsModule(app) {
         "2) Otorgar puntos solo con comprobante",
         "3) Validar costo antes de canjear",
         "4) Reportar cualquier alerta al gerente",
-        "5) Nunca compartir credenciales"
-      ]
+        "5) Nunca compartir credenciales",
+      ],
     };
 
     const text = (templates[type] || templates.entrenamiento).join("\n");
@@ -218,7 +222,9 @@ export function registerOpsModule(app) {
   }
 
   app.onAfterPlanReady(() => {
-    $("#btnRefreshOnboarding")?.addEventListener("click", () => loadOwnerOnboardingChecklist().catch(() => {}));
+    $("#btnRefreshOnboarding")?.addEventListener("click", () =>
+      loadOwnerOnboardingChecklist().catch(() => {}),
+    );
     $("#btnPrintOpenSop")?.addEventListener("click", () => printSop("apertura"));
     $("#btnPrintCloseSop")?.addEventListener("click", () => printSop("cierre"));
     $("#btnPrintTraining")?.addEventListener("click", () => printSop("entrenamiento"));
@@ -227,6 +233,6 @@ export function registerOpsModule(app) {
   app.registerTab("operations", {
     feature: null,
     allowManager: false,
-    load: async () => initOperationsTab()
+    load: async () => initOperationsTab(),
   });
 }

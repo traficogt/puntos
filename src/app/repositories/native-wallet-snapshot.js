@@ -1,7 +1,11 @@
-import {REGIONAL_COUNTRIES} from '../services/regional-settings.js';
+import { REGIONAL_COUNTRIES } from "../services/regional-settings.js";
 // Country/timezone values are source-owned constants; customer input never becomes SQL.
-export const walletTimezoneDefaults=JSON.stringify(Object.fromEntries(Object.entries(REGIONAL_COUNTRIES).map(([code,region])=>[code,region.timezone])));
-const walletSeedSql=`
+export const walletTimezoneDefaults = JSON.stringify(
+  Object.fromEntries(
+    Object.entries(REGIONAL_COUNTRIES).map(([code, region]) => [code, region.timezone]),
+  ),
+);
+const walletSeedSql = `
  SELECT p.*,CASE WHEN v.is_voided THEN NULL ELSE c.name END AS customer_name,
  c.deleted_at AS customer_deleted_at,
  CASE WHEN v.is_voided THEN 0 ELSE COALESCE(cb.points,0) END AS points,
@@ -20,7 +24,7 @@ const walletSeedSql=`
  WHERE p.id=$1`;
 
 // The seed is source-owned SQL. Share reward/guard selection without requiring a pass.
-export const rewardSnapshotSql=seedSql=>`WITH snapshot AS (${seedSql}
+export const rewardSnapshotSql = (seedSql) => `WITH snapshot AS (${seedSql}
 ), current_cycle AS (
  SELECT c.* FROM reward_promise_cycles c JOIN snapshot s ON s.business_id=c.business_id AND s.customer_id=c.customer_id
  WHERE c.completed_at IS NULL AND NOT s.is_voided
@@ -50,4 +54,4 @@ SELECT s.*,(SELECT to_jsonb(c) FROM current_cycle c) AS wallet_cycle,
  )rw),'[]'::jsonb) AS wallet_rewards
 FROM snapshot s`;
 
-export const walletSnapshotSql=rewardSnapshotSql(walletSeedSql);
+export const walletSnapshotSql = rewardSnapshotSql(walletSeedSql);

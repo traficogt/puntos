@@ -15,22 +15,22 @@ describe("job-service enqueue", () => {
             return {
               ...payload,
               status: "QUEUED",
-              created_at: "2026-03-07T00:00:00.000Z"
+              created_at: "2026-03-07T00:00:00.000Z",
             };
-          }
+          },
         },
         redisClient: {
           lPush: async (key, value) => {
             pushes.push({ key, value });
-          }
+          },
         },
-        logger: { warn: () => {}, info: () => {} }
+        logger: { warn: () => {}, info: () => {} },
       },
       {
         businessId: "biz-1",
         jobType: "analytics.calculate",
-        payload: { trigger: "manual" }
-      }
+        payload: { trigger: "manual" },
+      },
     );
 
     assert.equal(created.length, 1);
@@ -48,24 +48,24 @@ describe("job-service enqueue", () => {
           create: async (payload) => ({
             ...payload,
             status: "QUEUED",
-            created_at: "2026-03-07T00:00:00.000Z"
-          })
+            created_at: "2026-03-07T00:00:00.000Z",
+          }),
         },
         redisClient: {
           lPush: async () => {
             throw new Error("redis down");
-          }
+          },
         },
         logger: {
           info: () => {},
-          warn: (entry, message) => warnings.push({ entry, message })
-        }
+          warn: (entry, message) => warnings.push({ entry, message }),
+        },
       },
       {
         businessId: "biz-2",
         jobType: "lifecycle.run",
-        payload: { trigger: "manual" }
-      }
+        payload: { trigger: "manual" },
+      },
     );
 
     assert.equal(job.status, "QUEUED");

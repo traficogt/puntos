@@ -21,7 +21,7 @@ async function validateRewardBranchScope({ businessId, branchIds }) {
   if (!unique.length) return [];
   const { rows } = await dbQuery(
     "SELECT id FROM branches WHERE business_id = $1 AND id = ANY($2::uuid[])",
-    [businessId, unique]
+    [businessId, unique],
   );
   if (rows.length !== unique.length) {
     throw new Error("Algunas sucursales seleccionadas no existen en este negocio");
@@ -38,7 +38,7 @@ adminRewardsRoutes.get(
   asyncRoute(async (req, res) => {
     const rewards = await RewardRepo.listByBusiness(req.tenantId);
     return res.json({ ok: true, rewards });
-  })
+  }),
 );
 
 adminRewardsRoutes.post(
@@ -57,16 +57,19 @@ adminRewardsRoutes.post(
     try {
       scopedBranchIds = await validateRewardBranchScope({
         businessId: req.tenantId,
-        branchIds: v.data.branch_ids ?? []
+        branchIds: v.data.branch_ids ?? [],
       });
     } catch (e) {
-      return res.status(400).json({ error: e.message || "Sucursales inválidas para la recompensa" });
+      return res
+        .status(400)
+        .json({ error: e.message || "Sucursales inválidas para la recompensa" });
     }
 
     const business = await BusinessRepo.getById(req.tenantId);
     const limits = planLimits(business.plan);
     const count = await BusinessRepo.countRewards(req.tenantId);
-    if (count >= limits.rewards) return res.status(403).json({ error: "Plan limit: rewards exceeded" });
+    if (count >= limits.rewards)
+      return res.status(403).json({ error: "Plan limit: rewards exceeded" });
 
     const reward = await RewardRepo.create({
       id: makeId(),
@@ -77,10 +80,10 @@ adminRewardsRoutes.post(
       active: v.data.active ?? true,
       stock: v.data.stock ?? null,
       valid_until: v.data.valid_until ? new Date(v.data.valid_until) : null,
-      branch_ids: scopedBranchIds
+      branch_ids: scopedBranchIds,
     });
     return res.json({ ok: true, reward });
-  })
+  }),
 );
 
 adminRewardsRoutes.patch(
@@ -102,22 +105,24 @@ adminRewardsRoutes.patch(
       try {
         scopedBranchIds = await validateRewardBranchScope({
           businessId: req.tenantId,
-          branchIds: patch.branch_ids ?? []
+          branchIds: patch.branch_ids ?? [],
         });
       } catch (e) {
-        return res.status(400).json({ error: e.message || "Sucursales inválidas para la recompensa" });
+        return res
+          .status(400)
+          .json({ error: e.message || "Sucursales inválidas para la recompensa" });
       }
       delete patch.branch_ids;
     }
 
     const reward = await RewardRepo.getById(req.params.id);
-    if (!reward || reward.business_id !== req.tenantId) return res.status(404).json({ error: "Not found" });
+    if (!reward || reward.business_id !== req.tenantId)
+      return res.status(404).json({ error: "Not found" });
 
     if (scopedBranchIds !== undefined) {
       await RewardRepo.setBranches(req.params.id, scopedBranchIds);
     }
     const updated = await RewardRepo.update(req.params.id, patch);
     return res.json({ ok: true, reward: updated });
-  })
+  }),
 );
-

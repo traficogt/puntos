@@ -3,19 +3,31 @@ const PLAN_ORDER = ["EMPRENDEDOR", "NEGOCIO", "EMPRESA"];
 const PLAN_LIMITS = {
   EMPRENDEDOR: { activeCustomers: 300, rewards: 5, branches: 1 },
   NEGOCIO: { activeCustomers: 2000, rewards: 9999, branches: 3 },
-  EMPRESA: { activeCustomers: 999999, rewards: 9999, branches: 9999 }
+  EMPRESA: { activeCustomers: 999999, rewards: 9999, branches: 9999 },
 };
 
 const PLAN_PRICING_GTQ = {
-  EMPRENDEDOR: { monthly: 149, yearly: 1490, notes: "Ideal para cafeterias pequenas y negocios en etapa inicial." },
-  NEGOCIO: { monthly: 399, yearly: 3990, notes: "Para negocios con varias sedes, equipo y automatizaciones." },
-  EMPRESA: { monthly: 999, yearly: 9990, notes: "Para cadenas y operaciones multi-sucursal con integraciones avanzadas." }
+  EMPRENDEDOR: {
+    monthly: 149,
+    yearly: 1490,
+    notes: "Ideal para cafeterias pequenas y negocios en etapa inicial.",
+  },
+  NEGOCIO: {
+    monthly: 399,
+    yearly: 3990,
+    notes: "Para negocios con varias sedes, equipo y automatizaciones.",
+  },
+  EMPRESA: {
+    monthly: 999,
+    yearly: 9990,
+    notes: "Para cadenas y operaciones multi-sucursal con integraciones avanzadas.",
+  },
 };
 
 const PLAN_MESSAGING_GTQ = {
-  EMPRENDEDOR: { included_messages: 250, overage_per_message_q: 0.20 },
+  EMPRENDEDOR: { included_messages: 250, overage_per_message_q: 0.2 },
   NEGOCIO: { included_messages: 1000, overage_per_message_q: 0.16 },
-  EMPRESA: { included_messages: 3000, overage_per_message_q: 0.12 }
+  EMPRESA: { included_messages: 3000, overage_per_message_q: 0.12 },
 };
 
 export const DEFAULT_PLAN_FEATURES = {
@@ -38,7 +50,7 @@ export const DEFAULT_PLAN_FEATURES = {
     webhooks: false,
     external_awards: false,
     branded_qr: false,
-    campaign_rules: false
+    campaign_rules: false,
   },
   NEGOCIO: {
     basic_reporting: true,
@@ -59,7 +71,7 @@ export const DEFAULT_PLAN_FEATURES = {
     webhooks: false,
     external_awards: false,
     branded_qr: true,
-    campaign_rules: true
+    campaign_rules: true,
   },
   EMPRESA: {
     basic_reporting: true,
@@ -80,12 +92,14 @@ export const DEFAULT_PLAN_FEATURES = {
     webhooks: true,
     external_awards: true,
     branded_qr: true,
-    campaign_rules: true
-  }
+    campaign_rules: true,
+  },
 };
 
 export function normalizePlan(plan) {
-  return String(plan || "").trim().toUpperCase();
+  return String(plan || "")
+    .trim()
+    .toUpperCase();
 }
 
 export function planLimits(plan) {
@@ -130,7 +144,13 @@ export function hasPlanFeature(plan, feature, overrides = {}) {
 export const PROGRAM_TYPE_FEATURE = { GIFT_CARD: "gift_cards" };
 
 export function programTypeFeature(programType) {
-  return PROGRAM_TYPE_FEATURE[String(programType || "").trim().toUpperCase()] ?? null;
+  return (
+    PROGRAM_TYPE_FEATURE[
+      String(programType || "")
+        .trim()
+        .toUpperCase()
+    ] ?? null
+  );
 }
 
 export function canUseProgramType(plan, programType, overrides = {}) {
@@ -152,7 +172,7 @@ export function listPlans(overrides = {}) {
     limits: PLAN_LIMITS[plan],
     features: merged[plan],
     pricing_gtq: PLAN_PRICING_GTQ[plan],
-    messaging_gtq: PLAN_MESSAGING_GTQ[plan]
+    messaging_gtq: PLAN_MESSAGING_GTQ[plan],
   }));
 }
 

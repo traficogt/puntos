@@ -1,11 +1,25 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readDashboardViewFromUrl, syncDashboardViewToUrl } from "../../public/admin-dashboard/view-state.js";
+import {
+  readDashboardViewFromUrl,
+  syncDashboardViewToUrl,
+} from "../../public/admin-dashboard/view-state.js";
 
 test("Spanish administration URLs read legacy views and write Spanish query names without losing unrelated values", () => {
   const previous = globalThis.window;
   let written;
-  globalThis.window = /** @type {any} */ ({ location: { pathname: "/administracion/", search: "?tab=rewards&branch_id=branch-a&token=preservado", hash: "#detalle" }, history: { replaceState: (_state, _unused, url) => { written = url; } } });
+  globalThis.window = /** @type {any} */ ({
+    location: {
+      pathname: "/administracion/",
+      search: "?tab=rewards&branch_id=branch-a&token=preservado",
+      hash: "#detalle",
+    },
+    history: {
+      replaceState: (_state, _unused, url) => {
+        written = url;
+      },
+    },
+  });
   try {
     assert.deepEqual(readDashboardViewFromUrl(), { tab: "rewards", branchId: "branch-a" });
     syncDashboardViewToUrl({ activeTab: "analytics", branchId: "branch-b" });
@@ -20,5 +34,7 @@ test("Spanish administration URLs read legacy views and write Spanish query name
     assert.deepEqual(readDashboardViewFromUrl(), { tab: "giftcards", branchId: "branch-c" });
     syncDashboardViewToUrl({});
     assert.equal(new URL(written, "https://example.test").search, "");
-  } finally { globalThis.window = previous; }
+  } finally {
+    globalThis.window = previous;
+  }
 });

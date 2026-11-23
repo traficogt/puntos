@@ -24,7 +24,7 @@ const snapshot = {
   points: 125,
   pending_points: 12,
   revoked_at: null,
-  revision: "7"
+  revision: "7",
 };
 
 function openssl(args) {
@@ -33,9 +33,54 @@ function openssl(args) {
 
 before(() => {
   fixtureDir = mkdtempSync(join(tmpdir(), "pf-apple-wallet-test-"));
-  openssl(["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "ca.key", "-out", "ca.pem", "-days", "2", "-subj", "/CN=Ephemeral Wallet Test CA"]);
-  openssl(["req", "-new", "-newkey", "rsa:2048", "-nodes", "-keyout", "signer.key", "-out", "signer.csr", "-subj", "/UID=pass.com.puntosfieles.loyalty/CN=Pass Type ID/OU=PFTEST1234/O=Puntos Fieles", "-addext", "subjectAltName=DNS:localhost"]);
-  openssl(["x509", "-req", "-in", "signer.csr", "-CA", "ca.pem", "-CAkey", "ca.key", "-set_serial", "2", "-out", "signer.pem", "-days", "2", "-copy_extensions", "copy"]);
+  openssl([
+    "req",
+    "-x509",
+    "-newkey",
+    "rsa:2048",
+    "-nodes",
+    "-keyout",
+    "ca.key",
+    "-out",
+    "ca.pem",
+    "-days",
+    "2",
+    "-subj",
+    "/CN=Ephemeral Wallet Test CA",
+  ]);
+  openssl([
+    "req",
+    "-new",
+    "-newkey",
+    "rsa:2048",
+    "-nodes",
+    "-keyout",
+    "signer.key",
+    "-out",
+    "signer.csr",
+    "-subj",
+    "/UID=pass.com.puntosfieles.loyalty/CN=Pass Type ID/OU=PFTEST1234/O=Puntos Fieles",
+    "-addext",
+    "subjectAltName=DNS:localhost",
+  ]);
+  openssl([
+    "x509",
+    "-req",
+    "-in",
+    "signer.csr",
+    "-CA",
+    "ca.pem",
+    "-CAkey",
+    "ca.key",
+    "-set_serial",
+    "2",
+    "-out",
+    "signer.pem",
+    "-days",
+    "2",
+    "-copy_extensions",
+    "copy",
+  ]);
   config = {
     passTypeIdentifier: "pass.com.puntosfieles.loyalty",
     teamIdentifier: "PFTEST1234",
@@ -44,7 +89,7 @@ before(() => {
     privateKeyFile: join(fixtureDir, "signer.key"),
     wwdrCertificateFile: join(fixtureDir, "ca.pem"),
     webServiceUrl: "https://app.puntosfieles.com/api/wallet/apple",
-    appOrigin: "https://app.puntosfieles.com"
+    appOrigin: "https://app.puntosfieles.com",
   };
 });
 after(() => {
@@ -74,18 +119,26 @@ function transport({ status = 200, body = "", failure = "" } = {}) {
   const request = new EventEmitter();
   const state = { closed: false, destroyed: false, requestDestroyed: false };
   Object.assign(session, {
-    close() { state.closed = true; },
-    destroy() { state.destroyed = true; },
+    close() {
+      state.closed = true;
+    },
+    destroy() {
+      state.destroyed = true;
+    },
     request(headers) {
       calls.push({ headers });
       if (failure === "request-throw") throw new Error("secret request error");
       return request;
-    }
+    },
   });
   Object.assign(request, {
     setEncoding() {},
-    close() { state.requestDestroyed = true; },
-    destroy() { state.requestDestroyed = true; },
+    close() {
+      state.requestDestroyed = true;
+    },
+    destroy() {
+      state.requestDestroyed = true;
+    },
     end(payload) {
       calls.push({ payload });
       queueMicrotask(() => {
@@ -98,13 +151,15 @@ function transport({ status = 200, body = "", failure = "" } = {}) {
         if (body) request.emit("data", body);
         request.emit("end");
       });
-    }
+    },
   });
   // Injecting this boundary prevents sending fixture certificates or tokens to Apple.
   const connect = (...args) => {
     calls.push({ args });
     if (failure === "connect-throw") throw new Error("secret connection error");
-    return /** @type {import("node:http2").ClientHttp2Session} */ (/** @type {unknown} */ (session));
+    return /** @type {import("node:http2").ClientHttp2Session} */ (
+      /** @type {unknown} */ (session)
+    );
   };
   return { connect, calls, state };
 }
@@ -114,28 +169,68 @@ describe("Apple Wallet signed passes", () => {
     const pass = await createAppleProvider(config).generatePass(snapshot);
     assert.ok(Buffer.isBuffer(pass));
     const entries = unzip(pass);
-    assert.deepEqual(Object.keys(entries).sort(), ["icon.png", "icon@2x.png", "icon@3x.png", "manifest.json", "pass.json", "signature"].sort());
+    assert.deepEqual(
+      Object.keys(entries).sort(),
+      ["icon.png", "icon@2x.png", "icon@3x.png", "manifest.json", "pass.json", "signature"].sort(),
+    );
     const manifest = JSON.parse(entries["manifest.json"].toString("utf8"));
-    assert.deepEqual(Object.keys(manifest).sort(), Object.keys(entries).filter((name) => !["manifest.json", "signature"].includes(name)).sort());
+    assert.deepEqual(
+      Object.keys(manifest).sort(),
+      Object.keys(entries)
+        .filter((name) => !["manifest.json", "signature"].includes(name))
+        .sort(),
+    );
     for (const [name, digest] of Object.entries(manifest)) {
       assert.equal(createHash("sha1").update(entries[name]).digest("hex"), digest);
     }
-    for (const [name, size] of [["icon.png", 29], ["icon@2x.png", 58], ["icon@3x.png", 87]]) {
+    for (const [name, size] of [
+      ["icon.png", 29],
+      ["icon@2x.png", 58],
+      ["icon@3x.png", 87],
+    ]) {
       assert.equal(entries[name].readUInt32BE(16), size);
       assert.equal(entries[name].readUInt32BE(20), size);
     }
     writeFileSync(join(fixtureDir, "manifest.json"), entries["manifest.json"]);
     writeFileSync(join(fixtureDir, "signature"), entries.signature);
-    const verified = openssl(["cms", "-verify", "-binary", "-inform", "DER", "-in", "signature", "-content", "manifest.json", "-CAfile", "ca.pem", "-purpose", "any"]);
+    const verified = openssl([
+      "cms",
+      "-verify",
+      "-binary",
+      "-inform",
+      "DER",
+      "-in",
+      "signature",
+      "-content",
+      "manifest.json",
+      "-CAfile",
+      "ca.pem",
+      "-purpose",
+      "any",
+    ]);
     assert.deepEqual(verified, entries["manifest.json"]);
-    const cms = openssl(["cms", "-cmsout", "-print", "-inform", "DER", "-in", "signature"]).toString("utf8");
+    const cms = openssl([
+      "cms",
+      "-cmsout",
+      "-print",
+      "-inform",
+      "DER",
+      "-in",
+      "signature",
+    ]).toString("utf8");
     assert.match(cms, /signingTime/);
     assert.match(cms, /Ephemeral Wallet Test CA/);
     assert.match(cms, /eContent: <ABSENT>/);
   });
 
   it("encodes the QR, balances, stable update credentials and safe customer links", async () => {
-    const entries = unzip(await createAppleProvider(config).generatePass({ ...snapshot, phone: "+50255555555", email: "private@example.test" }));
+    const entries = unzip(
+      await createAppleProvider(config).generatePass({
+        ...snapshot,
+        phone: "+50255555555",
+        email: "private@example.test",
+      }),
+    );
     const pass = JSON.parse(entries["pass.json"].toString("utf8"));
     assert.equal(pass.formatVersion, 1);
     assert.equal(pass.passTypeIdentifier, config.passTypeIdentifier);
@@ -145,22 +240,56 @@ describe("Apple Wallet signed passes", () => {
     assert.equal(pass.authenticationToken, snapshot.authentication_token);
     assert.equal(pass.webServiceURL, config.webServiceUrl);
     assert.equal(pass.voided, false);
-    assert.deepEqual(pass.barcodes, [{ format: "PKBarcodeFormatQR", message: snapshot.barcode, messageEncoding: "iso-8859-1" }]);
-    const fields = [...pass.storeCard.primaryFields, ...pass.storeCard.secondaryFields, ...pass.storeCard.auxiliaryFields, ...pass.storeCard.backFields];
+    assert.deepEqual(pass.barcodes, [
+      { format: "PKBarcodeFormatQR", message: snapshot.barcode, messageEncoding: "iso-8859-1" },
+    ]);
+    const fields = [
+      ...pass.storeCard.primaryFields,
+      ...pass.storeCard.secondaryFields,
+      ...pass.storeCard.auxiliaryFields,
+      ...pass.storeCard.backFields,
+    ];
     assert.equal(fields.find((field) => field.key === "points").value, 125);
     assert.equal(fields.find((field) => field.key === "pending_points").value, 12);
     assert.equal(fields.find((field) => field.key === "customer_name").value, "María");
-    assert.equal(fields.find((field) => field.key === "customer_link").value, `${config.appOrigin}/mi-tarjeta/`);
-    assert.equal(fields.find((field) => field.key === "support_link").value, "https://puntosfieles.com/soporte");
-    assert.doesNotMatch(entries["pass.json"].toString(), /55555555|private@example|internal-pass-id/);
-    assert.deepEqual(entries["icon.png"], readFileSync(new URL("../../public/images/wallet/apple-icon.png", import.meta.url)));
+    assert.equal(
+      fields.find((field) => field.key === "customer_link").value,
+      `${config.appOrigin}/mi-tarjeta/`,
+    );
+    assert.equal(
+      fields.find((field) => field.key === "support_link").value,
+      "https://puntosfieles.com/soporte",
+    );
+    assert.doesNotMatch(
+      entries["pass.json"].toString(),
+      /55555555|private@example|internal-pass-id/,
+    );
+    assert.deepEqual(
+      entries["icon.png"],
+      readFileSync(new URL("../../public/images/wallet/apple-icon.png", import.meta.url)),
+    );
   });
 
   it("signs both featured actions in priority order with business-scoped credential-free destinations", async () => {
-    const pass = JSON.parse(unzip(await createAppleProvider(config).generatePass({ ...snapshot, business_slug: "club-centro" }))["pass.json"].toString());
+    const pass = JSON.parse(
+      unzip(
+        await createAppleProvider(config).generatePass({
+          ...snapshot,
+          business_slug: "club-centro",
+        }),
+      )["pass.json"].toString(),
+    );
     assert.deepEqual(pass.featuredActions, [
-      { identifier: "pf-offers", type: "viewOffersRewards", url: `${config.appOrigin}/ingresar/club-centro?destino=ofertas` },
-      { identifier: "pf-benefits", type: "membershipBenefits", url: `${config.appOrigin}/ingresar/club-centro?destino=beneficios` }
+      {
+        identifier: "pf-offers",
+        type: "viewOffersRewards",
+        url: `${config.appOrigin}/ingresar/club-centro?destino=ofertas`,
+      },
+      {
+        identifier: "pf-benefits",
+        type: "membershipBenefits",
+        url: `${config.appOrigin}/ingresar/club-centro?destino=beneficios`,
+      },
     ]);
     assert.equal(pass.serialNumber, snapshot.serial_number);
     assert.equal(pass.authenticationToken, snapshot.authentication_token);
@@ -171,72 +300,195 @@ describe("Apple Wallet signed passes", () => {
       assert.ok(!action.url.includes(snapshot.authentication_token));
       assert.ok(!action.url.includes(snapshot.barcode));
     }
-    assert.equal(pass.storeCard.backFields.find(field => field.key === "offers_link").value, pass.featuredActions[0].url);
-    assert.equal(pass.storeCard.backFields.find(field => field.key === "benefits_link").value, pass.featuredActions[1].url);
-    assert.equal(pass.storeCard.backFields.find(field => field.key === "customer_link").value, `${config.appOrigin}/mi-tarjeta/`);
-    assert.ok(pass.storeCard.backFields.every(field => !field.changeMessage));
+    assert.equal(
+      pass.storeCard.backFields.find((field) => field.key === "offers_link").value,
+      pass.featuredActions[0].url,
+    );
+    assert.equal(
+      pass.storeCard.backFields.find((field) => field.key === "benefits_link").value,
+      pass.featuredActions[1].url,
+    );
+    assert.equal(
+      pass.storeCard.backFields.find((field) => field.key === "customer_link").value,
+      `${config.appOrigin}/mi-tarjeta/`,
+    );
+    assert.ok(pass.storeCard.backFields.every((field) => !field.changeMessage));
   });
 
   it("falls back to fixed authenticated account sections when the public slug is missing or unsafe", async () => {
-    for (const business_slug of [undefined, "", "../soporte", "https://other.invalid", "club?token=private", "club#fragment", "a".repeat(121)]) {
-      const pass = JSON.parse(unzip(await createAppleProvider(config).generatePass({ ...snapshot, business_slug }))["pass.json"].toString());
-      assert.deepEqual(pass.featuredActions.map(action => action.url), [
-        `${config.appOrigin}/mi-tarjeta/#ofertas`, `${config.appOrigin}/mi-tarjeta/#beneficios`
-      ]);
+    for (const business_slug of [
+      undefined,
+      "",
+      "../soporte",
+      "https://other.invalid",
+      "club?token=private",
+      "club#fragment",
+      "a".repeat(121),
+    ]) {
+      const pass = JSON.parse(
+        unzip(await createAppleProvider(config).generatePass({ ...snapshot, business_slug }))[
+          "pass.json"
+        ].toString(),
+      );
+      assert.deepEqual(
+        pass.featuredActions.map((action) => action.url),
+        [`${config.appOrigin}/mi-tarjeta/#ofertas`, `${config.appOrigin}/mi-tarjeta/#beneficios`],
+      );
     }
   });
 
   it("removes both actions and their older-device detail links when a pass is revoked or voided", async () => {
     for (const state of [{ revoked_at: new Date().toISOString() }, { is_voided: true }]) {
-      const pass = JSON.parse(unzip(await createAppleProvider(config).generatePass({ ...snapshot, business_slug: "club-centro", ...state }))["pass.json"].toString());
+      const pass = JSON.parse(
+        unzip(
+          await createAppleProvider(config).generatePass({
+            ...snapshot,
+            business_slug: "club-centro",
+            ...state,
+          }),
+        )["pass.json"].toString(),
+      );
       assert.deepEqual(pass.featuredActions, []);
-      assert.equal(pass.storeCard.backFields.some(field => ["offers_link", "benefits_link"].includes(field.key)), false);
+      assert.equal(
+        pass.storeCard.backFields.some((field) =>
+          ["offers_link", "benefits_link"].includes(field.key),
+        ),
+        false,
+      );
       assert.equal(pass.serialNumber, snapshot.serial_number);
       assert.equal(pass.authenticationToken, snapshot.authentication_token);
     }
   });
 
   it("signs scoped location and progress fields without pretending refresh is a visible alert", async () => {
-    const wallet_engagement = { usage: "Los puntos pendientes aún no se pueden canjear.", progress: "Te faltan 25 puntos para Café.", earning: "2 puntos por GTQ 1.", conditions: "Canje en: Centro.", locations: [{ name: "Centro", latitude: 14.6, longitude: -90.5 }] };
-    const pass = JSON.parse(unzip(await createAppleProvider(config).generatePass({ ...snapshot, wallet_engagement }))["pass.json"].toString());
+    const wallet_engagement = {
+      usage: "Los puntos pendientes aún no se pueden canjear.",
+      progress: "Te faltan 25 puntos para Café.",
+      earning: "2 puntos por GTQ 1.",
+      conditions: "Canje en: Centro.",
+      locations: [{ name: "Centro", latitude: 14.6, longitude: -90.5 }],
+    };
+    const pass = JSON.parse(
+      unzip(await createAppleProvider(config).generatePass({ ...snapshot, wallet_engagement }))[
+        "pass.json"
+      ].toString(),
+    );
     const fields = [...pass.storeCard.secondaryFields, ...pass.storeCard.backFields];
-    assert.equal(fields.find(field => field.key === "reward_progress").value, wallet_engagement.progress);
-    assert.equal(fields.find(field => field.key === "card_usage").value, wallet_engagement.usage);
-    assert.deepEqual(pass.locations, [{ latitude: 14.6, longitude: -90.5, relevantText: "Tu tarjeta de puntos en Centro" }]);
-    assert.ok(fields.every(field => !field.changeMessage));
-    const voided = JSON.parse(unzip(await createAppleProvider(config).generatePass({ ...snapshot, wallet_engagement, is_voided: true }))["pass.json"].toString());
+    assert.equal(
+      fields.find((field) => field.key === "reward_progress").value,
+      wallet_engagement.progress,
+    );
+    assert.equal(fields.find((field) => field.key === "card_usage").value, wallet_engagement.usage);
+    assert.deepEqual(pass.locations, [
+      { latitude: 14.6, longitude: -90.5, relevantText: "Tu tarjeta de puntos en Centro" },
+    ]);
+    assert.ok(fields.every((field) => !field.changeMessage));
+    const voided = JSON.parse(
+      unzip(
+        await createAppleProvider(config).generatePass({
+          ...snapshot,
+          wallet_engagement,
+          is_voided: true,
+        }),
+      )["pass.json"].toString(),
+    );
     assert.equal(voided.voided, true);
     assert.equal(voided.storeCard.primaryFields[0].value, 0);
     assert.deepEqual(voided.locations, []);
-    assert.equal(voided.storeCard.backFields.some(field => field.key === "earning_terms"), false);
-    assert.equal(voided.storeCard.backFields.some(field => field.key === "card_usage"), false);
+    assert.equal(
+      voided.storeCard.backFields.some((field) => field.key === "earning_terms"),
+      false,
+    );
+    assert.equal(
+      voided.storeCard.backFields.some((field) => field.key === "card_usage"),
+      false,
+    );
   });
 
   it("voids revoked passes while preserving serial and authentication token on updates", async () => {
-    const pass = JSON.parse(unzip(await createAppleProvider(config).generatePass({ ...snapshot, points: 0, customer_name: null, revoked_at: new Date().toISOString(), revision: "8" }))["pass.json"].toString());
+    const pass = JSON.parse(
+      unzip(
+        await createAppleProvider(config).generatePass({
+          ...snapshot,
+          points: 0,
+          customer_name: null,
+          revoked_at: new Date().toISOString(),
+          revision: "8",
+        }),
+      )["pass.json"].toString(),
+    );
     assert.equal(pass.voided, true);
     assert.equal(pass.serialNumber, snapshot.serial_number);
     assert.equal(pass.authenticationToken, snapshot.authentication_token);
-    assert.equal(pass.storeCard.secondaryFields.some((field) => field.key === "customer_name"), false);
+    assert.equal(
+      pass.storeCard.secondaryFields.some((field) => field.key === "customer_name"),
+      false,
+    );
   });
 
   it("fails closed without exposing missing certificate paths, key data or tokens", async () => {
-    const provider = createAppleProvider({ ...config, privateKeyFile: join(fixtureDir, "sensitive-missing.pem") });
-    await assert.rejects(provider.generatePass(snapshot), { message: "Apple Wallet signing is not configured correctly.", code: "APPLE_WALLET_CONFIGURATION_INVALID" });
+    const provider = createAppleProvider({
+      ...config,
+      privateKeyFile: join(fixtureDir, "sensitive-missing.pem"),
+    });
+    await assert.rejects(provider.generatePass(snapshot), {
+      message: "Apple Wallet signing is not configured correctly.",
+      code: "APPLE_WALLET_CONFIGURATION_INVALID",
+    });
   });
 
   it("signs with a passphrase-protected PEM key and fails closed for a wrong passphrase", async () => {
     const passphrase = randomBytes(32).toString("base64url");
     writeFileSync(join(fixtureDir, "test-key-passphrase"), passphrase, { mode: 0o600 });
-    openssl(["pkcs8", "-topk8", "-in", "signer.key", "-out", "encrypted.key", "-v2", "aes-256-cbc", "-passout", "file:test-key-passphrase"]);
-    const encryptedConfig = { ...config, privateKeyFile: join(fixtureDir, "encrypted.key"), privateKeyPassphrase: passphrase };
+    openssl([
+      "pkcs8",
+      "-topk8",
+      "-in",
+      "signer.key",
+      "-out",
+      "encrypted.key",
+      "-v2",
+      "aes-256-cbc",
+      "-passout",
+      "file:test-key-passphrase",
+    ]);
+    const encryptedConfig = {
+      ...config,
+      privateKeyFile: join(fixtureDir, "encrypted.key"),
+      privateKeyPassphrase: passphrase,
+    };
     const entries = unzip(await createAppleProvider(encryptedConfig).generatePass(snapshot));
     writeFileSync(join(fixtureDir, "encrypted-manifest.json"), entries["manifest.json"]);
     writeFileSync(join(fixtureDir, "encrypted-signature"), entries.signature);
-    assert.deepEqual(openssl(["cms", "-verify", "-binary", "-inform", "DER", "-in", "encrypted-signature", "-content", "encrypted-manifest.json", "-CAfile", "ca.pem", "-purpose", "any"]), entries["manifest.json"]);
-    await assert.rejects(createAppleProvider({ ...encryptedConfig, privateKeyPassphrase: "incorrect-fixture-passphrase" }).generatePass(snapshot), { code: "APPLE_WALLET_CONFIGURATION_INVALID" });
+    assert.deepEqual(
+      openssl([
+        "cms",
+        "-verify",
+        "-binary",
+        "-inform",
+        "DER",
+        "-in",
+        "encrypted-signature",
+        "-content",
+        "encrypted-manifest.json",
+        "-CAfile",
+        "ca.pem",
+        "-purpose",
+        "any",
+      ]),
+      entries["manifest.json"],
+    );
+    await assert.rejects(
+      createAppleProvider({
+        ...encryptedConfig,
+        privateKeyPassphrase: "incorrect-fixture-passphrase",
+      }).generatePass(snapshot),
+      { code: "APPLE_WALLET_CONFIGURATION_INVALID" },
+    );
     const wire = transport();
-    await createAppleProvider(encryptedConfig, { connect: wire.connect }).pushUpdate(randomBytes(32).toString("hex"));
+    await createAppleProvider(encryptedConfig, { connect: wire.connect }).pushUpdate(
+      randomBytes(32).toString("hex"),
+    );
     assert.equal(wire.calls[0].args[1].passphrase, passphrase);
   });
 
@@ -246,21 +498,32 @@ describe("Apple Wallet signed passes", () => {
       { passTypeIdentifier: "pass.com.other.loyalty" },
       { privateKeyFile: join(fixtureDir, "ca.key") },
       { webServiceUrl: "http://app.puntosfieles.com/wallet" },
-      { appOrigin: "https://user:secret@app.puntosfieles.com" }
+      { appOrigin: "https://user:secret@app.puntosfieles.com" },
     ]) {
-      await assert.rejects(createAppleProvider({ ...config, ...override }).generatePass(snapshot), { code: "APPLE_WALLET_CONFIGURATION_INVALID" });
+      await assert.rejects(createAppleProvider({ ...config, ...override }).generatePass(snapshot), {
+        code: "APPLE_WALLET_CONFIGURATION_INVALID",
+      });
     }
   });
 
   it("rejects malformed snapshot data instead of producing a silently incomplete pass", async () => {
-    for (const override of [{ authentication_token: "short" }, { barcode: "" }, { points: NaN }, { serial_number: "" }]) {
-      await assert.rejects(createAppleProvider(config).generatePass({ ...snapshot, ...override }), { code: "APPLE_WALLET_PASS_FAILED" });
+    for (const override of [
+      { authentication_token: "short" },
+      { barcode: "" },
+      { points: NaN },
+      { serial_number: "" },
+    ]) {
+      await assert.rejects(createAppleProvider(config).generatePass({ ...snapshot, ...override }), {
+        code: "APPLE_WALLET_PASS_FAILED",
+      });
     }
   });
 
   it("refuses signing when the configured certificates are outside their validity period", async (t) => {
     t.mock.method(Date, "now", () => Date.parse("2100-01-01T00:00:00Z"));
-    await assert.rejects(createAppleProvider(config).generatePass(snapshot), { code: "APPLE_WALLET_CONFIGURATION_INVALID" });
+    await assert.rejects(createAppleProvider(config).generatePass(snapshot), {
+      code: "APPLE_WALLET_CONFIGURATION_INVALID",
+    });
   });
 });
 
@@ -279,8 +542,11 @@ describe("Apple Wallet APNs update delivery", () => {
     assert.equal(wire.calls[1].headers[":method"], "POST");
     assert.equal(wire.calls[1].headers[":path"], `/3/device/${token}`);
     assert.equal(wire.calls[1].headers["apns-topic"], config.passTypeIdentifier);
-    const expiry=Number(wire.calls[1].headers["apns-expiration"]);
-    assert.ok(expiry > Date.now()/1000 + 6*24*60*60 && expiry <= Date.now()/1000 + 7*24*60*60);
+    const expiry = Number(wire.calls[1].headers["apns-expiration"]);
+    assert.ok(
+      expiry > Date.now() / 1000 + 6 * 24 * 60 * 60 &&
+        expiry <= Date.now() / 1000 + 7 * 24 * 60 * 60,
+    );
     assert.equal(wire.calls[1].headers["apns-collapse-id"], "pf-wallet-update");
     assert.equal(wire.calls[1].headers["apns-priority"], "5");
     assert.equal(wire.calls[2].payload, "{}");
@@ -302,16 +568,31 @@ describe("Apple Wallet APNs update delivery", () => {
 
   it("delivers over a real local HTTP/2 TLS connection with mutual certificate authentication", async (t) => {
     const ca = readFileSync(config.wwdrCertificateFile);
-    const server = createSecureServer({ key: readFileSync(config.privateKeyFile), cert: readFileSync(config.certificateFile), ca, requestCert: true, rejectUnauthorized: true });
+    const server = createSecureServer({
+      key: readFileSync(config.privateKeyFile),
+      cert: readFileSync(config.certificateFile),
+      ca,
+      requestCert: true,
+      rejectUnauthorized: true,
+    });
     const received = [];
     let sessions = 0;
-    server.on("session", () => { sessions += 1; });
+    server.on("session", () => {
+      sessions += 1;
+    });
     server.on("stream", (stream, headers) => {
       let body = "";
       stream.setEncoding("utf8");
-      stream.on("data", (chunk) => { body += chunk; });
+      stream.on("data", (chunk) => {
+        body += chunk;
+      });
       stream.on("end", () => {
-        received.push({ headers, body, authorized: /** @type {import("node:tls").TLSSocket} */ (stream.session.socket).authorized });
+        received.push({
+          headers,
+          body,
+          authorized: /** @type {import("node:tls").TLSSocket} */ (stream.session.socket)
+            .authorized,
+        });
         /** @type {import("node:http2").ServerHttp2Stream} */ (stream).respond({ ":status": 200 });
         stream.end();
       });
@@ -322,12 +603,16 @@ describe("Apple Wallet APNs update delivery", () => {
     const address = server.address();
     assert.ok(address && typeof address === "object");
     const provider = createAppleProvider(config, {
-      connect: (_origin, options) => http2Connect(`https://localhost:${address.port}`, { ...options, ca }),
-      timeoutMs: 2000
+      connect: (_origin, options) =>
+        http2Connect(`https://localhost:${address.port}`, { ...options, ca }),
+      timeoutMs: 2000,
     });
     t.after(() => provider.close());
     assert.deepEqual(await provider.pushUpdate(token), { invalidToken: false });
-    assert.deepEqual(await Promise.all([provider.pushUpdate(token), provider.pushUpdate(token)]), [{ invalidToken: false }, { invalidToken: false }]);
+    assert.deepEqual(await Promise.all([provider.pushUpdate(token), provider.pushUpdate(token)]), [
+      { invalidToken: false },
+      { invalidToken: false },
+    ]);
     provider.close();
     assert.equal(received.length, 3);
     assert.equal(sessions, 1);
@@ -337,38 +622,76 @@ describe("Apple Wallet APNs update delivery", () => {
   });
 
   it("identifies definitively invalid tokens without classifying provider failures as invalid", async () => {
-    for (const { status, reason } of [{ status: 410, reason: "Unregistered" }, { status: 400, reason: "BadDeviceToken" }]) {
+    for (const { status, reason } of [
+      { status: 410, reason: "Unregistered" },
+      { status: 400, reason: "BadDeviceToken" },
+    ]) {
       const wire = transport({ status, body: JSON.stringify({ reason }) });
-      assert.deepEqual(await createAppleProvider(config, { connect: wire.connect }).pushUpdate(token), { invalidToken: true });
+      assert.deepEqual(
+        await createAppleProvider(config, { connect: wire.connect }).pushUpdate(token),
+        { invalidToken: true },
+      );
     }
     const failures = [
       { status: 403, body: '{"reason":"BadCertificate"}' },
       { status: 429, body: '{"reason":"TooManyRequests"}' },
       { status: 503, body: "secret-provider-body" },
       { status: 400, body: '{"reason":"DeviceTokenNotForTopic"}' },
-      { status: 410, body: "invalid-json" }
+      { status: 410, body: "invalid-json" },
     ];
     for (const { status, body } of failures) {
       const wire = transport({ status, body });
-      await assert.rejects(createAppleProvider(config, { connect: wire.connect }).pushUpdate(token), { code: "APPLE_WALLET_PUSH_FAILED", message: "Apple Wallet update could not be delivered." });
+      await assert.rejects(
+        createAppleProvider(config, { connect: wire.connect }).pushUpdate(token),
+        {
+          code: "APPLE_WALLET_PUSH_FAILED",
+          message: "Apple Wallet update could not be delivered.",
+        },
+      );
       assert.ok(wire.state.closed || wire.state.destroyed);
     }
   });
 
   it("bounds connection, response and protocol failures with sanitized errors", async () => {
-    for (const failure of ["connect-throw", "request-throw", "session", "stream", "close", "goaway", "timeout"]) {
+    for (const failure of [
+      "connect-throw",
+      "request-throw",
+      "session",
+      "stream",
+      "close",
+      "goaway",
+      "timeout",
+    ]) {
       const wire = transport({ failure });
-      await assert.rejects(createAppleProvider(config, { connect: wire.connect, timeoutMs: 25 }).pushUpdate(token), { code: "APPLE_WALLET_PUSH_FAILED", message: "Apple Wallet update could not be delivered." });
-      if (failure !== "connect-throw") assert.ok(wire.state.closed || wire.state.destroyed, failure);
+      await assert.rejects(
+        createAppleProvider(config, { connect: wire.connect, timeoutMs: 25 }).pushUpdate(token),
+        {
+          code: "APPLE_WALLET_PUSH_FAILED",
+          message: "Apple Wallet update could not be delivered.",
+        },
+      );
+      if (failure !== "connect-throw")
+        assert.ok(wire.state.closed || wire.state.destroyed, failure);
     }
   });
 
   it("bounds response bodies and identifies malformed tokens before opening a connection", async () => {
     const wire = transport({ status: 503, body: "x".repeat(8193) });
-    await assert.rejects(createAppleProvider(config, { connect: wire.connect }).pushUpdate(token), { code: "APPLE_WALLET_PUSH_FAILED" });
-    for (const malformed of ["", "token/with-path", "a\r\nheader", "f".repeat(33), "ab".repeat(513)]) {
+    await assert.rejects(createAppleProvider(config, { connect: wire.connect }).pushUpdate(token), {
+      code: "APPLE_WALLET_PUSH_FAILED",
+    });
+    for (const malformed of [
+      "",
+      "token/with-path",
+      "a\r\nheader",
+      "f".repeat(33),
+      "ab".repeat(513),
+    ]) {
       const invalidWire = transport();
-      assert.deepEqual(await createAppleProvider(config, { connect: invalidWire.connect }).pushUpdate(malformed), { invalidToken: true });
+      assert.deepEqual(
+        await createAppleProvider(config, { connect: invalidWire.connect }).pushUpdate(malformed),
+        { invalidToken: true },
+      );
       assert.equal(invalidWire.calls.length, 0);
     }
   });
@@ -377,22 +700,33 @@ describe("Apple Wallet APNs update delivery", () => {
     const wire = transport();
     const provider = createAppleProvider(config, { connect: wire.connect });
     const malformed = "f".repeat(33);
-    const removed = [], synced = [];
+    const removed = [],
+      synced = [];
     const repo = {
       claimDue: async () => [{ id: "pass", provider: "apple", lock_token: "lease" }],
       getSnapshot: async () => ({ id: "pass", revision: "7" }),
       listRegistrations: async () => [{ push_token: malformed }, { push_token: token }],
-      deletePushToken: async value => removed.push(value),
+      deletePushToken: async (value) => removed.push(value),
       markSynced: async (...args) => synced.push(args),
-      markFailed: async () => assert.fail("a malformed token must not keep the pass retrying")
+      markFailed: async () => assert.fail("a malformed token must not keep the pass retrying"),
     };
-    const service = createNativeWalletService({ repo, customerRepo: {}, providers: { apple: provider },
-      settings: { apple: { ready: true } }, globalContext: fn => fn() });
+    const service = createNativeWalletService({
+      repo,
+      customerRepo: {},
+      providers: { apple: provider },
+      settings: { apple: { ready: true } },
+      globalContext: (fn) => fn(),
+    });
     try {
       assert.deepEqual(await service.processDue(), { delivered: 1, failed: 0 });
       assert.deepEqual(removed, [malformed]);
       assert.deepEqual(synced, [["pass", "7", "lease", null]]);
-      assert.deepEqual(wire.calls.filter(call => call.headers).map(call => call.headers[":path"]), [`/3/device/${token}`]);
-    } finally { provider.close(); }
+      assert.deepEqual(
+        wire.calls.filter((call) => call.headers).map((call) => call.headers[":path"]),
+        [`/3/device/${token}`],
+      );
+    } finally {
+      provider.close();
+    }
   });
 });

@@ -9,7 +9,8 @@ export function registerGiftCardsModule(app) {
     if (!box || !badge) return;
     if (!details?.card || !details?.ledger) {
       badge.textContent = "Selecciona una gift card";
-      box.textContent = "Aquí verás el saldo guardado, el saldo esperado por movimientos y el historial reciente.";
+      box.textContent =
+        "Aquí verás el saldo guardado, el saldo esperado por movimientos y el historial reciente.";
       return;
     }
 
@@ -23,11 +24,13 @@ export function registerGiftCardsModule(app) {
       `Emitido: ${regionalMoney(ledger.issue_total_q || 0)} | Redimido: ${regionalMoney(ledger.redeem_total_q || 0)}`,
       `Delta: ${regionalMoney(ledger.delta_q || 0)}${ledger.mismatch ? "  <- revisar" : ""}`,
       "",
-      "Movimientos recientes:"
+      "Movimientos recientes:",
     ];
 
     transactions.slice(0, 10).forEach((tx) => {
-      lines.push(`${new Date(tx.created_at).toLocaleString()} • ${tx.tx_type} • ${regionalMoney(tx.amount_q || 0)} • saldo ${regionalMoney(tx.balance_after_q || 0)}`);
+      lines.push(
+        `${new Date(tx.created_at).toLocaleString()} • ${tx.tx_type} • ${regionalMoney(tx.amount_q || 0)} • saldo ${regionalMoney(tx.balance_after_q || 0)}`,
+      );
     });
 
     box.textContent = lines.join("\n");
@@ -78,9 +81,14 @@ export function registerGiftCardsModule(app) {
         amount_q: Number($("#gcAmount").value || 0),
         issued_to_name: $("#gcName").value.trim() || undefined,
         issued_to_phone: $("#gcPhone").value.trim() || undefined,
-        requestId: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now())
+        requestId: globalThis.crypto?.randomUUID
+          ? globalThis.crypto.randomUUID()
+          : String(Date.now()),
       };
-      const out = await api("/api/admin/gift-cards", { method: "POST", body: JSON.stringify(payload) });
+      const out = await api("/api/admin/gift-cards", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
       const g = out.gift_card;
       $("#gcLastCreated").textContent =
         `Código: ${g.code}\nToken QR: ${g.qr_token}\nSaldo inicial: ${regionalMoney(g.initial_amount_q)}\nSaldo actual: ${regionalMoney(g.balance_q)}`;
@@ -102,6 +110,6 @@ export function registerGiftCardsModule(app) {
   app.registerTab("giftcards", {
     feature: "gift_cards",
     allowManager: true,
-    load: loadGiftCards
+    load: loadGiftCards,
   });
 }

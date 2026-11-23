@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as programSecrets from "../../src/utils/program-secrets.js";
-import { decryptProgramSecrets, encryptProgramSecrets, rotateProgramSecretsToCurrent } from "../../src/utils/program-secrets.js";
+import {
+  decryptProgramSecrets,
+  encryptProgramSecrets,
+  rotateProgramSecretsToCurrent,
+} from "../../src/utils/program-secrets.js";
 import { config } from "../../src/config/index.js";
 
 const EXTERNAL_AWARD_KEY_FIELD = ["api", "key"].join("_");
@@ -13,13 +17,13 @@ test("encryptProgramSecrets encrypts external award credential", () => {
     points_per_q: 0.1,
     external_awards: {
       enabled: true,
-      [EXTERNAL_AWARD_KEY_FIELD]: TEST_PROGRAM_TOKEN_A
-    }
+      [EXTERNAL_AWARD_KEY_FIELD]: TEST_PROGRAM_TOKEN_A,
+    },
   };
   const encrypted = encryptProgramSecrets(input);
   assert.notEqual(
     encrypted.external_awards[EXTERNAL_AWARD_KEY_FIELD],
-    input.external_awards[EXTERNAL_AWARD_KEY_FIELD]
+    input.external_awards[EXTERNAL_AWARD_KEY_FIELD],
   );
   assert.match(encrypted.external_awards[EXTERNAL_AWARD_KEY_FIELD], /^enc:v[12]:/);
 });
@@ -28,19 +32,24 @@ test("decryptProgramSecrets round-trips external award credential", () => {
   const input = {
     external_awards: {
       enabled: true,
-      [EXTERNAL_AWARD_KEY_FIELD]: TEST_PROGRAM_TOKEN_B
-    }
+      [EXTERNAL_AWARD_KEY_FIELD]: TEST_PROGRAM_TOKEN_B,
+    },
   };
   const encrypted = encryptProgramSecrets(input);
   const decrypted = decryptProgramSecrets(encrypted);
   assert.equal(
     decrypted.external_awards[EXTERNAL_AWARD_KEY_FIELD],
-    input.external_awards[EXTERNAL_AWARD_KEY_FIELD]
+    input.external_awards[EXTERNAL_AWARD_KEY_FIELD],
   );
 });
 
 test("POS access tokens are encrypted without mutating settings and can be decrypted", () => {
-  const input = { pos_integration: { mode: "loyverse", loyverse: { access_token: "sandbox-pos-token", merchant_id: "merchant-1" } } };
+  const input = {
+    pos_integration: {
+      mode: "loyverse",
+      loyverse: { access_token: "sandbox-pos-token", merchant_id: "merchant-1" },
+    },
+  };
   const encrypted = encryptProgramSecrets(input);
   assert.match(encrypted.pos_integration.loyverse.access_token, /^enc:v[12]:/);
   assert.equal(input.pos_integration.loyverse.access_token, "sandbox-pos-token");
@@ -51,9 +60,18 @@ test("POS access tokens are encrypted without mutating settings and can be decry
 test("program sanitizer removes connections, credentials and private owner briefing settings without mutating storage", () => {
   const input = {
     points_per_q: 2,
-    weekly_owner_brief: { owner_id: "fixture-owner", destination: "private-owner@example.invalid", channel: "email", settings: { enabled: true } },
+    weekly_owner_brief: {
+      owner_id: "fixture-owner",
+      destination: "private-owner@example.invalid",
+      channel: "email",
+      settings: { enabled: true },
+    },
     external_awards: { enabled: true, api_key: TEST_PROGRAM_TOKEN_A },
-    pos_integration: { automatic: true, loyverse: { access_token: "sandbox-pos-token" }, last_sync: { errors: 1 } }
+    pos_integration: {
+      automatic: true,
+      loyverse: { access_token: "sandbox-pos-token" },
+      last_sync: { errors: 1 },
+    },
   };
   const before = structuredClone(input);
   assert.equal(typeof programSecrets.sanitizeProgramForClient, "function");
@@ -73,13 +91,21 @@ test("POS-only programs rotate credentials to the current key", () => {
   try {
     config.WEBHOOK_SECRET_ENC_KEY = "sandbox-old-program-key";
     config.WEBHOOK_SECRET_ENC_KEY_PREVIOUS = [];
-    const encrypted = encryptProgramSecrets({ pos_integration: { loyverse: { access_token: "sandbox-pos-rotation" } } });
+    const encrypted = encryptProgramSecrets({
+      pos_integration: { loyverse: { access_token: "sandbox-pos-rotation" } },
+    });
     config.WEBHOOK_SECRET_ENC_KEY = "sandbox-new-program-key";
     config.WEBHOOK_SECRET_ENC_KEY_PREVIOUS = ["sandbox-old-program-key"];
     const rotated = rotateProgramSecretsToCurrent(encrypted);
-    assert.notEqual(rotated.pos_integration.loyverse.access_token, encrypted.pos_integration.loyverse.access_token);
+    assert.notEqual(
+      rotated.pos_integration.loyverse.access_token,
+      encrypted.pos_integration.loyverse.access_token,
+    );
     config.WEBHOOK_SECRET_ENC_KEY_PREVIOUS = [];
-    assert.equal(decryptProgramSecrets(rotated).pos_integration.loyverse.access_token, "sandbox-pos-rotation");
+    assert.equal(
+      decryptProgramSecrets(rotated).pos_integration.loyverse.access_token,
+      "sandbox-pos-rotation",
+    );
   } finally {
     config.WEBHOOK_SECRET_ENC_KEY = previousCurrent;
     config.WEBHOOK_SECRET_ENC_KEY_PREVIOUS = previousKeys;

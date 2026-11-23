@@ -11,7 +11,7 @@ const scanTargets = [
   "docker-compose.e2e.yml",
   "docker-compose.e2e.standalone.yml",
   "deploy/e2e/api.env",
-  "deploy/db/init-e2e.sh"
+  "deploy/db/init-e2e.sh",
 ];
 
 const bannedPatterns = [
@@ -22,8 +22,11 @@ const bannedPatterns = [
   { label: "legacy e2e runtime admin password", regex: /loyalty_admin_password/g },
   { label: "legacy e2e overlay password", regex: /loyalty_e2e_password/g },
   { label: "legacy OpenAPI docs DB placeholder", regex: /docs_db_password_1234567890/g },
-  { label: "legacy OpenAPI docs JWT placeholder", regex: /docs_jwt_secret_abcdefghijklmnopqrstuvwxyz_123456/g },
-  { label: "legacy postgres script default", regex: /DB_PASSWORD\s*=\s*"postgres"/g }
+  {
+    label: "legacy OpenAPI docs JWT placeholder",
+    regex: /docs_jwt_secret_abcdefghijklmnopqrstuvwxyz_123456/g,
+  },
+  { label: "legacy postgres script default", regex: /DB_PASSWORD\s*=\s*"postgres"/g },
 ];
 
 function collectFiles(targetPath) {

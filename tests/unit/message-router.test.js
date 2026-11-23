@@ -14,7 +14,7 @@ test("message router tries eligible providers in order and stops on first succes
         send: async () => {
           attempts.push("waha");
           throw new Error("down");
-        }
+        },
       },
       smtp_email: {
         name: "smtp_email",
@@ -22,15 +22,15 @@ test("message router tries eligible providers in order and stops on first succes
         send: async () => {
           attempts.push("smtp_email");
           return { ok: true, providerId: "smtp-1" };
-        }
-      }
-    }
+        },
+      },
+    },
   });
 
   const out = await router.send({
     channel: "verify",
     body: "hola",
-    destinations: { phone: "+50255555555", email: "cliente@test.com" }
+    destinations: { phone: "+50255555555", email: "cliente@test.com" },
   });
 
   assert.equal(out.ok, true);
@@ -45,20 +45,20 @@ test("message router skips providers that cannot send the available destination 
       smtp_email: {
         name: "smtp_email",
         canSend: ({ destinations }) => Boolean(destinations.email),
-        send: async () => ({ ok: true, providerId: "smtp-1" })
+        send: async () => ({ ok: true, providerId: "smtp-1" }),
       },
       whatsapp_cloud: {
         name: "whatsapp_cloud",
         canSend: ({ destinations }) => Boolean(destinations.phone),
-        send: async () => ({ ok: true, providerId: "wa-1" })
-      }
-    }
+        send: async () => ({ ok: true, providerId: "wa-1" }),
+      },
+    },
   });
 
   const out = await router.send({
     channel: "verify",
     body: "hola",
-    destinations: { phone: "+50255555555", email: null }
+    destinations: { phone: "+50255555555", email: null },
   });
 
   assert.equal(out.ok, true);
@@ -66,7 +66,21 @@ test("message router skips providers that cannot send the available destination 
   assert.deepEqual(out.attempts, ["whatsapp_cloud"]);
 });
 
-test('message router treats an explicit provider failure as failed delivery', async () => {
-  const router = createMessageRouter({ order: ['failed'], providers: { failed: { name: 'failed', canSend: () => true, send: async () => ({ ok: false }) } } });
-  assert.equal((await router.send({ channel: 'verify', body: 'test', destinations: { phone: '+50255555555' } })).ok, false);
+test("message router treats an explicit provider failure as failed delivery", async () => {
+  const router = createMessageRouter({
+    order: ["failed"],
+    providers: {
+      failed: { name: "failed", canSend: () => true, send: async () => ({ ok: false }) },
+    },
+  });
+  assert.equal(
+    (
+      await router.send({
+        channel: "verify",
+        body: "test",
+        destinations: { phone: "+50255555555" },
+      })
+    ).ok,
+    false,
+  );
 });

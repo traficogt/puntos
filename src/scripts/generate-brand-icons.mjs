@@ -11,7 +11,7 @@ const OUTPUTS = [
   ["favicon-32.png", 32],
   ["apple-touch-icon.png", 180],
   ["icon-192.png", 192],
-  ["icon-512.png", 512]
+  ["icon-512.png", 512],
 ];
 
 process.env.PLAYWRIGHT_BROWSERS_PATH ??= "0";
@@ -44,7 +44,7 @@ try {
         </style>
       </head>
       <body>${svg}</body>
-      </html>`
+      </html>`,
     );
     await page.screenshot({ path: path.join(PUBLIC_DIR, fileName), omitBackground: true });
   }

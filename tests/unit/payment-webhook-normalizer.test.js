@@ -6,15 +6,26 @@ function eventType(fields) {
   return normalizePaymentWebhook("merchant-pos", {
     externalEventId: "receipt-123",
     amount_q: 48.5,
-    ...fields
+    ...fields,
   }).eventType;
 }
 
 describe("payment webhook success classification", () => {
   for (const status of [
-    "UNPAID", "NOT_APPROVED", "DISAPPROVED", "UNSUCCESSFUL",
-    "PAID_FAILED", "PARTIALLY_PAID", "PAID_REFUNDED", "APPROVAL_PENDING",
-    "AUTHORIZED", "PENDING", "FAILED", "CANCELLED", "REFUNDED", "unknown"
+    "UNPAID",
+    "NOT_APPROVED",
+    "DISAPPROVED",
+    "UNSUCCESSFUL",
+    "PAID_FAILED",
+    "PARTIALLY_PAID",
+    "PAID_REFUNDED",
+    "APPROVAL_PENDING",
+    "AUTHORIZED",
+    "PENDING",
+    "FAILED",
+    "CANCELLED",
+    "REFUNDED",
+    "unknown",
   ]) {
     it(`does not award for ${status}`, () => {
       assert.equal(eventType({ status }), "payment.other");
@@ -27,7 +38,12 @@ describe("payment webhook success classification", () => {
     });
   }
 
-  for (const event of ["payment.approved", "payment.paid", "payment.succeeded", "payment.completed"]) {
+  for (const event of [
+    "payment.approved",
+    "payment.paid",
+    "payment.succeeded",
+    "payment.completed",
+  ]) {
     it(`recognizes the explicit success event ${event}`, () => {
       assert.equal(eventType({ event }), "payment.approved");
     });

@@ -1,12 +1,32 @@
 import { one, many, exec } from "./base.js";
-import { publicCustomerTransaction } from '../services/customer-history-provenance.js';
+import { publicCustomerTransaction } from "../services/customer-history-provenance.js";
 
 export const TxnRepo = {
-  async create({ id, business_id, branch_id, customer_id, staff_user_id, amount_q, points, source, meta }) {
+  async create({
+    id,
+    business_id,
+    branch_id,
+    customer_id,
+    staff_user_id,
+    amount_q,
+    points,
+    source,
+    meta,
+  }) {
     await exec(
       `INSERT INTO transactions (id, business_id, branch_id, customer_id, staff_user_id, amount_q, points, source, meta)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [id, business_id, branch_id ?? null, customer_id, staff_user_id ?? null, amount_q, points, source, meta ?? {}]
+      [
+        id,
+        business_id,
+        branch_id ?? null,
+        customer_id,
+        staff_user_id ?? null,
+        amount_q,
+        points,
+        source,
+        meta ?? {},
+      ],
     );
     return this.getById(id);
   },
@@ -39,19 +59,22 @@ export const TxnRepo = {
        WHERE t.customer_id=$1
        ORDER BY t.created_at DESC
        LIMIT $2`,
-      [customerId, limit]
+      [customerId, limit],
     );
   },
 
   async listCustomerHistory(businessId, customerId, limit = 50) {
-    const rows = await many(`SELECT t.id,t.business_id,t.branch_id,t.customer_id,
+    const rows = await many(
+      `SELECT t.id,t.business_id,t.branch_id,t.customer_id,
       t.amount_q,t.points AS points_delta,t.source,t.type,t.status,t.reversed_transaction_id,
       t.visits,t.items,t.meta,t.created_at,r.name AS reward_name,
       EXISTS(SELECT 1 FROM transactions original WHERE original.id=t.original_transaction_id
         AND original.business_id=t.business_id AND original.customer_id=t.customer_id) AS has_original_transaction
       FROM transactions t LEFT JOIN rewards r ON r.business_id=t.business_id AND r.id::text=t.meta->>'reward_id'
       WHERE t.business_id=$1 AND t.customer_id=$2
-      ORDER BY t.created_at DESC,t.id DESC LIMIT $3`, [businessId, customerId, limit]);
+      ORDER BY t.created_at DESC,t.id DESC LIMIT $3`,
+      [businessId, customerId, limit],
+    );
     return rows.map(publicCustomerTransaction);
   },
 
@@ -69,8 +92,8 @@ export const TxnRepo = {
          COALESCE(SUM(points),0)::int AS points_sum
        FROM transactions
        WHERE business_id=$1 AND created_at >= now() - ($2 || ' days')::interval${branchClause}`,
-      params
+      params,
     );
     return r ?? { tx_count: 0, amount_sum: "0.00", points_sum: 0 };
-  }
+  },
 };

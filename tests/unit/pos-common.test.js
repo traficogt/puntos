@@ -1,14 +1,33 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
-import { normalizePosSale, posEventId, verifyPosCredentials, safePosIntegration } from "../../src/app/services/pos/common.js";
+import {
+  normalizePosSale,
+  posEventId,
+  verifyPosCredentials,
+  safePosIntegration,
+} from "../../src/app/services/pos/common.js";
 
 const key = "sandbox-pos-test-key-with-enough-entropy";
-const business = { id: "biz-1", slug: "cafe", program_json: {
-  external_awards: { enabled: true, api_key: key },
-  pos_integration: { enabled: true, mode: "api", loyverse: { access_token: "private-token", merchant_id: "merchant-1" } }
-} };
-const sale = { saleId: "000123", source: "cash-register", customerPhone: "+502 5555-4444", amountQ: 48.5, currency: "GTQ" };
+const business = {
+  id: "biz-1",
+  slug: "cafe",
+  program_json: {
+    external_awards: { enabled: true, api_key: key },
+    pos_integration: {
+      enabled: true,
+      mode: "api",
+      loyverse: { access_token: "private-token", merchant_id: "merchant-1" },
+    },
+  },
+};
+const sale = {
+  saleId: "000123",
+  source: "cash-register",
+  customerPhone: "+502 5555-4444",
+  amountQ: 48.5,
+  currency: "GTQ",
+};
 
 test("normalizes sale identity without losing leading zeroes", () => {
   const out = normalizePosSale(sale);
@@ -20,15 +39,33 @@ test("normalizes sale identity without losing leading zeroes", () => {
 });
 
 test("preserves a receipt time with an explicit timezone and rejects ambiguous or future dates", () => {
-  assert.equal(normalizePosSale({ ...sale, occurredAt: "2026-01-02T09:30:00-06:00" }).occurredAt, "2026-01-02T15:30:00.000Z");
+  assert.equal(
+    normalizePosSale({ ...sale, occurredAt: "2026-01-02T09:30:00-06:00" }).occurredAt,
+    "2026-01-02T15:30:00.000Z",
+  );
   assert.equal(normalizePosSale(sale).occurredAt, undefined, "old adapters may omit receipt time");
-  for (const occurredAt of ["2026-02-30T12:00:00Z", "2026-01-02T12:00:00", "not-a-date", "2999-01-01T00:00:00Z", 123, ""]) {
+  for (const occurredAt of [
+    "2026-02-30T12:00:00Z",
+    "2026-01-02T12:00:00",
+    "not-a-date",
+    "2999-01-01T00:00:00Z",
+    123,
+    "",
+  ]) {
     assert.throws(() => normalizePosSale({ ...sale, occurredAt }), { statusCode: 400 });
   }
 });
 
 test("rejects ambiguous amounts, foreign currency, and missing customer identity", () => {
-  for (const patch of [{ amountQ: -1 }, { amountQ: "48.5" }, { amountQ: Infinity }, { amountQ: 1.001 }, { currency: "USD" }, { customerPhone: "" }, { saleId: "" }]) {
+  for (const patch of [
+    { amountQ: -1 },
+    { amountQ: "48.5" },
+    { amountQ: Infinity },
+    { amountQ: 1.001 },
+    { currency: "USD" },
+    { customerPhone: "" },
+    { saleId: "" },
+  ]) {
     assert.throws(() => normalizePosSale({ ...sale, ...patch }));
   }
 });
@@ -45,32 +82,61 @@ test("accepts generated bearer key and exact-body HMAC independently", () => {
   const rawBody = Buffer.from(JSON.stringify(sale));
   const signature = crypto.createHmac("sha256", key).update(rawBody).digest("hex");
   assert.doesNotThrow(() => verifyPosCredentials(business, { rawBody, signature }));
-  assert.throws(() => verifyPosCredentials(business, { rawBody: Buffer.from("{}"), signature }), { statusCode: 401 });
+  assert.throws(() => verifyPosCredentials(business, { rawBody: Buffer.from("{}"), signature }), {
+    statusCode: 401,
+  });
 });
 
 test("accepts the UTF-8 raw body string captured by the production JSON parser", () => {
   const rawBody = JSON.stringify({ ...sale, source: "Café" });
-  const signature = crypto.createHmac("sha256", key).update(Buffer.from(rawBody, "utf8")).digest("hex");
+  const signature = crypto
+    .createHmac("sha256", key)
+    .update(Buffer.from(rawBody, "utf8"))
+    .digest("hex");
   assert.doesNotThrow(() => verifyPosCredentials(business, { rawBody, signature }));
-  assert.throws(() => verifyPosCredentials(business, { rawBody: `${rawBody}\n`, signature }), { statusCode: 401 });
+  assert.throws(() => verifyPosCredentials(business, { rawBody: `${rawBody}\n`, signature }), {
+    statusCode: 401,
+  });
   for (const invalidBody of [undefined, null, JSON.parse(rawBody)]) {
-    assert.throws(() => verifyPosCredentials(business, { rawBody: invalidBody, signature }), { statusCode: 401 });
+    assert.throws(() => verifyPosCredentials(business, { rawBody: invalidBody, signature }), {
+      statusCode: 401,
+    });
   }
 });
 
 test("authenticates credentials before exposing a disabled connection", () => {
-  const disabled = { ...business, program_json: { ...business.program_json, pos_integration: { enabled: false } } };
+  const disabled = {
+    ...business,
+    program_json: { ...business.program_json, pos_integration: { enabled: false } },
+  };
   for (const credentials of [{}, { authorization: "Bearer wrong" }, { signature: "wrong" }]) {
     assert.throws(() => verifyPosCredentials(disabled, credentials), { statusCode: 401 });
   }
-  assert.throws(() => verifyPosCredentials(disabled, { authorization: `Bearer ${key}` }), { statusCode: 403 });
+  assert.throws(() => verifyPosCredentials(disabled, { authorization: `Bearer ${key}` }), {
+    statusCode: 403,
+  });
 });
 
 test("fails closed for missing, wrong, conflicting or disabled credentials", () => {
-  for (const args of [{}, { authorization: "Bearer wrong" }, { signature: key }, { authorization: `Bearer ${key}`, signature: "wrong", rawBody: Buffer.from("{}") }]) {
+  for (const args of [
+    {},
+    { authorization: "Bearer wrong" },
+    { signature: key },
+    { authorization: `Bearer ${key}`, signature: "wrong", rawBody: Buffer.from("{}") },
+  ]) {
     assert.throws(() => verifyPosCredentials(business, args), { statusCode: 401 });
   }
-  assert.throws(() => verifyPosCredentials({ ...business, program_json: { ...business.program_json, pos_integration: { enabled: false } } }, { authorization: `Bearer ${key}` }), { statusCode: 403 });
+  assert.throws(
+    () =>
+      verifyPosCredentials(
+        {
+          ...business,
+          program_json: { ...business.program_json, pos_integration: { enabled: false } },
+        },
+        { authorization: `Bearer ${key}` },
+      ),
+    { statusCode: 403 },
+  );
 });
 
 test("safe connection responses never expose API or vendor tokens", () => {

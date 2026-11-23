@@ -1,9 +1,12 @@
 import express from "express";
 import path from "node:path";
 import { once } from "node:events";
-import { mkdtemp, symlink, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { createSpanishWeb, createSpanishWebRedirects } from "../../../src/middleware/spanish-web.js";
+import { mkdtemp, symlink, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import {
+  createSpanishWeb,
+  createSpanishWebRedirects,
+} from "../../../src/middleware/spanish-web.js";
 
 function publicFile(publicDir, filename) {
   return path.join(publicDir, filename);
@@ -13,10 +16,10 @@ export async function startPwaStaticServer() {
   const app = express();
   // Express intentionally rejects hidden path segments. A test-only alias lets
   // the same public assets run from .worktrees without relaxing server policy.
-  const fixtureDir = await mkdtemp(path.join(tmpdir(), 'pf-pwa-public-'));
-  const publicDir = path.join(fixtureDir, 'public');
+  const fixtureDir = await mkdtemp(path.join(tmpdir(), "pf-pwa-public-"));
+  const publicDir = path.join(fixtureDir, "public");
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- Link only repository public assets into this fixture's temporary directory.
-  await symlink(path.join(process.cwd(), 'public'), publicDir, 'dir');
+  await symlink(path.join(process.cwd(), "public"), publicDir, "dir");
   const host = process.env.PWA_STATIC_HOST || "127.0.0.1";
 
   app.get("/sw.js", (req, res, next) => {
@@ -61,6 +64,6 @@ export async function startPwaStaticServer() {
         });
       });
       await rm(fixtureDir, { recursive: true, force: true });
-    }
+    },
   };
 }

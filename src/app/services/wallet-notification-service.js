@@ -17,11 +17,23 @@ export async function deliverLifecycleWalletMessage({
   body,
   now = () => new Date(),
   ttlMs = WALLET_MESSAGE_TTL_MS,
-  repo = NativeWalletRepo
+  repo = NativeWalletRepo,
 }) {
   const expiresAt = new Date(now().getTime() + ttlMs);
-  const passes = await repo.queueWalletMessage({ businessId, customerId, message: body, expiresAt });
+  const passes = await repo.queueWalletMessage({
+    businessId,
+    customerId,
+    message: body,
+    expiresAt,
+  });
   if (!passes.length) return null;
   // Shaped like a messaging-service success so classifyCampaignSend records it accepted.
-  return { ok: true, accepted: true, provider: "wallet", providerId: "wallet", id: null, walletPasses: passes.length };
+  return {
+    ok: true,
+    accepted: true,
+    provider: "wallet",
+    providerId: "wallet",
+    id: null,
+    walletPasses: passes.length,
+  };
 }

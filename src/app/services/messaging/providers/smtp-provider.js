@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import {MessageProviderError,providerTimeoutMs} from "./http-provider.js";
+import { MessageProviderError, providerTimeoutMs } from "./http-provider.js";
 
 function resolveSecure(config) {
   if (config.SMTP_SECURE === "true") return true;
@@ -13,7 +13,7 @@ function resolveTransportSecurity(config) {
       // Explicit plaintext SMTP for local relays that advertise STARTTLS with
       // certificates that do not match their private IPs.
       ignoreTLS: true,
-      requireTLS: false
+      requireTLS: false,
     };
   }
   return {};
@@ -29,7 +29,14 @@ export function createSmtpProvider({ config, transportFactory = nodemailer.creat
     canSend({ destinations }) {
       return Boolean(destinations?.email && config.SMTP_HOST);
     },
-    async send({ destinations, body, subject = "PuntosFieles", text = body, html = "", strictAcceptance = false }) {
+    async send({
+      destinations,
+      body,
+      subject = "PuntosFieles",
+      text = body,
+      html = "",
+      strictAcceptance = false,
+    }) {
       const transport = transportFactory({
         host: config.SMTP_HOST,
         port: config.SMTP_PORT,
@@ -40,19 +47,22 @@ export function createSmtpProvider({ config, transportFactory = nodemailer.creat
         ...resolveTransportSecurity(config),
         ...(config.SMTP_USER || config.SMTP_PASS
           ? { auth: { user: config.SMTP_USER, pass: config.SMTP_PASS } }
-          : {})
+          : {}),
       });
       const info = await transport.sendMail({
         from: config.SMTP_FROM,
         to: destinations.email,
         subject,
         text: String(text || body || ""),
-        ...(html ? { html } : {})
+        ...(html ? { html } : {}),
       });
       if (strictAcceptance && !info?.accepted?.length) {
-        throw new MessageProviderError(info?.rejected?.length ? 'MESSAGE_PROVIDER_REJECTED' : 'MESSAGE_DELIVERY_UNCERTAIN', !info?.rejected?.length);
+        throw new MessageProviderError(
+          info?.rejected?.length ? "MESSAGE_PROVIDER_REJECTED" : "MESSAGE_DELIVERY_UNCERTAIN",
+          !info?.rejected?.length,
+        );
       }
       return { ok: true, providerId: info?.messageId ?? "smtp" };
-    }
+    },
   };
 }

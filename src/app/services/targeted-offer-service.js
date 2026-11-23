@@ -27,9 +27,7 @@ export async function claimTargetedOffer(
     basePoints,
     planFeatureOverrides = undefined,
   },
-  {
-    getPlanFeatureOverrides = () => PlanConfigService.getPlanFeatureOverrides(),
-  } = {},
+  { getPlanFeatureOverrides = () => PlanConfigService.getPlanFeatureOverrides() } = {},
 ) {
   if (
     business.program_json?.targeted_offers_enabled !== true ||
@@ -42,14 +40,14 @@ export async function claimTargetedOffer(
     [business.id],
   );
   const live = current.rows[0];
-  if (!live || !entitled(live, planFeatureOverrides ?? await getPlanFeatureOverrides()))
+  if (!live || !entitled(live, planFeatureOverrides ?? (await getPlanFeatureOverrides())))
     return noBonus();
   // Shared across all purchase writers, preventing concurrent selection from
   // consuming different campaigns for the same receipt/customer.
-  await client.query(
-    "SELECT pg_advisory_xact_lock(hashtext($1),hashtext($2))",
-    [String(business.id), `targeted-offer:${customerId}`],
-  );
+  await client.query("SELECT pg_advisory_xact_lock(hashtext($1),hashtext($2))", [
+    String(business.id),
+    `targeted-offer:${customerId}`,
+  ]);
   for (;;) {
     // Lock campaigns before members, in the same expiry/id order for every
     // customer. PostgreSQL rechecks the updated budget after a lock wait and
@@ -70,12 +68,14 @@ export async function claimTargetedOffer(
     );
     const campaign = selected.rows[0];
     if (!campaign) return noBonus();
-    if (campaign.audience_snapshot?.automation === 'second_visit') {
+    if (campaign.audience_snapshot?.automation === "second_visit") {
       // Serialize against a refund of the qualifying first receipt. A later
       // refund cannot revoke a bonus already granted on an eligible return.
-      const first = await client.query(`SELECT id FROM transactions WHERE business_id=$1 AND id=$2
+      const first = await client.query(
+        `SELECT id FROM transactions WHERE business_id=$1 AND id=$2
         AND status='POSTED' AND original_transaction_id IS NULL AND reversed_transaction_id IS NULL FOR SHARE`,
-      [business.id, campaign.audience_snapshot.first_transaction_id]);
+        [business.id, campaign.audience_snapshot.first_transaction_id],
+      );
       if (!first.rowCount) continue;
     }
     const member = await client.query(
@@ -109,25 +109,44 @@ export async function claimTargetedOffer(
     if (!isLedgerInteger(total))
       throw badRequest("Los puntos calculados exceden el límite permitido.");
     const max = Number(live.program_json?.award_guard?.max_points_per_tx ?? 0);
-    if (max > 0 && total > max)
-      throw forbidden(`Points exceed max allowed (${max})`);
+    if (max > 0 && total > max) throw forbidden(`Points exceed max allowed (${max})`);
     await client.query(
       `UPDATE growth_campaign_members SET bonus_transaction_id=$3::uuid,bonus_points_awarded=$4,claimed_at=clock_timestamp()
       WHERE business_id=$1::uuid AND id=$2::uuid`,
       [business.id, member.rows[0].id, transactionId, campaign.bonus_points],
     );
     const terms = committed.rows[0];
-    return { bonusPoints: campaign.bonus_points, campaignId: campaign.id, criteria: {
-      schema_version: 1, clock: 'database', evaluated_at: terms.evaluated_at,
-      minimum_purchase_q: Number(terms.minimum_purchase_q), starts_at: terms.starts_at, expires_at: terms.expires_at,
-      points_budget: terms.points_budget == null ? null : Number(terms.points_budget),
-      points_committed_before: Number(terms.points_committed) - campaign.bonus_points, points_committed_after: Number(terms.points_committed),
-      // These predicates succeeded under the held campaign/member/customer locks.
-      // Audience rules were not re-evaluated: the saved treatment membership was.
-      eligibility: { campaign_active: true, saved_membership: 'treatment', unclaimed_before_award: true,
-        customer_not_deleted: true, program_enabled_at_request: true, plan_features_allowed: true },
-      purchase: { amount_q: Number(amountQ), visits: Number(visits), items: Number(items), source }
-    } };
+    return {
+      bonusPoints: campaign.bonus_points,
+      campaignId: campaign.id,
+      criteria: {
+        schema_version: 1,
+        clock: "database",
+        evaluated_at: terms.evaluated_at,
+        minimum_purchase_q: Number(terms.minimum_purchase_q),
+        starts_at: terms.starts_at,
+        expires_at: terms.expires_at,
+        points_budget: terms.points_budget == null ? null : Number(terms.points_budget),
+        points_committed_before: Number(terms.points_committed) - campaign.bonus_points,
+        points_committed_after: Number(terms.points_committed),
+        // These predicates succeeded under the held campaign/member/customer locks.
+        // Audience rules were not re-evaluated: the saved treatment membership was.
+        eligibility: {
+          campaign_active: true,
+          saved_membership: "treatment",
+          unclaimed_before_award: true,
+          customer_not_deleted: true,
+          program_enabled_at_request: true,
+          plan_features_allowed: true,
+        },
+        purchase: {
+          amount_q: Number(amountQ),
+          visits: Number(visits),
+          items: Number(items),
+          source,
+        },
+      },
+    };
   }
 }
 
@@ -138,13 +157,9 @@ export async function getCustomerGrowthOffers(
     getPlanFeatureOverrides = () => PlanConfigService.getPlanFeatureOverrides(),
   } = {},
 ) {
-  const business = (
-    await query("SELECT id,plan FROM businesses WHERE id=$1::uuid", [
-      businessId,
-    ])
-  ).rows[0];
-  if (!business || !entitled(business, await getPlanFeatureOverrides()))
-    return { offers: [] };
+  const business = (await query("SELECT id,plan FROM businesses WHERE id=$1::uuid", [businessId]))
+    .rows[0];
+  if (!business || !entitled(business, await getPlanFeatureOverrides())) return { offers: [] };
   const { rows } = await query(
     `SELECT g.id,g.name,g.bonus_points,g.minimum_purchase_q,g.starts_at,g.expires_at,
       CASE WHEN g.points_budget IS NOT NULL THEN 'Sujeta a los puntos disponibles de la campaña.' ELSE NULL END AS availability_terms

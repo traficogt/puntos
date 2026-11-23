@@ -24,7 +24,7 @@ const PLATFORM_EMAIL_BRANDING = {
   lockupUrl: `${baseOrigin()}/pf-email-lockup.png?v=2`,
   primaryColor: "#6D3524",
   accentColor: "#D7A554",
-  poweredByVisible: false
+  poweredByVisible: false,
 };
 
 function normalizeHexColor(value, fallback) {
@@ -46,23 +46,26 @@ function normalizeLogoUrl(value) {
 export async function resolveEmailBranding({
   businessId = null,
   business = null,
-  getBusinessById = async (_businessId) => null
+  getBusinessById = async (_businessId) => null,
 } = {}) {
   const source = business ?? (businessId ? await getBusinessById(businessId) : null);
   if (!source) return { ...PLATFORM_EMAIL_BRANDING };
 
-  const raw = source.customer_branding_json && typeof source.customer_branding_json === "object"
-    ? source.customer_branding_json
-    : {};
+  const raw =
+    source.customer_branding_json && typeof source.customer_branding_json === "object"
+      ? source.customer_branding_json
+      : {};
   return {
     scope: "tenant",
-    brandName: String(raw.customer_program_name || source.name || PLATFORM_EMAIL_BRANDING.brandName).trim(),
+    brandName: String(
+      raw.customer_program_name || source.name || PLATFORM_EMAIL_BRANDING.brandName,
+    ).trim(),
     logoUrl: normalizeLogoUrl(raw.customer_logo_url),
     wordmarkUrl: "",
     lockupUrl: "",
     primaryColor: normalizeHexColor(raw.primary_color, PLATFORM_EMAIL_BRANDING.primaryColor),
     accentColor: normalizeHexColor(raw.accent_color, PLATFORM_EMAIL_BRANDING.accentColor),
-    poweredByVisible: raw.powered_by_visible !== false
+    poweredByVisible: raw.powered_by_visible !== false,
   };
 }
 

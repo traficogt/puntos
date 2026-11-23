@@ -9,10 +9,14 @@ import { BusinessRepo } from "../repositories/business-repository.js";
 import { badRequest, forbidden, notFound } from "../../utils/http-error.js";
 import { logger } from "../../utils/logger.js";
 
-function id() { return crypto.randomUUID(); }
+function id() {
+  return crypto.randomUUID();
+}
 
 function normalizeProvider(provider) {
-  const p = String(provider || "").trim().toLowerCase();
+  const p = String(provider || "")
+    .trim()
+    .toLowerCase();
   if (!p) throw badRequest("provider is required");
   const allowed = config.PAYMENT_WEBHOOK_ALLOWED_PROVIDERS || [];
   if (allowed.length > 0 && !allowed.includes(p)) {
@@ -45,7 +49,10 @@ function validateProviderHmac(provider, signatureHeader, rawBody) {
   if (!secret) return;
   const received = normalizeSignature(signatureHeader);
   if (!received) throw forbidden("Missing webhook signature");
-  const expected = crypto.createHmac("sha256", String(secret)).update(String(rawBody ?? "")).digest("hex");
+  const expected = crypto
+    .createHmac("sha256", String(secret))
+    .update(String(rawBody ?? ""))
+    .digest("hex");
   const a = Buffer.from(received);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
@@ -70,12 +77,21 @@ function assertProviderAuthConfigured(provider) {
     insecureProviderWarned.add(provider);
     logger.warn(
       { provider },
-      "SECURITY: payment webhook accepted WITHOUT authentication (PAYMENT_WEBHOOK_REQUIRE_AUTH=false and no provider secret/HMAC configured)"
+      "SECURITY: payment webhook accepted WITHOUT authentication (PAYMENT_WEBHOOK_REQUIRE_AUTH=false and no provider secret/HMAC configured)",
     );
   }
 }
 
-function webhookLogContext({ provider, event = null, businessId = null, businessSlug = null, customerPhone = null, customerId = null, providerEventId = null, extra = {} }) {
+function webhookLogContext({
+  provider,
+  event = null,
+  businessId = null,
+  businessSlug = null,
+  customerPhone = null,
+  customerId = null,
+  providerEventId = null,
+  extra = {},
+}) {
   return {
     provider,
     eventId: event?.id ?? null,
@@ -85,7 +101,7 @@ function webhookLogContext({ provider, event = null, businessId = null, business
     businessSlug: businessSlug ?? event?.business_slug ?? null,
     customerId: customerId ?? event?.customer_id ?? null,
     customerPhone: maskPhone(customerPhone ?? event?.customer_phone ?? null),
-    ...extra
+    ...extra,
   };
 }
 
@@ -99,7 +115,7 @@ async function insertOrGetEvent({
   customerPhone,
   amount_q,
   currency,
-  payload
+  payload,
 }) {
   const eventId = id();
   const { rows } = await dbQuery(
@@ -119,13 +135,13 @@ async function insertOrGetEvent({
       customerPhone ?? null,
       Number(amount_q || 0),
       currency || null,
-      payload ?? {}
-    ]
+      payload ?? {},
+    ],
   );
   if (rows[0]) return rows[0];
   const existing = await dbQuery(
     `SELECT * FROM payment_webhook_events WHERE provider=$1 AND provider_event_id=$2 LIMIT 1`,
-    [provider, providerEventId]
+    [provider, providerEventId],
   );
   return existing.rows?.[0] ?? null;
 }
@@ -139,7 +155,7 @@ async function setEventStatus(eventId, patch = {}) {
     customerId = undefined,
     customerPhone = undefined,
     businessId = undefined,
-    businessSlug = undefined
+    businessSlug = undefined,
   } = patch;
   await dbQuery(
     `UPDATE payment_webhook_events
@@ -155,19 +171,30 @@ async function setEventStatus(eventId, patch = {}) {
      WHERE id = $1`,
     [
       eventId,
-      status !== null, status,
-      reason !== null, reason,
-      error !== null, error,
-      linkedTransactionId !== null, linkedTransactionId,
-      customerId !== undefined, customerId ?? null,
-      customerPhone !== undefined, customerPhone ?? null,
-      businessId !== undefined, businessId ?? null,
-      businessSlug !== undefined, businessSlug ?? null
-    ]
+      status !== null,
+      status,
+      reason !== null,
+      reason,
+      error !== null,
+      error,
+      linkedTransactionId !== null,
+      linkedTransactionId,
+      customerId !== undefined,
+      customerId ?? null,
+      customerPhone !== undefined,
+      customerPhone ?? null,
+      businessId !== undefined,
+      businessId ?? null,
+      businessSlug !== undefined,
+      businessSlug ?? null,
+    ],
   );
 }
 
-export async function processPaymentWebhook({ provider, payload, secretHeader, signatureHeader = "", rawBody = "" }, {award=awardFromExternalEventTrusted}={}) {
+export async function processPaymentWebhook(
+  { provider, payload, secretHeader, signatureHeader = "", rawBody = "" },
+  { award = awardFromExternalEventTrusted } = {},
+) {
   const normalizedProvider = normalizeProvider(provider);
   assertProviderAuthConfigured(normalizedProvider);
   validateProviderSecret(normalizedProvider, secretHeader);
@@ -180,20 +207,20 @@ export async function processPaymentWebhook({ provider, payload, secretHeader, s
     throw badRequest("providerEventId missing in webhook payload");
   }
 
-	let businessId = null;
-	if (n.businessSlug) {
-	  const business = await BusinessRepo.getPublicBySlug(n.businessSlug);
-	  if (business) businessId = business.id;
-	}
-	if (businessId) {
-	  // Ensure RLS context is set before writing tenant-scoped rows.
-	  await setCurrentTenant(String(businessId));
-	}
+  let businessId = null;
+  if (n.businessSlug) {
+    const business = await BusinessRepo.getPublicBySlug(n.businessSlug);
+    if (business) businessId = business.id;
+  }
+  if (businessId) {
+    // Ensure RLS context is set before writing tenant-scoped rows.
+    await setCurrentTenant(String(businessId));
+  }
 
-	const customerPhone = n.customerPhone ? normalizePhone(n.customerPhone) : null;
-	const event = await insertOrGetEvent({
-	  provider: normalizedProvider,
-	  providerEventId: n.providerEventId,
+  const customerPhone = n.customerPhone ? normalizePhone(n.customerPhone) : null;
+  const event = await insertOrGetEvent({
+    provider: normalizedProvider,
+    providerEventId: n.providerEventId,
     eventType: n.eventType,
     businessSlug: n.businessSlug,
     businessId,
@@ -201,60 +228,76 @@ export async function processPaymentWebhook({ provider, payload, secretHeader, s
     customerPhone,
     amount_q: n.amount_q,
     currency: n.currency,
-    payload: n.raw
+    payload: n.raw,
   });
 
   if (!event) throw badRequest("Could not register webhook event");
   if (event.status === "APPLIED" || event.status === "IGNORED") {
-    logger.info(webhookLogContext({
-      provider: normalizedProvider,
-      event,
-      businessId,
-      businessSlug: n.businessSlug,
-      customerPhone,
-      customerId: n.customerId ?? null
-    }), "Payment webhook duplicate ignored");
+    logger.info(
+      webhookLogContext({
+        provider: normalizedProvider,
+        event,
+        businessId,
+        businessSlug: n.businessSlug,
+        customerPhone,
+        customerId: n.customerId ?? null,
+      }),
+      "Payment webhook duplicate ignored",
+    );
     return { ok: true, duplicate: true, eventId: event.id, status: event.status };
   }
 
   if (n.eventType !== "payment.approved") {
     await setEventStatus(event.id, { status: "IGNORED", reason: "non_approved_event" });
-    logger.info(webhookLogContext({
-      provider: normalizedProvider,
-      event,
-      businessId,
-      businessSlug: n.businessSlug,
-      customerPhone,
-      customerId: n.customerId ?? null,
-      extra: { reason: "non_approved_event" }
-    }), "Payment webhook ignored");
+    logger.info(
+      webhookLogContext({
+        provider: normalizedProvider,
+        event,
+        businessId,
+        businessSlug: n.businessSlug,
+        customerPhone,
+        customerId: n.customerId ?? null,
+        extra: { reason: "non_approved_event" },
+      }),
+      "Payment webhook ignored",
+    );
     return { ok: true, ignored: true, eventId: event.id };
   }
 
   if (!n.businessSlug) {
     await setEventStatus(event.id, { status: "PENDING_MAPPING", reason: "missing_business_slug" });
-    logger.warn(webhookLogContext({
-      provider: normalizedProvider,
-      event,
-      businessId,
-      customerPhone,
-      customerId: n.customerId ?? null,
-      providerEventId: n.providerEventId,
-      extra: { reason: "missing_business_slug" }
-    }), "Payment webhook pending mapping");
+    logger.warn(
+      webhookLogContext({
+        provider: normalizedProvider,
+        event,
+        businessId,
+        customerPhone,
+        customerId: n.customerId ?? null,
+        providerEventId: n.providerEventId,
+        extra: { reason: "missing_business_slug" },
+      }),
+      "Payment webhook pending mapping",
+    );
     return { ok: true, pending: true, eventId: event.id, reason: "missing_business_slug" };
   }
 
   if (!n.customerId && !customerPhone) {
-    await setEventStatus(event.id, { status: "PENDING_MAPPING", reason: "missing_customer_mapping", businessSlug: n.businessSlug });
-    logger.warn(webhookLogContext({
-      provider: normalizedProvider,
-      event,
-      businessId,
+    await setEventStatus(event.id, {
+      status: "PENDING_MAPPING",
+      reason: "missing_customer_mapping",
       businessSlug: n.businessSlug,
-      providerEventId: n.providerEventId,
-      extra: { reason: "missing_customer_mapping" }
-    }), "Payment webhook pending mapping");
+    });
+    logger.warn(
+      webhookLogContext({
+        provider: normalizedProvider,
+        event,
+        businessId,
+        businessSlug: n.businessSlug,
+        providerEventId: n.providerEventId,
+        extra: { reason: "missing_customer_mapping" },
+      }),
+      "Payment webhook pending mapping",
+    );
     return { ok: true, pending: true, eventId: event.id, reason: "missing_customer_mapping" };
   }
 
@@ -266,7 +309,11 @@ export async function processPaymentWebhook({ provider, payload, secretHeader, s
       customerPhone: customerPhone ?? undefined,
       amount_q: n.amount_q,
       expectedCurrency: n.currency,
-      meta: { provider: normalizedProvider, payment_event_id: n.providerEventId, currency: n.currency }
+      meta: {
+        provider: normalizedProvider,
+        payment_event_id: n.providerEventId,
+        currency: n.currency,
+      },
     });
     await setEventStatus(event.id, {
       status: "APPLIED",
@@ -274,18 +321,21 @@ export async function processPaymentWebhook({ provider, payload, secretHeader, s
       businessId,
       businessSlug: n.businessSlug,
       customerId: out.customerId ?? n.customerId ?? null,
-      customerPhone
-    });
-    logger.info(webhookLogContext({
-      provider: normalizedProvider,
-      event,
-      businessId,
-      businessSlug: n.businessSlug,
       customerPhone,
-      customerId: out.customerId ?? n.customerId ?? null,
-      providerEventId: n.providerEventId,
-      extra: { transactionId: out.transactionId }
-    }), "Payment webhook applied");
+    });
+    logger.info(
+      webhookLogContext({
+        provider: normalizedProvider,
+        event,
+        businessId,
+        businessSlug: n.businessSlug,
+        customerPhone,
+        customerId: out.customerId ?? n.customerId ?? null,
+        providerEventId: n.providerEventId,
+        extra: { transactionId: out.transactionId },
+      }),
+      "Payment webhook applied",
+    );
     return { ok: true, applied: true, eventId: event.id, transactionId: out.transactionId };
   } catch (e) {
     const msg = e?.message ?? String(e);
@@ -297,19 +347,25 @@ export async function processPaymentWebhook({ provider, payload, secretHeader, s
       error: msg,
       businessId,
       businessSlug: n.businessSlug,
-      customerPhone
-    });
-    const logFn = nextStatus === "PENDING_MAPPING" ? logger.warn.bind(logger) : logger.error.bind(logger);
-    logFn(webhookLogContext({
-      provider: normalizedProvider,
-      event,
-      businessId,
-      businessSlug: n.businessSlug,
       customerPhone,
-      customerId: n.customerId ?? null,
-      providerEventId: n.providerEventId,
-      extra: { reason, err: msg }
-    }), nextStatus === "PENDING_MAPPING" ? "Payment webhook pending mapping after processing error" : "Payment webhook failed");
+    });
+    const logFn =
+      nextStatus === "PENDING_MAPPING" ? logger.warn.bind(logger) : logger.error.bind(logger);
+    logFn(
+      webhookLogContext({
+        provider: normalizedProvider,
+        event,
+        businessId,
+        businessSlug: n.businessSlug,
+        customerPhone,
+        customerId: n.customerId ?? null,
+        providerEventId: n.providerEventId,
+        extra: { reason, err: msg },
+      }),
+      nextStatus === "PENDING_MAPPING"
+        ? "Payment webhook pending mapping after processing error"
+        : "Payment webhook failed",
+    );
     if (nextStatus === "PENDING_MAPPING") {
       return { ok: true, pending: true, eventId: event.id, reason };
     }
@@ -317,7 +373,11 @@ export async function processPaymentWebhook({ provider, payload, secretHeader, s
   }
 }
 
-export async function listPaymentWebhookEventsForBusiness({ businessId, status = null, limit = 50 }) {
+export async function listPaymentWebhookEventsForBusiness({
+  businessId,
+  status = null,
+  limit = 50,
+}) {
   const params = [businessId, Math.min(200, Math.max(1, Number(limit || 50)))];
   let statusClause = "";
   if (status) {
@@ -330,24 +390,22 @@ export async function listPaymentWebhookEventsForBusiness({ businessId, status =
      WHERE business_id = $1${statusClause}
      ORDER BY created_at DESC
      LIMIT $2`,
-    params
+    params,
   );
   return rows;
 }
 
-export async function resolvePaymentWebhookEventForBusiness({
-  businessId,
-  eventId,
-  customerId,
-  customerPhone
-}, {award=awardFromExternalEventTrusted}={}) {
+export async function resolvePaymentWebhookEventForBusiness(
+  { businessId, eventId, customerId, customerPhone },
+  { award = awardFromExternalEventTrusted } = {},
+) {
   const { rows } = await dbQuery(
     `SELECT *
      FROM payment_webhook_events
      WHERE id = $1
        AND business_id = $2
      LIMIT 1`,
-    [eventId, businessId]
+    [eventId, businessId],
   );
   const event = rows?.[0];
   if (!event) throw notFound("Payment webhook event not found");
@@ -368,8 +426,8 @@ export async function resolvePaymentWebhookEventForBusiness({
     meta: {
       provider: event.provider,
       payment_event_id: event.provider_event_id,
-      resolved_manually: true
-    }
+      resolved_manually: true,
+    },
   });
 
   await setEventStatus(event.id, {
@@ -378,8 +436,13 @@ export async function resolvePaymentWebhookEventForBusiness({
     error: null,
     linkedTransactionId: out.transactionId,
     customerId: out.customerId ?? customerId ?? null,
-    customerPhone: phone ?? event.customer_phone ?? null
+    customerPhone: phone ?? event.customer_phone ?? null,
   });
 
-  return { ok: true, eventId: event.id, transactionId: out.transactionId, customerId: out.customerId };
+  return {
+    ok: true,
+    eventId: event.id,
+    transactionId: out.transactionId,
+    customerId: out.customerId,
+  };
 }

@@ -20,8 +20,8 @@ export const GamificationRepository = {
         JSON.stringify(achievementData.requirement_config || {}),
         achievementData.points_reward || 0,
         achievementData.tier_boost || 0,
-        achievementData.active !== false
-      ]
+        achievementData.active !== false,
+      ],
     );
     return rows[0];
   },
@@ -31,16 +31,13 @@ export const GamificationRepository = {
       `SELECT * FROM achievements 
        WHERE business_id = $1 
        ORDER BY requirement_value ASC NULLS FIRST`,
-      [businessId]
+      [businessId],
     );
     return rows;
   },
 
   async getAchievement(achievementId) {
-    const { rows } = await dbQuery(
-      `SELECT * FROM achievements WHERE id = $1`,
-      [achievementId]
-    );
+    const { rows } = await dbQuery(`SELECT * FROM achievements WHERE id = $1`, [achievementId]);
     return rows[0];
   },
 
@@ -50,7 +47,7 @@ export const GamificationRepository = {
     let paramCount = 1;
 
     for (const [key, value] of Object.entries(updates)) {
-      if (key === 'requirement_config' && value) {
+      if (key === "requirement_config" && value) {
         fields.push(`${key} = $${paramCount}`);
         values.push(JSON.stringify(value));
       } else {
@@ -66,10 +63,10 @@ export const GamificationRepository = {
 
     const { rows } = await dbQuery(
       `UPDATE achievements 
-       SET ${fields.join(', ')}
+       SET ${fields.join(", ")}
        WHERE id = $${paramCount} AND business_id = $${paramCount + 1}
        RETURNING *`,
-      values
+      values,
     );
     return rows[0];
   },
@@ -79,14 +76,20 @@ export const GamificationRepository = {
   },
 
   async deleteAchievementScoped(achievementId, businessId) {
-    const r = await dbQuery(
-      `DELETE FROM achievements WHERE id = $1 AND business_id = $2`,
-      [achievementId, businessId]
-    );
+    const r = await dbQuery(`DELETE FROM achievements WHERE id = $1 AND business_id = $2`, [
+      achievementId,
+      businessId,
+    ]);
     return r.rowCount || 0;
   },
 
-  async awardAchievement(customerId, achievementId, progress = 100, provenance = {}, query = dbQuery) {
+  async awardAchievement(
+    customerId,
+    achievementId,
+    progress = 100,
+    provenance = {},
+    query = dbQuery,
+  ) {
     const { rows } = await query(
       `INSERT INTO customer_achievements (customer_id, achievement_id, progress, source_transaction_id, reward_transaction_id)
        VALUES ($1, $2, $3, $4, $5)
@@ -97,8 +100,8 @@ export const GamificationRepository = {
         achievementId,
         progress,
         provenance?.sourceTransactionId || null,
-        provenance?.rewardTransactionId || null
-      ]
+        provenance?.rewardTransactionId || null,
+      ],
     );
     return rows[0];
   },
@@ -117,7 +120,7 @@ export const GamificationRepository = {
        JOIN achievements a ON a.id = ca.achievement_id
        WHERE ca.customer_id = $1
        ORDER BY ca.earned_at DESC`,
-      [customerId]
+      [customerId],
     );
     return rows;
   },
@@ -126,7 +129,7 @@ export const GamificationRepository = {
     const { rows } = await query(
       `SELECT * FROM customer_achievements 
        WHERE customer_id = $1 AND achievement_id = $2`,
-      [customerId, achievementId]
+      [customerId, achievementId],
     );
     return rows[0];
   },
@@ -151,8 +154,8 @@ export const GamificationRepository = {
         challengeData.end_date || null,
         challengeData.recurrence || null,
         challengeData.max_completions || null,
-        challengeData.active !== false
-      ]
+        challengeData.active !== false,
+      ],
     );
     return rows[0];
   },
@@ -165,16 +168,13 @@ export const GamificationRepository = {
          AND start_date <= now()
          AND (end_date IS NULL OR end_date >= now())
        ORDER BY end_date ASC NULLS LAST`,
-      [businessId]
+      [businessId],
     );
     return rows;
   },
 
   async getChallenge(challengeId) {
-    const { rows } = await dbQuery(
-      `SELECT * FROM challenges WHERE id = $1`,
-      [challengeId]
-    );
+    const { rows } = await dbQuery(`SELECT * FROM challenges WHERE id = $1`, [challengeId]);
     return rows[0];
   },
 
@@ -194,10 +194,10 @@ export const GamificationRepository = {
 
     const { rows } = await dbQuery(
       `UPDATE challenges 
-       SET ${fields.join(', ')}
+       SET ${fields.join(", ")}
        WHERE id = $${paramCount}
        RETURNING *`,
-      values
+      values,
     );
     return rows[0];
   },
@@ -222,19 +222,19 @@ export const GamificationRepository = {
 
     const { rows } = await dbQuery(
       `UPDATE challenges
-       SET ${fields.join(', ')}
+       SET ${fields.join(", ")}
        WHERE id = $${paramCount} AND business_id = $${paramCount + 1}
        RETURNING *`,
-      values
+      values,
     );
     return rows[0];
   },
 
   async deleteChallengeScoped(challengeId, businessId) {
-    const r = await dbQuery(
-      `DELETE FROM challenges WHERE id = $1 AND business_id = $2`,
-      [challengeId, businessId]
-    );
+    const r = await dbQuery(`DELETE FROM challenges WHERE id = $1 AND business_id = $2`, [
+      challengeId,
+      businessId,
+    ]);
     return r.rowCount || 0;
   },
 
@@ -242,7 +242,7 @@ export const GamificationRepository = {
     const { rows } = await query(
       `SELECT * FROM customer_challenges 
        WHERE customer_id = $1 AND challenge_id = $2`,
-      [customerId, challengeId]
+      [customerId, challengeId],
     );
     return rows[0];
   },
@@ -256,7 +256,7 @@ export const GamificationRepository = {
          progress = $3,
          updated_at = now()
        RETURNING *`,
-      [customerId, challengeId, progress]
+      [customerId, challengeId, progress],
     );
     return rows[0];
   },
@@ -271,7 +271,7 @@ export const GamificationRepository = {
            updated_at = now()
        WHERE customer_id = $1 AND challenge_id = $2
        RETURNING *`,
-      [customerId, challengeId]
+      [customerId, challengeId],
     );
     return rows[0];
   },
@@ -299,8 +299,8 @@ export const GamificationRepository = {
         completion?.completedAt || null,
         completion?.sourceTransactionId || null,
         completion?.rewardTransactionId || null,
-        historyEntry
-      ]
+        historyEntry,
+      ],
     );
     return rows[0];
   },
@@ -322,7 +322,7 @@ export const GamificationRepository = {
          AND (c.end_date IS NULL OR c.end_date >= now())
          AND (c.max_completions IS NULL OR COALESCE(cc.times_completed, 0) < c.max_completions)
        ORDER BY c.end_date ASC NULLS LAST`,
-      [customerId, businessId]
+      [customerId, businessId],
     );
     return rows;
   },
@@ -330,10 +330,9 @@ export const GamificationRepository = {
   // Streaks
 
   async getCustomerStreak(customerId) {
-    const { rows } = await dbQuery(
-      `SELECT * FROM visit_streaks WHERE customer_id = $1`,
-      [customerId]
-    );
+    const { rows } = await dbQuery(`SELECT * FROM visit_streaks WHERE customer_id = $1`, [
+      customerId,
+    ]);
     return rows[0];
   },
 
@@ -356,19 +355,19 @@ export const GamificationRepository = {
         streakData.current_streak,
         streakData.longest_streak,
         streakData.last_visit_date,
-        streakData.streak_started_at
-      ]
+        streakData.streak_started_at,
+      ],
     );
     return rows[0];
   },
 
   // Leaderboards
 
-  async getPointsLeaderboard(businessId, limit = 10, timeframe = 'all_time') {
-    let dateFilter = '';
-    if (timeframe === 'week') {
+  async getPointsLeaderboard(businessId, limit = 10, timeframe = "all_time") {
+    let dateFilter = "";
+    if (timeframe === "week") {
       dateFilter = `AND t.created_at > now() - interval '7 days'`;
-    } else if (timeframe === 'month') {
+    } else if (timeframe === "month") {
       dateFilter = `AND t.created_at > now() - interval '30 days'`;
     }
 
@@ -385,7 +384,7 @@ export const GamificationRepository = {
        HAVING COALESCE(SUM(t.points), 0) > 0
        ORDER BY total_points DESC
        LIMIT $2`,
-      [businessId, limit]
+      [businessId, limit],
     );
     return rows;
   },
@@ -403,8 +402,8 @@ export const GamificationRepository = {
        WHERE c.business_id = $1 AND c.deleted_at IS NULL
        ORDER BY vs.current_streak DESC, vs.longest_streak DESC
        LIMIT $2`,
-      [businessId, limit]
+      [businessId, limit],
     );
     return rows;
-  }
+  },
 };

@@ -10,8 +10,9 @@ dotenv.config({ quiet: true });
 const IS_PROD = (process.env.NODE_ENV ?? "production") === "production";
 const DEFAULT_PORT = process.env.PORT ?? 3001;
 const DEFAULT_APP_ORIGIN = `http://localhost:${DEFAULT_PORT}`;
-const RESOLVED_APP_ORIGIN = normalizeOrigin(envValue("APP_ORIGIN", DEFAULT_APP_ORIGIN))
-  || envValue("APP_ORIGIN", DEFAULT_APP_ORIGIN);
+const RESOLVED_APP_ORIGIN =
+  normalizeOrigin(envValue("APP_ORIGIN", DEFAULT_APP_ORIGIN)) ||
+  envValue("APP_ORIGIN", DEFAULT_APP_ORIGIN);
 const USE_HOST_PREFIXED_COOKIES = IS_PROD || isSecureClientOrigin(RESOLVED_APP_ORIGIN);
 
 /**
@@ -77,7 +78,11 @@ function requireSecret(name, fallback, { minLen = 16 } = {}) {
   const v = requireEnv(name, fallback);
   const isProd = (process.env.NODE_ENV ?? "production") === "production";
   const lower = String(v).toLowerCase();
-  const placeholder = lower.includes("change_me") || lower.includes("changeme") || lower.includes("replace_me") || lower.includes("default");
+  const placeholder =
+    lower.includes("change_me") ||
+    lower.includes("changeme") ||
+    lower.includes("replace_me") ||
+    lower.includes("default");
   if (isProd) {
     // Fail fast if still using placeholders or obvious defaults
     if (placeholder) throw new Error(`Insecure secret for ${name}: replace placeholder value`);
@@ -94,7 +99,7 @@ function parseCsv(v) {
   if (!v) return [];
   return String(v)
     .split(",")
-    .map(s => s.trim())
+    .map((s) => s.trim())
     .filter(Boolean);
 }
 
@@ -156,7 +161,9 @@ function parseMaybeCsvOrJsonArray(v) {
  * @returns {string}
  */
 function normalizePemEnv(name) {
-  return String(envValue(name, "") || "").replace(/\\n/g, "\n").trim();
+  return String(envValue(name, "") || "")
+    .replace(/\\n/g, "\n")
+    .trim();
 }
 
 /**
@@ -173,7 +180,9 @@ function isHttpsOrigin(origin) {
  * @returns {"strict" | "lax" | "none"}
  */
 function parseSameSite(value, fallback = "strict") {
-  const normalized = String(value || fallback).trim().toLowerCase();
+  const normalized = String(value || fallback)
+    .trim()
+    .toLowerCase();
   if (normalized === "strict" || normalized === "lax" || normalized === "none") {
     return normalized;
   }
@@ -187,8 +196,9 @@ export const config = {
   WORKER_PORT: Number(process.env.WORKER_PORT ?? 3002),
 
   APP_ORIGIN: RESOLVED_APP_ORIGIN,
-  MARKETING_ORIGIN: normalizeOrigin(envValue("MARKETING_ORIGIN", DEFAULT_APP_ORIGIN))
-    || envValue("MARKETING_ORIGIN", DEFAULT_APP_ORIGIN),
+  MARKETING_ORIGIN:
+    normalizeOrigin(envValue("MARKETING_ORIGIN", DEFAULT_APP_ORIGIN)) ||
+    envValue("MARKETING_ORIGIN", DEFAULT_APP_ORIGIN),
   CORS_ORIGINS: parseOrigins(envValue("CORS_ORIGIN", ""), DEFAULT_APP_ORIGIN),
   COOKIE_SAME_SITE: parseSameSite(envValue("COOKIE_SAME_SITE", "strict")),
 
@@ -208,9 +218,13 @@ export const config = {
   JWT_SECRET: requireSecret("JWT_SECRET", "CHANGE_ME_LONG_RANDOM", { minLen: 32 }),
 
   // Cookie names
-  STAFF_COOKIE_NAME: process.env.STAFF_COOKIE_NAME ?? (USE_HOST_PREFIXED_COOKIES ? "__Host-pf_staff" : "pf_staff"),
-  CUSTOMER_COOKIE_NAME: process.env.CUSTOMER_COOKIE_NAME ?? (USE_HOST_PREFIXED_COOKIES ? "__Host-pf_customer" : "pf_customer"),
-  SUPER_COOKIE_NAME: process.env.SUPER_COOKIE_NAME ?? (USE_HOST_PREFIXED_COOKIES ? "__Host-pf_super" : "pf_super"),
+  STAFF_COOKIE_NAME:
+    process.env.STAFF_COOKIE_NAME ?? (USE_HOST_PREFIXED_COOKIES ? "__Host-pf_staff" : "pf_staff"),
+  CUSTOMER_COOKIE_NAME:
+    process.env.CUSTOMER_COOKIE_NAME ??
+    (USE_HOST_PREFIXED_COOKIES ? "__Host-pf_customer" : "pf_customer"),
+  SUPER_COOKIE_NAME:
+    process.env.SUPER_COOKIE_NAME ?? (USE_HOST_PREFIXED_COOKIES ? "__Host-pf_super" : "pf_super"),
 
   // Platform super admin (optional)
   SUPER_ADMIN_EMAIL: envValue("SUPER_ADMIN_EMAIL", ""),
@@ -290,12 +304,19 @@ export const config = {
   WEBHOOK_REQUIRE_HTTPS: (process.env.WEBHOOK_REQUIRE_HTTPS ?? "true") !== "false",
   WEBHOOK_ALLOWLIST: parseCsv(process.env.WEBHOOK_ALLOWLIST ?? ""),
   WEBHOOK_SECRET_ENC_KEY: envValue("WEBHOOK_SECRET_ENC_KEY", ""),
-  WEBHOOK_SECRET_ENC_KEY_PREVIOUS: parseMaybeCsvOrJsonArray(envValue("WEBHOOK_SECRET_ENC_KEY_PREVIOUS", "")),
+  WEBHOOK_SECRET_ENC_KEY_PREVIOUS: parseMaybeCsvOrJsonArray(
+    envValue("WEBHOOK_SECRET_ENC_KEY_PREVIOUS", ""),
+  ),
   PAYMENT_WEBHOOK_SECRETS: parseJsonObject(envValue("PAYMENT_WEBHOOK_SECRETS", ""), {}),
   PAYMENT_WEBHOOK_HMAC_SECRETS: parseJsonObject(envValue("PAYMENT_WEBHOOK_HMAC_SECRETS", ""), {}),
-  PAYMENT_WEBHOOK_ALLOWED_PROVIDERS: parseCsv(envValue("PAYMENT_WEBHOOK_ALLOWED_PROVIDERS", "cubo,paybi,qpaypro,neonet")),
+  PAYMENT_WEBHOOK_ALLOWED_PROVIDERS: parseCsv(
+    envValue("PAYMENT_WEBHOOK_ALLOWED_PROVIDERS", "cubo,paybi,qpaypro,neonet"),
+  ),
   PAYMENT_WEBHOOK_REQUIRE_AUTH: (process.env.PAYMENT_WEBHOOK_REQUIRE_AUTH ?? "true") !== "false",
-  METRICS_TOKEN: envValue("METRICS_TOKEN", (process.env.NODE_ENV ?? "production") === "test" ? "test-metrics-token" : ""),
+  METRICS_TOKEN: envValue(
+    "METRICS_TOKEN",
+    (process.env.NODE_ENV ?? "production") === "test" ? "test-metrics-token" : "",
+  ),
   EXTERNAL_AWARD_API_KEY: envValue("EXTERNAL_AWARD_API_KEY", ""),
   REGISTRATION_API_KEY: envValue("REGISTRATION_API_KEY", ""),
 
@@ -308,8 +329,10 @@ export const config = {
   ENFORCE_TENANT_CONTEXT: (process.env.ENFORCE_TENANT_CONTEXT ?? "true") !== "false",
 
   // Schema extensions (tiers/referrals/gamification/analytics)
-  AUTO_APPLY_SCHEMA_EXTENSIONS: (process.env.AUTO_APPLY_SCHEMA_EXTENSIONS ?? (IS_PROD ? "false" : "true")) === "true",
-  AUTO_APPLY_MIGRATIONS: (process.env.AUTO_APPLY_MIGRATIONS ?? (IS_PROD ? "false" : "true")) === "true"
+  AUTO_APPLY_SCHEMA_EXTENSIONS:
+    (process.env.AUTO_APPLY_SCHEMA_EXTENSIONS ?? (IS_PROD ? "false" : "true")) === "true",
+  AUTO_APPLY_MIGRATIONS:
+    (process.env.AUTO_APPLY_MIGRATIONS ?? (IS_PROD ? "false" : "true")) === "true",
 };
 
 // Late-init derived config values that depend on NODE_ENV.
@@ -319,7 +342,7 @@ export const config = {
   if (config.NODE_ENV === "test" && (!priv || !pub)) {
     const { privateKey, publicKey } = crypto.generateKeyPairSync("ed25519", {
       privateKeyEncoding: { type: "pkcs8", format: "pem" },
-      publicKeyEncoding: { type: "spki", format: "pem" }
+      publicKeyEncoding: { type: "spki", format: "pem" },
     });
     config.QR_PRIVATE_KEY_PEM = privateKey.trim();
     config.QR_PUBLIC_KEY_PEM = publicKey.trim();
@@ -333,7 +356,8 @@ export const config = {
 if (config.NODE_ENV === "production") {
   for (const o of config.CORS_ORIGINS) {
     if (String(o).trim() === "*") throw new Error("CORS_ORIGIN cannot be '*' in production");
-    if (!isSecureClientOrigin(o)) throw new Error(`CORS_ORIGIN must use https or an approved app origin in production: ${o}`);
+    if (!isSecureClientOrigin(o))
+      throw new Error(`CORS_ORIGIN must use https or an approved app origin in production: ${o}`);
   }
   if (!isHttpsOrigin(config.APP_ORIGIN)) {
     throw new Error(`APP_ORIGIN must use https in production: ${config.APP_ORIGIN}`);
@@ -345,13 +369,17 @@ if (config.NODE_ENV === "production") {
     throw new Error("METRICS_TOKEN is required in production");
   }
   if (!config.WEBHOOK_SECRET_ENC_KEY || String(config.WEBHOOK_SECRET_ENC_KEY).length < 32) {
-    throw new Error("WEBHOOK_SECRET_ENC_KEY is required in production and must be at least 32 characters");
+    throw new Error(
+      "WEBHOOK_SECRET_ENC_KEY is required in production and must be at least 32 characters",
+    );
   }
   if (config.SUPER_ADMIN_EMAIL && !config.SUPER_ADMIN_PASSWORD_HASH) {
     throw new Error("SUPER_ADMIN_EMAIL requires SUPER_ADMIN_PASSWORD_HASH in production");
   }
   if (config.SUPER_ADMIN_PASSWORD && !config.SUPER_ADMIN_PASSWORD_HASH) {
-    throw new Error("SUPER_ADMIN_PASSWORD is not allowed in production; use SUPER_ADMIN_PASSWORD_HASH");
+    throw new Error(
+      "SUPER_ADMIN_PASSWORD is not allowed in production; use SUPER_ADMIN_PASSWORD_HASH",
+    );
   }
   if (!config.QR_PRIVATE_KEY_PEM || !config.QR_PUBLIC_KEY_PEM) {
     throw new Error("Missing QR_PRIVATE_KEY_PEM / QR_PUBLIC_KEY_PEM in production");

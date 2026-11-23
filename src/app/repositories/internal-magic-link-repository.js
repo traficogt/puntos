@@ -16,8 +16,8 @@ export const InternalMagicLinkRepo = {
         record.purpose,
         record.token_hash,
         record.created_by ?? null,
-        record.expires_at
-      ]
+        record.expires_at,
+      ],
     );
     return { id: record.id };
   },
@@ -29,7 +29,7 @@ export const InternalMagicLinkRepo = {
         WHERE token_hash = $1
           AND expires_at > now()
         LIMIT 1`,
-      [tokenHash]
+      [tokenHash],
     );
     return rows[0] ?? null;
   },
@@ -46,7 +46,11 @@ export const InternalMagicLinkRepo = {
           AND expires_at > now()
           AND used_at IS NULL
       RETURNING *`,
-      [id, consumedMeta.ip ?? consumedMeta.used_ip ?? null, consumedMeta.ua ?? consumedMeta.used_ua ?? null]
+      [
+        id,
+        consumedMeta.ip ?? consumedMeta.used_ip ?? null,
+        consumedMeta.ua ?? consumedMeta.used_ua ?? null,
+      ],
     );
     return rows[0] ?? null;
   },
@@ -62,8 +66,12 @@ export const InternalMagicLinkRepo = {
           AND usage_mode = 'reusable_window'
           AND expires_at > now()
       RETURNING *`,
-      [id, consumedMeta.ip ?? consumedMeta.used_ip ?? null, consumedMeta.ua ?? consumedMeta.used_ua ?? null]
+      [
+        id,
+        consumedMeta.ip ?? consumedMeta.used_ip ?? null,
+        consumedMeta.ua ?? consumedMeta.used_ua ?? null,
+      ],
     );
     return rows[0] ?? null;
-  }
+  },
 };

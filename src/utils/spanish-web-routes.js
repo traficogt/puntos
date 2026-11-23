@@ -11,7 +11,7 @@ const browserRoutes = [
   ["/plataforma/", ["/super", "/super.html"]],
   ["/vista-previa-app/", ["/app-preview"]],
   ["/registro/", ["/join", "/join.html", "/registro.html"]],
-  ["/ingresar/", ["/ingresar.html"]]
+  ["/ingresar/", ["/ingresar.html"]],
 ];
 
 const entryPaths = new Map();
@@ -22,16 +22,33 @@ for (const [canonical, aliases] of browserRoutes) {
 // Public landing aliases canonicalize without becoming application-host routes.
 const publicEntryPaths = new Map([
   ["/credenciales", "/credenciales/"],
-  ["/credenciales/index.html", "/credenciales/"]
+  ["/credenciales/index.html", "/credenciales/"],
 ]);
 
-const sections = new Map(Object.entries({
-  rewards: "recompensas", branding: "marca", tiers: "niveles", branches: "sucursales",
-  staff: "equipo", giftcards: "tarjetas-regalo", achievements: "logros", challenges: "retos",
-  referrals: "referidos", operations: "operaciones", analytics: "analisis"
-}));
-const setupValues = new Map([["program", "puntos"], ["pos", "punto-de-venta"]]);
-const queryKeys = new Map([["tab", "seccion"], ["branch_id", "sucursal"], ["setup", "configurar"]]);
+const sections = new Map(
+  Object.entries({
+    rewards: "recompensas",
+    branding: "marca",
+    tiers: "niveles",
+    branches: "sucursales",
+    staff: "equipo",
+    giftcards: "tarjetas-regalo",
+    achievements: "logros",
+    challenges: "retos",
+    referrals: "referidos",
+    operations: "operaciones",
+    analytics: "analisis",
+  }),
+);
+const setupValues = new Map([
+  ["program", "puntos"],
+  ["pos", "punto-de-venta"],
+]);
+const queryKeys = new Map([
+  ["tab", "seccion"],
+  ["branch_id", "sucursal"],
+  ["setup", "configurar"],
+]);
 
 function entryPath(pathname) {
   return entryPaths.get(pathname.replace(/\/$/, "").toLowerCase()) || "";
@@ -46,18 +63,24 @@ export function isSpanishWebRoutePath(pathname) {
 // their original encoding, order and duplicate values.
 function canonicalAdminQuery(query) {
   const params = new URLSearchParams(query);
-  return query.split("&").flatMap((component) => {
-    const [entry] = new URLSearchParams(component);
-    if (!entry) return [component];
-    const [key, value] = entry;
-    const canonicalKey = queryKeys.get(key) || key;
-    if (key !== canonicalKey && params.has(canonicalKey)) return [];
-    const canonicalValue = canonicalKey === "seccion"
-      ? sections.get(value) || value
-      : canonicalKey === "configurar" ? setupValues.get(value) || value : value;
-    if (key === canonicalKey && value === canonicalValue) return [component];
-    return [`${canonicalKey}=${encodeURIComponent(canonicalValue)}`];
-  }).join("&");
+  return query
+    .split("&")
+    .flatMap((component) => {
+      const [entry] = new URLSearchParams(component);
+      if (!entry) return [component];
+      const [key, value] = entry;
+      const canonicalKey = queryKeys.get(key) || key;
+      if (key !== canonicalKey && params.has(canonicalKey)) return [];
+      const canonicalValue =
+        canonicalKey === "seccion"
+          ? sections.get(value) || value
+          : canonicalKey === "configurar"
+            ? setupValues.get(value) || value
+            : value;
+      if (key === canonicalKey && value === canonicalValue) return [component];
+      return [`${canonicalKey}=${encodeURIComponent(canonicalValue)}`];
+    })
+    .join("&");
 }
 
 /** Return a same-origin canonical browser URL, or an empty string if unchanged. */
@@ -71,7 +94,10 @@ export function resolveSpanishWebRedirect(originalUrl) {
   let canonicalQuery = query;
   if (canonicalPath === "/negocio/" && new URLSearchParams(query).get("demo") === "1") {
     canonicalPath = "/demostracion/";
-    canonicalQuery = query.split("&").filter((component) => !new URLSearchParams(component).has("demo")).join("&");
+    canonicalQuery = query
+      .split("&")
+      .filter((component) => !new URLSearchParams(component).has("demo"))
+      .join("&");
   }
   if (canonicalPath === "/administracion/") canonicalQuery = canonicalAdminQuery(query);
   const canonical = `${canonicalPath}${canonicalQuery ? `?${canonicalQuery}` : ""}`;

@@ -60,7 +60,13 @@ before(async () => {
     businessId,
   });
   staffCookie = `${config.STAFF_COOKIE_NAME}=${staffSession.token}; pf_csrf=${csrf}`;
-  const support = await createBrowserSession({ actorType: "STAFF", actorId: staffId, businessId, role: "OWNER", impersonatedBy: "support@example.invalid" });
+  const support = await createBrowserSession({
+    actorType: "STAFF",
+    actorId: staffId,
+    businessId,
+    role: "OWNER",
+    impersonatedBy: "support@example.invalid",
+  });
   supportCookie = `${config.STAFF_COOKIE_NAME}=${support.token}; pf_csrf=${csrf}`;
   customerCookie = `${config.CUSTOMER_COOKIE_NAME}=${customerSession.token}; pf_csrf=${csrf}`;
   const stub = (name) => async (args) => {
@@ -86,7 +92,9 @@ before(async () => {
       createCampaignPreparation: stub("prepare"),
       retryCampaignPreparation: stub("retry"),
       cancelCampaignPreparation: stub("cancel"),
-      saveMeasurementCosts:stub("costs"), saveMeasurementReport:stub("report"), listMeasurementReports:stub("reports"),
+      saveMeasurementCosts: stub("costs"),
+      saveMeasurementReport: stub("report"),
+      listMeasurementReports: stub("reports"),
     }),
   );
   app.use(
@@ -161,40 +169,69 @@ const operations = [
 ];
 describe("growth API boundaries", () => {
   it("forwards support attribution from the session for campaign mutations", async () => {
-    for (const operation of operations.filter(op => op.method)) {
-      assert.ok([200, 201].includes((await request(operation.path, { ...operation, cookie: supportCookie })).status));
+    for (const operation of operations.filter((op) => op.method)) {
+      assert.ok(
+        [200, 201].includes(
+          (await request(operation.path, { ...operation, cookie: supportCookie })).status,
+        ),
+      );
       assert.equal(calls.at(-1).args.impersonated_by, "support@example.invalid");
-      assert.equal((await request(operation.path, { ...operation, body: { ...operation.body, impersonated_by: "forged@example.invalid" } })).status, 400);
+      assert.equal(
+        (
+          await request(operation.path, {
+            ...operation,
+            body: { ...operation.body, impersonated_by: "forged@example.invalid" },
+          })
+        ).status,
+        400,
+      );
     }
   });
   it("accepts an explicit saved audience version and bounded snapshot limit instead of recovery", async () => {
     const { recovery_run_id, ...rest } = body;
-    const audience = { ...rest, audience_segment_id: randomUUID(), audience_segment_version: 2, audience_limit: 100 };
+    const audience = {
+      ...rest,
+      audience_segment_id: randomUUID(),
+      audience_segment_version: 2,
+      audience_limit: 100,
+    };
     assert.equal((await request("", { method: "POST", body: audience })).status, 201);
     assert.equal(calls[0].args.audienceSegmentId, audience.audience_segment_id);
     assert.equal(calls[0].args.audienceSegmentVersion, 2);
     assert.equal(calls[0].args.audienceLimit, 100);
     assert.equal(calls[0].args.recoveryRunId, undefined);
-    for (const patch of [{ recovery_run_id }, { audience_limit: undefined }, { audience_segment_version: undefined }, { audience_limit: 201 }, { audience_limit: 9 }, { audience_segment_version: "2" }, { audience_segment_version: 0 }, { audience_snapshot: {} }])
-      assert.equal((await request("", { method: "POST", body: { ...audience, ...patch } })).status, 400);
+    for (const patch of [
+      { recovery_run_id },
+      { audience_limit: undefined },
+      { audience_segment_version: undefined },
+      { audience_limit: 201 },
+      { audience_limit: 9 },
+      { audience_segment_version: "2" },
+      { audience_segment_version: 0 },
+      { audience_snapshot: {} },
+    ])
+      assert.equal(
+        (await request("", { method: "POST", body: { ...audience, ...patch } })).status,
+        400,
+      );
     assert.equal((await request("", { method: "POST", body: rest })).status, 400);
-    assert.equal((await request("", { method: "POST", body: { ...body, audience_limit: 20 } })).status, 400);
+    assert.equal(
+      (await request("", { method: "POST", body: { ...body, audience_limit: 20 } })).status,
+      400,
+    );
   });
   it("requires authenticated owner and both campaign and analytics entitlements for every owner endpoint", async () => {
     for (const op of operations)
       assert.equal((await request(op.path, { ...op, cookie: "" })).status, 401);
     role = "CASHIER";
-    for (const op of operations)
-      assert.equal((await request(op.path, op)).status, 403);
+    for (const op of operations) assert.equal((await request(op.path, op)).status, 403);
     role = "OWNER";
     plan = "EMPRENDEDOR";
-    for (const op of operations)
-      assert.equal((await request(op.path, op)).status, 403);
+    for (const op of operations) assert.equal((await request(op.path, op)).status, 403);
     plan = "NEGOCIO";
     for (const feature of ["campaign_rules", "analytics"]) {
       overrides = { NEGOCIO: { [feature]: false } };
-      for (const op of operations)
-        assert.equal((await request(op.path, op)).status, 403);
+      for (const op of operations) assert.equal((await request(op.path, op)).status, 403);
     }
     assert.equal(calls.length, 0);
   });
@@ -235,16 +272,11 @@ describe("growth API boundaries", () => {
       { status: "active" },
     ])
       assert.equal(
-        (await request("", { method: "POST", body: { ...body, ...extra } }))
-          .status,
+        (await request("", { method: "POST", body: { ...body, ...extra } })).status,
         400,
         JSON.stringify(extra),
       );
-    for (const path of [
-      "?business_id=other",
-      "/invalid",
-      `/${campaignId}?now=2000`,
-    ])
+    for (const path of ["?business_id=other", "/invalid", `/${campaignId}?now=2000`])
       assert.equal((await request(path)).status, 400);
     for (const action of ["activate", "pause"])
       assert.equal(
@@ -272,15 +304,43 @@ describe("growth API boundaries", () => {
   });
   it("accepts nullable bounded total point budgets and forwards them without coercion", async () => {
     for (const points_budget of [null, 50, 2000000]) {
-      assert.equal((await request("", {method: "POST", body: {...body, points_budget}})).status, 201);
+      assert.equal(
+        (await request("", { method: "POST", body: { ...body, points_budget } })).status,
+        201,
+      );
       assert.equal(calls.at(-1).args.pointsBudget, points_budget);
     }
     for (const action of ["activate", "pause"]) {
-      assert.equal((await request(`/${campaignId}/${action}`, {method:"POST",body:{points_budget:100}})).status,400);
+      assert.equal(
+        (
+          await request(`/${campaignId}/${action}`, {
+            method: "POST",
+            body: { points_budget: 100 },
+          })
+        ).status,
+        400,
+      );
     }
   });
   it("strictly bounds pagination and preserves the default list path", async () => {
-    for (const query of ["limit=0", "limit=51", "limit=1.5", "limit=01", "limit=-1", "limit=", "limit=20&limit=10", "limit[x]=20", "offset=-1", "offset=100001", "offset=0.5", "offset=01", "offset=", "offset=0&offset=20", "offset[x]=1", "business_id=other"]) {
+    for (const query of [
+      "limit=0",
+      "limit=51",
+      "limit=1.5",
+      "limit=01",
+      "limit=-1",
+      "limit=",
+      "limit=20&limit=10",
+      "limit[x]=20",
+      "offset=-1",
+      "offset=100001",
+      "offset=0.5",
+      "offset=01",
+      "offset=",
+      "offset=0&offset=20",
+      "offset[x]=1",
+      "business_id=other",
+    ]) {
       assert.equal((await request(`?${query}`)).status, 400, query);
     }
     assert.equal(calls.length, 0);
@@ -312,66 +372,211 @@ describe("growth API boundaries", () => {
     });
     assert.equal(result.status, 200);
     assert.equal(result.cache, "no-store");
-    assert.deepEqual(calls, [
-      { name: "offers", args: { businessId, customerId } },
-    ]);
+    assert.deepEqual(calls, [{ name: "offers", args: { businessId, customerId } }]);
   });
 });
 
 describe("campaign expansion boundaries", () => {
   it("accepts owner-reviewed quiet offers with short validity and mandatory cap", async () => {
-    const quiet = { request_id: randomUUID(), name: "Quiet", audience_segment_id: randomUUID(), audience_segment_version: 1, audience_limit: 25, bonus_points: 50, points_budget: 100, minimum_purchase_q: 10, duration_minutes: 60 };
+    const quiet = {
+      request_id: randomUUID(),
+      name: "Quiet",
+      audience_segment_id: randomUUID(),
+      audience_segment_version: 1,
+      audience_limit: 25,
+      bonus_points: 50,
+      points_budget: 100,
+      minimum_purchase_q: 10,
+      duration_minutes: 60,
+    };
     assert.equal((await request("/quiet", { method: "POST", body: quiet })).status, 201);
-    assert.equal(calls.at(-1).args.offerKind,"quiet"); assert.equal(calls.at(-1).args.holdoutPercent,0);
-    for(const patch of [{duration_minutes:29},{duration_minutes:241},{points_budget:null},{audience_limit:201},{holdout_percent:20},{duration_days:7}]) assert.equal((await request("/quiet",{method:"POST",body:{...quiet,...patch}})).status,400);
-    role="CASHIER"; assert.equal((await request("/quiet",{method:"POST",body:quiet})).status,403);
+    assert.equal(calls.at(-1).args.offerKind, "quiet");
+    assert.equal(calls.at(-1).args.holdoutPercent, 0);
+    for (const patch of [
+      { duration_minutes: 29 },
+      { duration_minutes: 241 },
+      { points_budget: null },
+      { audience_limit: 201 },
+      { holdout_percent: 20 },
+      { duration_days: 7 },
+    ])
+      assert.equal(
+        (await request("/quiet", { method: "POST", body: { ...quiet, ...patch } })).status,
+        400,
+      );
+    role = "CASHIER";
+    assert.equal((await request("/quiet", { method: "POST", body: quiet })).status, 403);
   });
-  it("keeps the 200-person synchronous contract and offers a bounded explicit preparation endpoint", async()=>{
-    const payload={...body,recovery_run_id:undefined,audience_segment_id:randomUUID(),audience_segment_version:1,audience_limit:5000};
-    assert.equal((await request("/prepare",{method:"POST",body:payload})).status,202);
-    assert.equal(calls.at(-1).name,"prepare"); assert.equal(calls.at(-1).args.audienceLimit,5000);
-    assert.equal((await request("",{method:"POST",body:payload})).status,400);
-    assert.equal((await request("/prepare",{method:"POST",body:{...payload,audience_limit:5001}})).status,400);
-    assert.equal((await request("/prepare",{method:"POST",body:payload,token:""})).status,403);
+  it("keeps the 200-person synchronous contract and offers a bounded explicit preparation endpoint", async () => {
+    const payload = {
+      ...body,
+      recovery_run_id: undefined,
+      audience_segment_id: randomUUID(),
+      audience_segment_version: 1,
+      audience_limit: 5000,
+    };
+    assert.equal((await request("/prepare", { method: "POST", body: payload })).status, 202);
+    assert.equal(calls.at(-1).name, "prepare");
+    assert.equal(calls.at(-1).args.audienceLimit, 5000);
+    assert.equal((await request("", { method: "POST", body: payload })).status, 400);
+    assert.equal(
+      (await request("/prepare", { method: "POST", body: { ...payload, audience_limit: 5001 } }))
+        .status,
+      400,
+    );
+    assert.equal(
+      (await request("/prepare", { method: "POST", body: payload, token: "" })).status,
+      403,
+    );
   });
-  it("provides CSRF-protected preflight and cancellation, accepts only the preview identity on activation",async()=>{
-    for(const [action,name] of [["preflight","preflight"],["preparation/cancel","cancel"],["preparation/retry","retry"]]){
-      assert.equal((await request(`/${campaignId}/${action}`,{method:"POST",body:{}})).status,200); assert.equal(calls.at(-1).name,name);
-      assert.equal((await request(`/${campaignId}/${action}`,{method:"POST",body:{},token:""})).status,403);
+  it("provides CSRF-protected preflight and cancellation, accepts only the preview identity on activation", async () => {
+    for (const [action, name] of [
+      ["preflight", "preflight"],
+      ["preparation/cancel", "cancel"],
+      ["preparation/retry", "retry"],
+    ]) {
+      assert.equal(
+        (await request(`/${campaignId}/${action}`, { method: "POST", body: {} })).status,
+        200,
+      );
+      assert.equal(calls.at(-1).name, name);
+      assert.equal(
+        (await request(`/${campaignId}/${action}`, { method: "POST", body: {}, token: "" })).status,
+        403,
+      );
     }
-    const id=randomUUID(); assert.equal((await request(`/${campaignId}/activate`,{method:"POST",body:{preflight_id:id}})).status,200);
-    assert.equal(calls.at(-1).args.preflightId,id);
-    assert.equal((await request(`/${campaignId}/activate`,{method:"POST",body:{preflight_id:"forged"}})).status,400);
+    const id = randomUUID();
+    assert.equal(
+      (await request(`/${campaignId}/activate`, { method: "POST", body: { preflight_id: id } }))
+        .status,
+      200,
+    );
+    assert.equal(calls.at(-1).args.preflightId, id);
+    assert.equal(
+      (
+        await request(`/${campaignId}/activate`, {
+          method: "POST",
+          body: { preflight_id: "forged" },
+        })
+      ).status,
+      400,
+    );
   });
 });
 
-const measurementPlan = {baseline_return_rate_pct:30,minimum_detectable_lift_pp:10,observation_days:60,reconciliation_days:7};
-it('accepts a frozen measurement plan and balanced allocation on both creation paths',async()=>{
-  const response=await request('',{method:'POST',body:{...body,holdout_percent:50,measurement_plan:measurementPlan}});
-  assert.equal(response.status,201);assert.deepEqual(calls.at(-1).args.measurementPlan,measurementPlan);
-  const prepared=await request('/prepare',{method:'POST',body:{request_id:randomUUID(),name:'Prueba',audience_segment_id:randomUUID(),audience_segment_version:1,audience_limit:1000,bonus_points:25,duration_days:14,holdout_percent:50,measurement_plan:measurementPlan}});
-  assert.equal(prepared.status,202);assert.deepEqual(calls.at(-1).args.measurementPlan,measurementPlan);
+const measurementPlan = {
+  baseline_return_rate_pct: 30,
+  minimum_detectable_lift_pp: 10,
+  observation_days: 60,
+  reconciliation_days: 7,
+};
+it("accepts a frozen measurement plan and balanced allocation on both creation paths", async () => {
+  const response = await request("", {
+    method: "POST",
+    body: { ...body, holdout_percent: 50, measurement_plan: measurementPlan },
+  });
+  assert.equal(response.status, 201);
+  assert.deepEqual(calls.at(-1).args.measurementPlan, measurementPlan);
+  const prepared = await request("/prepare", {
+    method: "POST",
+    body: {
+      request_id: randomUUID(),
+      name: "Prueba",
+      audience_segment_id: randomUUID(),
+      audience_segment_version: 1,
+      audience_limit: 1000,
+      bonus_points: 25,
+      duration_days: 14,
+      holdout_percent: 50,
+      measurement_plan: measurementPlan,
+    },
+  });
+  assert.equal(prepared.status, 202);
+  assert.deepEqual(calls.at(-1).args.measurementPlan, measurementPlan);
 });
-it('previews power without creating a campaign and validates the fixed horizon',async()=>{
-  const input={measurement_plan:measurementPlan,duration_days:14,holdout_percent:50,available_members:100};
-  const response=await request('/measurement-plan',{method:'POST',body:input});
-  assert.equal(response.status,200);assert.equal(response.body.planning.feasible,false);
-  assert.equal(calls.length,0);
-  for(const patch of [{available_members:-1},{holdout_percent:0},{measurement_plan:{...measurementPlan,observation_days:7}},{measurement_plan:{...measurementPlan,baseline_return_rate_pct:95}}]) assert.equal((await request('/measurement-plan',{method:'POST',body:{...input,...patch}})).status,400);
-  assert.equal((await request('/measurement-plan',{method:'POST',body:input,token:''})).status,403);
+it("previews power without creating a campaign and validates the fixed horizon", async () => {
+  const input = {
+    measurement_plan: measurementPlan,
+    duration_days: 14,
+    holdout_percent: 50,
+    available_members: 100,
+  };
+  const response = await request("/measurement-plan", { method: "POST", body: input });
+  assert.equal(response.status, 200);
+  assert.equal(response.body.planning.feasible, false);
+  assert.equal(calls.length, 0);
+  for (const patch of [
+    { available_members: -1 },
+    { holdout_percent: 0 },
+    { measurement_plan: { ...measurementPlan, observation_days: 7 } },
+    { measurement_plan: { ...measurementPlan, baseline_return_rate_pct: 95 } },
+  ])
+    assert.equal(
+      (await request("/measurement-plan", { method: "POST", body: { ...input, ...patch } })).status,
+      400,
+    );
+  assert.equal(
+    (await request("/measurement-plan", { method: "POST", body: input, token: "" })).status,
+    403,
+  );
 });
 
-it('protects cost and report evidence with owner, tenant, CSRF and strict server-calculated contracts',async()=>{
- const operations=[{path:`/${campaignId}/measurement-costs`,method:'POST',body:{request_id:randomUUID(),gross_margin_pct:40,fulfillment_cost_q:0}},{path:`/${campaignId}/measurement-reports`,method:'POST',body:{request_id:randomUUID()}},{path:`/${campaignId}/measurement-reports`,method:'GET'}];
- for(const op of operations){assert.equal((await request(op.path,{...op,cookie:''})).status,401);}
- role='CASHIER';for(const op of operations)assert.equal((await request(op.path,op)).status,403);role='OWNER';
- for(const op of operations.filter(o=>o.method==='POST')){
-  assert.equal((await request(op.path,{...op,token:''})).status,403);
-  assert.equal((await request(op.path,{...op,body:{...op.body,business_id:randomUUID()}})).status,400);
-  assert.equal((await request(op.path,op)).status,201);assert.equal(calls.at(-1).args.businessId,businessId);assert.equal(calls.at(-1).args.staffId,staffId);
- }
- assert.equal((await request(`/${campaignId}/measurement-costs`,{method:'POST',body:{request_id:randomUUID(),gross_margin_pct:101}})).status,400);
- assert.equal((await request(`/${campaignId}/measurement-costs`,{method:'POST',body:{request_id:randomUUID(),other_cost_q:0.001}})).status,400);
- assert.equal((await request(`/${campaignId}/measurement-reports`,{method:'POST',body:{request_id:randomUUID(),payload:{fake:'result'}}})).status,400);
- assert.equal((await request(`/${campaignId}/measurement-reports`)).status,200);
+it("protects cost and report evidence with owner, tenant, CSRF and strict server-calculated contracts", async () => {
+  const operations = [
+    {
+      path: `/${campaignId}/measurement-costs`,
+      method: "POST",
+      body: { request_id: randomUUID(), gross_margin_pct: 40, fulfillment_cost_q: 0 },
+    },
+    {
+      path: `/${campaignId}/measurement-reports`,
+      method: "POST",
+      body: { request_id: randomUUID() },
+    },
+    { path: `/${campaignId}/measurement-reports`, method: "GET" },
+  ];
+  for (const op of operations) {
+    assert.equal((await request(op.path, { ...op, cookie: "" })).status, 401);
+  }
+  role = "CASHIER";
+  for (const op of operations) assert.equal((await request(op.path, op)).status, 403);
+  role = "OWNER";
+  for (const op of operations.filter((o) => o.method === "POST")) {
+    assert.equal((await request(op.path, { ...op, token: "" })).status, 403);
+    assert.equal(
+      (await request(op.path, { ...op, body: { ...op.body, business_id: randomUUID() } })).status,
+      400,
+    );
+    assert.equal((await request(op.path, op)).status, 201);
+    assert.equal(calls.at(-1).args.businessId, businessId);
+    assert.equal(calls.at(-1).args.staffId, staffId);
+  }
+  assert.equal(
+    (
+      await request(`/${campaignId}/measurement-costs`, {
+        method: "POST",
+        body: { request_id: randomUUID(), gross_margin_pct: 101 },
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await request(`/${campaignId}/measurement-costs`, {
+        method: "POST",
+        body: { request_id: randomUUID(), other_cost_q: 0.001 },
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await request(`/${campaignId}/measurement-reports`, {
+        method: "POST",
+        body: { request_id: randomUUID(), payload: { fake: "result" } },
+      })
+    ).status,
+    400,
+  );
+  assert.equal((await request(`/${campaignId}/measurement-reports`)).status, 200);
 });

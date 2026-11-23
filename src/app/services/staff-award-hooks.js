@@ -10,7 +10,7 @@ async function sourceTransactionIsActive(sourceTransactionId, deps = null) {
     `SELECT status, reversed_transaction_id
      FROM transactions
      WHERE id = $1`,
-    [sourceTransactionId]
+    [sourceTransactionId],
   );
   const tx = rows[0];
   return Boolean(tx && tx.status === "POSTED" && !tx.reversed_transaction_id);
@@ -24,61 +24,77 @@ export async function runPostAwardHooks({
   pointsAwarded,
   amountQ,
   visits,
-  items
+  items,
 }) {
   try {
-    if (!await sourceTransactionIsActive(sourceTransactionId, deps)) return;
+    if (!(await sourceTransactionIsActive(sourceTransactionId, deps))) return;
     const { TierService } = await deps.loadTierService();
     await TierService.checkTierProgression(customerId);
   } catch (err) {
-    logger.warn({ err: err?.message || err, customerId, businessId }, "Tier progression check failed");
+    logger.warn(
+      { err: err?.message || err, customerId, businessId },
+      "Tier progression check failed",
+    );
   }
 
   try {
-    if (!await sourceTransactionIsActive(sourceTransactionId, deps)) return;
+    if (!(await sourceTransactionIsActive(sourceTransactionId, deps))) return;
     const { GamificationService } = await deps.loadGamificationService();
-    const newAchievements = await GamificationService.checkAndAwardAchievements(customerId, "purchase", {
-      sourceTransactionId
-    });
+    const newAchievements = await GamificationService.checkAndAwardAchievements(
+      customerId,
+      "purchase",
+      {
+        sourceTransactionId,
+      },
+    );
     if (Array.isArray(newAchievements) && newAchievements.length > 0) {
-      logger.info({ customerId, count: newAchievements.length, businessId }, "Customer earned achievements");
+      logger.info(
+        { customerId, count: newAchievements.length, businessId },
+        "Customer earned achievements",
+      );
     }
   } catch (err) {
     logger.warn({ err: err?.message || err, customerId, businessId }, "Achievement check failed");
   }
 
   try {
-    if (!await sourceTransactionIsActive(sourceTransactionId, deps)) return;
+    if (!(await sourceTransactionIsActive(sourceTransactionId, deps))) return;
     const { GamificationService } = await deps.loadGamificationService();
     if (pointsAwarded && pointsAwarded > 0) {
       await GamificationService.updateChallengeProgress(customerId, "points", pointsAwarded, {
-        sourceTransactionId
+        sourceTransactionId,
       });
     }
     if (visits) {
       await GamificationService.updateChallengeProgress(customerId, "visits", visits, {
-        sourceTransactionId
+        sourceTransactionId,
       });
     }
     if (amountQ && amountQ > 0) {
       await GamificationService.updateChallengeProgress(customerId, "spend", amountQ, {
-        sourceTransactionId
+        sourceTransactionId,
       });
     }
     if (items > 0) {
       await GamificationService.updateChallengeProgress(customerId, "items", items, {
-        sourceTransactionId
+        sourceTransactionId,
       });
     }
   } catch (err) {
-    logger.warn({ err: err?.message || err, customerId, businessId }, "Challenge progress update failed");
+    logger.warn(
+      { err: err?.message || err, customerId, businessId },
+      "Challenge progress update failed",
+    );
   }
 
   try {
-    if (!await sourceTransactionIsActive(sourceTransactionId, deps)) return;
+    if (!(await sourceTransactionIsActive(sourceTransactionId, deps))) return;
     const { ReferralService } = await deps.loadReferralService();
     await ReferralService.checkAndCompleteReferral(customerId);
   } catch (err) {
-    logger.warn({ err: err?.message || err, customerId, businessId }, "Referral completion check failed");
+    logger.warn(
+      { err: err?.message || err, customerId, businessId },
+      "Referral completion check failed",
+    );
   }
 }

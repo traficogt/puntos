@@ -12,6 +12,6 @@ test("staff page falls back to cached session on network failure instead of redi
   assert.match(source, /isNetworkFailure/);
   assert.match(source, /Modo sin conexión: usando la última sesión guardada\./);
   assert.match(source, /if \(isNetworkFailure\(error\)\)/);
-  assert.match(source, /localStorage\.setItem\("pf_staff_snapshot"/);
-  assert.match(source, /localStorage\.removeItem\("pf_staff_snapshot"/);
+  assert.match(source, /localStorage\.setItem\(\s*"pf_staff_snapshot"/);
+  assert.match(source, /localStorage\.removeItem\(\s*"pf_staff_snapshot"/);
 });

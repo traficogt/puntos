@@ -25,11 +25,17 @@ describe("runtime style guardrails", () => {
     const findings = [];
     // Vendor-generated React/Mantine bundles use DOM styles by design. The merchant
     // shell is covered by CSP nonce tests and a browser policy-violation check.
-    const vendorBundleDirs = ["assets", "recursos"].map(directory => path.join(PUBLIC_DIR, "merchant", directory) + path.sep);
+    const vendorBundleDirs = ["assets", "recursos"].map(
+      (directory) => path.join(PUBLIC_DIR, "merchant", directory) + path.sep,
+    );
     // The isolated Astryx preview also ships generated React component bundles.
     // Keep the exclusion limited to its generated assets, not handwritten pages.
-    vendorBundleDirs.push(path.join(PUBLIC_DIR, "revision-astryx", "9b72f5a1", "assets") + path.sep);
-    const files = collectJsFiles(PUBLIC_DIR).filter(filePath => !vendorBundleDirs.some(directory => filePath.startsWith(directory)));
+    vendorBundleDirs.push(
+      path.join(PUBLIC_DIR, "revision-astryx", "9b72f5a1", "assets") + path.sep,
+    );
+    const files = collectJsFiles(PUBLIC_DIR).filter(
+      (filePath) => !vendorBundleDirs.some((directory) => filePath.startsWith(directory)),
+    );
 
     for (const filePath of files) {
       // eslint-disable-next-line security/detect-non-literal-fs-filename

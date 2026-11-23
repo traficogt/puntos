@@ -1,4 +1,4 @@
-import { dateTimeSchema } from './date-time-schema.js';
+import { dateTimeSchema } from "./date-time-schema.js";
 import { z } from "zod";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "./password-policy.js";
 
@@ -8,31 +8,37 @@ import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "./password-policy.js";
 // Zod 4's UUID validator additionally restricts RFC version/variant bits.
 export const uuidSchema = z.guid();
 export const emailSchema = z.string().email().max(255);
-export const phoneSchema = z.string().regex(/^\+502\d{8}$/, "Phone must be +502 followed by 8 digits");
-export const slugSchema = z.string().min(2).max(50).regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens");
-export const passwordSchema = z.string()
+export const phoneSchema = z
+  .string()
+  .regex(/^\+502\d{8}$/, "Phone must be +502 followed by 8 digits");
+export const slugSchema = z
+  .string()
+  .min(2)
+  .max(50)
+  .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens");
+export const passwordSchema = z
+  .string()
   .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
   .max(PASSWORD_MAX_LENGTH, `Password must not exceed ${PASSWORD_MAX_LENGTH} characters`);
 
 // Program JSON validation schemas
 export const spendProgramSchema = z.object({
   points_per_q: z.number().min(0).max(10),
-  round: z.enum(['floor', 'ceil', 'round']).optional().default('ceil')
+  round: z.enum(["floor", "ceil", "round"]).optional().default("ceil"),
 });
 
 export const visitProgramSchema = z.object({
-  points_per_visit: z.number().int().min(1).max(1000)
+  points_per_visit: z.number().int().min(1).max(1000),
 });
 
 export const itemProgramSchema = z.object({
-  points_per_item: z.number().int().min(1).max(1000)
+  points_per_item: z.number().int().min(1).max(1000),
 });
 
 // Meta field validation (max 10KB JSON)
-export const metaSchema = z.record(z.string(), z.any()).refine(
-  (data) => JSON.stringify(data).length < 10000,
-  "Meta field must be less than 10KB"
-);
+export const metaSchema = z
+  .record(z.string(), z.any())
+  .refine((data) => JSON.stringify(data).length < 10000, "Meta field must be less than 10KB");
 
 // Business schemas
 
@@ -44,7 +50,7 @@ export const businessRegisterSchema = z.object({
   phone: z.string().min(8).max(30),
   category: z.string().max(50).optional(),
   program_type: z.enum(["SPEND", "VISIT", "ITEM"]).optional(),
-  registration_token: z.string().min(16).optional()
+  registration_token: z.string().min(16).optional(),
 });
 
 export const businessUpdateSchema = z.object({
@@ -53,52 +59,46 @@ export const businessUpdateSchema = z.object({
   program_type: z.enum(["SPEND", "VISIT", "ITEM"]).optional(),
   points_per_quetzal: z.number().min(0).max(1000).optional(),
   points_per_visit: z.number().int().min(0).max(10000).optional(),
-  points_per_item: z.number().int().min(0).max(10000).optional()
+  points_per_item: z.number().int().min(0).max(10000).optional(),
 });
 
-const brandingHexColorSchema = z.string()
+const brandingHexColorSchema = z
+  .string()
   .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a 6-digit hex value")
   .transform((value) => value.toUpperCase());
 
 function optionalTrimmedStringSchema(max) {
-  return z.preprocess(
-    (value) => {
-      if (typeof value !== "string") return value;
-      const trimmed = value.trim();
-      return trimmed === "" ? undefined : trimmed;
-    },
-    z.string().max(max).optional()
-  );
+  return z.preprocess((value) => {
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    return trimmed === "" ? undefined : trimmed;
+  }, z.string().max(max).optional());
 }
 
 function optionalUrlSchema(max) {
-  return z.preprocess(
-    (value) => {
-      if (typeof value !== "string") return value;
-      const trimmed = value.trim();
-      return trimmed === "" ? undefined : trimmed;
-    },
-    z.string().url().max(max).optional()
-  );
+  return z.preprocess((value) => {
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    return trimmed === "" ? undefined : trimmed;
+  }, z.string().url().max(max).optional());
 }
 
 function optionalHexColorSchema() {
-  return z.preprocess(
-    (value) => {
-      if (typeof value !== "string") return value;
-      const trimmed = value.trim();
-      return trimmed === "" ? undefined : trimmed;
-    },
-    brandingHexColorSchema.optional()
-  );
+  return z.preprocess((value) => {
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    return trimmed === "" ? undefined : trimmed;
+  }, brandingHexColorSchema.optional());
 }
 
 export const businessCustomerBrandingSchema = z.object({
-  branding_mode: z.enum(["platform_led", "endorsed_brand", "white_label_ready"]).default("endorsed_brand"),
+  branding_mode: z
+    .enum(["platform_led", "endorsed_brand", "white_label_ready"])
+    .default("endorsed_brand"),
   customer_program_name: optionalTrimmedStringSchema(120),
   customer_logo_url: optionalUrlSchema(1000).refine(
     (value) => value === undefined || /^https:\/\//i.test(value),
-    { message: "El logo debe ser una URL https." }
+    { message: "El logo debe ser una URL https." },
   ),
   qr_logo_enabled: z.boolean().optional(),
   primary_color: optionalHexColorSchema(),
@@ -106,7 +106,7 @@ export const businessCustomerBrandingSchema = z.object({
   neutral_theme: z.enum(["warm", "neutral", "cool"]).optional(),
   powered_by_visible: z.boolean().default(true),
   wallet_headline: optionalTrimmedStringSchema(140),
-  join_headline: optionalTrimmedStringSchema(140)
+  join_headline: optionalTrimmedStringSchema(140),
 });
 
 // Staff schemas
@@ -114,7 +114,10 @@ export const businessCustomerBrandingSchema = z.object({
 export const staffLoginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
-  mfaCode: z.string().regex(/^\d{6}$/).optional()
+  mfaCode: z
+    .string()
+    .regex(/^\d{6}$/)
+    .optional(),
 });
 
 export const staffCreateSchema = z.object({
@@ -124,7 +127,7 @@ export const staffCreateSchema = z.object({
   password: passwordSchema,
   role: z.enum(["CASHIER", "MANAGER"]).optional(),
   branch_id: uuidSchema.optional(),
-  can_manage_gift_cards: z.boolean().optional()
+  can_manage_gift_cards: z.boolean().optional(),
 });
 
 export const staffUpdateSchema = z.object({
@@ -132,7 +135,7 @@ export const staffUpdateSchema = z.object({
   password: passwordSchema.optional(),
   role: z.enum(["CASHIER", "MANAGER"]).optional(),
   branch_id: uuidSchema.nullable().optional(),
-  can_manage_gift_cards: z.boolean().optional()
+  can_manage_gift_cards: z.boolean().optional(),
 });
 
 // Customer schemas
@@ -140,7 +143,7 @@ export const staffUpdateSchema = z.object({
 export const requestJoinCodeSchema = z.object({
   phone: z.string().min(6),
   email: emailSchema.optional(),
-  name: z.string().max(120).optional()
+  name: z.string().max(120).optional(),
 });
 
 export const verifyJoinCodeSchema = z.object({
@@ -151,12 +154,17 @@ export const verifyJoinCodeSchema = z.object({
   referralCode: z.string().length(6).optional(),
   marketingOptIn: z.boolean().optional(),
   // Optional source capability never makes an otherwise valid enrollment fail.
-  visitToken: z.unknown().optional().transform(value => typeof value === "string" && /^[A-Za-z0-9_-]{43}$/.test(value) ? value : undefined)
+  visitToken: z
+    .unknown()
+    .optional()
+    .transform((value) =>
+      typeof value === "string" && /^[A-Za-z0-9_-]{43}$/.test(value) ? value : undefined,
+    ),
 });
 
 export const customerUpdateSchema = z.object({
   name: z.string().min(2).max(100).optional(),
-  email: emailSchema.optional()
+  email: emailSchema.optional(),
 });
 
 // Backward-compatible aliases for older imports.
@@ -171,23 +179,27 @@ export const awardPointsSchema = z.object({
   visits: z.number().int().positive().max(1000).optional(),
   items: z.number().int().positive().max(10000).optional(),
   meta: z.record(z.string(), z.any()).optional(),
-  txId: uuidSchema
+  txId: uuidSchema,
 });
 
 export const staffLookupCustomerSchema = z.object({
-  customerQrToken: z.string().min(1)
+  customerQrToken: z.string().min(1),
 });
 
 export const syncAwardsSchema = z.object({
-  awards: z.array(z.object({
-    customerQrToken: z.string().min(1),
-    amount_q: z.number().min(0).max(1000000).optional(),
-    visits: z.number().int().min(0).max(1000).optional(),
-    items: z.number().int().min(0).max(10000).optional(),
-    meta: z.record(z.string(), z.any()).optional(),
-    txId: uuidSchema,
-    client_ts: z.string().optional()
-  })).max(200)
+  awards: z
+    .array(
+      z.object({
+        customerQrToken: z.string().min(1),
+        amount_q: z.number().min(0).max(1000000).optional(),
+        visits: z.number().int().min(0).max(1000).optional(),
+        items: z.number().int().min(0).max(10000).optional(),
+        meta: z.record(z.string(), z.any()).optional(),
+        txId: uuidSchema,
+        client_ts: z.string().optional(),
+      }),
+    )
+    .max(200),
 });
 
 // Reward schemas
@@ -199,7 +211,7 @@ export const rewardCreateSchema = z.object({
   stock: z.number().int().min(0).optional(),
   valid_until: dateTimeSchema().optional(),
   active: z.boolean().default(true),
-  branch_ids: z.array(uuidSchema).max(200).optional()
+  branch_ids: z.array(uuidSchema).max(200).optional(),
 });
 
 export const rewardUpdateSchema = z.object({
@@ -209,26 +221,26 @@ export const rewardUpdateSchema = z.object({
   stock: z.number().int().min(0).optional(),
   valid_until: dateTimeSchema().optional(),
   active: z.boolean().optional(),
-  branch_ids: z.array(uuidSchema).max(200).optional()
+  branch_ids: z.array(uuidSchema).max(200).optional(),
 });
 
 export const redeemRewardSchema = z.object({
   customerId: uuidSchema,
   rewardId: uuidSchema,
-  requestId: uuidSchema
+  requestId: uuidSchema,
 });
 
 // Branch schemas
 
 export const branchCreateSchema = z.object({
   name: z.string().min(2).max(100),
-  address: z.string().max(255).optional()
+  address: z.string().max(255).optional(),
 });
 
 export const branchUpdateSchema = z.object({
   name: z.string().min(2).max(100).optional(),
   address: z.string().max(255).optional(),
-  active: z.boolean().optional()
+  active: z.boolean().optional(),
 });
 
 // Webhook schemas
@@ -237,38 +249,35 @@ export const webhookCreateSchema = z.object({
   url: z.string().url().max(500),
   events: z.array(z.string()).min(1),
   secret: z.string().min(16).max(255).optional(),
-  active: z.boolean().default(true)
+  active: z.boolean().default(true),
 });
 
 export const webhookUpdateSchema = z.object({
   url: z.string().url().max(500).optional(),
   events: z.array(z.string()).min(1).optional(),
   secret: z.string().min(16).max(255).optional(),
-  active: z.boolean().optional()
+  active: z.boolean().optional(),
 });
 
 // Query parameter schemas
 
 export const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
-  offset: z.coerce.number().int().min(0).default(0)
+  offset: z.coerce.number().int().min(0).default(0),
 });
 
 export const analyticsQuerySchema = z.object({
-  days: z.coerce.number().int().min(1).max(365).default(30)
+  days: z.coerce.number().int().min(1).max(365).default(30),
 });
 
-export const optionalUuidSchema = z.preprocess(
-  (v) => {
-    const normalized = Array.isArray(v) ? v[0] : v;
-    if (normalized === "" || normalized === null || normalized === undefined) return undefined;
-    return normalized;
-  },
-  z.guid().optional()
-);
+export const optionalUuidSchema = z.preprocess((v) => {
+  const normalized = Array.isArray(v) ? v[0] : v;
+  if (normalized === "" || normalized === null || normalized === undefined) return undefined;
+  return normalized;
+}, z.guid().optional());
 
 export const branchFilterQuerySchema = z.object({
-  branch_id: optionalUuidSchema
+  branch_id: optionalUuidSchema,
 });
 
 // Validation helpers
@@ -282,10 +291,10 @@ export function validateRequest(schema) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           error: "Validation failed",
-          details: error.issues.map(e => ({
+          details: error.issues.map((e) => ({
             field: e.path.join("."),
-            message: e.message
-          }))
+            message: e.message,
+          })),
         });
       }
       next(error);
@@ -302,10 +311,10 @@ export function validateQuery(schema) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           error: "Invalid query parameters",
-          details: error.issues.map(e => ({
+          details: error.issues.map((e) => ({
             field: e.path.join("."),
-            message: e.message
-          }))
+            message: e.message,
+          })),
         });
       }
       next(error);

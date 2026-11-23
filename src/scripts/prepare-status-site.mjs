@@ -1,24 +1,50 @@
 /* eslint-disable security/detect-non-literal-fs-filename -- Offline packaging CLI: fixed source allowlist and new operator-selected absolute output directory; no request input. */
-import { cp, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-const root = fileURLToPath(new URL('../../', import.meta.url));
+import { cp, mkdir, readFile, writeFile, readdir } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+const root = fileURLToPath(new URL("../../", import.meta.url));
 const destination = process.argv[2];
-if (!destination || !path.isAbsolute(destination)) throw new Error('Provide a new absolute output directory');
+if (!destination || !path.isAbsolute(destination))
+  throw new Error("Provide a new absolute output directory");
 await mkdir(destination, { recursive: false });
-const config = path.join(root, 'deploy/status');
-for (const name of ['package.json', 'package-lock.json', '.gitignore', '.upptimerc.yml', '.github', 'snapshot-model.mjs', 'build-snapshot.mjs', 'README.md']) await cp(path.join(config, name), path.join(destination, name), { recursive: true });
-await cp(path.join(root, 'LICENSE'), path.join(destination, 'LICENSE'));
-const site = path.join(destination, 'site'); await mkdir(site);
-let html = await readFile(path.join(root, 'public/estado.html'), 'utf8');
-html = html.replaceAll('/status/', './').replaceAll('/styles/fonts.css?v=1', './fonts.css').replaceAll('/icon.svg', './icon.svg').replace('href="https://puntosfieles.com/estado"', 'href="https://traficogt.github.io/puntos-estado/"');
-await writeFile(path.join(site, 'index.html'), html);
-await writeFile(path.join(site, '.nojekyll'), '');
-await writeFile(path.join(site, 'robots.txt'), 'User-agent: *\nAllow: /\n');
-await cp(path.join(root, 'public/status'), site, { recursive: true });
-await cp(path.join(root, 'public/icon.svg'), path.join(site, 'icon.svg'));
-await cp(path.join(root, 'public/fonts'), path.join(site, 'fonts'), { recursive: true });
-await writeFile(path.join(site, 'fonts.css'), (await readFile(path.join(root, 'public/styles/fonts.css'), 'utf8')).replaceAll('/fonts/', './fonts/'));
+const config = path.join(root, "deploy/status");
+for (const name of [
+  "package.json",
+  "package-lock.json",
+  ".gitignore",
+  ".upptimerc.yml",
+  ".github",
+  "snapshot-model.mjs",
+  "build-snapshot.mjs",
+  "README.md",
+])
+  await cp(path.join(config, name), path.join(destination, name), { recursive: true });
+await cp(path.join(root, "LICENSE"), path.join(destination, "LICENSE"));
+const site = path.join(destination, "site");
+await mkdir(site);
+let html = await readFile(path.join(root, "public/estado.html"), "utf8");
+html = html
+  .replaceAll("/status/", "./")
+  .replaceAll("/styles/fonts.css?v=1", "./fonts.css")
+  .replaceAll("/icon.svg", "./icon.svg")
+  .replace(
+    'href="https://puntosfieles.com/estado"',
+    'href="https://traficogt.github.io/puntos-estado/"',
+  );
+await writeFile(path.join(site, "index.html"), html);
+await writeFile(path.join(site, ".nojekyll"), "");
+await writeFile(path.join(site, "robots.txt"), "User-agent: *\nAllow: /\n");
+await cp(path.join(root, "public/status"), site, { recursive: true });
+await cp(path.join(root, "public/icon.svg"), path.join(site, "icon.svg"));
+await cp(path.join(root, "public/fonts"), path.join(site, "fonts"), { recursive: true });
+await writeFile(
+  path.join(site, "fonts.css"),
+  (await readFile(path.join(root, "public/styles/fonts.css"), "utf8")).replaceAll(
+    "/fonts/",
+    "./fonts/",
+  ),
+);
 const files = await readdir(destination);
-if (files.some(name => name === '.env' || name === '.secrets')) throw new Error('Unexpected private content');
+if (files.some((name) => name === ".env" || name === ".secrets"))
+  throw new Error("Unexpected private content");
 console.log(`Prepared independently hosted status site at ${destination}`);

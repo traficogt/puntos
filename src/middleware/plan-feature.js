@@ -18,7 +18,10 @@ async function resolveBusiness(req) {
 export function requirePlanFeature(feature) {
   const middleware = async (req, res, next) => {
     const business = await resolveBusiness(req);
-    if (!business) return res.status(401).json({ error: "Contexto de negocio requerido", code: "BUSINESS_CONTEXT_REQUIRED" });
+    if (!business)
+      return res
+        .status(401)
+        .json({ error: "Contexto de negocio requerido", code: "BUSINESS_CONTEXT_REQUIRED" });
     const overrides = await PlanConfigService.getPlanFeatureOverrides().catch(() => ({}));
 
     if (hasPlanFeature(business.plan, feature, overrides)) return next();
@@ -28,7 +31,7 @@ export function requirePlanFeature(feature) {
       code: "PLAN_FEATURE_LOCKED",
       feature,
       plan: business.plan,
-      suggested_plan: suggestedPlanForFeature(feature)
+      suggested_plan: suggestedPlanForFeature(feature),
     });
   };
   middleware.__openapi = { planFeatures: [feature] };

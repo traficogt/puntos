@@ -67,7 +67,10 @@ async function verifySqlDump(filePath) {
     if (line === "-- PostgreSQL database dump complete") complete = true;
     if (/^(?:CREATE|COPY|INSERT|ALTER|SET|SELECT)\s/.test(line)) statements = true;
   }
-  assert(header && complete && statements, "Backup is empty or is not a complete PostgreSQL SQL dump");
+  assert(
+    header && complete && statements,
+    "Backup is empty or is not a complete PostgreSQL SQL dump",
+  );
 }
 
 async function readExpectedSha(filePath) {
@@ -134,7 +137,7 @@ async function main() {
     gzip_valid: resolved.endsWith(".gz"),
     sql_dump_complete: true,
     has_sha_sidecar: Boolean(expectedSha),
-    has_manifest: Boolean(manifestSha)
+    has_manifest: Boolean(manifestSha),
   };
 
   if (hasFlag("--json")) {

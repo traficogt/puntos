@@ -26,7 +26,8 @@ function sha256File(filePath) {
 
 function listMigrationFiles() {
   if (!fs.existsSync(migrationsDir)) return [];
-  return fs.readdirSync(migrationsDir)
+  return fs
+    .readdirSync(migrationsDir)
     .filter((f) => f.endsWith(".sql"))
     .sort();
 }
@@ -42,7 +43,8 @@ function diffLock(expected, actual) {
   for (const k of keys) {
     if (!(k in expected)) out.push({ type: "extra_file", file: k, checksum: actual[k] });
     else if (!(k in actual)) out.push({ type: "missing_file", file: k, checksum: expected[k] });
-    else if (expected[k] !== actual[k]) out.push({ type: "checksum_mismatch", file: k, expected: expected[k], actual: actual[k] });
+    else if (expected[k] !== actual[k])
+      out.push({ type: "checksum_mismatch", file: k, expected: expected[k], actual: actual[k] });
   }
   return out;
 }
@@ -57,7 +59,7 @@ async function main() {
 
   const lockPayload = {
     generated_at: new Date().toISOString(),
-    files: computed
+    files: computed,
   };
 
   if (write) {
@@ -95,7 +97,9 @@ async function main() {
     }
   }
   console.error("If you added a NEW migration, run: npm run ops:migrate:lock");
-  console.error("If you edited an existing migration, revert it and create a new migration instead.");
+  console.error(
+    "If you edited an existing migration, revert it and create a new migration instead.",
+  );
   process.exitCode = 1;
 }
 

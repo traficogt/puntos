@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { config } from "../../src/config/index.js";
-import { decryptSecretMaybe, encryptSecret, isEncryptedSecret, rotateSecretToCurrent } from "../../src/utils/secret-crypto.js";
+import {
+  decryptSecretMaybe,
+  encryptSecret,
+  isEncryptedSecret,
+  rotateSecretToCurrent,
+} from "../../src/utils/secret-crypto.js";
 
 test("encryptSecret/decryptSecretMaybe round trip", () => {
   const plain = "super-secret-value-123";

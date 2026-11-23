@@ -6,7 +6,7 @@ import { resolveEmailBranding } from "../../src/app/services/messaging/email-bra
 test("resolveEmailBranding uses platform defaults without business context", async () => {
   const branding = await resolveEmailBranding({
     businessId: null,
-    getBusinessById: async () => null
+    getBusinessById: async () => null,
   });
 
   assert.equal(branding.scope, "platform");
@@ -29,9 +29,9 @@ test("resolveEmailBranding uses tenant branding when business context exists", a
         customer_logo_url: "https://cdn.example.com/logo.png",
         primary_color: "#6D3524",
         accent_color: "#D7A554",
-        powered_by_visible: true
-      }
-    })
+        powered_by_visible: true,
+      },
+    }),
   });
 
   assert.equal(branding.scope, "tenant");
@@ -50,8 +50,8 @@ test("resolveEmailBranding falls back to business name and safe defaults when te
     getBusinessById: async () => ({
       id: "biz_2",
       name: "Cafe Central",
-      customer_branding_json: {}
-    })
+      customer_branding_json: {},
+    }),
   });
 
   assert.equal(branding.scope, "tenant");

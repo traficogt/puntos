@@ -27,10 +27,7 @@ integrationDescribe("referral growth against disposable PostgreSQL", () => {
     await client.query(
       // Constant fixture path relative to this test module.
       // eslint-disable-next-line security/detect-non-literal-fs-filename
-      await readFile(
-        new URL("../fixtures/referral-growth.sql", import.meta.url),
-        "utf8",
-      ),
+      await readFile(new URL("../fixtures/referral-growth.sql", import.meta.url), "utf8"),
     );
   });
   after(async () => {
@@ -40,15 +37,7 @@ integrationDescribe("referral growth against disposable PostgreSQL", () => {
     await client.query("TRUNCATE transactions, referrals, customers");
     await client.query(
       "INSERT INTO customers VALUES ($1,$2,'Invita',NULL),($3,$2,'Ana',NULL),($4,$2,'Bea',NULL),($5,$2,'Private deleted name',now()),($6,$7,'Other tenant name',NULL)",
-      [
-        referrer,
-        businessId,
-        customerA,
-        customerB,
-        deleted,
-        otherCustomer,
-        otherBusiness,
-      ],
+      [referrer, businessId, customerA, customerB, deleted, otherCustomer, otherBusiness],
     );
   });
   function growth(options = {}) {
@@ -80,21 +69,18 @@ integrationDescribe("referral growth against disposable PostgreSQL", () => {
       rewardedB: null,
       ...values,
     };
-    await client.query(
-      "INSERT INTO referrals VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
-      [
-        r.id,
-        r.businessId,
-        r.referrer,
-        r.customerId,
-        r.status,
-        r.at,
-        r.pointsA,
-        r.pointsB,
-        r.rewardedA,
-        r.rewardedB,
-      ],
-    );
+    await client.query("INSERT INTO referrals VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)", [
+      r.id,
+      r.businessId,
+      r.referrer,
+      r.customerId,
+      r.status,
+      r.at,
+      r.pointsA,
+      r.pointsB,
+      r.rewardedA,
+      r.rewardedB,
+    ]);
     return r.id;
   }
   async function purchase(values = {}) {
@@ -112,23 +98,20 @@ integrationDescribe("referral growth against disposable PostgreSQL", () => {
       at: "2026-11-02T12:00:00Z",
       ...values,
     };
-    await client.query(
-      "INSERT INTO transactions VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",
-      [
-        randomUUID(),
-        t.businessId,
-        t.customerId,
-        t.amount,
-        t.visits,
-        t.items,
-        t.type,
-        t.source,
-        t.status,
-        t.original,
-        t.reversed,
-        t.at,
-      ],
-    );
+    await client.query("INSERT INTO transactions VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)", [
+      randomUUID(),
+      t.businessId,
+      t.customerId,
+      t.amount,
+      t.visits,
+      t.items,
+      t.type,
+      t.source,
+      t.status,
+      t.original,
+      t.reversed,
+      t.at,
+    ]);
   }
   it("separates purchases from rewards, including signup rewards without any purchase", async () => {
     await referral({
@@ -159,25 +142,14 @@ integrationDescribe("referral growth against disposable PostgreSQL", () => {
       recorded_reward_points: 180,
     });
     assert.equal(
-      result.referrals.find((row) => row.referred_name === "Bea")
-        .first_purchase_at,
+      result.referrals.find((row) => row.referred_name === "Bea").first_purchase_at,
       null,
     );
-    assert.equal(
-      result.referrals.find((row) => row.referred_name === "Bea").status,
-      "rewarded",
-    );
+    assert.equal(result.referrals.find((row) => row.referred_name === "Bea").status, "rewarded");
   });
   it("uses genuine post-referral activity and excludes rewards, refunds, empty awards and future purchases", async () => {
     await referral();
-    for (const source of [
-      "lifecycle",
-      "expire",
-      "reversal",
-      "redeem",
-      "correction",
-      "unknown",
-    ])
+    for (const source of ["lifecycle", "expire", "reversal", "redeem", "correction", "unknown"])
       await purchase({ source });
     for (const type of ["REFERRAL_REWARD", "ACHIEVEMENT", "MANUAL_ADJUSTMENT"])
       await purchase({ type });
@@ -199,10 +171,7 @@ integrationDescribe("referral growth against disposable PostgreSQL", () => {
       });
       const result = await growth();
       assert.equal(result.summary.purchased, 1, source);
-      assert.equal(
-        result.referrals[0].first_purchase_at,
-        "2026-11-02T12:00:00+00:00",
-      );
+      assert.equal(result.referrals[0].first_purchase_at, "2026-11-02T12:00:00+00:00");
     }
   });
   it("counts a customer once and shows the earliest qualifying purchase after referral", async () => {

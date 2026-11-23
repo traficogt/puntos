@@ -1,4 +1,19 @@
-const sectionNames = new Map(Object.entries({ rewards: "recompensas", branding: "marca", tiers: "niveles", branches: "sucursales", staff: "equipo", giftcards: "tarjetas-regalo", achievements: "logros", challenges: "retos", referrals: "referidos", operations: "operaciones", reportes: "reportes", analytics: "analisis" }));
+const sectionNames = new Map(
+  Object.entries({
+    rewards: "recompensas",
+    branding: "marca",
+    tiers: "niveles",
+    branches: "sucursales",
+    staff: "equipo",
+    giftcards: "tarjetas-regalo",
+    achievements: "logros",
+    challenges: "retos",
+    referrals: "referidos",
+    operations: "operaciones",
+    reportes: "reportes",
+    analytics: "analisis",
+  }),
+);
 function readSection(value) {
   return Array.from(sectionNames).find(([, spanish]) => spanish === value)?.[0] || value;
 }
@@ -11,12 +26,14 @@ export function readDashboardViewFromUrl() {
   const params = new URLSearchParams(window.location.search);
   return {
     tab: readSection(params.get("seccion") || params.get("tab") || ""),
-    branchId: params.get("sucursal") || params.get("branch_id") || ""
+    branchId: params.get("sucursal") || params.get("branch_id") || "",
   };
 }
 
 export function currentActiveTabName() {
-  return (/** @type {HTMLElement | null} */ (document.querySelector(".tab.active"))?.dataset.tab) || "";
+  return (
+    /** @type {HTMLElement | null} */ (document.querySelector(".tab.active"))?.dataset.tab || ""
+  );
 }
 
 /**
@@ -71,8 +88,9 @@ export function restoreDashboardViewFromUrl({ $, persistedBranchId, activateTab 
   if (sel) sel.value = nextBranchId;
 
   if (tab) {
-    const targetTab = Array.from(/** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab")))
-      .find((el) => el.dataset.tab === tab && !el.hidden);
+    const targetTab = Array.from(
+      /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab")),
+    ).find((el) => el.dataset.tab === tab && !el.hidden);
     if (targetTab) {
       activateTab(tab, { syncUrl: false });
       return { branchId: nextBranchId, activeTab: tab };
@@ -82,6 +100,6 @@ export function restoreDashboardViewFromUrl({ $, persistedBranchId, activateTab 
   return {
     branchId: nextBranchId,
     activeTab: currentActiveTabName(),
-    fallbackBranchId: persistedBranchId || ""
+    fallbackBranchId: persistedBranchId || "",
   };
 }

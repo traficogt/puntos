@@ -1,9 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  businessCustomerBrandingSchema
-} from "../../src/utils/schemas.js";
+import { businessCustomerBrandingSchema } from "../../src/utils/schemas.js";
 
 test("business customer branding schema accepts the supported branding modes", () => {
   const parsed = businessCustomerBrandingSchema.parse({
@@ -15,17 +13,19 @@ test("business customer branding schema accepts the supported branding modes", (
     neutral_theme: "warm",
     powered_by_visible: true,
     wallet_headline: "Tus puntos en un solo lugar",
-    join_headline: "Unete y gana beneficios"
+    join_headline: "Unete y gana beneficios",
   });
 
   assert.equal(parsed.branding_mode, "endorsed_brand");
 });
 
 test("business customer branding schema rejects unsafe colors and unsupported modes", () => {
-  assert.throws(() => businessCustomerBrandingSchema.parse({
-    branding_mode: "full_custom",
-    primary_color: "red"
-  }));
+  assert.throws(() =>
+    businessCustomerBrandingSchema.parse({
+      branding_mode: "full_custom",
+      primary_color: "red",
+    }),
+  );
 });
 
 test("business repository exposes customer branding helpers", async () => {

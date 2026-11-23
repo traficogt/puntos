@@ -23,15 +23,17 @@ export function expectedLedgerBalances(row) {
   return {
     points: toInt(row?.expected_points),
     pending_points: toInt(row?.expected_pending_points),
-    lifetime_points: toInt(row?.expected_lifetime_points)
+    lifetime_points: toInt(row?.expected_lifetime_points),
   };
 }
 
 export function isLedgerBalanceMismatch(row) {
   const expected = expectedLedgerBalances(row);
-  return expected.points !== toInt(row?.stored_points)
-    || expected.pending_points !== toInt(row?.stored_pending_points)
-    || expected.lifetime_points !== toInt(row?.stored_lifetime_points);
+  return (
+    expected.points !== toInt(row?.stored_points) ||
+    expected.pending_points !== toInt(row?.stored_pending_points) ||
+    expected.lifetime_points !== toInt(row?.stored_lifetime_points)
+  );
 }
 
 export function buildLedgerFinding(row) {
@@ -39,7 +41,7 @@ export function buildLedgerFinding(row) {
   const stored = {
     points: toInt(row?.stored_points),
     pending_points: toInt(row?.stored_pending_points),
-    lifetime_points: toInt(row?.stored_lifetime_points)
+    lifetime_points: toInt(row?.stored_lifetime_points),
   };
 
   return {
@@ -53,7 +55,7 @@ export function buildLedgerFinding(row) {
     expected_lifetime_points: expected.lifetime_points,
     delta_points: expected.points - stored.points,
     delta_pending_points: expected.pending_points - stored.pending_points,
-    delta_lifetime_points: expected.lifetime_points - stored.lifetime_points
+    delta_lifetime_points: expected.lifetime_points - stored.lifetime_points,
   };
 }
 
@@ -64,7 +66,7 @@ async function readLedgerRows(query, { businessId = null, customerId = null, lim
      FROM customers
      WHERE ($1::uuid IS NULL OR business_id = $1)
        AND ($2::uuid IS NULL OR id = $2)`,
-    [businessId, customerId]
+    [businessId, customerId],
   );
   const checkedCustomers = toInt(countResult.rows?.[0]?.count);
 
@@ -105,18 +107,23 @@ async function readLedgerRows(query, { businessId = null, customerId = null, lim
        AND ($2::uuid IS NULL OR c.id = $2)
      ORDER BY c.created_at ASC, c.id ASC
      LIMIT $3`,
-    [businessId, customerId, cappedLimit]
+    [businessId, customerId, cappedLimit],
   );
 
   return {
     checkedCustomers,
     rows: rowsResult.rows || [],
     hasMore: checkedCustomers > cappedLimit,
-    limit: cappedLimit
+    limit: cappedLimit,
   };
 }
 
-async function insertRun({ businessId = null, customerId = null, repair = false, limit = 5_000 } = {}) {
+async function insertRun({
+  businessId = null,
+  customerId = null,
+  repair = false,
+  limit = 5_000,
+} = {}) {
   const runId = id();
   const scope = reconciliationScope({ businessId, customerId });
   await dbQuery(
@@ -130,9 +137,9 @@ async function insertRun({ businessId = null, customerId = null, repair = false,
       customerId,
       {
         repair,
-        limit: normalizeLimit(limit)
-      }
-    ]
+        limit: normalizeLimit(limit),
+      },
+    ],
   );
   return runId;
 }
@@ -154,9 +161,9 @@ async function markRunCompleted(client, runId, summary) {
       summary.repairedCustomers,
       JSON.stringify({
         truncated: summary.hasMore,
-        limit: summary.limit
-      })
-    ]
+        limit: summary.limit,
+      }),
+    ],
   );
 }
 
@@ -170,9 +177,9 @@ async function markRunFailed(runId, error) {
     [
       runId,
       JSON.stringify({
-        error: error?.message || String(error)
-      })
-    ]
+        error: error?.message || String(error),
+      }),
+    ],
   );
 }
 
@@ -194,8 +201,8 @@ async function recordFinding(client, runId, finding, repaired) {
       finding.expected_pending_points,
       finding.stored_lifetime_points,
       finding.expected_lifetime_points,
-      repaired
-    ]
+      repaired,
+    ],
   );
 }
 
@@ -214,8 +221,8 @@ async function repairBalance(client, finding) {
       finding.customer_id,
       finding.expected_points,
       finding.expected_pending_points,
-      finding.expected_lifetime_points
-    ]
+      finding.expected_lifetime_points,
+    ],
   );
 }
 
@@ -224,22 +231,22 @@ export async function runLedgerReconciliation({
   customerId = null,
   limit = 5_000,
   repair = false,
-  persist = true
+  persist = true,
 } = {}) {
   const normalizedLimit = normalizeLimit(limit);
-  const runId = persist ? await insertRun({ businessId, customerId, repair, limit: normalizedLimit }) : null;
+  const runId = persist
+    ? await insertRun({ businessId, customerId, repair, limit: normalizedLimit })
+    : null;
 
   try {
     return await withTransaction(async (client) => {
       const report = await readLedgerRows(client.query.bind(client), {
         businessId,
         customerId,
-        limit: normalizedLimit
+        limit: normalizedLimit,
       });
 
-      const findings = report.rows
-        .filter(isLedgerBalanceMismatch)
-        .map(buildLedgerFinding);
+      const findings = report.rows.filter(isLedgerBalanceMismatch).map(buildLedgerFinding);
 
       let repairedCustomers = 0;
       for (const finding of findings) {
@@ -262,7 +269,7 @@ export async function runLedgerReconciliation({
         repairedCustomers,
         hasMore: report.hasMore,
         limit: report.limit,
-        findings
+        findings,
       };
 
       if (runId) {

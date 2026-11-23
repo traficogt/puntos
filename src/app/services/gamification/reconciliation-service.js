@@ -72,7 +72,9 @@ function normalizeCompletionHistory(history) {
   if (typeof history === "string") {
     try {
       const parsed = JSON.parse(history);
-      return Array.isArray(parsed) ? parsed.filter((entry) => entry && typeof entry === "object") : [];
+      return Array.isArray(parsed)
+        ? parsed.filter((entry) => entry && typeof entry === "object")
+        : [];
     } catch {
       return [];
     }
@@ -87,7 +89,9 @@ function latestCompletionEntry(entries) {
 
 function removeCompletionEntries(entries, entriesToRemove) {
   const removals = new Set((entriesToRemove || []).map((entry) => JSON.stringify(entry)));
-  return normalizeCompletionHistory(entries).filter((entry) => !removals.has(JSON.stringify(entry)));
+  return normalizeCompletionHistory(entries).filter(
+    (entry) => !removals.has(JSON.stringify(entry)),
+  );
 }
 
 async function getTransactionById(client, transactionId) {
@@ -102,16 +106,22 @@ async function getTransactionById(client, transactionId) {
          FROM transactions r
          WHERE r.original_transaction_id = transactions.id
        )`,
-    [transactionId]
+    [transactionId],
   );
   return rows[0] || null;
 }
 
-export function expectedNonRecurringChallengeCompletions(currentValue, requirementValue, maxCompletions = null) {
+export function expectedNonRecurringChallengeCompletions(
+  currentValue,
+  requirementValue,
+  maxCompletions = null,
+) {
   const requirement = Number(requirementValue || 0);
   if (!(requirement > 0)) return 0;
   const rawCompletions = Math.floor(Math.max(0, Number(currentValue || 0)) / requirement);
-  return maxCompletions == null ? rawCompletions : Math.min(rawCompletions, Number(maxCompletions || 0));
+  return maxCompletions == null
+    ? rawCompletions
+    : Math.min(rawCompletions, Number(maxCompletions || 0));
 }
 
 export function shouldRevokeRecurringChallengeCompletion({
@@ -120,7 +130,7 @@ export function shouldRevokeRecurringChallengeCompletion({
   completed,
   completedAt,
   recurrence,
-  referenceAt
+  referenceAt,
 }) {
   if (!completed || !recurrence) return false;
   if (hasRecurringWindowElapsed(completedAt, recurrence, referenceAt)) return false;
@@ -143,7 +153,7 @@ async function getCurrentAchievementRows(client, customerId) {
      JOIN achievements a ON a.id = ca.achievement_id
      WHERE ca.customer_id = $1
      ORDER BY a.requirement_value DESC, ca.earned_at DESC`,
-    [customerId]
+    [customerId],
   );
   return rows;
 }
@@ -171,22 +181,25 @@ async function getCurrentChallengeRows(client, customerId) {
      JOIN challenges c ON c.id = cc.challenge_id
      WHERE cc.customer_id = $1
      ORDER BY cc.updated_at DESC`,
-    [customerId]
+    [customerId],
   );
   return rows;
 }
 
-async function getRewardTransactions(client, {
-  customerId,
-  businessId,
-  type,
-  entityField,
-  entityId,
-  sourceTransactionId = null,
-  limit = 1,
-  startAt = null,
-  endAt = null
-}) {
+async function getRewardTransactions(
+  client,
+  {
+    customerId,
+    businessId,
+    type,
+    entityField,
+    entityId,
+    sourceTransactionId = null,
+    limit = 1,
+    startAt = null,
+    endAt = null,
+  },
+) {
   const params = [customerId, businessId, type, entityField, entityId];
   let where = `
     t.customer_id = $1
@@ -221,7 +234,7 @@ async function getRewardTransactions(client, {
      WHERE ${where}
      ORDER BY t.created_at DESC
      LIMIT $${params.length}`,
-    params
+    params,
   );
   return rows;
 }
@@ -235,7 +248,7 @@ async function reverseRewardTransaction(client, tx, staff, reason, meta = {}) {
      SET points = points + $2,
          updated_at = now()
      WHERE customer_id = $1`,
-    [tx.customer_id, pointsEffect]
+    [tx.customer_id, pointsEffect],
   );
 
   const reversalId = id();
@@ -257,9 +270,9 @@ async function reverseRewardTransaction(client, tx, staff, reason, meta = {}) {
         original_status: tx.status,
         original_points: points,
         refunded_by: staff.id,
-        correction: meta
-      }
-    ]
+        correction: meta,
+      },
+    ],
   );
 
   await client.query(
@@ -268,13 +281,20 @@ async function reverseRewardTransaction(client, tx, staff, reason, meta = {}) {
          reversed_transaction_id = $2,
          reversal_reason = $3
      WHERE id = $1`,
-    [tx.id, reversalId, reason]
+    [tx.id, reversalId, reason],
   );
 
   return reversalId;
 }
 
-async function getChallengeMetricValue(client, customerId, requirementType, startAt = null, endAt = null, stats = null) {
+async function getChallengeMetricValue(
+  client,
+  customerId,
+  requirementType,
+  startAt = null,
+  endAt = null,
+  stats = null,
+) {
   if (!startAt && !endAt && stats) {
     if (requirementType === "points") {
       const { rows } = await client.query(
@@ -284,7 +304,7 @@ async function getChallengeMetricValue(client, customerId, requirementType, star
            AND type = 'PURCHASE'
            AND source <> 'reversal'
            AND status <> 'REVERSED'`,
-        [customerId]
+        [customerId],
       );
       return Number(rows?.[0]?.total_points || 0);
     }
@@ -301,7 +321,7 @@ async function getChallengeMetricValue(client, customerId, requirementType, star
          AND status = 'completed'
          AND completed_at >= $2
          AND completed_at < $3`,
-      params
+      params,
     );
     return Number(rows?.[0]?.total || 0);
   }
@@ -310,13 +330,14 @@ async function getChallengeMetricValue(client, customerId, requirementType, star
     return Number(stats?.current_streak || 0);
   }
 
-  const metricColumn = requirementType === "spend"
-    ? "COALESCE(SUM(amount_q), 0)::numeric(10,2)"
-    : requirementType === "visits"
-      ? "COALESCE(SUM(visits), 0)::int"
-      : requirementType === "items"
-        ? "COALESCE(SUM(items), 0)::int"
-        : "COALESCE(SUM(points), 0)::int";
+  const metricColumn =
+    requirementType === "spend"
+      ? "COALESCE(SUM(amount_q), 0)::numeric(10,2)"
+      : requirementType === "visits"
+        ? "COALESCE(SUM(visits), 0)::int"
+        : requirementType === "items"
+          ? "COALESCE(SUM(items), 0)::int"
+          : "COALESCE(SUM(points), 0)::int";
   const typeFilter = requirementType === "points" ? `AND type = 'PURCHASE'` : "";
 
   const { rows } = await client.query(
@@ -328,12 +349,19 @@ async function getChallengeMetricValue(client, customerId, requirementType, star
        AND source <> 'reversal'
        AND status <> 'REVERSED'
        ${typeFilter}`,
-    [customerId, startAt, endAt]
+    [customerId, startAt, endAt],
   );
   return Number(rows?.[0]?.total || 0);
 }
 
-async function reconcileAchievements(client, customerId, staff, reason, _referenceAt = null, refundedTransactionId = null) {
+async function reconcileAchievements(
+  client,
+  customerId,
+  staff,
+  reason,
+  _referenceAt = null,
+  refundedTransactionId = null,
+) {
   let revokedCount = 0;
 
   for (;;) {
@@ -348,31 +376,36 @@ async function reconcileAchievements(client, customerId, staff, reason, _referen
       await client.query(
         `DELETE FROM customer_achievements
          WHERE customer_id = $1 AND achievement_id = $2`,
-        [customerId, achievement.achievement_id]
+        [customerId, achievement.achievement_id],
       );
 
-      const rewardTx = await getTransactionById(client, achievement.reward_transaction_id)
-        || (await getRewardTransactions(client, {
-          customerId,
-          businessId: achievement.business_id,
-          type: "ACHIEVEMENT",
-          entityField: "achievement_id",
-          entityId: achievement.achievement_id,
-          sourceTransactionId: refundedTransactionId,
-          limit: 1
-        }))[0]
-        || (await getRewardTransactions(client, {
-          customerId,
-          businessId: achievement.business_id,
-          type: "ACHIEVEMENT",
-          entityField: "achievement_id",
-          entityId: achievement.achievement_id,
-          limit: 1
-        }))[0];
+      const rewardTx =
+        (await getTransactionById(client, achievement.reward_transaction_id)) ||
+        (
+          await getRewardTransactions(client, {
+            customerId,
+            businessId: achievement.business_id,
+            type: "ACHIEVEMENT",
+            entityField: "achievement_id",
+            entityId: achievement.achievement_id,
+            sourceTransactionId: refundedTransactionId,
+            limit: 1,
+          })
+        )[0] ||
+        (
+          await getRewardTransactions(client, {
+            customerId,
+            businessId: achievement.business_id,
+            type: "ACHIEVEMENT",
+            entityField: "achievement_id",
+            entityId: achievement.achievement_id,
+            limit: 1,
+          })
+        )[0];
       if (rewardTx && Number(rewardTx.points || 0) !== 0) {
         await reverseRewardTransaction(client, rewardTx, staff, reason, {
           category: "achievement_revoke",
-          achievement_id: achievement.achievement_id
+          achievement_id: achievement.achievement_id,
         });
       }
 
@@ -387,7 +420,14 @@ async function reconcileAchievements(client, customerId, staff, reason, _referen
   return revokedCount;
 }
 
-async function reconcileChallenges(client, customerId, staff, reason, referenceAt, refundedTransactionId = null) {
+async function reconcileChallenges(
+  client,
+  customerId,
+  staff,
+  reason,
+  referenceAt,
+  refundedTransactionId = null,
+) {
   const stats = await getCustomerGamificationStats(customerId, client.query.bind(client));
   const challenges = await getCurrentChallengeRows(client, customerId);
   let revokedCount = 0;
@@ -412,29 +452,35 @@ async function reconcileChallenges(client, customerId, staff, reason, referenceA
           challenge.requirement_type,
           windowStart,
           windowEnd,
-          stats
+          stats,
         );
         if (windowValue >= Number(challenge.requirement_value || 0)) continue;
         entriesToRevoke.push(entry);
       }
 
       for (const entry of entriesToRevoke) {
-        const rewardTx = await getTransactionById(client, entry.reward_transaction_id)
-          || (await getRewardTransactions(client, {
-            customerId,
-            businessId: challenge.business_id,
-            type: "CHALLENGE",
-            entityField: "challenge_id",
-            entityId: challenge.challenge_id,
-            sourceTransactionId: entry.source_transaction_id || refundedTransactionId,
-            limit: 1,
-            startAt: recurrenceWindowStart(entry.completed_at, challenge.recurrence),
-            endAt: recurrenceWindowEnd(recurrenceWindowStart(entry.completed_at, challenge.recurrence), challenge.recurrence)
-          }))[0];
+        const rewardTx =
+          (await getTransactionById(client, entry.reward_transaction_id)) ||
+          (
+            await getRewardTransactions(client, {
+              customerId,
+              businessId: challenge.business_id,
+              type: "CHALLENGE",
+              entityField: "challenge_id",
+              entityId: challenge.challenge_id,
+              sourceTransactionId: entry.source_transaction_id || refundedTransactionId,
+              limit: 1,
+              startAt: recurrenceWindowStart(entry.completed_at, challenge.recurrence),
+              endAt: recurrenceWindowEnd(
+                recurrenceWindowStart(entry.completed_at, challenge.recurrence),
+                challenge.recurrence,
+              ),
+            })
+          )[0];
         if (rewardTx && Number(rewardTx.points || 0) !== 0) {
           await reverseRewardTransaction(client, rewardTx, staff, reason, {
             category: "challenge_revoke",
-            challenge_id: challenge.challenge_id
+            challenge_id: challenge.challenge_id,
           });
         }
       }
@@ -442,16 +488,28 @@ async function reconcileChallenges(client, customerId, staff, reason, referenceA
       const remainingHistory = removeCompletionEntries(history, entriesToRevoke);
       const currentWindowStart = recurrenceWindowStart(referenceAt, challenge.recurrence);
       const currentWindowEnd = recurrenceWindowEnd(currentWindowStart, challenge.recurrence);
-      const currentWindowEntry = remainingHistory.find((entry) => {
-        const completedAt = new Date(entry.completed_at || "");
-        return currentWindowStart && currentWindowEnd
-          && !Number.isNaN(completedAt.getTime())
-          && completedAt >= currentWindowStart
-          && completedAt < currentWindowEnd;
-      }) || null;
-      const currentValue = currentWindowStart && currentWindowEnd
-        ? await getChallengeMetricValue(client, customerId, challenge.requirement_type, currentWindowStart, currentWindowEnd, stats)
-        : Number(challenge.progress || 0);
+      const currentWindowEntry =
+        remainingHistory.find((entry) => {
+          const completedAt = new Date(entry.completed_at || "");
+          return (
+            currentWindowStart &&
+            currentWindowEnd &&
+            !Number.isNaN(completedAt.getTime()) &&
+            completedAt >= currentWindowStart &&
+            completedAt < currentWindowEnd
+          );
+        }) || null;
+      const currentValue =
+        currentWindowStart && currentWindowEnd
+          ? await getChallengeMetricValue(
+              client,
+              customerId,
+              challenge.requirement_type,
+              currentWindowStart,
+              currentWindowEnd,
+              stats,
+            )
+          : Number(challenge.progress || 0);
       const lastEntry = latestCompletionEntry(remainingHistory);
 
       await client.query(
@@ -474,8 +532,8 @@ async function reconcileChallenges(client, customerId, staff, reason, referenceA
           remainingHistory.length,
           lastEntry?.source_transaction_id || null,
           lastEntry?.reward_transaction_id || null,
-          JSON.stringify(remainingHistory)
-        ]
+          JSON.stringify(remainingHistory),
+        ],
       );
 
       revokedCount += entriesToRevoke.length;
@@ -488,12 +546,12 @@ async function reconcileChallenges(client, customerId, staff, reason, referenceA
       challenge.requirement_type,
       null,
       null,
-      stats
+      stats,
     );
     const expectedTimesCompleted = expectedNonRecurringChallengeCompletions(
       currentValue,
       challenge.requirement_value,
-      challenge.max_completions
+      challenge.max_completions,
     );
     const actualTimesCompleted = Number(challenge.times_completed || 0);
     const excessCompletions = Math.max(0, actualTimesCompleted - expectedTimesCompleted);
@@ -507,16 +565,19 @@ async function reconcileChallenges(client, customerId, staff, reason, referenceA
     const rewardTransactions = [];
 
     for (const entry of entriesToRevoke) {
-      const rewardTx = await getTransactionById(client, entry.reward_transaction_id)
-        || (await getRewardTransactions(client, {
-          customerId,
-          businessId: challenge.business_id,
-          type: "CHALLENGE",
-          entityField: "challenge_id",
-          entityId: challenge.challenge_id,
-          sourceTransactionId: entry.source_transaction_id || refundedTransactionId,
-          limit: 1
-        }))[0];
+      const rewardTx =
+        (await getTransactionById(client, entry.reward_transaction_id)) ||
+        (
+          await getRewardTransactions(client, {
+            customerId,
+            businessId: challenge.business_id,
+            type: "CHALLENGE",
+            entityField: "challenge_id",
+            entityId: challenge.challenge_id,
+            sourceTransactionId: entry.source_transaction_id || refundedTransactionId,
+            limit: 1,
+          })
+        )[0];
       if (rewardTx) rewardTransactions.push(rewardTx);
     }
 
@@ -527,7 +588,7 @@ async function reconcileChallenges(client, customerId, staff, reason, referenceA
         type: "CHALLENGE",
         entityField: "challenge_id",
         entityId: challenge.challenge_id,
-        limit: excessCompletions
+        limit: excessCompletions,
       });
       rewardTransactions.push(...fallbackRewardTxs);
     }
@@ -536,7 +597,7 @@ async function reconcileChallenges(client, customerId, staff, reason, referenceA
       if (Number(tx.points || 0) === 0) continue;
       await reverseRewardTransaction(client, tx, staff, reason, {
         category: "challenge_revoke",
-        challenge_id: challenge.challenge_id
+        challenge_id: challenge.challenge_id,
       });
     }
     const lastEntry = latestCompletionEntry(remainingHistory);
@@ -560,8 +621,8 @@ async function reconcileChallenges(client, customerId, staff, reason, referenceA
         expectedTimesCompleted,
         lastEntry?.source_transaction_id || null,
         lastEntry?.reward_transaction_id || null,
-        JSON.stringify(remainingHistory)
-      ]
+        JSON.stringify(remainingHistory),
+      ],
     );
     revokedCount += excessCompletions;
   }
@@ -569,18 +630,29 @@ async function reconcileChallenges(client, customerId, staff, reason, referenceA
   return revokedCount;
 }
 
-export async function reconcileCustomerGamificationAfterRefund(client, {
-  customerId,
-  staff,
-  reason,
-  referenceAt = new Date(),
-  refundedTransactionId = null
-}) {
-  const achievementsRevoked = await reconcileAchievements(client, customerId, staff, reason, referenceAt, refundedTransactionId);
-  const challengesRevoked = await reconcileChallenges(client, customerId, staff, reason, referenceAt, refundedTransactionId);
+export async function reconcileCustomerGamificationAfterRefund(
+  client,
+  { customerId, staff, reason, referenceAt = new Date(), refundedTransactionId = null },
+) {
+  const achievementsRevoked = await reconcileAchievements(
+    client,
+    customerId,
+    staff,
+    reason,
+    referenceAt,
+    refundedTransactionId,
+  );
+  const challengesRevoked = await reconcileChallenges(
+    client,
+    customerId,
+    staff,
+    reason,
+    referenceAt,
+    refundedTransactionId,
+  );
 
   return {
     achievementsRevoked,
-    challengesRevoked
+    challengesRevoked,
   };
 }

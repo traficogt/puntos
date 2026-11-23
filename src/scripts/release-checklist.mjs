@@ -27,7 +27,10 @@ function checkFileExists(filePath) {
 
 function checkPackageScripts() {
   const pkg = readJson(path.join(rootDir, "package.json"));
-  assert(/^\d+\.\d+\.\d+/.test(String(pkg.version || "")), "package.json version must be semver-like");
+  assert(
+    /^\d+\.\d+\.\d+/.test(String(pkg.version || "")),
+    "package.json version must be semver-like",
+  );
 
   const requiredScripts = [
     "openapi:generate",
@@ -42,7 +45,7 @@ function checkPackageScripts() {
     "ops:rollback:verify",
     "ops:security-scan",
     "ops:smoke",
-    "ops:alerts:drill"
+    "ops:alerts:drill",
   ];
   for (const scriptName of requiredScripts) {
     assert(pkg.scripts?.[scriptName], `Missing package.json script: ${scriptName}`);
@@ -55,9 +58,18 @@ function checkOpenApiArtifacts() {
   checkFileExists(jsonPath);
   checkFileExists(yamlPath);
   const json = readJson(jsonPath);
-  assert(typeof json.openapi === "string" && json.openapi.length > 0, "docs/openapi.json missing openapi field");
-  assert(json.paths?.["/api/v1/admin/analytics/ledger-certification"], "docs/openapi.json missing /api/v1/admin/analytics/ledger-certification");
-  assert(json.paths?.["/api/v1/admin/analytics/ledger-certification.csv"], "docs/openapi.json missing /api/v1/admin/analytics/ledger-certification.csv");
+  assert(
+    typeof json.openapi === "string" && json.openapi.length > 0,
+    "docs/openapi.json missing openapi field",
+  );
+  assert(
+    json.paths?.["/api/v1/admin/analytics/ledger-certification"],
+    "docs/openapi.json missing /api/v1/admin/analytics/ledger-certification",
+  );
+  assert(
+    json.paths?.["/api/v1/admin/analytics/ledger-certification.csv"],
+    "docs/openapi.json missing /api/v1/admin/analytics/ledger-certification.csv",
+  );
   assert(fs.statSync(yamlPath).size > 0, "docs/openapi.yaml is empty");
 }
 
@@ -67,7 +79,7 @@ function checkPolicyAndRunbookDocs() {
     "docs/OBSERVABILITY.md",
     "docs/INCIDENT_RUNBOOK.md",
     "docs/ROLLBACK_RUNBOOK.md",
-    "docs/PRODUCTION_HARDENING_STATUS.md"
+    "docs/PRODUCTION_HARDENING_STATUS.md",
   ];
   for (const relativePath of requiredDocs) {
     checkFileExists(path.join(rootDir, relativePath));
@@ -79,7 +91,7 @@ function checkCriticalTests() {
     "tests/unit/openapi-contract.test.js",
     "tests/unit/no-fixed-secrets.test.js",
     "tests/integration/refund-gamification.test.js",
-    "tests/integration/recurring-gamification.test.js"
+    "tests/integration/recurring-gamification.test.js",
   ];
   for (const relativePath of requiredTests) {
     checkFileExists(path.join(rootDir, relativePath));
@@ -90,7 +102,8 @@ function checkMigrationLock() {
   checkFileExists(lockPath);
   const lock = readJson(lockPath);
   const lockFiles = lock?.files && typeof lock.files === "object" ? lock.files : {};
-  const migrationFiles = fs.readdirSync(migrationsDir)
+  const migrationFiles = fs
+    .readdirSync(migrationsDir)
     .filter((file) => file.endsWith(".sql"))
     .sort();
 
@@ -102,21 +115,18 @@ function checkMigrationLock() {
   }
 
   const expectedNames = Object.keys(lockFiles).sort();
-  assert(JSON.stringify(expectedNames) === JSON.stringify(migrationFiles), "Migration lock file set does not match src/app/migrations");
+  assert(
+    JSON.stringify(expectedNames) === JSON.stringify(migrationFiles),
+    "Migration lock file set does not match src/app/migrations",
+  );
   for (const file of migrationFiles) {
     assert(lockFiles[file] === current[file], `Migration lock checksum mismatch: ${file}`);
   }
 }
 
 function checkWorkflowGates() {
-  const workflowFiles = [
-    ".github/workflows/ci.yml",
-    ".github/workflows/release-gate.yml"
-  ];
-  const requiredSnippets = [
-    "npm run ops:release:checklist",
-    "npm run ops:migrate:smoke"
-  ];
+  const workflowFiles = [".github/workflows/ci.yml", ".github/workflows/release-gate.yml"];
+  const requiredSnippets = ["npm run ops:release:checklist", "npm run ops:migrate:smoke"];
 
   for (const relativePath of workflowFiles) {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
@@ -134,7 +144,9 @@ function main() {
   checkCriticalTests();
   checkMigrationLock();
   checkWorkflowGates();
-  console.log("Static release checklist: OK (files, scripts, workflow text and migration checksums only; no functional tests executed)");
+  console.log(
+    "Static release checklist: OK (files, scripts, workflow text and migration checksums only; no functional tests executed)",
+  );
 }
 
 try {

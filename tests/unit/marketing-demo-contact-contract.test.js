@@ -37,9 +37,15 @@ test("marketing contact client submits demo fields and Spanish success copy", ()
 
 test("contact service builds demo-request messaging for operators", () => {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const source = fs.readFileSync(new URL("../../src/app/services/contact-service.js", import.meta.url), "utf8");
+  const source = fs.readFileSync(
+    new URL("../../src/app/services/contact-service.js", import.meta.url),
+    "utf8",
+  );
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const routes = fs.readFileSync(new URL("../../src/app/routes/public-routes.js", import.meta.url), "utf8");
+  const routes = fs.readFileSync(
+    new URL("../../src/app/routes/public-routes.js", import.meta.url),
+    "utf8",
+  );
 
   assert.match(routes, /business:\s*z\.string\(\)\.min\(1\)\.max\(160\)\.trim\(\)/);
   assert.match(source, /Solicitud de demo/i);

@@ -11,7 +11,7 @@ export const OrderRepo = {
        FROM orders
        WHERE business_id = $1 AND external_order_id = $2
        LIMIT 1`,
-      [businessId, externalOrderId]
+      [businessId, externalOrderId],
     );
     return rows[0] ?? null;
   },
@@ -22,7 +22,7 @@ export const OrderRepo = {
        FROM orders
        WHERE business_id = $1 AND external_order_id = $2
        LIMIT 1`,
-      [businessId, externalOrderId]
+      [businessId, externalOrderId],
     );
     return rows[0] ?? null;
   },
@@ -52,9 +52,9 @@ export const OrderRepo = {
         input.fingerprint,
         input.transaction_id ?? null,
         input.points_awarded ?? 0,
-        input.transaction_status ?? null
-      ]
+        input.transaction_status ?? null,
+      ],
     );
     return rows[0];
-  }
+  },
 };

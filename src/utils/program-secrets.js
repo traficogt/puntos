@@ -11,7 +11,7 @@ function mapProgramSecrets(programJson, transform) {
   if (ext && typeof ext === "object" && ext.api_key) {
     next.external_awards = {
       ...ext,
-      api_key: transform(ext.api_key)
+      api_key: transform(ext.api_key),
     };
   }
   const pos = next.pos_integration;
@@ -19,7 +19,7 @@ function mapProgramSecrets(programJson, transform) {
   if (loyverse && typeof loyverse === "object" && loyverse.access_token) {
     next.pos_integration = {
       ...pos,
-      loyverse: { ...loyverse, access_token: transform(loyverse.access_token) }
+      loyverse: { ...loyverse, access_token: transform(loyverse.access_token) },
     };
   }
   return next;
@@ -30,7 +30,7 @@ export function encryptProgramSecrets(programJson) {
 }
 
 export function decryptProgramSecrets(programJson) {
-  return mapProgramSecrets(programJson, value => {
+  return mapProgramSecrets(programJson, (value) => {
     try {
       return decryptSecretMaybe(value);
     } catch {

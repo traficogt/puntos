@@ -8,7 +8,7 @@ const PRIVATE_V4_RANGES = [
   { from: [172, 16, 0, 0], to: [172, 31, 255, 255] },
   { from: [192, 168, 0, 0], to: [192, 168, 255, 255] },
   { from: [100, 64, 0, 0], to: [100, 127, 255, 255] }, // CGNAT
-  { from: [0, 0, 0, 0], to: [0, 255, 255, 255] }
+  { from: [0, 0, 0, 0], to: [0, 255, 255, 255] },
 ];
 
 function v4ToNum(ip) {
@@ -62,7 +62,13 @@ function isPrivateIp(ip) {
     if (lower.startsWith("64:ff9b:")) return true;
     // Unique local (fc00::/7) and link-local (fe80::/10)
     if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
-    if (lower.startsWith("fe8") || lower.startsWith("fe9") || lower.startsWith("fea") || lower.startsWith("feb")) return true;
+    if (
+      lower.startsWith("fe8") ||
+      lower.startsWith("fe9") ||
+      lower.startsWith("fea") ||
+      lower.startsWith("feb")
+    )
+      return true;
     return false;
   }
   return true;
@@ -128,9 +134,8 @@ export async function resolveWebhookTarget(urlStr, opts = {}) {
   // Normalize IPv6 literal: Node's url.hostname returns "[::1]" with brackets
   // but net.isIP() expects "::1" without brackets
   const hostRaw = host;
-  const hostNormalized = (hostRaw.startsWith("[") && hostRaw.endsWith("]"))
-    ? hostRaw.slice(1, -1)
-    : hostRaw;
+  const hostNormalized =
+    hostRaw.startsWith("[") && hostRaw.endsWith("]") ? hostRaw.slice(1, -1) : hostRaw;
 
   if (!hostMatchesAllowlist(hostNormalized, opts.allowlist ?? [])) {
     throw new Error("Host not in allowlist");
@@ -142,7 +147,7 @@ export async function resolveWebhookTarget(urlStr, opts = {}) {
     return {
       url,
       resolvedAddress: hostNormalized,
-      resolvedFamily: net.isIP(hostNormalized)
+      resolvedFamily: net.isIP(hostNormalized),
     };
   }
 
@@ -167,6 +172,6 @@ export async function resolveWebhookTarget(urlStr, opts = {}) {
   return {
     url,
     resolvedAddress,
-    resolvedFamily: resolvedAddress ? net.isIP(resolvedAddress) : null
+    resolvedFamily: resolvedAddress ? net.isIP(resolvedAddress) : null,
   };
 }

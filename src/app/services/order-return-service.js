@@ -25,10 +25,12 @@ function normalizeValue(value) {
   if (Array.isArray(value)) return value.map((item) => normalizeValue(item));
   if (!isPlainObject(value)) return value;
 
-  return Object.keys(value).sort().reduce((acc, key) => {
-    acc[key] = normalizeValue(value[key]);
-    return acc;
-  }, {});
+  return Object.keys(value)
+    .sort()
+    .reduce((acc, key) => {
+      acc[key] = normalizeValue(value[key]);
+      return acc;
+    }, {});
 }
 
 function normalizeMeta(meta) {
@@ -41,7 +43,7 @@ function buildFingerprintPayload({ externalReturnId, externalOrderId, reason, oc
     externalOrderId: String(externalOrderId || ""),
     reason: reason == null ? null : String(reason),
     occurred_at: occurred_at ?? null,
-    meta: normalizeMeta(meta)
+    meta: normalizeMeta(meta),
   };
 }
 
@@ -50,17 +52,17 @@ function allowNegativeRefundBalance(programJson = {}) {
 }
 
 async function lockOrderReturnRequest(client, businessId, externalReturnId) {
-  await client.query(
-    `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
-    [String(businessId), String(externalReturnId)]
-  );
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
+    String(businessId),
+    String(externalReturnId),
+  ]);
 }
 
 async function lockOrderReturnOrder(client, businessId, orderId) {
-  await client.query(
-    `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
-    [String(businessId), String(orderId)]
-  );
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
+    String(businessId),
+    String(orderId),
+  ]);
 }
 
 async function loadOriginalTransaction(client, transactionId) {
@@ -69,19 +71,22 @@ async function loadOriginalTransaction(client, transactionId) {
      FROM transactions
      WHERE id = $1
      FOR UPDATE`,
-    [transactionId]
+    [transactionId],
   );
   return rows[0] ?? null;
 }
 
-async function markOriginalTransactionReturned(client, { transactionId, reversalTransactionId = null, reason = null }) {
+async function markOriginalTransactionReturned(
+  client,
+  { transactionId, reversalTransactionId = null, reason = null },
+) {
   const result = await client.query(
     `UPDATE transactions
      SET status = 'REVERSED',
          reversed_transaction_id = $2,
          reversal_reason = $3
      WHERE id = $1`,
-    [transactionId, reversalTransactionId, reason]
+    [transactionId, reversalTransactionId, reason],
   );
   if (Number(result?.rowCount ?? 0) !== 1) {
     throw conflict("Original transaction update failed during order return");
@@ -94,7 +99,7 @@ async function updateOrderStatus(client, { orderId, businessId }) {
      SET transaction_status = 'REVERSED'
      WHERE id = $1
        AND business_id = $2`,
-    [orderId, businessId]
+    [orderId, businessId],
   );
   if (Number(result?.rowCount ?? 0) !== 1) {
     throw conflict("Original order update failed during order return");
@@ -102,7 +107,10 @@ async function updateOrderStatus(client, { orderId, businessId }) {
 }
 
 function assertTransactionMatchesOrder({ transaction, order, businessId }) {
-  if (String(transaction.business_id) !== String(businessId) || String(transaction.business_id) !== String(order.business_id)) {
+  if (
+    String(transaction.business_id) !== String(businessId) ||
+    String(transaction.business_id) !== String(order.business_id)
+  ) {
     throw conflict("Original order return source must match the same business and customer");
   }
   if (String(transaction.customer_id) !== String(order.customer_id)) {
@@ -138,17 +146,23 @@ async function processOrderReturnWithClient(deps, client, input) {
   if (!business) throw notFound("Business not found");
 
   const meta = normalizeMeta(input.meta);
-  const fingerprint = deps.hashPayload(buildFingerprintPayload({
-    externalReturnId,
-    externalOrderId,
-    reason: input.reason ?? null,
-    occurred_at: input.occurred_at ?? null,
-    meta
-  }));
+  const fingerprint = deps.hashPayload(
+    buildFingerprintPayload({
+      externalReturnId,
+      externalOrderId,
+      reason: input.reason ?? null,
+      occurred_at: input.occurred_at ?? null,
+      meta,
+    }),
+  );
 
   await lockOrderReturnRequest(client, business.id, externalReturnId);
 
-  const replay = await deps.OrderReturnRepo.findByBusinessAndExternalId(client, business.id, externalReturnId);
+  const replay = await deps.OrderReturnRepo.findByBusinessAndExternalId(
+    client,
+    business.id,
+    externalReturnId,
+  );
   if (replay) {
     if (String(replay.fingerprint || "") !== String(fingerprint || "")) {
       throw conflict("externalReturnId already used for a different payload");
@@ -161,11 +175,15 @@ async function processOrderReturnWithClient(deps, client, input) {
       outcome: replay.outcome,
       pointsEffect: Number(replay.points_effect || 0),
       reversalTransactionId: replay.reversal_transaction_id ?? null,
-      replay: true
+      replay: true,
     };
   }
 
-  const order = await deps.OrderRepo.findDetailedByBusinessAndExternalId(client, business.id, externalOrderId);
+  const order = await deps.OrderRepo.findDetailedByBusinessAndExternalId(
+    client,
+    business.id,
+    externalOrderId,
+  );
   if (!order) throw notFound("Original order not found");
 
   await lockOrderReturnOrder(client, business.id, order.id);
@@ -178,7 +196,7 @@ async function processOrderReturnWithClient(deps, client, input) {
   assertTransactionMatchesOrder({
     transaction: originalTransaction,
     order,
-    businessId: business.id
+    businessId: business.id,
   });
   const originalStatus = resolveReturnableStatus(originalTransaction);
 
@@ -194,26 +212,29 @@ async function processOrderReturnWithClient(deps, client, input) {
            updated_at = now()
        WHERE customer_id = $1
          AND pending_points >= $2`,
-      [order.customer_id, Math.abs(points)]
+      [order.customer_id, Math.abs(points)],
     );
     assertSingleBalanceMutation(balanceUpdate, "pending cancellation");
     await markOriginalTransactionReturned(client, {
       transactionId: originalTransaction.id,
       reversalTransactionId: null,
-      reason: input.reason ?? "order_return"
+      reason: input.reason ?? "order_return",
     });
     await updateOrderStatus(client, {
       orderId: order.id,
-      businessId: business.id
+      businessId: business.id,
     });
     outcome = "PENDING_CANCELLED";
   } else {
     const { rows } = await client.query(
       `SELECT points FROM customer_balances WHERE customer_id = $1 FOR UPDATE`,
-      [order.customer_id]
+      [order.customer_id],
     );
     const currentPoints = Number(rows?.[0]?.points ?? 0);
-    if (!allowNegativeRefundBalance(business.program_json ?? {}) && (currentPoints + pointsEffect) < 0) {
+    if (
+      !allowNegativeRefundBalance(business.program_json ?? {}) &&
+      currentPoints + pointsEffect < 0
+    ) {
       throw conflict("Refund requires manual handling because negative balances are disabled");
     }
 
@@ -237,9 +258,9 @@ async function processOrderReturnWithClient(deps, client, input) {
           external_order_id: externalOrderId,
           refund_reason: input.reason ?? "order_return",
           original_status: originalStatus,
-          original_points: Math.abs(points)
-        }
-      ]
+          original_points: Math.abs(points),
+        },
+      ],
     );
     const balanceUpdate = await client.query(
       `UPDATE customer_balances
@@ -247,7 +268,7 @@ async function processOrderReturnWithClient(deps, client, input) {
            lifetime_points = GREATEST(0, lifetime_points + LEAST($2, 0)),
            updated_at = now()
        WHERE customer_id = $1`,
-      [order.customer_id, pointsEffect]
+      [order.customer_id, pointsEffect],
     );
     assertSingleBalanceMutation(balanceUpdate, "posted reversal");
     if (business.program_type === "CASHBACK") {
@@ -255,17 +276,17 @@ async function processOrderReturnWithClient(deps, client, input) {
         businessId: business.id,
         customerId: order.customer_id,
         sourceTransactionId: originalTransaction.id,
-        meta: { via: "order_return", external_return_id: externalReturnId }
+        meta: { via: "order_return", external_return_id: externalReturnId },
       });
     }
     await markOriginalTransactionReturned(client, {
       transactionId: originalTransaction.id,
       reversalTransactionId,
-      reason: input.reason ?? "order_return"
+      reason: input.reason ?? "order_return",
     });
     await updateOrderStatus(client, {
       orderId: order.id,
-      businessId: business.id
+      businessId: business.id,
     });
     outcome = "POSTED_REVERSED";
   }
@@ -282,7 +303,7 @@ async function processOrderReturnWithClient(deps, client, input) {
     fingerprint,
     reversal_transaction_id: reversalTransactionId,
     points_effect: pointsEffect,
-    outcome
+    outcome,
   });
 
   return {
@@ -292,7 +313,7 @@ async function processOrderReturnWithClient(deps, client, input) {
     customerId: created.customer_id,
     outcome: created.outcome,
     pointsEffect: Number(created.points_effect || 0),
-    reversalTransactionId: created.reversal_transaction_id ?? null
+    reversalTransactionId: created.reversal_transaction_id ?? null,
   };
 }
 
@@ -308,20 +329,25 @@ export async function processOrderReturnWithDeps(deps, input) {
     hashPayload: deps.hashPayload ?? defaultHashPayload,
     makeId: deps.makeId ?? defaultMakeId,
     setCurrentTenant: deps.setCurrentTenant ?? setCurrentTenant,
-    withTransaction: deps.withTransaction
+    withTransaction: deps.withTransaction,
   };
 
-  return resolvedDeps.withTransaction((client) => processOrderReturnWithClient(resolvedDeps, client, input));
+  return resolvedDeps.withTransaction((client) =>
+    processOrderReturnWithClient(resolvedDeps, client, input),
+  );
 }
 
 export async function processOrderReturn(input) {
-  return processOrderReturnWithDeps({
-    withTransaction,
-    setCurrentTenant,
-    BusinessRepo,
-    OrderRepo,
-    OrderReturnRepo,
-    hashPayload: defaultHashPayload,
-    makeId: defaultMakeId
-  }, input);
+  return processOrderReturnWithDeps(
+    {
+      withTransaction,
+      setCurrentTenant,
+      BusinessRepo,
+      OrderRepo,
+      OrderReturnRepo,
+      hashPayload: defaultHashPayload,
+      makeId: defaultMakeId,
+    },
+    input,
+  );
 }

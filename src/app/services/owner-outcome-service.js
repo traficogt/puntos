@@ -1,7 +1,7 @@
-import { dbQuery } from '../database.js';
-import { forbidden } from '../../utils/http-error.js';
-import { businessRegion } from './regional-settings.js';
-import { getRedemptionReturns } from './redemption-return-service.js';
+import { dbQuery } from "../database.js";
+import { forbidden } from "../../utils/http-error.js";
+import { businessRegion } from "./regional-settings.js";
+import { getRedemptionReturns } from "./redemption-return-service.js";
 
 const OUTCOMES_SQL = `WITH costs AS (
   SELECT count(*)::int AS active,count(*) FILTER(WHERE c.unit_cost_q IS NULL)::int AS missing
@@ -18,15 +18,30 @@ const OUTCOMES_SQL = `WITH costs AS (
 SELECT c.active,c.missing,h.total,h.fulfilled,h.expired_unused,h.reserved_unused FROM costs c CROSS JOIN hospitality h`;
 
 /** Read-only evidence. No new grants, campaigns, messages or reward issuances. */
-export async function getOwnerOutcomeEvidence({ businessId, business, now = new Date(), includeReturns = true }, query = dbQuery) {
-  if (business?.id !== businessId) throw forbidden('El negocio no coincide con la consulta.');
+export async function getOwnerOutcomeEvidence(
+  { businessId, business, now = new Date(), includeReturns = true },
+  query = dbQuery,
+) {
+  if (business?.id !== businessId) throw forbidden("El negocio no coincide con la consulta.");
   const row = (await query(OUTCOMES_SQL, [businessId, now.toISOString()])).rows[0];
-  const returns = includeReturns ? await getRedemptionReturns({ businessId, days: 90, now }, query) : null;
+  const returns = includeReturns
+    ? await getRedemptionReturns({ businessId, days: 90, now }, query)
+    : null;
   return {
-    as_of: now.toISOString(), region: businessRegion(business),
-    period: { days: 30, start: new Date(now.getTime() - 30 * 86400000).toISOString(), end: now.toISOString() },
+    as_of: now.toISOString(),
+    region: businessRegion(business),
+    period: {
+      days: 30,
+      start: new Date(now.getTime() - 30 * 86400000).toISOString(),
+      end: now.toISOString(),
+    },
     costs: { active: Number(row.active), missing: Number(row.missing) },
-    hospitality: { total: Number(row.total), fulfilled: Number(row.fulfilled), expired_unused: Number(row.expired_unused), reserved_unused: Number(row.reserved_unused) },
-    returns
+    hospitality: {
+      total: Number(row.total),
+      fulfilled: Number(row.fulfilled),
+      expired_unused: Number(row.expired_unused),
+      reserved_unused: Number(row.reserved_unused),
+    },
+    returns,
   };
 }

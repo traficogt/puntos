@@ -5,4 +5,3 @@ initSuperPage({ api, $, toast }).catch((e) => {
   console.error(e);
   toast(e?.message || "Error");
 });
-

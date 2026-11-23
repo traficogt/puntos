@@ -32,5 +32,8 @@ test("customer me route exposes plan features for wallet gating and export is no
 
   assert.match(route, /const features = planFeaturesWithOverrides\(business\.plan, overrides\)/);
   assert.match(route, /features,/);
-  assert.doesNotMatch(route, /customerRoutes\.get\("\/customer\/export"[\s\S]*requirePlanFeature\("customer_export"\)/);
+  assert.doesNotMatch(
+    route,
+    /customerRoutes\.get\("\/customer\/export"[\s\S]*requirePlanFeature\("customer_export"\)/,
+  );
 });

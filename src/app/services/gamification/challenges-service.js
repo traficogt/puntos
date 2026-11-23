@@ -15,7 +15,7 @@ async function sourceTransactionIsActive(sourceTransactionId, query = dbQuery) {
      FROM transactions
      WHERE id = $1
      FOR UPDATE`,
-    [sourceTransactionId]
+    [sourceTransactionId],
   );
   const tx = rows[0];
   return Boolean(tx && tx.status === "POSTED" && !tx.reversed_transaction_id);
@@ -35,7 +35,7 @@ async function awardChallenge(client, businessId, customerId, challenge, context
          lifetime_points = lifetime_points + GREATEST($1, 0),
          updated_at = now()
      WHERE customer_id = $2`,
-    [challenge.reward_points, customerId]
+    [challenge.reward_points, customerId],
   );
   await client.query(
     `INSERT INTO transactions
@@ -49,9 +49,9 @@ async function awardChallenge(client, businessId, customerId, challenge, context
       JSON.stringify({
         challenge_id: challenge.id,
         challenge_name: challenge.name,
-        source_transaction_id: context.sourceTransactionId || null
-      })
-    ]
+        source_transaction_id: context.sourceTransactionId || null,
+      }),
+    ],
   );
   return rewardTransactionId;
 }
@@ -61,13 +61,14 @@ export function calculateMilestoneCompletionDelta({
   newProgress = 0,
   requirementValue = 0,
   timesCompleted = 0,
-  maxCompletions = null
+  maxCompletions = null,
 }) {
   const requirement = Number(requirementValue || 0);
   if (!(requirement > 0)) return 0;
 
   const nextMilestones = Math.floor(Math.max(0, Number(newProgress || 0)) / requirement);
-  const completionCap = maxCompletions == null ? nextMilestones : Math.min(nextMilestones, Number(maxCompletions || 0));
+  const completionCap =
+    maxCompletions == null ? nextMilestones : Math.min(nextMilestones, Number(maxCompletions || 0));
 
   return Math.max(0, completionCap - Math.max(0, Number(timesCompleted || 0)));
 }
@@ -109,7 +110,7 @@ export function hasRecurringWindowElapsed(completedAt, recurrence, now = new Dat
 export async function createChallenge(businessId, challengeData) {
   return GamificationRepository.createChallenge({
     business_id: businessId,
-    ...challengeData
+    ...challengeData,
   });
 }
 
@@ -117,40 +118,70 @@ export async function getCustomerChallenges(customerId, businessId) {
   return GamificationRepository.getCustomerActiveChallenges(customerId, businessId);
 }
 
-export async function updateChallengeProgress(customerId, challengeType, incrementValue = 1, context = {}) {
+export async function updateChallengeProgress(
+  customerId,
+  challengeType,
+  incrementValue = 1,
+  context = {},
+) {
   return withTransaction(async (client) => {
     const q = client.query.bind(client);
-    if (!await sourceTransactionIsActive(context.sourceTransactionId || null, q)) {
+    if (!(await sourceTransactionIsActive(context.sourceTransactionId || null, q))) {
       return [];
     }
     const businessId = await getCustomerBusinessId(customerId, q);
     const challenges = await GamificationRepository.listActiveChallenges(businessId);
-    const matchingChallenges = challenges.filter((challenge) => challenge.requirement_type === challengeType);
+    const matchingChallenges = challenges.filter(
+      (challenge) => challenge.requirement_type === challengeType,
+    );
     const completed = [];
 
     for (const challenge of matchingChallenges) {
-      let progress = await GamificationRepository.getCustomerChallengeProgress(customerId, challenge.id, q);
+      let progress = await GamificationRepository.getCustomerChallengeProgress(
+        customerId,
+        challenge.id,
+        q,
+      );
       if (!progress) progress = { progress: 0, times_completed: 0 };
-      if (challenge.max_completions && progress.times_completed >= challenge.max_completions) continue;
+      if (challenge.max_completions && progress.times_completed >= challenge.max_completions)
+        continue;
 
       if (challenge.recurrence && progress.completed) {
-        const windowElapsed = hasRecurringWindowElapsed(progress.completed_at || progress.last_reset_at, challenge.recurrence);
+        const windowElapsed = hasRecurringWindowElapsed(
+          progress.completed_at || progress.last_reset_at,
+          challenge.recurrence,
+        );
         if (!windowElapsed) continue;
-        progress = await GamificationRepository.resetRecurringChallengeProgress(customerId, challenge.id, q) || {
+        progress = (await GamificationRepository.resetRecurringChallengeProgress(
+          customerId,
+          challenge.id,
+          q,
+        )) || {
           ...progress,
           progress: 0,
           completed: false,
-          completed_at: null
+          completed_at: null,
         };
       }
 
       const previousProgress = Number(progress.progress || 0);
       const newProgress = previousProgress + Number(incrementValue || 0);
-      if (!await sourceTransactionIsActive(context.sourceTransactionId || null, q)) continue;
-      await GamificationRepository.updateChallengeProgress(customerId, challenge.id, newProgress, q);
+      if (!(await sourceTransactionIsActive(context.sourceTransactionId || null, q))) continue;
+      await GamificationRepository.updateChallengeProgress(
+        customerId,
+        challenge.id,
+        newProgress,
+        q,
+      );
       if (challenge.recurrence) {
         if (newProgress < Number(challenge.requirement_value || 0)) continue;
-        const rewardTransactionId = await awardChallenge(client, businessId, customerId, challenge, context);
+        const rewardTransactionId = await awardChallenge(
+          client,
+          businessId,
+          customerId,
+          challenge,
+          context,
+        );
         await GamificationRepository.completeChallengeForCustomer(
           customerId,
           challenge.id,
@@ -161,10 +192,10 @@ export async function updateChallengeProgress(customerId, challengeType, increme
             historyEntry: {
               source_transaction_id: context.sourceTransactionId || null,
               reward_transaction_id: rewardTransactionId,
-              completed_at: new Date().toISOString()
-            }
+              completed_at: new Date().toISOString(),
+            },
           },
-          q
+          q,
         );
         completed.push(challenge);
         continue;
@@ -175,13 +206,19 @@ export async function updateChallengeProgress(customerId, challengeType, increme
         newProgress,
         requirementValue: challenge.requirement_value,
         timesCompleted: progress.times_completed,
-        maxCompletions: challenge.max_completions
+        maxCompletions: challenge.max_completions,
       });
       if (completionDelta <= 0) continue;
 
       for (let index = 0; index < completionDelta; index += 1) {
         const completedAt = new Date().toISOString();
-        const rewardTransactionId = await awardChallenge(client, businessId, customerId, challenge, context);
+        const rewardTransactionId = await awardChallenge(
+          client,
+          businessId,
+          customerId,
+          challenge,
+          context,
+        );
         await GamificationRepository.completeChallengeForCustomer(
           customerId,
           challenge.id,
@@ -192,10 +229,10 @@ export async function updateChallengeProgress(customerId, challengeType, increme
             historyEntry: {
               source_transaction_id: context.sourceTransactionId || null,
               reward_transaction_id: rewardTransactionId,
-              completed_at: completedAt
-            }
+              completed_at: completedAt,
+            },
           },
-          q
+          q,
         );
         completed.push(challenge);
       }

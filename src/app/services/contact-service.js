@@ -54,11 +54,11 @@ export async function verifyTurnstile(token, remoteip) {
   const body = new URLSearchParams({
     secret: config.CONTACT_TURNSTILE_SECRET,
     response: token,
-    ...(remoteip ? { remoteip } : {})
+    ...(remoteip ? { remoteip } : {}),
   });
   const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
     method: "POST",
-    body
+    body,
   });
   const data = await res.json();
   return data.success === true;
@@ -68,10 +68,16 @@ export async function verifyTurnstile(token, remoteip) {
  * @param {{ name: string, business: string, contact: string, message: string, subject?: string }} payload
  * @param {{ host?: string }} [options]
  */
-export async function sendContactEmail({ name, business, contact, message, subject }, { host = '' } = {}) {
+export async function sendContactEmail(
+  { name, business, contact, message, subject },
+  { host = "" } = {},
+) {
   const site = contactSite(host, config.CONTACT_TO);
   if (!site.to) {
-    logger.info({ name, business, contact: maskContact(contact) }, "[CONTACT] CONTACT_TO not configured — logging only");
+    logger.info(
+      { name, business, contact: maskContact(contact) },
+      "[CONTACT] CONTACT_TO not configured — logging only",
+    );
     return;
   }
 
@@ -84,7 +90,7 @@ export async function sendContactEmail({ name, business, contact, message, subje
     // back to plaintext if the relay has no STARTTLS, so delivery never breaks;
     // rejectUnauthorized:false accepts the internal relay's own certificate.
     opportunisticTLS: true,
-    tls: { rejectUnauthorized: false }
+    tls: { rejectUnauthorized: false },
   });
 
   await transport.sendMail({
@@ -92,7 +98,7 @@ export async function sendContactEmail({ name, business, contact, message, subje
     to: site.to,
     subject: subject || `Solicitud de demo — ${business}`,
     text: `Nombre: ${name}\nNegocio: ${business}\nContacto: ${contact}\n\nContexto:\n${message}`,
-    html: buildEmailHtml({ name, business, contact, message }, site)
+    html: buildEmailHtml({ name, business, contact, message }, site),
   });
 
   logger.info({ name, business }, "[CONTACT] Email sent");

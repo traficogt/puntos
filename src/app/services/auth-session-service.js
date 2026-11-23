@@ -24,7 +24,10 @@ function randomSessionToken() {
 }
 
 export function hashSessionToken(token) {
-  return crypto.createHash("sha256").update(String(token || ""), "utf8").digest("hex");
+  return crypto
+    .createHash("sha256")
+    .update(String(token || ""), "utf8")
+    .digest("hex");
 }
 
 function ttlConfigFor(actorType) {
@@ -32,12 +35,12 @@ function ttlConfigFor(actorType) {
   if (normalized === "SUPER") {
     return {
       idleMs: Number(process.env.SUPER_SESSION_IDLE_MS || 10 * 60 * 1000),
-      absoluteMs: Number(process.env.SUPER_SESSION_ABSOLUTE_MS || 4 * 60 * 60 * 1000)
+      absoluteMs: Number(process.env.SUPER_SESSION_ABSOLUTE_MS || 4 * 60 * 60 * 1000),
     };
   }
   return {
     idleMs: Number(process.env.APP_SESSION_IDLE_MS || 15 * 60 * 1000),
-    absoluteMs: Number(process.env.APP_SESSION_ABSOLUTE_MS || 8 * 60 * 60 * 1000)
+    absoluteMs: Number(process.env.APP_SESSION_ABSOLUTE_MS || 8 * 60 * 60 * 1000),
   };
 }
 
@@ -57,7 +60,7 @@ function memoryTouch(id, idleExpiresAt) {
     const updated = {
       ...record,
       last_seen_at: asIso(now()),
-      idle_expires_at: idleExpiresAt
+      idle_expires_at: idleExpiresAt,
     };
     TEST_MEMORY_SESSIONS.set(key, updated);
     return { ...updated };
@@ -71,7 +74,7 @@ function memoryMarkReauthenticated(id, { mfaVerified = false } = {}) {
     const updated = {
       ...record,
       reauth_verified_at: asIso(now()),
-      mfa_verified_at: mfaVerified ? asIso(now()) : record.mfa_verified_at ?? null
+      mfa_verified_at: mfaVerified ? asIso(now()) : (record.mfa_verified_at ?? null),
     };
     TEST_MEMORY_SESSIONS.set(key, updated);
     return { ...updated };
@@ -85,7 +88,7 @@ function memoryInvalidateById(id, reason) {
     const updated = {
       ...record,
       invalidated_at: asIso(now()),
-      invalidation_reason: reason ?? record.invalidation_reason ?? null
+      invalidation_reason: reason ?? record.invalidation_reason ?? null,
     };
     TEST_MEMORY_SESSIONS.set(key, updated);
     return { ...updated };
@@ -101,7 +104,7 @@ function memoryInvalidateByActor({ actorType, actorId = null, actorEmail = null,
       TEST_MEMORY_SESSIONS.set(key, {
         ...record,
         invalidated_at: asIso(now()),
-        invalidation_reason: reason ?? null
+        invalidation_reason: reason ?? null,
       });
       count += 1;
       continue;
@@ -110,7 +113,7 @@ function memoryInvalidateByActor({ actorType, actorId = null, actorEmail = null,
       TEST_MEMORY_SESSIONS.set(key, {
         ...record,
         invalidated_at: asIso(now()),
-        invalidation_reason: reason ?? null
+        invalidation_reason: reason ?? null,
       });
       count += 1;
     }
@@ -118,18 +121,21 @@ function memoryInvalidateByActor({ actorType, actorId = null, actorEmail = null,
   return count;
 }
 
-export async function createBrowserSession({
-  actorType,
-  actorId = null,
-  actorEmail = null,
-  businessId = null,
-  role = null,
-  branchId = null,
-  impersonatedBy = null,
-  reauthVerified = false,
-  mfaVerified = false,
-  meta = {}
-}, transactionQuery = null) {
+export async function createBrowserSession(
+  {
+    actorType,
+    actorId = null,
+    actorEmail = null,
+    businessId = null,
+    role = null,
+    branchId = null,
+    impersonatedBy = null,
+    reauthVerified = false,
+    mfaVerified = false,
+    meta = {},
+  },
+  transactionQuery = null,
+) {
   const token = randomSessionToken();
   const tokenHash = hashSessionToken(token);
   const createdAt = now();
@@ -153,7 +159,7 @@ export async function createBrowserSession({
     absolute_expires_at: asIso(createdAt + ttl.absoluteMs),
     invalidated_at: null,
     invalidation_reason: null,
-    meta: meta && typeof meta === "object" ? meta : {}
+    meta: meta && typeof meta === "object" ? meta : {},
   };
 
   // An explicit executor keeps credential consumption and issuance in one transaction.
@@ -171,8 +177,8 @@ export async function createBrowserSession({
     token,
     session: {
       ...record,
-      session_token_hash: undefined
-    }
+      session_token_hash: undefined,
+    },
   };
 }
 
@@ -186,7 +192,7 @@ export async function getBrowserSession(token) {
 export async function touchBrowserSessionIfNeeded(session) {
   if (!session?.id || !session?.idle_expires_at) return session;
   const lastSeenMs = session.last_seen_at ? Date.parse(String(session.last_seen_at)) : 0;
-  if (Number.isFinite(lastSeenMs) && (now() - lastSeenMs) < TOUCH_GRACE_MS) {
+  if (Number.isFinite(lastSeenMs) && now() - lastSeenMs < TOUCH_GRACE_MS) {
     return session;
   }
   const idleExpiresAt = asIso(now() + ttlConfigFor(session.actor_type).idleMs);
@@ -197,7 +203,7 @@ export async function touchBrowserSessionIfNeeded(session) {
   return {
     ...session,
     last_seen_at: asIso(now()),
-    idle_expires_at: idleExpiresAt
+    idle_expires_at: idleExpiresAt,
   };
 }
 
@@ -208,7 +214,12 @@ export async function invalidateBrowserSessionById(id, reason = null) {
     : AuthSessionRepo.invalidateById(id, reason);
 }
 
-export async function invalidateBrowserSessionsForActor({ actorType, actorId = null, actorEmail = null, reason = null }) {
+export async function invalidateBrowserSessionsForActor({
+  actorType,
+  actorId = null,
+  actorEmail = null,
+  reason = null,
+}) {
   return sessionMode() === "memory"
     ? memoryInvalidateByActor({ actorType, actorId, actorEmail, reason })
     : AuthSessionRepo.invalidateByActor({ actorType, actorId, actorEmail, reason });

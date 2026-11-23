@@ -1,234 +1,361 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
-import { fileURLToPath } from 'node:url';
-import { mkdir } from 'node:fs/promises';
-import express from 'express';
-import { chromium } from 'playwright';
-import { createSelfServiceWeb } from '../../src/middleware/self-service-web.js';
+import assert from "node:assert/strict";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+import { mkdir } from "node:fs/promises";
+import express from "express";
+import { chromium } from "playwright";
+import { createSelfServiceWeb } from "../../src/middleware/self-service-web.js";
 
-test('simple calculator starts with two numbers and reveals return only on request', { timeout: 60000 }, async t => {
-  const root = fileURLToPath(new URL('../../public', import.meta.url));
-  const app = express();
-  app.use((_req, res, next) => { res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; connect-src 'none'"); next(); });
-  app.get('/__calculator-axe.js', (_req, res) => res.sendFile('axe.min.js', { root: fileURLToPath(new URL('../../web/merchant/node_modules/axe-core/', import.meta.url)) }));
-  app.use(createSelfServiceWeb(root)); app.use(express.static(root));
-  const server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
-  let browser;
-  t.after(async () => {
-    try { await browser?.close(); }
-    finally {
-      await new Promise((resolve, reject) => {
-        server.close(error => error ? reject(error) : resolve(undefined));
-        server.closeAllConnections();
-      });
-    }
-  });
-  const address = server.address(); assert.ok(address && typeof address !== 'string');
-  browser = await chromium.launch({ args: ['--no-sandbox'] });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-  const errors = [], writes = [];
-  page.on('pageerror', error => errors.push(error.message));
-  page.on('request', request => { if (request.method() !== 'GET') writes.push(request.url()); });
-  await page.goto(`http://127.0.0.1:${address.port}/calculadora`);
-  assert.equal(await page.locator('#simple-calculator').count(), 1);
-  assert.equal(await page.locator('input:visible').count(), 2);
-  assert.ok((await page.locator('.skip-link').boundingBox()).y < 0);
-  assert.equal(await page.locator('#budget-result').isVisible(), false);
-  await page.locator('#calculate-budget').click();
-  assert.equal(await page.locator('#rewardCost').getAttribute('aria-invalid'), 'true');
-  await page.locator('#budget-errors a').first().click();
-  assert.equal(await page.evaluate(() => document.activeElement.id), 'rewardCost');
-  await page.fill('#rewardCost', '10'); await page.fill('#rewardCount', '20');
-  await page.locator('#calculate-budget').click();
-  assert.match(await page.locator('#budget-total').innerText(), /GTQ\s*200/);
-  assert.match(await page.locator('#budget-exclusions').innerText(), /no incluye/i);
-  await page.locator('#extra-costs summary').click(); await page.fill('#monthlyCosts', '99');
-  await page.locator('#calculate-budget').click();
-  assert.match(await page.locator('#budget-total').innerText(), /GTQ\s*299/);
-  await page.fill('#monthlyCosts', ''); await page.locator('#extra-costs summary').click();
-  await page.locator('#calculate-budget').click();
-  assert.equal(await page.locator('#return-result').isVisible(), false);
-  await page.locator('#return-options summary').click();
-  await page.fill('#keptPerSale', '25'); await page.fill('#rewardEvery', '10');
-  await page.locator('#calculate-return').click();
-  assert.match(await page.locator('#extra-sales-needed').innerText(), /9 compras/);
-  assert.equal(await page.locator('#sales-scenario').isVisible(), false);
-  await page.fill('#additionalSales', '10');
-  assert.equal(await page.locator('#return-result').isVisible(), false);
-  await page.locator('#calculate-return').click();
-  assert.match(await page.locator('#sales-scenario').innerText(), /GTQ\s*40/);
-  await page.locator('#return-options summary').click(); await page.emulateMedia({ media: 'print' });
-  assert.match(await page.locator('#print-assumptions').innerText(), /9 compras/);
-  assert.match(await page.locator('#print-assumptions').innerText(), /GTQ\s*40/);
-  await page.emulateMedia({ media: 'screen' }); await page.locator('#return-options summary').click();
-  await page.fill('#keptPerSale', '1'); await page.locator('#calculate-return').click();
-  assert.match(await page.locator('#extra-sales-needed').innerText(), /no alcanza/i);
-  await page.fill('#additionalSales', '4'); await page.emulateMedia({ media: 'print' });
-  assert.equal(await page.locator('#return-result').isVisible(), false);
-  assert.match(await page.locator('#print-assumptions').innerText(), /20 premios/);
-  assert.doesNotMatch(await page.locator('#print-assumptions').innerText(), /Hipótesis/);
-  await page.emulateMedia({ media: 'screen' });
-  await page.fill('#rewardCost', '');
-  assert.equal(await page.locator('#budget-result').isVisible(), false);
-  assert.equal(await page.locator('#return-options').isVisible(), false);
-  await page.fill('#rewardCost', '0'); await page.locator('#calculate-budget').click();
-  assert.match(await page.locator('#budget-total').innerText(), /GTQ\s*0/);
-  await page.selectOption('#currency', 'CLP'); await page.fill('#rewardCost', '1.5');
-  await page.locator('#calculate-budget').click();
-  assert.match(await page.locator('#budget-errors').innerText(), /entero/);
-  await page.locator('#reset-simple').click();
-  assert.equal(await page.locator('input:visible').count(), 2);
-  assert.equal(await page.locator('#rewardCost').inputValue(), '');
-  await page.locator('#examples summary').click();
-  await page.addScriptTag({ url: `http://127.0.0.1:${address.port}/__calculator-axe.js` });
-  for (const example of ['retail', 'salon', 'carwash', 'cafe']) {
-    await page.locator(`[data-example="${example}"]`).click();
-    assert.match(await page.locator('#example-context').innerText(), /ficticio/i);
-    assert.equal(await page.locator('#budget-result').isVisible(), true);
-  }
-  await page.locator('#examples summary').click();
-  const screenshotDir = fileURLToPath(new URL('../../.impeccable/review/calculator-simple/', import.meta.url));
-  // eslint-disable-next-line security/detect-non-literal-fs-filename -- Fixed repository test artifact directory.
-  await mkdir(screenshotDir, { recursive: true });
-  for (const width of [1440, 390, 320]) {
-    await page.setViewportSize({ width, height: 1000 }); await page.evaluate(() => document.fonts.ready);
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-    assert.deepEqual(await page.evaluate(async () => (await /** @type {any} */ (window).axe.run()).violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) }))), []);
-    await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
-    await page.screenshot({ path: `${screenshotDir}${width}.png`, fullPage: true });
-  }
-  await page.locator('#return-options summary').click(); await page.locator('#calculate-return').click();
-  assert.deepEqual(await page.evaluate(async () => (await /** @type {any} */ (window).axe.run()).violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) }))), []);
-  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-  await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
-  await page.screenshot({ path: `${screenshotDir}320-return.png`, fullPage: true });
-  assert.deepEqual(errors, []); assert.deepEqual(writes, []);
-  assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0);
-  await page.locator('a[href="/calculadora/detallada"]').click();
-  await page.locator('#calculator-app').waitFor({ state: 'visible' });
-  assert.equal(await page.locator('#calculator-app').isVisible(), true);
-  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-  assert.equal((await fetch(`http://127.0.0.1:${address.port}/calculadora/detallada/`, { redirect: 'manual' })).headers.get('location'), '/calculadora/detallada');
-});
-
-test('public calculator handles examples, unknown costs, errors, mobile, keyboard, currency and exports locally', { timeout: 60000 }, async () => {
-  const app = express();
-  app.use((_req, res, next) => { res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; connect-src 'none'"); next(); });
-  app.get('/calculadora', (_req, res) => res.sendFile('calculator/detallada.html', { root: fileURLToPath(new URL('../../public', import.meta.url)) }));
-  app.use(express.static(fileURLToPath(new URL('../../public', import.meta.url))));
-  const server = app.listen(0, '127.0.0.1');
-  await new Promise(resolve => server.once('listening', resolve));
-  const address = server.address();
-  assert.ok(address && typeof address !== 'string');
-  const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-  const page = await context.newPage();
-  const errors = [], writes = [];
-  page.on('pageerror', error => errors.push(error.message));
-  page.on('request', request => { if (request.method() !== 'GET') writes.push(request.url()); });
-  const screenshots = fileURLToPath(new URL('../../.impeccable/review/calculator/', import.meta.url));
-  // Fixed, repository-local test artifacts; no request or user input is used.
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  await mkdir(screenshots, { recursive: true });
-  const clickStep = async step => page.locator(`.calculator-steps [data-step="${step}"]`).click();
-  const calculate = async () => { await clickStep(2); await page.locator('#calculate').click(); };
-  const load = async key => { await page.selectOption('#example', key); await page.locator('#load-example').click(); };
-  try {
+test(
+  "simple calculator starts with two numbers and reveals return only on request",
+  { timeout: 60000 },
+  async (t) => {
+    const root = fileURLToPath(new URL("../../public", import.meta.url));
+    const app = express();
+    app.use((_req, res, next) => {
+      res.setHeader(
+        "Content-Security-Policy",
+        "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; connect-src 'none'",
+      );
+      next();
+    });
+    app.get("/__calculator-axe.js", (_req, res) =>
+      res.sendFile("axe.min.js", {
+        root: fileURLToPath(new URL("../../web/merchant/node_modules/axe-core/", import.meta.url)),
+      }),
+    );
+    app.use(createSelfServiceWeb(root));
+    app.use(express.static(root));
+    const server = app.listen(0, "127.0.0.1");
+    await new Promise((resolve) => server.once("listening", resolve));
+    let browser;
+    t.after(async () => {
+      try {
+        await browser?.close();
+      } finally {
+        await new Promise((resolve, reject) => {
+          server.close((error) => (error ? reject(error) : resolve(undefined)));
+          server.closeAllConnections();
+        });
+      }
+    });
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    const errors = [],
+      writes = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("request", (request) => {
+      if (request.method() !== "GET") writes.push(request.url());
+    });
     await page.goto(`http://127.0.0.1:${address.port}/calculadora`);
-    await page.locator('#calculator-app').waitFor({ state: 'visible' });
-    assert.equal(await page.locator('#reward-0-unitCost').inputValue(), '');
-    assert.equal(await page.locator('#results').isVisible(), false);
-    await page.locator('[data-next="1"]').click();
-    assert.equal(await page.locator('#reward-0-units').getAttribute('aria-invalid'), 'true');
-    await page.locator('#error-summary a').first().click();
-    assert.equal(await page.evaluate(() => document.activeElement.id), 'reward-0-units');
-    await page.fill('#reward-0-units', '10');
-    await calculate();
-    assert.match(await page.locator('#result-warnings').innerText(), /Presupuesto incompleto/);
-    assert.match(await page.locator('#break-even').innerText(), /sin umbral/);
-
-    for (const example of ['retail', 'salon', 'carwash', 'cafe']) {
-      await load(example);
-      await calculate();
-      assert.equal(await page.locator('#results').isVisible(), true);
-      assert.match(await page.locator('#result-context').innerText(), /Ejemplo ficticio/);
-      assert.match(await page.locator('#break-even').innerText(), /compras adicionales/);
-      assert.match(await page.locator('#result-warnings').innerText(), /Suscripción PF, Implementación, Mensajes/);
+    assert.equal(await page.locator("#simple-calculator").count(), 1);
+    assert.equal(await page.locator("input:visible").count(), 2);
+    assert.ok((await page.locator(".skip-link").boundingBox()).y < 0);
+    assert.equal(await page.locator("#budget-result").isVisible(), false);
+    await page.locator("#calculate-budget").click();
+    assert.equal(await page.locator("#rewardCost").getAttribute("aria-invalid"), "true");
+    await page.locator("#budget-errors a").first().click();
+    assert.equal(await page.evaluate(() => document.activeElement.id), "rewardCost");
+    await page.fill("#rewardCost", "10");
+    await page.fill("#rewardCount", "20");
+    await page.locator("#calculate-budget").click();
+    assert.match(await page.locator("#budget-total").innerText(), /GTQ\s*200/);
+    assert.match(await page.locator("#budget-exclusions").innerText(), /no incluye/i);
+    await page.locator("#extra-costs summary").click();
+    await page.fill("#monthlyCosts", "99");
+    await page.locator("#calculate-budget").click();
+    assert.match(await page.locator("#budget-total").innerText(), /GTQ\s*299/);
+    await page.fill("#monthlyCosts", "");
+    await page.locator("#extra-costs summary").click();
+    await page.locator("#calculate-budget").click();
+    assert.equal(await page.locator("#return-result").isVisible(), false);
+    await page.locator("#return-options summary").click();
+    await page.fill("#keptPerSale", "25");
+    await page.fill("#rewardEvery", "10");
+    await page.locator("#calculate-return").click();
+    assert.match(await page.locator("#extra-sales-needed").innerText(), /9 compras/);
+    assert.equal(await page.locator("#sales-scenario").isVisible(), false);
+    await page.fill("#additionalSales", "10");
+    assert.equal(await page.locator("#return-result").isVisible(), false);
+    await page.locator("#calculate-return").click();
+    assert.match(await page.locator("#sales-scenario").innerText(), /GTQ\s*40/);
+    await page.locator("#return-options summary").click();
+    await page.emulateMedia({ media: "print" });
+    assert.match(await page.locator("#print-assumptions").innerText(), /9 compras/);
+    assert.match(await page.locator("#print-assumptions").innerText(), /GTQ\s*40/);
+    await page.emulateMedia({ media: "screen" });
+    await page.locator("#return-options summary").click();
+    await page.fill("#keptPerSale", "1");
+    await page.locator("#calculate-return").click();
+    assert.match(await page.locator("#extra-sales-needed").innerText(), /no alcanza/i);
+    await page.fill("#additionalSales", "4");
+    await page.emulateMedia({ media: "print" });
+    assert.equal(await page.locator("#return-result").isVisible(), false);
+    assert.match(await page.locator("#print-assumptions").innerText(), /20 premios/);
+    assert.doesNotMatch(await page.locator("#print-assumptions").innerText(), /Hipótesis/);
+    await page.emulateMedia({ media: "screen" });
+    await page.fill("#rewardCost", "");
+    assert.equal(await page.locator("#budget-result").isVisible(), false);
+    assert.equal(await page.locator("#return-options").isVisible(), false);
+    await page.fill("#rewardCost", "0");
+    await page.locator("#calculate-budget").click();
+    assert.match(await page.locator("#budget-total").innerText(), /GTQ\s*0/);
+    await page.selectOption("#currency", "CLP");
+    await page.fill("#rewardCost", "1.5");
+    await page.locator("#calculate-budget").click();
+    assert.match(await page.locator("#budget-errors").innerText(), /entero/);
+    await page.locator("#reset-simple").click();
+    assert.equal(await page.locator("input:visible").count(), 2);
+    assert.equal(await page.locator("#rewardCost").inputValue(), "");
+    await page.locator("#examples summary").click();
+    await page.addScriptTag({ url: `http://127.0.0.1:${address.port}/__calculator-axe.js` });
+    for (const example of ["retail", "salon", "carwash", "cafe"]) {
+      await page.locator(`[data-example="${example}"]`).click();
+      assert.match(await page.locator("#example-context").innerText(), /ficticio/i);
+      assert.equal(await page.locator("#budget-result").isVisible(), true);
     }
-    await load('retail');
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({ path: `${screenshots}desktop.png`, fullPage: true, animations: 'disabled' });
-    await page.fill('#reward-0-name', '<img src=x onerror=alert(1)>');
-    await calculate();
-    assert.equal(await page.locator('#reward-breakdown img').count(), 0);
-    await page.locator('.calculation-details summary').click();
-    assert.match(await page.locator('#reward-breakdown').innerText(), /<img src=x/);
-    await load('retail'); await calculate();
-    await page.selectOption('#allowanceMode', '');
-    assert.equal(await page.locator('#results').isVisible(), false);
-    await page.locator('#calculate').click();
-    assert.match(await page.locator('#break-even-note').innerText(), /Falta la reserva/);
-    await page.selectOption('#allowanceMode', 'amount');
-    await page.fill('#rewardAllowance', '36');
-    await page.locator('#calculate').click();
-    assert.match(await page.locator('#break-even-note').innerText(), /cero o negativa/);
-    await page.fill('#rewardAllowance', '3');
-    await page.fill('#additional', '0');
-    await page.locator('#calculate').click();
-    assert.match(await page.locator('#contribution-totals').innerText(), /-GTQ\s*640/);
-    await page.fill('#additional', '30');
-    await page.locator('#calculate').click();
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({ path: `${screenshots}desktop-results.png`, fullPage: true, animations: 'disabled' });
-    const downloadEvent = page.waitForEvent('download');
-    await page.locator('#download-summary').click();
-    const download = await downloadEvent;
-    assert.equal(download.suggestedFilename(), 'escenario-recompensas-pf.txt');
-    const stream = await download.createReadStream();
-    const chunks = []; for await (const chunk of stream) chunks.push(chunk);
-    const report = Buffer.concat(chunks).toString('utf8');
-    assert.match(report, /PREMIOS BASE/); assert.match(report, /sin dato \/ no incluido/); assert.match(report, /compras adicionales/i);
-    await page.emulateMedia({ media: 'print' });
-    assert.equal(await page.locator('#print-assumptions').isVisible(), true);
-    assert.equal(await page.locator('#calculator-form').isVisible(), false);
-    await page.emulateMedia({ media: 'screen' });
+    await page.locator("#examples summary").click();
+    const screenshotDir = fileURLToPath(
+      new URL("../../.impeccable/review/calculator-simple/", import.meta.url),
+    );
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- Fixed repository test artifact directory.
+    await mkdir(screenshotDir, { recursive: true });
+    for (const width of [1440, 390, 320]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.evaluate(() => document.fonts.ready);
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+        false,
+      );
+      assert.deepEqual(
+        await page.evaluate(async () =>
+          (await /** @type {any} */ (window).axe.run()).violations.map((v) => ({
+            id: v.id,
+            nodes: v.nodes.map((n) => n.target),
+          })),
+        ),
+        [],
+      );
+      await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
+      await page.screenshot({ path: `${screenshotDir}${width}.png`, fullPage: true });
+    }
+    await page.locator("#return-options summary").click();
+    await page.locator("#calculate-return").click();
+    assert.deepEqual(
+      await page.evaluate(async () =>
+        (await /** @type {any} */ (window).axe.run()).violations.map((v) => ({
+          id: v.id,
+          nodes: v.nodes.map((n) => n.target),
+        })),
+      ),
+      [],
+    );
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      false,
+    );
+    await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
+    await page.screenshot({ path: `${screenshotDir}320-return.png`, fullPage: true });
+    assert.deepEqual(errors, []);
+    assert.deepEqual(writes, []);
+    assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0);
+    await page.locator('a[href="/calculadora/detallada"]').click();
+    await page.locator("#calculator-app").waitFor({ state: "visible" });
+    assert.equal(await page.locator("#calculator-app").isVisible(), true);
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      false,
+    );
+    assert.equal(
+      (
+        await fetch(`http://127.0.0.1:${address.port}/calculadora/detallada/`, {
+          redirect: "manual",
+        })
+      ).headers.get("location"),
+      "/calculadora/detallada",
+    );
+  },
+);
 
-    await page.setViewportSize({ width: 390, height: 844 });
-    await load('salon');
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({ path: `${screenshots}mobile.png`, fullPage: true, animations: 'disabled' });
-    await calculate();
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({ path: `${screenshots}mobile-results.png`, fullPage: true, animations: 'disabled' });
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
-    await clickStep(0);
-    await page.selectOption('#currency', 'CLP');
-    await page.fill('#reward-0-unitCost', '1.5');
-    await calculate();
-    assert.match(await page.locator('#error-summary').innerText(), /entera/);
-    await page.locator('#error-summary a').first().click();
-    await page.fill('#reward-0-unitCost', '15');
-    await page.fill('#reward-0-units', '-1');
-    await calculate();
-    assert.match(await page.locator('#error-summary').innerText(), /entre 0 y 1000000/);
-    await page.locator('#error-summary a').first().click();
-    await page.fill('#reward-0-units', '24');
-    await calculate();
-    assert.match(await page.locator('#full-totals').innerText(), /CLP/);
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
-    await clickStep(0);
-    await page.locator('#add-reward').focus(); await page.keyboard.press('Enter');
-    assert.equal(await page.evaluate(() => document.activeElement.id), 'reward-1-name');
-    await page.locator('[data-remove="1"]').click();
-    assert.equal(await page.locator('.reward').count(), 1);
-    await page.locator('#reset-calculator').click();
-    assert.equal(await page.locator('#reward-0-units').inputValue(), '');
-    assert.equal(await page.locator('#results').isVisible(), false);
-    assert.equal(await page.evaluate(() => localStorage.length), 0);
-    assert.equal(await page.evaluate(() => sessionStorage.length), 0);
-    assert.deepEqual(writes, []); assert.deepEqual(errors, []);
-  } finally {
-    await browser.close();
-    await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve(undefined)));
-  }
-});
+test(
+  "public calculator handles examples, unknown costs, errors, mobile, keyboard, currency and exports locally",
+  { timeout: 60000 },
+  async () => {
+    const app = express();
+    app.use((_req, res, next) => {
+      res.setHeader(
+        "Content-Security-Policy",
+        "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; connect-src 'none'",
+      );
+      next();
+    });
+    app.get("/calculadora", (_req, res) =>
+      res.sendFile("calculator/detallada.html", {
+        root: fileURLToPath(new URL("../../public", import.meta.url)),
+      }),
+    );
+    app.use(express.static(fileURLToPath(new URL("../../public", import.meta.url))));
+    const server = app.listen(0, "127.0.0.1");
+    await new Promise((resolve) => server.once("listening", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const browser = await chromium.launch({ args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const page = await context.newPage();
+    const errors = [],
+      writes = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("request", (request) => {
+      if (request.method() !== "GET") writes.push(request.url());
+    });
+    const screenshots = fileURLToPath(
+      new URL("../../.impeccable/review/calculator/", import.meta.url),
+    );
+    // Fixed, repository-local test artifacts; no request or user input is used.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    await mkdir(screenshots, { recursive: true });
+    const clickStep = async (step) =>
+      page.locator(`.calculator-steps [data-step="${step}"]`).click();
+    const calculate = async () => {
+      await clickStep(2);
+      await page.locator("#calculate").click();
+    };
+    const load = async (key) => {
+      await page.selectOption("#example", key);
+      await page.locator("#load-example").click();
+    };
+    try {
+      await page.goto(`http://127.0.0.1:${address.port}/calculadora`);
+      await page.locator("#calculator-app").waitFor({ state: "visible" });
+      assert.equal(await page.locator("#reward-0-unitCost").inputValue(), "");
+      assert.equal(await page.locator("#results").isVisible(), false);
+      await page.locator('[data-next="1"]').click();
+      assert.equal(await page.locator("#reward-0-units").getAttribute("aria-invalid"), "true");
+      await page.locator("#error-summary a").first().click();
+      assert.equal(await page.evaluate(() => document.activeElement.id), "reward-0-units");
+      await page.fill("#reward-0-units", "10");
+      await calculate();
+      assert.match(await page.locator("#result-warnings").innerText(), /Presupuesto incompleto/);
+      assert.match(await page.locator("#break-even").innerText(), /sin umbral/);
+
+      for (const example of ["retail", "salon", "carwash", "cafe"]) {
+        await load(example);
+        await calculate();
+        assert.equal(await page.locator("#results").isVisible(), true);
+        assert.match(await page.locator("#result-context").innerText(), /Ejemplo ficticio/);
+        assert.match(await page.locator("#break-even").innerText(), /compras adicionales/);
+        assert.match(
+          await page.locator("#result-warnings").innerText(),
+          /Suscripción PF, Implementación, Mensajes/,
+        );
+      }
+      await load("retail");
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({
+        path: `${screenshots}desktop.png`,
+        fullPage: true,
+        animations: "disabled",
+      });
+      await page.fill("#reward-0-name", "<img src=x onerror=alert(1)>");
+      await calculate();
+      assert.equal(await page.locator("#reward-breakdown img").count(), 0);
+      await page.locator(".calculation-details summary").click();
+      assert.match(await page.locator("#reward-breakdown").innerText(), /<img src=x/);
+      await load("retail");
+      await calculate();
+      await page.selectOption("#allowanceMode", "");
+      assert.equal(await page.locator("#results").isVisible(), false);
+      await page.locator("#calculate").click();
+      assert.match(await page.locator("#break-even-note").innerText(), /Falta la reserva/);
+      await page.selectOption("#allowanceMode", "amount");
+      await page.fill("#rewardAllowance", "36");
+      await page.locator("#calculate").click();
+      assert.match(await page.locator("#break-even-note").innerText(), /cero o negativa/);
+      await page.fill("#rewardAllowance", "3");
+      await page.fill("#additional", "0");
+      await page.locator("#calculate").click();
+      assert.match(await page.locator("#contribution-totals").innerText(), /-GTQ\s*640/);
+      await page.fill("#additional", "30");
+      await page.locator("#calculate").click();
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({
+        path: `${screenshots}desktop-results.png`,
+        fullPage: true,
+        animations: "disabled",
+      });
+      const downloadEvent = page.waitForEvent("download");
+      await page.locator("#download-summary").click();
+      const download = await downloadEvent;
+      assert.equal(download.suggestedFilename(), "escenario-recompensas-pf.txt");
+      const stream = await download.createReadStream();
+      const chunks = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      const report = Buffer.concat(chunks).toString("utf8");
+      assert.match(report, /PREMIOS BASE/);
+      assert.match(report, /sin dato \/ no incluido/);
+      assert.match(report, /compras adicionales/i);
+      await page.emulateMedia({ media: "print" });
+      assert.equal(await page.locator("#print-assumptions").isVisible(), true);
+      assert.equal(await page.locator("#calculator-form").isVisible(), false);
+      await page.emulateMedia({ media: "screen" });
+
+      await page.setViewportSize({ width: 390, height: 844 });
+      await load("salon");
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({
+        path: `${screenshots}mobile.png`,
+        fullPage: true,
+        animations: "disabled",
+      });
+      await calculate();
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({
+        path: `${screenshots}mobile-results.png`,
+        fullPage: true,
+        animations: "disabled",
+      });
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
+        false,
+      );
+      await clickStep(0);
+      await page.selectOption("#currency", "CLP");
+      await page.fill("#reward-0-unitCost", "1.5");
+      await calculate();
+      assert.match(await page.locator("#error-summary").innerText(), /entera/);
+      await page.locator("#error-summary a").first().click();
+      await page.fill("#reward-0-unitCost", "15");
+      await page.fill("#reward-0-units", "-1");
+      await calculate();
+      assert.match(await page.locator("#error-summary").innerText(), /entre 0 y 1000000/);
+      await page.locator("#error-summary a").first().click();
+      await page.fill("#reward-0-units", "24");
+      await calculate();
+      assert.match(await page.locator("#full-totals").innerText(), /CLP/);
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
+        false,
+      );
+      await clickStep(0);
+      await page.locator("#add-reward").focus();
+      await page.keyboard.press("Enter");
+      assert.equal(await page.evaluate(() => document.activeElement.id), "reward-1-name");
+      await page.locator('[data-remove="1"]').click();
+      assert.equal(await page.locator(".reward").count(), 1);
+      await page.locator("#reset-calculator").click();
+      assert.equal(await page.locator("#reward-0-units").inputValue(), "");
+      assert.equal(await page.locator("#results").isVisible(), false);
+      assert.equal(await page.evaluate(() => localStorage.length), 0);
+      assert.equal(await page.evaluate(() => sessionStorage.length), 0);
+      assert.deepEqual(writes, []);
+      assert.deepEqual(errors, []);
+    } finally {
+      await browser.close();
+      await new Promise((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve(undefined))),
+      );
+    }
+  },
+);

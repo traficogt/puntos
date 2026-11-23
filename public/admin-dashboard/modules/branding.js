@@ -12,7 +12,9 @@ export function registerBrandingModule(app) {
   const enrollment = createCustomerEnrollment(app);
 
   app.registerTab("branding", {
-    load: async () => { await Promise.all([actions.loadBranding(), enrollment.load()]); }
+    load: async () => {
+      await Promise.all([actions.loadBranding(), enrollment.load()]);
+    },
   });
 
   app.onAfterPlanReady(async () => {
@@ -25,14 +27,16 @@ export function registerBrandingModule(app) {
       "#brandingAccentColor",
       "#brandingNeutralTheme",
       "#brandingWalletHeadline",
-      "#brandingJoinHeadline"
+      "#brandingJoinHeadline",
     ];
 
     selectors.forEach((selector) => {
       app.$(selector)?.addEventListener("input", () => updateBrandingSummary(app.$, app));
       app.$(selector)?.addEventListener("change", () => updateBrandingSummary(app.$, app));
     });
-    app.$("#brandingPoweredByVisible")?.addEventListener("change", () => updateBrandingSummary(app.$, app));
+    app
+      .$("#brandingPoweredByVisible")
+      ?.addEventListener("change", () => updateBrandingSummary(app.$, app));
     app.$("#btnSaveBranding")?.addEventListener("click", () => {
       actions.saveBranding().catch(() => {});
     });

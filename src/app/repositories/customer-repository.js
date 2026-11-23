@@ -12,22 +12,24 @@ export const CustomerRepo = {
       `INSERT INTO customers (id, business_id, phone, name) VALUES ($1,$2,$3,$4)
        ON CONFLICT (business_id, phone) DO NOTHING
        RETURNING id`,
-      [id, business_id, phone, name ?? null]
+      [id, business_id, phone, name ?? null],
     );
     if (!created) {
       const existing = await one(
         `SELECT * FROM customers WHERE business_id=$1 AND phone=$2 AND deleted_at IS NULL`,
-        [business_id, phone]
+        [business_id, phone],
       );
       if (existing) return existing;
-      throw conflict("Esta tarjeta fue desactivada o eliminada. Contacta al negocio para recibir ayuda.");
+      throw conflict(
+        "Esta tarjeta fue desactivada o eliminada. Contacta al negocio para recibir ayuda.",
+      );
     }
 
     await exec(
       `INSERT INTO customer_balances (customer_id, points, lifetime_points)
        VALUES ($1,0,0)
        ON CONFLICT DO NOTHING`,
-      [id]
+      [id],
     );
 
     return CustomerRepo.getById(id);
@@ -40,7 +42,7 @@ export const CustomerRepo = {
        FROM customers c
        JOIN customer_balances b ON b.customer_id=c.id
        WHERE c.id=$1 AND c.deleted_at IS NULL`,
-      [id]
+      [id],
     );
   },
 
@@ -51,7 +53,7 @@ export const CustomerRepo = {
        FROM customers c
        JOIN customer_balances b ON b.customer_id=c.id
        WHERE c.business_id=$1 AND c.id=$2 AND c.deleted_at IS NULL`,
-      [businessId, customerId]
+      [businessId, customerId],
     );
   },
 
@@ -62,7 +64,7 @@ export const CustomerRepo = {
        FROM customers c
        JOIN customer_balances b ON b.customer_id=c.id
        WHERE c.business_id=$1 AND c.phone=$2 AND c.deleted_at IS NULL`,
-      [businessId, phone]
+      [businessId, phone],
     );
   },
 
@@ -82,15 +84,15 @@ export const CustomerRepo = {
            lifetime_points = lifetime_points + GREATEST($2,0),
            updated_at=now()
        WHERE customer_id=$1`,
-      [customerId, delta]
+      [customerId, delta],
     );
   },
 
   async setPoints(customerId, points) {
-    await exec(
-      `UPDATE customer_balances SET points=$2, updated_at=now() WHERE customer_id=$1`,
-      [customerId, points]
-    );
+    await exec(`UPDATE customer_balances SET points=$2, updated_at=now() WHERE customer_id=$1`, [
+      customerId,
+      points,
+    ]);
   },
 
   async softDelete(customerId) {
@@ -106,7 +108,7 @@ export const CustomerRepo = {
        WHERE c.business_id=$1 AND c.deleted_at IS NULL
        ORDER BY c.created_at DESC
        LIMIT $2`,
-      [businessId, limit]
+      [businessId, limit],
     );
   },
 };

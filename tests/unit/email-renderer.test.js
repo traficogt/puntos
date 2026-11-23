@@ -9,14 +9,14 @@ const tenantBranding = {
   logoUrl: "https://cdn.example.com/logo.png",
   primaryColor: "#6D3524",
   accentColor: "#D7A554",
-  poweredByVisible: true
+  poweredByVisible: true,
 };
 
 test("renderEmailMessage wraps legacy body content in a branded email shape", async () => {
   const out = await renderEmailMessage({
     channel: "verify",
     body: "Tu código es 123456",
-    branding: tenantBranding
+    branding: tenantBranding,
   });
 
   assert.equal(typeof out.subject, "string");
@@ -29,7 +29,7 @@ test("renderEmailMessage links Powered by PuntosFieles to the landing page", asy
   const out = await renderEmailMessage({
     channel: "verify",
     body: "Tu código es 123456",
-    branding: tenantBranding
+    branding: tenantBranding,
   });
 
   assert.equal(out.html.includes('href="https://puntosfieles.com/"'), true);
@@ -45,8 +45,8 @@ test("renderEmailMessage renders verification email with code emphasis", async (
       type: "verify",
       businessName: "Cafe Bourbon",
       code: "654321",
-      expiresText: "Vence en 10 minutos."
-    }
+      expiresText: "Vence en 10 minutos.",
+    },
   });
 
   assert.equal(out.subject.length > 0, true);
@@ -67,14 +67,14 @@ test("renderEmailMessage renders platform branding when no business branding is 
       lockupUrl: "https://puntosfieles.com/pf-email-lockup.png?v=2",
       primaryColor: "#6D3524",
       accentColor: "#D7A554",
-      poweredByVisible: false
+      poweredByVisible: false,
     },
     email: {
       type: "security",
       subject: "Prueba de seguridad",
       title: "Actividad detectada",
-      lines: ["Revisamos un acceso reciente."]
-    }
+      lines: ["Revisamos un acceso reciente."],
+    },
   });
 
   assert.equal(out.subject, "Prueba de seguridad");
@@ -94,8 +94,8 @@ test("renderEmailMessage renders lifecycle email content", async () => {
       title: "Feliz cumpleaños",
       intro: "Hoy celebramos contigo.",
       lines: ["Te regalamos 25 puntos."],
-      tone: "celebration"
-    }
+      tone: "celebration",
+    },
   });
 
   assert.equal(out.subject, "Feliz cumpleaños");
@@ -111,8 +111,8 @@ test("renderEmailMessage renders churn email content", async () => {
       subject: "Te extrañamos",
       title: "Te extrañamos",
       intro: "Vuelve a visitarnos esta semana.",
-      lines: ["Tu programa de lealtad sigue activo."]
-    }
+      lines: ["Tu programa de lealtad sigue activo."],
+    },
   });
 
   assert.equal(out.subject, "Te extrañamos");

@@ -16,8 +16,16 @@ function createAdminClient() {
     host: process.env.TEST_DB_HOST || process.env.DB_HOST || "localhost",
     port: Number(process.env.TEST_DB_PORT || process.env.DB_PORT || 5432),
     database: process.env.TEST_DB_NAME || process.env.DB_NAME || "puntos",
-    user: process.env.TEST_DB_USER || process.env.DB_MIGRATIONS_USER || process.env.DB_USER || "postgres",
-    password: process.env.TEST_DB_PASSWORD || process.env.DB_MIGRATIONS_PASSWORD || process.env.DB_PASSWORD || ""
+    user:
+      process.env.TEST_DB_USER ||
+      process.env.DB_MIGRATIONS_USER ||
+      process.env.DB_USER ||
+      "postgres",
+    password:
+      process.env.TEST_DB_PASSWORD ||
+      process.env.DB_MIGRATIONS_PASSWORD ||
+      process.env.DB_PASSWORD ||
+      "",
   });
 }
 
@@ -52,19 +60,21 @@ async function createFixture() {
         "cafe",
         "NEGOCIO",
         "SPEND",
-        { points_per_q: 0.1, pending_points_hold_days: 0 }
-      ]
+        { points_per_q: 0.1, pending_points_hold_days: 0 },
+      ],
     );
-    const customerPhone = `+50256${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`;
+    const customerPhone = `+50256${Math.floor(Math.random() * 1000000)
+      .toString()
+      .padStart(6, "0")}`;
     await client.query(
       `INSERT INTO customers (id, business_id, phone, name)
        VALUES ($1,$2,$3,$4)`,
-      [customerId, businessId, customerPhone, "Order Return Customer"]
+      [customerId, businessId, customerPhone, "Order Return Customer"],
     );
     await client.query(
       `INSERT INTO customer_balances (customer_id, points, pending_points, lifetime_points)
        VALUES ($1,0,0,0)`,
-      [customerId]
+      [customerId],
     );
   });
 
@@ -97,12 +107,12 @@ integrationDescribe("Order Returns API idempotency integration", () => {
           quantity: 1,
           name: "Latte",
           code: "LATTE",
-          category: "coffee"
-        }
+          category: "coffee",
+        },
       ],
       meta: {
-        channel: "pos"
-      }
+        channel: "pos",
+      },
     });
 
     assert.equal(order.ok, true);
@@ -114,8 +124,8 @@ integrationDescribe("Order Returns API idempotency integration", () => {
       externalOrderId: "ord-return-1",
       reason: "customer_refund",
       meta: {
-        operator: "manager"
-      }
+        operator: "manager",
+      },
     });
 
     const secondReturn = await processOrderReturn({
@@ -124,8 +134,8 @@ integrationDescribe("Order Returns API idempotency integration", () => {
       externalOrderId: "ord-return-1",
       reason: "customer_refund",
       meta: {
-        operator: "manager"
-      }
+        operator: "manager",
+      },
     });
 
     assert.equal(firstReturn.ok, true);
@@ -135,26 +145,26 @@ integrationDescribe("Order Returns API idempotency integration", () => {
     assert.equal(secondReturn.replay, true);
     assert.equal(firstReturn.orderReturnId, secondReturn.orderReturnId);
 
-    const { rows: orderReturnRows } = await withAdminClient((client) => (
+    const { rows: orderReturnRows } = await withAdminClient((client) =>
       client.query(
         `SELECT id, order_id, points_effect, outcome, reversal_transaction_id
          FROM order_returns
          WHERE business_id = $1 AND external_return_id = $2`,
-        [businessId, "ret-1"]
-      )
-    ));
+        [businessId, "ret-1"],
+      ),
+    );
     assert.equal(orderReturnRows.length, 1);
     assert.equal(orderReturnRows[0].id, firstReturn.orderReturnId);
     assert.equal(orderReturnRows[0].outcome, "POSTED_REVERSED");
     assert.equal(Number(orderReturnRows[0].points_effect), -Number(order.pointsAwarded));
     assert.equal(orderReturnRows[0].reversal_transaction_id, firstReturn.reversalTransactionId);
 
-    const { rows: balanceRows } = await withAdminClient((client) => (
+    const { rows: balanceRows } = await withAdminClient((client) =>
       client.query(
         "SELECT points, pending_points, lifetime_points FROM customer_balances WHERE customer_id = $1",
-        [customerId]
-      )
-    ));
+        [customerId],
+      ),
+    );
     assert.equal(balanceRows.length, 1);
     assert.equal(Number(balanceRows[0].points), 0);
     assert.equal(Number(balanceRows[0].pending_points), 0);

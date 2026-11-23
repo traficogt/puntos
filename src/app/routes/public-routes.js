@@ -13,10 +13,19 @@ import { sanitizeProgramForClient } from "../../utils/program-secrets.js";
 import { requestJoinCode, verifyJoinCode, issueCustomerQr } from "../services/customer-service.js";
 import { awardFromExternalEventTrusted } from "../services/external-award-service.js";
 import { config } from "../../config/index.js";
-import { browserCookieMaxAge, cookieOpts, customerCookieOptions, staffCookieOptions } from "../../utils/auth-token.js";
+import {
+  browserCookieMaxAge,
+  cookieOpts,
+  customerCookieOptions,
+  staffCookieOptions,
+} from "../../utils/auth-token.js";
 import { requireCustomer } from "../../middleware/auth.js";
 import { csrfProtect } from "../../middleware/csrf.js";
-import { moderateRateLimit, rateLimitByPhone, strictRateLimit } from "../../middleware/rate-limit.js";
+import {
+  moderateRateLimit,
+  rateLimitByPhone,
+  strictRateLimit,
+} from "../../middleware/rate-limit.js";
 import QRCode from "qrcode";
 import { createBusinessWithOwner } from "../services/business-service.js";
 import crypto from "node:crypto";
@@ -26,13 +35,13 @@ import {
   businessCustomerBrandingSchema,
   businessRegisterSchema,
   requestJoinCodeSchema,
-  verifyJoinCodeSchema
+  verifyJoinCodeSchema,
 } from "../../utils/schemas.js";
 import { invalidateBrowserSessionById } from "../services/auth-session-service.js";
 import {
   completeStaffPasswordReset,
   confirmStaffEmailChange,
-  requestStaffPasswordReset
+  requestStaffPasswordReset,
 } from "../services/account-security-service.js";
 import { consumeInternalMagicLink } from "../services/internal-magic-link-service.js";
 import { sendContactEmail, verifyTurnstile } from "../services/contact-service.js";
@@ -42,16 +51,16 @@ import { withDbClientContext } from "../database.js";
 export const publicRoutes = Router();
 
 const StaffPasswordResetRequestSchema = z.object({
-  email: z.string().email()
+  email: z.string().email(),
 });
 
 const StaffPasswordResetConfirmSchema = z.object({
   token: z.string().min(20),
-  newPassword: z.string().min(8).max(128)
+  newPassword: z.string().min(8).max(128),
 });
 
 const StaffTokenConfirmSchema = z.object({
-  token: z.string().min(20)
+  token: z.string().min(20),
 });
 
 const ContactSchema = z.object({
@@ -59,7 +68,7 @@ const ContactSchema = z.object({
   business: z.string().min(1).max(160).trim(),
   contact: z.string().min(1).max(200).trim(),
   message: z.string().min(10).max(2000).trim(),
-  turnstileToken: z.string().min(1).max(4096)
+  turnstileToken: z.string().min(1).max(4096),
 });
 
 function rejectMissingCustomer(req, res) {
@@ -69,9 +78,7 @@ function rejectMissingCustomer(req, res) {
 
 function sanitizeCustomerBrandingForPublic(customerBrandingJson) {
   const parsed = businessCustomerBrandingSchema.safeParse(
-    customerBrandingJson && typeof customerBrandingJson === "object"
-      ? customerBrandingJson
-      : {}
+    customerBrandingJson && typeof customerBrandingJson === "object" ? customerBrandingJson : {},
   );
   if (parsed.success) return parsed.data;
   return businessCustomerBrandingSchema.parse({});
@@ -100,308 +107,407 @@ async function withMagicLinkDbContext(task) {
   }
 }
 
-publicRoutes.get("/public/business/:slug", asyncRoute(async (req, res) => {
-  const business = await BusinessRepo.getPublicBySlug(req.params.slug);
-  if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
-  res.json({
-    id: business.id,
-    name: business.name,
-    slug: business.slug,
-    category: business.category,
-    region: businessRegion(business),
-    program_type: business.program_type,
-    program_json: sanitizeProgramForClient(business.program_json),
-    customer_branding: sanitizeCustomerBrandingForPublic(business.customer_branding_json)
-  });
-}));
+publicRoutes.get(
+  "/public/business/:slug",
+  asyncRoute(async (req, res) => {
+    const business = await BusinessRepo.getPublicBySlug(req.params.slug);
+    if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
+    res.json({
+      id: business.id,
+      name: business.name,
+      slug: business.slug,
+      category: business.category,
+      region: businessRegion(business),
+      program_type: business.program_type,
+      program_json: sanitizeProgramForClient(business.program_json),
+      customer_branding: sanitizeCustomerBrandingForPublic(business.customer_branding_json),
+    });
+  }),
+);
 
 publicRoutes.get("/public/keys", (req, res) => {
   // for future client-side verification if needed
   res.json({ qr_public_key_pem: config.QR_PUBLIC_KEY_PEM || null });
 });
 
-publicRoutes.post("/public/business/:slug/join/request-code", strictRateLimit, rateLimitByPhone(3, 10 * 60 * 1000), asyncRoute(async (req, res) => {
-  const v = validate(requestJoinCodeSchema, req.body);
-  if (!v.ok) return res.status(400).json({ error: v.error });
+publicRoutes.post(
+  "/public/business/:slug/join/request-code",
+  strictRateLimit,
+  rateLimitByPhone(3, 10 * 60 * 1000),
+  asyncRoute(async (req, res) => {
+    const v = validate(requestJoinCodeSchema, req.body);
+    if (!v.ok) return res.status(400).json({ error: v.error });
 
-	const business = await BusinessRepo.getPublicBySlug(req.params.slug);
-	if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
-	await setTenantForRequest(req, business.id);
+    const business = await BusinessRepo.getPublicBySlug(req.params.slug);
+    if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
+    await setTenantForRequest(req, business.id);
 
-	const phone = v.data.phone;
-	const out = await requestJoinCode({
-    business,
-    phone,
-    email: v.data.email ?? null,
-    name: v.data.name ?? null
-  });
+    const phone = v.data.phone;
+    const out = await requestJoinCode({
+      business,
+      phone,
+      email: v.data.email ?? null,
+      name: v.data.name ?? null,
+    });
 
-  res.json(out);
-}));
+    res.json(out);
+  }),
+);
 
-publicRoutes.post("/public/business/:slug/login/request-code", strictRateLimit, rateLimitByPhone(3, 10 * 60 * 1000), asyncRoute(async (req, res) => {
-  const v = validate(requestJoinCodeSchema, req.body);
-  if (!v.ok) return res.status(400).json({ error: v.error });
+publicRoutes.post(
+  "/public/business/:slug/login/request-code",
+  strictRateLimit,
+  rateLimitByPhone(3, 10 * 60 * 1000),
+  asyncRoute(async (req, res) => {
+    const v = validate(requestJoinCodeSchema, req.body);
+    if (!v.ok) return res.status(400).json({ error: v.error });
 
-	const business = await BusinessRepo.getPublicBySlug(req.params.slug);
-	if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
-	await setTenantForRequest(req, business.id);
+    const business = await BusinessRepo.getPublicBySlug(req.params.slug);
+    if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
+    await setTenantForRequest(req, business.id);
 
-	const phone = v.data.phone;
-	const out = await requestJoinCode({
-    business,
-    phone,
-    email: v.data.email ?? null,
-    name: v.data.name ?? null,
-    requireExisting: true
-  });
+    const phone = v.data.phone;
+    const out = await requestJoinCode({
+      business,
+      phone,
+      email: v.data.email ?? null,
+      name: v.data.name ?? null,
+      requireExisting: true,
+    });
 
-  res.json(out);
-}));
+    res.json(out);
+  }),
+);
 
-publicRoutes.post("/public/staff/password-reset/request", strictRateLimit, asyncRoute(async (req, res) => {
-  const v = validate(StaffPasswordResetRequestSchema, req.body);
-  if (!v.ok) return res.status(400).json({ error: v.error });
-  await requestStaffPasswordReset({
-    email: v.data.email,
-    ip: req.ip || null,
-    ua: req.headers["user-agent"] || null
-  });
-  res.json({ ok: true });
-}));
+publicRoutes.post(
+  "/public/staff/password-reset/request",
+  strictRateLimit,
+  asyncRoute(async (req, res) => {
+    const v = validate(StaffPasswordResetRequestSchema, req.body);
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    await requestStaffPasswordReset({
+      email: v.data.email,
+      ip: req.ip || null,
+      ua: req.headers["user-agent"] || null,
+    });
+    res.json({ ok: true });
+  }),
+);
 
-publicRoutes.post("/public/staff/password-reset/confirm", strictRateLimit, asyncRoute(async (req, res) => {
-  const v = validate(StaffPasswordResetConfirmSchema, req.body);
-  if (!v.ok) return res.status(400).json({ error: v.error });
-  await completeStaffPasswordReset({
-    token: v.data.token,
-    newPassword: v.data.newPassword,
-    ip: req.ip || null,
-    ua: req.headers["user-agent"] || null
-  });
-  res.json({ ok: true });
-}));
+publicRoutes.post(
+  "/public/staff/password-reset/confirm",
+  strictRateLimit,
+  asyncRoute(async (req, res) => {
+    const v = validate(StaffPasswordResetConfirmSchema, req.body);
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    await completeStaffPasswordReset({
+      token: v.data.token,
+      newPassword: v.data.newPassword,
+      ip: req.ip || null,
+      ua: req.headers["user-agent"] || null,
+    });
+    res.json({ ok: true });
+  }),
+);
 
-publicRoutes.post("/public/staff/email-change/confirm", strictRateLimit, asyncRoute(async (req, res) => {
-  const v = validate(StaffTokenConfirmSchema, req.body);
-  if (!v.ok) return res.status(400).json({ error: v.error });
-  const out = await confirmStaffEmailChange({
-    token: v.data.token,
-    ip: req.ip || null,
-    ua: req.headers["user-agent"] || null
-  });
-  res.json(out);
-}));
+publicRoutes.post(
+  "/public/staff/email-change/confirm",
+  strictRateLimit,
+  asyncRoute(async (req, res) => {
+    const v = validate(StaffTokenConfirmSchema, req.body);
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const out = await confirmStaffEmailChange({
+      token: v.data.token,
+      ip: req.ip || null,
+      ua: req.headers["user-agent"] || null,
+    });
+    res.json(out);
+  }),
+);
 
-publicRoutes.get("/magic/staff/:token", asyncRoute(async (req, res) => {
-  const record = await lookupMagicLinkRecord(req.params.token);
-  if (!record || record.actor_type !== "staff") {
-    return res.status(400).json({ error: "Este enlace no es válido." });
-  }
-  const out = await withMagicLinkDbContext(async () => (
-    consumeInternalMagicLink(req.params.token, {
-      ip: getRequestIp(req),
-      ua: req.headers["user-agent"] || null
-    })
-  ));
-  res.cookie(config.STAFF_COOKIE_NAME, out.token, staffCookieOptions(req));
-  const destinations = new Map([["/admin-dashboard", "/administracion/"], ["/staff", "/equipo/escaner/"]]);
-  res.redirect(destinations.get(out.redirectTo) || out.redirectTo);
-}));
-
-publicRoutes.get("/magic/customer/:token", asyncRoute(async (req, res) => {
-  const record = await lookupMagicLinkRecord(req.params.token);
-  if (!record || record.actor_type !== "customer") {
-    return res.status(400).json({ error: "Este enlace no es válido." });
-  }
-  const out = await withMagicLinkDbContext(async () => (
-    consumeInternalMagicLink(req.params.token, {
-      ip: getRequestIp(req),
-      ua: req.headers["user-agent"] || null
-    })
-  ));
-  res.cookie(config.CUSTOMER_COOKIE_NAME, out.token, customerCookieOptions(req));
-  const destinations = new Map([["/c", "/mi-tarjeta/?sesion=nueva"]]);
-  res.redirect(destinations.get(out.redirectTo) || out.redirectTo);
-}));
-
-publicRoutes.post("/public/business/:slug/join/verify", moderateRateLimit, rateLimitByPhone(10, 10 * 60 * 1000), asyncRoute(async (req, res) => {
-  const v = validate(verifyJoinCodeSchema, req.body);
-  if (!v.ok) return res.status(400).json({ error: v.error });
-
-	const business = await BusinessRepo.getPublicBySlug(req.params.slug);
-	if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
-	await setTenantForRequest(req, business.id);
-
-	const phone = v.data.phone;
-	const { customer, token } = await verifyJoinCode({
-    business,
-    phone,
-    code: v.data.code,
-    name: v.data.name ?? null,
-    referralCode: v.data.referralCode ?? null, // Pass referral code if provided
-    visitToken: v.data.visitToken ?? null,
-    marketingOptIn: v.data.marketingOptIn === true
-  });
-
-  res.cookie(config.CUSTOMER_COOKIE_NAME, token, { ...cookieOpts(req), maxAge: browserCookieMaxAge("CUSTOMER") });
-  res.json({ ok: true, customer: { id: customer.id, points: customer.points, name: customer.name, phone: customer.phone } });
-}));
-
-publicRoutes.post("/public/business/:slug/login/verify", moderateRateLimit, rateLimitByPhone(10, 10 * 60 * 1000), asyncRoute(async (req, res) => {
-  const v = validate(verifyJoinCodeSchema, req.body);
-  if (!v.ok) return res.status(400).json({ error: v.error });
-
-	const business = await BusinessRepo.getPublicBySlug(req.params.slug);
-	if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
-	await setTenantForRequest(req, business.id);
-
-	const phone = v.data.phone;
-	const { customer, token } = await verifyJoinCode({
-    business,
-    phone,
-    code: v.data.code,
-    name: v.data.name ?? null,
-    referralCode: null,
-    requireExisting: true
-  });
-
-  res.cookie(config.CUSTOMER_COOKIE_NAME, token, { ...cookieOpts(req), maxAge: browserCookieMaxAge("CUSTOMER") });
-  res.json({ ok: true, customer: { id: customer.id, points: customer.points, name: customer.name, phone: customer.phone } });
-}));
-
-publicRoutes.post("/public/customer/logout", requireCustomer, csrfProtect, asyncRoute(async (req, res) => {
-  if (req.authSession?.id) {
-    await invalidateBrowserSessionById(req.authSession.id, "logout");
-  }
-  res.clearCookie(config.CUSTOMER_COOKIE_NAME, { path: "/" });
-  res.json({ ok: true });
-}));
-
-publicRoutes.post("/public/customer/qr", csrfProtect, requireCustomer, asyncRoute(async (req, res) => {
-  const { id: customerId, business_id } = req.customerAuth;
-  const customer = await CustomerRepo.getById(customerId);
-  if (!customer || String(customer.business_id) !== String(business_id)) return rejectMissingCustomer(req, res);
-  const out = await issueCustomerQr({ businessId: business_id, customerId });
-  res.json(out);
-}));
-
-export const ExternalAwardSchema = z.object({
-  businessSlug: z.string().min(2).max(120),
-  externalEventId: z.string().min(4).max(120),
-  customerId: z.guid().optional(),
-  customerPhone: z.string().min(6).optional(),
-  amount_q: z.number().nonnegative().optional(),
-  visits: z.number().int().nonnegative().optional(),
-  items: z.number().int().nonnegative().optional(),
-  meta: z.record(z.string(), z.any()).optional()
-}).refine(v => Boolean(v.customerId || v.customerPhone), {
-  message: "customerId or customerPhone is required"
-});
-
-publicRoutes.post("/public/external/award", moderateRateLimit, asyncRoute(async (req, res) => {
-  const rawBody = req.rawBody;
-  if (!rawBody) {
-    return res.status(400).json({ error: "Missing raw body for signature verification" });
-  }
-  const businessSlug = req.body?.businessSlug;
-  const secret = businessSlug ? config.PAYMENT_WEBHOOK_HMAC_SECRETS?.[businessSlug] : null;
-  if (!secret) {
-    return res.status(503).json({ error: "External awards disabled for this business" });
-  }
-  const sig = String(req.headers["x-signature"] || "").trim().toLowerCase();
-  const expected = crypto
-    .createHmac("sha256", String(secret))
-    .update(rawBody)
-    .digest("hex");
-  if (!timingSafeEqualString(sig, expected)) {
-    return res.status(401).json({ error: "Invalid signature" });
-  }
-	const v = validate(ExternalAwardSchema, req.body);
-	if (!v.ok) return res.status(400).json({ error: v.error });
-	const business = await BusinessRepo.getPublicBySlug(v.data.businessSlug);
-	if (!business) return res.status(404).json({ error: "Business not found" });
-	await setTenantForRequest(req, business.id);
-	const out = await awardFromExternalEventTrusted({
-	  businessSlug: business.slug,
-	  externalEventId: v.data.externalEventId,
-	  customerId: v.data.customerId,
-	  customerPhone: v.data.customerPhone ? normalizeEnrollmentPhone(v.data.customerPhone,business) : undefined,
-	  amount_q: v.data.amount_q ?? 0,
-    visits: v.data.visits ?? 0,
-    items: v.data.items ?? 0,
-    meta: v.data.meta ?? {}
-  });
-  res.json(out);
-}));
-
-publicRoutes.post("/public/business/register", strictRateLimit, asyncRoute(async (req, res) => {
-  const v = validate(businessRegisterSchema, req.body);
-  if (!v.ok) return res.status(400).json({ error: v.error });
-
-  // Optional shared secret for production; if set, require correct token
-  if (config.REGISTRATION_API_KEY) {
-    const tok = v.data.registration_token || req.headers["x-registration-token"];
-    if (!timingSafeEqualString(String(tok ?? ""), config.REGISTRATION_API_KEY)) {
-      return res.status(401).json({ error: "Invalid registration token" });
+publicRoutes.get(
+  "/magic/staff/:token",
+  asyncRoute(async (req, res) => {
+    const record = await lookupMagicLinkRecord(req.params.token);
+    if (!record || record.actor_type !== "staff") {
+      return res.status(400).json({ error: "Este enlace no es válido." });
     }
-  }
+    const out = await withMagicLinkDbContext(async () =>
+      consumeInternalMagicLink(req.params.token, {
+        ip: getRequestIp(req),
+        ua: req.headers["user-agent"] || null,
+      }),
+    );
+    res.cookie(config.STAFF_COOKIE_NAME, out.token, staffCookieOptions(req));
+    const destinations = new Map([
+      ["/admin-dashboard", "/administracion/"],
+      ["/staff", "/equipo/escaner/"],
+    ]);
+    res.redirect(destinations.get(out.redirectTo) || out.redirectTo);
+  }),
+);
 
-  // Enforce provided slug uniqueness; service will adjust if necessary.
-  const existingSlug = await BusinessRepo.getPublicBySlug(v.data.slug);
-  if (existingSlug) {
-    return res.status(409).json({ error: "Slug already in use" });
-  }
+publicRoutes.get(
+  "/magic/customer/:token",
+  asyncRoute(async (req, res) => {
+    const record = await lookupMagicLinkRecord(req.params.token);
+    if (!record || record.actor_type !== "customer") {
+      return res.status(400).json({ error: "Este enlace no es válido." });
+    }
+    const out = await withMagicLinkDbContext(async () =>
+      consumeInternalMagicLink(req.params.token, {
+        ip: getRequestIp(req),
+        ua: req.headers["user-agent"] || null,
+      }),
+    );
+    res.cookie(config.CUSTOMER_COOKIE_NAME, out.token, customerCookieOptions(req));
+    const destinations = new Map([["/c", "/mi-tarjeta/?sesion=nueva"]]);
+    res.redirect(destinations.get(out.redirectTo) || out.redirectTo);
+  }),
+);
 
-  const { business } = await createBusinessWithOwner({
-    businessName: v.data.name,
-    email: v.data.email,
-    phone: normalizePhone(v.data.phone),
-    password: v.data.password,
-    category: v.data.category ?? null,
-    program_type: v.data.program_type ?? "SPEND",
-    program_json: undefined,
-    slug: v.data.slug
+publicRoutes.post(
+  "/public/business/:slug/join/verify",
+  moderateRateLimit,
+  rateLimitByPhone(10, 10 * 60 * 1000),
+  asyncRoute(async (req, res) => {
+    const v = validate(verifyJoinCodeSchema, req.body);
+    if (!v.ok) return res.status(400).json({ error: v.error });
+
+    const business = await BusinessRepo.getPublicBySlug(req.params.slug);
+    if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
+    await setTenantForRequest(req, business.id);
+
+    const phone = v.data.phone;
+    const { customer, token } = await verifyJoinCode({
+      business,
+      phone,
+      code: v.data.code,
+      name: v.data.name ?? null,
+      referralCode: v.data.referralCode ?? null, // Pass referral code if provided
+      visitToken: v.data.visitToken ?? null,
+      marketingOptIn: v.data.marketingOptIn === true,
+    });
+
+    res.cookie(config.CUSTOMER_COOKIE_NAME, token, {
+      ...cookieOpts(req),
+      maxAge: browserCookieMaxAge("CUSTOMER"),
+    });
+    res.json({
+      ok: true,
+      customer: {
+        id: customer.id,
+        points: customer.points,
+        name: customer.name,
+        phone: customer.phone,
+      },
+    });
+  }),
+);
+
+publicRoutes.post(
+  "/public/business/:slug/login/verify",
+  moderateRateLimit,
+  rateLimitByPhone(10, 10 * 60 * 1000),
+  asyncRoute(async (req, res) => {
+    const v = validate(verifyJoinCodeSchema, req.body);
+    if (!v.ok) return res.status(400).json({ error: v.error });
+
+    const business = await BusinessRepo.getPublicBySlug(req.params.slug);
+    if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
+    await setTenantForRequest(req, business.id);
+
+    const phone = v.data.phone;
+    const { customer, token } = await verifyJoinCode({
+      business,
+      phone,
+      code: v.data.code,
+      name: v.data.name ?? null,
+      referralCode: null,
+      requireExisting: true,
+    });
+
+    res.cookie(config.CUSTOMER_COOKIE_NAME, token, {
+      ...cookieOpts(req),
+      maxAge: browserCookieMaxAge("CUSTOMER"),
+    });
+    res.json({
+      ok: true,
+      customer: {
+        id: customer.id,
+        points: customer.points,
+        name: customer.name,
+        phone: customer.phone,
+      },
+    });
+  }),
+);
+
+publicRoutes.post(
+  "/public/customer/logout",
+  requireCustomer,
+  csrfProtect,
+  asyncRoute(async (req, res) => {
+    if (req.authSession?.id) {
+      await invalidateBrowserSessionById(req.authSession.id, "logout");
+    }
+    res.clearCookie(config.CUSTOMER_COOKIE_NAME, { path: "/" });
+    res.json({ ok: true });
+  }),
+);
+
+publicRoutes.post(
+  "/public/customer/qr",
+  csrfProtect,
+  requireCustomer,
+  asyncRoute(async (req, res) => {
+    const { id: customerId, business_id } = req.customerAuth;
+    const customer = await CustomerRepo.getById(customerId);
+    if (!customer || String(customer.business_id) !== String(business_id))
+      return rejectMissingCustomer(req, res);
+    const out = await issueCustomerQr({ businessId: business_id, customerId });
+    res.json(out);
+  }),
+);
+
+export const ExternalAwardSchema = z
+  .object({
+    businessSlug: z.string().min(2).max(120),
+    externalEventId: z.string().min(4).max(120),
+    customerId: z.guid().optional(),
+    customerPhone: z.string().min(6).optional(),
+    amount_q: z.number().nonnegative().optional(),
+    visits: z.number().int().nonnegative().optional(),
+    items: z.number().int().nonnegative().optional(),
+    meta: z.record(z.string(), z.any()).optional(),
+  })
+  .refine((v) => Boolean(v.customerId || v.customerPhone), {
+    message: "customerId or customerPhone is required",
   });
 
-  res.status(201).json({
-    id: business.id,
-    slug: business.slug,
-    name: business.name,
-    program_type: business.program_type
-  });
-}));
+publicRoutes.post(
+  "/public/external/award",
+  moderateRateLimit,
+  asyncRoute(async (req, res) => {
+    const rawBody = req.rawBody;
+    if (!rawBody) {
+      return res.status(400).json({ error: "Missing raw body for signature verification" });
+    }
+    const businessSlug = req.body?.businessSlug;
+    const secret = businessSlug ? config.PAYMENT_WEBHOOK_HMAC_SECRETS?.[businessSlug] : null;
+    if (!secret) {
+      return res.status(503).json({ error: "External awards disabled for this business" });
+    }
+    const sig = String(req.headers["x-signature"] || "")
+      .trim()
+      .toLowerCase();
+    const expected = crypto.createHmac("sha256", String(secret)).update(rawBody).digest("hex");
+    if (!timingSafeEqualString(sig, expected)) {
+      return res.status(401).json({ error: "Invalid signature" });
+    }
+    const v = validate(ExternalAwardSchema, req.body);
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const business = await BusinessRepo.getPublicBySlug(v.data.businessSlug);
+    if (!business) return res.status(404).json({ error: "Business not found" });
+    await setTenantForRequest(req, business.id);
+    const out = await awardFromExternalEventTrusted({
+      businessSlug: business.slug,
+      externalEventId: v.data.externalEventId,
+      customerId: v.data.customerId,
+      customerPhone: v.data.customerPhone
+        ? normalizeEnrollmentPhone(v.data.customerPhone, business)
+        : undefined,
+      amount_q: v.data.amount_q ?? 0,
+      visits: v.data.visits ?? 0,
+      items: v.data.items ?? 0,
+      meta: v.data.meta ?? {},
+    });
+    res.json(out);
+  }),
+);
 
-publicRoutes.post("/public/contact", strictRateLimit, asyncRoute(async (req, res) => {
-  const v = validate(ContactSchema, req.body);
-  if (!v.ok) return res.status(400).json({ error: v.error });
-  const ip = getRequestIp(req);
-  const valid = await verifyTurnstile(v.data.turnstileToken, ip).catch(() => false);
-  if (!valid) return res.status(400).json({ error: "Verificación fallida. Intenta de nuevo." });
-  try {
-    await sendContactEmail(v.data, { host: req.get('host') });
-  } catch {
-    return res.status(502).json({ error: "No se pudo enviar el mensaje. Intenta de nuevo en unos minutos." });
-  }
-  res.json({ ok: true });
-}));
+publicRoutes.post(
+  "/public/business/register",
+  strictRateLimit,
+  asyncRoute(async (req, res) => {
+    const v = validate(businessRegisterSchema, req.body);
+    if (!v.ok) return res.status(400).json({ error: v.error });
+
+    // Optional shared secret for production; if set, require correct token
+    if (config.REGISTRATION_API_KEY) {
+      const tok = v.data.registration_token || req.headers["x-registration-token"];
+      if (!timingSafeEqualString(String(tok ?? ""), config.REGISTRATION_API_KEY)) {
+        return res.status(401).json({ error: "Invalid registration token" });
+      }
+    }
+
+    // Enforce provided slug uniqueness; service will adjust if necessary.
+    const existingSlug = await BusinessRepo.getPublicBySlug(v.data.slug);
+    if (existingSlug) {
+      return res.status(409).json({ error: "Slug already in use" });
+    }
+
+    const { business } = await createBusinessWithOwner({
+      businessName: v.data.name,
+      email: v.data.email,
+      phone: normalizePhone(v.data.phone),
+      password: v.data.password,
+      category: v.data.category ?? null,
+      program_type: v.data.program_type ?? "SPEND",
+      program_json: undefined,
+      slug: v.data.slug,
+    });
+
+    res.status(201).json({
+      id: business.id,
+      slug: business.slug,
+      name: business.name,
+      program_type: business.program_type,
+    });
+  }),
+);
+
+publicRoutes.post(
+  "/public/contact",
+  strictRateLimit,
+  asyncRoute(async (req, res) => {
+    const v = validate(ContactSchema, req.body);
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const ip = getRequestIp(req);
+    const valid = await verifyTurnstile(v.data.turnstileToken, ip).catch(() => false);
+    if (!valid) return res.status(400).json({ error: "Verificación fallida. Intenta de nuevo." });
+    try {
+      await sendContactEmail(v.data, { host: req.get("host") });
+    } catch {
+      return res
+        .status(502)
+        .json({ error: "No se pudo enviar el mensaje. Intenta de nuevo en unos minutos." });
+    }
+    res.json({ ok: true });
+  }),
+);
 
 // Convenient endpoint for customer UI: returns an SVG QR for the short-lived token
-publicRoutes.get("/public/customer/qr.svg", requireCustomer, asyncRoute(async (req, res) => {
-  const { id: customerId, business_id } = req.customerAuth;
-  const customer = await CustomerRepo.getById(customerId);
-  if (!customer || String(customer.business_id) !== String(business_id)) return rejectMissingCustomer(req, res);
-  const out = await issueCustomerQr({ businessId: business_id, customerId });
-  const svg = await QRCode.toString(out.token, {
-    type: "svg",
-    errorCorrectionLevel: "Q",
-    margin: 2,
-    scale: 10
-  });
+publicRoutes.get(
+  "/public/customer/qr.svg",
+  requireCustomer,
+  asyncRoute(async (req, res) => {
+    const { id: customerId, business_id } = req.customerAuth;
+    const customer = await CustomerRepo.getById(customerId);
+    if (!customer || String(customer.business_id) !== String(business_id))
+      return rejectMissingCustomer(req, res);
+    const out = await issueCustomerQr({ businessId: business_id, customerId });
+    const svg = await QRCode.toString(out.token, {
+      type: "svg",
+      errorCorrectionLevel: "Q",
+      margin: 2,
+      scale: 10,
+    });
 
-  res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
-  res.setHeader("Cache-Control", "no-store");
-  res.setHeader("X-QR-Exp", String(out.exp));
-  res.setHeader("X-QR-JTI", String(out.jti));
-  res.send(svg);
-}));
+    res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-QR-Exp", String(out.exp));
+    res.setHeader("X-QR-JTI", String(out.jti));
+    res.send(svg);
+  }),
+);

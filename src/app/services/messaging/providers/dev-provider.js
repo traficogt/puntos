@@ -7,9 +7,10 @@ export function createDevProvider({ environment = process.env.NODE_ENV || "produ
       return environment !== "production";
     },
     async send(message) {
-      if (environment === "production") throw new Error("Development messaging is disabled in production");
+      if (environment === "production")
+        throw new Error("Development messaging is disabled in production");
       logger.info({ channel: message.channel }, "[MESSAGE dev] simulated delivery");
       return { ok: true, providerId: "dev" };
-    }
+    },
   };
 }

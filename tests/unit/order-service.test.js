@@ -11,18 +11,24 @@ test("returns replay success when the same externalOrderId is received with the 
   let tenantId = null;
   const queries = [];
   const deps = {
-    withTransaction: async (fn) => fn({
-      query: async (sql) => {
-        queries.push(sql);
-        return { rows: [], rowCount: 0 };
-      }
-    }),
+    withTransaction: async (fn) =>
+      fn({
+        query: async (sql) => {
+          queries.push(sql);
+          return { rows: [], rowCount: 0 };
+        },
+      }),
     setCurrentTenant: async (businessId) => {
       tenantId = businessId;
     },
     BusinessRepo: {
       getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
-      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
+      getById: async () => ({
+        id: "biz-1",
+        plan: "NEGOCIO",
+        program_type: "SPEND",
+        program_json: { points_per_q: 0.1 },
+      }),
     },
     CustomerRepo: {
       getById: async () => {
@@ -32,7 +38,7 @@ test("returns replay success when the same externalOrderId is received with the 
       getByBusinessAndPhone: async () => {
         customerLookupCalled = true;
         return null;
-      }
+      },
     },
     OrderRepo: {
       findByBusinessAndExternalId: async (_client, businessId, externalOrderId) => {
@@ -44,15 +50,15 @@ test("returns replay success when the same externalOrderId is received with the 
           transaction_id: "tx-existing",
           points_awarded: 5,
           transaction_status: "POSTED",
-          fingerprint: "fp-1"
+          fingerprint: "fp-1",
         };
-      }
+      },
     },
     computePoints: () => 5,
     hashPayload: (payload) => {
       fingerprintCurrency = payload.currency;
       return "fp-1";
-    }
+    },
   };
 
   const out = await processOrderWithDeps(deps, {
@@ -61,7 +67,7 @@ test("returns replay success when the same externalOrderId is received with the 
     customerId: "cust-1",
     status: "paid",
     amount_q: 50,
-    currency: "gtq"
+    currency: "gtq",
   });
 
   assert.equal(lookupCalled, true);
@@ -77,7 +83,7 @@ test("returns replay success when the same externalOrderId is received with the 
     customerId: "cust-1",
     pointsAwarded: 5,
     status: "POSTED",
-    replay: true
+    replay: true,
   });
 });
 
@@ -85,17 +91,23 @@ test("treats reordered meta keys and line items as the same replay payload", asy
   /** @type {{line_items_json: Array<{name: string}>, meta: {details: Record<string, unknown>}} | null} */
   let observedPayload = null;
   const deps = {
-    withTransaction: async (fn) => fn({
-      query: async () => ({ rows: [], rowCount: 0 })
-    }),
+    withTransaction: async (fn) =>
+      fn({
+        query: async () => ({ rows: [], rowCount: 0 }),
+      }),
     setCurrentTenant: async () => {},
     BusinessRepo: {
       getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
-      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
+      getById: async () => ({
+        id: "biz-1",
+        plan: "NEGOCIO",
+        program_type: "SPEND",
+        program_json: { points_per_q: 0.1 },
+      }),
     },
     CustomerRepo: {
       getById: async (id) => ({ id, business_id: "biz-1" }),
-      getByBusinessAndPhone: async () => null
+      getByBusinessAndPhone: async () => null,
     },
     OrderRepo: {
       findByBusinessAndExternalId: async () => ({
@@ -104,8 +116,8 @@ test("treats reordered meta keys and line items as the same replay payload", asy
         transaction_id: "tx-existing",
         points_awarded: 5,
         transaction_status: "POSTED",
-        fingerprint: "fp-normalized"
-      })
+        fingerprint: "fp-normalized",
+      }),
     },
     computePoints: () => 5,
     hashPayload: (payload) => {
@@ -123,7 +135,7 @@ test("treats reordered meta keys and line items as the same replay payload", asy
       }
 
       return "fp-raw";
-    }
+    },
   };
 
   const out = await processOrderWithDeps(deps, {
@@ -138,23 +150,23 @@ test("treats reordered meta keys and line items as the same replay payload", asy
         quantity: 1,
         name: "Banana",
         code: "B",
-        category: "fruit"
+        category: "fruit",
       },
       {
         category: "fruit",
         code: "A",
         name: "Apple",
-        quantity: 2
-      }
+        quantity: 2,
+      },
     ],
     meta: {
       z: 2,
       details: {
         b: 2,
-        a: 1
+        a: 1,
       },
-      a: 1
-    }
+      a: 1,
+    },
   });
 
   assert.ok(observedPayload, "The normalized payload must be fingerprinted");
@@ -169,7 +181,7 @@ test("treats reordered meta keys and line items as the same replay payload", asy
     customerId: "cust-1",
     pointsAwarded: 5,
     status: "POSTED",
-    replay: true
+    replay: true,
   });
 });
 
@@ -177,27 +189,33 @@ test("persists normalized line items and meta when creating a new order", async 
   /** @type {{line_items_json: Array<{name: string}>, meta: {details: Record<string, unknown>}, fingerprint: string} | null} */
   let createInput = null;
   const deps = {
-    withTransaction: async (fn) => fn({
-      query: async () => ({ rows: [], rowCount: 0 })
-    }),
+    withTransaction: async (fn) =>
+      fn({
+        query: async () => ({ rows: [], rowCount: 0 }),
+      }),
     setCurrentTenant: async () => {},
     BusinessRepo: {
       getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
-      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
+      getById: async () => ({
+        id: "biz-1",
+        plan: "NEGOCIO",
+        program_type: "SPEND",
+        program_json: { points_per_q: 0.1 },
+      }),
     },
     CustomerRepo: {
       getById: async (id) => ({ id, business_id: "biz-1" }),
-      getByBusinessAndPhone: async () => null
+      getByBusinessAndPhone: async () => null,
     },
     OrderRepo: {
       findByBusinessAndExternalId: async () => null,
       create: async (_client, input) => {
         createInput = input;
         return { id: "order-created", transaction_id: input.transaction_id };
-      }
+      },
     },
     computePoints: () => 5,
-    hashPayload: () => "fp-normalized"
+    hashPayload: () => "fp-normalized",
   };
 
   const out = await processOrderWithDeps(deps, {
@@ -212,28 +230,31 @@ test("persists normalized line items and meta when creating a new order", async 
         quantity: 1,
         name: "Banana",
         code: "B",
-        category: "fruit"
+        category: "fruit",
       },
       {
         category: "fruit",
         code: "A",
         name: "Apple",
-        quantity: 2
-      }
+        quantity: 2,
+      },
     ],
     meta: {
       z: 2,
       details: {
         b: 2,
-        a: 1
+        a: 1,
       },
-      a: 1
-    }
+      a: 1,
+    },
   });
 
   assert.equal(out.ok, true);
   assert.ok(createInput, "The normalized order must be persisted");
-  assert.deepEqual(createInput.line_items_json.map((item) => item.name), ["Apple", "Banana"]);
+  assert.deepEqual(
+    createInput.line_items_json.map((item) => item.name),
+    ["Apple", "Banana"],
+  );
   assert.deepEqual(Object.keys(createInput.meta), ["a", "details", "z"]);
   assert.deepEqual(Object.keys(createInput.meta.details), ["a", "b"]);
   assert.equal(createInput.fingerprint, "fp-normalized");
@@ -249,21 +270,29 @@ test("falls back to customerPhone when customerId is absent", async () => {
     },
     BusinessRepo: {
       getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
-      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1, pending_points_hold_days: 2 } })
+      getById: async () => ({
+        id: "biz-1",
+        plan: "NEGOCIO",
+        program_type: "SPEND",
+        program_json: { points_per_q: 0.1, pending_points_hold_days: 2 },
+      }),
     },
     CustomerRepo: {
       getById: async () => null,
       getByBusinessAndPhone: async (businessId, phone) => {
         customerPhones.push(phone);
         return { id: "cust-phone", business_id: businessId, phone };
-      }
+      },
     },
     OrderRepo: {
       findByBusinessAndExternalId: async () => null,
-      create: async (_client, input) => ({ id: "order-created", transaction_id: input.transaction_id })
+      create: async (_client, input) => ({
+        id: "order-created",
+        transaction_id: input.transaction_id,
+      }),
     },
     computePoints: () => 8,
-    hashPayload: () => "fp-2"
+    hashPayload: () => "fp-2",
   };
 
   const out = await processOrderWithDeps(deps, {
@@ -271,7 +300,7 @@ test("falls back to customerPhone when customerId is absent", async () => {
     customerPhone: "5555-4444",
     externalOrderId: "ord-phone",
     status: "completed",
-    amount_q: 80
+    amount_q: 80,
   });
 
   assert.equal(tenantId, "biz-1");
@@ -287,18 +316,30 @@ test("falls back to customerPhone when customerId belongs to a different busines
     setCurrentTenant: async () => {},
     BusinessRepo: {
       getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
-      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
+      getById: async () => ({
+        id: "biz-1",
+        plan: "NEGOCIO",
+        program_type: "SPEND",
+        program_json: { points_per_q: 0.1 },
+      }),
     },
     CustomerRepo: {
       getById: async () => ({ id: "cust-other", business_id: "biz-2" }),
-      getByBusinessAndPhone: async (businessId, phone) => ({ id: "cust-phone", business_id: businessId, phone })
+      getByBusinessAndPhone: async (businessId, phone) => ({
+        id: "cust-phone",
+        business_id: businessId,
+        phone,
+      }),
     },
     OrderRepo: {
       findByBusinessAndExternalId: async () => null,
-      create: async (_client, input) => ({ id: "order-created", transaction_id: input.transaction_id })
+      create: async (_client, input) => ({
+        id: "order-created",
+        transaction_id: input.transaction_id,
+      }),
     },
     computePoints: () => 8,
-    hashPayload: () => "fp-4"
+    hashPayload: () => "fp-4",
   };
 
   const out = await processOrderWithDeps(deps, {
@@ -307,7 +348,7 @@ test("falls back to customerPhone when customerId belongs to a different busines
     customerPhone: "+50255554444",
     externalOrderId: "ord-phone-fallback",
     status: "paid",
-    amount_q: 80
+    amount_q: 80,
   });
 
   assert.equal(out.customerId, "cust-phone");
@@ -323,11 +364,19 @@ test("uses the transaction client for identifier-based customer resolution", asy
     setCurrentTenant: async () => {},
     BusinessRepo: {
       getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
-      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
+      getById: async () => ({
+        id: "biz-1",
+        plan: "NEGOCIO",
+        program_type: "SPEND",
+        program_json: { points_per_q: 0.1 },
+      }),
     },
     CustomerRepo: {
-      getByBusinessAndId: async (businessId, customerId) => ({ id: customerId, business_id: businessId }),
-      getByBusinessAndPhone: async () => null
+      getByBusinessAndId: async (businessId, customerId) => ({
+        id: customerId,
+        business_id: businessId,
+      }),
+      getByBusinessAndPhone: async () => null,
     },
     ContactIdentifierRepo: {
       getByBusinessTypeAndValue: async (client, businessId, identifierType, identifierValue) => {
@@ -337,14 +386,17 @@ test("uses the transaction client for identifier-based customer resolution", asy
         assert.equal(identifierType, "loyalty_card");
         assert.equal(identifierValue, "ABC123");
         return { customer_id: "cust-identifier" };
-      }
+      },
     },
     OrderRepo: {
       findByBusinessAndExternalId: async () => null,
-      create: async (_client, input) => ({ id: "order-created", transaction_id: input.transaction_id })
+      create: async (_client, input) => ({
+        id: "order-created",
+        transaction_id: input.transaction_id,
+      }),
     },
     computePoints: () => 5,
-    hashPayload: () => "fp-identifier"
+    hashPayload: () => "fp-identifier",
   };
 
   const out = await processOrderWithDeps(deps, {
@@ -353,7 +405,7 @@ test("uses the transaction client for identifier-based customer resolution", asy
     identifierType: "loyalty_card",
     identifierValue: "ABC123",
     status: "paid",
-    amount_q: 50
+    amount_q: 50,
   });
 
   assert.equal(identifierLookupClient, transactionClient);
@@ -366,29 +418,35 @@ test("rejects unsupported order status", async () => {
     setCurrentTenant: async () => {},
     BusinessRepo: {
       getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe" }),
-      getById: async () => ({ id: "biz-1", plan: "NEGOCIO", program_type: "SPEND", program_json: { points_per_q: 0.1 } })
+      getById: async () => ({
+        id: "biz-1",
+        plan: "NEGOCIO",
+        program_type: "SPEND",
+        program_json: { points_per_q: 0.1 },
+      }),
     },
     CustomerRepo: {
       getById: async () => ({ id: "cust-1", business_id: "biz-1" }),
-      getByBusinessAndPhone: async () => null
+      getByBusinessAndPhone: async () => null,
     },
     OrderRepo: {
       findByBusinessAndExternalId: async () => {
         throw new Error("OrderRepo should not be called for unsupported status");
-      }
+      },
     },
     computePoints: () => 0,
-    hashPayload: () => "fp-3"
+    hashPayload: () => "fp-3",
   };
 
   await assert.rejects(
-    () => processOrderWithDeps(deps, {
-      businessSlug: "cafe",
-      customerId: "cust-1",
-      externalOrderId: "ord-bad-status",
-      status: "pending",
-      amount_q: 10
-    }),
-    /Unsupported order status/
+    () =>
+      processOrderWithDeps(deps, {
+        businessSlug: "cafe",
+        customerId: "cust-1",
+        externalOrderId: "ord-bad-status",
+        status: "pending",
+        amount_q: 10,
+      }),
+    /Unsupported order status/,
   );
 });

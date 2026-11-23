@@ -4,7 +4,10 @@ import fs from "node:fs";
 
 test("customer rewards surface a redemption callout and in-store guidance for eligible rewards", () => {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const source = fs.readFileSync(new URL("../../public/customer/render.js", import.meta.url), "utf8");
+  const source = fs.readFileSync(
+    new URL("../../public/customer/render.js", import.meta.url),
+    "utf8",
+  );
 
   assert.match(source, /cus-rewards-callout/);
   assert.match(source, /Muestra tu QR en caja\./);

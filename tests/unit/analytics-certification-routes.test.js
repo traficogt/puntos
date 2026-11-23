@@ -12,7 +12,7 @@ pool.query = async (sql) => {
   if (text.includes("FROM businesses")) {
     return {
       rows: [{ id: "biz-1", name: "Cafe GT", slug: "cafe-gt" }],
-      rowCount: 1
+      rowCount: 1,
     };
   }
   if (text.includes("WITH days AS")) {
@@ -27,7 +27,7 @@ pool.query = async (sql) => {
           adjustment_points: 0,
           gift_cards_issued_q: "25.00",
           gift_cards_redeemed_q: "5.00",
-          replay_events: 1
+          replay_events: 1,
         },
         {
           day: "2026-03-02",
@@ -38,21 +38,23 @@ pool.query = async (sql) => {
           adjustment_points: 3,
           gift_cards_issued_q: "0.00",
           gift_cards_redeemed_q: "0.00",
-          replay_events: 0
-        }
+          replay_events: 0,
+        },
       ],
-      rowCount: 2
+      rowCount: 2,
     };
   }
   if (text.includes("WITH latest_run AS")) {
     return {
-      rows: [{
-        pending_corrections_count: 1,
-        negative_balance_count: 0,
-        latest_reconciliation_mismatches: 2,
-        latest_reconciliation_completed_at: "2026-03-08T05:00:00.000Z"
-      }],
-      rowCount: 1
+      rows: [
+        {
+          pending_corrections_count: 1,
+          negative_balance_count: 0,
+          latest_reconciliation_mismatches: 2,
+          latest_reconciliation_completed_at: "2026-03-08T05:00:00.000Z",
+        },
+      ],
+      rowCount: 1,
     };
   }
   return { rows: [], rowCount: 0 };
@@ -79,7 +81,7 @@ function makeRes() {
     send(payload) {
       this.body = payload;
       return this;
-    }
+    },
   };
 }
 
@@ -111,7 +113,7 @@ describe("analytics certification routes", () => {
       originalUrl: "/admin/analytics/ledger-certification?from=2026-03-01&to=2026-03-02",
       tenantId: "biz-1",
       query: { from: "2026-03-01", to: "2026-03-02" },
-      staff: { id: "staff-1", role: "OWNER" }
+      staff: { id: "staff-1", role: "OWNER" },
     });
 
     assert.equal(res.statusCode, 200);
@@ -135,12 +137,15 @@ describe("analytics certification routes", () => {
       originalUrl: "/admin/analytics/ledger-certification.csv?from=2026-03-01&to=2026-03-02",
       tenantId: "biz-1",
       query: { from: "2026-03-01", to: "2026-03-02" },
-      staff: { id: "staff-1", role: "OWNER" }
+      staff: { id: "staff-1", role: "OWNER" },
     });
 
     assert.equal(res.statusCode, 200);
     assert.match(String(res.headers["Content-Type"] || ""), /text\/csv/);
-    assert.match(String(res.headers["Content-Disposition"] || ""), /ledger-certification-2026-03-01_to_2026-03-02\.csv/);
+    assert.match(
+      String(res.headers["Content-Disposition"] || ""),
+      /ledger-certification-2026-03-01_to_2026-03-02\.csv/,
+    );
     assert.match(String(res.body), /row_type,date,points_issued/);
     assert.match(String(res.body), /TOTAL,,35,10,5,2,3,25.00,5.00,1,REVIEW_REQUIRED,1,2,0/);
     assert.match(String(res.body), /DAY,2026-03-01,20,10,0,0,0,25.00,5.00,1/);
@@ -155,28 +160,51 @@ describe("analytics certification routes", () => {
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       fs.mkdirSync(dayDir, { recursive: true });
       // eslint-disable-next-line security/detect-non-literal-fs-filename
-      fs.writeFileSync(path.join(tmpDir, "index.json"), `${JSON.stringify({
-        generated_at: "2026-03-08T10:00:00.000Z",
-        retention_days: 90,
-        day_count: 1,
-        days: [{ date: "2026-03-08", business_count: 1, manifest_path: "2026-03-08/index.json", artifact_dir: "2026-03-08" }]
-      }, null, 2)}\n`);
+      fs.writeFileSync(
+        path.join(tmpDir, "index.json"),
+        `${JSON.stringify(
+          {
+            generated_at: "2026-03-08T10:00:00.000Z",
+            retention_days: 90,
+            day_count: 1,
+            days: [
+              {
+                date: "2026-03-08",
+                business_count: 1,
+                manifest_path: "2026-03-08/index.json",
+                artifact_dir: "2026-03-08",
+              },
+            ],
+          },
+          null,
+          2,
+        )}\n`,
+      );
       // eslint-disable-next-line security/detect-non-literal-fs-filename
-      fs.writeFileSync(path.join(dayDir, "index.json"), `${JSON.stringify({
-        generated_at: "2026-03-08T10:00:00.000Z",
-        date: "2026-03-08",
-        business_count: 1,
-        artifacts: [{
-          businessId: "biz-1",
-          businessName: "Cafe GT",
-          businessSlug: "cafe-gt",
-          certificationStatus: "OK",
-          period: { from: "2026-02-07", to: "2026-03-08" },
-          generatedAt: "2026-03-08T10:00:00.000Z",
-          jsonPath: "2026-03-08/cafe-gt_biz-1.json",
-          csvPath: "2026-03-08/cafe-gt_biz-1.csv"
-        }]
-      }, null, 2)}\n`);
+      fs.writeFileSync(
+        path.join(dayDir, "index.json"),
+        `${JSON.stringify(
+          {
+            generated_at: "2026-03-08T10:00:00.000Z",
+            date: "2026-03-08",
+            business_count: 1,
+            artifacts: [
+              {
+                businessId: "biz-1",
+                businessName: "Cafe GT",
+                businessSlug: "cafe-gt",
+                certificationStatus: "OK",
+                period: { from: "2026-02-07", to: "2026-03-08" },
+                generatedAt: "2026-03-08T10:00:00.000Z",
+                jsonPath: "2026-03-08/cafe-gt_biz-1.json",
+                csvPath: "2026-03-08/cafe-gt_biz-1.csv",
+              },
+            ],
+          },
+          null,
+          2,
+        )}\n`,
+      );
 
       const res = await runRoute("/admin/analytics/ledger-certification/archive", {
         method: "GET",
@@ -185,14 +213,20 @@ describe("analytics certification routes", () => {
         originalUrl: "/admin/analytics/ledger-certification/archive",
         tenantId: "biz-1",
         query: {},
-        staff: { id: "staff-1", role: "OWNER" }
+        staff: { id: "staff-1", role: "OWNER" },
       });
 
       assert.equal(res.statusCode, 200);
       assert.equal(res.body.ok, true);
       assert.equal(res.body.available_days.length, 1);
-      assert.equal(res.body.available_days[0].json_url, "/api/admin/analytics/ledger-certification/archive/2026-03-08");
-      assert.equal(res.body.available_days[0].csv_url, "/api/admin/analytics/ledger-certification/archive/2026-03-08.csv");
+      assert.equal(
+        res.body.available_days[0].json_url,
+        "/api/admin/analytics/ledger-certification/archive/2026-03-08",
+      );
+      assert.equal(
+        res.body.available_days[0].csv_url,
+        "/api/admin/analytics/ledger-certification/archive/2026-03-08.csv",
+      );
     } finally {
       if (previousRoot === undefined) delete process.env.LEDGER_CERTIFICATION_OUTPUT_ROOT;
       else process.env.LEDGER_CERTIFICATION_OUTPUT_ROOT = previousRoot;
@@ -209,23 +243,32 @@ describe("analytics certification routes", () => {
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       fs.mkdirSync(dayDir, { recursive: true });
       // eslint-disable-next-line security/detect-non-literal-fs-filename
-      fs.writeFileSync(path.join(dayDir, "index.json"), `${JSON.stringify({
-        generated_at: "2026-03-08T10:00:00.000Z",
-        date: "2026-03-08",
-        business_count: 1,
-        artifacts: [{
-          businessId: "biz-1",
-          businessName: "Cafe GT",
-          businessSlug: "cafe-gt",
-          certificationStatus: "OK",
-          period: { from: "2026-02-07", to: "2026-03-08" },
-          generatedAt: "2026-03-08T10:00:00.000Z",
-          jsonPath: "2026-03-08/cafe-gt_biz-1.json",
-          csvPath: "2026-03-08/cafe-gt_biz-1.csv"
-        }]
-      }, null, 2)}\n`);
+      fs.writeFileSync(
+        path.join(dayDir, "index.json"),
+        `${JSON.stringify(
+          {
+            generated_at: "2026-03-08T10:00:00.000Z",
+            date: "2026-03-08",
+            business_count: 1,
+            artifacts: [
+              {
+                businessId: "biz-1",
+                businessName: "Cafe GT",
+                businessSlug: "cafe-gt",
+                certificationStatus: "OK",
+                period: { from: "2026-02-07", to: "2026-03-08" },
+                generatedAt: "2026-03-08T10:00:00.000Z",
+                jsonPath: "2026-03-08/cafe-gt_biz-1.json",
+                csvPath: "2026-03-08/cafe-gt_biz-1.csv",
+              },
+            ],
+          },
+          null,
+          2,
+        )}\n`,
+      );
       // eslint-disable-next-line security/detect-non-literal-fs-filename
-      fs.writeFileSync(path.join(dayDir, "cafe-gt_biz-1.json"), "{\n  \"ok\": true\n}\n");
+      fs.writeFileSync(path.join(dayDir, "cafe-gt_biz-1.json"), '{\n  "ok": true\n}\n');
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       fs.writeFileSync(path.join(dayDir, "cafe-gt_biz-1.csv"), "row_type,date\nTOTAL,\n");
 
@@ -237,7 +280,7 @@ describe("analytics certification routes", () => {
         originalUrl: "/admin/analytics/ledger-certification/archive/2026-03-08",
         tenantId: "biz-1",
         query: {},
-        staff: { id: "staff-1", role: "OWNER" }
+        staff: { id: "staff-1", role: "OWNER" },
       });
       const csvRes = await runRoute("/admin/analytics/ledger-certification/archive/:date.csv", {
         method: "GET",
@@ -247,7 +290,7 @@ describe("analytics certification routes", () => {
         originalUrl: "/admin/analytics/ledger-certification/archive/2026-03-08.csv",
         tenantId: "biz-1",
         query: {},
-        staff: { id: "staff-1", role: "OWNER" }
+        staff: { id: "staff-1", role: "OWNER" },
       });
 
       assert.equal(jsonRes.statusCode, 200);

@@ -1,22 +1,25 @@
 import { dbQuery } from "../database.js";
 
 export const AuthSessionRepo = {
-  async create({
-    id,
-    session_token_hash,
-    actor_type,
-    actor_id,
-    actor_email,
-    business_id,
-    role,
-    branch_id,
-    impersonated_by,
-    reauth_verified_at = null,
-    mfa_verified_at = null,
-    idle_expires_at,
-    absolute_expires_at,
-    meta = {}
-  }, query = dbQuery) {
+  async create(
+    {
+      id,
+      session_token_hash,
+      actor_type,
+      actor_id,
+      actor_email,
+      business_id,
+      role,
+      branch_id,
+      impersonated_by,
+      reauth_verified_at = null,
+      mfa_verified_at = null,
+      idle_expires_at,
+      absolute_expires_at,
+      meta = {},
+    },
+    query = dbQuery,
+  ) {
     await query(
       `INSERT INTO auth_sessions (
          id,
@@ -50,8 +53,8 @@ export const AuthSessionRepo = {
         mfa_verified_at ?? null,
         idle_expires_at,
         absolute_expires_at,
-        meta
-      ]
+        meta,
+      ],
     );
     return { id };
   },
@@ -60,16 +63,13 @@ export const AuthSessionRepo = {
     const { rows } = await query(
       `SELECT *
          FROM app.auth_session_lookup($1)`,
-      [sessionTokenHash]
+      [sessionTokenHash],
     );
     return rows[0] ?? null;
   },
 
   async touchById(id, idleExpiresAt, query = dbQuery) {
-    await query(
-      `SELECT app.auth_session_touch($1, $2)`,
-      [id, idleExpiresAt]
-    );
+    await query(`SELECT app.auth_session_touch($1, $2)`, [id, idleExpiresAt]);
     return { id, idle_expires_at: idleExpiresAt };
   },
 
@@ -79,18 +79,18 @@ export const AuthSessionRepo = {
   },
 
   async invalidateById(id, reason, query = dbQuery) {
-    await query(
-      `SELECT app.auth_session_invalidate_by_id($1, $2)`,
-      [id, reason ?? null]
-    );
+    await query(`SELECT app.auth_session_invalidate_by_id($1, $2)`, [id, reason ?? null]);
     return { id, invalidation_reason: reason ?? null };
   },
 
-  async invalidateByActor({ actorType, actorId = null, actorEmail = null, reason }, query = dbQuery) {
+  async invalidateByActor(
+    { actorType, actorId = null, actorEmail = null, reason },
+    query = dbQuery,
+  ) {
     const { rows } = await query(
       `SELECT app.auth_session_invalidate_by_actor($1, $2, $3, $4) AS count`,
-      [actorType, actorId, actorEmail, reason ?? null]
+      [actorType, actorId, actorEmail, reason ?? null],
     );
     return Number(rows[0]?.count || 0);
-  }
+  },
 };

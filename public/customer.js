@@ -1,4 +1,12 @@
-import { api, $, toast, mountIosInstallHint, modalAlert, modalConfirm, hydrateShellLinks } from "/lib.js";
+import {
+  api,
+  $,
+  toast,
+  mountIosInstallHint,
+  modalAlert,
+  modalConfirm,
+  hydrateShellLinks,
+} from "/lib.js";
 import { initCustomerPage } from "./customer/index.js";
 
 hydrateShellLinks();

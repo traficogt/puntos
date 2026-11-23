@@ -1,11 +1,11 @@
-import {serviceCompletionRoutes} from './service-completion-routes.js';
-import { supportCaseRoutes } from './support-case-routes.js';
-import {createDemandFundingRoutes} from './demand-funding-routes.js';
-import {dataHealthRoutes} from './data-health-routes.js';
-import {rewardWorkspaceRoutes} from './reward-workspace-routes.js';
-import {merchantCatalogRoutes} from './merchant-catalog-routes.js';
-import {posCheckoutRoutes} from './pos-checkout-routes.js';
-import {redemptionPosRoutes} from "./redemption-pos-routes.js";
+import { serviceCompletionRoutes } from "./service-completion-routes.js";
+import { supportCaseRoutes } from "./support-case-routes.js";
+import { createDemandFundingRoutes } from "./demand-funding-routes.js";
+import { dataHealthRoutes } from "./data-health-routes.js";
+import { rewardWorkspaceRoutes } from "./reward-workspace-routes.js";
+import { merchantCatalogRoutes } from "./merchant-catalog-routes.js";
+import { posCheckoutRoutes } from "./pos-checkout-routes.js";
+import { redemptionPosRoutes } from "./redemption-pos-routes.js";
 import { activationInsightsRoutes } from "./activation-insights-routes.js";
 import { merchantRegionRoutes } from "./merchant-region-routes.js";
 import { customerImportJobRoutes } from "./customer-import-job-routes.js";
@@ -26,7 +26,10 @@ import { adminAcquisitionRoutes } from "./admin/acquisition-routes.js";
 import { acquisitionPublicRoutes } from "./acquisition-public-routes.js";
 import { createMerchantPilotRoutes } from "./merchant-pilot-routes.js";
 import { merchantOperationsRoutes } from "./merchant-operations-routes.js";
-import { createGrowthCampaignRouter, createCustomerGrowthOffersRouter } from "./growth-campaign-routes.js";
+import {
+  createGrowthCampaignRouter,
+  createCustomerGrowthOffersRouter,
+} from "./growth-campaign-routes.js";
 import { createGrowthMessagingRoutes } from "./growth-messaging-routes.js";
 import { adminBrandedQrRoutes } from "./admin/branded-qr-routes.js";
 import { Router } from "express";

@@ -9,7 +9,7 @@ import {
   readLedgerCertificationArtifact,
   readLedgerCertificationArchiveIndex,
   readLedgerCertificationReport,
-  resolveCertificationPeriod
+  resolveCertificationPeriod,
 } from "../../services/ledger-certification-service.js";
 
 export const analyticsCertificationRoutes = Router();
@@ -17,16 +17,22 @@ export const analyticsCertificationRoutes = Router();
 const certificationQuerySchema = z.object({
   from: z.preprocess(
     (v) => (v === "" || v === null ? undefined : v),
-    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
   ),
   to: z.preprocess(
     (v) => (v === "" || v === null ? undefined : v),
-    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
-  )
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+  ),
 });
 
 const certificationArchiveDateSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
 analyticsCertificationRoutes.get(
@@ -40,10 +46,10 @@ analyticsCertificationRoutes.get(
       available_days: archive.available_days.map((day) => ({
         ...day,
         json_url: `/api/admin/analytics/ledger-certification/archive/${encodeURIComponent(day.date)}`,
-        csv_url: `/api/admin/analytics/ledger-certification/archive/${encodeURIComponent(day.date)}.csv`
-      }))
+        csv_url: `/api/admin/analytics/ledger-certification/archive/${encodeURIComponent(day.date)}.csv`,
+      })),
     });
-  })
+  }),
 );
 
 analyticsCertificationRoutes.get(
@@ -54,13 +60,13 @@ analyticsCertificationRoutes.get(
     const artifact = readLedgerCertificationArtifact({
       businessId: req.tenantId,
       date,
-      format: "csv"
+      format: "csv",
     });
     if (!artifact) return res.status(404).json({ error: "not_found" });
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="${artifact.fileName}"`);
     return res.send(artifact.content);
-  })
+  }),
 );
 
 analyticsCertificationRoutes.get(
@@ -71,13 +77,13 @@ analyticsCertificationRoutes.get(
     const artifact = readLedgerCertificationArtifact({
       businessId: req.tenantId,
       date,
-      format: "json"
+      format: "json",
     });
     if (!artifact) return res.status(404).json({ error: "not_found" });
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="${artifact.fileName}"`);
     return res.send(artifact.content);
-  })
+  }),
 );
 
 analyticsCertificationRoutes.get(
@@ -88,7 +94,7 @@ analyticsCertificationRoutes.get(
     const { from, to } = resolveCertificationPeriod(req.validatedQuery);
     const report = await readLedgerCertificationReport(req.tenantId, from, to);
     return res.json(report);
-  })
+  }),
 );
 
 analyticsCertificationRoutes.get(
@@ -100,7 +106,10 @@ analyticsCertificationRoutes.get(
     const report = await readLedgerCertificationReport(req.tenantId, from, to);
     const csv = ledgerCertificationCsv(report);
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="ledger-certification-${report.period.from}_to_${report.period.to}.csv"`);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="ledger-certification-${report.period.from}_to_${report.period.to}.csv"`,
+    );
     return res.send(csv);
-  })
+  }),
 );

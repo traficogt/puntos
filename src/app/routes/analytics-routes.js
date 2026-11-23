@@ -31,7 +31,12 @@ router.use(analyticsOverviewRoutes);
 // Scope analytics gating to analytics/job endpoints only.
 // This router is mounted alongside other routers that also use `/admin/*` paths;
 // using `/admin` here would inadvertently block unrelated admin routes (e.g. gift cards).
-router.use(["/admin/analytics", "/admin/jobs"], requireStaff, tenantContext, requirePlanFeature("analytics"));
+router.use(
+  ["/admin/analytics", "/admin/jobs"],
+  requireStaff,
+  tenantContext,
+  requirePlanFeature("analytics"),
+);
 
 router.use(analyticsJobRoutes);
 router.use(analyticsChurnRoutes);

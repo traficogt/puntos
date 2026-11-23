@@ -1,17 +1,29 @@
-import { z } from 'zod';
-import { dbQuery, getDbTenantId } from '../database.js';
-import { badRequest, notFound } from '../../utils/http-error.js';
-import { businessRegion } from './regional-settings.js';
-import { activityAttributionSql } from './activity-attribution.js';
+import { z } from "zod";
+import { dbQuery, getDbTenantId } from "../database.js";
+import { badRequest, notFound } from "../../utils/http-error.js";
+import { businessRegion } from "./regional-settings.js";
+import { activityAttributionSql } from "./activity-attribution.js";
 
 const uuid = z.guid();
 async function scope(businessId, branchId, now) {
-  if (!uuid.safeParse(businessId).success || getDbTenantId() !== businessId) throw notFound('Negocio no disponible.');
-  if (branchId !== null && !uuid.safeParse(branchId).success) throw badRequest('Sucursal no válida.');
-  if (!(now instanceof Date) || !Number.isFinite(now.getTime())) throw badRequest('Fecha no válida.');
-  const { rows } = await dbQuery('SELECT program_json FROM businesses WHERE id=$1', [businessId]);
-  if (!rows[0]) throw notFound('Negocio no disponible.');
-  if (branchId && !(await dbQuery('SELECT id FROM branches WHERE business_id=$1 AND id=$2', [businessId, branchId])).rowCount) throw notFound('Sucursal no disponible.');
+  if (!uuid.safeParse(businessId).success || getDbTenantId() !== businessId)
+    throw notFound("Negocio no disponible.");
+  if (branchId !== null && !uuid.safeParse(branchId).success)
+    throw badRequest("Sucursal no válida.");
+  if (!(now instanceof Date) || !Number.isFinite(now.getTime()))
+    throw badRequest("Fecha no válida.");
+  const { rows } = await dbQuery("SELECT program_json FROM businesses WHERE id=$1", [businessId]);
+  if (!rows[0]) throw notFound("Negocio no disponible.");
+  if (
+    branchId &&
+    !(
+      await dbQuery("SELECT id FROM branches WHERE business_id=$1 AND id=$2", [
+        businessId,
+        branchId,
+      ])
+    ).rowCount
+  )
+    throw notFound("Sucursal no disponible.");
   return businessRegion(rows[0]);
 }
 
@@ -63,14 +75,43 @@ SELECT
 
 export async function getRewardExposure({ businessId, branchId = null, now = new Date() }) {
   const region = await scope(businessId, branchId, now);
-  const { rows } = await dbQuery(exposureSql, [businessId, branchId, now.toISOString(), region.timezone]);
-  const row = rows[0], cost = row.cost_per_point_q === null ? null : Number(row.cost_per_point_q);
-  return { ok: true, region, currency: region.currency, timezone: region.timezone, generated_at: now.toISOString(), branch_id: branchId,
-    issued: row.issued, protected_choices: row.protected_choices,
-    points: { ...row.points, scope: 'business', cost_per_point_q: cost,
-      scenario_cost_q: cost === null ? null : Math.round(row.points.outstanding * cost * 100) / 100 },
-    completed: { ...row.completed, period: { start: new Date(row.history_start).toISOString(), end: now.toISOString(), days: 30 } },
-    assumptions: { issued_cost: 'current_merchant_unit_cost', approved_cost: 'recorded_at_issue', completed_cost: 'recorded_at_completion', add_categories: false }
+  const { rows } = await dbQuery(exposureSql, [
+    businessId,
+    branchId,
+    now.toISOString(),
+    region.timezone,
+  ]);
+  const row = rows[0],
+    cost = row.cost_per_point_q === null ? null : Number(row.cost_per_point_q);
+  return {
+    ok: true,
+    region,
+    currency: region.currency,
+    timezone: region.timezone,
+    generated_at: now.toISOString(),
+    branch_id: branchId,
+    issued: row.issued,
+    protected_choices: row.protected_choices,
+    points: {
+      ...row.points,
+      scope: "business",
+      cost_per_point_q: cost,
+      scenario_cost_q: cost === null ? null : Math.round(row.points.outstanding * cost * 100) / 100,
+    },
+    completed: {
+      ...row.completed,
+      period: {
+        start: new Date(row.history_start).toISOString(),
+        end: now.toISOString(),
+        days: 30,
+      },
+    },
+    assumptions: {
+      issued_cost: "current_merchant_unit_cost",
+      approved_cost: "recorded_at_issue",
+      completed_cost: "recorded_at_completion",
+      add_categories: false,
+    },
   };
 }
 
@@ -121,12 +162,27 @@ SELECT (SELECT start_at FROM bounds) AS start_at,
 
 export async function getStaffActivity({ businessId, branchId = null, now = new Date() }) {
   const region = await scope(businessId, branchId, now);
-  const { rows } = await dbQuery(activitySql, [businessId, branchId, now.toISOString(), region.timezone]);
+  const { rows } = await dbQuery(activitySql, [
+    businessId,
+    branchId,
+    now.toISOString(),
+    region.timezone,
+  ]);
   const row = rows[0];
-  return { ok: true, region, currency: region.currency, timezone: region.timezone, generated_at: now.toISOString(), branch_id: branchId,
+  return {
+    ok: true,
+    region,
+    currency: region.currency,
+    timezone: region.timezone,
+    generated_at: now.toISOString(),
+    branch_id: branchId,
     period: { start: new Date(row.start_at).toISOString(), end: now.toISOString(), partial: true },
-    totals: row.totals, staff: row.staff, staff_total: row.staff_total, staff_limit: 20, sources: row.sources,
-    adjustments_scope: branchId ? 'excluded_no_recorded_branch' : 'business',
-    interpretation: 'recorded_activity_not_performance_or_fraud'
+    totals: row.totals,
+    staff: row.staff,
+    staff_total: row.staff_total,
+    staff_limit: 20,
+    sources: row.sources,
+    adjustments_scope: branchId ? "excluded_no_recorded_branch" : "business",
+    interpretation: "recorded_activity_not_performance_or_fraud",
   };
 }

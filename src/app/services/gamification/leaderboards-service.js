@@ -11,7 +11,9 @@ export async function getStreakLeaderboard(businessId, limit = 10) {
 }
 
 export async function getCustomerPosition(customerId, leaderboardType = "points") {
-  const { rows: customerData } = await dbQuery(`SELECT business_id FROM customers WHERE id = $1`, [customerId]);
+  const { rows: customerData } = await dbQuery(`SELECT business_id FROM customers WHERE id = $1`, [
+    customerId,
+  ]);
   if (!customerData[0]) throw notFound("Customer not found");
 
   const { business_id: businessId } = customerData[0];
@@ -28,7 +30,7 @@ export async function getCustomerPosition(customerId, leaderboardType = "points"
          WHERE c.business_id = $1 AND c.deleted_at IS NULL
        )
        SELECT * FROM ranked WHERE id = $2`,
-      [businessId, customerId]
+      [businessId, customerId],
     );
     return rows[0];
   }
@@ -46,7 +48,7 @@ export async function getCustomerPosition(customerId, leaderboardType = "points"
          WHERE c.business_id = $1 AND c.deleted_at IS NULL
        )
        SELECT * FROM ranked WHERE id = $2`,
-      [businessId, customerId]
+      [businessId, customerId],
     );
     return rows[0];
   }

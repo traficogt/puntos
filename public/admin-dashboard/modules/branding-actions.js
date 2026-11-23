@@ -1,8 +1,4 @@
-import {
-  buildBrandingPayload,
-  fillBrandingForm,
-  updateBrandingSummary
-} from "./branding-form.js";
+import { buildBrandingPayload, fillBrandingForm, updateBrandingSummary } from "./branding-form.js";
 
 /** @typedef {import("../types.js").AdminDashboardApp} AdminDashboardApp */
 
@@ -26,7 +22,7 @@ export function createBrandingActions(app) {
     try {
       const out = await api("/api/admin/branding", {
         method: "PUT",
-        body: JSON.stringify(buildBrandingPayload($))
+        body: JSON.stringify(buildBrandingPayload($)),
       });
       fillBrandingForm($, out.customer_branding || {});
       updateBrandingSummary($, app);
@@ -38,6 +34,6 @@ export function createBrandingActions(app) {
 
   return {
     loadBranding,
-    saveBranding
+    saveBranding,
   };
 }

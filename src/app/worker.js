@@ -1,6 +1,6 @@
-import {runSecondVisitAutomationsOnce} from './services/second-visit-service.js';
-import { purgeExpiredSupportAttachments } from './services/support-case-maintenance.js';
-import {processWeeklyOwnerBriefsOnce} from './services/weekly-owner-brief-service.js';
+import { runSecondVisitAutomationsOnce } from "./services/second-visit-service.js";
+import { purgeExpiredSupportAttachments } from "./services/support-case-maintenance.js";
+import { processWeeklyOwnerBriefsOnce } from "./services/weekly-owner-brief-service.js";
 import express from "express";
 import { processNativeWalletUpdates } from "./services/native-wallet/runtime.js";
 import cron from "node-cron";
@@ -15,7 +15,10 @@ import { processPendingJobsOnce } from "./services/job-service.js";
 import { runLifecycleOnce, createMarketingTick } from "./services/lifecycle-service.js";
 import { pruneExpiredMfaCounters } from "./services/account-security-service.js";
 import { runLedgerReconciliation } from "./services/ledger-reconciliation-service.js";
-import { resolveCertificationPeriod, writeLedgerCertificationArtifacts } from "./services/ledger-certification-service.js";
+import {
+  resolveCertificationPeriod,
+  writeLedgerCertificationArtifacts,
+} from "./services/ledger-certification-service.js";
 import { BusinessRepo } from "./repositories/business-repository.js";
 import { WebhookRepo } from "./repositories/webhook-repository.js";
 import observabilityRoutes from "./routes/observability.js";
@@ -35,9 +38,9 @@ let server;
 async function purgeSupportImages() {
   try {
     const { deleted } = await purgeExpiredSupportAttachments();
-    logger.info({ deleted }, 'Worker: expired support screenshots removed');
+    logger.info({ deleted }, "Worker: expired support screenshots removed");
   } catch {
-    logger.warn('Worker: support screenshot maintenance did not complete');
+    logger.warn("Worker: support screenshot maintenance did not complete");
   }
 }
 
@@ -54,11 +57,17 @@ async function startWorkers() {
       }
       const rotatedWebhookSecrets = await WebhookRepo.rotateSecretsToCurrentKey();
       if (rotatedWebhookSecrets > 0) {
-        logger.info({ rotatedWebhookSecrets }, "Worker: rotated webhook endpoint secrets to current encryption key");
+        logger.info(
+          { rotatedWebhookSecrets },
+          "Worker: rotated webhook endpoint secrets to current encryption key",
+        );
       }
       const rotatedProgramSecrets = await BusinessRepo.rotateExternalAwardApiKeysToCurrent();
       if (rotatedProgramSecrets > 0) {
-        logger.info({ rotatedProgramSecrets }, "Worker: rotated external award API keys to current encryption key");
+        logger.info(
+          { rotatedProgramSecrets },
+          "Worker: rotated external award API keys to current encryption key",
+        );
       }
     });
   } catch (e) {
@@ -70,13 +79,16 @@ async function startWorkers() {
 
   logger.info("Worker: starting webhook delivery loop (60s)");
   webhookInterval = setInterval(() => {
-    deliverPendingOnce().catch((e) => logger.warn({ err: e?.message }, "Worker: deliverPendingOnce failed"));
+    deliverPendingOnce().catch((e) =>
+      logger.warn({ err: e?.message }, "Worker: deliverPendingOnce failed"),
+    );
   }, 60_000);
 
   logger.info("Worker: starting background job loop");
   jobInterval = setInterval(() => {
-    processPendingJobsOnce({ limit: config.JOB_WORKER_BATCH_SIZE })
-      .catch((e) => logger.warn({ err: e?.message }, "Worker: processPendingJobsOnce failed"));
+    processPendingJobsOnce({ limit: config.JOB_WORKER_BATCH_SIZE }).catch((e) =>
+      logger.warn({ err: e?.message }, "Worker: processPendingJobsOnce failed"),
+    );
   }, config.JOB_WORKER_INTERVAL_MS);
 
   campaignMessageInterval = setInterval(marketingTick, 60_000);
@@ -84,11 +96,19 @@ async function startWorkers() {
     if (guidedGrowthRunning) return;
     guidedGrowthRunning = true;
     try {
-      try { await runSecondVisitAutomationsOnce(); }
-      catch { logger.warn('Worker: second-visit preparation did not complete'); }
-      try { await processWeeklyOwnerBriefsOnce(); }
-      catch { logger.warn('Worker: owner brief processing did not complete'); }
-    } finally { guidedGrowthRunning = false; }
+      try {
+        await runSecondVisitAutomationsOnce();
+      } catch {
+        logger.warn("Worker: second-visit preparation did not complete");
+      }
+      try {
+        await processWeeklyOwnerBriefsOnce();
+      } catch {
+        logger.warn("Worker: owner brief processing did not complete");
+      }
+    } finally {
+      guidedGrowthRunning = false;
+    }
   }, 60_000);
 
   logger.info("Worker: scheduling daily lifecycle maintenance");
@@ -96,60 +116,82 @@ async function startWorkers() {
     syncConfiguredPosOnce().catch(() => logger.warn("Worker: POS polling did not complete"));
   }, 300_000);
   const hour = String(config.CHURN_SEND_HOUR_LOCAL).padStart(2, "0");
-  cronTask = cron.schedule(`0 ${hour} * * *`, async () => {
-    await purgeSupportImages();
-    try { await runLifecycleOnce(); }
-    catch { logger.warn("Worker: daily lifecycle maintenance did not complete"); }
-    try {
-      const pruned = await withDbClientContext(
-        { platformAdmin: true, tenantId: null },
-        async () => pruneExpiredMfaCounters()
-      );
-      logger.info({ pruned }, "Worker: pruned expired MFA single-use counters");
-    } catch { logger.warn("Worker: MFA counter prune did not complete"); }
-    try {
-      const ids = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => BusinessRepo.listAllIds());
-      const reconciliation = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => (
-        runLedgerReconciliation({
-          limit: config.LEDGER_RECONCILE_LIMIT,
-          repair: config.LEDGER_RECONCILE_REPAIR,
-          persist: true
-        })
-      ));
-      logger.info({
-        checkedCustomers: reconciliation.checkedCustomers,
-        mismatchedCustomers: reconciliation.mismatchedCustomers,
-        repairedCustomers: reconciliation.repairedCustomers,
-        repairMode: config.LEDGER_RECONCILE_REPAIR
-      }, "Worker: ledger reconciliation completed");
-      if (reconciliation.mismatchedCustomers > 0 && !config.LEDGER_RECONCILE_REPAIR) {
-        logger.warn({
-          mismatchedCustomers: reconciliation.mismatchedCustomers
-        }, "Worker: ledger reconciliation detected drift requiring manual review");
+  cronTask = cron.schedule(
+    `0 ${hour} * * *`,
+    async () => {
+      await purgeSupportImages();
+      try {
+        await runLifecycleOnce();
+      } catch {
+        logger.warn("Worker: daily lifecycle maintenance did not complete");
       }
-      const period = resolveCertificationPeriod();
-      const certificationArtifacts = [];
-      for (const bid of ids) {
-        const artifact = await writeLedgerCertificationArtifacts({
-          businessId: bid,
-          from: period.from,
-          to: period.to
-        });
-        certificationArtifacts.push({
-          businessId: artifact.businessId,
-          certificationStatus: artifact.certificationStatus,
-          jsonPath: artifact.jsonPath,
-          csvPath: artifact.csvPath
-        });
+      try {
+        const pruned = await withDbClientContext(
+          { platformAdmin: true, tenantId: null },
+          async () => pruneExpiredMfaCounters(),
+        );
+        logger.info({ pruned }, "Worker: pruned expired MFA single-use counters");
+      } catch {
+        logger.warn("Worker: MFA counter prune did not complete");
       }
-      logger.info({
-        period,
-        businesses: certificationArtifacts.length
-      }, "Worker: wrote daily ledger certification artifacts");
-    } catch (e) {
-      logger.warn({ err: e?.message }, "Worker: daily ledger maintenance failed");
-    }
-  }, { timezone: config.CRON_TZ });
+      try {
+        const ids = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () =>
+          BusinessRepo.listAllIds(),
+        );
+        const reconciliation = await withDbClientContext(
+          { platformAdmin: true, tenantId: null },
+          async () =>
+            runLedgerReconciliation({
+              limit: config.LEDGER_RECONCILE_LIMIT,
+              repair: config.LEDGER_RECONCILE_REPAIR,
+              persist: true,
+            }),
+        );
+        logger.info(
+          {
+            checkedCustomers: reconciliation.checkedCustomers,
+            mismatchedCustomers: reconciliation.mismatchedCustomers,
+            repairedCustomers: reconciliation.repairedCustomers,
+            repairMode: config.LEDGER_RECONCILE_REPAIR,
+          },
+          "Worker: ledger reconciliation completed",
+        );
+        if (reconciliation.mismatchedCustomers > 0 && !config.LEDGER_RECONCILE_REPAIR) {
+          logger.warn(
+            {
+              mismatchedCustomers: reconciliation.mismatchedCustomers,
+            },
+            "Worker: ledger reconciliation detected drift requiring manual review",
+          );
+        }
+        const period = resolveCertificationPeriod();
+        const certificationArtifacts = [];
+        for (const bid of ids) {
+          const artifact = await writeLedgerCertificationArtifacts({
+            businessId: bid,
+            from: period.from,
+            to: period.to,
+          });
+          certificationArtifacts.push({
+            businessId: artifact.businessId,
+            certificationStatus: artifact.certificationStatus,
+            jsonPath: artifact.jsonPath,
+            csvPath: artifact.csvPath,
+          });
+        }
+        logger.info(
+          {
+            period,
+            businesses: certificationArtifacts.length,
+          },
+          "Worker: wrote daily ledger certification artifacts",
+        );
+      } catch (e) {
+        logger.warn({ err: e?.message }, "Worker: daily ledger maintenance failed");
+      }
+    },
+    { timezone: config.CRON_TZ },
+  );
 
   logger.info("Worker started; awaiting jobs...");
 

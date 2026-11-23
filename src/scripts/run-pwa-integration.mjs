@@ -12,17 +12,17 @@ try {
         path.join(process.cwd(), "node_modules", "playwright", "cli.js"),
         "test",
         "tests/e2e/pwa.spec.js",
-        "--project=chromium"
+        "--project=chromium",
       ],
       {
         cwd: process.cwd(),
         env: {
           ...process.env,
           PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH || "0",
-          PWA_BASE_URL: server.baseUrl
+          PWA_BASE_URL: server.baseUrl,
         },
-        stdio: "inherit"
-      }
+        stdio: "inherit",
+      },
     );
 
     child.on("error", reject);

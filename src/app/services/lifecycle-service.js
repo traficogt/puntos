@@ -9,25 +9,30 @@ import { sendMessage } from "./messaging-service.js";
 import { TierService } from "./tier-service.js";
 import { expirePointsForBusiness } from "./loyalty-ops-service.js";
 
-function id() { return crypto.randomUUID(); }
+function id() {
+  return crypto.randomUUID();
+}
 
-async function recordLifecycleEvent(client, { businessId, customerId, eventType, eventDate, meta = {} }) {
+async function recordLifecycleEvent(
+  client,
+  { businessId, customerId, eventType, eventDate, meta = {} },
+) {
   const out = await client.query(
     `INSERT INTO lifecycle_events (id, business_id, customer_id, event_type, event_date, meta)
      VALUES ($1,$2,$3,$4,$5,$6)
      ON CONFLICT (business_id, customer_id, event_type, event_date) DO NOTHING
      RETURNING id`,
-    [id(), businessId, customerId, eventType, eventDate, meta]
+    [id(), businessId, customerId, eventType, eventDate, meta],
   );
   return out.rowCount === 1;
 }
 
 // Legacy job entry points now use the same durable, budgeted rules as the owner screen.
 export async function processBirthdayBusiness(businessId) {
-  return runAutomationRule({businessId,rule:'birthday'});
+  return runAutomationRule({ businessId, rule: "birthday" });
 }
 export async function processWinbackBusiness(businessId) {
-  return runAutomationRule({businessId,rule:'winback'});
+  return runAutomationRule({ businessId, rule: "winback" });
 }
 
 async function processSuspiciousDigestBusiness(business, cfg) {
@@ -52,7 +57,7 @@ async function processSuspiciousDigestBusiness(business, cfg) {
        AND t.created_at >= now() - interval '1 day'
      ORDER BY t.created_at DESC
      LIMIT 20`,
-    [business.id]
+    [business.id],
   );
 
   if (rows.length < minCount) return { sent: false, count: rows.length };
@@ -60,7 +65,7 @@ async function processSuspiciousDigestBusiness(business, cfg) {
 
   const { rows: anyCustomer } = await dbQuery(
     `SELECT id FROM customers WHERE business_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1`,
-    [business.id]
+    [business.id],
   );
   if (!anyCustomer[0]) return { sent: false, count: rows.length, reason: "no_customer_for_dedupe" };
 
@@ -70,7 +75,7 @@ async function processSuspiciousDigestBusiness(business, cfg) {
       customerId: anyCustomer[0].id,
       eventType: "suspicious_digest",
       eventDate: today,
-      meta: { count: rows.length }
+      meta: { count: rows.length },
     });
   });
   if (!dedupe) return { sent: false, count: rows.length, reason: "already_sent_today" };
@@ -93,8 +98,8 @@ async function processSuspiciousDigestBusiness(business, cfg) {
       title: "Transacciones sospechosas detectadas",
       intro: `Se detectaron ${rows.length} transacciones sospechosas en las últimas 24 horas.`,
       lines,
-      tone: "alert"
-    }
+      tone: "alert",
+    },
   }).catch(() => null);
 
   return { sent: Boolean(result?.ok && result?.accepted), count: rows.length };
@@ -103,13 +108,13 @@ async function processSuspiciousDigestBusiness(business, cfg) {
 const maintenanceDefaults = {
   context: withDbClientContext,
   listBusinessIds: () => BusinessRepo.listAllIds(),
-  getBusiness: businessId => BusinessRepo.getById(businessId),
+  getBusiness: (businessId) => BusinessRepo.getById(businessId),
   birthday: processBirthdayBusiness,
   winback: processWinbackBusiness,
   digest: processSuspiciousDigestBusiness,
   retention: (businessId, policy) => TierService.runTierRetentionSweep(businessId, policy),
   expiration: expirePointsForBusiness,
-  log: logger
+  log: logger,
 };
 
 export async function runLifecycleOnce({ businessId = null } = {}, injected = {}) {
@@ -119,12 +124,13 @@ export async function runLifecycleOnce({ businessId = null } = {}, injected = {}
     : await deps.context({ platformAdmin: true, tenantId: null }, deps.listBusinessIds);
   const out = [];
   async function step(stage, fn) {
-    try { return await fn(); }
-    catch {
+    try {
+      return await fn();
+    } catch {
       // Provider/SQL exception text may contain customer data. Keep logs and
       // persisted job results bounded to the maintenance stage that failed.
-      deps.log.warn({ stage }, 'Lifecycle maintenance step did not complete');
-      return { error: 'LIFECYCLE_STEP_FAILED' };
+      deps.log.warn({ stage }, "Lifecycle maintenance step did not complete");
+      return { error: "LIFECYCLE_STEP_FAILED" };
     }
   }
   for (const bid of businessIds) {
@@ -136,17 +142,22 @@ export async function runLifecycleOnce({ businessId = null } = {}, injected = {}
         const tierPolicy = business.program_json?.tier_policy ?? {};
         // Each incentive checks its own saved schedule. Daily maintenance must
         // also run when the owner chooses another incentive preparation hour.
-        const birthday = await step('birthday', () => deps.birthday(bid));
-        const winback = await step('winback', () => deps.winback(bid));
-        const suspiciousDigest = await step('suspicious_digest', () => deps.digest(business, lifecycleCfg));
-        const tierRetention = await step('tier_retention', () => deps.retention(bid, tierPolicy));
-        const expiration = await step('points_expiration', () => deps.expiration(bid));
+        const birthday = await step("birthday", () => deps.birthday(bid));
+        const winback = await step("winback", () => deps.winback(bid));
+        const suspiciousDigest = await step("suspicious_digest", () =>
+          deps.digest(business, lifecycleCfg),
+        );
+        const tierRetention = await step("tier_retention", () => deps.retention(bid, tierPolicy));
+        const expiration = await step("points_expiration", () => deps.expiration(bid));
         return { businessId: bid, birthday, winback, suspiciousDigest, tierRetention, expiration };
       });
       if (entry) out.push(entry);
     } catch {
-      deps.log.warn({ stage: 'business_context' }, 'Lifecycle business maintenance did not complete');
-      out.push({ businessId: bid, error: 'LIFECYCLE_BUSINESS_FAILED' });
+      deps.log.warn(
+        { stage: "business_context" },
+        "Lifecycle business maintenance did not complete",
+      );
+      out.push({ businessId: bid, error: "LIFECYCLE_BUSINESS_FAILED" });
     }
   }
   return out;
@@ -163,22 +174,27 @@ export function createMarketingTick({
   generate = runGuidedAutomationsOnce,
   dispatchAutomations = processAutomationMessagesOnce,
   dispatchCampaigns = processCampaignMessagesOnce,
-  log = logger
+  log = logger,
 } = {}) {
   let running = false;
   return async function marketingTick() {
     if (running) return { skipped: true };
     running = true;
     try {
-      for (const {stage, run} of [
-        {stage: 'generation', run: generate},
-        {stage: 'automation_dispatch', run: dispatchAutomations},
-        {stage: 'campaign_dispatch', run: dispatchCampaigns}
+      for (const { stage, run } of [
+        { stage: "generation", run: generate },
+        { stage: "automation_dispatch", run: dispatchAutomations },
+        { stage: "campaign_dispatch", run: dispatchCampaigns },
       ]) {
-        try { await run(); }
-        catch { log.warn({ stage }, 'Marketing worker stage did not complete'); }
+        try {
+          await run();
+        } catch {
+          log.warn({ stage }, "Marketing worker stage did not complete");
+        }
       }
       return { skipped: false };
-    } finally { running = false; }
+    } finally {
+      running = false;
+    }
   };
 }

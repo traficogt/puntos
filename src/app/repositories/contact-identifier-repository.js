@@ -26,8 +26,8 @@ export const ContactIdentifierRepo = {
         identifierValue,
         input.label ?? null,
         input.active ?? true,
-        input.meta ?? {}
-      ]
+        input.meta ?? {},
+      ],
     );
     return rows[0];
   },
@@ -42,7 +42,7 @@ export const ContactIdentifierRepo = {
          AND active = true
        ORDER BY created_at DESC, id DESC
        LIMIT 1`,
-      [businessId, identifierType, normalizeIdentifierValue(identifierValue)]
+      [businessId, identifierType, normalizeIdentifierValue(identifierValue)],
     );
     return rows[0] ?? null;
   },
@@ -56,7 +56,7 @@ export const ContactIdentifierRepo = {
          AND identifier_value = $3
        ORDER BY created_at DESC, id DESC
        LIMIT 1`,
-      [businessId, identifierType, normalizeIdentifierValue(identifierValue)]
+      [businessId, identifierType, normalizeIdentifierValue(identifierValue)],
     );
     return rows[0] ?? null;
   },
@@ -68,7 +68,7 @@ export const ContactIdentifierRepo = {
        WHERE business_id = $1
          AND customer_id = $2
        ORDER BY created_at DESC`,
-      [businessId, customerId]
+      [businessId, customerId],
     );
     return rows;
   },
@@ -89,9 +89,8 @@ export const ContactIdentifierRepo = {
            updated_at = now()
        WHERE id IN (SELECT id FROM target)
        RETURNING *`,
-      [businessId, identifierType, normalizeIdentifierValue(identifierValue)]
+      [businessId, identifierType, normalizeIdentifierValue(identifierValue)],
     );
     return rows[0] ?? null;
   },
-
 };

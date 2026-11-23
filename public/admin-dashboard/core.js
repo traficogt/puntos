@@ -1,7 +1,7 @@
 import {
   currentActiveTabName,
   restoreDashboardViewFromUrl as restoreDashboardView,
-  syncDashboardViewToUrl as syncDashboardView
+  syncDashboardViewToUrl as syncDashboardView,
 } from "./view-state.js";
 import { createBranchFilter } from "./branch-filter.js";
 import { createTabController } from "./tab-controller.js";
@@ -27,70 +27,82 @@ const PLAN_LABELS = {
   lifecycle_automation: "NEGOCIO",
   rbac_matrix: "EMPRESA",
   gamification: "EMPRESA",
-  external_awards: "EMPRESA"
+  external_awards: "EMPRESA",
 };
 
 const TAB_PRESENTATION = {
   branding: {
     title: "Branding",
-    description: "Define cómo se presenta el programa al cliente sin tocar la estructura operativa del producto.",
-    plan: "NEGOCIO"
+    description:
+      "Define cómo se presenta el programa al cliente sin tocar la estructura operativa del producto.",
+    plan: "NEGOCIO",
   },
   rewards: {
     title: "Recompensas",
-    description: "Diseña el catálogo, controla el costo de puntos y valida que cada premio esté listo para operar.",
-    plan: "Base"
+    description:
+      "Diseña el catálogo, controla el costo de puntos y valida que cada premio esté listo para operar.",
+    plan: "Base",
   },
   tiers: {
     title: "Niveles",
-    description: "Configura el progreso del cliente, los umbrales de valor y la lógica que sostiene cada nivel.",
-    plan: "NEGOCIO"
+    description:
+      "Configura el progreso del cliente, los umbrales de valor y la lógica que sostiene cada nivel.",
+    plan: "NEGOCIO",
   },
   branches: {
     title: "Sucursales",
-    description: "Organiza ubicaciones, alcances y comparativos sin perder control sobre el negocio completo.",
-    plan: "NEGOCIO"
+    description:
+      "Organiza ubicaciones, alcances y comparativos sin perder control sobre el negocio completo.",
+    plan: "NEGOCIO",
   },
   staff: {
     title: "Personal",
-    description: "Gestiona quién opera el programa y mantén permisos claros entre caja, supervisión y control.",
-    plan: "Base"
+    description:
+      "Gestiona quién opera el programa y mantén permisos claros entre caja, supervisión y control.",
+    plan: "Base",
   },
   giftcards: {
     title: "Gift Cards",
-    description: "Administra saldo, emisión y conciliación de tarjetas cuando el programa necesita una capa extra de valor.",
-    plan: "NEGOCIO"
+    description:
+      "Administra saldo, emisión y conciliación de tarjetas cuando el programa necesita una capa extra de valor.",
+    plan: "NEGOCIO",
   },
   achievements: {
     title: "Logros",
-    description: "Convierte comportamiento frecuente en objetivos visibles que empujen recurrencia sin ruido promocional.",
-    plan: "EMPRESA"
+    description:
+      "Convierte comportamiento frecuente en objetivos visibles que empujen recurrencia sin ruido promocional.",
+    plan: "EMPRESA",
   },
   challenges: {
     title: "Retos",
-    description: "Crea campañas con objetivos claros para mover visitas, frecuencia y recompensas durante ventanas concretas.",
-    plan: "EMPRESA"
+    description:
+      "Crea campañas con objetivos claros para mover visitas, frecuencia y recompensas durante ventanas concretas.",
+    plan: "EMPRESA",
   },
   referrals: {
     title: "Referidos",
-    description: "Activa crecimiento orgánico con incentivos medidos y trazables para invitar nuevos clientes.",
-    plan: "NEGOCIO"
+    description:
+      "Activa crecimiento orgánico con incentivos medidos y trazables para invitar nuevos clientes.",
+    plan: "NEGOCIO",
   },
   operations: {
     title: "Operación",
-    description: "Ajusta reglas, alertas y salvaguardas que sostienen el programa cuando ya está en marcha.",
-    plan: "Base"
+    description:
+      "Ajusta reglas, alertas y salvaguardas que sostienen el programa cuando ya está en marcha.",
+    plan: "Base",
   },
   reportes: {
     title: "Reportes",
-    description: "Lee la participación básica de tu programa: clientes activos, quién vuelve y premios usados.",
-    plan: "Base"
+    description:
+      "Lee la participación básica de tu programa: clientes activos, quién vuelve y premios usados.",
+    plan: "Base",
   },
   analytics: {
     title: "Analítica",
-    description: "Lee ritmo, riesgo y retorno desde una vista de decisión, no como una pared de tarjetas compitiendo entre sí.",
-    plan: "NEGOCIO"
-  }
+    description:
+      "Lee ritmo, riesgo y retorno desde una vista de decisión, no como una pared de tarjetas compitiendo entre sí.",
+    plan: "NEGOCIO",
+  },
 };
 
 /**
@@ -102,11 +114,13 @@ export function requiredPlanLabel(feature) {
 }
 
 function tabPresentation(tabName) {
-  return TAB_PRESENTATION[tabName] || {
-    title: "Panel",
-    description: "Administra el programa desde una vista centralizada.",
-    plan: "Base"
-  };
+  return (
+    TAB_PRESENTATION[tabName] || {
+      title: "Panel",
+      description: "Administra el programa desde una vista centralizada.",
+      plan: "Base",
+    }
+  );
 }
 
 /**
@@ -122,7 +136,7 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     branchCache: [],
     initialProgramLoad: Promise.resolve(),
     persistedBranchId: "",
-    persistedActiveTab: ""
+    persistedActiveTab: "",
   };
 
   /** @type {Map<string, TabDefinition>} */
@@ -134,15 +148,21 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     /** @type {Set<BranchChangedHook>} */
     branchFilterChanged: new Set(),
     /** @type {Set<BranchesUpdatedHook>} */
-    branchesUpdated: new Set()
+    branchesUpdated: new Set(),
   };
 
   /** @param {DashboardHook} fn */
-  function onAfterPlanReady(fn) { hooks.afterPlanReady.add(fn); }
+  function onAfterPlanReady(fn) {
+    hooks.afterPlanReady.add(fn);
+  }
   /** @param {BranchChangedHook} fn */
-  function onBranchFilterChanged(fn) { hooks.branchFilterChanged.add(fn); }
+  function onBranchFilterChanged(fn) {
+    hooks.branchFilterChanged.add(fn);
+  }
   /** @param {BranchesUpdatedHook} fn */
-  function onBranchesUpdated(fn) { hooks.branchesUpdated.add(fn); }
+  function onBranchesUpdated(fn) {
+    hooks.branchesUpdated.add(fn);
+  }
 
   /**
    * @param {string} tabName
@@ -168,7 +188,7 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     syncDashboardViewToUrl,
     notifyBranchFilterChanged(branchId) {
       hooks.branchFilterChanged.forEach((fn) => fn(branchId));
-    }
+    },
   });
 
   const tabController = createTabController({
@@ -178,7 +198,7 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     syncDashboardViewToUrl,
     onTabActivated(tabName) {
       updateDashboardChrome(tabName);
-    }
+    },
   });
 
   function safeColor(v, fallback = "#ddd") {
@@ -194,12 +214,7 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     container.appendChild(p);
   }
 
-  const {
-    activateTab,
-    applyFeatureGates,
-    loadTabData,
-    initTabClicks
-  } = tabController;
+  const { activateTab, applyFeatureGates, loadTabData, initTabClicks } = tabController;
 
   function selectedScopeLabel() {
     return branchFilter.selectedBranchLabel() || "Todo el negocio";
@@ -221,14 +236,18 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     const businessName = state.currentStaff.businessName;
     if (typeof businessName === "string" && businessName.trim()) return businessName;
     const legacyBusinessName = state.currentStaff.business_name;
-    if (typeof legacyBusinessName === "string" && legacyBusinessName.trim()) return legacyBusinessName;
+    if (typeof legacyBusinessName === "string" && legacyBusinessName.trim())
+      return legacyBusinessName;
     return "Panel de control";
   }
 
-  function updateDashboardChrome(tabName = state.persistedActiveTab || currentActiveTabName() || "rewards") {
+  function updateDashboardChrome(
+    tabName = state.persistedActiveTab || currentActiveTabName() || "rewards",
+  ) {
     const meta = tabPresentation(tabName);
     const businessName = $("#businessName");
-    if (businessName) businessName.textContent = state.managerMode ? "Panel Gerente" : businessLabel();
+    if (businessName)
+      businessName.textContent = state.managerMode ? "Panel Gerente" : businessLabel();
 
     const overviewPlan = $("#adminOverviewPlan");
     if (overviewPlan) overviewPlan.textContent = planLabel();
@@ -256,7 +275,9 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
   }
 
   function focusTab(tabName) {
-    const tabEl = /** @type {HTMLElement | null} */ (document.querySelector(`.tab[data-tab="${tabName}"]`));
+    const tabEl = /** @type {HTMLElement | null} */ (
+      document.querySelector(`.tab[data-tab="${tabName}"]`)
+    );
     if (!tabEl || tabEl.hidden) return;
     activateTab(tabName);
     loadTabData(tabName).catch(() => {});
@@ -284,7 +305,7 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     const restored = restoreDashboardView({
       $,
       persistedBranchId: state.persistedBranchId,
-      activateTab
+      activateTab,
     });
     state.persistedBranchId = restored.branchId || restored.fallbackBranchId || "";
     state.persistedActiveTab = restored.activeTab || currentActiveTabName();
@@ -309,7 +330,9 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     for (const fn of hooks.afterPlanReady) {
       // Keep startup resilient: a non-critical widget shouldn't break the whole dashboard.
       // The underlying API calls are still validated server-side.
-      try { await fn(); } catch {}
+      try {
+        await fn();
+      } catch {}
     }
 
     const activeTab = /** @type {HTMLElement | null} */ (document.querySelector(".tab.active"));
@@ -358,6 +381,6 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     applyFeatureGates,
     setBranches,
     updateDashboardChrome,
-    start
+    start,
   };
 }

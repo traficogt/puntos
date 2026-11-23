@@ -42,12 +42,12 @@ async function main() {
       const key = entry.slice(0, splitAt);
       const rawValue = entry.slice(splitAt + 1);
       return [key, parseValue(rawValue)];
-    })
+    }),
   );
 
   const report = {
     generated_at: new Date().toISOString(),
-    ...fields
+    ...fields,
   };
 
   // Operator tools intentionally write to the report path requested on the CLI.

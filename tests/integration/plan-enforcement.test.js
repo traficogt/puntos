@@ -6,9 +6,8 @@ const runIntegration = process.env.RUN_INTEGRATION === "true";
 const integrationDescribe = runIntegration ? describe : describe.skip;
 
 function applySetCookieJar(jar, response) {
-  const values = typeof response.headers.getSetCookie === "function"
-    ? response.headers.getSetCookie()
-    : [];
+  const values =
+    typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
   for (const raw of values) {
     const first = String(raw || "").split(";")[0];
     const eq = first.indexOf("=");
@@ -18,7 +17,9 @@ function applySetCookieJar(jar, response) {
 }
 
 function cookieHeader(jar) {
-  return Array.from(jar.entries()).map(([key, value]) => `${key}=${value}`).join("; ");
+  return Array.from(jar.entries())
+    .map(([key, value]) => `${key}=${value}`)
+    .join("; ");
 }
 
 function csrfTokenFromJar(jar) {
@@ -28,7 +29,9 @@ function csrfTokenFromJar(jar) {
 integrationDescribe("Plan enforcement regression", () => {
   const baseUrl = process.env.TEST_API_URL || "http://localhost:3001";
   const browserOrigin = new URL(baseUrl).origin;
-  const forwardedFor = process.env.TEST_CLIENT_IP || `198.19.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
+  const forwardedFor =
+    process.env.TEST_CLIENT_IP ||
+    `198.19.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
   const superEmail = process.env.SUPER_ADMIN_EMAIL;
   const superPassword = process.env.SUPER_ADMIN_PASSWORD;
 
@@ -36,7 +39,7 @@ integrationDescribe("Plan enforcement regression", () => {
     const headers = {
       "Content-Type": "application/json",
       "X-Forwarded-For": forwardedFor,
-      ...(options.headers || {})
+      ...(options.headers || {}),
     };
     const cookie = cookieHeader(jar);
     if (cookie) headers.Cookie = cookie;
@@ -48,25 +51,31 @@ integrationDescribe("Plan enforcement regression", () => {
 
     const response = await fetch(`${baseUrl}${path}`, {
       ...options,
-      headers
+      headers,
     });
     applySetCookieJar(jar, response);
     const text = await response.text();
     let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
     return { response, data, status: response.status };
   }
 
   it("returns PLAN_FEATURE_LOCKED for disabled premium endpoints", async () => {
     if (!superEmail || !superPassword) {
-      throw new Error("SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD are required for this integration test");
+      throw new Error(
+        "SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD are required for this integration test",
+      );
     }
 
     const superJar = new Map();
 
     const login = await request(superJar, "/api/super/login", {
       method: "POST",
-      body: JSON.stringify({ email: superEmail, password: superPassword })
+      body: JSON.stringify({ email: superEmail, password: superPassword }),
     });
     assert.equal(login.status, 200);
     assert.ok(superJar.get(config.SUPER_COOKIE_NAME), "expected super auth cookie");
@@ -82,18 +91,22 @@ integrationDescribe("Plan enforcement regression", () => {
         email: ownerEmail,
         password,
         category: "cafe",
-        plan: "EMPRENDEDOR"
-      })
+        plan: "EMPRENDEDOR",
+      }),
     });
     assert.equal(createdBusiness.status, 201);
     const businessId = createdBusiness.data?.business?.id;
     assert.ok(businessId, "expected business id");
 
-    const impersonate = await request(superJar, `/api/super/impersonate/${encodeURIComponent(businessId)}`, {
-      method: "POST",
-      csrf: true,
-      body: "{}"
-    });
+    const impersonate = await request(
+      superJar,
+      `/api/super/impersonate/${encodeURIComponent(businessId)}`,
+      {
+        method: "POST",
+        csrf: true,
+        body: "{}",
+      },
+    );
     assert.equal(impersonate.status, 200);
     assert.ok(superJar.get(config.STAFF_COOKIE_NAME), "expected owner staff cookie");
 
@@ -106,7 +119,7 @@ integrationDescribe("Plan enforcement regression", () => {
       { feature: "campaign_rules", method: "GET", path: "/api/admin/campaign-rules" },
       { feature: "external_awards", method: "GET", path: "/api/admin/external-awards" },
       { feature: "lifecycle_automation", method: "GET", path: "/api/admin/automations" },
-      { feature: "fraud_monitoring", method: "GET", path: "/api/admin/awards/suspicious" }
+      { feature: "fraud_monitoring", method: "GET", path: "/api/admin/awards/suspicious" },
     ];
 
     const lockedChecks = checks.filter((c) => features[c.feature] === false);
@@ -118,7 +131,11 @@ integrationDescribe("Plan enforcement regression", () => {
     for (const c of lockedChecks) {
       const out = await request(superJar, c.path, { method: c.method });
       assert.equal(out.status, 403, `expected 403 for ${c.feature}`);
-      assert.equal(out.data?.code, "PLAN_FEATURE_LOCKED", `expected PLAN_FEATURE_LOCKED code for ${c.feature}`);
+      assert.equal(
+        out.data?.code,
+        "PLAN_FEATURE_LOCKED",
+        `expected PLAN_FEATURE_LOCKED code for ${c.feature}`,
+      );
     }
   });
 });

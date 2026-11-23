@@ -1,14 +1,16 @@
 export function shouldEmbedQrLogo({ plan, logoUrl, enabled }) {
-  return String(plan || "").toUpperCase() === "EMPRESA"
-    && Boolean(enabled)
-    && /^https:\/\//i.test(String(logoUrl || "").trim());
+  return (
+    String(plan || "").toUpperCase() === "EMPRESA" &&
+    Boolean(enabled) &&
+    /^https:\/\//i.test(String(logoUrl || "").trim())
+  );
 }
 
 function decorateQrSvgWithLogo(svgElement, logoUrl) {
   const NS = "http://www.w3.org/2000/svg";
   const size = 82;
-  const x = 256 - (size / 2);
-  const y = 256 - (size / 2);
+  const x = 256 - size / 2;
+  const y = 256 - size / 2;
 
   const badge = document.createElementNS(NS, "rect");
   badge.setAttribute("x", String(x - 10));
@@ -137,11 +139,15 @@ export function createQrController({ $, toast }) {
       const expEl = /** @type {HTMLElement | null} */ (el("#qrExp"));
       if (expEl) expEl.textContent = lastExp ? lastExp.toLocaleTimeString() : "—";
       const hintEl = /** @type {HTMLElement | null} */ (el("#qrHint"));
-      if (hintEl) hintEl.textContent = lastExp ? "Muestra este QR al personal para sumar puntos." : "";
+      if (hintEl)
+        hintEl.textContent = lastExp ? "Muestra este QR al personal para sumar puntos." : "";
 
       clearTimer();
       qrTimer = setInterval(() => {
-        if (!isCurrent()) { dispose(); return; }
+        if (!isCurrent()) {
+          dispose();
+          return;
+        }
         if (!lastExp) return;
         const ms = lastExp.getTime() - Date.now();
         if (ms <= 0) {

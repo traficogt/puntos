@@ -66,14 +66,8 @@ test("order integration includes the targeted bonus in ledger, balance, receipt 
   assert.doesNotMatch(purchase.sql, /created_at/);
   assert.equal(purchase.values[8], "2026-01-02T15:30:00.000Z");
   assert.equal(purchase.values[9], "order_receipt");
-  assert.equal(
-    writes.find((w) => w.sql.includes("INSERT INTO transactions")).values[4],
-    60,
-  );
-  assert.equal(
-    writes.find((w) => w.sql.includes("UPDATE customer_balances")).values[1],
-    60,
-  );
+  assert.equal(writes.find((w) => w.sql.includes("INSERT INTO transactions")).values[4], 60);
+  assert.equal(writes.find((w) => w.sql.includes("UPDATE customer_balances")).values[1], 60);
   const replay = await processOrderWithDeps(deps, input);
   assert.equal(replay.pointsAwarded, 60);
   assert.equal(replay.replay, true);

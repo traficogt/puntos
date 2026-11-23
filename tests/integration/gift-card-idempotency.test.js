@@ -6,9 +6,8 @@ const runIntegration = process.env.RUN_INTEGRATION === "true";
 const integrationDescribe = runIntegration ? describe : describe.skip;
 
 function applySetCookieJar(jar, response) {
-  const values = typeof response.headers.getSetCookie === "function"
-    ? response.headers.getSetCookie()
-    : [];
+  const values =
+    typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
   for (const raw of values) {
     const first = String(raw || "").split(";")[0];
     const eq = first.indexOf("=");
@@ -18,7 +17,9 @@ function applySetCookieJar(jar, response) {
 }
 
 function cookieHeader(jar) {
-  return Array.from(jar.entries()).map(([key, value]) => `${key}=${value}`).join("; ");
+  return Array.from(jar.entries())
+    .map(([key, value]) => `${key}=${value}`)
+    .join("; ");
 }
 
 function csrfTokenFromJar(jar) {
@@ -34,14 +35,14 @@ integrationDescribe("Gift card idempotency integration", () => {
   const browserOrigin = new URL(baseUrl).origin;
   const superEmail = process.env.SUPER_ADMIN_EMAIL;
   const superPassword = process.env.SUPER_ADMIN_PASSWORD;
-  const forwardedFor = process.env.TEST_CLIENT_IP
-    || `198.51.100.${Math.max(10, Math.floor(Math.random() * 200))}`;
+  const forwardedFor =
+    process.env.TEST_CLIENT_IP || `198.51.100.${Math.max(10, Math.floor(Math.random() * 200))}`;
 
   async function request(jar, path, options = {}) {
     const headers = {
       "Content-Type": "application/json",
       "X-Forwarded-For": forwardedFor,
-      ...(options.headers || {})
+      ...(options.headers || {}),
     };
     const cookie = cookieHeader(jar);
     if (cookie) headers.Cookie = cookie;
@@ -53,18 +54,24 @@ integrationDescribe("Gift card idempotency integration", () => {
 
     const response = await fetch(`${baseUrl}${path}`, {
       ...options,
-      headers
+      headers,
     });
     applySetCookieJar(jar, response);
     const text = await response.text();
     let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
     return { response, data, status: response.status };
   }
 
   it("deduplicates gift card create and redeem requests by requestId", async () => {
     if (!superEmail || !superPassword) {
-      throw new Error("SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD are required for this integration test");
+      throw new Error(
+        "SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD are required for this integration test",
+      );
     }
 
     const superJar = new Map();
@@ -72,7 +79,7 @@ integrationDescribe("Gift card idempotency integration", () => {
 
     const login = await request(superJar, "/api/super/login", {
       method: "POST",
-      body: JSON.stringify({ email: superEmail, password: superPassword })
+      body: JSON.stringify({ email: superEmail, password: superPassword }),
     });
     assert.equal(login.status, 200);
 
@@ -89,29 +96,33 @@ integrationDescribe("Gift card idempotency integration", () => {
         email: ownerEmail,
         password: defaultPassword,
         category: "cafe",
-        plan: "EMPRESA"
-      })
+        plan: "EMPRESA",
+      }),
     });
     assert.equal(createdBusiness.status, 201);
     const businessId = createdBusiness.data?.business?.id;
     assert.ok(businessId);
 
-    const createManager = await request(superJar, `/api/super/businesses/${encodeURIComponent(businessId)}/users`, {
-      method: "POST",
-      csrf: true,
-      body: JSON.stringify({
-        name: "Manager Gift",
-        email: managerEmail,
-        password: defaultPassword,
-        role: "MANAGER",
-        can_manage_gift_cards: true
-      })
-    });
+    const createManager = await request(
+      superJar,
+      `/api/super/businesses/${encodeURIComponent(businessId)}/users`,
+      {
+        method: "POST",
+        csrf: true,
+        body: JSON.stringify({
+          name: "Manager Gift",
+          email: managerEmail,
+          password: defaultPassword,
+          role: "MANAGER",
+          can_manage_gift_cards: true,
+        }),
+      },
+    );
     assert.equal(createManager.status, 201);
 
     const managerLogin = await request(managerJar, "/api/staff/login", {
       method: "POST",
-      body: JSON.stringify({ email: managerEmail, password: defaultPassword })
+      body: JSON.stringify({ email: managerEmail, password: defaultPassword }),
     });
     assert.equal(managerLogin.status, 200);
 
@@ -119,19 +130,19 @@ integrationDescribe("Gift card idempotency integration", () => {
     const createPayload = JSON.stringify({
       amount_q: 25,
       issued_to_name: "Cliente GC",
-      requestId: createRequestId
+      requestId: createRequestId,
     });
     const [createA, createB] = await Promise.all([
       request(cloneJar(managerJar), "/api/admin/gift-cards", {
         method: "POST",
         csrf: true,
-        body: createPayload
+        body: createPayload,
       }),
       request(cloneJar(managerJar), "/api/admin/gift-cards", {
         method: "POST",
         csrf: true,
-        body: createPayload
-      })
+        body: createPayload,
+      }),
     ]);
     assert.equal(createA.status, 201);
     assert.equal(createB.status, 201);
@@ -145,19 +156,19 @@ integrationDescribe("Gift card idempotency integration", () => {
     const redeemPayload = JSON.stringify({
       code_or_token: code,
       amount_q: 10,
-      requestId: redeemRequestId
+      requestId: redeemRequestId,
     });
     const [redeemA, redeemB] = await Promise.all([
       request(cloneJar(managerJar), "/api/staff/gift-cards/redeem", {
         method: "POST",
         csrf: true,
-        body: redeemPayload
+        body: redeemPayload,
       }),
       request(cloneJar(managerJar), "/api/staff/gift-cards/redeem", {
         method: "POST",
         csrf: true,
-        body: redeemPayload
-      })
+        body: redeemPayload,
+      }),
     ]);
     assert.equal(redeemA.status, 200);
     assert.equal(redeemB.status, 200);

@@ -70,7 +70,9 @@ async function main() {
     return;
   }
   if (nodeEnv === "production" && !allowProd) {
-    console.error("Refusing to repair in production. Restore the original migration files instead.");
+    console.error(
+      "Refusing to repair in production. Restore the original migration files instead.",
+    );
     process.exitCode = 2;
     return;
   }
@@ -78,7 +80,7 @@ async function main() {
   for (const m of mismatches) {
     await pool.query(
       "UPDATE schema_migrations SET checksum = $3 WHERE version = $1 AND checksum = $2",
-      [m.version, m.dbChecksum, m.localChecksum]
+      [m.version, m.dbChecksum, m.localChecksum],
     );
   }
   console.log(`Migrations doctor: repaired ${mismatches.length} checksum mismatch(es).`);

@@ -27,7 +27,7 @@ analyticsLedgerRoutes.get(
          )
        ORDER BY completed_at DESC
        LIMIT 1`,
-      [businessId]
+      [businessId],
     );
     const latestRun = latestRunRows[0] ?? null;
 
@@ -49,7 +49,7 @@ analyticsLedgerRoutes.get(
          )
        ORDER BY completed_at DESC
        LIMIT 10`,
-      [businessId]
+      [businessId],
     );
 
     let findingRows = [];
@@ -73,7 +73,7 @@ analyticsLedgerRoutes.get(
          WHERE run_id = $1
          ORDER BY ABS(delta_points) DESC, ABS(delta_lifetime_points) DESC, created_at DESC
          LIMIT 25`,
-        [latestRun.id]
+        [latestRun.id],
       );
       findingRows = findings.rows;
     }
@@ -82,7 +82,7 @@ analyticsLedgerRoutes.get(
       ok: true,
       latest_run: latestRun,
       recent_runs: runRows,
-      latest_findings: findingRows
+      latest_findings: findingRows,
     });
-  })
+  }),
 );

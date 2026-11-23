@@ -13,21 +13,21 @@ test("smtp provider omits auth when user and pass are empty", async () => {
       SMTP_SECURE: "false",
       SMTP_USER: "",
       SMTP_PASS: "",
-      SMTP_FROM: "hola@puntosfieles.com"
+      SMTP_FROM: "hola@puntosfieles.com",
     },
     transportFactory(options) {
       capturedConfig = options;
       return {
         async sendMail() {
           return { messageId: "smtp-id" };
-        }
+        },
       };
-    }
+    },
   });
 
   const out = await provider.send({
     destinations: { email: "cliente@test.com" },
-    body: "Tu código"
+    body: "Tu código",
   });
 
   assert.ok(capturedConfig);
@@ -50,16 +50,16 @@ test("smtp provider sends subject text and html when provided", async () => {
       SMTP_SECURE: "false",
       SMTP_USER: "",
       SMTP_PASS: "",
-      SMTP_FROM: "hola@puntosfieles.com"
+      SMTP_FROM: "hola@puntosfieles.com",
     },
     transportFactory() {
       return {
         async sendMail(payload) {
           capturedMail = payload;
           return { messageId: "smtp-html-id" };
-        }
+        },
       };
-    }
+    },
   });
 
   const out = await provider.send({
@@ -67,7 +67,7 @@ test("smtp provider sends subject text and html when provided", async () => {
     body: "Linea uno",
     subject: "Prueba HTML",
     text: "Linea uno",
-    html: "<p><strong>Linea uno</strong></p>"
+    html: "<p><strong>Linea uno</strong></p>",
   });
 
   assert.ok(capturedMail);

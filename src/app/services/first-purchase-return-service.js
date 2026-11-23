@@ -1,9 +1,9 @@
-import { DateTime } from 'luxon';
-import { badRequest, notFound } from '../../utils/http-error.js';
-import { dbQuery } from '../database.js';
-import { readinessForBusiness } from './merchant-data-readiness.js';
-import { businessRegion } from './regional-settings.js';
-import { reportingPurchase } from './reporting-purchase.js';
+import { DateTime } from "luxon";
+import { badRequest, notFound } from "../../utils/http-error.js";
+import { dbQuery } from "../database.js";
+import { readinessForBusiness } from "./merchant-data-readiness.js";
+import { businessRegion } from "./regional-settings.js";
+import { reportingPurchase } from "./reporting-purchase.js";
 
 // Find the business-wide first purchase before applying either cohort filter.
 // All history and follow-up counts share a single statement snapshot. Inlining
@@ -23,7 +23,7 @@ WITH bounds AS (
   WHERE t.business_id = $1::uuid
     AND t.created_at < b.snapshot_at
     AND COALESCE(t.purchase_occurred_at, t.created_at) < b.snapshot_at
-    AND ${reportingPurchase('t')}
+    AND ${reportingPurchase("t")}
 ), first_purchase AS (
   SELECT DISTINCT ON (customer_id) customer_id, branch_id, purchased_at, legacy_timestamp
   FROM eligible ORDER BY customer_id, purchased_at, created_at, id
@@ -71,26 +71,38 @@ FROM bounds b CROSS JOIN totals t`;
  * @param {{ businessId: string, branchId?: string | null, weekStart?: string, now?: Date }} options
  * @param {typeof dbQuery} query
  */
-export async function getFirstPurchaseReturns({ businessId, branchId = null, weekStart, now = new Date() }, query = dbQuery) {
-  const business = (await query('SELECT program_json FROM businesses WHERE id = $1::uuid', [businessId])).rows[0];
-  if (!business) throw notFound('Negocio no encontrado.');
+export async function getFirstPurchaseReturns(
+  { businessId, branchId = null, weekStart, now = new Date() },
+  query = dbQuery,
+) {
+  const business = (
+    await query("SELECT program_json FROM businesses WHERE id = $1::uuid", [businessId])
+  ).rows[0];
+  if (!business) throw notFound("Negocio no encontrado.");
   const { timezone } = businessRegion(business);
-  const monday = DateTime.fromJSDate(now, { zone: timezone }).startOf('week');
-  const availableWeeks = Array.from({ length: 52 }, (_, index) => monday.minus({ weeks: index }).toISODate());
+  const monday = DateTime.fromJSDate(now, { zone: timezone }).startOf("week");
+  const availableWeeks = Array.from({ length: 52 }, (_, index) =>
+    monday.minus({ weeks: index }).toISODate(),
+  );
   const selectedWeek = weekStart === undefined ? availableWeeks[1] : weekStart;
-  if (typeof selectedWeek !== 'string' || !availableWeeks.includes(selectedWeek)) {
-    throw badRequest('Selecciona un lunes entre las 52 semanas disponibles.');
+  if (typeof selectedWeek !== "string" || !availableWeeks.includes(selectedWeek)) {
+    throw badRequest("Selecciona un lunes entre las 52 semanas disponibles.");
   }
   if (branchId) {
-    const branch = await query('SELECT id FROM branches WHERE id = $1::uuid AND business_id = $2::uuid', [branchId, businessId]);
-    if (!branch.rows.length) throw badRequest('La sucursal no pertenece a este negocio.');
+    const branch = await query(
+      "SELECT id FROM branches WHERE id = $1::uuid AND business_id = $2::uuid",
+      [branchId, businessId],
+    );
+    if (!branch.rows.length) throw badRequest("La sucursal no pertenece a este negocio.");
   }
-  const { rows: [row] } = await query(RETURN_SQL, [businessId, branchId, selectedWeek, timezone, now.toISOString()]);
+  const {
+    rows: [row],
+  } = await query(RETURN_SQL, [businessId, branchId, selectedWeek, timezone, now.toISOString()]);
   return {
     ok: true,
     generated_at: now.toISOString(),
     timezone,
-    scope: { branch_id: branchId, first_purchase_scope: 'business', return_scope: 'business' },
+    scope: { branch_id: branchId, first_purchase_scope: "business", return_scope: "business" },
     available_weeks: availableWeeks,
     cohort: {
       week_start: selectedWeek,
@@ -98,22 +110,22 @@ export async function getFirstPurchaseReturns({ businessId, branchId = null, wee
       start: new Date(row.start_at).toISOString(),
       end: new Date(row.end_at).toISOString(),
       customers: Number(row.customers),
-      legacy_timestamp_customers: Number(row.legacy_timestamp_customers)
+      legacy_timestamp_customers: Number(row.legacy_timestamp_customers),
     },
-    follow_up: { days: 30, definition: 'later_local_day_within_720_hours' },
+    follow_up: { days: 30, definition: "later_local_day_within_720_hours" },
     completed: row.completed,
     ongoing: row.ongoing,
     data_readiness: readinessForBusiness(business, now),
     notes: [
-      'Cada cliente entra una vez, en la semana de su primera compra válida registrada en todo el historial disponible del negocio. La semana empieza el lunes en la zona horaria del negocio.',
-      'Volver significa otra compra registrada en una fecha local posterior a la primera y antes de que transcurran 30 días exactos (720 horas). Varias compras en la misma fecha local no cuentan como regreso.',
-      'Se usa la fecha de compra cuando está disponible; si falta, se usa la fecha de registro en PF. Tanto la compra como su recepción en el servidor deben ser anteriores al momento de este informe.',
-      'El porcentaje usa a todos los clientes que ya completaron los 30 días, incluso si no volvieron. Los clientes en seguimiento se muestran aparte, aunque ya hayan vuelto.',
-      'La sucursal seleccionada corresponde a la primera compra del cliente en todo el negocio. Una compra posterior en cualquier sucursal del negocio cuenta como regreso. Las primeras compras sin sucursal solo aparecen al consultar todas.',
-      'Las compras incluyen puntos pendientes o posteriormente vencidos y excluyen devoluciones completas, ajustes, bonos y saldos iniciales importados. El vencimiento de puntos no anula una compra.',
-      'Son compras registradas en PF. Una compra fuera del programa no aparece; las sincronizaciones, devoluciones y correcciones posteriores pueden cambiar la primera compra y los resultados.',
-      'El historial de clientes eliminados permanece en estos totales sin datos personales. Los indicadores de conexión no acreditan todas las ventas del negocio.',
-      'Describe comportamiento registrado. No demuestra visitas causadas por el programa, ingresos incrementales ni retorno de inversión.'
-    ]
+      "Cada cliente entra una vez, en la semana de su primera compra válida registrada en todo el historial disponible del negocio. La semana empieza el lunes en la zona horaria del negocio.",
+      "Volver significa otra compra registrada en una fecha local posterior a la primera y antes de que transcurran 30 días exactos (720 horas). Varias compras en la misma fecha local no cuentan como regreso.",
+      "Se usa la fecha de compra cuando está disponible; si falta, se usa la fecha de registro en PF. Tanto la compra como su recepción en el servidor deben ser anteriores al momento de este informe.",
+      "El porcentaje usa a todos los clientes que ya completaron los 30 días, incluso si no volvieron. Los clientes en seguimiento se muestran aparte, aunque ya hayan vuelto.",
+      "La sucursal seleccionada corresponde a la primera compra del cliente en todo el negocio. Una compra posterior en cualquier sucursal del negocio cuenta como regreso. Las primeras compras sin sucursal solo aparecen al consultar todas.",
+      "Las compras incluyen puntos pendientes o posteriormente vencidos y excluyen devoluciones completas, ajustes, bonos y saldos iniciales importados. El vencimiento de puntos no anula una compra.",
+      "Son compras registradas en PF. Una compra fuera del programa no aparece; las sincronizaciones, devoluciones y correcciones posteriores pueden cambiar la primera compra y los resultados.",
+      "El historial de clientes eliminados permanece en estos totales sin datos personales. Los indicadores de conexión no acreditan todas las ventas del negocio.",
+      "Describe comportamiento registrado. No demuestra visitas causadas por el programa, ingresos incrementales ni retorno de inversión.",
+    ],
   };
 }

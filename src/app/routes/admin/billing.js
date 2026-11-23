@@ -1,4 +1,4 @@
-import { dateTimeSchema } from '../../../utils/date-time-schema.js';
+import { dateTimeSchema } from "../../../utils/date-time-schema.js";
 import { Router } from "express";
 import { z } from "zod";
 import { asyncRoute } from "../../../middleware/common.js";
@@ -16,16 +16,18 @@ adminBillingRoutes.get(
   requireStaff,
   requireOwner,
   tenantContext,
-  validateQuery(z.object({
-    from: z.preprocess(
-      (v) => (v === "" || v === null ? undefined : v),
-      z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), dateTimeSchema()]).optional()
-    ),
-    to: z.preprocess(
-      (v) => (v === "" || v === null ? undefined : v),
-      z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), dateTimeSchema()]).optional()
-    )
-  })),
+  validateQuery(
+    z.object({
+      from: z.preprocess(
+        (v) => (v === "" || v === null ? undefined : v),
+        z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), dateTimeSchema()]).optional(),
+      ),
+      to: z.preprocess(
+        (v) => (v === "" || v === null ? undefined : v),
+        z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), dateTimeSchema()]).optional(),
+      ),
+    }),
+  ),
   asyncRoute(async (req, res) => {
     const businessId = req.tenantId;
     const from = req.validatedQuery.from ? String(req.validatedQuery.from) : "";
@@ -50,7 +52,7 @@ adminBillingRoutes.get(
          ${dateClause}
        GROUP BY t.created_at::date
        ORDER BY t.created_at::date ASC`,
-      params
+      params,
     );
 
     const csvRows = rows.map((r) => {
@@ -62,15 +64,21 @@ adminBillingRoutes.get(
         transacciones: Number(r.transacciones || 0),
         monto_bruto_q: gross.toFixed(2),
         base_sin_iva_q: net.toFixed(2),
-        iva_12_q: iva.toFixed(2)
+        iva_12_q: iva.toFixed(2),
       };
     });
 
-    const csv = toCSV(csvRows, ["fecha", "transacciones", "monto_bruto_q", "base_sin_iva_q", "iva_12_q"]);
+    const csv = toCSV(csvRows, [
+      "fecha",
+      "transacciones",
+      "monto_bruto_q",
+      "base_sin_iva_q",
+      "iva_12_q",
+    ]);
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", "attachment; filename=\"reporte_iva_gt.csv\"");
+    res.setHeader("Content-Disposition", 'attachment; filename="reporte_iva_gt.csv"');
     return res.send(csv);
-  })
+  }),
 );
 
 adminBillingRoutes.get(
@@ -78,12 +86,14 @@ adminBillingRoutes.get(
   requireStaff,
   requireOwner,
   tenantContext,
-  validateQuery(z.object({
-    limit: z.coerce.number().int().min(1).max(500).default(100)
-  })),
+  validateQuery(
+    z.object({
+      limit: z.coerce.number().int().min(1).max(500).default(100),
+    }),
+  ),
   asyncRoute(async (req, res) => {
     const { limit } = req.validatedQuery;
     const events = await BillingRepo.recentByBusiness(req.tenantId, limit);
     return res.json({ ok: true, events });
-  })
+  }),
 );

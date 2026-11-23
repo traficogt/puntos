@@ -1,4 +1,4 @@
-import { dateTimeSchema } from '../../../utils/date-time-schema.js';
+import { dateTimeSchema } from "../../../utils/date-time-schema.js";
 import { Router } from "express";
 import { z } from "zod";
 import { asyncRoute } from "../../../middleware/common.js";
@@ -14,16 +14,16 @@ const auditQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(5000).default(50),
   impersonated_only: z.preprocess(
     (value) => value === "1" || value === "true" || value === true,
-    z.boolean().default(false)
+    z.boolean().default(false),
   ),
   from: z.preprocess(
     (v) => (v === "" || v === null ? undefined : v),
-    z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), dateTimeSchema()]).optional()
+    z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), dateTimeSchema()]).optional(),
   ),
   to: z.preprocess(
     (v) => (v === "" || v === null ? undefined : v),
-    z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), dateTimeSchema()]).optional()
-  )
+    z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), dateTimeSchema()]).optional(),
+  ),
 });
 
 async function listAuditEvents(businessId, { limit, impersonatedOnly, from, to }) {
@@ -80,7 +80,7 @@ async function listAuditEvents(businessId, { limit, impersonatedOnly, from, to }
        ${impersonatedClause}
      ORDER BY a.created_at DESC
      LIMIT $${params.length}`,
-    params
+    params,
   );
   return rows;
 }
@@ -100,7 +100,7 @@ async function getAuditEventDetail(businessId, eventId) {
      LEFT JOIN staff_users s ON s.id = a.actor_id
      WHERE a.business_id = $1
        AND a.id = $2`,
-    [businessId, eventId]
+    [businessId, eventId],
   );
   const event = rows[0] ?? null;
   if (!event) return null;
@@ -120,7 +120,7 @@ async function getAuditEventDetail(businessId, eventId) {
        LEFT JOIN staff_users su ON su.id = t.staff_user_id
        WHERE t.business_id = $1
          AND t.id = $2`,
-      [businessId, meta.transaction_id]
+      [businessId, meta.transaction_id],
     );
     detail.linked.transaction = tx.rows[0] ?? null;
   }
@@ -137,7 +137,7 @@ async function getAuditEventDetail(businessId, eventId) {
        LEFT JOIN staff_users su ON su.id = t.staff_user_id
        WHERE t.business_id = $1
          AND t.id = $2`,
-      [businessId, meta.reversal_transaction_id]
+      [businessId, meta.reversal_transaction_id],
     );
     detail.linked.reversal_transaction = tx.rows[0] ?? null;
   }
@@ -154,7 +154,7 @@ async function getAuditEventDetail(businessId, eventId) {
        JOIN customers c ON c.id = r.customer_id
        WHERE r.business_id = $1
          AND r.id = $2`,
-      [businessId, meta.redemption_id]
+      [businessId, meta.redemption_id],
     );
     detail.linked.redemption = redemption.rows[0] ?? null;
   }
@@ -165,7 +165,7 @@ async function getAuditEventDetail(businessId, eventId) {
        FROM gift_cards
        WHERE business_id = $1
          AND id = $2`,
-      [businessId, meta.gift_card_id]
+      [businessId, meta.gift_card_id],
     );
     detail.linked.gift_card = card.rows[0] ?? null;
   }
@@ -176,7 +176,7 @@ async function getAuditEventDetail(businessId, eventId) {
        FROM gift_card_transactions
        WHERE business_id = $1
          AND id = $2`,
-      [businessId, meta.gift_card_tx_id]
+      [businessId, meta.gift_card_tx_id],
     );
     detail.linked.gift_card_transaction = tx.rows[0] ?? null;
   }
@@ -189,19 +189,16 @@ adminAuditRoutes.get(
   requireStaff,
   requireOwner,
   tenantContext,
-  validateQuery(auditQuerySchema.extend({
-    limit: z.coerce.number().int().min(1).max(200).default(50)
-  })),
+  validateQuery(
+    auditQuerySchema.extend({
+      limit: z.coerce.number().int().min(1).max(200).default(50),
+    }),
+  ),
   asyncRoute(async (req, res) => {
-    const {
-      limit,
-      impersonated_only: impersonatedOnly,
-      from,
-      to
-    } = req.validatedQuery;
+    const { limit, impersonated_only: impersonatedOnly, from, to } = req.validatedQuery;
     const rows = await listAuditEvents(req.tenantId, { limit, impersonatedOnly, from, to });
     return res.json({ ok: true, events: rows });
-  })
+  }),
 );
 
 adminAuditRoutes.get(
@@ -213,7 +210,7 @@ adminAuditRoutes.get(
     const detail = await getAuditEventDetail(req.tenantId, String(req.params.id || ""));
     if (!detail) return res.status(404).json({ error: "Audit event not found" });
     return res.json({ ok: true, ...detail });
-  })
+  }),
 );
 
 adminAuditRoutes.get(
@@ -223,12 +220,7 @@ adminAuditRoutes.get(
   tenantContext,
   validateQuery(auditQuerySchema),
   asyncRoute(async (req, res) => {
-    const {
-      limit,
-      impersonated_only: impersonatedOnly,
-      from,
-      to
-    } = req.validatedQuery;
+    const { limit, impersonated_only: impersonatedOnly, from, to } = req.validatedQuery;
     const rows = await listAuditEvents(req.tenantId, { limit, impersonatedOnly, from, to });
     const csvRows = rows.map((row) => ({
       created_at: row.created_at,
@@ -237,7 +229,7 @@ adminAuditRoutes.get(
       actor_email: row.actor_email || "",
       action: row.action,
       impersonated_by_super_admin_email: row.meta?.impersonated_by_super_admin_email || "",
-      meta: row.meta && Object.keys(row.meta).length ? JSON.stringify(row.meta) : ""
+      meta: row.meta && Object.keys(row.meta).length ? JSON.stringify(row.meta) : "",
     }));
     const csv = toCSV(csvRows, [
       "created_at",
@@ -246,10 +238,10 @@ adminAuditRoutes.get(
       "actor_email",
       "action",
       "impersonated_by_super_admin_email",
-      "meta"
+      "meta",
     ]);
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", "attachment; filename=\"audit-log.csv\"");
+    res.setHeader("Content-Disposition", 'attachment; filename="audit-log.csv"');
     return res.send(csv);
-  })
+  }),
 );

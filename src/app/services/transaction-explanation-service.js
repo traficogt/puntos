@@ -1,27 +1,80 @@
-import { dateTimeSchema } from '../../utils/date-time-schema.js';
-import { z } from 'zod';
-import { dbQuery, getDbTenantId } from '../database.js';
-import { badRequest, notFound } from '../../utils/http-error.js';
-import { activityAttributionSql, activityGroups } from './activity-attribution.js';
-import { awardSchema } from './transaction-evidence-schema.js';
-import {replaySavedAward} from './transaction-replay.js';
-import {transactionDetailEvidence} from './transaction-detail-evidence.js';
+import { dateTimeSchema } from "../../utils/date-time-schema.js";
+import { z } from "zod";
+import { dbQuery, getDbTenantId } from "../database.js";
+import { badRequest, notFound } from "../../utils/http-error.js";
+import { activityAttributionSql, activityGroups } from "./activity-attribution.js";
+import { awardSchema } from "./transaction-evidence-schema.js";
+import { replaySavedAward } from "./transaction-replay.js";
+import { transactionDetailEvidence } from "./transaction-detail-evidence.js";
 
-export const movementKinds = ['all', 'purchase', 'redemption', 'refund', 'opening_balance', 'adjustment', 'other'];
+export const movementKinds = [
+  "all",
+  "purchase",
+  "redemption",
+  "refund",
+  "opening_balance",
+  "adjustment",
+  "other",
+];
 const uuid = z.guid();
-export const transactionHistoryFilters = z.object({
-  staff_id: uuid.transform(value => value.toLowerCase()).optional(),
-  source_group: z.string().refine(value => activityGroups.includes(value)).optional(),
-  branch_id: uuid.transform(value => value.toLowerCase()).optional(),
-  start: dateTimeSchema().optional(), end: dateTimeSchema().optional()
-}).strict();
+export const transactionHistoryFilters = z
+  .object({
+    staff_id: uuid.transform((value) => value.toLowerCase()).optional(),
+    source_group: z
+      .string()
+      .refine((value) => activityGroups.includes(value))
+      .optional(),
+    branch_id: uuid.transform((value) => value.toLowerCase()).optional(),
+    start: dateTimeSchema().optional(),
+    end: dateTimeSchema().optional(),
+  })
+  .strict();
 export function validHistoryInterval(value) {
-  return (!value.start && !value.end) || (Boolean(value.start && value.end) && Date.parse(value.start) < Date.parse(value.end) && Date.parse(value.end) - Date.parse(value.start) <= 93 * 86400000);
+  return (
+    (!value.start && !value.end) ||
+    (Boolean(value.start && value.end) &&
+      Date.parse(value.start) < Date.parse(value.end) &&
+      Date.parse(value.end) - Date.parse(value.start) <= 93 * 86400000)
+  );
 }
-const cursorSchema = z.object({ at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/).refine(value => Number.isFinite(Date.parse(value))), id: uuid, record: z.enum(['transaction','adjustment','redemption']) }).strict();
-const kinds = { purchase: 'Compra', redemption: 'Canje', refund: 'Reversión', opening_balance: 'Saldo inicial', adjustment: 'Ajuste de saldo', other: 'Otro movimiento' };
-const statuses = ['POSTED','PENDING','REVERSED','EXPIRED','REDEEMED','CANCELLED','CANCELED'];
-const sources = ['online','offline','external','order','redeem','reversal','migration','ledger_correction','referral','tier','achievement','challenge','birthday','anniversary','reactivation','gift_card','pos_checkout_cancel'];
+const cursorSchema = z
+  .object({
+    at: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/)
+      .refine((value) => Number.isFinite(Date.parse(value))),
+    id: uuid,
+    record: z.enum(["transaction", "adjustment", "redemption"]),
+  })
+  .strict();
+const kinds = {
+  purchase: "Compra",
+  redemption: "Canje",
+  refund: "Reversión",
+  opening_balance: "Saldo inicial",
+  adjustment: "Ajuste de saldo",
+  other: "Otro movimiento",
+};
+const statuses = ["POSTED", "PENDING", "REVERSED", "EXPIRED", "REDEEMED", "CANCELLED", "CANCELED"];
+const sources = [
+  "online",
+  "offline",
+  "external",
+  "order",
+  "redeem",
+  "reversal",
+  "migration",
+  "ledger_correction",
+  "referral",
+  "tier",
+  "achievement",
+  "challenge",
+  "birthday",
+  "anniversary",
+  "reactivation",
+  "gift_card",
+  "pos_checkout_cancel",
+];
 
 // Tenant and customer predicates on every join also protect legacy single-column FKs.
 const activity = `WITH activity AS (
@@ -52,103 +105,241 @@ LEFT JOIN staff_users s ON s.id=a.staff_user_id AND s.business_id=a.business_id
 LEFT JOIN branches b ON b.id=a.branch_id AND b.business_id=a.business_id
 LEFT JOIN rewards rw ON rw.id=a.reward_id AND rw.business_id=a.business_id`;
 
-function iso(value) { return value ? new Date(value).toISOString() : null; }
-function name(value) { return typeof value === 'string' ? value.slice(0,200) : null; }
+function iso(value) {
+  return value ? new Date(value).toISOString() : null;
+}
+function name(value) {
+  return typeof value === "string" ? value.slice(0, 200) : null;
+}
 function safeAward(row) {
   const parsed = awardSchema.safeParse(row.award_evidence);
-  if (!parsed.success || row.kind !== 'purchase') return null;
+  if (!parsed.success || row.kind !== "purchase") return null;
   const value = parsed.data;
-  if (value.inputs.amount_q !== Number(row.amount_q) || Math.max(0, Math.floor(value.inputs.visits)) !== Number(row.visits) || Math.max(0, Math.floor(value.inputs.items)) !== Number(row.items)) return null;
-  if (value.awarded_points !== Number(row.points) || value.program_points + value.targeted_offer.bonus_points !== value.awarded_points) return null;
+  if (
+    value.inputs.amount_q !== Number(row.amount_q) ||
+    Math.max(0, Math.floor(value.inputs.visits)) !== Number(row.visits) ||
+    Math.max(0, Math.floor(value.inputs.items)) !== Number(row.items)
+  )
+    return null;
+  if (
+    value.awarded_points !== Number(row.points) ||
+    value.program_points + value.targeted_offer.bonus_points !== value.awarded_points
+  )
+    return null;
   const criteria = value.targeted_offer.criteria;
-  if (typeof criteria === 'object' && (
-    criteria.purchase.amount_q !== Number(row.amount_q) || criteria.purchase.visits !== Number(row.visits) || criteria.purchase.items !== Number(row.items) || criteria.purchase.source !== row.source ||
-    criteria.minimum_purchase_q > Number(row.amount_q) || criteria.points_committed_after - criteria.points_committed_before !== value.targeted_offer.bonus_points ||
-    (criteria.points_budget !== null && criteria.points_committed_after > criteria.points_budget)
-  )) return null;
+  if (
+    typeof criteria === "object" &&
+    (criteria.purchase.amount_q !== Number(row.amount_q) ||
+      criteria.purchase.visits !== Number(row.visits) ||
+      criteria.purchase.items !== Number(row.items) ||
+      criteria.purchase.source !== row.source ||
+      criteria.minimum_purchase_q > Number(row.amount_q) ||
+      criteria.points_committed_after - criteria.points_committed_before !==
+        value.targeted_offer.bonus_points ||
+      (criteria.points_budget !== null && criteria.points_committed_after > criteria.points_budget))
+  )
+    return null;
   return value;
 }
-function coverage(award) { return award && (!award.targeted_offer.bonus_points || typeof award.targeted_offer.criteria === 'object') ? 'recorded' : 'partial'; }
+function coverage(award) {
+  return award &&
+    (!award.targeted_offer.bonus_points || typeof award.targeted_offer.criteria === "object")
+    ? "recorded"
+    : "partial";
+}
 function movement(row) {
-  return { id: row.id, record: row.record, kind: row.kind, label: kinds[row.kind], created_at: iso(row.created_at),
-    customer_id: row.customer_id, customer_name: name(row.customer_name), staff_name: name(row.staff_name), branch_name: name(row.branch_name),
-    points: row.points === null ? null : Number(row.points), amount_q: Number(row.amount_q), visits: Number(row.visits), items: Number(row.items),
-    status: statuses.includes(row.status) ? row.status : 'UNKNOWN', source: sources.includes(row.source) ? row.source : 'other',
-    available_at: iso(row.available_at), expired_at: iso(row.expired_at),
-    redemption: row.redemption_id ? { id: row.redemption_id, points_cost: Number(row.points_cost), reward_name: name(row.reward_name), status: statuses.includes(row.redemption_status) ? row.redemption_status : 'UNKNOWN' } : null,
-    adjustment: row.kind === 'adjustment' ? { points: Number(row.points), pending_points: Number(row.delta_pending), lifetime_points: Number(row.delta_lifetime) } : null,
+  return {
+    id: row.id,
+    record: row.record,
+    kind: row.kind,
+    label: kinds[row.kind],
+    created_at: iso(row.created_at),
+    customer_id: row.customer_id,
+    customer_name: name(row.customer_name),
+    staff_name: name(row.staff_name),
+    branch_name: name(row.branch_name),
+    points: row.points === null ? null : Number(row.points),
+    amount_q: Number(row.amount_q),
+    visits: Number(row.visits),
+    items: Number(row.items),
+    status: statuses.includes(row.status) ? row.status : "UNKNOWN",
+    source: sources.includes(row.source) ? row.source : "other",
+    available_at: iso(row.available_at),
+    expired_at: iso(row.expired_at),
+    redemption: row.redemption_id
+      ? {
+          id: row.redemption_id,
+          points_cost: Number(row.points_cost),
+          reward_name: name(row.reward_name),
+          status: statuses.includes(row.redemption_status) ? row.redemption_status : "UNKNOWN",
+        }
+      : null,
+    adjustment:
+      row.kind === "adjustment"
+        ? {
+            points: Number(row.points),
+            pending_points: Number(row.delta_pending),
+            lifetime_points: Number(row.delta_lifetime),
+          }
+        : null,
     links: { original_id: row.original_id, reversal_id: row.reversal_id },
-    evidence: coverage(safeAward(row))
+    evidence: coverage(safeAward(row)),
   };
 }
 function explanation(row) {
-  const award = safeAward(row), limitations = [], steps = [];
-  if (row.kind === 'purchase') {
+  const award = safeAward(row),
+    limitations = [],
+    steps = [];
+  if (row.kind === "purchase") {
     if (award) {
-      steps.push({ label: 'Puntos del programa', points: award.program_points });
+      steps.push({ label: "Puntos del programa", points: award.program_points });
       if (award.targeted_offer.bonus_points) {
-        steps.push({ label: 'Bono de oferta dirigida', points: award.targeted_offer.bonus_points });
-        if (award.targeted_offer.criteria === 'not_snapshotted') limitations.push('Se guardaron el bono y el ID de la oferta dirigida. Sus condiciones y disponibilidad no se guardaron en este movimiento.');
-        else limitations.push('La oferta se aplicó por la pertenencia guardada al grupo que recibe el bono. Los criterios originales de selección de la audiencia no se volvieron a evaluar durante esta compra.');
+        steps.push({ label: "Bono de oferta dirigida", points: award.targeted_offer.bonus_points });
+        if (award.targeted_offer.criteria === "not_snapshotted")
+          limitations.push(
+            "Se guardaron el bono y el ID de la oferta dirigida. Sus condiciones y disponibilidad no se guardaron en este movimiento.",
+          );
+        else
+          limitations.push(
+            "La oferta se aplicó por la pertenencia guardada al grupo que recibe el bono. Los criterios originales de selección de la audiencia no se volvieron a evaluar durante esta compra.",
+          );
       }
-      steps.push({ label: 'Total registrado', points: Number(row.points) });
-    } else limitations.push('No se guardaron las reglas evaluadas de esta compra. No se puede reconstruir su cálculo con la configuración actual.');
-  } else if (row.kind === 'opening_balance') {
-    steps.push({ label: 'Puntos de saldo inicial importado', points: Number(row.points) });
-    limitations.push('El saldo inicial no representa una compra ni puntos calculados con las reglas del programa.');
-  } else if (row.kind === 'adjustment') {
-    steps.push({ label: 'Cambio de puntos disponibles', points: Number(row.points) }, { label: 'Cambio de puntos pendientes', points: Number(row.delta_pending) }, { label: 'Cambio de puntos acumulados', points: Number(row.delta_lifetime) });
-    limitations.push('Este ajuste corrige saldos. No representa una compra ni modifica los puntos del movimiento original.');
-  } else if (row.kind === 'redemption') {
-    if (row.points !== null) steps.push({ label: 'Puntos debitados en el historial', points: Number(row.points) });
-    limitations.push(row.record === 'redemption' ? 'Hay un registro de canje, pero no se encontró su débito enlazado en el historial. No se puede confirmar aquí el cambio de saldo.' : 'El costo registrado del canje no depende del precio actual de la recompensa. Las condiciones de elegibilidad de ese momento no se guardaron.');
-  } else if (row.kind === 'refund') {
-    steps.push({ label: 'Puntos registrados en la reversión', points: Number(row.points) });
-    limitations.push('La reversión de puntos no confirma una devolución de dinero. Comprueba el recibo en tu caja.');
-  } else limitations.push('Se muestra el movimiento registrado. No hay evidencia suficiente para explicar todas sus reglas de origen.');
-  limitations.push('Los nombres son los que figuran actualmente en PF. Este detalle no reconstruye el saldo anterior ni el saldo posterior.');
-  return { coverage: coverage(award), award, steps, limitations,
-    replay: row.kind==='purchase'?replaySavedAward(award,Number(row.points)):null };
+      steps.push({ label: "Total registrado", points: Number(row.points) });
+    } else
+      limitations.push(
+        "No se guardaron las reglas evaluadas de esta compra. No se puede reconstruir su cálculo con la configuración actual.",
+      );
+  } else if (row.kind === "opening_balance") {
+    steps.push({ label: "Puntos de saldo inicial importado", points: Number(row.points) });
+    limitations.push(
+      "El saldo inicial no representa una compra ni puntos calculados con las reglas del programa.",
+    );
+  } else if (row.kind === "adjustment") {
+    steps.push(
+      { label: "Cambio de puntos disponibles", points: Number(row.points) },
+      { label: "Cambio de puntos pendientes", points: Number(row.delta_pending) },
+      { label: "Cambio de puntos acumulados", points: Number(row.delta_lifetime) },
+    );
+    limitations.push(
+      "Este ajuste corrige saldos. No representa una compra ni modifica los puntos del movimiento original.",
+    );
+  } else if (row.kind === "redemption") {
+    if (row.points !== null)
+      steps.push({ label: "Puntos debitados en el historial", points: Number(row.points) });
+    limitations.push(
+      row.record === "redemption"
+        ? "Hay un registro de canje, pero no se encontró su débito enlazado en el historial. No se puede confirmar aquí el cambio de saldo."
+        : "El costo registrado del canje no depende del precio actual de la recompensa. Las condiciones de elegibilidad de ese momento no se guardaron.",
+    );
+  } else if (row.kind === "refund") {
+    steps.push({ label: "Puntos registrados en la reversión", points: Number(row.points) });
+    limitations.push(
+      "La reversión de puntos no confirma una devolución de dinero. Comprueba el recibo en tu caja.",
+    );
+  } else
+    limitations.push(
+      "Se muestra el movimiento registrado. No hay evidencia suficiente para explicar todas sus reglas de origen.",
+    );
+  limitations.push(
+    "Los nombres son los que figuran actualmente en PF. Este detalle no reconstruye el saldo anterior ni el saldo posterior.",
+  );
+  return {
+    coverage: coverage(award),
+    award,
+    steps,
+    limitations,
+    replay: row.kind === "purchase" ? replaySavedAward(award, Number(row.points)) : null,
+  };
 }
 function requireTenant(businessId) {
-  if (!uuid.safeParse(businessId).success || String(getDbTenantId() || '') !== String(businessId)) throw notFound('Negocio no disponible.');
+  if (!uuid.safeParse(businessId).success || String(getDbTenantId() || "") !== String(businessId))
+    throw notFound("Negocio no disponible.");
 }
-export async function listTransactionHistory({ businessId, limit = 25, cursor = undefined, kind = 'all', ...filters }) {
+export async function listTransactionHistory({
+  businessId,
+  limit = 25,
+  cursor = undefined,
+  kind = "all",
+  ...filters
+}) {
   requireTenant(businessId);
-  if (!Number.isInteger(limit) || limit < 1 || limit > 50 || !movementKinds.includes(kind)) throw badRequest('Filtro de movimientos no válido.');
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50 || !movementKinds.includes(kind))
+    throw badRequest("Filtro de movimientos no válido.");
   const parsedFilters = transactionHistoryFilters.refine(validHistoryInterval).safeParse(filters);
-  if (!parsedFilters.success) throw badRequest('Filtros de persona, origen o fechas no válidos.');
+  if (!parsedFilters.success) throw badRequest("Filtros de persona, origen o fechas no válidos.");
   const filter = parsedFilters.data;
   let after = null;
   if (cursor) {
-    try { if (typeof cursor !== 'string' || cursor.length > 400) throw new Error(); after = cursorSchema.parse(JSON.parse(Buffer.from(cursor,'base64url').toString('utf8'))); }
-    catch { throw badRequest('La página de movimientos no es válida. Vuelve al inicio.'); }
+    try {
+      if (typeof cursor !== "string" || cursor.length > 400) throw new Error();
+      after = cursorSchema.parse(JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")));
+    } catch {
+      throw badRequest("La página de movimientos no es válida. Vuelve al inicio.");
+    }
   }
-  const { rows } = await dbQuery(`${activity}
+  const { rows } = await dbQuery(
+    `${activity}
     WHERE ($2::text='all' OR a.kind=$2) AND ($3::timestamptz IS NULL OR (a.created_at,a.id,a.record)<($3::timestamptz,$4::uuid,$5::text))
     AND ($7::uuid IS NULL OR (a.staff_user_id=$7 AND (${activityAttributionSql})='staff'))
     AND ($8::text IS NULL OR (${activityAttributionSql})=$8)
     AND ($9::uuid IS NULL OR a.branch_id=$9)
     AND ($10::timestamptz IS NULL OR a.created_at>=$10)
     AND ($11::timestamptz IS NULL OR a.created_at<$11)
-    ORDER BY a.created_at DESC,a.id DESC,a.record DESC LIMIT $6`, [businessId,kind,after?.at ?? null,after?.id ?? null,after?.record ?? null,limit+1,filter.staff_id ?? null,filter.source_group ?? null,filter.branch_id ?? null,filter.start ?? null,filter.end ?? null]);
-  const page = rows.slice(0,limit), last = page.at(-1);
-  return { movements: page.map(movement), next_cursor: rows.length > limit ? Buffer.from(JSON.stringify({ at: last.cursor_at,id: last.id,record: last.record })).toString('base64url') : null, limit };
+    ORDER BY a.created_at DESC,a.id DESC,a.record DESC LIMIT $6`,
+    [
+      businessId,
+      kind,
+      after?.at ?? null,
+      after?.id ?? null,
+      after?.record ?? null,
+      limit + 1,
+      filter.staff_id ?? null,
+      filter.source_group ?? null,
+      filter.branch_id ?? null,
+      filter.start ?? null,
+      filter.end ?? null,
+    ],
+  );
+  const page = rows.slice(0, limit),
+    last = page.at(-1);
+  return {
+    movements: page.map(movement),
+    next_cursor:
+      rows.length > limit
+        ? Buffer.from(
+            JSON.stringify({ at: last.cursor_at, id: last.id, record: last.record }),
+          ).toString("base64url")
+        : null,
+    limit,
+  };
 }
 export async function getTransactionExplanation({ businessId, id }) {
   requireTenant(businessId);
-  if (!uuid.safeParse(id).success) throw badRequest('El ID del movimiento no es válido.');
-  const { rows } = await dbQuery(`${activity} WHERE a.id=$2::uuid OR a.redemption_id=$2::uuid ORDER BY a.created_at DESC,a.id DESC LIMIT 1`, [businessId,id]);
-  if (!rows[0]) throw notFound('No se encontró ese movimiento en este negocio.');
-  const item=movement(rows[0]);
-  return { movement:item, explanation:explanation(rows[0]), history:await transactionDetailEvidence(businessId,item) };
+  if (!uuid.safeParse(id).success) throw badRequest("El ID del movimiento no es válido.");
+  const { rows } = await dbQuery(
+    `${activity} WHERE a.id=$2::uuid OR a.redemption_id=$2::uuid ORDER BY a.created_at DESC,a.id DESC LIMIT 1`,
+    [businessId, id],
+  );
+  if (!rows[0]) throw notFound("No se encontró ese movimiento en este negocio.");
+  const item = movement(rows[0]);
+  return {
+    movement: item,
+    explanation: explanation(rows[0]),
+    history: await transactionDetailEvidence(businessId, item),
+  };
 }
 
-export async function listRejectedAttempts({businessId}){
- requireTenant(businessId);
- const {rows}=await dbQuery(`SELECT s.id,s.reason,s.status,s.resolution,s.created_at,s.customer_id,c.name AS customer_name,r.name AS reward_name
+export async function listRejectedAttempts({ businessId }) {
+  requireTenant(businessId);
+  const { rows } = await dbQuery(
+    `SELECT s.id,s.reason,s.status,s.resolution,s.created_at,s.customer_id,c.name AS customer_name,r.name AS reward_name
  FROM service_cases s JOIN customers c ON c.business_id=s.business_id AND c.id=s.customer_id
  LEFT JOIN rewards r ON r.business_id=s.business_id AND r.id=s.reward_id
- WHERE s.business_id=$1 AND s.kind='redemption_failed' ORDER BY s.created_at DESC,s.id DESC LIMIT 25`,[businessId]);
- return {attempts:rows,note:'Estos intentos fallidos no son débitos de puntos. Abre Atención al cliente para revisar todos los casos y su resolución.'};
+ WHERE s.business_id=$1 AND s.kind='redemption_failed' ORDER BY s.created_at DESC,s.id DESC LIMIT 25`,
+    [businessId],
+  );
+  return {
+    attempts: rows,
+    note: "Estos intentos fallidos no son débitos de puntos. Abre Atención al cliente para revisar todos los casos y su resolución.",
+  };
 }

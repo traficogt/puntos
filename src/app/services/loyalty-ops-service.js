@@ -1,4 +1,4 @@
-import {assertCheckoutCorrectionAllowed} from './pos-checkout-guard.js';
+import { assertCheckoutCorrectionAllowed } from "./pos-checkout-guard.js";
 import crypto from "node:crypto";
 import { dbQuery, withTransaction } from "../database.js";
 import { conflict, forbidden, notFound } from "../../utils/http-error.js";
@@ -9,13 +9,15 @@ import { refreshCustomerDerivedState } from "./customer-derived-state.js";
 import { reconcileCustomerGamificationAfterRefund } from "./gamification/reconciliation-service.js";
 import { logger } from "../../utils/logger.js";
 
-function id() { return crypto.randomUUID(); }
+function id() {
+  return crypto.randomUUID();
+}
 
 async function lockRefundRequest(client, businessId, requestId) {
-  await client.query(
-    `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
-    [String(businessId), String(requestId)]
-  );
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
+    String(businessId),
+    String(requestId),
+  ]);
 }
 
 async function findExistingRefundByRequestId(client, businessId, requestId) {
@@ -33,7 +35,7 @@ async function findExistingRefundByRequestId(client, businessId, requestId) {
        AND reversal.request_id = $2
        AND reversal.source = 'reversal'
      LIMIT 1`,
-    [businessId, requestId]
+    [businessId, requestId],
   );
   return rows[0] ?? null;
 }
@@ -48,12 +50,16 @@ async function getPointsExpirationDays({ businessId, client = null }) {
     `SELECT COALESCE((program_json->>'points_expiration_days')::int, 0) AS days
      FROM businesses
      WHERE id = $1`,
-    [businessId]
+    [businessId],
   );
   return Math.max(0, Number(rows?.[0]?.days ?? 0));
 }
 
-export async function settlePendingPointsForCustomer(customerId, businessId = null, transaction = withTransaction) {
+export async function settlePendingPointsForCustomer(
+  customerId,
+  businessId = null,
+  transaction = withTransaction,
+) {
   return transaction(async (client) => {
     const params = [customerId];
     let where = `customer_id = $1`;
@@ -70,18 +76,18 @@ export async function settlePendingPointsForCustomer(customerId, businessId = nu
          AND available_at IS NOT NULL
          AND available_at <= now()
        FOR UPDATE`,
-      params
+      params,
     );
     if (!rows.length) return { settledCount: 0, settledPoints: 0 };
 
-    const ids = rows.map(r => r.id);
+    const ids = rows.map((r) => r.id);
     const settledPoints = rows.reduce((acc, r) => acc + Number(r.points || 0), 0);
 
     await client.query(
       `UPDATE transactions
        SET status = 'POSTED'
        WHERE id = ANY($1::uuid[])`,
-      [ids]
+      [ids],
     );
 
     await client.query(
@@ -90,7 +96,7 @@ export async function settlePendingPointsForCustomer(customerId, businessId = nu
            pending_points = GREATEST(0, pending_points - $2),
            updated_at = now()
        WHERE customer_id = $1`,
-      [customerId, settledPoints]
+      [customerId, settledPoints],
     );
 
     return { settledCount: ids.length, settledPoints };
@@ -106,7 +112,7 @@ export async function settlePendingPointsForBusiness(businessId, limit = 1000) {
        AND available_at IS NOT NULL
        AND available_at <= now()
      LIMIT $2`,
-    [businessId, limit]
+    [businessId, limit],
   );
 
   let totalCustomers = 0;
@@ -123,14 +129,15 @@ export async function settlePendingPointsForBusiness(businessId, limit = 1000) {
   return { totalCustomers, totalSettled, totalPoints };
 }
 
-export async function expirePointsForCustomer(customerId, businessId = null, transaction = withTransaction) {
+export async function expirePointsForCustomer(
+  customerId,
+  businessId = null,
+  transaction = withTransaction,
+) {
   return transaction(async (client) => {
     let resolvedBusinessId = businessId;
     if (!resolvedBusinessId) {
-      const c = await client.query(
-        `SELECT business_id FROM customers WHERE id = $1`,
-        [customerId]
-      );
+      const c = await client.query(`SELECT business_id FROM customers WHERE id = $1`, [customerId]);
       resolvedBusinessId = c.rows?.[0]?.business_id ?? null;
       if (!resolvedBusinessId) return { expiredCount: 0, expiredPoints: 0, deductedPoints: 0 };
     }
@@ -148,7 +155,7 @@ export async function expirePointsForCustomer(customerId, businessId = null, tra
          AND expired_at IS NULL
          AND created_at <= now() - ($3 || ' days')::interval
        FOR UPDATE`,
-      [customerId, resolvedBusinessId, String(days)]
+      [customerId, resolvedBusinessId, String(days)],
     );
     if (!rows.length) return { expiredCount: 0, expiredPoints: 0, deductedPoints: 0 };
 
@@ -160,7 +167,7 @@ export async function expirePointsForCustomer(customerId, businessId = null, tra
        SET status = 'EXPIRED',
            expired_at = now()
        WHERE id = ANY($1::uuid[])`,
-      [txIds]
+      [txIds],
     );
 
     const bal = await client.query(
@@ -168,7 +175,7 @@ export async function expirePointsForCustomer(customerId, businessId = null, tra
        FROM customer_balances
        WHERE customer_id = $1
        FOR UPDATE`,
-      [customerId]
+      [customerId],
     );
     const currentPoints = Number(bal.rows?.[0]?.points ?? 0);
     const deductedPoints = Math.max(0, Math.min(currentPoints, expiredPoints));
@@ -179,7 +186,7 @@ export async function expirePointsForCustomer(customerId, businessId = null, tra
          SET points = points - $2,
              updated_at = now()
          WHERE customer_id = $1`,
-        [customerId, deductedPoints]
+        [customerId, deductedPoints],
       );
 
       await client.query(
@@ -194,9 +201,9 @@ export async function expirePointsForCustomer(customerId, businessId = null, tra
           {
             expiration_days: days,
             expired_count: txIds.length,
-            expired_transaction_ids_sample: txIds.slice(0, 20)
-          }
-        ]
+            expired_transaction_ids_sample: txIds.slice(0, 20),
+          },
+        ],
       );
     }
 
@@ -206,7 +213,8 @@ export async function expirePointsForCustomer(customerId, businessId = null, tra
 
 export async function expirePointsForBusiness(businessId, limit = 1000) {
   const days = await getPointsExpirationDays({ businessId });
-  if (days <= 0) return { totalCustomers: 0, totalExpired: 0, totalExpiredPoints: 0, totalDeductedPoints: 0 };
+  if (days <= 0)
+    return { totalCustomers: 0, totalExpired: 0, totalExpiredPoints: 0, totalDeductedPoints: 0 };
 
   const { rows } = await dbQuery(
     `SELECT DISTINCT customer_id
@@ -217,7 +225,7 @@ export async function expirePointsForBusiness(businessId, limit = 1000) {
        AND expired_at IS NULL
        AND created_at <= now() - ($2 || ' days')::interval
      LIMIT $3`,
-    [businessId, String(days), limit]
+    [businessId, String(days), limit],
   );
 
   let totalCustomers = 0;
@@ -236,194 +244,216 @@ export async function expirePointsForBusiness(businessId, limit = 1000) {
   return { totalCustomers, totalExpired, totalExpiredPoints, totalDeductedPoints };
 }
 
-export async function refundAwardTransaction({ staff, transactionId, requestId, reason = "refund" }) {
-  return withTransaction(client => refundAwardTransactionWithClient(client, { staff, transactionId, requestId, reason }));
+export async function refundAwardTransaction({
+  staff,
+  transactionId,
+  requestId,
+  reason = "refund",
+}) {
+  return withTransaction((client) =>
+    refundAwardTransactionWithClient(client, { staff, transactionId, requestId, reason }),
+  );
 }
 
 // Call only inside an existing transaction. POS reconciliation must commit its
 // receipt result together with the ledger and gamification corrections.
-export async function refundAwardTransactionWithClient(client, { staff, transactionId, requestId, reason = "refund" }) {
-    await lockRefundRequest(client, staff.business_id, requestId);
-    const replay = await findExistingRefundByRequestId(client, staff.business_id, requestId);
-    if (replay) {
-      if (replay.original_transaction_id !== transactionId) {
-        throw conflict("requestId already used for a different refund");
-      }
-      await AuditRepo.log({
-        id: id(),
-        business_id: staff.business_id,
-        actor_type: staff.id ? "STAFF" : "SYSTEM",
-        actor_id: staff.id,
-        action: "award.refund.replay",
-        ip: null,
-        ua: null,
-        meta: withImpersonationMeta({
+export async function refundAwardTransactionWithClient(
+  client,
+  { staff, transactionId, requestId, reason = "refund" },
+) {
+  await lockRefundRequest(client, staff.business_id, requestId);
+  const replay = await findExistingRefundByRequestId(client, staff.business_id, requestId);
+  if (replay) {
+    if (replay.original_transaction_id !== transactionId) {
+      throw conflict("requestId already used for a different refund");
+    }
+    await AuditRepo.log({
+      id: id(),
+      business_id: staff.business_id,
+      actor_type: staff.id ? "STAFF" : "SYSTEM",
+      actor_id: staff.id,
+      action: "award.refund.replay",
+      ip: null,
+      ua: null,
+      meta: withImpersonationMeta(
+        {
           transaction_id: transactionId,
           reversal_transaction_id: replay.reversal_transaction_id,
-          request_id: requestId
-        }, staff)
-      }).catch(() => {});
-      return {
-        ok: true,
-        transactionId,
-        reversalTransactionId: replay.reversal_transaction_id,
-        customerId: replay.customer_id,
-        pointsEffect: Number(replay.points ?? 0),
-        gamificationReconciliation: { replay: true },
-        newBalance: Number(replay.new_balance ?? 0),
-        newPendingBalance: Number(replay.new_pending_balance ?? 0),
-        replay: true
-      };
-    }
+          request_id: requestId,
+        },
+        staff,
+      ),
+    }).catch(() => {});
+    return {
+      ok: true,
+      transactionId,
+      reversalTransactionId: replay.reversal_transaction_id,
+      customerId: replay.customer_id,
+      pointsEffect: Number(replay.points ?? 0),
+      gamificationReconciliation: { replay: true },
+      newBalance: Number(replay.new_balance ?? 0),
+      newPendingBalance: Number(replay.new_pending_balance ?? 0),
+      replay: true,
+    };
+  }
 
-    const { rows } = await client.query(
-      `SELECT *
+  const { rows } = await client.query(
+    `SELECT *
        FROM transactions
        WHERE id = $1
        FOR UPDATE`,
-      [transactionId]
-    );
-    const tx = rows[0];
-    if (!tx) throw notFound("Transaction not found");
-    if (tx.business_id !== staff.business_id) throw forbidden("Transaction belongs to different business");
-    if (tx.source === "reversal") throw conflict("Cannot reverse a reversal transaction");
-    if (tx.status === "REVERSED" || tx.reversed_transaction_id) throw conflict("Transaction already reversed");
-    // Service restoration and legacy refunds both hold this original debit's
-    // FOR UPDATE lock. Check after acquiring it so a concurrent restoration
-    // cannot commit a credit between this check and the refund balance update.
-    if (tx.source === "redeem" && typeof tx.meta?.redemption_id === "string") {
-      await assertCheckoutCorrectionAllowed(client, {businessId: tx.business_id, redemptionId: tx.meta.redemption_id});
-      const restored = await client.query(
-        `SELECT id FROM service_redemption_restorations
+    [transactionId],
+  );
+  const tx = rows[0];
+  if (!tx) throw notFound("Transaction not found");
+  if (tx.business_id !== staff.business_id)
+    throw forbidden("Transaction belongs to different business");
+  if (tx.source === "reversal") throw conflict("Cannot reverse a reversal transaction");
+  if (tx.status === "REVERSED" || tx.reversed_transaction_id)
+    throw conflict("Transaction already reversed");
+  // Service restoration and legacy refunds both hold this original debit's
+  // FOR UPDATE lock. Check after acquiring it so a concurrent restoration
+  // cannot commit a credit between this check and the refund balance update.
+  if (tx.source === "redeem" && typeof tx.meta?.redemption_id === "string") {
+    await assertCheckoutCorrectionAllowed(client, {
+      businessId: tx.business_id,
+      redemptionId: tx.meta.redemption_id,
+    });
+    const restored = await client.query(
+      `SELECT id FROM service_redemption_restorations
          WHERE business_id = $1 AND customer_id = $2
            AND redemption_id::text = $3
          LIMIT 1`,
-        [tx.business_id, tx.customer_id, tx.meta.redemption_id]
-      );
-      if (restored.rowCount) throw conflict("Transaction already reversed");
-    }
-    const businessResult = await client.query(
-      `SELECT program_json, program_type FROM businesses WHERE id = $1`,
-      [tx.business_id]
+      [tx.business_id, tx.customer_id, tx.meta.redemption_id],
     );
-    const allowNegative = allowNegativeRefundBalance(businessResult.rows?.[0]?.program_json ?? {});
-    if (businessResult.rows?.[0]?.program_type === "CASHBACK") {
-      await reverseCashback(client, {
-        businessId: tx.business_id,
-        customerId: tx.customer_id,
-        sourceTransactionId: tx.id,
-        meta: { via: "award_refund", request_id: requestId }
-      });
-    }
+    if (restored.rowCount) throw conflict("Transaction already reversed");
+  }
+  const businessResult = await client.query(
+    `SELECT program_json, program_type FROM businesses WHERE id = $1`,
+    [tx.business_id],
+  );
+  const allowNegative = allowNegativeRefundBalance(businessResult.rows?.[0]?.program_json ?? {});
+  if (businessResult.rows?.[0]?.program_type === "CASHBACK") {
+    await reverseCashback(client, {
+      businessId: tx.business_id,
+      customerId: tx.customer_id,
+      sourceTransactionId: tx.id,
+      meta: { via: "award_refund", request_id: requestId },
+    });
+  }
 
-    const points = Number(tx.points || 0);
-    let pointsEffect = 0;
+  const points = Number(tx.points || 0);
+  let pointsEffect = 0;
 
-    if (tx.status === "PENDING") {
-      if (points > 0) {
-        await client.query(
-          `UPDATE customer_balances
+  if (tx.status === "PENDING") {
+    if (points > 0) {
+      await client.query(
+        `UPDATE customer_balances
            SET pending_points = GREATEST(0, pending_points - $2),
                updated_at = now()
            WHERE customer_id = $1`,
-          [tx.customer_id, points]
-        );
-      }
-    } else {
-      pointsEffect = -points;
-      const bal = await client.query(
-        `SELECT points FROM customer_balances WHERE customer_id = $1 FOR UPDATE`,
-        [tx.customer_id]
+        [tx.customer_id, points],
       );
-      const currentPoints = Number(bal.rows?.[0]?.points ?? 0);
-      if (!allowNegative && (currentPoints + pointsEffect) < 0) {
-        throw conflict("Refund would create negative balance");
-      }
-      await client.query(
-        `UPDATE customer_balances
+    }
+  } else {
+    pointsEffect = -points;
+    const bal = await client.query(
+      `SELECT points FROM customer_balances WHERE customer_id = $1 FOR UPDATE`,
+      [tx.customer_id],
+    );
+    const currentPoints = Number(bal.rows?.[0]?.points ?? 0);
+    if (!allowNegative && currentPoints + pointsEffect < 0) {
+      throw conflict("Refund would create negative balance");
+    }
+    await client.query(
+      `UPDATE customer_balances
          SET points = points + $2,
              lifetime_points = GREATEST(0, lifetime_points + LEAST($2, 0)),
              updated_at = now()
          WHERE customer_id = $1`,
-        [tx.customer_id, pointsEffect]
-      );
-    }
+      [tx.customer_id, pointsEffect],
+    );
+  }
 
-    const reversalId = id();
-    await client.query(
-      `INSERT INTO transactions
+  const reversalId = id();
+  await client.query(
+    `INSERT INTO transactions
        (id, business_id, branch_id, customer_id, staff_user_id, amount_q, visits, items, points, status, source, original_transaction_id, request_id, meta)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'POSTED','reversal',$10,$11,$12)`,
-      [
-        reversalId,
-        tx.business_id,
-        tx.branch_id,
-        tx.customer_id,
-        staff.id,
-        0,
-        0,
-        0,
-        pointsEffect,
-        tx.id,
-        requestId,
-        {
-          refund_reason: reason,
-          original_status: tx.status,
-          original_points: points,
-          refunded_by: staff.id,
-          request_id: requestId
-        }
-      ]
-    );
+    [
+      reversalId,
+      tx.business_id,
+      tx.branch_id,
+      tx.customer_id,
+      staff.id,
+      0,
+      0,
+      0,
+      pointsEffect,
+      tx.id,
+      requestId,
+      {
+        refund_reason: reason,
+        original_status: tx.status,
+        original_points: points,
+        refunded_by: staff.id,
+        request_id: requestId,
+      },
+    ],
+  );
 
-    await client.query(
-      `UPDATE transactions
+  await client.query(
+    `UPDATE transactions
        SET status = 'REVERSED',
            reversed_transaction_id = $2,
            reversal_reason = $3
        WHERE id = $1`,
-      [tx.id, reversalId, reason]
-    );
+    [tx.id, reversalId, reason],
+  );
 
-    await refreshCustomerDerivedState(client, tx.customer_id);
-    const gamificationReconciliation = await reconcileCustomerGamificationAfterRefund(client, {
-      customerId: tx.customer_id,
-      staff,
-      reason,
-      referenceAt: new Date(),
-      refundedTransactionId: tx.id
-    });
+  await refreshCustomerDerivedState(client, tx.customer_id);
+  const gamificationReconciliation = await reconcileCustomerGamificationAfterRefund(client, {
+    customerId: tx.customer_id,
+    staff,
+    reason,
+    referenceAt: new Date(),
+    refundedTransactionId: tx.id,
+  });
 
-    const newBal = await client.query(
-      `SELECT points, pending_points FROM customer_balances WHERE customer_id = $1`,
-      [tx.customer_id]
-    );
-    const newBalance = Number(newBal.rows?.[0]?.points ?? 0);
-    const newPendingBalance = Number(newBal.rows?.[0]?.pending_points ?? 0);
-    if (!allowNegative && newBalance < 0) {
-      throw conflict("Refund policy forbids negative balances");
-    }
+  const newBal = await client.query(
+    `SELECT points, pending_points FROM customer_balances WHERE customer_id = $1`,
+    [tx.customer_id],
+  );
+  const newBalance = Number(newBal.rows?.[0]?.points ?? 0);
+  const newPendingBalance = Number(newBal.rows?.[0]?.pending_points ?? 0);
+  if (!allowNegative && newBalance < 0) {
+    throw conflict("Refund policy forbids negative balances");
+  }
 
-    await AuditRepo.log({
-      id: id(),
-      business_id: tx.business_id,
-      actor_type: staff.id ? "STAFF" : "SYSTEM",
-      actor_id: staff.id,
-      action: "award.refund",
-      ip: null,
-      ua: null,
-      meta: withImpersonationMeta({
+  await AuditRepo.log({
+    id: id(),
+    business_id: tx.business_id,
+    actor_type: staff.id ? "STAFF" : "SYSTEM",
+    actor_id: staff.id,
+    action: "award.refund",
+    ip: null,
+    ua: null,
+    meta: withImpersonationMeta(
+      {
         transaction_id: tx.id,
         reversal_transaction_id: reversalId,
         request_id: requestId,
         reason,
         points_effect: pointsEffect,
         allow_negative_refund_balance: allowNegative,
-        gamification_reconciliation: gamificationReconciliation
-      }, staff)
-    }).catch(() => { });
+        gamification_reconciliation: gamificationReconciliation,
+      },
+      staff,
+    ),
+  }).catch(() => {});
 
-    logger.info({
+  logger.info(
+    {
       transactionId: tx.id,
       reversalTransactionId: reversalId,
       customerId: tx.customer_id,
@@ -433,17 +463,19 @@ export async function refundAwardTransactionWithClient(client, { staff, transact
       requestId,
       allowNegative,
       achievementsRevoked: Number(gamificationReconciliation?.achievementsRevoked ?? 0),
-      challengesRevoked: Number(gamificationReconciliation?.challengesRevoked ?? 0)
-    }, "Staff refund completed");
+      challengesRevoked: Number(gamificationReconciliation?.challengesRevoked ?? 0),
+    },
+    "Staff refund completed",
+  );
 
-    return {
-      ok: true,
-      transactionId: tx.id,
-      reversalTransactionId: reversalId,
-      customerId: tx.customer_id,
-      pointsEffect,
-      gamificationReconciliation,
-      newBalance,
-      newPendingBalance
-    };
+  return {
+    ok: true,
+    transactionId: tx.id,
+    reversalTransactionId: reversalId,
+    customerId: tx.customer_id,
+    pointsEffect,
+    gamificationReconciliation,
+    newBalance,
+    newPendingBalance,
+  };
 }

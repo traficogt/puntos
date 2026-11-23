@@ -1,14 +1,23 @@
-import { normalizeMeasurementPlan, planCampaignExperiment } from '../services/campaign-experiment-model.js';
-import { MeasurementPlanInput, MeasurementCostInput } from '../services/campaign-measurement-input.js';
-import { saveMeasurementCosts, saveMeasurementReport, listMeasurementReports } from '../services/campaign-report-service.js';
-import {previewCampaignCollisions,CollisionSampleInput} from '../services/campaign-collision-service.js';
+import {
+  normalizeMeasurementPlan,
+  planCampaignExperiment,
+} from "../services/campaign-experiment-model.js";
+import {
+  MeasurementPlanInput,
+  MeasurementCostInput,
+} from "../services/campaign-measurement-input.js";
+import {
+  saveMeasurementCosts,
+  saveMeasurementReport,
+  listMeasurementReports,
+} from "../services/campaign-report-service.js";
+import {
+  previewCampaignCollisions,
+  CollisionSampleInput,
+} from "../services/campaign-collision-service.js";
 import { Router } from "express";
 import { z } from "zod";
-import {
-  requireStaff,
-  requireOwner,
-  requireCustomer,
-} from "../../middleware/auth.js";
+import { requireStaff, requireOwner, requireCustomer } from "../../middleware/auth.js";
 import { tenantContext } from "../../middleware/tenant.js";
 import { requirePlanFeature } from "../../middleware/plan-feature.js";
 import { csrfProtect } from "../../middleware/csrf.js";
@@ -21,28 +30,35 @@ import {
   pauseGrowthCampaign,
 } from "../services/growth-campaign-service.js";
 import { createCampaignPreflight } from "../services/campaign-preflight-service.js";
-import { createCampaignPreparation, retryCampaignPreparation, cancelCampaignPreparation } from "../services/campaign-preparation-service.js";
+import {
+  createCampaignPreparation,
+  retryCampaignPreparation,
+  cancelCampaignPreparation,
+} from "../services/campaign-preparation-service.js";
 import { getCustomerGrowthOffers } from "../services/targeted-offer-service.js";
 
-const uuid = z.guid()
-  .transform((value) => value.toLowerCase());
+const uuid = z.guid().transform((value) => value.toLowerCase());
 const Empty = z.object({}).strict();
 const Params = z.object({ id: uuid }).strict();
-const integerQuery = (minimum, maximum, fallback) => z.string()
-  .regex(/^(0|[1-9]\d*)$/).default(String(fallback)).transform(Number)
-  .pipe(z.number().int().min(minimum).max(maximum));
-const ListQuery = z.object({
-  limit: integerQuery(1, 50, 20),
-  offset: integerQuery(0, 100000, 0),
-}).strict();
+const integerQuery = (minimum, maximum, fallback) =>
+  z
+    .string()
+    .regex(/^(0|[1-9]\d*)$/)
+    .default(String(fallback))
+    .transform(Number)
+    .pipe(z.number().int().min(minimum).max(maximum));
+const ListQuery = z
+  .object({
+    limit: integerQuery(1, 50, 20),
+    offset: integerQuery(0, 100000, 0),
+  })
+  .strict();
 const Money = z
   .number()
   .finite()
   .min(0)
   .max(999999.99)
-  .refine(
-    (value) => Math.abs(value * 100 - Math.round(value * 100)) <= 0.00001,
-  );
+  .refine((value) => Math.abs(value * 100 - Math.round(value * 100)) <= 0.00001);
 const CreateBody = z
   .object({
     request_id: uuid,
@@ -59,51 +75,68 @@ const CreateBody = z
     holdout_percent: z
       .union([z.literal(10), z.literal(20), z.literal(30), z.literal(50)])
       .default(20),
-    estimated_cost_per_point_q: z
-      .number()
-      .finite()
-      .min(0)
-      .max(100)
-      .nullable()
-      .default(null),
+    estimated_cost_per_point_q: z.number().finite().min(0).max(100).nullable().default(null),
   })
   .strict()
-  .refine(data => Boolean(data.recovery_run_id) !== Boolean(data.audience_segment_id))
-  .refine(data => data.audience_segment_id
-    ? data.audience_segment_version !== undefined && data.audience_limit !== undefined
-    : data.audience_segment_version === undefined && data.audience_limit === undefined)
-  .refine(data => data.points_budget == null || data.points_budget >= data.bonus_points);
+  .refine((data) => Boolean(data.recovery_run_id) !== Boolean(data.audience_segment_id))
+  .refine((data) =>
+    data.audience_segment_id
+      ? data.audience_segment_version !== undefined && data.audience_limit !== undefined
+      : data.audience_segment_version === undefined && data.audience_limit === undefined,
+  )
+  .refine((data) => data.points_budget == null || data.points_budget >= data.bonus_points);
 
 const ActivateBody = z.object({ preflight_id: uuid.optional() }).strict();
 const ExpansionTerms = {
-  request_id: uuid, name: z.string().trim().min(1).max(100),
-  audience_segment_id: uuid, audience_segment_version: z.number().int().min(1).max(2147483647),
-  bonus_points: z.number().int().min(1).max(10000), minimum_purchase_q: Money.default(0),
+  request_id: uuid,
+  name: z.string().trim().min(1).max(100),
+  audience_segment_id: uuid,
+  audience_segment_version: z.number().int().min(1).max(2147483647),
+  bonus_points: z.number().int().min(1).max(10000),
+  minimum_purchase_q: Money.default(0),
   estimated_cost_per_point_q: z.number().finite().min(0).max(100).nullable().default(null),
 };
-const QuietBody = z.object({ ...ExpansionTerms, audience_limit: z.number().int().min(1).max(200),
-  points_budget: z.number().int().min(1).max(2000000), duration_minutes: z.number().int().min(30).max(240),
-}).strict().refine(data => data.points_budget >= data.bonus_points);
-const PreparationBody = z.object({ ...ExpansionTerms, audience_limit: z.number().int().min(10).max(5000),
-  points_budget: z.number().int().min(1).max(2000000).nullable().default(null),
-  measurement_plan: MeasurementPlanInput.nullable().optional(),
-  duration_days: z.union([z.literal(7), z.literal(14), z.literal(30)]),
-  holdout_percent: z.union([z.literal(10), z.literal(20), z.literal(30), z.literal(50)]).default(20),
-}).strict().refine(data => data.points_budget == null || data.points_budget >= data.bonus_points);
+const QuietBody = z
+  .object({
+    ...ExpansionTerms,
+    audience_limit: z.number().int().min(1).max(200),
+    points_budget: z.number().int().min(1).max(2000000),
+    duration_minutes: z.number().int().min(30).max(240),
+  })
+  .strict()
+  .refine((data) => data.points_budget >= data.bonus_points);
+const PreparationBody = z
+  .object({
+    ...ExpansionTerms,
+    audience_limit: z.number().int().min(10).max(5000),
+    points_budget: z.number().int().min(1).max(2000000).nullable().default(null),
+    measurement_plan: MeasurementPlanInput.nullable().optional(),
+    duration_days: z.union([z.literal(7), z.literal(14), z.literal(30)]),
+    holdout_percent: z
+      .union([z.literal(10), z.literal(20), z.literal(30), z.literal(50)])
+      .default(20),
+  })
+  .strict()
+  .refine((data) => data.points_budget == null || data.points_budget >= data.bonus_points);
 function expansionOptions(data) {
-  return { requestId: data.request_id, name: data.name, audienceSegmentId: data.audience_segment_id,
-    audienceSegmentVersion: data.audience_segment_version, audienceLimit: data.audience_limit,
-    bonusPoints: data.bonus_points, pointsBudget: data.points_budget, minimumPurchaseQ: data.minimum_purchase_q,
-    estimatedCostPerPointQ: data.estimated_cost_per_point_q };
+  return {
+    requestId: data.request_id,
+    name: data.name,
+    audienceSegmentId: data.audience_segment_id,
+    audienceSegmentVersion: data.audience_segment_version,
+    audienceLimit: data.audience_limit,
+    bonusPoints: data.bonus_points,
+    pointsBudget: data.points_budget,
+    minimumPurchaseQ: data.minimum_purchase_q,
+    estimatedCostPerPointQ: data.estimated_cost_per_point_q,
+  };
 }
 
 function invalid(res) {
-  return res
-    .status(400)
-    .json({
-      error: "Revisa los datos y los límites de esta solicitud.",
-      code: "VALIDATION_ERROR",
-    });
+  return res.status(400).json({
+    error: "Revisa los datos y los límites de esta solicitud.",
+    code: "VALIDATION_ERROR",
+  });
 }
 function noStore(_req, res, next) {
   res.set("Cache-Control", "no-store");
@@ -122,12 +155,18 @@ function actor(req) {
 export function createGrowthCampaignRouter(deps = {}) {
   const services = {
     createGrowthCampaign,
-    saveMeasurementCosts, saveMeasurementReport, listMeasurementReports,
+    saveMeasurementCosts,
+    saveMeasurementReport,
+    listMeasurementReports,
     listGrowthCampaigns,
     getGrowthCampaign,
     activateGrowthCampaign,
     pauseGrowthCampaign,
-    previewCampaignCollisions,createCampaignPreflight, createCampaignPreparation, retryCampaignPreparation, cancelCampaignPreparation,
+    previewCampaignCollisions,
+    createCampaignPreflight,
+    createCampaignPreparation,
+    retryCampaignPreparation,
+    cancelCampaignPreparation,
     ...deps,
   };
   const router = Router();
@@ -141,35 +180,94 @@ export function createGrowthCampaignRouter(deps = {}) {
     requirePlanFeature("campaign_rules"),
     requirePlanFeature("analytics"),
   );
-  router.post(`${base}/measurement-plan`,csrfProtect,asyncRoute(async(req,res)=>{
-    const body=z.object({measurement_plan:MeasurementPlanInput,duration_days:z.union([z.literal(7),z.literal(14),z.literal(30)]),holdout_percent:z.union([z.literal(10),z.literal(20),z.literal(30),z.literal(50)]),available_members:z.number().int().min(0).max(5000).nullable()}).strict().safeParse(req.body);
-    if(!body.success||!Empty.safeParse(req.query).success)return invalid(res);
-    const d=body.data,plan=normalizeMeasurementPlan(d.measurement_plan,{durationDays:d.duration_days,holdoutPercent:d.holdout_percent});
-    return res.json({planning:planCampaignExperiment({plan,holdoutPercent:d.holdout_percent,availableMembers:d.available_members})});
-  }));
-  router.post(`${base}/:id/measurement-costs`,csrfProtect,asyncRoute(async(req,res)=>{
-    const params=Params.safeParse(req.params),input=MeasurementCostInput.extend({request_id:uuid}).safeParse(req.body);
-    if(!params.success||!input.success||!Empty.safeParse(req.query).success)return invalid(res);
-    const {request_id,...costs}=input.data;
-    return res.status(201).json(await services.saveMeasurementCosts({...actor(req),campaignId:params.data.id,requestId:request_id,costs}));
-  }));
-  router.post(`${base}/:id/measurement-reports`,csrfProtect,asyncRoute(async(req,res)=>{
-    const params=Params.safeParse(req.params),input=z.object({request_id:uuid}).strict().safeParse(req.body);
-    if(!params.success||!input.success||!Empty.safeParse(req.query).success)return invalid(res);
-    return res.status(201).json(await services.saveMeasurementReport({...actor(req),campaignId:params.data.id,requestId:input.data.request_id}));
-  }));
-  router.get(`${base}/:id/measurement-reports`,asyncRoute(async(req,res)=>{
-    const params=Params.safeParse(req.params);
-    if(!params.success||!Empty.safeParse(req.query).success)return invalid(res);
-    return res.json(await services.listMeasurementReports({businessId:req.tenantId,campaignId:params.data.id}));
-  }));
+  router.post(
+    `${base}/measurement-plan`,
+    csrfProtect,
+    asyncRoute(async (req, res) => {
+      const body = z
+        .object({
+          measurement_plan: MeasurementPlanInput,
+          duration_days: z.union([z.literal(7), z.literal(14), z.literal(30)]),
+          holdout_percent: z.union([z.literal(10), z.literal(20), z.literal(30), z.literal(50)]),
+          available_members: z.number().int().min(0).max(5000).nullable(),
+        })
+        .strict()
+        .safeParse(req.body);
+      if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
+      const d = body.data,
+        plan = normalizeMeasurementPlan(d.measurement_plan, {
+          durationDays: d.duration_days,
+          holdoutPercent: d.holdout_percent,
+        });
+      return res.json({
+        planning: planCampaignExperiment({
+          plan,
+          holdoutPercent: d.holdout_percent,
+          availableMembers: d.available_members,
+        }),
+      });
+    }),
+  );
+  router.post(
+    `${base}/:id/measurement-costs`,
+    csrfProtect,
+    asyncRoute(async (req, res) => {
+      const params = Params.safeParse(req.params),
+        input = MeasurementCostInput.extend({ request_id: uuid }).safeParse(req.body);
+      if (!params.success || !input.success || !Empty.safeParse(req.query).success)
+        return invalid(res);
+      const { request_id, ...costs } = input.data;
+      return res.status(201).json(
+        await services.saveMeasurementCosts({
+          ...actor(req),
+          campaignId: params.data.id,
+          requestId: request_id,
+          costs,
+        }),
+      );
+    }),
+  );
+  router.post(
+    `${base}/:id/measurement-reports`,
+    csrfProtect,
+    asyncRoute(async (req, res) => {
+      const params = Params.safeParse(req.params),
+        input = z.object({ request_id: uuid }).strict().safeParse(req.body);
+      if (!params.success || !input.success || !Empty.safeParse(req.query).success)
+        return invalid(res);
+      return res.status(201).json(
+        await services.saveMeasurementReport({
+          ...actor(req),
+          campaignId: params.data.id,
+          requestId: input.data.request_id,
+        }),
+      );
+    }),
+  );
+  router.get(
+    `${base}/:id/measurement-reports`,
+    asyncRoute(async (req, res) => {
+      const params = Params.safeParse(req.params);
+      if (!params.success || !Empty.safeParse(req.query).success) return invalid(res);
+      return res.json(
+        await services.listMeasurementReports({
+          businessId: req.tenantId,
+          campaignId: params.data.id,
+        }),
+      );
+    }),
+  );
   router.get(
     base,
     asyncRoute(async (req, res) => {
       const parsed = ListQuery.safeParse(req.query);
       if (!parsed.success) return invalid(res);
       return res.json(
-        await services.listGrowthCampaigns({ businessId: req.tenantId, limit: parsed.data.limit, offset: parsed.data.offset }),
+        await services.listGrowthCampaigns({
+          businessId: req.tenantId,
+          limit: parsed.data.limit,
+          offset: parsed.data.offset,
+        }),
       );
     }),
   );
@@ -178,64 +276,113 @@ export function createGrowthCampaignRouter(deps = {}) {
     csrfProtect,
     asyncRoute(async (req, res) => {
       const body = CreateBody.safeParse(req.body);
-      if (!body.success || !Empty.safeParse(req.query).success)
-        return invalid(res);
+      if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
       const data = body.data;
-      normalizeMeasurementPlan(data.measurement_plan ?? null,{durationDays:data.duration_days,holdoutPercent:data.holdout_percent});
-      return res
-        .status(201)
-        .json(
-          await services.createGrowthCampaign({
-            ...actor(req),
-            requestId: data.request_id,
-            recoveryRunId: data.recovery_run_id,
-            audienceSegmentId: data.audience_segment_id,
-            audienceSegmentVersion: data.audience_segment_version,
-            audienceLimit: data.audience_limit,
-            name: data.name,
-            bonusPoints: data.bonus_points,
-            pointsBudget: data.points_budget,
-            minimumPurchaseQ: data.minimum_purchase_q,
-            durationDays: data.duration_days,
-            holdoutPercent: data.holdout_percent,
-            estimatedCostPerPointQ: data.estimated_cost_per_point_q,
-            measurementPlan: data.measurement_plan,
-          }),
-        );
+      normalizeMeasurementPlan(data.measurement_plan ?? null, {
+        durationDays: data.duration_days,
+        holdoutPercent: data.holdout_percent,
+      });
+      return res.status(201).json(
+        await services.createGrowthCampaign({
+          ...actor(req),
+          requestId: data.request_id,
+          recoveryRunId: data.recovery_run_id,
+          audienceSegmentId: data.audience_segment_id,
+          audienceSegmentVersion: data.audience_segment_version,
+          audienceLimit: data.audience_limit,
+          name: data.name,
+          bonusPoints: data.bonus_points,
+          pointsBudget: data.points_budget,
+          minimumPurchaseQ: data.minimum_purchase_q,
+          durationDays: data.duration_days,
+          holdoutPercent: data.holdout_percent,
+          estimatedCostPerPointQ: data.estimated_cost_per_point_q,
+          measurementPlan: data.measurement_plan,
+        }),
+      );
     }),
   );
-  router.post(`${base}/quiet`, csrfProtect, asyncRoute(async (req,res) => {
-    const body = QuietBody.safeParse(req.body);
-    if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
-    return res.status(201).json(await services.createGrowthCampaign({ ...actor(req), ...expansionOptions(body.data),
-      offerKind: "quiet", durationMinutes: body.data.duration_minutes, durationDays: null, holdoutPercent: 0 }));
-  }));
-  router.post(`${base}/prepare`, csrfProtect, asyncRoute(async (req,res) => {
-    const body = PreparationBody.safeParse(req.body);
-    if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
-    normalizeMeasurementPlan(body.data.measurement_plan ?? null,{durationDays:body.data.duration_days,holdoutPercent:body.data.holdout_percent});
-    return res.status(202).json(await services.createCampaignPreparation({ ...actor(req), ...expansionOptions(body.data),
-      durationDays: body.data.duration_days, holdoutPercent: body.data.holdout_percent, measurementPlan:body.data.measurement_plan }));
-  }));
-  router.post(`${base}/:id/collision-preview`,csrfProtect,asyncRoute(async(req,res)=>{
-    const params=Params.safeParse(req.params),input=CollisionSampleInput.safeParse(req.body);
-    if(!params.success||!input.success||!Empty.safeParse(req.query).success)return invalid(res);
-    return res.json(await services.previewCampaignCollisions({...actor(req),campaignId:params.data.id,input:input.data}));
-  }));
-  for (const [suffix, execute] of Object.entries({ preflight: services.createCampaignPreflight,
-    "preparation/retry": services.retryCampaignPreparation, "preparation/cancel": services.cancelCampaignPreparation })) {
-    router.post(`${base}/:id/${suffix}`, csrfProtect, asyncRoute(async (req,res) => {
-      const params = Params.safeParse(req.params);
-      if (!params.success || !Empty.safeParse(req.query).success || !Empty.safeParse(req.body ?? {}).success) return invalid(res);
-      return res.json(await execute({ ...actor(req), campaignId: params.data.id }));
-    }));
+  router.post(
+    `${base}/quiet`,
+    csrfProtect,
+    asyncRoute(async (req, res) => {
+      const body = QuietBody.safeParse(req.body);
+      if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
+      return res.status(201).json(
+        await services.createGrowthCampaign({
+          ...actor(req),
+          ...expansionOptions(body.data),
+          offerKind: "quiet",
+          durationMinutes: body.data.duration_minutes,
+          durationDays: null,
+          holdoutPercent: 0,
+        }),
+      );
+    }),
+  );
+  router.post(
+    `${base}/prepare`,
+    csrfProtect,
+    asyncRoute(async (req, res) => {
+      const body = PreparationBody.safeParse(req.body);
+      if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
+      normalizeMeasurementPlan(body.data.measurement_plan ?? null, {
+        durationDays: body.data.duration_days,
+        holdoutPercent: body.data.holdout_percent,
+      });
+      return res.status(202).json(
+        await services.createCampaignPreparation({
+          ...actor(req),
+          ...expansionOptions(body.data),
+          durationDays: body.data.duration_days,
+          holdoutPercent: body.data.holdout_percent,
+          measurementPlan: body.data.measurement_plan,
+        }),
+      );
+    }),
+  );
+  router.post(
+    `${base}/:id/collision-preview`,
+    csrfProtect,
+    asyncRoute(async (req, res) => {
+      const params = Params.safeParse(req.params),
+        input = CollisionSampleInput.safeParse(req.body);
+      if (!params.success || !input.success || !Empty.safeParse(req.query).success)
+        return invalid(res);
+      return res.json(
+        await services.previewCampaignCollisions({
+          ...actor(req),
+          campaignId: params.data.id,
+          input: input.data,
+        }),
+      );
+    }),
+  );
+  for (const [suffix, execute] of Object.entries({
+    preflight: services.createCampaignPreflight,
+    "preparation/retry": services.retryCampaignPreparation,
+    "preparation/cancel": services.cancelCampaignPreparation,
+  })) {
+    router.post(
+      `${base}/:id/${suffix}`,
+      csrfProtect,
+      asyncRoute(async (req, res) => {
+        const params = Params.safeParse(req.params);
+        if (
+          !params.success ||
+          !Empty.safeParse(req.query).success ||
+          !Empty.safeParse(req.body ?? {}).success
+        )
+          return invalid(res);
+        return res.json(await execute({ ...actor(req), campaignId: params.data.id }));
+      }),
+    );
   }
   router.get(
     `${base}/:id`,
     asyncRoute(async (req, res) => {
       const params = Params.safeParse(req.params);
-      if (!params.success || !Empty.safeParse(req.query).success)
-        return invalid(res);
+      if (!params.success || !Empty.safeParse(req.query).success) return invalid(res);
       return res.json(
         await services.getGrowthCampaign({
           businessId: req.tenantId,
@@ -260,7 +407,13 @@ export function createGrowthCampaignRouter(deps = {}) {
         )
           return invalid(res);
         return res.json(
-          await execute({ ...actor(req), campaignId: params.data.id, ...(action === "activate" && req.body?.preflight_id ? { preflightId: ActivateBody.parse(req.body).preflight_id } : {}) }),
+          await execute({
+            ...actor(req),
+            campaignId: params.data.id,
+            ...(action === "activate" && req.body?.preflight_id
+              ? { preflightId: ActivateBody.parse(req.body).preflight_id }
+              : {}),
+          }),
         );
       }),
     );

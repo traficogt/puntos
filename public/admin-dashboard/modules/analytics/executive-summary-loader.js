@@ -32,18 +32,18 @@ export async function hydrateExecutiveSummary({
   branchLabel,
   branchPerformance,
   branchId,
-  churnDataPromise
+  churnDataPromise,
 }) {
   const { loadRoiReport, loadAlertsCenter } = deps;
   const [roiPrefetch, alertsPrefetch] = await Promise.allSettled([
     roiPrefetchPromise,
-    alertsPrefetchPromise
+    alertsPrefetchPromise,
   ]);
 
   const [roiReport, alertsCenter, churnData] = await Promise.all([
     loadRoiReport(roiPrefetch.status === "fulfilled" ? roiPrefetch.value : undefined),
     loadAlertsCenter(alertsPrefetch.status === "fulfilled" ? alertsPrefetch.value : undefined),
-    churnDataPromise
+    churnDataPromise,
   ]);
 
   renderExecutiveSummary({
@@ -54,7 +54,7 @@ export async function hydrateExecutiveSummary({
     alertsCenter,
     branchLabel,
     branchPerformance,
-    branchId
+    branchId,
   });
 
   return churnData;

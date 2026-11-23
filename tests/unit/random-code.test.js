@@ -29,22 +29,25 @@ describe("random-code", () => {
       for (let i = 0; i < 100; i++) {
         codes.add(random6());
       }
-      assert.ok(codes.size >= 95, `Only ${codes.size} unique codes in 100 samples - suspicious pattern`);
+      assert.ok(
+        codes.size >= 95,
+        `Only ${codes.size} unique codes in 100 samples - suspicious pattern`,
+      );
     });
 
     it("should not be affected by timing (no Math.random patterns)", () => {
       const codes = [];
-      
+
       for (let i = 0; i < 1000; i++) {
         codes.push(parseInt(random6(), 10));
       }
 
       const min = Math.min(...codes);
       const max = Math.max(...codes);
-      
+
       assert.ok(min >= 100000, "Minimum code is valid");
       assert.ok(max <= 999999, "Maximum code is valid");
-      
+
       const spread = max - min;
       assert.ok(spread > 500000, `Spread ${spread} is too small - suspicious clustering`);
     });

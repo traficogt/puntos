@@ -54,7 +54,7 @@ export function encryptSecret(plainText) {
     ENC_V2_PREFIX,
     iv.toString("base64url"),
     tag.toString("base64url"),
-    cipherText.toString("base64url")
+    cipherText.toString("base64url"),
   ].join(":");
 }
 

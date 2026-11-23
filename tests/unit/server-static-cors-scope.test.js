@@ -7,6 +7,6 @@ test("CORS middleware is scoped to API routes, not global static assets", () => 
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const source = fs.readFileSync(new URL("../../src/app/server.js", import.meta.url), "utf8");
 
-  assert.match(source, /app\.use\("\/api",\s*cors\(/);
+  assert.match(source, /app\.use\(\s*"\/api",\s*cors\(/);
   assert.doesNotMatch(source, /app\.use\(\s*cors\(/);
 });

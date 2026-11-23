@@ -1,5 +1,10 @@
-import {createPlatformHealth} from './operations-health.js';
-import { isStrongPassword, passwordRequirementsText, registerServiceWorker, setHidden } from "/lib.js";
+import { createPlatformHealth } from "./operations-health.js";
+import {
+  isStrongPassword,
+  passwordRequirementsText,
+  registerServiceWorker,
+  setHidden,
+} from "/lib.js";
 
 /** @typedef {import("./types.js").SuperPlanDefinition} SuperPlanDefinition */
 /** @typedef {import("./types.js").SuperBusinessRow} SuperBusinessRow */
@@ -27,29 +32,43 @@ export async function initSuperPage({ api, $, toast }) {
   let sessionGeneration = 0;
   let sessionActionInProgress = false;
   let logoutPending = readLogoutPending();
-  const platformHealth=createPlatformHealth({container:$('#salud'),api,currentSession:()=>sessionGeneration});
+  const platformHealth = createPlatformHealth({
+    container: $("#salud"),
+    api,
+    currentSession: () => sessionGeneration,
+  });
 
   function readLogoutPending() {
-    try { return localStorage.getItem("pf_super_logout_pending") === "1"; }
-    catch { return false; }
+    try {
+      return localStorage.getItem("pf_super_logout_pending") === "1";
+    } catch {
+      return false;
+    }
   }
 
   function hidePrivateView() {
     platformHealth.clear();
-    for (const selector of ["#planes", "#seguridad", "#negocios", "#salud"]) setHidden(element(selector), true);
+    for (const selector of ["#planes", "#seguridad", "#negocios", "#salud"])
+      setHidden(element(selector), true);
     setHidden(element("#loginCard"), false);
     setHidden(element("#btnLogout"), !logoutPending);
-    for (const selector of ["#superMfaSecret", "#magicLinkOutput", "#magicLinkCopy"]) element(selector).textContent = "";
+    for (const selector of ["#superMfaSecret", "#magicLinkOutput", "#magicLinkCopy"])
+      element(selector).textContent = "";
     planList = [];
     businessList = [];
     magicActorRows = [];
   }
 
   async function revokePendingSession() {
-    try { await api("/api/super/logout", { method: "POST", body: "{}" }); }
-    catch (error) { if (error.status !== 401) throw error; }
+    try {
+      await api("/api/super/logout", { method: "POST", body: "{}" });
+    } catch (error) {
+      if (error.status !== 401) throw error;
+    }
     logoutPending = false;
-    try { localStorage.removeItem("pf_super_logout_pending"); } catch {}
+    try {
+      localStorage.removeItem("pf_super_logout_pending");
+    } catch {}
     hidePrivateView();
   }
 
@@ -61,7 +80,9 @@ export async function initSuperPage({ api, $, toast }) {
     try {
       localStorage.setItem("pf_super_logout_pending", "1");
       localStorage.setItem("pf_super_epoch", crypto.randomUUID());
-    } catch { /* The current page remains blocked if browser storage is unavailable. */ }
+    } catch {
+      /* The current page remains blocked if browser storage is unavailable. */
+    }
     hidePrivateView();
     try {
       await revokePendingSession();
@@ -89,22 +110,23 @@ export async function initSuperPage({ api, $, toast }) {
     multi_branch: "Multi-sucursal",
     webhooks: "Webhooks",
     external_awards: "Integración externa",
-    campaign_rules: "Reglas de campaña"
+    campaign_rules: "Reglas de campaña",
   };
 
   const PLAN_POSITIONING = {
     EMPRENDEDOR: {
       summary: "Base operativo: QR, cartera, recompensas, canjes y operación básica en un local.",
-      highlight: "Listo para operar, sin módulos avanzados."
+      highlight: "Listo para operar, sin módulos avanzados.",
     },
     NEGOCIO: {
-      summary: "Plan objetivo para negocios serios: analítica, niveles, referidos, gift cards y automatizaciones.",
-      highlight: "La mayoría de negocios debería terminar aquí."
+      summary:
+        "Plan objetivo para negocios serios: analítica, niveles, referidos, gift cards y automatizaciones.",
+      highlight: "La mayoría de negocios debería terminar aquí.",
     },
     EMPRESA: {
       summary: "Capa estratégica: gamificación, external awards, branding avanzado y QR premium.",
-      highlight: "Reservado para branding e integraciones de alto valor."
-    }
+      highlight: "Reservado para branding e integraciones de alto valor.",
+    },
   };
 
   /**
@@ -182,8 +204,8 @@ export async function initSuperPage({ api, $, toast }) {
     if (!def) return "Sin detalle de plan.";
 
     const features = Object.entries(def.features || {})
-  .filter(([, enabled]) => Boolean(enabled))
-  .map(([key]) => FEATURE_LABELS[key] || key);
+      .filter(([, enabled]) => Boolean(enabled))
+      .map(([key]) => FEATURE_LABELS[key] || key);
 
     const limits = def.limits || {};
     const limitsText = `Sucursales: ${limits.branches ?? "—"} • Recompensas: ${limits.rewards ?? "—"} • Clientes activos: ${limits.activeCustomers ?? "—"}`;
@@ -253,22 +275,25 @@ export async function initSuperPage({ api, $, toast }) {
       btn.className = "primary";
       btn.textContent = "Guardar funcionalidades";
       btn.addEventListener("click", async () => {
-        await run(async () => {
-          const features = {};
-          Object.keys(checkboxes).forEach((key) => {
-            features[key] = Boolean(checkboxes[key].checked);
-          });
-          await api(`/api/super/plans/${encodeURIComponent(p.plan)}/features`, {
-            method: "PUT",
-            body: JSON.stringify({ features })
-          });
-          toast(`Funcionalidades de ${p.plan} actualizadas.`);
-          await loadPlans();
-          renderPlanMatrix();
-          await loadBusinesses();
-        }, (error) => {
-          toast("No se pudo guardar: " + error.message);
-        });
+        await run(
+          async () => {
+            const features = {};
+            Object.keys(checkboxes).forEach((key) => {
+              features[key] = Boolean(checkboxes[key].checked);
+            });
+            await api(`/api/super/plans/${encodeURIComponent(p.plan)}/features`, {
+              method: "PUT",
+              body: JSON.stringify({ features }),
+            });
+            toast(`Funcionalidades de ${p.plan} actualizadas.`);
+            await loadPlans();
+            renderPlanMatrix();
+            await loadBusinesses();
+          },
+          (error) => {
+            toast("No se pudo guardar: " + error.message);
+          },
+        );
       });
       foot.append(info, btn);
       card.appendChild(foot);
@@ -284,18 +309,16 @@ export async function initSuperPage({ api, $, toast }) {
       opt.textContent = `${p.plan} (${priceSummary(p.pricing_gtq)})`;
       sel.appendChild(opt);
     });
-    sel.value = currentPlan || (planList[0]?.plan || "EMPRENDEDOR");
+    sel.value = currentPlan || planList[0]?.plan || "EMPRENDEDOR";
     return sel;
   }
 
   const MAGIC_TARGET_OPTIONS = {
     staff: [
       { value: "staff", label: "Escáner" },
-      { value: "admin-dashboard", label: "Panel" }
+      { value: "admin-dashboard", label: "Panel" },
     ],
-    customer: [
-      { value: "customer-wallet", label: "Cartera" }
-    ]
+    customer: [{ value: "customer-wallet", label: "Cartera" }],
   };
 
   function getMagicMode() {
@@ -327,9 +350,7 @@ export async function initSuperPage({ api, $, toast }) {
       return;
     }
     const role = String(actorRow?.role || "").toUpperCase();
-    box.textContent = role === "OWNER"
-      ? "Uso interno · Un solo uso"
-      : "Uso interno · Un solo uso";
+    box.textContent = role === "OWNER" ? "Uso interno · Un solo uso" : "Uso interno · Un solo uso";
   }
 
   function setMagicOutput(text) {
@@ -346,19 +367,25 @@ export async function initSuperPage({ api, $, toast }) {
       const opt = document.createElement("option");
       opt.value = target.value;
       opt.textContent = target.label;
-      if (mode === "staff" && target.value === "admin-dashboard" && String(actorRow?.role || "").toUpperCase() !== "OWNER") {
+      if (
+        mode === "staff" &&
+        target.value === "admin-dashboard" &&
+        String(actorRow?.role || "").toUpperCase() !== "OWNER"
+      ) {
         opt.disabled = true;
       }
       targetSel.appendChild(opt);
     });
 
     const current = targetSel.value;
-    const preferred = mode === "customer" ? "customer-wallet" : (current || "staff");
+    const preferred = mode === "customer" ? "customer-wallet" : current || "staff";
     const allowedValues = allowed.map((target) => target.value);
     const actorRole = String(actorRow?.role || "").toUpperCase();
-    const nextTarget = allowedValues.includes(preferred) && !(preferred === "admin-dashboard" && mode === "staff" && actorRole !== "OWNER")
-      ? preferred
-      : allowedValues[0];
+    const nextTarget =
+      allowedValues.includes(preferred) &&
+      !(preferred === "admin-dashboard" && mode === "staff" && actorRole !== "OWNER")
+        ? preferred
+        : allowedValues[0];
     targetSel.value = nextTarget;
     targetSel.disabled = mode === "customer";
   }
@@ -413,7 +440,9 @@ export async function initSuperPage({ api, $, toast }) {
       return;
     }
     businessSel.disabled = false;
-    const selected = businessList.some((business) => business.id === current) ? current : businessList[0].id;
+    const selected = businessList.some((business) => business.id === current)
+      ? current
+      : businessList[0].id;
     businessSel.value = selected;
   }
 
@@ -428,20 +457,25 @@ export async function initSuperPage({ api, $, toast }) {
       return;
     }
 
-    await run(async () => {
-      const path = mode === "customer"
-        ? `/api/super/businesses/${encodeURIComponent(businessId)}/customers`
-        : `/api/super/businesses/${encodeURIComponent(businessId)}/staff`;
-      const out = mode === "customer"
-        ? /** @type {SuperCustomerListResponse} */ (await api(path))
-        : /** @type {SuperStaffListResponse} */ (await api(path));
-      magicActorRows = out.rows || [];
-      renderMagicActorOptions(magicActorRows);
-    }, (error) => {
-      magicActorRows = [];
-      renderMagicActorOptions([]);
-      setMagicOutput("No se pudieron cargar actores: " + error.message);
-    });
+    await run(
+      async () => {
+        const path =
+          mode === "customer"
+            ? `/api/super/businesses/${encodeURIComponent(businessId)}/customers`
+            : `/api/super/businesses/${encodeURIComponent(businessId)}/staff`;
+        const out =
+          mode === "customer"
+            ? /** @type {SuperCustomerListResponse} */ (await api(path))
+            : /** @type {SuperStaffListResponse} */ (await api(path));
+        magicActorRows = out.rows || [];
+        renderMagicActorOptions(magicActorRows);
+      },
+      (error) => {
+        magicActorRows = [];
+        renderMagicActorOptions([]);
+        setMagicOutput("No se pudieron cargar actores: " + error.message);
+      },
+    );
   }
 
   function renderMagicTargetFromSelection() {
@@ -451,32 +485,38 @@ export async function initSuperPage({ api, $, toast }) {
   }
 
   async function generateMagicLink() {
-    await run(async () => {
-      const actorType = getMagicMode();
-      const businessId = getMagicBusinessId();
-      const actor = getMagicSelectedActor();
-      const actorId = getMagicActorSelect().value;
-      const target = getMagicTargetSelect().value;
-      if (!businessId) return toast("Selecciona un negocio.");
-      if (!actorId) return toast("Selecciona un actor.");
-      if (!target) return toast("Selecciona un destino.");
+    await run(
+      async () => {
+        const actorType = getMagicMode();
+        const businessId = getMagicBusinessId();
+        const actor = getMagicSelectedActor();
+        const actorId = getMagicActorSelect().value;
+        const target = getMagicTargetSelect().value;
+        if (!businessId) return toast("Selecciona un negocio.");
+        if (!actorId) return toast("Selecciona un actor.");
+        if (!target) return toast("Selecciona un destino.");
 
-      const out = /** @type {SuperMagicLinkResponse} */ (await api("/api/super/magic-links", {
-        method: "POST",
-        body: JSON.stringify({ actorType, actorId, businessId, target })
-      }));
-      const expiresAt = out.expiresAt ? new Date(out.expiresAt) : null;
-      const copy = actorType === "customer"
-        ? "Uso interno · Reutilizable hasta vencer"
-        : "Uso interno · Un solo uso";
-      const expiryText = expiresAt ? expiresAt.toLocaleString("es-GT") : "sin fecha";
-      setMagicOutput(`URL: ${out.url || "(sin URL)"}\nExpira: ${expiryText}\n${copy}`);
-      setMagicCopy(actor);
-      toast("Enlace interno generado.");
-    }, (error) => {
-      setMagicOutput("No se pudo generar el enlace: " + error.message);
-      toast(error.message);
-    });
+        const out = /** @type {SuperMagicLinkResponse} */ (
+          await api("/api/super/magic-links", {
+            method: "POST",
+            body: JSON.stringify({ actorType, actorId, businessId, target }),
+          })
+        );
+        const expiresAt = out.expiresAt ? new Date(out.expiresAt) : null;
+        const copy =
+          actorType === "customer"
+            ? "Uso interno · Reutilizable hasta vencer"
+            : "Uso interno · Un solo uso";
+        const expiryText = expiresAt ? expiresAt.toLocaleString("es-GT") : "sin fecha";
+        setMagicOutput(`URL: ${out.url || "(sin URL)"}\nExpira: ${expiryText}\n${copy}`);
+        setMagicCopy(actor);
+        toast("Enlace interno generado.");
+      },
+      (error) => {
+        setMagicOutput("No se pudo generar el enlace: " + error.message);
+        toast(error.message);
+      },
+    );
   }
 
   async function loadPlans() {
@@ -485,28 +525,34 @@ export async function initSuperPage({ api, $, toast }) {
   }
 
   async function loadMe() {
-    if (logoutPending) { hidePrivateView(); return; }
+    if (logoutPending) {
+      hidePrivateView();
+      return;
+    }
     const generation = sessionGeneration;
-    await run(async () => {
-      await api("/api/super/me");
-      if (logoutPending || generation !== sessionGeneration) return;
-      setHidden(element("#loginCard"), true);
-      setHidden(element("#planes"), false);
-      setHidden(element("#seguridad"), false);
-      setHidden(element("#negocios"), false);
-      setHidden(element("#salud"), false);
-      setHidden(element("#btnLogout"), false);
-      await loadPlans();
-      if (logoutPending || generation !== sessionGeneration) return;
-      renderPlanMatrix();
-      await loadSecurityPosture();
-      if (logoutPending || generation !== sessionGeneration) return;
-      await loadBusinesses();
-      if (logoutPending || generation !== sessionGeneration) return;
-      await platformHealth.load();
-    }, () => {
-      if (generation === sessionGeneration) hidePrivateView();
-    });
+    await run(
+      async () => {
+        await api("/api/super/me");
+        if (logoutPending || generation !== sessionGeneration) return;
+        setHidden(element("#loginCard"), true);
+        setHidden(element("#planes"), false);
+        setHidden(element("#seguridad"), false);
+        setHidden(element("#negocios"), false);
+        setHidden(element("#salud"), false);
+        setHidden(element("#btnLogout"), false);
+        await loadPlans();
+        if (logoutPending || generation !== sessionGeneration) return;
+        renderPlanMatrix();
+        await loadSecurityPosture();
+        if (logoutPending || generation !== sessionGeneration) return;
+        await loadBusinesses();
+        if (logoutPending || generation !== sessionGeneration) return;
+        await platformHealth.load();
+      },
+      () => {
+        if (generation === sessionGeneration) hidePrivateView();
+      },
+    );
   }
 
   function counterCard(label, value, tone = "") {
@@ -524,256 +570,321 @@ export async function initSuperPage({ api, $, toast }) {
   }
 
   async function loadSecurityPosture() {
-    await run(async () => {
-      const out = /** @type {SuperSecurityPostureResponse} */ (await api("/api/super/security/posture?hours=24"));
-      const counts = out.counts || {};
-      const box = element("#securityCounters");
-      box.replaceChildren();
-      box.appendChild(counterCard("Super login fallido", Number(counts.super_login_failed || 0), "danger"));
-      box.appendChild(counterCard("Staff login fallido", Number(counts.staff_login_failed || 0), "warning"));
-      box.appendChild(counterCard("CSRF bloqueado", Number(counts.csrf_denied || 0), "notice"));
-      box.appendChild(counterCard("Replay QR bloqueado", Number(counts.qr_replay_blocked || 0), "success"));
-      box.appendChild(counterCard("Webhook auth fallida", Number(counts.webhook_auth_failed || 0), "info"));
+    await run(
+      async () => {
+        const out = /** @type {SuperSecurityPostureResponse} */ (
+          await api("/api/super/security/posture?hours=24")
+        );
+        const counts = out.counts || {};
+        const box = element("#securityCounters");
+        box.replaceChildren();
+        box.appendChild(
+          counterCard("Super login fallido", Number(counts.super_login_failed || 0), "danger"),
+        );
+        box.appendChild(
+          counterCard("Staff login fallido", Number(counts.staff_login_failed || 0), "warning"),
+        );
+        box.appendChild(counterCard("CSRF bloqueado", Number(counts.csrf_denied || 0), "notice"));
+        box.appendChild(
+          counterCard("Replay QR bloqueado", Number(counts.qr_replay_blocked || 0), "success"),
+        );
+        box.appendChild(
+          counterCard("Webhook auth fallida", Number(counts.webhook_auth_failed || 0), "info"),
+        );
 
-      const recent = out.recent || [];
-      if (!recent.length) {
-        element("#securityRecent").textContent = "Sin eventos recientes.";
-        return;
-      }
-      const lines = recent.map((event) => {
-        const when = new Date(event.created_at).toLocaleString();
-        return `${when} | ${event.event_type} | ${event.method || "-"} ${event.route || "-"} | ${event.ip || "-"} | ${JSON.stringify(event.meta || {})}`;
-      });
-      element("#securityRecent").textContent = lines.join("\n");
-    }, (error) => {
-      element("#securityRecent").textContent = "No se pudo cargar postura de seguridad: " + error.message;
-    });
+        const recent = out.recent || [];
+        if (!recent.length) {
+          element("#securityRecent").textContent = "Sin eventos recientes.";
+          return;
+        }
+        const lines = recent.map((event) => {
+          const when = new Date(event.created_at).toLocaleString();
+          return `${when} | ${event.event_type} | ${event.method || "-"} ${event.route || "-"} | ${event.ip || "-"} | ${JSON.stringify(event.meta || {})}`;
+        });
+        element("#securityRecent").textContent = lines.join("\n");
+      },
+      (error) => {
+        element("#securityRecent").textContent =
+          "No se pudo cargar postura de seguridad: " + error.message;
+      },
+    );
   }
 
   async function loadBusinesses() {
-    await run(async () => {
-      const out = /** @type {SuperBusinessesResponse} */ (await api("/api/super/businesses?limit=200"));
-      const rows = /** @type {SuperBusinessRow[]} */ (out.businesses || []);
-      businessList = rows;
-      const box = element("#businesses");
-      box.replaceChildren();
-      if (!rows.length) {
-        box.textContent = "No hay negocios.";
+    await run(
+      async () => {
+        const out = /** @type {SuperBusinessesResponse} */ (
+          await api("/api/super/businesses?limit=200")
+        );
+        const rows = /** @type {SuperBusinessRow[]} */ (out.businesses || []);
+        businessList = rows;
+        const box = element("#businesses");
+        box.replaceChildren();
+        if (!rows.length) {
+          box.textContent = "No hay negocios.";
+          renderMagicBusinessOptions();
+          await loadMagicActors();
+          return;
+        }
+
+        rows.forEach((business) => {
+          const card = document.createElement("div");
+          card.className = "card compact-card mb-8";
+
+          const title = document.createElement("div");
+          const strong = document.createElement("strong");
+          strong.textContent = business.name || "Negocio";
+          const slug = document.createElement("span");
+          slug.className = "small";
+          slug.textContent = ` (${business.slug || "-"})`;
+          title.append(strong, slug);
+          card.appendChild(title);
+
+          const meta = document.createElement("div");
+          meta.className = "small";
+          meta.textContent = `Plan actual: ${business.plan} • Clientes: ${business.customers} • Staff: ${business.staff}`;
+          card.appendChild(meta);
+
+          const planInfo = document.createElement("div");
+          planInfo.className = "small mt-6 pre-wrap";
+          planInfo.textContent = planSummaryText(business.plan);
+          card.appendChild(planInfo);
+
+          const row = document.createElement("div");
+          row.className = "row mt-8";
+
+          const planSel = makePlanSelect(business.plan);
+          planSel.addEventListener("change", () => {
+            planInfo.textContent = planSummaryText(planSel.value);
+          });
+          row.appendChild(planSel);
+
+          const savePlanBtn = document.createElement("button");
+          savePlanBtn.textContent = "Guardar plan";
+          savePlanBtn.addEventListener("click", async () => {
+            await run(
+              async () => {
+                await api(`/api/super/businesses/${encodeURIComponent(business.id)}/plan`, {
+                  method: "PUT",
+                  body: JSON.stringify({ plan: planSel.value }),
+                });
+                toast(`Plan actualizado a ${planSel.value}.`);
+                await loadBusinesses();
+              },
+              (error) => {
+                toast("No se pudo actualizar plan: " + error.message);
+              },
+            );
+          });
+          row.appendChild(savePlanBtn);
+
+          const impersonateBtn = document.createElement("button");
+          impersonateBtn.className = "primary";
+          impersonateBtn.textContent = "Impersonar";
+          impersonateBtn.addEventListener("click", async () => {
+            await run(
+              async () => {
+                await api(`/api/super/impersonate/${encodeURIComponent(business.id)}`, {
+                  method: "POST",
+                  body: "{}",
+                });
+                toast("Impersonación lista. Abriendo panel admin...");
+                setTimeout(() => {
+                  location.href = "/administracion/";
+                }, 500);
+              },
+              (error) => {
+                toast("No se pudo impersonar: " + error.message);
+              },
+            );
+          });
+          row.appendChild(impersonateBtn);
+
+          card.appendChild(row);
+
+          // Wallet broadcast: platform-owner-only opt-in + channel policy. Merchants have
+          // no such control; this governs the shared Apple/Google wallet account for this business.
+          const wb = business.wallet_broadcast || {
+            enabled: false,
+            channelPolicy: "wallet_first_sms_fallback",
+          };
+          const wbRow = document.createElement("div");
+          wbRow.className = "row mt-8";
+          const wbLabel = document.createElement("span");
+          wbLabel.className = "small";
+          wbLabel.textContent = "Difusión por billetera:";
+          wbRow.appendChild(wbLabel);
+
+          const wbEnabled = document.createElement("select");
+          for (const [val, text] of [
+            ["off", "Desactivada"],
+            ["on", "Activada"],
+          ]) {
+            const opt = document.createElement("option");
+            opt.value = val;
+            opt.textContent = text;
+            wbEnabled.appendChild(opt);
+          }
+          wbEnabled.value = wb.enabled ? "on" : "off";
+          wbRow.appendChild(wbEnabled);
+
+          const wbPolicy = document.createElement("select");
+          for (const [val, text] of [
+            ["wallet_first_sms_fallback", "Billetera, SMS de respaldo"],
+            ["wallet_only", "Solo billetera (sin SMS)"],
+            ["sms_only", "Solo SMS (sin billetera)"],
+          ]) {
+            const opt = document.createElement("option");
+            opt.value = val;
+            opt.textContent = text;
+            wbPolicy.appendChild(opt);
+          }
+          wbPolicy.value = wb.channelPolicy || "wallet_first_sms_fallback";
+          wbRow.appendChild(wbPolicy);
+
+          const wbSave = document.createElement("button");
+          wbSave.textContent = "Guardar billetera";
+          wbSave.addEventListener("click", async () => {
+            await run(
+              async () => {
+                await api(
+                  `/api/super/businesses/${encodeURIComponent(business.id)}/wallet-broadcast`,
+                  {
+                    method: "PUT",
+                    body: JSON.stringify({
+                      enabled: wbEnabled.value === "on",
+                      channel_policy: wbPolicy.value,
+                    }),
+                  },
+                );
+                toast("Difusión por billetera actualizada.");
+                await loadBusinesses();
+              },
+              (error) => {
+                toast("No se pudo actualizar difusión por billetera: " + error.message);
+              },
+            );
+          });
+          wbRow.appendChild(wbSave);
+          card.appendChild(wbRow);
+
+          box.appendChild(card);
+        });
+
+        const userBizSel = /** @type {HTMLSelectElement | null} */ ($("#newUserBusiness"));
+        if (userBizSel) {
+          userBizSel.replaceChildren();
+          rows.forEach((business) => {
+            const opt = document.createElement("option");
+            opt.value = business.id;
+            opt.textContent = `${business.name} (${business.slug})`;
+            userBizSel.appendChild(opt);
+          });
+        }
         renderMagicBusinessOptions();
         await loadMagicActors();
-        return;
-      }
-
-      rows.forEach((business) => {
-        const card = document.createElement("div");
-        card.className = "card compact-card mb-8";
-
-        const title = document.createElement("div");
-        const strong = document.createElement("strong");
-        strong.textContent = business.name || "Negocio";
-        const slug = document.createElement("span");
-        slug.className = "small";
-        slug.textContent = ` (${business.slug || "-"})`;
-        title.append(strong, slug);
-        card.appendChild(title);
-
-        const meta = document.createElement("div");
-        meta.className = "small";
-        meta.textContent = `Plan actual: ${business.plan} • Clientes: ${business.customers} • Staff: ${business.staff}`;
-        card.appendChild(meta);
-
-        const planInfo = document.createElement("div");
-        planInfo.className = "small mt-6 pre-wrap";
-        planInfo.textContent = planSummaryText(business.plan);
-        card.appendChild(planInfo);
-
-        const row = document.createElement("div");
-        row.className = "row mt-8";
-
-        const planSel = makePlanSelect(business.plan);
-        planSel.addEventListener("change", () => {
-          planInfo.textContent = planSummaryText(planSel.value);
-        });
-        row.appendChild(planSel);
-
-        const savePlanBtn = document.createElement("button");
-        savePlanBtn.textContent = "Guardar plan";
-        savePlanBtn.addEventListener("click", async () => {
-          await run(async () => {
-            await api(`/api/super/businesses/${encodeURIComponent(business.id)}/plan`, {
-              method: "PUT",
-              body: JSON.stringify({ plan: planSel.value })
-            });
-            toast(`Plan actualizado a ${planSel.value}.`);
-            await loadBusinesses();
-          }, (error) => {
-            toast("No se pudo actualizar plan: " + error.message);
-          });
-        });
-        row.appendChild(savePlanBtn);
-
-        const impersonateBtn = document.createElement("button");
-        impersonateBtn.className = "primary";
-        impersonateBtn.textContent = "Impersonar";
-        impersonateBtn.addEventListener("click", async () => {
-          await run(async () => {
-            await api(`/api/super/impersonate/${encodeURIComponent(business.id)}`, { method: "POST", body: "{}" });
-            toast("Impersonación lista. Abriendo panel admin...");
-            setTimeout(() => {
-              location.href = "/administracion/";
-            }, 500);
-          }, (error) => {
-            toast("No se pudo impersonar: " + error.message);
-          });
-        });
-        row.appendChild(impersonateBtn);
-
-        card.appendChild(row);
-
-        // Wallet broadcast: platform-owner-only opt-in + channel policy. Merchants have
-        // no such control; this governs the shared Apple/Google wallet account for this business.
-        const wb = business.wallet_broadcast || { enabled: false, channelPolicy: "wallet_first_sms_fallback" };
-        const wbRow = document.createElement("div");
-        wbRow.className = "row mt-8";
-        const wbLabel = document.createElement("span");
-        wbLabel.className = "small";
-        wbLabel.textContent = "Difusión por billetera:";
-        wbRow.appendChild(wbLabel);
-
-        const wbEnabled = document.createElement("select");
-        for (const [val, text] of [["off", "Desactivada"], ["on", "Activada"]]) {
-          const opt = document.createElement("option");
-          opt.value = val;
-          opt.textContent = text;
-          wbEnabled.appendChild(opt);
-        }
-        wbEnabled.value = wb.enabled ? "on" : "off";
-        wbRow.appendChild(wbEnabled);
-
-        const wbPolicy = document.createElement("select");
-        for (const [val, text] of [["wallet_first_sms_fallback", "Billetera, SMS de respaldo"], ["wallet_only", "Solo billetera (sin SMS)"], ["sms_only", "Solo SMS (sin billetera)"]]) {
-          const opt = document.createElement("option");
-          opt.value = val;
-          opt.textContent = text;
-          wbPolicy.appendChild(opt);
-        }
-        wbPolicy.value = wb.channelPolicy || "wallet_first_sms_fallback";
-        wbRow.appendChild(wbPolicy);
-
-        const wbSave = document.createElement("button");
-        wbSave.textContent = "Guardar billetera";
-        wbSave.addEventListener("click", async () => {
-          await run(async () => {
-            await api(`/api/super/businesses/${encodeURIComponent(business.id)}/wallet-broadcast`, {
-              method: "PUT",
-              body: JSON.stringify({ enabled: wbEnabled.value === "on", channel_policy: wbPolicy.value })
-            });
-            toast("Difusión por billetera actualizada.");
-            await loadBusinesses();
-          }, (error) => {
-            toast("No se pudo actualizar difusión por billetera: " + error.message);
-          });
-        });
-        wbRow.appendChild(wbSave);
-        card.appendChild(wbRow);
-
-        box.appendChild(card);
-      });
-
-      const userBizSel = /** @type {HTMLSelectElement | null} */ ($("#newUserBusiness"));
-      if (userBizSel) {
-        userBizSel.replaceChildren();
-        rows.forEach((business) => {
-          const opt = document.createElement("option");
-          opt.value = business.id;
-          opt.textContent = `${business.name} (${business.slug})`;
-          userBizSel.appendChild(opt);
-        });
-      }
-      renderMagicBusinessOptions();
-      await loadMagicActors();
-    }, (error) => {
-      toast("Error cargando negocios: " + error.message);
-    });
+      },
+      (error) => {
+        toast("Error cargando negocios: " + error.message);
+      },
+    );
   }
 
   async function createBusiness() {
-    await run(async () => {
-      const payload = {
-        businessName: input("#newBusinessName").value.trim(),
-        email: input("#newBusinessEmail").value.trim(),
-        phone: input("#newBusinessPhone").value.trim() || undefined,
-        password: input("#newBusinessPassword").value,
-        category: input("#newBusinessCategory").value,
-        plan: select("#newBusinessPlan").value
-      };
-      if (!isStrongPassword(payload.password)) {
-        return toast(passwordRequirementsText());
-      }
-      const out = /** @type {SuperBusinessCreateResponse} */ (await api("/api/super/businesses", { method: "POST", body: JSON.stringify(payload) }));
-      toast(`Negocio creado: ${out.business?.name || "OK"}`);
-      input("#newBusinessName").value = "";
-      input("#newBusinessEmail").value = "";
-      input("#newBusinessPhone").value = "";
-      input("#newBusinessPassword").value = "";
-      await loadBusinesses();
-    }, (error) => {
-      toast("No se pudo crear negocio: " + error.message);
-    });
+    await run(
+      async () => {
+        const payload = {
+          businessName: input("#newBusinessName").value.trim(),
+          email: input("#newBusinessEmail").value.trim(),
+          phone: input("#newBusinessPhone").value.trim() || undefined,
+          password: input("#newBusinessPassword").value,
+          category: input("#newBusinessCategory").value,
+          plan: select("#newBusinessPlan").value,
+        };
+        if (!isStrongPassword(payload.password)) {
+          return toast(passwordRequirementsText());
+        }
+        const out = /** @type {SuperBusinessCreateResponse} */ (
+          await api("/api/super/businesses", { method: "POST", body: JSON.stringify(payload) })
+        );
+        toast(`Negocio creado: ${out.business?.name || "OK"}`);
+        input("#newBusinessName").value = "";
+        input("#newBusinessEmail").value = "";
+        input("#newBusinessPhone").value = "";
+        input("#newBusinessPassword").value = "";
+        await loadBusinesses();
+      },
+      (error) => {
+        toast("No se pudo crear negocio: " + error.message);
+      },
+    );
   }
 
   async function createBusinessUser() {
-    await run(async () => {
-      const businessId = select("#newUserBusiness").value;
-      if (!businessId) return toast("Selecciona un negocio.");
-      const payload = {
-        name: input("#newUserName").value.trim(),
-        email: input("#newUserEmail").value.trim(),
-        phone: input("#newUserPhone").value.trim() || undefined,
-        role: select("#newUserRole").value,
-        password: input("#newUserPassword").value
-      };
-      if (!isStrongPassword(payload.password)) {
-        return toast(passwordRequirementsText());
-      }
-      const out = /** @type {SuperBusinessUserCreateResponse} */ (await api(`/api/super/businesses/${encodeURIComponent(businessId)}/users`, {
-        method: "POST",
-        body: JSON.stringify(payload)
-      }));
-      toast(`Usuario creado: ${out.user?.email || "OK"}`);
-      input("#newUserName").value = "";
-      input("#newUserEmail").value = "";
-      input("#newUserPhone").value = "";
-      input("#newUserPassword").value = "";
-      element("#newUserHint").textContent = `Último creado: ${out.user?.name || ""} (${out.user?.role || ""})`;
-      await loadBusinesses();
-    }, (error) => {
-      toast("No se pudo crear usuario: " + error.message);
-    });
+    await run(
+      async () => {
+        const businessId = select("#newUserBusiness").value;
+        if (!businessId) return toast("Selecciona un negocio.");
+        const payload = {
+          name: input("#newUserName").value.trim(),
+          email: input("#newUserEmail").value.trim(),
+          phone: input("#newUserPhone").value.trim() || undefined,
+          role: select("#newUserRole").value,
+          password: input("#newUserPassword").value,
+        };
+        if (!isStrongPassword(payload.password)) {
+          return toast(passwordRequirementsText());
+        }
+        const out = /** @type {SuperBusinessUserCreateResponse} */ (
+          await api(`/api/super/businesses/${encodeURIComponent(businessId)}/users`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+          })
+        );
+        toast(`Usuario creado: ${out.user?.email || "OK"}`);
+        input("#newUserName").value = "";
+        input("#newUserEmail").value = "";
+        input("#newUserPhone").value = "";
+        input("#newUserPassword").value = "";
+        element("#newUserHint").textContent =
+          `Último creado: ${out.user?.name || ""} (${out.user?.role || ""})`;
+        await loadBusinesses();
+      },
+      (error) => {
+        toast("No se pudo crear usuario: " + error.message);
+      },
+    );
   }
 
   element("#btnLogin").addEventListener("click", async () => {
     if (sessionActionInProgress) return;
     sessionActionInProgress = true;
-    await run(async () => {
-      if (logoutPending || readLogoutPending()) await revokePendingSession();
-      await api("/api/super/login", {
-        method: "POST",
-        body: JSON.stringify({
-          email: input("#email").value.trim(),
-          password: input("#password").value,
-          ...(input("#loginMfaCode").value.trim() ? { mfaCode: input("#loginMfaCode").value.trim() } : {})
-        })
-      });
-      sessionGeneration += 1;
-      try { localStorage.setItem("pf_super_epoch", crypto.randomUUID()); } catch {}
-      input("#password").value = "";
-      input("#loginMfaCode").value = "";
-      toast("Sesión iniciada.");
-      await loadMe();
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        if (logoutPending || readLogoutPending()) await revokePendingSession();
+        await api("/api/super/login", {
+          method: "POST",
+          body: JSON.stringify({
+            email: input("#email").value.trim(),
+            password: input("#password").value,
+            ...(input("#loginMfaCode").value.trim()
+              ? { mfaCode: input("#loginMfaCode").value.trim() }
+              : {}),
+          }),
+        });
+        sessionGeneration += 1;
+        try {
+          localStorage.setItem("pf_super_epoch", crypto.randomUUID());
+        } catch {}
+        input("#password").value = "";
+        input("#loginMfaCode").value = "";
+        toast("Sesión iniciada.");
+        await loadMe();
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
     sessionActionInProgress = false;
   });
 
@@ -781,7 +892,7 @@ export async function initSuperPage({ api, $, toast }) {
   window.addEventListener("online", () => {
     if (logoutPending) return logout();
   });
-  window.addEventListener("storage", event => {
+  window.addEventListener("storage", (event) => {
     if (event.key !== "pf_super_epoch" && event.key !== "pf_super_logout_pending") return;
     sessionGeneration += 1;
     logoutPending = readLogoutPending();
@@ -793,130 +904,162 @@ export async function initSuperPage({ api, $, toast }) {
     await loadBusinesses();
   });
   element("#btnRotateSecrets").addEventListener("click", async () => {
-    await run(async () => {
-      const out = await api("/api/super/security/rotate-secrets", { method: "POST", body: "{}" });
-      const w = Number(out?.rotated?.webhook_secrets || 0);
-      const e = Number(out?.rotated?.external_award_api_keys || 0);
-      toast(`Rotación completada. Webhooks: ${w}, API externas: ${e}.`);
-      await loadSecurityPosture();
-    }, (error) => {
-      toast("No se pudo rotar secretos: " + error.message);
-    });
+    await run(
+      async () => {
+        const out = await api("/api/super/security/rotate-secrets", { method: "POST", body: "{}" });
+        const w = Number(out?.rotated?.webhook_secrets || 0);
+        const e = Number(out?.rotated?.external_award_api_keys || 0);
+        toast(`Rotación completada. Webhooks: ${w}, API externas: ${e}.`);
+        await loadSecurityPosture();
+      },
+      (error) => {
+        toast("No se pudo rotar secretos: " + error.message);
+      },
+    );
   });
   element("#btnRequestSuperReset").addEventListener("click", async () => {
-    await run(async () => {
-      const email = input("#email").value.trim();
-      if (!email) return toast("Escribe el correo del super admin.");
-      await api("/api/public/super/password-reset/request", {
-        method: "POST",
-        body: JSON.stringify({ email })
-      });
-      toast("Si el correo coincide, enviamos un token de reset.");
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        const email = input("#email").value.trim();
+        if (!email) return toast("Escribe el correo del super admin.");
+        await api("/api/public/super/password-reset/request", {
+          method: "POST",
+          body: JSON.stringify({ email }),
+        });
+        toast("Si el correo coincide, enviamos un token de reset.");
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
   element("#btnConfirmSuperReset").addEventListener("click", async () => {
-    await run(async () => {
-      const token = input("#superResetToken").value.trim();
-      const newPassword = input("#superResetPassword").value;
-      if (!token || !newPassword) return toast("Completa token y nueva contraseña.");
-      await api("/api/public/super/password-reset/confirm", {
-        method: "POST",
-        body: JSON.stringify({ token, newPassword })
-      });
-      input("#superResetToken").value = "";
-      input("#superResetPassword").value = "";
-      toast("Contraseña actualizada.");
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        const token = input("#superResetToken").value.trim();
+        const newPassword = input("#superResetPassword").value;
+        if (!token || !newPassword) return toast("Completa token y nueva contraseña.");
+        await api("/api/public/super/password-reset/confirm", {
+          method: "POST",
+          body: JSON.stringify({ token, newPassword }),
+        });
+        input("#superResetToken").value = "";
+        input("#superResetPassword").value = "";
+        toast("Contraseña actualizada.");
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
   element("#btnConfirmSuperEmail").addEventListener("click", async () => {
-    await run(async () => {
-      const token = input("#superEmailToken").value.trim();
-      if (!token) return toast("Escribe el token recibido.");
-      await api("/api/public/super/email-change/confirm", {
-        method: "POST",
-        body: JSON.stringify({ token })
-      });
-      input("#superEmailToken").value = "";
-      toast("Cambio de correo confirmado.");
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        const token = input("#superEmailToken").value.trim();
+        if (!token) return toast("Escribe el token recibido.");
+        await api("/api/public/super/email-change/confirm", {
+          method: "POST",
+          body: JSON.stringify({ token }),
+        });
+        input("#superEmailToken").value = "";
+        toast("Cambio de correo confirmado.");
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
   element("#btnSuperReauth").addEventListener("click", async () => {
-    await run(async () => {
-      const password = input("#superReauthPassword").value;
-      if (!password) return toast("Escribe tu contraseña actual.");
-      await api("/api/super/security/reauth", {
-        method: "POST",
-        body: JSON.stringify({
-          password,
-          ...(input("#superReauthMfaCode").value.trim() ? { mfaCode: input("#superReauthMfaCode").value.trim() } : {})
-        })
-      });
-      toast("Sesión revalidada.");
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        const password = input("#superReauthPassword").value;
+        if (!password) return toast("Escribe tu contraseña actual.");
+        await api("/api/super/security/reauth", {
+          method: "POST",
+          body: JSON.stringify({
+            password,
+            ...(input("#superReauthMfaCode").value.trim()
+              ? { mfaCode: input("#superReauthMfaCode").value.trim() }
+              : {}),
+          }),
+        });
+        toast("Sesión revalidada.");
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
   element("#btnSuperMfaEnroll").addEventListener("click", async () => {
-    await run(async () => {
-      const out = await api("/api/super/security/mfa/enroll", { method: "POST", body: "{}" });
-      setPendingSuperMfa(out.secret, out.otpauth_uri || "");
-      toast("Se generó un secreto MFA. Confirma con el código.");
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        const out = await api("/api/super/security/mfa/enroll", { method: "POST", body: "{}" });
+        setPendingSuperMfa(out.secret, out.otpauth_uri || "");
+        toast("Se generó un secreto MFA. Confirma con el código.");
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
   element("#btnSuperMfaConfirm").addEventListener("click", async () => {
-    await run(async () => {
-      const code = input("#superMfaConfirmCode").value.trim();
-      if (!code) return toast("Escribe el código MFA.");
-      await api("/api/super/security/mfa/confirm", {
-        method: "POST",
-        body: JSON.stringify({ code })
-      });
-      input("#superMfaConfirmCode").value = "";
-      setPendingSuperMfa("");
-      toast("MFA activado.");
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        const code = input("#superMfaConfirmCode").value.trim();
+        if (!code) return toast("Escribe el código MFA.");
+        await api("/api/super/security/mfa/confirm", {
+          method: "POST",
+          body: JSON.stringify({ code }),
+        });
+        input("#superMfaConfirmCode").value = "";
+        setPendingSuperMfa("");
+        toast("MFA activado.");
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
   element("#btnSuperMfaDisable").addEventListener("click", async () => {
-    await run(async () => {
-      await api("/api/super/security/mfa/disable", { method: "POST", body: "{}" });
-      setPendingSuperMfa("");
-      toast("MFA desactivado.");
-      await loadMe();
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        await api("/api/super/security/mfa/disable", { method: "POST", body: "{}" });
+        setPendingSuperMfa("");
+        toast("MFA desactivado.");
+        await loadMe();
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
   element("#btnSuperEmailChange").addEventListener("click", async () => {
-    await run(async () => {
-      const newEmail = input("#superNewEmail").value.trim();
-      if (!newEmail) return toast("Escribe el nuevo correo.");
-      await api("/api/super/security/email-change", {
-        method: "POST",
-        body: JSON.stringify({ newEmail })
-      });
-      toast("Cambio solicitado. Revisa ambos correos.");
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        const newEmail = input("#superNewEmail").value.trim();
+        if (!newEmail) return toast("Escribe el nuevo correo.");
+        await api("/api/super/security/email-change", {
+          method: "POST",
+          body: JSON.stringify({ newEmail }),
+        });
+        toast("Cambio solicitado. Revisa ambos correos.");
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
   element("#btnSuperLockdown").addEventListener("click", async () => {
-    await run(async () => {
-      await api("/api/super/security/lockdown", { method: "POST", body: "{}" });
-      toast("Sesiones revocadas por seguridad.");
-      await loadMe();
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        await api("/api/super/security/lockdown", { method: "POST", body: "{}" });
+        toast("Sesiones revocadas por seguridad.");
+        await loadMe();
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
   element("#btnCreateBusiness").addEventListener("click", createBusiness);
   element("#btnCreateBusinessUser").addEventListener("click", createBusinessUser);

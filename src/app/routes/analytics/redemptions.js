@@ -14,7 +14,7 @@ analyticsRedemptionRoutes.get(
        FROM rewards
        WHERE id = $1
          AND business_id = $2`,
-      [rewardId, req.tenantId]
+      [rewardId, req.tenantId],
     );
 
     const reward = rewardRows[0];
@@ -51,25 +51,26 @@ analyticsRedemptionRoutes.get(
          AND r.business_id = $2
        ORDER BY r.created_at DESC
        LIMIT 20`,
-      [rewardId, req.tenantId]
+      [rewardId, req.tenantId],
     );
 
     const totalRedemptions = recentRedemptions.length;
-    const mismatchCount = recentRedemptions.filter((row) => (
-      Number(row.linked_points_total || 0) !== -Number(row.points_cost || 0)
-      || Number(row.linked_transaction_count || 0) !== 1
-    )).length;
+    const mismatchCount = recentRedemptions.filter(
+      (row) =>
+        Number(row.linked_points_total || 0) !== -Number(row.points_cost || 0) ||
+        Number(row.linked_transaction_count || 0) !== 1,
+    ).length;
 
     return res.json({
       ok: true,
       reward,
       summary: {
         recent_redemption_count: totalRedemptions,
-        mismatch_count: mismatchCount
+        mismatch_count: mismatchCount,
       },
-      recent_redemptions: recentRedemptions
+      recent_redemptions: recentRedemptions,
     });
-  })
+  }),
 );
 
 analyticsRedemptionRoutes.get(
@@ -99,7 +100,7 @@ analyticsRedemptionRoutes.get(
        LEFT JOIN staff_users su ON su.id = r.staff_user_id
        WHERE r.id = $1
          AND r.business_id = $2`,
-      [redemptionId, req.tenantId]
+      [redemptionId, req.tenantId],
     );
 
     const redemption = rows[0];
@@ -124,7 +125,7 @@ analyticsRedemptionRoutes.get(
          AND customer_id = $2
          AND meta->>'redemption_id' = $3
        ORDER BY created_at ASC`,
-      [req.tenantId, redemption.customer_id, redemption.id]
+      [req.tenantId, redemption.customer_id, redemption.id],
     );
 
     const linkedPointsTotal = transactionRows.reduce((sum, tx) => sum + Number(tx.points || 0), 0);
@@ -138,9 +139,9 @@ analyticsRedemptionRoutes.get(
         linked_points_total: linkedPointsTotal,
         delta_points: linkedPointsTotal - expectedPointsTotal,
         linked_transaction_count: transactionRows.length,
-        consistent: linkedPointsTotal === expectedPointsTotal && transactionRows.length === 1
+        consistent: linkedPointsTotal === expectedPointsTotal && transactionRows.length === 1,
       },
-      transactions: transactionRows
+      transactions: transactionRows,
     });
-  })
+  }),
 );

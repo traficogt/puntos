@@ -1,11 +1,18 @@
 import { mountRewardEntitlements } from "./reward-entitlements.js";
 import { mountPosRecording } from "./pos-recording.js";
-import { addAward as storeAward, deleteAward as removeAward, getAwardQueueStats, requeueSyncingAwards, updateAward, listAwards as listStoredAwards } from "/idb.js";
+import {
+  addAward as storeAward,
+  deleteAward as removeAward,
+  getAwardQueueStats,
+  requeueSyncingAwards,
+  updateAward,
+  listAwards as listStoredAwards,
+} from "/idb.js";
 import { registerServiceWorker, setHidden } from "/lib.js";
 import { createAwardQueue } from "./award-queue.js";
 import { mountServiceCases } from "./service-cases.js";
-import {mountDemandNotebook} from "../demand-notebook.js";
-import {mountOwnerOperations} from "./owner-operations.js";
+import { mountDemandNotebook } from "../demand-notebook.js";
+import { mountOwnerOperations } from "./owner-operations.js";
 import { mountServiceBriefing } from "./service-briefing.js";
 
 /** @typedef {import("./types.js").StaffAwardResponse} StaffAwardResponse */
@@ -59,36 +66,52 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   let lastCustomerMovement = "Sin movimientos recientes";
   const selectionPromptCopy = "Escanea o ingresa el código del cliente para continuar.";
   const queue = createAwardQueue({
-    store: { addAward: storeAward, listAwards: listStoredAwards, updateAward, deleteAward: removeAward },
+    store: {
+      addAward: storeAward,
+      listAwards: listStoredAwards,
+      updateAward,
+      deleteAward: removeAward,
+    },
     api,
     canSend: () => sessionOnline && !sessionEnded,
     authenticate: async (permission) => {
-      if (!await ensureAuth() || !hasPerm(permission)) return null;
+      if (!(await ensureAuth()) || !hasPerm(permission)) return null;
       if (!navigator.onLine && !hasOfflineGrant()) return null;
       if (permission === "staff.sync" && !sessionOnline) return null;
       return currentScope();
     },
     onChange: refreshQueue,
-    withLock: (scope, fn) => navigator.locks?.request
-      ? navigator.locks.request(`pf-awards:${scope.businessId}:${scope.staffId}`, fn)
-      : fn()
+    withLock: (scope, fn) =>
+      navigator.locks?.request
+        ? navigator.locks.request(`pf-awards:${scope.businessId}:${scope.staffId}`, fn)
+        : fn(),
   });
 
   function currentScope() {
-    return staff?.id && staff?.business_id ? { businessId: staff.business_id, staffId: staff.id } : null;
+    return staff?.id && staff?.business_id
+      ? { businessId: staff.business_id, staffId: staff.id }
+      : null;
   }
 
   function hasOfflineGrant() {
-    return !sessionEnded && typeof offlineGrant?.grant === "string" && Date.parse(offlineGrant.expiresAt) > Date.now();
+    return (
+      !sessionEnded &&
+      typeof offlineGrant?.grant === "string" &&
+      Date.parse(offlineGrant.expiresAt) > Date.now()
+    );
   }
 
   function isAuthError(error) {
     const code = String(error?.code || "");
     const message = String(error?.message || "");
-    return error?.status === 401 || error?.status === 403 || code === "AUTH_REQUIRED"
-      || code === "AUTH_INVALID_TOKEN"
-      || code === "FORBIDDEN"
-      || /No autenticado|Token invalido|No autorizado|no auth/i.test(message);
+    return (
+      error?.status === 401 ||
+      error?.status === 403 ||
+      code === "AUTH_REQUIRED" ||
+      code === "AUTH_INVALID_TOKEN" ||
+      code === "FORBIDDEN" ||
+      /No autenticado|Token invalido|No autorizado|no auth/i.test(message)
+    );
   }
 
   function isNetworkFailure(error) {
@@ -101,7 +124,11 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     try {
       const raw = localStorage.getItem("pf_staff_snapshot");
       const snapshot = raw ? JSON.parse(raw) : null;
-      return snapshot?.staff?.id && snapshot?.staff?.business_id && Date.now() - Date.parse(snapshot.updatedAt) < 86400000 ? snapshot : null;
+      return snapshot?.staff?.id &&
+        snapshot?.staff?.business_id &&
+        Date.now() - Date.parse(snapshot.updatedAt) < 86400000
+        ? snapshot
+        : null;
     } catch {
       return null;
     }
@@ -109,14 +136,17 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
 
   function writeOfflineSnapshot() {
     try {
-      localStorage.setItem("pf_staff_snapshot", JSON.stringify({
-        staff,
-        permissions: permissionSet ? [...permissionSet] : [],
-        planFeatures,
-        programRule,
-        offlineGrant,
-        updatedAt: new Date().toISOString()
-      }));
+      localStorage.setItem(
+        "pf_staff_snapshot",
+        JSON.stringify({
+          staff,
+          permissions: permissionSet ? [...permissionSet] : [],
+          planFeatures,
+          programRule,
+          offlineGrant,
+          updatedAt: new Date().toISOString(),
+        }),
+      );
     } catch {}
   }
 
@@ -127,8 +157,11 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   }
 
   function hasPendingLogout() {
-    try { return logoutPending || localStorage.getItem("pf_staff_logout_pending") === "1"; }
-    catch { return logoutPending; }
+    try {
+      return logoutPending || localStorage.getItem("pf_staff_logout_pending") === "1";
+    } catch {
+      return logoutPending;
+    }
   }
 
   function blockLocalSession() {
@@ -150,15 +183,35 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
 
   async function completePendingLogout() {
     if (logoutFlight) return logoutFlight;
-    const pendingMessage = "Sesión bloqueada en este dispositivo. El cierre en el servidor está pendiente de conexión; tus ventas siguen guardadas para su cuenta original.";
-    if (!navigator.onLine) { toast(pendingMessage); return false; }
-    logoutFlight = run(async () => {
-      await api("/api/staff/logout", { method: "POST", body: "{}", signal: AbortSignal.timeout(10000) });
-      logoutPending = false;
-      try { localStorage.removeItem("pf_staff_logout_pending"); } catch {}
-      redirectToLogin("Sesión cerrada. Las ventas pendientes siguen guardadas para su cuenta original.");
-      return true;
-    }, () => { toast(pendingMessage); return false; }).finally(() => { logoutFlight = null; });
+    const pendingMessage =
+      "Sesión bloqueada en este dispositivo. El cierre en el servidor está pendiente de conexión; tus ventas siguen guardadas para su cuenta original.";
+    if (!navigator.onLine) {
+      toast(pendingMessage);
+      return false;
+    }
+    logoutFlight = run(
+      async () => {
+        await api("/api/staff/logout", {
+          method: "POST",
+          body: "{}",
+          signal: AbortSignal.timeout(10000),
+        });
+        logoutPending = false;
+        try {
+          localStorage.removeItem("pf_staff_logout_pending");
+        } catch {}
+        redirectToLogin(
+          "Sesión cerrada. Las ventas pendientes siguen guardadas para su cuenta original.",
+        );
+        return true;
+      },
+      () => {
+        toast(pendingMessage);
+        return false;
+      },
+    ).finally(() => {
+      logoutFlight = null;
+    });
     return logoutFlight;
   }
 
@@ -213,7 +266,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
 
   function redirectToLogin(message = "Necesitas iniciar sesión.") {
     toast(message);
-    setTimeout(() => location.href = "/equipo/ingresar/", 600);
+    setTimeout(() => (location.href = "/equipo/ingresar/"), 600);
     return null;
   }
 
@@ -222,72 +275,100 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     const q = await listStoredAwards(scope || {});
     const stats = await getAwardQueueStats(scope || undefined);
     element("#queueBadge").textContent = `Cola: ${stats.total}`;
-    element("#queueMeta").textContent = `Pendientes: ${stats.queued} • Fallidos: ${stats.failed} • Última actividad: ${stats.lastQueuedAt ? new Date(stats.lastQueuedAt).toLocaleTimeString() : "—"}${stats.quarantined ? ` • ${stats.quarantined} operaciones antiguas sin identidad: requieren revisión; no se enviarán.` : ""}${hasOfflineGrant() ? " • Captura sin conexión disponible por 24 h desde la validación." : " • Conéctate para habilitar la captura sin conexión."}`;
+    element("#queueMeta").textContent =
+      `Pendientes: ${stats.queued} • Fallidos: ${stats.failed} • Última actividad: ${stats.lastQueuedAt ? new Date(stats.lastQueuedAt).toLocaleTimeString() : "—"}${stats.quarantined ? ` • ${stats.quarantined} operaciones antiguas sin identidad: requieren revisión; no se enviarán.` : ""}${hasOfflineGrant() ? " • Captura sin conexión disponible por 24 h desde la validación." : " • Conéctate para habilitar la captura sin conexión."}`;
     element("#queueList").textContent = q.length
-      ? q.slice(-5).reverse().map((award) => {
-        const base = `${new Date(award.updated_at || award.created_at || Date.now()).toLocaleTimeString()} • ${award.status || "queued"} • tx ${award.txId}`;
-        return award.last_error ? `${base} • ${award.last_error}` : base;
-      }).join("\n")
+      ? q
+          .slice(-5)
+          .reverse()
+          .map((award) => {
+            const base = `${new Date(award.updated_at || award.created_at || Date.now()).toLocaleTimeString()} • ${award.status || "queued"} • tx ${award.txId}`;
+            return award.last_error ? `${base} • ${award.last_error}` : base;
+          })
+          .join("\n")
       : "(sin operaciones pendientes)";
   }
 
   async function ensureAuth() {
-    if (hasPendingLogout()) { blockLocalSession(); await completePendingLogout(); return false; }
+    if (hasPendingLogout()) {
+      blockLocalSession();
+      await completePendingLogout();
+      return false;
+    }
     if (sessionEnded) return false;
     if (authFlight) return authFlight;
-    authFlight = run(async () => {
-      const me = /** @type {StaffMeResponse} */ (await api("/api/staff/me"));
-      if (sessionEnded) return false;
-      if (!me.staff?.id || !me.staff?.business_id) throw new Error("La sesión no identifica el negocio. Vuelve a iniciar sesión.");
-      if (staff && (staff.id !== me.staff.id || staff.business_id !== me.staff.business_id)) {
-        permissionSet = null; programRule = null; offlineGrant = null;
-        clearSelectedCustomer(); clearOfflineSnapshot();
-      }
-      staff = me.staff;
-      planFeatures = me.features || {};
-      await loadPermissions();
-      await loadProgramRule();
-      if (hasPerm("staff.award") && (!hasOfflineGrant() || Date.parse(offlineGrant.expiresAt) < Date.now() + 300000)) {
-        try {
-          const grant = await api("/api/staff/offline-grant");
-          if (typeof grant?.grant === "string" && Date.parse(grant.expiresAt) > Date.now()) offlineGrant = { grant: grant.grant, expiresAt: grant.expiresAt };
-        } catch (error) {
-          if (isAuthError(error)) throw error;
+    authFlight = run(
+      async () => {
+        const me = /** @type {StaffMeResponse} */ (await api("/api/staff/me"));
+        if (sessionEnded) return false;
+        if (!me.staff?.id || !me.staff?.business_id)
+          throw new Error("La sesión no identifica el negocio. Vuelve a iniciar sesión.");
+        if (staff && (staff.id !== me.staff.id || staff.business_id !== me.staff.business_id)) {
+          permissionSet = null;
+          programRule = null;
+          offlineGrant = null;
+          clearSelectedCustomer();
+          clearOfflineSnapshot();
         }
-      }
-      if (sessionEnded) return false;
-      sessionOnline = true;
-      writeOfflineSnapshot();
-      applyUiPermissions();
-      return true;
-    }, async (error) => {
-      sessionOnline = false;
-      if (isAuthError(error)) {
-        clearOfflineSnapshot();
-        staff = null; permissionSet = new Set(); offlineGrant = null;
-        clearSelectedCustomer();
-        return redirectToLogin();
-      }
-      if (isNetworkFailure(error)) {
-        const snapshot = readOfflineSnapshot();
-        if (snapshot?.staff && (!staff || (staff.id === snapshot.staff.id && staff.business_id === snapshot.staff.business_id))) {
-          staff = snapshot.staff;
-          permissionSet = new Set(snapshot.permissions || []);
-          planFeatures = snapshot.planFeatures || {};
-          programRule = snapshot.programRule || null;
-          offlineGrant = snapshot.offlineGrant || null;
-          renderProgramInfo();
-          updateInputsForRule();
-          applyUiPermissions();
-          toast("Modo sin conexión: usando la última sesión guardada.");
-          return true;
+        staff = me.staff;
+        planFeatures = me.features || {};
+        await loadPermissions();
+        await loadProgramRule();
+        if (
+          hasPerm("staff.award") &&
+          (!hasOfflineGrant() || Date.parse(offlineGrant.expiresAt) < Date.now() + 300000)
+        ) {
+          try {
+            const grant = await api("/api/staff/offline-grant");
+            if (typeof grant?.grant === "string" && Date.parse(grant.expiresAt) > Date.now())
+              offlineGrant = { grant: grant.grant, expiresAt: grant.expiresAt };
+          } catch (error) {
+            if (isAuthError(error)) throw error;
+          }
         }
-        return redirectToLogin("Sin conexión y sin sesión guardada.");
-      }
+        if (sessionEnded) return false;
+        sessionOnline = true;
+        writeOfflineSnapshot();
+        applyUiPermissions();
+        return true;
+      },
+      async (error) => {
+        sessionOnline = false;
+        if (isAuthError(error)) {
+          clearOfflineSnapshot();
+          staff = null;
+          permissionSet = new Set();
+          offlineGrant = null;
+          clearSelectedCustomer();
+          return redirectToLogin();
+        }
+        if (isNetworkFailure(error)) {
+          const snapshot = readOfflineSnapshot();
+          if (
+            snapshot?.staff &&
+            (!staff ||
+              (staff.id === snapshot.staff.id && staff.business_id === snapshot.staff.business_id))
+          ) {
+            staff = snapshot.staff;
+            permissionSet = new Set(snapshot.permissions || []);
+            planFeatures = snapshot.planFeatures || {};
+            programRule = snapshot.programRule || null;
+            offlineGrant = snapshot.offlineGrant || null;
+            renderProgramInfo();
+            updateInputsForRule();
+            applyUiPermissions();
+            toast("Modo sin conexión: usando la última sesión guardada.");
+            return true;
+          }
+          return redirectToLogin("Sin conexión y sin sesión guardada.");
+        }
 
-      toast(error?.message || "No se pudo validar la sesión.");
-      return null;
-    }).finally(() => { authFlight = null; });
+        toast(error?.message || "No se pudo validar la sesión.");
+        return null;
+      },
+    ).finally(() => {
+      authFlight = null;
+    });
     return authFlight;
   }
 
@@ -302,7 +383,9 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   }
 
   function canUseRedeemFlow() {
-    return navigator.onLine && sessionOnline && hasPerm("staff.redeem") && hasFeature("redemptions");
+    return (
+      navigator.onLine && sessionOnline && hasPerm("staff.redeem") && hasFeature("redemptions")
+    );
   }
 
   function canUseGiftCards() {
@@ -319,7 +402,8 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     /** @type {HTMLButtonElement} */ (element("#btnAward")).disabled = !canAward;
     /** @type {HTMLButtonElement} */ (element("#btnRedeem")).disabled = !canRedeem;
     /** @type {HTMLButtonElement} */ (element("#btnSync")).disabled = !canSync;
-    /** @type {HTMLButtonElement} */ (element("#btnGiftRedeem")).disabled = !canGiftCards || !navigator.onLine || !sessionOnline;
+    /** @type {HTMLButtonElement} */ (element("#btnGiftRedeem")).disabled =
+      !canGiftCards || !navigator.onLine || !sessionOnline;
     setHidden(element("#giftCardActionBlock"), !canGiftCards);
 
     // Analytics quick panel remains owner-only because endpoint is owner-only.
@@ -328,22 +412,29 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   }
 
   async function loadPermissions() {
-      const out = /** @type {StaffPermissionsResponse} */ (await api("/api/staff/permissions"));
-      const matrix = out.matrix || {};
-      const perms = Array.isArray(matrix[staff.role]) ? matrix[staff.role] : [];
-      permissionSet = new Set(perms);
+    const out = /** @type {StaffPermissionsResponse} */ (await api("/api/staff/permissions"));
+    const matrix = out.matrix || {};
+    const perms = Array.isArray(matrix[staff.role]) ? matrix[staff.role] : [];
+    permissionSet = new Set(perms);
     applyUiPermissions();
   }
 
   function renderProgramInfo() {
     const el = element("#programInfo");
     if (!el || !programRule) return;
-    const effective = protectedCycle ? { ...programRule, program_type: protectedCycle.program_type, program_json: protectedCycle.earning_terms } : programRule;
+    const effective = protectedCycle
+      ? {
+          ...programRule,
+          program_type: protectedCycle.program_type,
+          program_json: protectedCycle.earning_terms,
+        }
+      : programRule;
     const cfg = effective.program_json || {};
     if (effective.program_type === "SPEND") {
-      el.textContent = cfg.points_per_q == null
-        ? "Regla pendiente: el dueño debe configurar la regla de puntos antes de registrar compras."
-        : `Regla ${protectedCycle ? "protegida" : "activa"}: Por gasto (${programRule.region?.currency || "GTQ"}). Tasa ${Number(cfg.points_per_q)} pts/${programRule.region?.currency || "GTQ"} (${cfg.round || "ceil"}).`;
+      el.textContent =
+        cfg.points_per_q == null
+          ? "Regla pendiente: el dueño debe configurar la regla de puntos antes de registrar compras."
+          : `Regla ${protectedCycle ? "protegida" : "activa"}: Por gasto (${programRule.region?.currency || "GTQ"}). Tasa ${Number(cfg.points_per_q)} pts/${programRule.region?.currency || "GTQ"} (${cfg.round || "ceil"}).`;
     } else if (effective.program_type === "VISIT") {
       el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Por visita (${Number(cfg.points_per_visit ?? 0)} pts por visita).`;
     } else if (effective.program_type === "DISCOUNT") {
@@ -351,7 +442,10 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     } else if (effective.program_type === "STAMP") {
       const req = Math.max(2, Math.floor(Number(cfg.stamps_required) || 0) || 10);
       const hs = Math.min(req - 1, Math.max(0, Math.floor(Number(cfg.head_start) || 0)));
-      const prize = (typeof cfg.reward_label === "string" && cfg.reward_label.trim()) ? cfg.reward_label.trim() : "Premio";
+      const prize =
+        typeof cfg.reward_label === "string" && cfg.reward_label.trim()
+          ? cfg.reward_label.trim()
+          : "Premio";
       const per = cfg.stamp_unit === "item" ? "artículo" : "visita";
       el.textContent = `Regla ${protectedCycle ? "protegida" : "activa"}: Tarjeta de sellos — ${req} sellos para ${prize}${hs > 0 ? `, empieza con ${hs} de regalo` : ""} (1 sello por ${per}).`;
     } else if (effective.program_type === "CASHBACK") {
@@ -371,24 +465,34 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       if (block) block.classList.add("hidden");
       if (loadBlock) loadBlock.classList.add("hidden");
       lastCashbackBalance = 0;
-      const amt = input("#cashbackAmount"); if (amt) amt.value = "0";
-      const st = element("#cashbackStatus"); if (st) st.textContent = "—";
-      const la = input("#giftCardLoadAmount"); if (la) la.value = "0";
-      const ls = element("#giftCardLoadStatus"); if (ls) ls.textContent = "—";
+      const amt = input("#cashbackAmount");
+      if (amt) amt.value = "0";
+      const st = element("#cashbackStatus");
+      if (st) st.textContent = "—";
+      const la = input("#giftCardLoadAmount");
+      if (la) la.value = "0";
+      const ls = element("#giftCardLoadStatus");
+      if (ls) ls.textContent = "—";
       return;
     }
     lastCashbackBalance = Number(wallet.balance_q) || 0;
     const isGift = wallet.kind === "GIFT_CARD";
-    const title = element("#cashbackActionBlockTitle"); if (title) title.textContent = isGift ? "Saldo de tarjeta" : "Cashback";
+    const title = element("#cashbackActionBlockTitle");
+    if (title) title.textContent = isGift ? "Saldo de tarjeta" : "Cashback";
     element("#cashbackBalance").textContent = isGift
       ? `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)}`
       : `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)} (gana ${Number(wallet.percent)}%)`;
-    const btn = /** @type {HTMLButtonElement|null} */ (element("#btnCashbackSpend")); if (btn) btn.disabled = !(lastCashbackBalance > 0);
+    const btn = /** @type {HTMLButtonElement|null} */ (element("#btnCashbackSpend"));
+    if (btn) btn.disabled = !(lastCashbackBalance > 0);
     if (block) block.classList.remove("hidden");
     if (loadBlock) {
       loadBlock.classList.toggle("hidden", !isGift);
       const hint = element("#giftCardBonusHint");
-      if (hint) hint.textContent = isGift && Number(wallet.bonus_percent) > 0 ? `Incluye bono de recarga del ${Number(wallet.bonus_percent)}%.` : "";
+      if (hint)
+        hint.textContent =
+          isGift && Number(wallet.bonus_percent) > 0
+            ? `Incluye bono de recarga del ${Number(wallet.bonus_percent)}%.`
+            : "";
     }
   }
 
@@ -401,7 +505,8 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     input("#amount").step = programRule.region?.minorUnits === 0 ? "1" : "0.01";
     input("#giftAmount").step = programRule.region?.minorUnits === 0 ? "1" : "0.01";
     input("#giftAmount").min = programRule.region?.minorUnits === 0 ? "1" : "0.01";
-    const stampCfg = (protectedCycle ? protectedCycle.earning_terms : programRule.program_json) || {};
+    const stampCfg =
+      (protectedCycle ? protectedCycle.earning_terms : programRule.program_json) || {};
     const stampVisit = t === "STAMP" && stampCfg.stamp_unit !== "item";
     const stampItem = t === "STAMP" && stampCfg.stamp_unit === "item";
     input("#amount").disabled = t !== "SPEND" && t !== "DISCOUNT" && t !== "CASHBACK";
@@ -443,22 +548,26 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
 
     if (selectionStatus) {
       selectionStatus.textContent = hasCustomer
-        ? `Cliente seleccionado: ${lastCustomerId}. ${canRedeem
-          ? (eligibleRewardCount > 0
-            ? "Ahora puedes registrar o canjear."
-            : "Ahora puedes registrar puntos; no hay recompensas canjeables ahora.")
-          : "Ahora puedes registrar puntos."}`
+        ? `Cliente seleccionado: ${lastCustomerId}. ${
+            canRedeem
+              ? eligibleRewardCount > 0
+                ? "Ahora puedes registrar o canjear."
+                : "Ahora puedes registrar puntos; no hay recompensas canjeables ahora."
+              : "Ahora puedes registrar puntos."
+          }`
         : selectionPromptCopy;
     }
 
     if (customerActionStatus) {
-      customerActionStatus.textContent = statusMessage || (hasCustomer
-        ? (canRedeem
-          ? (eligibleRewardCount > 0
-            ? "Cliente listo. Ahora puedes registrar puntos o canjear una recompensa."
-            : "Cliente listo. Ahora puedes registrar puntos; no hay recompensas canjeables ahora.")
-          : "Cliente listo. Ahora puedes registrar puntos.")
-        : selectionPromptCopy);
+      customerActionStatus.textContent =
+        statusMessage ||
+        (hasCustomer
+          ? canRedeem
+            ? eligibleRewardCount > 0
+              ? "Cliente listo. Ahora puedes registrar puntos o canjear una recompensa."
+              : "Cliente listo. Ahora puedes registrar puntos; no hay recompensas canjeables ahora."
+            : "Cliente listo. Ahora puedes registrar puntos."
+          : selectionPromptCopy);
     }
 
     if (customerRewardState) {
@@ -481,18 +590,26 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
 
     if (rewardHint) {
       rewardHint.textContent = hasCustomer
-        ? (!canRedeem
-          ? (!hasFeature("redemptions")
+        ? !canRedeem
+          ? !hasFeature("redemptions")
             ? "Los canjes no están disponibles en el plan actual."
-            : "Tu rol no permite canjear recompensas.")
-          : (rewardOptions.length
+            : "Tu rol no permite canjear recompensas."
+          : rewardOptions.length
             ? "Las recompensas disponibles aparecen primero. Las que faltan puntos quedan deshabilitadas."
-            : "No hay recompensas activas para este programa."))
+            : "No hay recompensas activas para este programa."
         : selectionPromptCopy;
     }
 
-    if (unverifiedSelection && customerActionStatus && !statusMessage) customerActionStatus.textContent = "Código capturado sin conexión. El cliente y sus puntos se verificarán en el servidor al sincronizar.";
-    if (awardButton) awardButton.disabled = awardInFlight || storageFailed || !hasPerm("staff.award") || !hasCustomer || (!navigator.onLine && !hasOfflineGrant());
+    if (unverifiedSelection && customerActionStatus && !statusMessage)
+      customerActionStatus.textContent =
+        "Código capturado sin conexión. El cliente y sus puntos se verificarán en el servidor al sincronizar.";
+    if (awardButton)
+      awardButton.disabled =
+        awardInFlight ||
+        storageFailed ||
+        !hasPerm("staff.award") ||
+        !hasCustomer ||
+        (!navigator.onLine && !hasOfflineGrant());
     if (redeemButton) redeemButton.disabled = !hasRedeemableReward;
     rewardSelectEl.disabled = !hasRedeemableReward;
     serviceCases?.contextChanged();
@@ -507,7 +624,13 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       out.textContent = selectionPromptCopy;
       return;
     }
-    const effective = protectedCycle ? { ...programRule, program_type: protectedCycle.program_type, program_json: protectedCycle.earning_terms } : programRule;
+    const effective = protectedCycle
+      ? {
+          ...programRule,
+          program_type: protectedCycle.program_type,
+          program_json: protectedCycle.earning_terms,
+        }
+      : programRule;
     const cfg = effective.program_json || {};
     const amount = Number(input("#amount").value || 0);
     const visits = Math.floor(Number(input("#visits").value || 0));
@@ -519,9 +642,10 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       const digits = programRule.region?.minorUnits === 0 ? 0 : 2;
       const currency = programRule.region?.currency || "GTQ";
       const discount = Math.round(amount * pct) / 100;
-      out.textContent = pct > 0
-        ? `Descuento de miembro: ${currency} ${discount.toFixed(digits)} (${pct}% de ${currency} ${amount.toFixed(digits)}). No otorga puntos.`
-        : "Descuento de miembro no configurado todavía.";
+      out.textContent =
+        pct > 0
+          ? `Descuento de miembro: ${currency} ${discount.toFixed(digits)} (${pct}% de ${currency} ${amount.toFixed(digits)}). No otorga puntos.`
+          : "Descuento de miembro no configurado todavía.";
       return;
     }
     if (effective.program_type === "CASHBACK") {
@@ -529,17 +653,19 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       const digits = programRule.region?.minorUnits === 0 ? 0 : 2;
       const currency = programRule.region?.currency || "GTQ";
       const earn = Math.round(amount * pct) / 100;
-      out.textContent = pct > 0
-        ? `Cashback: ${currency} ${earn.toFixed(digits)} (${pct}% de ${currency} ${amount.toFixed(digits)}) como saldo. No otorga puntos.`
-        : "Cashback no configurado todavía.";
+      out.textContent =
+        pct > 0
+          ? `Cashback: ${currency} ${earn.toFixed(digits)} (${pct}% de ${currency} ${amount.toFixed(digits)}) como saldo. No otorga puntos.`
+          : "Cashback no configurado todavía.";
       return;
     }
     if (effective.program_type === "GIFT_CARD") {
-      out.textContent = "Tarjeta de regalo: usa «Recargar saldo» o «Usar saldo». Registrar una compra no otorga puntos ni saldo.";
+      out.textContent =
+        "Tarjeta de regalo: usa «Recargar saldo» o «Usar saldo». Registrar una compra no otorga puntos ni saldo.";
       return;
     }
     if (effective.program_type === "STAMP") {
-      const unitCount = cfg.stamp_unit === "item" ? (items || 1) : (visits || 1);
+      const unitCount = cfg.stamp_unit === "item" ? items || 1 : visits || 1;
       const n = Math.max(1, Math.floor(unitCount));
       out.textContent = `Vista previa: se otorgará ${n} ${n === 1 ? "sello" : "sellos"} con los valores actuales.`;
       return;
@@ -552,7 +678,8 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       const rate = Number(cfg.points_per_q ?? 0); // unconfigured rule previews 0; the server refuses the award
       const raw = amount * rate;
       const round = String(cfg.round ?? "ceil");
-      preview = round === "floor" ? Math.floor(raw) : round === "round" ? Math.round(raw) : Math.ceil(raw);
+      preview =
+        round === "floor" ? Math.floor(raw) : round === "round" ? Math.round(raw) : Math.ceil(raw);
     }
     out.textContent = `Vista previa: se otorgarán aprox. ${Math.max(0, preview)} puntos con los valores actuales.`;
   }
@@ -633,11 +760,16 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
 
     const selectionAtRequest = ++customerSelectionRevision;
     const scopeAtRequest = JSON.stringify([currentScope(), staff?.branch_id ?? null]);
-    const selectionIsCurrent = () => !sessionEnded && selectionAtRequest === customerSelectionRevision
-      && scopeAtRequest === JSON.stringify([currentScope(), staff?.branch_id ?? null]);
+    const selectionIsCurrent = () =>
+      !sessionEnded &&
+      selectionAtRequest === customerSelectionRevision &&
+      scopeAtRequest === JSON.stringify([currentScope(), staff?.branch_id ?? null]);
 
     if (!navigator.onLine || !sessionOnline) {
-      if (!hasOfflineGrant()) { toast("Conéctate y valida tu sesión antes de capturar ventas sin conexión."); return false; }
+      if (!hasOfflineGrant()) {
+        toast("Conéctate y valida tu sesión antes de capturar ventas sin conexión.");
+        return false;
+      }
       clearSelectedCustomer();
       lastCustomerToken = trimmed;
       unverifiedSelection = true;
@@ -646,22 +778,27 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       return true;
     }
 
-    return run(async () => {
-      const out = /** @type {StaffLookupCustomerResponse} */ (await api("/api/staff/customer/lookup", {
-        method: "POST",
-        body: JSON.stringify({ customerQrToken: trimmed })
-      }));
-      if (!selectionIsCurrent()) return false;
-      applySelectedCustomer(out.customer, trimmed, { silent });
-      renderWalletPanel(out.wallet);
-      return true;
-    }, (error) => {
-      if (!selectionIsCurrent()) return false;
-      clearSelectedCustomer();
-      updateCustomerSurfaceState();
-      toast(error.message);
-      return false;
-    });
+    return run(
+      async () => {
+        const out = /** @type {StaffLookupCustomerResponse} */ (
+          await api("/api/staff/customer/lookup", {
+            method: "POST",
+            body: JSON.stringify({ customerQrToken: trimmed }),
+          })
+        );
+        if (!selectionIsCurrent()) return false;
+        applySelectedCustomer(out.customer, trimmed, { silent });
+        renderWalletPanel(out.wallet);
+        return true;
+      },
+      (error) => {
+        if (!selectionIsCurrent()) return false;
+        clearSelectedCustomer();
+        updateCustomerSurfaceState();
+        toast(error.message);
+        return false;
+      },
+    );
   }
 
   async function loadProgramRule() {
@@ -680,15 +817,19 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error("Este navegador no permite camara. Usa Chrome/Edge o pega el token manual.");
     }
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+      audio: false,
+    });
     video.srcObject = stream;
     await video.play();
 
     if (canScan()) {
       try {
-        const supported = typeof BarcodeDetector.getSupportedFormats === "function"
-          ? await BarcodeDetector.getSupportedFormats()
-          : null;
+        const supported =
+          typeof BarcodeDetector.getSupportedFormats === "function"
+            ? await BarcodeDetector.getSupportedFormats()
+            : null;
         if (Array.isArray(supported) && !supported.includes("qr_code")) {
           detector = null;
           toast("Tu navegador no soporta QR por camara. Usa entrada manual.");
@@ -710,15 +851,18 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   function stopCamera() {
     const video = /** @type {HTMLVideoElement} */ ($("#video"));
     const s = /** @type {MediaStream | null} */ (video.srcObject);
-    if (s) s.getTracks().forEach(t => t.stop());
+    if (s) s.getTracks().forEach((t) => t.stop());
     video.srcObject = null;
   }
 
   async function award(token, scope) {
     const selectionAtRequest = customerSelectionRevision;
     const scopeAtRequest = JSON.stringify([scope, staff?.branch_id ?? null]);
-    const selectionIsCurrent = () => !sessionEnded && selectionAtRequest === customerSelectionRevision
-      && token === lastCustomerToken && scopeAtRequest === JSON.stringify([currentScope(), staff?.branch_id ?? null]);
+    const selectionIsCurrent = () =>
+      !sessionEnded &&
+      selectionAtRequest === customerSelectionRevision &&
+      token === lastCustomerToken &&
+      scopeAtRequest === JSON.stringify([currentScope(), staff?.branch_id ?? null]);
     const payload = {
       customerQrToken: token,
       amount_q: Number(input("#amount").value || 0),
@@ -727,12 +871,20 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
       txId: uuidv4(),
       meta: { ui: "staff" },
       client_ts: new Date().toISOString(),
-      ...(hasOfflineGrant() ? { offlineGrant: offlineGrant.grant } : {})
+      ...(hasOfflineGrant() ? { offlineGrant: offlineGrant.grant } : {}),
     };
-    if (!Number.isFinite(payload.amount_q) || payload.amount_q < 0 || payload.amount_q > 1000000
-      || Math.abs(payload.amount_q * 100 - Math.round(payload.amount_q * 100)) > 0.00001
-      || !Number.isSafeInteger(payload.visits) || payload.visits < 1 || payload.visits > 1000
-      || !Number.isSafeInteger(payload.items) || payload.items < 1 || payload.items > 10000) {
+    if (
+      !Number.isFinite(payload.amount_q) ||
+      payload.amount_q < 0 ||
+      payload.amount_q > 1000000 ||
+      Math.abs(payload.amount_q * 100 - Math.round(payload.amount_q * 100)) > 0.00001 ||
+      !Number.isSafeInteger(payload.visits) ||
+      payload.visits < 1 ||
+      payload.visits > 1000 ||
+      !Number.isSafeInteger(payload.items) ||
+      payload.items < 1 ||
+      payload.items > 10000
+    ) {
       const message = `Revisa el monto (0 a 1,000,000 ${programRule?.region?.currency || "GTQ"}) y las cantidades enteras de visitas y artículos.`;
       updateCustomerSurfaceState(message);
       toast(message);
@@ -740,58 +892,70 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     }
     navigator.storage?.persist?.().catch(() => {});
 
-    return run(async () => {
-      const sent = await queue.submit(payload, scope);
-      if (sent.queued) {
-        if (selectionIsCurrent()) updateCustomerSurfaceState("Guardado sin conexión. Pendiente de verificar y sumar puntos al sincronizar.");
-        toast("Venta guardada en este dispositivo; los puntos aún no se han confirmado.");
+    return run(
+      async () => {
+        const sent = await queue.submit(payload, scope);
+        if (sent.queued) {
+          if (selectionIsCurrent())
+            updateCustomerSurfaceState(
+              "Guardado sin conexión. Pendiente de verificar y sumar puntos al sincronizar.",
+            );
+          toast("Venta guardada en este dispositivo; los puntos aún no se han confirmado.");
+          return true;
+        }
+        const out = /** @type {StaffAwardResponse} */ (sent.response);
+        if (!selectionIsCurrent()) {
+          toast("Venta anterior confirmada. Se conserva el cliente seleccionado actualmente.");
+          return true;
+        }
+        unverifiedSelection = false;
+        element("#lastCustomer").textContent = out.customerId;
+        const selectionStatus = element("#selectionStatus");
+        if (selectionStatus) {
+          selectionStatus.textContent = `Cliente seleccionado: ${out.customerId}. Ahora puedes registrar o canjear.`;
+        }
+        lastCustomerMovement =
+          out.status === "PENDING"
+            ? `Puntos pendientes: +${out.pointsAwarded}`
+            : `Puntos: +${out.pointsAwarded}`;
+        element("#lastPoints").textContent = lastCustomerMovement;
+        element("#lastBalance").textContent = String(out.newBalance);
+        lastCustomerId = out.customerId;
+        lastCustomerToken = token;
+        lastCustomerPoints = Number(out.newBalance || 0);
+        renderRewardOptions();
+        updateCustomerSurfaceState(
+          out.status === "PENDING"
+            ? `Puntos pendientes: +${out.pointsAwarded} (se liberan después).`
+            : `Puntos registrados: +${out.pointsAwarded}. Nuevo saldo: ${out.newBalance}.`,
+        );
+        if (out.status === "PENDING") {
+          toast("Puntos pendientes: +" + out.pointsAwarded + " (se liberan después).");
+        } else {
+          toast("Listo: +" + out.pointsAwarded + " puntos");
+        }
         return true;
-      }
-      const out = /** @type {StaffAwardResponse} */ (sent.response);
-      if (!selectionIsCurrent()) {
-        toast("Venta anterior confirmada. Se conserva el cliente seleccionado actualmente.");
-        return true;
-      }
-      unverifiedSelection = false;
-      element("#lastCustomer").textContent = out.customerId;
-      const selectionStatus = element("#selectionStatus");
-      if (selectionStatus) {
-        selectionStatus.textContent = `Cliente seleccionado: ${out.customerId}. Ahora puedes registrar o canjear.`;
-      }
-      lastCustomerMovement = out.status === "PENDING"
-        ? `Puntos pendientes: +${out.pointsAwarded}`
-        : `Puntos: +${out.pointsAwarded}`;
-      element("#lastPoints").textContent = lastCustomerMovement;
-      element("#lastBalance").textContent = String(out.newBalance);
-      lastCustomerId = out.customerId;
-      lastCustomerToken = token;
-      lastCustomerPoints = Number(out.newBalance || 0);
-      renderRewardOptions();
-      updateCustomerSurfaceState(out.status === "PENDING"
-        ? `Puntos pendientes: +${out.pointsAwarded} (se liberan después).`
-        : `Puntos registrados: +${out.pointsAwarded}. Nuevo saldo: ${out.newBalance}.`);
-      if (out.status === "PENDING") {
-        toast("Puntos pendientes: +" + out.pointsAwarded + " (se liberan después).");
-      } else {
-        toast("Listo: +" + out.pointsAwarded + " puntos");
-      }
-      return true;
-    }, async (error) => {
-      if (error.code === "OFFLINE_STORAGE_ERROR") {
-        storageFailed = true;
-        updateCustomerSurfaceState(error.message);
+      },
+      async (error) => {
+        if (error.code === "OFFLINE_STORAGE_ERROR") {
+          storageFailed = true;
+          updateCustomerSurfaceState(error.message);
+          toast(error.message);
+          return false;
+        }
+        if (isNetworkFailure(error)) {
+          if (selectionIsCurrent())
+            updateCustomerSurfaceState(
+              "Guardado y pendiente de confirmación. Se reintentará automáticamente; no registres esta venta otra vez.",
+            );
+          toast("Venta pendiente de confirmación. No la registres otra vez.");
+          return true;
+        }
+        updateCustomerSurfaceState();
         toast(error.message);
         return false;
-      }
-      if (isNetworkFailure(error)) {
-        if (selectionIsCurrent()) updateCustomerSurfaceState("Guardado y pendiente de confirmación. Se reintentará automáticamente; no registres esta venta otra vez.");
-        toast("Venta pendiente de confirmación. No la registres otra vez.");
-        return true;
-      }
-      updateCustomerSurfaceState();
-      toast(error.message);
-      return false;
-    });
+      },
+    );
   }
 
   async function scanLoop() {
@@ -803,7 +967,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
         const token = String(codes[0].rawValue || "").trim();
         const now = Date.now();
         // Ignora el mismo token por ~1 minuto para evitar reintentos del mismo QR.
-        if (token && token === lastScannedToken && (now - lastScannedAt) < 65_000) {
+        if (token && token === lastScannedToken && now - lastScannedAt < 65_000) {
           requestAnimationFrame(scanLoop);
           return;
         }
@@ -815,7 +979,10 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
         }
         input("#token").value = token;
         await selectCustomerFromToken(token, { silent: false });
-        setTimeout(() => { scanning = true; requestAnimationFrame(scanLoop); }, 1200);
+        setTimeout(() => {
+          scanning = true;
+          requestAnimationFrame(scanLoop);
+        }, 1200);
         return;
       }
     });
@@ -823,15 +990,18 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   }
 
   element("#btnStart").addEventListener("click", async () => {
-    await run(async () => {
-      if (!await ensureAuth() || !hasPerm("staff.award")) return;
-      await startCamera();
-      scanning = true;
-      requestAnimationFrame(scanLoop);
-      toast("Selecciona un cliente...");
-    }, (error) => {
-      toast(error?.message || "No se pudo iniciar la camara.");
-    });
+    await run(
+      async () => {
+        if (!(await ensureAuth()) || !hasPerm("staff.award")) return;
+        await startCamera();
+        scanning = true;
+        requestAnimationFrame(scanLoop);
+        toast("Selecciona un cliente...");
+      },
+      (error) => {
+        toast(error?.message || "No se pudo iniciar la camara.");
+      },
+    );
   });
 
   element("#btnStop").addEventListener("click", () => {
@@ -842,7 +1012,8 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
 
   element("#btnAward").addEventListener("click", async () => {
     if (awardInFlight || storageFailed) return;
-    if ((!lastCustomerId && !unverifiedSelection) || !lastCustomerToken) return toast("Primero selecciona un cliente.");
+    if ((!lastCustomerId && !unverifiedSelection) || !lastCustomerToken)
+      return toast("Primero selecciona un cliente.");
     awardInFlight = true;
     await run(async () => {
       updateCustomerSurfaceState("Registrando puntos...");
@@ -850,13 +1021,17 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     }).finally(() => {
       awardInFlight = false;
       const button = /** @type {HTMLButtonElement} */ (element("#btnAward"));
-      button.disabled = storageFailed || !hasPerm("staff.award") || (!lastCustomerId && !unverifiedSelection) || (!navigator.onLine && !hasOfflineGrant());
+      button.disabled =
+        storageFailed ||
+        !hasPerm("staff.award") ||
+        (!lastCustomerId && !unverifiedSelection) ||
+        (!navigator.onLine && !hasOfflineGrant());
     });
   });
 
   element("#btnSelectCustomer").addEventListener("click", async () => {
     await run(async () => {
-      if (!await ensureAuth() || !hasPerm("staff.award")) return;
+      if (!(await ensureAuth()) || !hasPerm("staff.award")) return;
       const token = input("#token").value.trim();
       await selectCustomerFromToken(token, { silent: false });
     });
@@ -864,15 +1039,29 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
 
   async function requestSync(manual = false) {
     if (sessionEnded) return;
-    await run(async () => {
-      const result = await queue.sync();
-      await refreshQueue();
-      if (manual) toast(result.attempted ? `Sincronizados: ${result.synced}/${result.attempted}` : navigator.onLine ? "Nada que sincronizar para esta cuenta." : "La sincronización requiere conexión.");
-    }, (error) => {
-      if (error.code === "OFFLINE_STORAGE_ERROR") storageFailed = true;
-      if (manual || storageFailed) toast(error.message);
-      updateCustomerSurfaceState(storageFailed ? error.message : "Las ventas siguen guardadas. Se reintentará la sincronización.");
-    });
+    await run(
+      async () => {
+        const result = await queue.sync();
+        await refreshQueue();
+        if (manual)
+          toast(
+            result.attempted
+              ? `Sincronizados: ${result.synced}/${result.attempted}`
+              : navigator.onLine
+                ? "Nada que sincronizar para esta cuenta."
+                : "La sincronización requiere conexión.",
+          );
+      },
+      (error) => {
+        if (error.code === "OFFLINE_STORAGE_ERROR") storageFailed = true;
+        if (manual || storageFailed) toast(error.message);
+        updateCustomerSurfaceState(
+          storageFailed
+            ? error.message
+            : "Las ventas siguen guardadas. Se reintentará la sincronización.",
+        );
+      },
+    );
   }
   element("#btnSync").addEventListener("click", () => requestSync(true));
 
@@ -888,72 +1077,89 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   });
 
   element("#btnStaffReauth").addEventListener("click", async () => {
-    await run(async () => {
-      if (!await ensureAuth() || !sessionOnline) return;
-      const password = input("#staffReauthPassword").value;
-      if (!password) return toast("Escribe tu contraseña actual.");
-      await api("/api/staff/security/reauth", {
-        method: "POST",
-        body: JSON.stringify({
-          password,
-          ...(input("#staffReauthMfaCode").value.trim() ? { mfaCode: input("#staffReauthMfaCode").value.trim() } : {})
-        })
-      });
-      toast("Sesión revalidada.");
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        if (!(await ensureAuth()) || !sessionOnline) return;
+        const password = input("#staffReauthPassword").value;
+        if (!password) return toast("Escribe tu contraseña actual.");
+        await api("/api/staff/security/reauth", {
+          method: "POST",
+          body: JSON.stringify({
+            password,
+            ...(input("#staffReauthMfaCode").value.trim()
+              ? { mfaCode: input("#staffReauthMfaCode").value.trim() }
+              : {}),
+          }),
+        });
+        toast("Sesión revalidada.");
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
 
   element("#btnStaffMfaEnroll").addEventListener("click", async () => {
-    await run(async () => {
-      if (!await ensureAuth() || !sessionOnline) return;
-      const out = await api("/api/staff/security/mfa/enroll", { method: "POST", body: "{}" });
-      setPendingStaffMfa(out.secret, out.otpauth_uri || "");
-      toast("Se generó un secreto MFA. Confirma con el código.");
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        if (!(await ensureAuth()) || !sessionOnline) return;
+        const out = await api("/api/staff/security/mfa/enroll", { method: "POST", body: "{}" });
+        setPendingStaffMfa(out.secret, out.otpauth_uri || "");
+        toast("Se generó un secreto MFA. Confirma con el código.");
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
 
   element("#btnStaffMfaConfirm").addEventListener("click", async () => {
-    await run(async () => {
-      if (!await ensureAuth() || !sessionOnline) return;
-      const code = input("#staffMfaConfirmCode").value.trim();
-      if (!code) return toast("Escribe el código MFA.");
-      await api("/api/staff/security/mfa/confirm", {
-        method: "POST",
-        body: JSON.stringify({ code })
-      });
-      input("#staffMfaConfirmCode").value = "";
-      setPendingStaffMfa("");
-      toast("MFA activado.");
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        if (!(await ensureAuth()) || !sessionOnline) return;
+        const code = input("#staffMfaConfirmCode").value.trim();
+        if (!code) return toast("Escribe el código MFA.");
+        await api("/api/staff/security/mfa/confirm", {
+          method: "POST",
+          body: JSON.stringify({ code }),
+        });
+        input("#staffMfaConfirmCode").value = "";
+        setPendingStaffMfa("");
+        toast("MFA activado.");
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
 
   element("#btnStaffMfaDisable").addEventListener("click", async () => {
-    await run(async () => {
-      if (!await ensureAuth() || !sessionOnline) return;
-      await api("/api/staff/security/mfa/disable", { method: "POST", body: "{}" });
-      setPendingStaffMfa("");
-      toast("MFA desactivado.");
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        if (!(await ensureAuth()) || !sessionOnline) return;
+        await api("/api/staff/security/mfa/disable", { method: "POST", body: "{}" });
+        setPendingStaffMfa("");
+        toast("MFA desactivado.");
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
 
   element("#btnStaffLockdown").addEventListener("click", async () => {
-    await run(async () => {
-      if (!await ensureAuth() || !sessionOnline) return;
-      await api("/api/staff/security/lockdown", { method: "POST", body: "{}" });
-      clearOfflineSnapshot();
-      toast("Sesiones revocadas por seguridad.");
-      setTimeout(() => location.href = "/equipo/ingresar/", 600);
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        if (!(await ensureAuth()) || !sessionOnline) return;
+        await api("/api/staff/security/lockdown", { method: "POST", body: "{}" });
+        clearOfflineSnapshot();
+        toast("Sesiones revocadas por seguridad.");
+        setTimeout(() => (location.href = "/equipo/ingresar/"), 600);
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
 
   async function loadRewards() {
@@ -966,138 +1172,210 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
   }
 
   element("#btnRedeem").addEventListener("click", async () => {
-    if (!navigator.onLine || !sessionOnline) return toast("Los canjes requieren conexión. No se pueden guardar sin internet.");
+    if (!navigator.onLine || !sessionOnline)
+      return toast("Los canjes requieren conexión. No se pueden guardar sin internet.");
     if (!lastCustomerId) return toast("Primero selecciona un cliente.");
     if (redeemInFlight) return;
     const customerAtRequest = lastCustomerId;
     const scopeAtRequest = JSON.stringify([currentScope(), staff?.branch_id ?? null]);
-    const redemptionContextIsCurrent = () => !sessionEnded && lastCustomerId === customerAtRequest && scopeAtRequest === JSON.stringify([currentScope(), staff?.branch_id ?? null]);
+    const redemptionContextIsCurrent = () =>
+      !sessionEnded &&
+      lastCustomerId === customerAtRequest &&
+      scopeAtRequest === JSON.stringify([currentScope(), staff?.branch_id ?? null]);
     redeemInFlight = true;
-    await run(async () => {
-      if (!await ensureAuth() || !canUseRedeemFlow()) return;
-      if (!redemptionContextIsCurrent()) return;
-      const rewardId = select("#rewardSelect").value;
-      if (!rewardId) return toast("Selecciona una recompensa disponible.");
-      updateCustomerSurfaceState("Canjeando recompensa...");
-      const out = /** @type {StaffRedeemResponse} */ (await api("/api/staff/redeem", {
-        method: "POST",
-        body: JSON.stringify({ customerId: lastCustomerId, rewardId, requestId: uuidv4() })
-      }));
-      if (!redemptionContextIsCurrent()) return;
-      element("#redeemCode").textContent = out.redemptionCode;
-      element("#lastBalance").textContent = String(out.newBalance);
-      lastCustomerMovement = `Canje: ${out.redemptionCode}`;
-      element("#lastPoints").textContent = lastCustomerMovement;
-      lastCustomerPoints = Number(out.newBalance || 0);
-      renderRewardOptions();
-      updateCustomerSurfaceState(`Canje listo. Código: ${out.redemptionCode}. Nuevo saldo: ${out.newBalance}.`);
-      toast("Canje listo. Código: " + out.redemptionCode);
-      posRecording?.showRedemption({ ...out, customerId: customerAtRequest });
-    }, (error) => {
-      if (!redemptionContextIsCurrent()) return;
-      updateCustomerSurfaceState();
-      toast(error.message);
-      if (error.recoveryCaseId) serviceCases?.showCase(error.recoveryCaseId);
-    }).finally(() => {
+    await run(
+      async () => {
+        if (!(await ensureAuth()) || !canUseRedeemFlow()) return;
+        if (!redemptionContextIsCurrent()) return;
+        const rewardId = select("#rewardSelect").value;
+        if (!rewardId) return toast("Selecciona una recompensa disponible.");
+        updateCustomerSurfaceState("Canjeando recompensa...");
+        const out = /** @type {StaffRedeemResponse} */ (
+          await api("/api/staff/redeem", {
+            method: "POST",
+            body: JSON.stringify({ customerId: lastCustomerId, rewardId, requestId: uuidv4() }),
+          })
+        );
+        if (!redemptionContextIsCurrent()) return;
+        element("#redeemCode").textContent = out.redemptionCode;
+        element("#lastBalance").textContent = String(out.newBalance);
+        lastCustomerMovement = `Canje: ${out.redemptionCode}`;
+        element("#lastPoints").textContent = lastCustomerMovement;
+        lastCustomerPoints = Number(out.newBalance || 0);
+        renderRewardOptions();
+        updateCustomerSurfaceState(
+          `Canje listo. Código: ${out.redemptionCode}. Nuevo saldo: ${out.newBalance}.`,
+        );
+        toast("Canje listo. Código: " + out.redemptionCode);
+        posRecording?.showRedemption({ ...out, customerId: customerAtRequest });
+      },
+      (error) => {
+        if (!redemptionContextIsCurrent()) return;
+        updateCustomerSurfaceState();
+        toast(error.message);
+        if (error.recoveryCaseId) serviceCases?.showCase(error.recoveryCaseId);
+      },
+    ).finally(() => {
       redeemInFlight = false;
     });
   });
 
   element("#btnSummary").addEventListener("click", async () => {
-    await run(async () => {
-      const out = await api("/api/admin/analytics/summary");
-      element("#summary").textContent = JSON.stringify(out, null, 2);
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        const out = await api("/api/admin/analytics/summary");
+        element("#summary").textContent = JSON.stringify(out, null, 2);
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
 
   element("#btnGiftRedeem").addEventListener("click", async () => {
-    if (!navigator.onLine || !sessionOnline) return toast("El uso de gift cards requiere conexión.");
+    if (!navigator.onLine || !sessionOnline)
+      return toast("El uso de gift cards requiere conexión.");
     if (giftRedeemInFlight) return;
     giftRedeemInFlight = true;
-    await run(async () => {
-      if (!await ensureAuth() || !sessionOnline || !canUseGiftCards()) return;
-      const code_or_token = input("#giftCode").value.trim();
-      const amount_q = Number(input("#giftAmount").value || 0);
-      if (!code_or_token) return toast("Escribe el código/token de gift card.");
-      if (!(amount_q > 0)) return toast("Monto inválido.");
-      const out = /** @type {StaffGiftRedeemResponse} */ (await api("/api/staff/gift-cards/redeem", {
-        method: "POST",
-        body: JSON.stringify({ code_or_token, amount_q, requestId: uuidv4() })
-      }));
-      const g = out.gift_card;
-      element("#giftStatus").textContent = `OK. Saldo restante: ${new Intl.NumberFormat(programRule?.region?.locale, { style: "currency", currency: programRule?.region?.currency || "GTQ" }).format(Number(g.balance_q || 0))} (${g.status || "ACTIVE"})`;
-      toast("Gift card canjeada.");
-    }, (error) => {
-      toast(error.message);
-    }).finally(() => {
+    await run(
+      async () => {
+        if (!(await ensureAuth()) || !sessionOnline || !canUseGiftCards()) return;
+        const code_or_token = input("#giftCode").value.trim();
+        const amount_q = Number(input("#giftAmount").value || 0);
+        if (!code_or_token) return toast("Escribe el código/token de gift card.");
+        if (!(amount_q > 0)) return toast("Monto inválido.");
+        const out = /** @type {StaffGiftRedeemResponse} */ (
+          await api("/api/staff/gift-cards/redeem", {
+            method: "POST",
+            body: JSON.stringify({ code_or_token, amount_q, requestId: uuidv4() }),
+          })
+        );
+        const g = out.gift_card;
+        element("#giftStatus").textContent =
+          `OK. Saldo restante: ${new Intl.NumberFormat(programRule?.region?.locale, { style: "currency", currency: programRule?.region?.currency || "GTQ" }).format(Number(g.balance_q || 0))} (${g.status || "ACTIVE"})`;
+        toast("Gift card canjeada.");
+      },
+      (error) => {
+        toast(error.message);
+      },
+    ).finally(() => {
       giftRedeemInFlight = false;
     });
   });
 
   element("#btnCashbackSpend")?.addEventListener("click", async () => {
-    if (!navigator.onLine || !sessionOnline) return toast("Usar el saldo de cashback requiere conexión.");
-    await run(async () => {
-      if (!await ensureAuth() || !sessionOnline) return;
-      if (!lastCustomerToken) return toast("Selecciona al cliente primero.");
-      const amount_q = Number(input("#cashbackAmount").value || 0);
-      if (!(amount_q > 0)) return toast("Ingresa un monto a usar.");
-      const out = await api("/api/staff/cashback/spend", {
-        method: "POST",
-        body: JSON.stringify({ customerQrToken: lastCustomerToken, amount_q, requestId: uuidv4() })
-      });
-      lastCashbackBalance = Number(out.balance_after_q) || 0;
-      element("#cashbackStatus").textContent = `Aplicado Q${Number(out.spent_q).toFixed(2)}. Nuevo saldo: Q${lastCashbackBalance.toFixed(2)}.`;
-      element("#cashbackBalance").textContent = `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)}`;
-      input("#cashbackAmount").value = "0";
-      const btn = /** @type {HTMLButtonElement|null} */ (element("#btnCashbackSpend")); if (btn) btn.disabled = !(lastCashbackBalance > 0);
-      toast("Saldo de cashback aplicado.");
-    }, (error) => {
-      toast(error.message);
-    });
+    if (!navigator.onLine || !sessionOnline)
+      return toast("Usar el saldo de cashback requiere conexión.");
+    await run(
+      async () => {
+        if (!(await ensureAuth()) || !sessionOnline) return;
+        if (!lastCustomerToken) return toast("Selecciona al cliente primero.");
+        const amount_q = Number(input("#cashbackAmount").value || 0);
+        if (!(amount_q > 0)) return toast("Ingresa un monto a usar.");
+        const out = await api("/api/staff/cashback/spend", {
+          method: "POST",
+          body: JSON.stringify({
+            customerQrToken: lastCustomerToken,
+            amount_q,
+            requestId: uuidv4(),
+          }),
+        });
+        lastCashbackBalance = Number(out.balance_after_q) || 0;
+        element("#cashbackStatus").textContent =
+          `Aplicado Q${Number(out.spent_q).toFixed(2)}. Nuevo saldo: Q${lastCashbackBalance.toFixed(2)}.`;
+        element("#cashbackBalance").textContent =
+          `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)}`;
+        input("#cashbackAmount").value = "0";
+        const btn = /** @type {HTMLButtonElement|null} */ (element("#btnCashbackSpend"));
+        if (btn) btn.disabled = !(lastCashbackBalance > 0);
+        toast("Saldo de cashback aplicado.");
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
 
   element("#btnGiftCardLoad")?.addEventListener("click", async () => {
     if (!navigator.onLine || !sessionOnline) return toast("Recargar la tarjeta requiere conexión.");
-    await run(async () => {
-      if (!await ensureAuth() || !sessionOnline) return;
-      if (!lastCustomerToken) return toast("Selecciona al cliente primero.");
-      const amount_q = Number(input("#giftCardLoadAmount").value || 0);
-      if (!(amount_q > 0)) return toast("Ingresa un monto a recargar.");
-      const out = await api("/api/staff/giftcard/load", {
-        method: "POST",
-        body: JSON.stringify({ customerQrToken: lastCustomerToken, amount_q, requestId: uuidv4() })
-      });
-      lastCashbackBalance = Number(out.balance_after_q) || 0;
-      const bonusTxt = Number(out.bonus_q) > 0 ? ` (incluye Q${Number(out.bonus_q).toFixed(2)} de bono)` : "";
-      element("#giftCardLoadStatus").textContent = `Recargado Q${Number(out.loaded_q).toFixed(2)}${bonusTxt}. Nuevo saldo: Q${lastCashbackBalance.toFixed(2)}.`;
-      element("#cashbackBalance").textContent = `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)}`;
-      input("#giftCardLoadAmount").value = "0";
-      const btn = /** @type {HTMLButtonElement|null} */ (element("#btnCashbackSpend")); if (btn) btn.disabled = !(lastCashbackBalance > 0);
-      toast("Saldo recargado.");
-    }, (error) => {
-      toast(error.message);
-    });
+    await run(
+      async () => {
+        if (!(await ensureAuth()) || !sessionOnline) return;
+        if (!lastCustomerToken) return toast("Selecciona al cliente primero.");
+        const amount_q = Number(input("#giftCardLoadAmount").value || 0);
+        if (!(amount_q > 0)) return toast("Ingresa un monto a recargar.");
+        const out = await api("/api/staff/giftcard/load", {
+          method: "POST",
+          body: JSON.stringify({
+            customerQrToken: lastCustomerToken,
+            amount_q,
+            requestId: uuidv4(),
+          }),
+        });
+        lastCashbackBalance = Number(out.balance_after_q) || 0;
+        const bonusTxt =
+          Number(out.bonus_q) > 0 ? ` (incluye Q${Number(out.bonus_q).toFixed(2)} de bono)` : "";
+        element("#giftCardLoadStatus").textContent =
+          `Recargado Q${Number(out.loaded_q).toFixed(2)}${bonusTxt}. Nuevo saldo: Q${lastCashbackBalance.toFixed(2)}.`;
+        element("#cashbackBalance").textContent =
+          `Saldo del cliente: Q${lastCashbackBalance.toFixed(2)}`;
+        input("#giftCardLoadAmount").value = "0";
+        const btn = /** @type {HTMLButtonElement|null} */ (element("#btnCashbackSpend"));
+        if (btn) btn.disabled = !(lastCashbackBalance > 0);
+        toast("Saldo recargado.");
+      },
+      (error) => {
+        toast(error.message);
+      },
+    );
   });
 
   window.addEventListener("online", () => {
-    if (hasPendingLogout()) { completePendingLogout(); return; }
-    applyUiPermissions(); requestSync();
+    if (hasPendingLogout()) {
+      completePendingLogout();
+      return;
+    }
+    applyUiPermissions();
+    requestSync();
   });
-  window.addEventListener("offline", () => { sessionOnline = false; applyUiPermissions(); refreshQueue().catch(() => {}); });
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && navigator.onLine) { if (hasPendingLogout()) completePendingLogout(); else requestSync(); } });
-  const syncTimer = setInterval(() => { if (!document.hidden && navigator.onLine) { if (hasPendingLogout()) completePendingLogout(); else requestSync(); } }, 30000);
-  window.addEventListener("pagehide", () => { clearInterval(syncTimer); stopCamera(); });
+  window.addEventListener("offline", () => {
+    sessionOnline = false;
+    applyUiPermissions();
+    refreshQueue().catch(() => {});
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && navigator.onLine) {
+      if (hasPendingLogout()) completePendingLogout();
+      else requestSync();
+    }
+  });
+  const syncTimer = setInterval(() => {
+    if (!document.hidden && navigator.onLine) {
+      if (hasPendingLogout()) completePendingLogout();
+      else requestSync();
+    }
+  }, 30000);
+  window.addEventListener("pagehide", () => {
+    clearInterval(syncTimer);
+    stopCamera();
+  });
   window.addEventListener("storage", (event) => {
     if (event.key === "pf_staff_logout_pending" && !event.newValue && sessionEnded) {
       redirectToLogin("La sesión se cerró o cambió en otra pestaña.");
       return;
     }
-    let changed = event.key === null || event.key === "pf_staff_epoch" || (event.key === "pf_staff_logout_pending" && event.newValue === "1");
+    let changed =
+      event.key === null ||
+      event.key === "pf_staff_epoch" ||
+      (event.key === "pf_staff_logout_pending" && event.newValue === "1");
     if (event.key === "pf_staff_snapshot") {
       const snapshot = readOfflineSnapshot();
-      changed ||= !snapshot || Boolean(staff && (snapshot.staff.id !== staff.id || snapshot.staff.business_id !== staff.business_id));
+      changed ||=
+        !snapshot ||
+        Boolean(
+          staff &&
+          (snapshot.staff.id !== staff.id || snapshot.staff.business_id !== staff.business_id),
+        );
     }
     if (!changed) return;
     blockLocalSession();
@@ -1113,7 +1391,7 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     }
   });
 
-  if (!await ensureAuth()) return;
+  if (!(await ensureAuth())) return;
   try {
     await requeueSyncingAwards(currentScope());
     await refreshQueue();
@@ -1127,13 +1405,58 @@ export async function initStaffPage({ api, $, toast, uuidv4 }) {
     await requestSync();
   }
 
-  posRecording = mountPosRecording({ container: element("#staffPosRecording"), api, getContext: () => ({ customerId: lastCustomerId, staffId: staff?.id, businessId: staff?.business_id, branchId: staff?.branch_id, online: canUseRedeemFlow() && !sessionEnded }) });
-  rewardEntitlements = mountRewardEntitlements({ container: element("#staffRewardEntitlements"), api, getContext: () => ({ customerId: lastCustomerId, online: sessionOnline && !sessionEnded }), onCycle: cycle => { protectedCycle = cycle; renderProgramInfo(); updateInputsForRule(); }, onBalance: balance => { lastCustomerPoints = Number(balance); renderRewardOptions(); updateCustomerSurfaceState(); }, onRedeemed: result => posRecording?.showRedemption(result) });
-  serviceCases = mountServiceCases({ container: element("#staffServiceCases"), api, getContext: () => ({ customerId: lastCustomerId, rewardId: select("#rewardSelect").value, online: sessionOnline && !sessionEnded }) });
-  const operationsContainer=document.createElement("section"),demandContainer=document.createElement("section");
-  element("#staffServiceBriefing").after(operationsContainer,demandContainer);
-  mountOwnerOperations(operationsContainer,api);
-  demandNotebook=mountDemandNotebook({container:demandContainer,source:"staff",getContext:()=>({customerId:lastCustomerId,rewardId:select("#rewardSelect").value||null})});
-  serviceBriefing = mountServiceBriefing({ container: element("#staffServiceBriefing"), api, program: programRule });
+  posRecording = mountPosRecording({
+    container: element("#staffPosRecording"),
+    api,
+    getContext: () => ({
+      customerId: lastCustomerId,
+      staffId: staff?.id,
+      businessId: staff?.business_id,
+      branchId: staff?.branch_id,
+      online: canUseRedeemFlow() && !sessionEnded,
+    }),
+  });
+  rewardEntitlements = mountRewardEntitlements({
+    container: element("#staffRewardEntitlements"),
+    api,
+    getContext: () => ({ customerId: lastCustomerId, online: sessionOnline && !sessionEnded }),
+    onCycle: (cycle) => {
+      protectedCycle = cycle;
+      renderProgramInfo();
+      updateInputsForRule();
+    },
+    onBalance: (balance) => {
+      lastCustomerPoints = Number(balance);
+      renderRewardOptions();
+      updateCustomerSurfaceState();
+    },
+    onRedeemed: (result) => posRecording?.showRedemption(result),
+  });
+  serviceCases = mountServiceCases({
+    container: element("#staffServiceCases"),
+    api,
+    getContext: () => ({
+      customerId: lastCustomerId,
+      rewardId: select("#rewardSelect").value,
+      online: sessionOnline && !sessionEnded,
+    }),
+  });
+  const operationsContainer = document.createElement("section"),
+    demandContainer = document.createElement("section");
+  element("#staffServiceBriefing").after(operationsContainer, demandContainer);
+  mountOwnerOperations(operationsContainer, api);
+  demandNotebook = mountDemandNotebook({
+    container: demandContainer,
+    source: "staff",
+    getContext: () => ({
+      customerId: lastCustomerId,
+      rewardId: select("#rewardSelect").value || null,
+    }),
+  });
+  serviceBriefing = mountServiceBriefing({
+    container: element("#staffServiceBriefing"),
+    api,
+    program: programRule,
+  });
   registerServiceWorker().catch(() => {});
 }

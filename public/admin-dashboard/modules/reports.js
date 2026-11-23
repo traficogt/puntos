@@ -11,7 +11,8 @@ export function registerReportsModule(app) {
   const { api, $ } = app;
   let days = 30;
 
-  const intFmt = (n) => new Intl.NumberFormat("es-GT", { maximumFractionDigits: 0 }).format(Number(n) || 0);
+  const intFmt = (n) =>
+    new Intl.NumberFormat("es-GT", { maximumFractionDigits: 0 }).format(Number(n) || 0);
 
   function tile(value, label) {
     const t = document.createElement("div");
@@ -33,7 +34,8 @@ export function registerReportsModule(app) {
       box.replaceChildren();
       const grid = document.createElement("div");
       grid.className = "analytics-kpi-grid";
-      const repeatRate = cur.repeat_rate_pct == null ? "-" : `${Number(cur.repeat_rate_pct).toFixed(0)}%`;
+      const repeatRate =
+        cur.repeat_rate_pct == null ? "-" : `${Number(cur.repeat_rate_pct).toFixed(0)}%`;
       [
         tile(intFmt(cur.active_customers), "Clientes activos"),
         tile(intFmt(cur.repeat_customers), "Clientes que volvieron"),
@@ -41,7 +43,7 @@ export function registerReportsModule(app) {
         tile(intFmt(cur.purchases), "Compras registradas"),
         tile(regionalMoney(cur.recorded_sales_q || 0), "Ventas registradas"),
         tile(regionalMoney(cur.average_ticket_q || 0), "Ticket promedio"),
-        tile(intFmt(cur.redemptions), "Premios usados")
+        tile(intFmt(cur.redemptions), "Premios usados"),
       ].forEach((el) => grid.appendChild(el));
       box.appendChild(grid);
     }
@@ -92,13 +94,22 @@ export function registerReportsModule(app) {
     const note = document.createElement("div");
     note.className = "small";
     if (unlimited) note.textContent = "Clientes con visita o inscripcion en los ultimos 90 dias.";
-    else if (pct > 100) note.textContent = "Superaste el limite de clientes activos de tu plan. Tu programa sigue funcionando con normalidad y ningun cliente es rechazado en caja; para seguir creciendo con holgura, considera el siguiente plan.";
-    else if (pct >= 80) note.textContent = "Te estas acercando al limite de clientes activos de tu plan. Nada se bloquea en caja; es un buen momento para revisar el siguiente plan.";
-    else note.textContent = "Clientes con visita o inscripcion en los ultimos 90 dias. Tu plan tiene holgura.";
+    else if (pct > 100)
+      note.textContent =
+        "Superaste el limite de clientes activos de tu plan. Tu programa sigue funcionando con normalidad y ningun cliente es rechazado en caja; para seguir creciendo con holgura, considera el siguiente plan.";
+    else if (pct >= 80)
+      note.textContent =
+        "Te estas acercando al limite de clientes activos de tu plan. Nada se bloquea en caja; es un buen momento para revisar el siguiente plan.";
+    else
+      note.textContent =
+        "Clientes con visita o inscripcion en los ultimos 90 dias. Tu plan tiene holgura.";
     box.append(title, bar, note);
     if (!unlimited && pct >= 80) {
       const link = document.createElement("a");
-      link.href = "/precios"; link.target = "_blank"; link.rel = "noopener"; link.className = "text-link";
+      link.href = "/precios";
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.className = "text-link";
       link.textContent = "Ver planes";
       box.appendChild(link);
     }
@@ -113,13 +124,18 @@ export function registerReportsModule(app) {
       const out = await api(`/api/admin/analytics/overview?days=${days}${bq ? "&" + bq : ""}`);
       render(out);
     } catch (e) {
-      if (box) box.textContent = "No se pudo cargar el reporte: " + (e && e.message ? e.message : "error");
+      if (box)
+        box.textContent = "No se pudo cargar el reporte: " + (e && e.message ? e.message : "error");
     }
   }
 
   app.onAfterPlanReady(() => {
     const sel = /** @type {HTMLSelectElement|null} */ ($("#reportesPeriod"));
-    if (sel) sel.addEventListener("change", () => { days = Number(sel.value) || 30; load().catch(() => {}); });
+    if (sel)
+      sel.addEventListener("change", () => {
+        days = Number(sel.value) || 30;
+        load().catch(() => {});
+      });
     $("#btnRefreshReportes")?.addEventListener("click", () => load().catch(() => {}));
   });
 
@@ -131,6 +147,6 @@ export function registerReportsModule(app) {
   app.registerTab("reportes", {
     feature: "basic_reporting",
     allowManager: false,
-    load
+    load,
   });
 }

@@ -16,14 +16,17 @@ const fakeClient = {
       capturedInsertParams = params;
       return { rows: [], rowCount: 1 };
     }
-    if (sql.includes("UPDATE customer_balances")) return { rows: [{ points: 123, pending_points: 0 }], rowCount: 1 };
+    if (sql.includes("UPDATE customer_balances"))
+      return { rows: [{ points: 123, pending_points: 0 }], rowCount: 1 };
     if (sql.includes("UPDATE customers SET last_visit_at")) return { rows: [], rowCount: 1 };
-    if (sql.includes("SELECT points FROM customer_balances")) return { rows: [{ points: 10 }], rowCount: 1 };
+    if (sql.includes("SELECT points FROM customer_balances"))
+      return { rows: [{ points: 10 }], rowCount: 1 };
     return { rows: [], rowCount: 0 };
-  }
+  },
 };
 
-const { awardPointsWithDeps, redeemRewardWithDeps, lookupCustomerByQrTokenWithDeps } = await import("../../src/app/services/staff-service.js");
+const { awardPointsWithDeps, redeemRewardWithDeps, lookupCustomerByQrTokenWithDeps } =
+  await import("../../src/app/services/staff-service.js");
 
 describe("awardPoints", () => {
   beforeEach(() => {
@@ -41,44 +44,63 @@ describe("awardPoints", () => {
       {
         verifyQrToken: async () => verifyQrTokenValue,
         BusinessRepo: {
-          getById: async () => ({ id: "b1", plan: "EMPRENDEDOR", program_type: "SPEND", program_json: {} }),
-          activeCustomerCount: async () => 0
+          getById: async () => ({
+            id: "b1",
+            plan: "EMPRENDEDOR",
+            program_type: "SPEND",
+            program_json: {},
+          }),
+          activeCustomerCount: async () => 0,
         },
         computePoints: () => computePointsValue,
         planLimits: () => ({ activeCustomers: 9999 }),
         withTransaction: async (fn) => fn(fakeClient),
-        enqueueWebhookEvent: async (...args) => { webhookCalls.push(args); },
+        enqueueWebhookEvent: async (...args) => {
+          webhookCalls.push(args);
+        },
         loadTierService: async () => ({ TierService: { checkTierProgression: async () => {} } }),
         loadGamificationService: async () => ({
           GamificationService: {
             checkAndAwardAchievements: async () => [],
             updateChallengeProgress: async (...args) => {
               challengeProgressCalls.push(args);
-            }
-          }
+            },
+          },
         }),
         isSourceTransactionActive: async () => true,
-        loadReferralService: async () => ({ ReferralService: { checkAndCompleteReferral: async () => {} } })
+        loadReferralService: async () => ({
+          ReferralService: { checkAndCompleteReferral: async () => {} },
+        }),
       },
       {
-      staff: { id: "s1", business_id: "b1", branch_id: null, role: "MANAGER" },
-      customerQrToken: "token",
-      amount_q: 100,
-      visits: 2,
-      items: 3,
-      meta: { note: "test" },
-      txId: "tx-1"
-      }
+        staff: { id: "s1", business_id: "b1", branch_id: null, role: "MANAGER" },
+        customerQrToken: "token",
+        amount_q: 100,
+        visits: 2,
+        items: 3,
+        meta: { note: "test" },
+        txId: "tx-1",
+      },
     );
 
     assert.equal(result.pointsAwarded, 42);
     assert.ok(Array.isArray(capturedInsertParams), "transaction insert params captured");
     assert.equal(capturedInsertParams.length, 15, "transaction insert param count");
-    assert.deepEqual(capturedInsertParams.slice(13), [null, 'server_recorded']);
-    assert.deepEqual(
-      capturedInsertParams.slice(0, 12),
-      ["tx-1", "b1", null, "c1", "s1", 100, 2, 3, 42, "POSTED", null, "online"]
-    );
+    assert.deepEqual(capturedInsertParams.slice(13), [null, "server_recorded"]);
+    assert.deepEqual(capturedInsertParams.slice(0, 12), [
+      "tx-1",
+      "b1",
+      null,
+      "c1",
+      "s1",
+      100,
+      2,
+      3,
+      42,
+      "POSTED",
+      null,
+      "online",
+    ]);
     assert.equal(capturedInsertParams[12].note, "test");
     assert.match(capturedInsertParams[12].staff_request_fingerprint, /^[a-f0-9]{64}$/);
 
@@ -92,30 +114,39 @@ describe("awardPoints", () => {
       {
         verifyQrToken: async () => verifyQrTokenValue,
         BusinessRepo: {
-          getById: async () => ({ id: "b1", plan: "EMPRENDEDOR", program_type: "SPEND", program_json: {} }),
-          activeCustomerCount: async () => 0
+          getById: async () => ({
+            id: "b1",
+            plan: "EMPRENDEDOR",
+            program_type: "SPEND",
+            program_json: {},
+          }),
+          activeCustomerCount: async () => 0,
         },
         computePoints: () => computePointsValue,
         planLimits: () => ({ activeCustomers: 9999 }),
         withTransaction: async (fn) => fn(fakeClient),
-        enqueueWebhookEvent: async (...args) => { webhookCalls.push(args); },
+        enqueueWebhookEvent: async (...args) => {
+          webhookCalls.push(args);
+        },
         loadTierService: async () => ({ TierService: { checkTierProgression: async () => {} } }),
         loadGamificationService: async () => ({
           GamificationService: {
             checkAndAwardAchievements: async () => [],
             updateChallengeProgress: async (...args) => {
               challengeProgressCalls.push(args);
-            }
-          }
+            },
+          },
         }),
         isSourceTransactionActive: async () => true,
-        loadReferralService: async () => ({ ReferralService: { checkAndCompleteReferral: async () => {} } })
+        loadReferralService: async () => ({
+          ReferralService: { checkAndCompleteReferral: async () => {} },
+        }),
       },
       {
-      staff: { id: "s1", business_id: "b1", branch_id: null, role: "MANAGER" },
-      customerQrToken: "token",
-      items: 2
-      }
+        staff: { id: "s1", business_id: "b1", branch_id: null, role: "MANAGER" },
+        customerQrToken: "token",
+        items: 2,
+      },
     );
 
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -134,30 +165,39 @@ describe("awardPoints", () => {
       {
         verifyQrToken: async () => verifyQrTokenValue,
         BusinessRepo: {
-          getById: async () => ({ id: "b1", plan: "EMPRENDEDOR", program_type: "SPEND", program_json: {} }),
-          activeCustomerCount: async () => 0
+          getById: async () => ({
+            id: "b1",
+            plan: "EMPRENDEDOR",
+            program_type: "SPEND",
+            program_json: {},
+          }),
+          activeCustomerCount: async () => 0,
         },
         computePoints: () => computePointsValue,
         planLimits: () => ({ activeCustomers: 9999 }),
         withTransaction: async (fn) => fn(fakeClient),
-        enqueueWebhookEvent: async (...args) => { webhookCalls.push(args); },
+        enqueueWebhookEvent: async (...args) => {
+          webhookCalls.push(args);
+        },
         loadTierService: async () => ({ TierService: { checkTierProgression: async () => {} } }),
         loadGamificationService: async () => ({
           GamificationService: {
             checkAndAwardAchievements: async () => [],
             updateChallengeProgress: async (...args) => {
               challengeProgressCalls.push(args);
-            }
-          }
+            },
+          },
         }),
         isSourceTransactionActive: async () => true,
-        loadReferralService: async () => ({ ReferralService: { checkAndCompleteReferral: async () => {} } })
+        loadReferralService: async () => ({
+          ReferralService: { checkAndCompleteReferral: async () => {} },
+        }),
       },
       {
         staff: { id: "s1", business_id: "b1", branch_id: null, role: "MANAGER" },
         customerQrToken: "token",
-        amount_q: 37.5
-      }
+        amount_q: 37.5,
+      },
     );
 
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -177,46 +217,66 @@ describe("awardPoints", () => {
         }
         if (sql.includes("FROM transactions")) {
           return {
-            rows: [{ id: "tx-replay", business_id: "b1", customer_id: "c1", staff_user_id: "s1", amount_q: 10, visits: 0, items: 0, points: 11 }],
-            rowCount: 1
+            rows: [
+              {
+                id: "tx-replay",
+                business_id: "b1",
+                customer_id: "c1",
+                staff_user_id: "s1",
+                amount_q: 10,
+                visits: 0,
+                items: 0,
+                points: 11,
+              },
+            ],
+            rowCount: 1,
           };
         }
         if (sql.includes("FROM customer_balances")) {
           return { rows: [{ points: 88 }], rowCount: 1 };
         }
         throw new Error(`Unexpected query in replay test: ${sql}`);
-      }
+      },
     };
 
     const result = await awardPointsWithDeps(
       {
         verifyQrToken: async () => verifyQrTokenValue,
         BusinessRepo: {
-          getById: async () => ({ id: "b1", plan: "EMPRENDEDOR", program_type: "SPEND", program_json: {} }),
-          activeCustomerCount: async () => 0
+          getById: async () => ({
+            id: "b1",
+            plan: "EMPRENDEDOR",
+            program_type: "SPEND",
+            program_json: {},
+          }),
+          activeCustomerCount: async () => 0,
         },
         computePoints: () => computePointsValue,
         planLimits: () => ({ activeCustomers: 9999 }),
         withTransaction: async (fn) => fn(replayClient),
-        enqueueWebhookEvent: async (...args) => { webhookCalls.push(args); },
+        enqueueWebhookEvent: async (...args) => {
+          webhookCalls.push(args);
+        },
         loadTierService: async () => ({ TierService: { checkTierProgression: async () => {} } }),
         loadGamificationService: async () => ({
           GamificationService: {
             checkAndAwardAchievements: async () => [],
             updateChallengeProgress: async (...args) => {
               challengeProgressCalls.push(args);
-            }
-          }
+            },
+          },
         }),
         isSourceTransactionActive: async () => true,
-        loadReferralService: async () => ({ ReferralService: { checkAndCompleteReferral: async () => {} } })
+        loadReferralService: async () => ({
+          ReferralService: { checkAndCompleteReferral: async () => {} },
+        }),
       },
       {
         staff: { id: "s1", business_id: "b1", branch_id: null, role: "MANAGER" },
         customerQrToken: "token",
         amount_q: 10,
-        txId: "tx-replay"
-      }
+        txId: "tx-replay",
+      },
     );
 
     assert.equal(result.transactionId, "tx-replay");
@@ -233,30 +293,39 @@ describe("awardPoints", () => {
       {
         verifyQrToken: async () => verifyQrTokenValue,
         BusinessRepo: {
-          getById: async () => ({ id: "b1", plan: "EMPRENDEDOR", program_type: "SPEND", program_json: {} }),
-          activeCustomerCount: async () => 0
+          getById: async () => ({
+            id: "b1",
+            plan: "EMPRENDEDOR",
+            program_type: "SPEND",
+            program_json: {},
+          }),
+          activeCustomerCount: async () => 0,
         },
         computePoints: () => computePointsValue,
         planLimits: () => ({ activeCustomers: 9999 }),
         withTransaction: async (fn) => fn(fakeClient),
-        enqueueWebhookEvent: async (...args) => { webhookCalls.push(args); },
+        enqueueWebhookEvent: async (...args) => {
+          webhookCalls.push(args);
+        },
         loadTierService: async () => ({ TierService: { checkTierProgression: async () => {} } }),
         loadGamificationService: async () => ({
           GamificationService: {
             checkAndAwardAchievements: async () => [],
             updateChallengeProgress: async (...args) => {
               challengeProgressCalls.push(args);
-            }
-          }
+            },
+          },
         }),
         isSourceTransactionActive: async () => true,
-        loadReferralService: async () => ({ ReferralService: { checkAndCompleteReferral: async () => {} } })
+        loadReferralService: async () => ({
+          ReferralService: { checkAndCompleteReferral: async () => {} },
+        }),
       },
       {
         staff: { id: "s1", business_id: "b1", branch_id: null, role: "MANAGER" },
         customerQrToken: "token",
-        amount_q: 50
-      }
+        amount_q: 50,
+      },
     );
 
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -277,54 +346,57 @@ describe("redeemReward", () => {
     const out = await redeemRewardWithDeps(
       {
         BusinessRepo: {
-          getById: async () => ({ id: "b1", program_json: {} })
+          getById: async () => ({ id: "b1", program_json: {} }),
         },
         RewardRepo: {
-          listBranchIds: async () => []
+          listBranchIds: async () => [],
         },
-        withTransaction: async (fn) => fn({
-          query: async (sql) => {
-            if (sql.includes("pg_advisory_xact_lock")) {
-              advisoryLockCount += 1;
-              return { rows: [], rowCount: 1 };
-            }
-            if (sql.includes("FROM redemptions r") && sql.includes("request_id = $2")) {
-              return {
-                rows: [{
-                  id: "red-1",
-                  business_id: "b1",
-                  customer_id: "c1",
-                  reward_id: "reward-1",
-                  code: "ABC12345",
-                  points_cost: 25,
-                  balance_after: 75,
-                  reward_name: "Cafe"
-                }],
-                rowCount: 1
-              };
-            }
-            throw new Error(`Unexpected query in redeem replay test: ${sql}`);
-          }
-        }),
+        withTransaction: async (fn) =>
+          fn({
+            query: async (sql) => {
+              if (sql.includes("pg_advisory_xact_lock")) {
+                advisoryLockCount += 1;
+                return { rows: [], rowCount: 1 };
+              }
+              if (sql.includes("FROM redemptions r") && sql.includes("request_id = $2")) {
+                return {
+                  rows: [
+                    {
+                      id: "red-1",
+                      business_id: "b1",
+                      customer_id: "c1",
+                      reward_id: "reward-1",
+                      code: "ABC12345",
+                      points_cost: 25,
+                      balance_after: 75,
+                      reward_name: "Cafe",
+                    },
+                  ],
+                  rowCount: 1,
+                };
+              }
+              throw new Error(`Unexpected query in redeem replay test: ${sql}`);
+            },
+          }),
         settlePendingPointsForCustomer: async () => {},
         expirePointsForCustomer: async () => {},
         enqueueWebhookEvent: async (...args) => {
           webhookCalls.push(args);
-        }
+        },
       },
       {
         staff: { id: "s1", business_id: "b1", branch_id: null, role: "MANAGER" },
         customerId: "c1",
         rewardId: "reward-1",
-        requestId: "11111111-1111-4111-8111-111111111111"
-      }
+        requestId: "11111111-1111-4111-8111-111111111111",
+      },
     );
 
     assert.deepEqual(out, {
       redemptionCode: "ABC12345",
       redemptionId: "red-1",
       rewardName: "Cafe",
-      newBalance: 75
+      newBalance: 75,
     });
     assert.equal(advisoryLockCount, 1);
     assert.equal(webhookCalls.length, 0);
@@ -343,14 +415,14 @@ describe("lookupCustomerByQrToken", () => {
             name: "Ana Pérez",
             phone: "55555555",
             points: 125,
-            pending_points: 10
-          })
-        }
+            pending_points: 10,
+          }),
+        },
       },
       {
         staff: { id: "s1", business_id: "b1", role: "MANAGER" },
-        customerQrToken: "token"
-      }
+        customerQrToken: "token",
+      },
     );
 
     assert.deepEqual(out, {
@@ -359,8 +431,8 @@ describe("lookupCustomerByQrToken", () => {
         name: "Ana Pérez",
         phone: "55555555",
         points: 125,
-        pending_points: 10
-      }
+        pending_points: 10,
+      },
     });
   });
 });

@@ -5,7 +5,7 @@ export const BillingRepo = {
     await exec(
       `INSERT INTO billing_events (id, business_id, event_type, amount, unit, metadata)
        VALUES ($1,$2,$3,$4,$5,$6)`,
-      [id, business_id, event_type, amount, unit, metadata]
+      [id, business_id, event_type, amount, unit, metadata],
     );
   },
 
@@ -15,7 +15,7 @@ export const BillingRepo = {
        WHERE business_id=$1
        ORDER BY created_at DESC
        LIMIT $2`,
-      [businessId, limit]
+      [businessId, limit],
     );
-  }
+  },
 };

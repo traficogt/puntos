@@ -9,7 +9,7 @@ function escapeHtml(value) {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
-    .replaceAll("\"", "&quot;")
+    .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
 
@@ -25,7 +25,10 @@ function legacyHtml(body) {
     .split(/\n{2,}/)
     .map((part) => part.trim())
     .filter(Boolean)
-    .map((part) => `<p style="margin:0 0 14px;font-size:16px;line-height:24px;color:#374151;">${escapeHtml(part)}</p>`)
+    .map(
+      (part) =>
+        `<p style="margin:0 0 14px;font-size:16px;line-height:24px;color:#374151;">${escapeHtml(part)}</p>`,
+    )
     .join("");
 }
 
@@ -46,7 +49,7 @@ export async function renderEmailMessage({ channel, body = "", branding, email =
       preheader: String(body || "").slice(0, 120),
       title: subject,
       footerText: "Mensaje enviado por PuntosFieles.",
-      bodyHtml: legacyHtml(body)
-    })
+      bodyHtml: legacyHtml(body),
+    }),
   };
 }

@@ -11,7 +11,7 @@ import {
   rewardCreateSchema,
   rewardUpdateSchema,
   staffLoginSchema,
-  verifyJoinCodeSchema
+  verifyJoinCodeSchema,
 } from "../utils/schemas.js";
 
 const require = createRequire(import.meta.url);
@@ -27,38 +27,26 @@ process.env.DB_PASSWORD ||= "docs-build-placeholder-db-password";
 process.env.JWT_SECRET ||= "docs-build-placeholder-jwt";
 
 const { BranchSchema } = await import("../app/routes/admin/branches.js");
-const {
-  ProgramSchema,
-  AutomationTemplateSchema,
-  CampaignRulesSchema,
-  ExternalAwardsSchema
-} = await import("../app/routes/admin/program-support.js");
+const { ProgramSchema, AutomationTemplateSchema, CampaignRulesSchema, ExternalAwardsSchema } =
+  await import("../app/routes/admin/program-support.js");
 const { StaffCreateSchema, StaffUpdateSchema } = await import("../app/routes/admin/staff.js");
 const { WebhookSchema } = await import("../app/routes/admin/webhooks.js");
-const {
-  CohortRetentionQuerySchema,
-  TopCustomersQuerySchema
-} = await import("../app/routes/analytics/cohorts.js");
-const { FirstPurchaseReturnQuery } = await import("../app/routes/analytics/first-purchase-returns.js");
-const {
-  CreateSegmentSchema,
-  SegmentCustomersQuerySchema
-} = await import("../app/routes/analytics/segments.js");
-const {
-  CreateGiftCardSchema,
-  GiftCardListQuerySchema,
-  RedeemGiftCardSchema
-} = await import("../app/routes/gift-card-routes.js");
+const { CohortRetentionQuerySchema, TopCustomersQuerySchema } =
+  await import("../app/routes/analytics/cohorts.js");
+const { FirstPurchaseReturnQuery } =
+  await import("../app/routes/analytics/first-purchase-returns.js");
+const { CreateSegmentSchema, SegmentCustomersQuerySchema } =
+  await import("../app/routes/analytics/segments.js");
+const { CreateGiftCardSchema, GiftCardListQuerySchema, RedeemGiftCardSchema } =
+  await import("../app/routes/gift-card-routes.js");
 const {
   AchievementCreateSchema,
   AchievementUpdateSchema,
   ChallengeCreateSchema,
-  ChallengeUpdateSchema
+  ChallengeUpdateSchema,
 } = await import("../app/routes/gamification-support.js");
-const {
-  PaymentWebhookListQuerySchema,
-  ResolveSchema
-} = await import("../app/routes/payment-webhook-routes.js");
+const { PaymentWebhookListQuerySchema, ResolveSchema } =
+  await import("../app/routes/payment-webhook-routes.js");
 const { ExternalAwardSchema } = await import("../app/routes/public-routes.js");
 const { OrderCreateSchema } = await import("../app/routes/order-routes.js");
 const { OrderReturnCreateSchema } = await import("../app/routes/order-return-routes.js");
@@ -67,7 +55,7 @@ const {
   PublicContactLookupRequestSchema,
   PublicContactIdentifierLinkSchema,
   PublicContactIdentifierResolveSchema,
-  PublicContactIdentifierUnlinkSchema
+  PublicContactIdentifierUnlinkSchema,
 } = await import("../app/routes/contact-sync-routes.js");
 const {
   LoginSchema,
@@ -75,7 +63,7 @@ const {
   UpdatePlanFeaturesSchema,
   SetWalletBroadcastSchema,
   CreateBusinessSchema,
-  CreateBusinessUserSchema
+  CreateBusinessUserSchema,
 } = await import("../app/routes/super-support.js");
 const { RedeemSchema, RefundSchema, SyncSchema } = await import("../app/routes/staff-routes.js");
 const { TierCreateSchema, TierUpdateSchema } = await import("../app/routes/tier-routes.js");
@@ -86,111 +74,125 @@ const JsonRecordSchema = z.record(z.string(), z.any());
 function okEnvelope(dataShape = {}) {
   return z.object({
     ok: z.literal(true),
-    ...dataShape
+    ...dataShape,
   });
 }
 
 const ErrorResponseSchema = z.object({
   error: z.string(),
-  code: z.string().optional()
+  code: z.string().optional(),
 });
 
-const BranchResourceSchema = z.object({
-  id: z.guid(),
-  business_id: z.guid().optional(),
-  name: z.string(),
-  address: z.string().nullable().optional(),
-  code: z.string(),
-  created_at: TimestampSchema.optional()
-}).passthrough();
+const BranchResourceSchema = z
+  .object({
+    id: z.guid(),
+    business_id: z.guid().optional(),
+    name: z.string(),
+    address: z.string().nullable().optional(),
+    code: z.string(),
+    created_at: TimestampSchema.optional(),
+  })
+  .passthrough();
 
-const StaffResourceSchema = z.object({
-  id: z.guid(),
-  name: z.string(),
-  email: z.string().email().nullable().optional(),
-  phone: z.string().nullable().optional(),
-  role: z.string(),
-  branch_id: z.guid().nullable().optional(),
-  active: z.boolean().optional(),
-  can_manage_gift_cards: z.boolean().optional(),
-  created_at: TimestampSchema.optional()
-}).passthrough();
+const StaffResourceSchema = z
+  .object({
+    id: z.guid(),
+    name: z.string(),
+    email: z.string().email().nullable().optional(),
+    phone: z.string().nullable().optional(),
+    role: z.string(),
+    branch_id: z.guid().nullable().optional(),
+    active: z.boolean().optional(),
+    can_manage_gift_cards: z.boolean().optional(),
+    created_at: TimestampSchema.optional(),
+  })
+  .passthrough();
 
-const WebhookEndpointResourceSchema = z.object({
-  id: z.guid(),
-  business_id: z.guid().optional(),
-  url: z.string().url(),
-  events: z.array(z.string()),
-  active: z.boolean(),
-  created_at: TimestampSchema.optional(),
-  secret_masked: z.string().nullable().optional(),
-  has_secret: z.boolean().optional()
-}).passthrough();
+const WebhookEndpointResourceSchema = z
+  .object({
+    id: z.guid(),
+    business_id: z.guid().optional(),
+    url: z.string().url(),
+    events: z.array(z.string()),
+    active: z.boolean(),
+    created_at: TimestampSchema.optional(),
+    secret_masked: z.string().nullable().optional(),
+    has_secret: z.boolean().optional(),
+  })
+  .passthrough();
 
-const GiftCardResourceSchema = z.object({
-  id: z.guid(),
-  business_id: z.guid(),
-  branch_id: z.guid().nullable().optional(),
-  code: z.string(),
-  qr_token: z.string().optional(),
-  issued_to_name: z.string().nullable().optional(),
-  issued_to_phone: z.string().nullable().optional(),
-  initial_amount_q: z.union([z.number(), z.string()]),
-  balance_q: z.union([z.number(), z.string()]),
-  status: z.string(),
-  expires_at: TimestampSchema.nullable().optional(),
-  created_by: z.guid().nullable().optional(),
-  created_at: TimestampSchema.optional(),
-  updated_at: TimestampSchema.optional()
-}).passthrough();
+const GiftCardResourceSchema = z
+  .object({
+    id: z.guid(),
+    business_id: z.guid(),
+    branch_id: z.guid().nullable().optional(),
+    code: z.string(),
+    qr_token: z.string().optional(),
+    issued_to_name: z.string().nullable().optional(),
+    issued_to_phone: z.string().nullable().optional(),
+    initial_amount_q: z.union([z.number(), z.string()]),
+    balance_q: z.union([z.number(), z.string()]),
+    status: z.string(),
+    expires_at: TimestampSchema.nullable().optional(),
+    created_by: z.guid().nullable().optional(),
+    created_at: TimestampSchema.optional(),
+    updated_at: TimestampSchema.optional(),
+  })
+  .passthrough();
 
-const GiftCardTransactionResourceSchema = z.object({
-  id: z.guid(),
-  gift_card_id: z.guid(),
-  business_id: z.guid(),
-  staff_user_id: z.guid().nullable().optional(),
-  tx_type: z.string(),
-  amount_q: z.union([z.number(), z.string()]),
-  balance_after_q: z.union([z.number(), z.string()]),
-  meta: JsonRecordSchema.optional(),
-  created_at: TimestampSchema.optional()
-}).passthrough();
+const GiftCardTransactionResourceSchema = z
+  .object({
+    id: z.guid(),
+    gift_card_id: z.guid(),
+    business_id: z.guid(),
+    staff_user_id: z.guid().nullable().optional(),
+    tx_type: z.string(),
+    amount_q: z.union([z.number(), z.string()]),
+    balance_after_q: z.union([z.number(), z.string()]),
+    meta: JsonRecordSchema.optional(),
+    created_at: TimestampSchema.optional(),
+  })
+  .passthrough();
 
-const RewardResourceSchema = z.object({
-  id: z.guid(),
-  business_id: z.guid(),
-  name: z.string(),
-  description: z.string().nullable().optional(),
-  points_cost: z.number(),
-  active: z.boolean(),
-  stock: z.number().nullable().optional(),
-  valid_until: TimestampSchema.nullable().optional(),
-  created_at: TimestampSchema.optional(),
-  branch_ids: z.array(z.guid()).optional()
-}).passthrough();
+const RewardResourceSchema = z
+  .object({
+    id: z.guid(),
+    business_id: z.guid(),
+    name: z.string(),
+    description: z.string().nullable().optional(),
+    points_cost: z.number(),
+    active: z.boolean(),
+    stock: z.number().nullable().optional(),
+    valid_until: TimestampSchema.nullable().optional(),
+    created_at: TimestampSchema.optional(),
+    branch_ids: z.array(z.guid()).optional(),
+  })
+  .passthrough();
 
-const PaymentWebhookEventResourceSchema = z.object({
-  id: z.guid(),
-  provider: z.string(),
-  provider_event_id: z.string(),
-  event_type: z.string().nullable().optional(),
-  business_slug: z.string().nullable().optional(),
-  business_id: z.guid().nullable().optional(),
-  customer_id: z.guid().nullable().optional(),
-  customer_phone: z.string().nullable().optional(),
-  amount_q: z.union([z.number(), z.string()]),
-  currency: z.string().nullable().optional(),
-  status: z.string(),
-  reason: z.string().nullable().optional(),
-  error: z.string().nullable().optional(),
-  linked_transaction_id: z.guid().nullable().optional(),
-  created_at: TimestampSchema.optional(),
-  updated_at: TimestampSchema.optional()
-}).passthrough();
+const PaymentWebhookEventResourceSchema = z
+  .object({
+    id: z.guid(),
+    provider: z.string(),
+    provider_event_id: z.string(),
+    event_type: z.string().nullable().optional(),
+    business_slug: z.string().nullable().optional(),
+    business_id: z.guid().nullable().optional(),
+    customer_id: z.guid().nullable().optional(),
+    customer_phone: z.string().nullable().optional(),
+    amount_q: z.union([z.number(), z.string()]),
+    currency: z.string().nullable().optional(),
+    status: z.string(),
+    reason: z.string().nullable().optional(),
+    error: z.string().nullable().optional(),
+    linked_transaction_id: z.guid().nullable().optional(),
+    created_at: TimestampSchema.optional(),
+    updated_at: TimestampSchema.optional(),
+  })
+  .passthrough();
 
 const PaymentWebhookResolveResponseSchema = okEnvelope({
   event: PaymentWebhookEventResourceSchema.optional(),
-  transaction: JsonRecordSchema.optional()
+  transaction: JsonRecordSchema.optional(),
 }).passthrough();
 
 const LedgerCertificationDailyRowSchema = z.object({
@@ -202,19 +204,19 @@ const LedgerCertificationDailyRowSchema = z.object({
   adjustment_points: z.number(),
   gift_cards_issued_q: z.number(),
   gift_cards_redeemed_q: z.number(),
-  replay_events: z.number()
+  replay_events: z.number(),
 });
 
 const LedgerCertificationResponseSchema = okEnvelope({
   business: z.object({
     id: z.guid(),
     name: z.string(),
-    slug: z.string()
+    slug: z.string(),
   }),
   generated_at: TimestampSchema,
   period: z.object({
     from: z.string(),
-    to: z.string()
+    to: z.string(),
   }),
   certification_status: z.enum(["OK", "REVIEW_REQUIRED"]),
   summary: z.object({
@@ -229,9 +231,9 @@ const LedgerCertificationResponseSchema = okEnvelope({
     pending_corrections_count: z.number(),
     negative_balance_count: z.number(),
     latest_reconciliation_mismatches: z.number(),
-    latest_reconciliation_completed_at: TimestampSchema.nullable()
+    latest_reconciliation_completed_at: TimestampSchema.nullable(),
   }),
-  daily_rows: z.array(LedgerCertificationDailyRowSchema)
+  daily_rows: z.array(LedgerCertificationDailyRowSchema),
 }).passthrough();
 
 const StaffAwardResponseSchema = okEnvelope({
@@ -241,7 +243,7 @@ const StaffAwardResponseSchema = okEnvelope({
   customerId: z.guid(),
   transactionId: z.guid(),
   status: z.string().optional(),
-  availableAt: TimestampSchema.nullable().optional()
+  availableAt: TimestampSchema.nullable().optional(),
 }).passthrough();
 
 const StaffRefundResponseSchema = okEnvelope({
@@ -251,10 +253,10 @@ const StaffRefundResponseSchema = okEnvelope({
   pointsEffect: z.number(),
   gamificationReconciliation: z.object({
     achievementsRevoked: z.number(),
-    challengesRevoked: z.number()
+    challengesRevoked: z.number(),
   }),
   newBalance: z.number(),
-  newPendingBalance: z.number()
+  newPendingBalance: z.number(),
 }).passthrough();
 
 const OrderCreateResponseSchema = okEnvelope({
@@ -263,7 +265,7 @@ const OrderCreateResponseSchema = okEnvelope({
   customerId: z.guid(),
   pointsAwarded: z.number(),
   status: z.string(),
-  replay: z.boolean().optional()
+  replay: z.boolean().optional(),
 }).passthrough();
 
 const OrderReturnCreateResponseSchema = okEnvelope({
@@ -273,50 +275,54 @@ const OrderReturnCreateResponseSchema = okEnvelope({
   outcome: z.enum(["PENDING_CANCELLED", "POSTED_REVERSED"]),
   pointsEffect: z.number(),
   reversalTransactionId: z.guid().nullable().optional(),
-  replay: z.boolean().optional()
+  replay: z.boolean().optional(),
 }).passthrough();
 
-const ContactResourceSchema = z.object({
-  id: z.string(),
-  business_id: z.string(),
-  phone: z.string(),
-  name: z.string().nullable().optional(),
-  points: z.union([z.number(), z.string()]).optional(),
-  pending_points: z.union([z.number(), z.string()]).optional(),
-  lifetime_points: z.union([z.number(), z.string()]).optional(),
-  tier: z.string().nullable().optional(),
-  created_at: TimestampSchema.optional(),
-  last_visit_at: TimestampSchema.nullable().optional()
-}).passthrough();
+const ContactResourceSchema = z
+  .object({
+    id: z.string(),
+    business_id: z.string(),
+    phone: z.string(),
+    name: z.string().nullable().optional(),
+    points: z.union([z.number(), z.string()]).optional(),
+    pending_points: z.union([z.number(), z.string()]).optional(),
+    lifetime_points: z.union([z.number(), z.string()]).optional(),
+    tier: z.string().nullable().optional(),
+    created_at: TimestampSchema.optional(),
+    last_visit_at: TimestampSchema.nullable().optional(),
+  })
+  .passthrough();
 
-const ContactIdentifierResourceSchema = z.object({
-  id: z.string(),
-  business_id: z.string(),
-  customer_id: z.string(),
-  identifier_type: z.string(),
-  identifier_value: z.string(),
-  label: z.string().nullable().optional(),
-  active: z.boolean(),
-  meta: JsonRecordSchema.optional(),
-  created_at: TimestampSchema.optional(),
-  updated_at: TimestampSchema.optional()
-}).passthrough();
+const ContactIdentifierResourceSchema = z
+  .object({
+    id: z.string(),
+    business_id: z.string(),
+    customer_id: z.string(),
+    identifier_type: z.string(),
+    identifier_value: z.string(),
+    label: z.string().nullable().optional(),
+    active: z.boolean(),
+    meta: JsonRecordSchema.optional(),
+    created_at: TimestampSchema.optional(),
+    updated_at: TimestampSchema.optional(),
+  })
+  .passthrough();
 
 const PublicContactResponseSchema = okEnvelope({
   contact: ContactResourceSchema,
-  identifiers: z.array(ContactIdentifierResourceSchema)
+  identifiers: z.array(ContactIdentifierResourceSchema),
 }).passthrough();
 
 const PublicContactIdentifierLinkResponseSchema = okEnvelope({
-  identifier: ContactIdentifierResourceSchema
+  identifier: ContactIdentifierResourceSchema,
 }).passthrough();
 
 const PublicContactIdentifierResolveResponseSchema = okEnvelope({
-  contact: ContactResourceSchema
+  contact: ContactResourceSchema,
 }).passthrough();
 
 const PublicContactIdentifierUnlinkResponseSchema = okEnvelope({
-  identifier: ContactIdentifierResourceSchema
+  identifier: ContactIdentifierResourceSchema,
 }).passthrough();
 
 const schemas = {
@@ -339,14 +345,14 @@ const schemas = {
     name: z.string(),
     slug: z.string(),
     category: z.string().nullable().optional(),
-    program_type: z.enum(["SPEND", "VISIT", "ITEM"])
+    program_type: z.enum(["SPEND", "VISIT", "ITEM"]),
   }),
   CustomerProfileResponse: z.object({
     ok: z.literal(true),
     business: z.object({
       id: z.string(),
       name: z.string(),
-      slug: z.string()
+      slug: z.string(),
     }),
     customer: z.object({
       id: z.string(),
@@ -356,16 +362,16 @@ const schemas = {
       pending_points: z.number(),
       lifetime_points: z.number(),
       created_at: z.string(),
-      last_visit_at: z.string().nullable()
-    })
+      last_visit_at: z.string().nullable(),
+    }),
   }),
   ReferralCodeResponse: z.object({
     ok: z.literal(true),
-    referral_code: z.string()
+    referral_code: z.string(),
   }),
   TierInfoResponse: z.object({
     ok: z.literal(true),
-    tier: z.record(z.string(), z.any())
+    tier: z.record(z.string(), z.any()),
   }),
   AchievementCreateRequest: AchievementCreateSchema,
   AchievementUpdateRequest: AchievementUpdateSchema,
@@ -402,16 +408,38 @@ const schemas = {
   FirstPurchaseReturnResponse: okEnvelope({
     generated_at: TimestampSchema,
     timezone: z.string(),
-    scope: z.object({ branch_id: z.guid().nullable(), first_purchase_scope: z.literal('business'), return_scope: z.literal('business') }),
+    scope: z.object({
+      branch_id: z.guid().nullable(),
+      first_purchase_scope: z.literal("business"),
+      return_scope: z.literal("business"),
+    }),
     available_weeks: z.array(z.string().date()),
-    cohort: z.object({ week_start: z.string().date(), week_end: z.string().date(), start: TimestampSchema, end: TimestampSchema,
-      customers: z.number().int().nonnegative(), legacy_timestamp_customers: z.number().int().nonnegative() }),
-    follow_up: z.object({ days: z.literal(30), definition: z.literal('later_local_day_within_720_hours') }),
-    completed: z.object({ customers: z.number().int().nonnegative(), returned_customers: z.number().int().nonnegative(),
-      without_return_customers: z.number().int().nonnegative(), return_rate_pct: z.number().min(0).max(100).nullable() }),
-    ongoing: z.object({ customers: z.number().int().nonnegative(), returned_customers: z.number().int().nonnegative() }),
-    data_readiness: z.object({ state: z.string(), inactivity_allowed: z.boolean(), summary: z.string() }).passthrough(),
-    notes: z.array(z.string())
+    cohort: z.object({
+      week_start: z.string().date(),
+      week_end: z.string().date(),
+      start: TimestampSchema,
+      end: TimestampSchema,
+      customers: z.number().int().nonnegative(),
+      legacy_timestamp_customers: z.number().int().nonnegative(),
+    }),
+    follow_up: z.object({
+      days: z.literal(30),
+      definition: z.literal("later_local_day_within_720_hours"),
+    }),
+    completed: z.object({
+      customers: z.number().int().nonnegative(),
+      returned_customers: z.number().int().nonnegative(),
+      without_return_customers: z.number().int().nonnegative(),
+      return_rate_pct: z.number().min(0).max(100).nullable(),
+    }),
+    ongoing: z.object({
+      customers: z.number().int().nonnegative(),
+      returned_customers: z.number().int().nonnegative(),
+    }),
+    data_readiness: z
+      .object({ state: z.string(), inactivity_allowed: z.boolean(), summary: z.string() })
+      .passthrough(),
+    notes: z.array(z.string()),
   }),
   AnalyticsTopCustomersQuery: TopCustomersQuerySchema,
   PaymentWebhookListQuery: PaymentWebhookListQuerySchema,
@@ -419,52 +447,52 @@ const schemas = {
   LedgerCertificationResponse: LedgerCertificationResponseSchema,
   BranchResource: BranchResourceSchema,
   BranchListResponse: okEnvelope({
-    branches: z.array(BranchResourceSchema)
+    branches: z.array(BranchResourceSchema),
   }),
   BranchDetailResponse: okEnvelope({
-    branch: BranchResourceSchema
+    branch: BranchResourceSchema,
   }),
   StaffResource: StaffResourceSchema,
   StaffListResponse: okEnvelope({
-    staff: z.array(StaffResourceSchema)
+    staff: z.array(StaffResourceSchema),
   }),
   StaffDetailResponse: okEnvelope({
-    staff: StaffResourceSchema
+    staff: StaffResourceSchema,
   }),
   WebhookEndpointResource: WebhookEndpointResourceSchema,
   WebhookListResponse: okEnvelope({
-    endpoints: z.array(WebhookEndpointResourceSchema)
+    endpoints: z.array(WebhookEndpointResourceSchema),
   }),
   WebhookDetailResponse: okEnvelope({
-    endpoint: WebhookEndpointResourceSchema
+    endpoint: WebhookEndpointResourceSchema,
   }),
   RewardListResponse: okEnvelope({
-    rewards: z.array(RewardResourceSchema)
+    rewards: z.array(RewardResourceSchema),
   }),
   RewardDetailResponse: okEnvelope({
-    reward: RewardResourceSchema
+    reward: RewardResourceSchema,
   }),
   GiftCardResource: GiftCardResourceSchema,
   GiftCardTransactionResource: GiftCardTransactionResourceSchema,
   GiftCardListResponse: okEnvelope({
-    gift_cards: z.array(GiftCardResourceSchema)
+    gift_cards: z.array(GiftCardResourceSchema),
   }),
   GiftCardDetailResponse: okEnvelope({
-    gift_card: GiftCardResourceSchema
+    gift_card: GiftCardResourceSchema,
   }),
   GiftCardLookupResponse: okEnvelope({
     card: GiftCardResourceSchema,
-    transactions: z.array(GiftCardTransactionResourceSchema)
+    transactions: z.array(GiftCardTransactionResourceSchema),
   }),
   PaymentWebhookEventResource: PaymentWebhookEventResourceSchema,
   PaymentWebhookListResponse: okEnvelope({
-    events: z.array(PaymentWebhookEventResourceSchema)
+    events: z.array(PaymentWebhookEventResourceSchema),
   }),
   PaymentWebhookResolveResponse: PaymentWebhookResolveResponseSchema,
   AnalyticsSegmentCustomersResponse: okEnvelope({
     customers: z.array(JsonRecordSchema),
     limit: z.number(),
-    offset: z.number()
+    offset: z.number(),
   }),
   StaffAwardResponse: StaffAwardResponseSchema,
   StaffRefundResponse: StaffRefundResponseSchema,
@@ -475,7 +503,7 @@ const schemas = {
   PublicContactResponse: PublicContactResponseSchema,
   PublicContactIdentifierLinkResponse: PublicContactIdentifierLinkResponseSchema,
   PublicContactIdentifierResolveResponse: PublicContactIdentifierResolveResponseSchema,
-  PublicContactIdentifierUnlinkResponse: PublicContactIdentifierUnlinkResponseSchema
+  PublicContactIdentifierUnlinkResponse: PublicContactIdentifierUnlinkResponseSchema,
 };
 
 function toComponentSchema(schema) {
@@ -490,7 +518,7 @@ function toComponentSchema(schema) {
       if (zodSchema._zod.def.type === "object" && jsonSchema.additionalProperties === undefined) {
         jsonSchema.additionalProperties = false;
       }
-    }
+    },
   });
 }
 
@@ -505,219 +533,219 @@ function schemaRef(name) {
 
 const routeSchemaBindings = {
   "/api/v1/staff/login": {
-    post: { body: "StaffLoginRequest" }
+    post: { body: "StaffLoginRequest" },
   },
   "/api/v1/staff/award": {
     post: {
       body: "AwardPointsRequest",
-      responses: { "200": "StaffAwardResponse" }
-    }
+      responses: { 200: "StaffAwardResponse" },
+    },
   },
   "/api/v1/staff/redeem": {
-    post: { body: "StaffRedeemRequest" }
+    post: { body: "StaffRedeemRequest" },
   },
   "/api/v1/staff/sync": {
-    post: { body: "StaffSyncAwardsRequest" }
+    post: { body: "StaffSyncAwardsRequest" },
   },
   "/api/v1/staff/refund": {
     post: {
       body: "StaffRefundRequest",
-      responses: { "200": "StaffRefundResponse" }
-    }
+      responses: { 200: "StaffRefundResponse" },
+    },
   },
   "/api/v1/public/business/{slug}/join/request-code": {
-    post: { body: "RequestJoinCodeRequest" }
+    post: { body: "RequestJoinCodeRequest" },
   },
   "/api/v1/public/business/{slug}/join/verify": {
-    post: { body: "VerifyJoinCodeRequest" }
+    post: { body: "VerifyJoinCodeRequest" },
   },
   "/api/v1/public/external/award": {
-    post: { body: "PublicExternalAwardRequest" }
+    post: { body: "PublicExternalAwardRequest" },
   },
   "/api/v1/public/orders": {
     post: {
       body: "OrderCreateRequest",
-      responses: { "200": "OrderCreateResponse" }
-    }
+      responses: { 200: "OrderCreateResponse" },
+    },
   },
   "/api/v1/public/order-returns": {
     post: {
       body: "OrderReturnCreateRequest",
-      responses: { "200": "OrderReturnCreateResponse" }
-    }
+      responses: { 200: "OrderReturnCreateResponse" },
+    },
   },
   "/api/v1/public/contacts": {
     post: {
       body: "PublicContactUpsertRequest",
-      responses: { "200": "PublicContactResponse" }
-    }
+      responses: { 200: "PublicContactResponse" },
+    },
   },
   "/api/v1/public/contacts/lookup": {
     post: {
       body: "PublicContactLookupRequest",
-      responses: { "200": "PublicContactResponse" }
-    }
+      responses: { 200: "PublicContactResponse" },
+    },
   },
   "/api/v1/public/contact-identifiers": {
     post: {
       body: "PublicContactIdentifierLinkRequest",
-      responses: { "200": "PublicContactIdentifierLinkResponse" }
-    }
+      responses: { 200: "PublicContactIdentifierLinkResponse" },
+    },
   },
   "/api/v1/public/contact-identifiers/resolve": {
     post: {
       body: "PublicContactIdentifierResolveRequest",
-      responses: { "200": "PublicContactIdentifierResolveResponse" }
-    }
+      responses: { 200: "PublicContactIdentifierResolveResponse" },
+    },
   },
   "/api/v1/public/contact-identifiers/unlink": {
     post: {
       body: "PublicContactIdentifierUnlinkRequest",
-      responses: { "200": "PublicContactIdentifierUnlinkResponse" }
-    }
+      responses: { 200: "PublicContactIdentifierUnlinkResponse" },
+    },
   },
   "/api/v1/super/login": {
-    post: { body: "SuperLoginRequest" }
+    post: { body: "SuperLoginRequest" },
   },
   "/api/v1/super/plans/{plan}/features": {
-    put: { body: "SuperPlanFeaturesRequest" }
+    put: { body: "SuperPlanFeaturesRequest" },
   },
   "/api/v1/super/businesses": {
-    post: { body: "SuperCreateBusinessRequest" }
+    post: { body: "SuperCreateBusinessRequest" },
   },
   "/api/v1/super/businesses/{businessId}/plan": {
-    put: { body: "SuperPlanUpdateRequest" }
+    put: { body: "SuperPlanUpdateRequest" },
   },
   "/api/v1/super/businesses/{businessId}/wallet-broadcast": {
-    put: { body: "SuperWalletBroadcastRequest" }
+    put: { body: "SuperWalletBroadcastRequest" },
   },
   "/api/v1/super/businesses/{businessId}/users": {
-    post: { body: "SuperCreateBusinessUserRequest" }
+    post: { body: "SuperCreateBusinessUserRequest" },
   },
   "/api/v1/admin/tiers": {
-    post: { body: "TierCreateRequest" }
+    post: { body: "TierCreateRequest" },
   },
   "/api/v1/admin/tiers/{id}": {
-    put: { body: "TierUpdateRequest" }
+    put: { body: "TierUpdateRequest" },
   },
   "/api/v1/admin/rewards": {
-    get: { responses: { "200": "RewardListResponse" } },
+    get: { responses: { 200: "RewardListResponse" } },
     post: {
       body: "RewardCreateRequest",
-      responses: { "200": "RewardDetailResponse" }
-    }
+      responses: { 200: "RewardDetailResponse" },
+    },
   },
   "/api/v1/admin/rewards/{id}": {
     patch: {
       body: "RewardUpdateRequest",
-      responses: { "200": "RewardDetailResponse" }
-    }
+      responses: { 200: "RewardDetailResponse" },
+    },
   },
   "/api/v1/admin/branches": {
-    get: { responses: { "200": "BranchListResponse" } },
+    get: { responses: { 200: "BranchListResponse" } },
     post: {
       body: "BranchCreateRequest",
-      responses: { "200": "BranchDetailResponse" }
-    }
+      responses: { 200: "BranchDetailResponse" },
+    },
   },
   "/api/v1/admin/staff": {
-    get: { responses: { "200": "StaffListResponse" } },
+    get: { responses: { 200: "StaffListResponse" } },
     post: {
       body: "StaffCreateRequest",
-      responses: { "200": "StaffDetailResponse" }
-    }
+      responses: { 200: "StaffDetailResponse" },
+    },
   },
   "/api/v1/admin/staff/{id}": {
     patch: {
       body: "StaffUpdateRequest",
-      responses: { "200": "StaffDetailResponse" }
-    }
+      responses: { 200: "StaffDetailResponse" },
+    },
   },
   "/api/v1/admin/webhooks": {
-    get: { responses: { "200": "WebhookListResponse" } },
+    get: { responses: { 200: "WebhookListResponse" } },
     post: {
       body: "WebhookCreateRequest",
-      responses: { "200": "WebhookDetailResponse" }
-    }
+      responses: { 200: "WebhookDetailResponse" },
+    },
   },
   "/api/v1/admin/gift-cards": {
     get: {
       query: "GiftCardListQuery",
-      responses: { "200": "GiftCardListResponse" }
+      responses: { 200: "GiftCardListResponse" },
     },
     post: {
       body: "GiftCardCreateRequest",
-      responses: { "201": "GiftCardDetailResponse" }
-    }
+      responses: { 201: "GiftCardDetailResponse" },
+    },
   },
   "/api/v1/staff/gift-cards/redeem": {
     post: {
       body: "GiftCardRedeemRequest",
-      responses: { "200": "GiftCardDetailResponse" }
-    }
+      responses: { 200: "GiftCardDetailResponse" },
+    },
   },
   "/api/v1/staff/gift-cards/{codeOrToken}": {
-    get: { responses: { "200": "GiftCardLookupResponse" } }
+    get: { responses: { 200: "GiftCardLookupResponse" } },
   },
   "/api/v1/admin/achievements": {
-    post: { body: "AchievementCreateRequest" }
+    post: { body: "AchievementCreateRequest" },
   },
   "/api/v1/admin/achievements/{id}": {
-    patch: { body: "AchievementUpdateRequest" }
+    patch: { body: "AchievementUpdateRequest" },
   },
   "/api/v1/admin/challenges": {
-    post: { body: "ChallengeCreateRequest" }
+    post: { body: "ChallengeCreateRequest" },
   },
   "/api/v1/admin/challenges/{id}": {
-    patch: { body: "ChallengeUpdateRequest" }
+    patch: { body: "ChallengeUpdateRequest" },
   },
   "/api/v1/admin/program": {
-    put: { body: "ProgramUpdateRequest" }
+    put: { body: "ProgramUpdateRequest" },
   },
   "/api/v1/admin/program/automations/apply-template": {
-    post: { body: "AutomationTemplateRequest" }
+    post: { body: "AutomationTemplateRequest" },
   },
   "/api/v1/admin/program/campaign-rules": {
-    put: { body: "CampaignRulesRequest" }
+    put: { body: "CampaignRulesRequest" },
   },
   "/api/v1/admin/program/external-awards": {
-    put: { body: "ExternalAwardsRequest" }
+    put: { body: "ExternalAwardsRequest" },
   },
   "/api/v1/admin/analytics/cohorts": {
-    get: { query: "AnalyticsCohortsQuery" }
+    get: { query: "AnalyticsCohortsQuery" },
   },
   "/api/v1/admin/analytics/first-purchase-returns": {
-    get: { query: "FirstPurchaseReturnQuery", responses: { "200": "FirstPurchaseReturnResponse" } }
+    get: { query: "FirstPurchaseReturnQuery", responses: { 200: "FirstPurchaseReturnResponse" } },
   },
   "/api/v1/admin/analytics/top-customers": {
-    get: { query: "AnalyticsTopCustomersQuery" }
+    get: { query: "AnalyticsTopCustomersQuery" },
   },
   "/api/v1/admin/analytics/segments": {
-    post: { body: "AnalyticsSegmentCreateRequest" }
+    post: { body: "AnalyticsSegmentCreateRequest" },
   },
   "/api/v1/admin/analytics/segments/{id}": {
     get: {
       query: "AnalyticsSegmentCustomersQuery",
-      responses: { "200": "AnalyticsSegmentCustomersResponse" }
-    }
+      responses: { 200: "AnalyticsSegmentCustomersResponse" },
+    },
   },
   "/api/v1/admin/payment-webhooks": {
     get: {
       query: "PaymentWebhookListQuery",
-      responses: { "200": "PaymentWebhookListResponse" }
-    }
+      responses: { 200: "PaymentWebhookListResponse" },
+    },
   },
   "/api/v1/admin/payment-webhooks/{id}/resolve": {
     post: {
       body: "PaymentWebhookResolveRequest",
-      responses: { "200": "PaymentWebhookResolveResponse" }
-    }
+      responses: { 200: "PaymentWebhookResolveResponse" },
+    },
   },
   "/api/v1/admin/analytics/ledger-certification": {
     get: {
-      responses: { "200": "LedgerCertificationResponse" }
-    }
-  }
+      responses: { 200: "LedgerCertificationResponse" },
+    },
+  },
 };
 
 const publicHmacHeaderParameter = {
@@ -725,7 +753,7 @@ const publicHmacHeaderParameter = {
   name: "x-signature",
   required: true,
   schema: { type: "string" },
-  description: "Hex HMAC-SHA256 signature for the exact raw request body bytes."
+  description: "Hex HMAC-SHA256 signature for the exact raw request body bytes.",
 };
 
 const curatedPaths = {
@@ -733,35 +761,35 @@ const curatedPaths = {
     get: {
       summary: "Service health probe",
       responses: {
-        "200": { description: "Service healthy" },
-        "503": { description: "Service unhealthy" }
-      }
-    }
+        200: { description: "Service healthy" },
+        503: { description: "Service unhealthy" },
+      },
+    },
   },
   "/api/v1/ready": {
     get: {
       summary: "Readiness probe",
       responses: {
-        "200": { description: "Ready for traffic" },
-        "503": { description: "Not ready" }
-      }
-    }
+        200: { description: "Ready for traffic" },
+        503: { description: "Not ready" },
+      },
+    },
   },
   "/api/v1/live": {
     get: {
       summary: "Liveness probe",
       responses: {
-        "200": { description: "Process is alive" }
-      }
-    }
+        200: { description: "Process is alive" },
+      },
+    },
   },
   "/api/v1/info": {
     get: {
       summary: "Service metadata",
       responses: {
-        "200": { description: "Version and runtime info" }
-      }
-    }
+        200: { description: "Version and runtime info" },
+      },
+    },
   },
   "/api/v1/staff/login": {
     post: {
@@ -769,15 +797,15 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/StaffLoginRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/StaffLoginRequest" } },
+        },
       },
       responses: {
-        "200": { description: "Authenticated; cookie __Host-pf_staff is set" },
-        "400": { description: "Validation error" },
-        "401": { description: "Invalid credentials" }
-      }
-    }
+        200: { description: "Authenticated; cookie __Host-pf_staff is set" },
+        400: { description: "Validation error" },
+        401: { description: "Invalid credentials" },
+      },
+    },
   },
   "/api/v1/super/login": {
     post: {
@@ -785,36 +813,36 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/SuperLoginRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/SuperLoginRequest" } },
+        },
       },
       responses: {
-        "200": { description: "Authenticated; cookie __Host-pf_super is set" },
-        "400": { description: "Validation error" },
-        "401": { description: "Invalid credentials" },
-        "403": { description: "Super admin not configured" }
-      }
-    }
+        200: { description: "Authenticated; cookie __Host-pf_super is set" },
+        400: { description: "Validation error" },
+        401: { description: "Invalid credentials" },
+        403: { description: "Super admin not configured" },
+      },
+    },
   },
   "/api/v1/super/me": {
     get: {
       summary: "Current super admin session",
       security: [{ superAuth: [] }],
       responses: {
-        "200": { description: "Current super admin session" },
-        "401": { description: "Not authenticated" }
-      }
-    }
+        200: { description: "Current super admin session" },
+        401: { description: "Not authenticated" },
+      },
+    },
   },
   "/api/v1/staff/me": {
     get: {
       summary: "Current staff session",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Current staff session" },
-        "401": { description: "Not authenticated" }
-      }
-    }
+        200: { description: "Current staff session" },
+        401: { description: "Not authenticated" },
+      },
+    },
   },
   "/api/v1/staff/award": {
     post: {
@@ -823,16 +851,16 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/AwardPointsRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/AwardPointsRequest" } },
+        },
       },
       responses: {
-        "200": { description: "Points awarded" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Permission denied" }
-      }
-    }
+        200: { description: "Points awarded" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Permission denied" },
+      },
+    },
   },
   "/api/v1/public/business/{slug}": {
     get: {
@@ -842,19 +870,19 @@ const curatedPaths = {
           in: "path",
           name: "slug",
           required: true,
-          schema: { type: "string" }
-        }
+          schema: { type: "string" },
+        },
       ],
       responses: {
-        "200": {
+        200: {
           description: "Business public profile",
           content: {
-            "application/json": { schema: { $ref: "#/components/schemas/BusinessPublicResponse" } }
-          }
+            "application/json": { schema: { $ref: "#/components/schemas/BusinessPublicResponse" } },
+          },
         },
-        "404": { description: "Business not found" }
-      }
-    }
+        404: { description: "Business not found" },
+      },
+    },
   },
   "/api/v1/public/business/{slug}/join/request-code": {
     post: {
@@ -864,22 +892,22 @@ const curatedPaths = {
           in: "path",
           name: "slug",
           required: true,
-          schema: { type: "string" }
-        }
+          schema: { type: "string" },
+        },
       ],
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/RequestJoinCodeRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/RequestJoinCodeRequest" } },
+        },
       },
       responses: {
-        "200": { description: "Verification code requested" },
-        "400": { description: "Validation error" },
-        "404": { description: "Business not found" },
-        "429": { description: "Rate limited" }
-      }
-    }
+        200: { description: "Verification code requested" },
+        400: { description: "Validation error" },
+        404: { description: "Business not found" },
+        429: { description: "Rate limited" },
+      },
+    },
   },
   "/api/v1/public/business/{slug}/join/verify": {
     post: {
@@ -889,39 +917,39 @@ const curatedPaths = {
           in: "path",
           name: "slug",
           required: true,
-          schema: { type: "string" }
-        }
+          schema: { type: "string" },
+        },
       ],
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/VerifyJoinCodeRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/VerifyJoinCodeRequest" } },
+        },
       },
       responses: {
-        "200": { description: "Customer authenticated; cookie __Host-pf_customer is set" },
-        "400": { description: "Validation error" },
-        "404": { description: "Business not found" },
-        "429": { description: "Rate limited" }
-      }
-    }
+        200: { description: "Customer authenticated; cookie __Host-pf_customer is set" },
+        400: { description: "Validation error" },
+        404: { description: "Business not found" },
+        429: { description: "Rate limited" },
+      },
+    },
   },
   "/api/v1/public/customer/qr.svg": {
     get: {
       summary: "Get a short-lived customer QR as SVG",
       security: [{ customerAuth: [] }],
       responses: {
-        "200": {
+        200: {
           description: "SVG QR image with X-QR-Exp and X-QR-JTI headers",
           content: {
             "image/svg+xml": {
-              schema: { type: "string" }
-            }
-          }
+              schema: { type: "string" },
+            },
+          },
         },
-        "401": { description: "Not authenticated" }
-      }
-    }
+        401: { description: "Not authenticated" },
+      },
+    },
   },
   "/api/v1/public/orders": {
     post: {
@@ -931,22 +959,22 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/OrderCreateRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/OrderCreateRequest" } },
+        },
       },
       responses: {
-        "200": {
+        200: {
           description: "Order processed or replayed",
           content: {
-            "application/json": { schema: { $ref: "#/components/schemas/OrderCreateResponse" } }
-          }
+            "application/json": { schema: { $ref: "#/components/schemas/OrderCreateResponse" } },
+          },
         },
-        "400": { description: "Validation error" },
-        "401": { description: "Invalid signature" },
-        "404": { description: "Business or customer not found" },
-        "409": { description: "externalOrderId already used for different payload" }
-      }
-    }
+        400: { description: "Validation error" },
+        401: { description: "Invalid signature" },
+        404: { description: "Business or customer not found" },
+        409: { description: "externalOrderId already used for different payload" },
+      },
+    },
   },
   "/api/v1/public/order-returns": {
     post: {
@@ -956,22 +984,27 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/OrderReturnCreateRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/OrderReturnCreateRequest" } },
+        },
       },
       responses: {
-        "200": {
+        200: {
           description: "Order return processed or replayed",
           content: {
-            "application/json": { schema: { $ref: "#/components/schemas/OrderReturnCreateResponse" } }
-          }
+            "application/json": {
+              schema: { $ref: "#/components/schemas/OrderReturnCreateResponse" },
+            },
+          },
         },
-        "400": { description: "Validation error" },
-        "401": { description: "Invalid signature" },
-        "404": { description: "Business or original order not found" },
-        "409": { description: "Return replay conflict, already-returned order, or manual handling required" }
-      }
-    }
+        400: { description: "Validation error" },
+        401: { description: "Invalid signature" },
+        404: { description: "Business or original order not found" },
+        409: {
+          description:
+            "Return replay conflict, already-returned order, or manual handling required",
+        },
+      },
+    },
   },
   "/api/v1/public/contacts": {
     post: {
@@ -981,22 +1014,24 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/PublicContactUpsertRequest" } }
-        }
+          "application/json": {
+            schema: { $ref: "#/components/schemas/PublicContactUpsertRequest" },
+          },
+        },
       },
       responses: {
-        "200": {
+        200: {
           description: "Contact synced successfully",
           content: {
-            "application/json": { schema: { $ref: "#/components/schemas/PublicContactResponse" } }
-          }
+            "application/json": { schema: { $ref: "#/components/schemas/PublicContactResponse" } },
+          },
         },
-        "400": { description: "Validation error" },
-        "401": { description: "Invalid signature" },
-        "404": { description: "Business or customer not found" },
-        "409": { description: "Contact data conflicts with an existing scoped customer" }
-      }
-    }
+        400: { description: "Validation error" },
+        401: { description: "Invalid signature" },
+        404: { description: "Business or customer not found" },
+        409: { description: "Contact data conflicts with an existing scoped customer" },
+      },
+    },
   },
   "/api/v1/public/contacts/lookup": {
     post: {
@@ -1006,22 +1041,25 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/PublicContactLookupRequest" } }
-        }
+          "application/json": {
+            schema: { $ref: "#/components/schemas/PublicContactLookupRequest" },
+          },
+        },
       },
       responses: {
-        "200": {
+        200: {
           description: "Scoped contact detail",
           content: {
-            "application/json": { schema: { $ref: "#/components/schemas/PublicContactResponse" } }
-          }
+            "application/json": { schema: { $ref: "#/components/schemas/PublicContactResponse" } },
+          },
         },
-        "400": { description: "Validation error" },
-        "401": { description: "Invalid signature" },
-        "404": { description: "Business or customer not found" }
+        400: { description: "Validation error" },
+        401: { description: "Invalid signature" },
+        404: { description: "Business or customer not found" },
       },
-      description: "The `x-signature` HMAC must cover the exact raw JSON body containing `businessSlug` and `customerId`."
-    }
+      description:
+        "The `x-signature` HMAC must cover the exact raw JSON body containing `businessSlug` and `customerId`.",
+    },
   },
   "/api/v1/public/contact-identifiers": {
     post: {
@@ -1031,22 +1069,26 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/PublicContactIdentifierLinkRequest" } }
-        }
+          "application/json": {
+            schema: { $ref: "#/components/schemas/PublicContactIdentifierLinkRequest" },
+          },
+        },
       },
       responses: {
-        "200": {
+        200: {
           description: "Identifier linked successfully",
           content: {
-            "application/json": { schema: { $ref: "#/components/schemas/PublicContactIdentifierLinkResponse" } }
-          }
+            "application/json": {
+              schema: { $ref: "#/components/schemas/PublicContactIdentifierLinkResponse" },
+            },
+          },
         },
-        "400": { description: "Validation error" },
-        "401": { description: "Invalid signature" },
-        "404": { description: "Business or customer not found" },
-        "409": { description: "Identifier already linked or inactive" }
-      }
-    }
+        400: { description: "Validation error" },
+        401: { description: "Invalid signature" },
+        404: { description: "Business or customer not found" },
+        409: { description: "Identifier already linked or inactive" },
+      },
+    },
   },
   "/api/v1/public/contact-identifiers/resolve": {
     post: {
@@ -1056,21 +1098,25 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/PublicContactIdentifierResolveRequest" } }
-        }
+          "application/json": {
+            schema: { $ref: "#/components/schemas/PublicContactIdentifierResolveRequest" },
+          },
+        },
       },
       responses: {
-        "200": {
+        200: {
           description: "Contact resolved successfully",
           content: {
-            "application/json": { schema: { $ref: "#/components/schemas/PublicContactIdentifierResolveResponse" } }
-          }
+            "application/json": {
+              schema: { $ref: "#/components/schemas/PublicContactIdentifierResolveResponse" },
+            },
+          },
         },
-        "400": { description: "Validation error" },
-        "401": { description: "Invalid signature" },
-        "404": { description: "Business or identifier not found" }
-      }
-    }
+        400: { description: "Validation error" },
+        401: { description: "Invalid signature" },
+        404: { description: "Business or identifier not found" },
+      },
+    },
   },
   "/api/v1/public/contact-identifiers/unlink": {
     post: {
@@ -1080,158 +1126,164 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/PublicContactIdentifierUnlinkRequest" } }
-        }
+          "application/json": {
+            schema: { $ref: "#/components/schemas/PublicContactIdentifierUnlinkRequest" },
+          },
+        },
       },
       responses: {
-        "200": {
+        200: {
           description: "Identifier unlinked successfully",
           content: {
-            "application/json": { schema: { $ref: "#/components/schemas/PublicContactIdentifierUnlinkResponse" } }
-          }
+            "application/json": {
+              schema: { $ref: "#/components/schemas/PublicContactIdentifierUnlinkResponse" },
+            },
+          },
         },
-        "400": { description: "Validation error" },
-        "401": { description: "Invalid signature" },
-        "404": { description: "Business or identifier not found" }
-      }
-    }
+        400: { description: "Validation error" },
+        401: { description: "Invalid signature" },
+        404: { description: "Business or identifier not found" },
+      },
+    },
   },
   "/api/v1/customer/me": {
     get: {
       summary: "Get the current customer profile",
       security: [{ customerAuth: [] }],
       responses: {
-        "200": {
+        200: {
           description: "Current customer profile",
           content: {
-            "application/json": { schema: { $ref: "#/components/schemas/CustomerProfileResponse" } }
-          }
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CustomerProfileResponse" },
+            },
+          },
         },
-        "401": { description: "Not authenticated" }
-      }
+        401: { description: "Not authenticated" },
+      },
     },
     delete: {
       summary: "Delete the current customer account",
       security: [{ customerAuth: [] }],
       responses: {
-        "200": { description: "Customer account deleted" },
-        "401": { description: "Not authenticated" }
-      }
-    }
+        200: { description: "Customer account deleted" },
+        401: { description: "Not authenticated" },
+      },
+    },
   },
   "/api/v1/customer/history": {
     get: {
       summary: "Get the current customer's transaction and redemption history",
       security: [{ customerAuth: [] }],
       responses: {
-        "200": { description: "Customer history" },
-        "401": { description: "Not authenticated" }
-      }
-    }
+        200: { description: "Customer history" },
+        401: { description: "Not authenticated" },
+      },
+    },
   },
   "/api/v1/customer/rewards": {
     get: {
       summary: "List rewards available to the current customer",
       security: [{ customerAuth: [] }],
       responses: {
-        "200": { description: "Available rewards" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled" }
-      }
-    }
+        200: { description: "Available rewards" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled" },
+      },
+    },
   },
   "/api/v1/customer/export": {
     get: {
       summary: "Export the current customer's data",
       security: [{ customerAuth: [] }],
       responses: {
-        "200": { description: "Customer data export" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled" }
-      }
-    }
+        200: { description: "Customer data export" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled" },
+      },
+    },
   },
   "/api/v1/customer/referral-code": {
     get: {
       summary: "Get or create the current customer's referral code",
       security: [{ customerAuth: [] }],
       responses: {
-        "200": {
+        200: {
           description: "Referral code",
           content: {
-            "application/json": { schema: { $ref: "#/components/schemas/ReferralCodeResponse" } }
-          }
+            "application/json": { schema: { $ref: "#/components/schemas/ReferralCodeResponse" } },
+          },
         },
-        "401": { description: "Not authenticated" }
-      }
-    }
+        401: { description: "Not authenticated" },
+      },
+    },
   },
   "/api/v1/customer/tier": {
     get: {
       summary: "Get the current customer's tier information",
       security: [{ customerAuth: [] }],
       responses: {
-        "200": {
+        200: {
           description: "Tier info",
           content: {
-            "application/json": { schema: { $ref: "#/components/schemas/TierInfoResponse" } }
-          }
+            "application/json": { schema: { $ref: "#/components/schemas/TierInfoResponse" } },
+          },
         },
-        "401": { description: "Not authenticated" }
-      }
-    }
+        401: { description: "Not authenticated" },
+      },
+    },
   },
   "/api/v1/admin/tiers": {
     get: {
       summary: "List business tiers",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Tier list" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role required" }
-      }
+        200: { description: "Tier list" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role required" },
+      },
     },
     post: {
       summary: "Create a business tier",
       security: [{ staffAuth: [] }],
       responses: {
-        "201": { description: "Tier created" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role required" }
-      }
-    }
+        201: { description: "Tier created" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role required" },
+      },
+    },
   },
   "/api/v1/admin/plan": {
     get: {
       summary: "Get the current business plan, limits, and features",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Plan detail" },
-        "401": { description: "Not authenticated" }
-      }
-    }
+        200: { description: "Plan detail" },
+        401: { description: "Not authenticated" },
+      },
+    },
   },
   "/api/v1/admin/rewards": {
     get: {
       summary: "List rewards for the current business",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Reward list" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled or role not allowed" }
-      }
+        200: { description: "Reward list" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled or role not allowed" },
+      },
     },
     post: {
       summary: "Create a reward",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Reward created" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled or role not allowed" }
-      }
-    }
+        200: { description: "Reward created" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled or role not allowed" },
+      },
+    },
   },
   "/api/v1/admin/rewards/{id}": {
     patch: {
@@ -1242,59 +1294,59 @@ const curatedPaths = {
           in: "path",
           name: "id",
           required: true,
-          schema: { type: "string", format: "uuid" }
-        }
+          schema: { type: "string", format: "uuid" },
+        },
       ],
       responses: {
-        "200": { description: "Reward updated" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "404": { description: "Reward not found" }
-      }
-    }
+        200: { description: "Reward updated" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        404: { description: "Reward not found" },
+      },
+    },
   },
   "/api/v1/admin/branches": {
     get: {
       summary: "List branches for the current business",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Branch list" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled or role not allowed" }
-      }
+        200: { description: "Branch list" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled or role not allowed" },
+      },
     },
     post: {
       summary: "Create a branch",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Branch created" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled or role not allowed" }
-      }
-    }
+        200: { description: "Branch created" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled or role not allowed" },
+      },
+    },
   },
   "/api/v1/admin/staff": {
     get: {
       summary: "List staff users for the current business",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Staff list" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Role not allowed" }
-      }
+        200: { description: "Staff list" },
+        401: { description: "Not authenticated" },
+        403: { description: "Role not allowed" },
+      },
     },
     post: {
       summary: "Create a staff user",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Staff user created" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Role not allowed" },
-        "409": { description: "Email already registered" }
-      }
-    }
+        200: { description: "Staff user created" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Role not allowed" },
+        409: { description: "Email already registered" },
+      },
+    },
   },
   "/api/v1/admin/staff/{id}": {
     patch: {
@@ -1305,59 +1357,59 @@ const curatedPaths = {
           in: "path",
           name: "id",
           required: true,
-          schema: { type: "string", format: "uuid" }
-        }
+          schema: { type: "string", format: "uuid" },
+        },
       ],
       responses: {
-        "200": { description: "Staff user updated" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Role not allowed" },
-        "404": { description: "Staff user not found" }
-      }
-    }
+        200: { description: "Staff user updated" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Role not allowed" },
+        404: { description: "Staff user not found" },
+      },
+    },
   },
   "/api/v1/admin/webhooks": {
     get: {
       summary: "List webhook endpoints for the current business",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Webhook endpoint list" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Role not allowed" }
-      }
+        200: { description: "Webhook endpoint list" },
+        401: { description: "Not authenticated" },
+        403: { description: "Role not allowed" },
+      },
     },
     post: {
       summary: "Create a webhook endpoint",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Webhook endpoint created" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Role not allowed" }
-      }
-    }
+        200: { description: "Webhook endpoint created" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Role not allowed" },
+      },
+    },
   },
   "/api/v1/admin/gift-cards": {
     get: {
       summary: "List gift cards for the current business",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Gift card list" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled or role not allowed" }
-      }
+        200: { description: "Gift card list" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled or role not allowed" },
+      },
     },
     post: {
       summary: "Create a gift card",
       security: [{ staffAuth: [] }],
       responses: {
-        "201": { description: "Gift card created" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled or role not allowed" }
-      }
-    }
+        201: { description: "Gift card created" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled or role not allowed" },
+      },
+    },
   },
   "/api/v1/staff/gift-cards/{codeOrToken}": {
     get: {
@@ -1368,26 +1420,26 @@ const curatedPaths = {
           in: "path",
           name: "codeOrToken",
           required: true,
-          schema: { type: "string" }
-        }
+          schema: { type: "string" },
+        },
       ],
       responses: {
-        "200": { description: "Gift card detail" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled or role not allowed" },
-        "404": { description: "Gift card not found" }
-      }
-    }
+        200: { description: "Gift card detail" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled or role not allowed" },
+        404: { description: "Gift card not found" },
+      },
+    },
   },
   "/api/v1/super/plans": {
     get: {
       summary: "List configurable plans",
       security: [{ superAuth: [] }],
       responses: {
-        "200": { description: "Available plan configuration" },
-        "401": { description: "Not authenticated" }
-      }
-    }
+        200: { description: "Available plan configuration" },
+        401: { description: "Not authenticated" },
+      },
+    },
   },
   "/api/v1/super/plans/{plan}/features": {
     put: {
@@ -1398,30 +1450,30 @@ const curatedPaths = {
           in: "path",
           name: "plan",
           required: true,
-          schema: { type: "string" }
-        }
+          schema: { type: "string" },
+        },
       ],
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/SuperPlanFeaturesRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/SuperPlanFeaturesRequest" } },
+        },
       },
       responses: {
-        "200": { description: "Updated plan features" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" }
-      }
-    }
+        200: { description: "Updated plan features" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+      },
+    },
   },
   "/api/v1/super/businesses": {
     get: {
       summary: "List businesses visible to the super admin",
       security: [{ superAuth: [] }],
       responses: {
-        "200": { description: "Business list" },
-        "401": { description: "Not authenticated" }
-      }
+        200: { description: "Business list" },
+        401: { description: "Not authenticated" },
+      },
     },
     post: {
       summary: "Create a business and owner from the super admin panel",
@@ -1429,15 +1481,17 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/SuperCreateBusinessRequest" } }
-        }
+          "application/json": {
+            schema: { $ref: "#/components/schemas/SuperCreateBusinessRequest" },
+          },
+        },
       },
       responses: {
-        "201": { description: "Business created" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" }
-      }
-    }
+        201: { description: "Business created" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+      },
+    },
   },
   "/api/v1/super/businesses/{businessId}/plan": {
     put: {
@@ -1448,21 +1502,21 @@ const curatedPaths = {
           in: "path",
           name: "businessId",
           required: true,
-          schema: { type: "string", format: "uuid" }
-        }
+          schema: { type: "string", format: "uuid" },
+        },
       ],
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/SuperPlanUpdateRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/SuperPlanUpdateRequest" } },
+        },
       },
       responses: {
-        "200": { description: "Business plan updated" },
-        "400": { description: "Validation error" },
-        "404": { description: "Business not found" }
-      }
-    }
+        200: { description: "Business plan updated" },
+        400: { description: "Validation error" },
+        404: { description: "Business not found" },
+      },
+    },
   },
   "/api/v1/super/businesses/{businessId}/users": {
     get: {
@@ -1473,13 +1527,13 @@ const curatedPaths = {
           in: "path",
           name: "businessId",
           required: true,
-          schema: { type: "string", format: "uuid" }
-        }
+          schema: { type: "string", format: "uuid" },
+        },
       ],
       responses: {
-        "200": { description: "Business user list" },
-        "404": { description: "Business not found" }
-      }
+        200: { description: "Business user list" },
+        404: { description: "Business not found" },
+      },
     },
     post: {
       summary: "Create a staff user for a business",
@@ -1489,22 +1543,24 @@ const curatedPaths = {
           in: "path",
           name: "businessId",
           required: true,
-          schema: { type: "string", format: "uuid" }
-        }
+          schema: { type: "string", format: "uuid" },
+        },
       ],
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/SuperCreateBusinessUserRequest" } }
-        }
+          "application/json": {
+            schema: { $ref: "#/components/schemas/SuperCreateBusinessUserRequest" },
+          },
+        },
       },
       responses: {
-        "201": { description: "Business user created" },
-        "400": { description: "Validation error" },
-        "404": { description: "Business not found" },
-        "409": { description: "Email already registered" }
-      }
-    }
+        201: { description: "Business user created" },
+        400: { description: "Validation error" },
+        404: { description: "Business not found" },
+        409: { description: "Email already registered" },
+      },
+    },
   },
   "/api/v1/super/impersonate/{businessId}": {
     post: {
@@ -1515,36 +1571,36 @@ const curatedPaths = {
           in: "path",
           name: "businessId",
           required: true,
-          schema: { type: "string", format: "uuid" }
-        }
+          schema: { type: "string", format: "uuid" },
+        },
       ],
       responses: {
-        "200": { description: "Impersonation cookie issued" },
-        "404": { description: "No eligible staff user found" }
-      }
-    }
+        200: { description: "Impersonation cookie issued" },
+        404: { description: "No eligible staff user found" },
+      },
+    },
   },
   "/api/v1/admin/analytics/calculate": {
     post: {
       summary: "Queue an analytics recalculation job",
       security: [{ staffAuth: [] }],
       responses: {
-        "202": { description: "Analytics recalculation queued" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role required" }
-      }
-    }
+        202: { description: "Analytics recalculation queued" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role required" },
+      },
+    },
   },
   "/api/v1/admin/jobs": {
     get: {
       summary: "List background jobs for the current business",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Background jobs list" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role required" }
-      }
-    }
+        200: { description: "Background jobs list" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role required" },
+      },
+    },
   },
   "/api/v1/admin/jobs/{id}": {
     get: {
@@ -1555,47 +1611,47 @@ const curatedPaths = {
           in: "path",
           name: "id",
           required: true,
-          schema: { type: "string", format: "uuid" }
-        }
+          schema: { type: "string", format: "uuid" },
+        },
       ],
       responses: {
-        "200": { description: "Background job details" },
-        "404": { description: "Job not found" }
-      }
-    }
+        200: { description: "Background job details" },
+        404: { description: "Job not found" },
+      },
+    },
   },
   "/api/v1/customer/achievements": {
     get: {
       summary: "Get earned and in-progress achievements for the current customer",
       security: [{ customerAuth: [] }],
       responses: {
-        "200": { description: "Customer achievements" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled" }
-      }
-    }
+        200: { description: "Customer achievements" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled" },
+      },
+    },
   },
   "/api/v1/customer/challenges": {
     get: {
       summary: "Get active challenges and progress for the current customer",
       security: [{ customerAuth: [] }],
       responses: {
-        "200": { description: "Customer challenges" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled" }
-      }
-    }
+        200: { description: "Customer challenges" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled" },
+      },
+    },
   },
   "/api/v1/customer/streak": {
     get: {
       summary: "Get the current customer's visit streak",
       security: [{ customerAuth: [] }],
       responses: {
-        "200": { description: "Customer streak" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled" }
-      }
-    }
+        200: { description: "Customer streak" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled" },
+      },
+    },
   },
   "/api/v1/customer/leaderboard/{type}": {
     get: {
@@ -1606,26 +1662,26 @@ const curatedPaths = {
           in: "path",
           name: "type",
           required: true,
-          schema: { type: "string", enum: ["points", "streak"] }
-        }
+          schema: { type: "string", enum: ["points", "streak"] },
+        },
       ],
       responses: {
-        "200": { description: "Leaderboard position" },
-        "400": { description: "Invalid leaderboard type" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled" }
-      }
-    }
+        200: { description: "Leaderboard position" },
+        400: { description: "Invalid leaderboard type" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled" },
+      },
+    },
   },
   "/api/v1/admin/achievements": {
     get: {
       summary: "List gamification achievements for the current business",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Achievement list" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled" }
-      }
+        200: { description: "Achievement list" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled" },
+      },
     },
     post: {
       summary: "Create a gamification achievement",
@@ -1633,16 +1689,16 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/AchievementCreateRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/AchievementCreateRequest" } },
+        },
       },
       responses: {
-        "201": { description: "Achievement created" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and plan feature required" }
-      }
-    }
+        201: { description: "Achievement created" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and plan feature required" },
+      },
+    },
   },
   "/api/v1/admin/achievements/{id}": {
     put: {
@@ -1653,21 +1709,21 @@ const curatedPaths = {
           in: "path",
           name: "id",
           required: true,
-          schema: { type: "string", format: "uuid" }
-        }
+          schema: { type: "string", format: "uuid" },
+        },
       ],
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/AchievementUpdateRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/AchievementUpdateRequest" } },
+        },
       },
       responses: {
-        "200": { description: "Achievement updated" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and plan feature required" }
-      }
+        200: { description: "Achievement updated" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and plan feature required" },
+      },
     },
     delete: {
       summary: "Delete an achievement",
@@ -1677,26 +1733,26 @@ const curatedPaths = {
           in: "path",
           name: "id",
           required: true,
-          schema: { type: "string", format: "uuid" }
-        }
+          schema: { type: "string", format: "uuid" },
+        },
       ],
       responses: {
-        "200": { description: "Achievement deleted" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and plan feature required" },
-        "404": { description: "Achievement not found" }
-      }
-    }
+        200: { description: "Achievement deleted" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and plan feature required" },
+        404: { description: "Achievement not found" },
+      },
+    },
   },
   "/api/v1/admin/challenges": {
     get: {
       summary: "List active challenges for the current business",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Challenge list" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled" }
-      }
+        200: { description: "Challenge list" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled" },
+      },
     },
     post: {
       summary: "Create a challenge",
@@ -1704,16 +1760,16 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/ChallengeCreateRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/ChallengeCreateRequest" } },
+        },
       },
       responses: {
-        "201": { description: "Challenge created" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and plan feature required" }
-      }
-    }
+        201: { description: "Challenge created" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and plan feature required" },
+      },
+    },
   },
   "/api/v1/admin/challenges/{id}": {
     put: {
@@ -1724,22 +1780,22 @@ const curatedPaths = {
           in: "path",
           name: "id",
           required: true,
-          schema: { type: "string", format: "uuid" }
-        }
+          schema: { type: "string", format: "uuid" },
+        },
       ],
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/ChallengeUpdateRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/ChallengeUpdateRequest" } },
+        },
       },
       responses: {
-        "200": { description: "Challenge updated" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and plan feature required" },
-        "404": { description: "Challenge not found" }
-      }
+        200: { description: "Challenge updated" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and plan feature required" },
+        404: { description: "Challenge not found" },
+      },
     },
     delete: {
       summary: "Delete a challenge",
@@ -1749,16 +1805,16 @@ const curatedPaths = {
           in: "path",
           name: "id",
           required: true,
-          schema: { type: "string", format: "uuid" }
-        }
+          schema: { type: "string", format: "uuid" },
+        },
       ],
       responses: {
-        "200": { description: "Challenge deleted" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and plan feature required" },
-        "404": { description: "Challenge not found" }
-      }
-    }
+        200: { description: "Challenge deleted" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and plan feature required" },
+        404: { description: "Challenge not found" },
+      },
+    },
   },
   "/api/v1/admin/leaderboard/{type}": {
     get: {
@@ -1769,27 +1825,27 @@ const curatedPaths = {
           in: "path",
           name: "type",
           required: true,
-          schema: { type: "string", enum: ["points", "streak"] }
-        }
+          schema: { type: "string", enum: ["points", "streak"] },
+        },
       ],
       responses: {
-        "200": { description: "Leaderboard data" },
-        "400": { description: "Invalid leaderboard type" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Plan feature not enabled" }
-      }
-    }
+        200: { description: "Leaderboard data" },
+        400: { description: "Invalid leaderboard type" },
+        401: { description: "Not authenticated" },
+        403: { description: "Plan feature not enabled" },
+      },
+    },
   },
   "/api/v1/admin/program": {
     get: {
       summary: "Get the current program configuration",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Program configuration" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and plan feature required" },
-        "404": { description: "Business not found" }
-      }
+        200: { description: "Program configuration" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and plan feature required" },
+        404: { description: "Business not found" },
+      },
     },
     post: {
       summary: "Update the current program configuration",
@@ -1797,29 +1853,29 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/ProgramUpdateRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/ProgramUpdateRequest" } },
+        },
       },
       responses: {
-        "200": { description: "Program updated" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role, permission, and plan feature required" },
-        "404": { description: "Business not found" }
-      }
-    }
+        200: { description: "Program updated" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role, permission, and plan feature required" },
+        404: { description: "Business not found" },
+      },
+    },
   },
   "/api/v1/admin/automations": {
     get: {
       summary: "Get lifecycle automation settings and templates",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Automation settings" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and plan feature required" },
-        "404": { description: "Business not found" }
-      }
-    }
+        200: { description: "Automation settings" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and plan feature required" },
+        404: { description: "Business not found" },
+      },
+    },
   },
   "/api/v1/admin/automations/template": {
     put: {
@@ -1828,28 +1884,30 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/AutomationTemplateRequest" } }
-        }
+          "application/json": {
+            schema: { $ref: "#/components/schemas/AutomationTemplateRequest" },
+          },
+        },
       },
       responses: {
-        "200": { description: "Automation template applied" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and plan feature required" },
-        "404": { description: "Business not found" }
-      }
-    }
+        200: { description: "Automation template applied" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and plan feature required" },
+        404: { description: "Business not found" },
+      },
+    },
   },
   "/api/v1/admin/campaign-rules": {
     get: {
       summary: "Get campaign rules for the current business",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Campaign rules" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and plan feature required" },
-        "404": { description: "Business not found" }
-      }
+        200: { description: "Campaign rules" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and plan feature required" },
+        404: { description: "Business not found" },
+      },
     },
     put: {
       summary: "Update campaign rules for the current business",
@@ -1857,28 +1915,28 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/CampaignRulesRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/CampaignRulesRequest" } },
+        },
       },
       responses: {
-        "200": { description: "Campaign rules updated" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and plan feature required" },
-        "404": { description: "Business not found" }
-      }
-    }
+        200: { description: "Campaign rules updated" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and plan feature required" },
+        404: { description: "Business not found" },
+      },
+    },
   },
   "/api/v1/admin/external-awards": {
     get: {
       summary: "Get external award integration settings",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "External awards configuration" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and plan feature required" },
-        "404": { description: "Business not found" }
-      }
+        200: { description: "External awards configuration" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and plan feature required" },
+        404: { description: "Business not found" },
+      },
     },
     put: {
       summary: "Update external award integration settings",
@@ -1886,42 +1944,49 @@ const curatedPaths = {
       requestBody: {
         required: true,
         content: {
-          "application/json": { schema: { $ref: "#/components/schemas/ExternalAwardsRequest" } }
-        }
+          "application/json": { schema: { $ref: "#/components/schemas/ExternalAwardsRequest" } },
+        },
       },
       responses: {
-        "200": { description: "External awards updated" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and plan feature required" },
-        "404": { description: "Business not found" }
-      }
-    }
+        200: { description: "External awards updated" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and plan feature required" },
+        404: { description: "Business not found" },
+      },
+    },
   },
   "/api/v1/admin/analytics/dashboard": {
     get: {
       summary: "Get analytics dashboard aggregates for the current business",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Analytics dashboard" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Analytics feature required" }
-      }
-    }
+        200: { description: "Analytics dashboard" },
+        401: { description: "Not authenticated" },
+        403: { description: "Analytics feature required" },
+      },
+    },
   },
   "/api/v1/admin/analytics/first-purchase-returns": {
     get: {
       summary: "Track second purchases within 30 days of first recorded purchase",
-      description: "Weekly cohort starts Monday in the business timezone; defaults to the previous complete calendar week. Choose among 52 weeks including the current week. First purchase is identified across all available business history before filtering its week and optional branch. A return at any branch must be on a later local date and less than 720 hours later. Complete observation windows form the rate denominator; ongoing windows are separate. Includes only genuine recorded purchases received by the snapshot. Late synchronization and refunds can change results. This is not causal lift or ROI. Responses are private, no-store.",
+      description:
+        "Weekly cohort starts Monday in the business timezone; defaults to the previous complete calendar week. Choose among 52 weeks including the current week. First purchase is identified across all available business history before filtering its week and optional branch. A return at any branch must be on a later local date and less than 720 hours later. Complete observation windows form the rate denominator; ongoing windows are separate. Includes only genuine recorded purchases received by the snapshot. Late synchronization and refunds can change results. This is not causal lift or ROI. Responses are private, no-store.",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Weekly first-purchase cohort, complete and ongoing follow-up, data readiness" },
-        "400": { description: "Invalid date, non-Monday, out-of-range week, duplicate or unknown filter, or branch outside the current business" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and analytics feature required" },
-        "404": { description: "Business not found" }
-      }
-    }
+        200: {
+          description:
+            "Weekly first-purchase cohort, complete and ongoing follow-up, data readiness",
+        },
+        400: {
+          description:
+            "Invalid date, non-Monday, out-of-range week, duplicate or unknown filter, or branch outside the current business",
+        },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and analytics feature required" },
+        404: { description: "Business not found" },
+      },
+    },
   },
   "/api/v1/admin/analytics/customer/{id}": {
     get: {
@@ -1932,81 +1997,81 @@ const curatedPaths = {
           in: "path",
           name: "id",
           required: true,
-          schema: { type: "string", format: "uuid" }
-        }
+          schema: { type: "string", format: "uuid" },
+        },
       ],
       responses: {
-        "200": { description: "Customer analytics profile" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Analytics feature required" },
-        "404": { description: "Customer not found" }
-      }
-    }
+        200: { description: "Customer analytics profile" },
+        401: { description: "Not authenticated" },
+        403: { description: "Analytics feature required" },
+        404: { description: "Customer not found" },
+      },
+    },
   },
   "/api/v1/admin/analytics/churn-risk": {
     get: {
       summary: "List high churn-risk customers",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "High churn-risk customers" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Analytics feature required" }
-      }
-    }
+        200: { description: "High churn-risk customers" },
+        401: { description: "Not authenticated" },
+        403: { description: "Analytics feature required" },
+      },
+    },
   },
   "/api/v1/admin/analytics/cohorts": {
     get: {
       summary: "Get cohort retention data",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Cohort retention data" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Analytics feature required" }
-      }
-    }
+        200: { description: "Cohort retention data" },
+        401: { description: "Not authenticated" },
+        403: { description: "Analytics feature required" },
+      },
+    },
   },
   "/api/v1/admin/analytics/top-customers": {
     get: {
       summary: "List top customers by LTV",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Top customers" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Analytics feature required" }
-      }
-    }
+        200: { description: "Top customers" },
+        401: { description: "Not authenticated" },
+        403: { description: "Analytics feature required" },
+      },
+    },
   },
   "/api/v1/admin/analytics/rfm": {
     get: {
       summary: "Get RFM distribution for the current business",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "RFM distribution" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Analytics feature required" }
-      }
-    }
+        200: { description: "RFM distribution" },
+        401: { description: "Not authenticated" },
+        403: { description: "Analytics feature required" },
+      },
+    },
   },
   "/api/v1/admin/analytics/segments": {
     get: {
       summary: "List analytics segments",
       security: [{ staffAuth: [] }],
       responses: {
-        "200": { description: "Segment list" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Analytics feature required" }
-      }
+        200: { description: "Segment list" },
+        401: { description: "Not authenticated" },
+        403: { description: "Analytics feature required" },
+      },
     },
     post: {
       summary: "Create an analytics segment",
       security: [{ staffAuth: [] }],
       responses: {
-        "201": { description: "Segment created" },
-        "400": { description: "Validation error" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and analytics feature required" }
-      }
-    }
+        201: { description: "Segment created" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and analytics feature required" },
+      },
+    },
   },
   "/api/v1/admin/analytics/segments/{id}": {
     get: {
@@ -2017,15 +2082,15 @@ const curatedPaths = {
           in: "path",
           name: "id",
           required: true,
-          schema: { type: "string", format: "uuid" }
-        }
+          schema: { type: "string", format: "uuid" },
+        },
       ],
       responses: {
-        "200": { description: "Segment customers" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Analytics feature required" }
-      }
-    }
+        200: { description: "Segment customers" },
+        401: { description: "Not authenticated" },
+        403: { description: "Analytics feature required" },
+      },
+    },
   },
   "/api/v1/admin/analytics/ledger-certification": {
     get: {
@@ -2037,28 +2102,30 @@ const curatedPaths = {
           name: "from",
           required: false,
           schema: { type: "string", format: "date" },
-          description: "Inclusive period start. Defaults to 30 days before the end date."
+          description: "Inclusive period start. Defaults to 30 days before the end date.",
         },
         {
           in: "query",
           name: "to",
           required: false,
           schema: { type: "string", format: "date" },
-          description: "Inclusive period end. Defaults to today."
-        }
+          description: "Inclusive period end. Defaults to today.",
+        },
       ],
       responses: {
-        "200": {
+        200: {
           description: "Certification summary and day-level value movement totals",
           content: {
-            "application/json": { schema: { $ref: "#/components/schemas/LedgerCertificationResponse" } }
-          }
+            "application/json": {
+              schema: { $ref: "#/components/schemas/LedgerCertificationResponse" },
+            },
+          },
         },
-        "400": { description: "Invalid date range" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and analytics feature required" }
-      }
-    }
+        400: { description: "Invalid date range" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and analytics feature required" },
+      },
+    },
   },
   "/api/v1/admin/analytics/ledger-certification.csv": {
     get: {
@@ -2069,30 +2136,30 @@ const curatedPaths = {
           in: "query",
           name: "from",
           required: false,
-          schema: { type: "string", format: "date" }
+          schema: { type: "string", format: "date" },
         },
         {
           in: "query",
           name: "to",
           required: false,
-          schema: { type: "string", format: "date" }
-        }
+          schema: { type: "string", format: "date" },
+        },
       ],
       responses: {
-        "200": {
+        200: {
           description: "Ledger certification CSV export",
           content: {
             "text/csv": {
-              schema: { type: "string" }
-            }
-          }
+              schema: { type: "string" },
+            },
+          },
         },
-        "400": { description: "Invalid date range" },
-        "401": { description: "Not authenticated" },
-        "403": { description: "Owner role and analytics feature required" }
-      }
-    }
-  }
+        400: { description: "Invalid date range" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role and analytics feature required" },
+      },
+    },
+  },
 };
 
 function normalizeExpressPath(routePath) {
@@ -2100,15 +2167,14 @@ function normalizeExpressPath(routePath) {
 }
 
 function inferSecurity(pathname) {
-  if (
-    pathname.startsWith("/api/v1/customer/")
-    || pathname === "/api/v1/customer/me"
-  ) return [{ customerAuth: [] }];
+  if (pathname.startsWith("/api/v1/customer/") || pathname === "/api/v1/customer/me")
+    return [{ customerAuth: [] }];
 
   if (
-    pathname.startsWith("/api/v1/admin/")
-    || (pathname.startsWith("/api/v1/staff/") && pathname !== "/api/v1/staff/login")
-  ) return [{ staffAuth: [] }];
+    pathname.startsWith("/api/v1/admin/") ||
+    (pathname.startsWith("/api/v1/staff/") && pathname !== "/api/v1/staff/login")
+  )
+    return [{ staffAuth: [] }];
 
   if (pathname.startsWith("/api/v1/super/") && pathname !== "/api/v1/super/login") {
     return [{ superAuth: [] }];
@@ -2159,7 +2225,7 @@ function collectRouteMiddlewareMeta(layers = []) {
     staffPermissions: [...permissions],
     planFeatures: [...planFeatures],
     csrfRequired,
-    tenantContext
+    tenantContext,
   };
 }
 
@@ -2172,7 +2238,7 @@ function inferSuccessStatus(method, pathname) {
     "/api/v1/admin/tiers",
     "/api/v1/public/business/register",
     "/api/v1/super/businesses",
-    "/api/v1/super/businesses/{businessId}/users"
+    "/api/v1/super/businesses/{businessId}/users",
   ]);
   if (method === "post" && pathname === "/api/v1/admin/analytics/calculate") return "202";
   if (method === "post" && createdPostRoutes.has(pathname)) return "201";
@@ -2189,33 +2255,35 @@ function buildDerivedOperation(method, pathname, routeMeta = null) {
     summary: buildDerivedSummary(method, pathname),
     responses: {
       [inferSuccessStatus(method, pathname)]: {
-        description: "Success"
-      }
-    }
+        description: "Success",
+      },
+    },
   };
 
   const auth = routeMeta?.auths?.[0] || null;
-  const security = auth === "customer"
-    ? [{ customerAuth: [] }]
-    : auth === "staff"
-      ? [{ staffAuth: [] }]
-      : auth === "super"
-        ? [{ superAuth: [] }]
-        : inferSecurity(pathname);
+  const security =
+    auth === "customer"
+      ? [{ customerAuth: [] }]
+      : auth === "staff"
+        ? [{ staffAuth: [] }]
+        : auth === "super"
+          ? [{ superAuth: [] }]
+          : inferSecurity(pathname);
   if (security) operation.security = security;
 
   const params = Array.from(pathname.matchAll(/\{([^}]+)\}/g)).map((match) => ({
     in: "path",
     name: match[1],
     required: true,
-    schema: { type: "string" }
+    schema: { type: "string" },
   }));
   if (params.length) operation.parameters = params;
 
   if (routeMeta?.csrfRequired) operation["x-csrf-required"] = true;
   if (routeMeta?.tenantContext) operation["x-tenant-context"] = true;
   if (routeMeta?.staffRoles?.length) operation["x-required-roles"] = routeMeta.staffRoles;
-  if (routeMeta?.staffPermissions?.length) operation["x-required-permissions"] = routeMeta.staffPermissions;
+  if (routeMeta?.staffPermissions?.length)
+    operation["x-required-permissions"] = routeMeta.staffPermissions;
   if (routeMeta?.planFeatures?.length) operation["x-plan-features"] = routeMeta.planFeatures;
 
   return operation;
@@ -2241,15 +2309,15 @@ function buildQueryParametersFromComponent(name) {
     in: "query",
     name: paramName,
     required: required.has(paramName),
-    schema: clone(paramSchema)
+    schema: clone(paramSchema),
   }));
 }
 
 function buildJsonContent(schemaName) {
   return {
     "application/json": {
-      schema: schemaRef(schemaName)
-    }
+      schema: schemaRef(schemaName),
+    },
   };
 }
 
@@ -2259,7 +2327,7 @@ function applyResponseSchemas(responses = {}, schemaBindings = {}) {
   for (const [status, schemaName] of Object.entries(schemaBindings || {})) {
     nextResponses[status] = {
       ...(nextResponses[status] || {}),
-      content: buildJsonContent(schemaName)
+      content: buildJsonContent(schemaName),
     };
   }
 
@@ -2268,7 +2336,7 @@ function applyResponseSchemas(responses = {}, schemaBindings = {}) {
     if (nextResponses[status].content) continue;
     nextResponses[status] = {
       ...nextResponses[status],
-      content: buildJsonContent("ErrorResponse")
+      content: buildJsonContent("ErrorResponse"),
     };
   }
 
@@ -2279,7 +2347,7 @@ function applySchemaBindingsToOperation(operation, binding = {}) {
   const next = {
     ...operation,
     parameters: Array.isArray(operation.parameters) ? [...operation.parameters] : undefined,
-    responses: { ...(operation.responses || {}) }
+    responses: { ...(operation.responses || {}) },
   };
 
   if (binding.body) {
@@ -2287,9 +2355,9 @@ function applySchemaBindingsToOperation(operation, binding = {}) {
       required: true,
       content: {
         "application/json": {
-          schema: schemaRef(binding.body)
-        }
-      }
+          schema: schemaRef(binding.body),
+        },
+      },
     };
   }
 
@@ -2313,11 +2381,14 @@ function collectVersionedRoutes(stack, prefix = "", paths = new Map(), inherited
       const pathname = normalizeExpressPath(`${prefix}${layer.route.path}`);
       if (pathname.includes("/openapi.") || pathname.startsWith("/api/v1/docs")) continue;
       const pathItem = paths.get(pathname) || {};
-      const routeMeta = collectRouteMiddlewareMeta([...activeInherited, ...(layer.route.stack || [])]);
+      const routeMeta = collectRouteMiddlewareMeta([
+        ...activeInherited,
+        ...(layer.route.stack || []),
+      ]);
       for (const method of Object.keys(layer.route.methods || {})) {
         pathItem[method] = applySchemaBindingsToOperation(
           buildDerivedOperation(method, pathname, routeMeta),
-          routeSchemaBindings[pathname]?.[method]
+          routeSchemaBindings[pathname]?.[method],
         );
       }
       paths.set(pathname, pathItem);
@@ -2341,8 +2412,9 @@ async function deriveRoutePaths() {
   for (const { basePath, router } of apiRouteMounts) {
     if (basePath === "/api/v1") collectVersionedRoutes(router.stack, basePath, paths);
   }
-  const derivedEntries = Array.from(paths.entries())
-    .sort(([left], [right]) => left.localeCompare(right));
+  const derivedEntries = Array.from(paths.entries()).sort(([left], [right]) =>
+    left.localeCompare(right),
+  );
   return Object.fromEntries(derivedEntries);
 }
 
@@ -2354,27 +2426,27 @@ function mergePaths(derivedPaths, overridePaths) {
     for (const [method, operation] of Object.entries(operations)) {
       const mergedOperation = {
         ...(existingPathItem[method] || {}),
-        ...operation
+        ...operation,
       };
       if (existingPathItem[method]?.responses || operation.responses) {
         mergedOperation.responses = { ...(existingPathItem[method]?.responses || {}) };
         for (const [status, response] of Object.entries(operation.responses || {})) {
           mergedOperation.responses[status] = {
             ...(existingPathItem[method]?.responses?.[status] || {}),
-            ...response
+            ...response,
           };
         }
       }
       nextPathItem[method] = {
         ...mergedOperation,
-        responses: applyResponseSchemas(mergedOperation.responses)
+        responses: applyResponseSchemas(mergedOperation.responses),
       };
     }
     merged[pathname] = nextPathItem;
   }
 
   return Object.fromEntries(
-    Object.entries(merged).sort(([left], [right]) => left.localeCompare(right))
+    Object.entries(merged).sort(([left], [right]) => left.localeCompare(right)),
   );
 }
 
@@ -2386,7 +2458,8 @@ export async function buildOpenApiDoc() {
     info: {
       title: "PuntosFieles API",
       version: pkg.version,
-      description: "Route-derived OpenAPI document for versioned /api/v1 routes, with curated request/response metadata layered onto the discovered route surface."
+      description:
+        "Route-derived OpenAPI document for versioned /api/v1 routes, with curated request/response metadata layered onto the discovered route surface.",
     },
     servers: [{ url: "https://api.puntos.local" }],
     paths,
@@ -2394,10 +2467,10 @@ export async function buildOpenApiDoc() {
       securitySchemes: {
         staffAuth: { type: "apiKey", in: "cookie", name: "__Host-pf_staff" },
         customerAuth: { type: "apiKey", in: "cookie", name: "__Host-pf_customer" },
-        superAuth: { type: "apiKey", in: "cookie", name: "__Host-pf_super" }
+        superAuth: { type: "apiKey", in: "cookie", name: "__Host-pf_super" },
       },
-      schemas: components
-    }
+      schemas: components,
+    },
   };
 }
 
@@ -2424,18 +2497,32 @@ function toYaml(value, indent = 0) {
           const [firstKey, firstValue] = entries[0];
           const firstScalar = firstValue === null || typeof firstValue !== "object";
           if (firstScalar) {
-            const rest = entries.slice(1)
-              .map(([key, nested]) => `${" ".repeat(indent + 2)}${key}:${
-                nested && typeof nested === "object" ? `\n${toYaml(nested, indent + 4)}` : ` ${yamlScalar(nested)}`
-              }`)
+            const rest = entries
+              .slice(1)
+              .map(
+                ([key, nested]) =>
+                  `${" ".repeat(indent + 2)}${key}:${
+                    nested && typeof nested === "object"
+                      ? `\n${toYaml(nested, indent + 4)}`
+                      : ` ${yamlScalar(nested)}`
+                  }`,
+              )
               .join("\n");
             return `${space}- ${firstKey}: ${yamlScalar(firstValue)}${rest ? `\n${rest}` : ""}`;
           }
           return `${space}- ${firstKey}:\n${toYaml(firstValue, indent + 4)}${
             entries.slice(1).length
-              ? `\n${entries.slice(1).map(([key, nested]) => `${" ".repeat(indent + 2)}${key}:${
-                nested && typeof nested === "object" ? `\n${toYaml(nested, indent + 4)}` : ` ${yamlScalar(nested)}`
-              }`).join("\n")}`
+              ? `\n${entries
+                  .slice(1)
+                  .map(
+                    ([key, nested]) =>
+                      `${" ".repeat(indent + 2)}${key}:${
+                        nested && typeof nested === "object"
+                          ? `\n${toYaml(nested, indent + 4)}`
+                          : ` ${yamlScalar(nested)}`
+                      }`,
+                  )
+                  .join("\n")}`
               : ""
           }`;
         }
@@ -2447,16 +2534,21 @@ function toYaml(value, indent = 0) {
     const entries = Object.entries(value);
     if (!entries.length) return `${space}{}`;
     return entries
-      .map(([key, nested]) => `${space}${key}:${
-        nested && typeof nested === "object" ? `\n${toYaml(nested, indent + 2)}` : ` ${yamlScalar(nested)}`
-      }`)
+      .map(
+        ([key, nested]) =>
+          `${space}${key}:${
+            nested && typeof nested === "object"
+              ? `\n${toYaml(nested, indent + 2)}`
+              : ` ${yamlScalar(nested)}`
+          }`,
+      )
       .join("\n");
   }
   return `${space}${yamlScalar(value)}`;
 }
 
 export async function writeOpenApiFiles(doc) {
-  const resolvedDoc = doc || await buildOpenApiDoc();
+  const resolvedDoc = doc || (await buildOpenApiDoc());
   const docsDir = path.join(process.cwd(), "docs");
   const jsonPath = path.join(docsDir, "openapi.json");
   const yamlPath = path.join(docsDir, "openapi.yaml");

@@ -25,7 +25,7 @@ const baseEnv = {
   QR_PRIVATE_KEY_PEM_FILE: "",
   QR_PRIVATE_KEY_PEM: "private-key",
   QR_PUBLIC_KEY_PEM_FILE: "",
-  QR_PUBLIC_KEY_PEM: "public-key"
+  QR_PUBLIC_KEY_PEM: "public-key",
 };
 
 function loadConfig(overrides = {}) {
@@ -34,7 +34,7 @@ function loadConfig(overrides = {}) {
     [
       "--input-type=module",
       "-e",
-      "await import('./src/config/index.js'); process.stdout.write('ok');"
+      "await import('./src/config/index.js'); process.stdout.write('ok');",
     ],
     {
       cwd: process.cwd(),
@@ -42,10 +42,10 @@ function loadConfig(overrides = {}) {
         ...process.env,
         NODE_OPTIONS: "",
         ...baseEnv,
-        ...overrides
+        ...overrides,
       },
-      encoding: "utf8"
-    }
+      encoding: "utf8",
+    },
   );
 }
 
@@ -64,7 +64,7 @@ test("production config requires TRUST_PROXY", () => {
 test("production config requires a hashed super admin password", () => {
   const result = loadConfig({
     SUPER_ADMIN_EMAIL: "super@example.com",
-    SUPER_ADMIN_PASSWORD_HASH: ""
+    SUPER_ADMIN_PASSWORD_HASH: "",
   });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /SUPER_ADMIN_EMAIL requires SUPER_ADMIN_PASSWORD_HASH in production/);

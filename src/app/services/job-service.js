@@ -1,6 +1,12 @@
-import { runCampaignPreparationJob } from './campaign-preparation-service.js';
-import { runCustomerImportJob } from './customer-import-job-service.js';
-import { RETRYABLE_JOB_TYPES, recoverJobLeases, heartbeatJob, completeClaimedJob, failClaimedJob } from './job-recovery.js';
+import { runCampaignPreparationJob } from "./campaign-preparation-service.js";
+import { runCustomerImportJob } from "./customer-import-job-service.js";
+import {
+  RETRYABLE_JOB_TYPES,
+  recoverJobLeases,
+  heartbeatJob,
+  completeClaimedJob,
+  failClaimedJob,
+} from "./job-recovery.js";
 import crypto from "node:crypto";
 import { withDbClientContext } from "../database.js";
 import { JobRepo } from "../repositories/job-repository.js";
@@ -10,7 +16,9 @@ import { config } from "../../config/index.js";
 import { logger } from "../../utils/logger.js";
 import { createClient } from "redis";
 
-function id() { return crypto.randomUUID(); }
+function id() {
+  return crypto.randomUUID();
+}
 
 function jobLogContext(job, extras = {}) {
   return {
@@ -19,7 +27,7 @@ function jobLogContext(job, extras = {}) {
     businessId: job?.business_id ?? job?.payload?.businessId ?? null,
     attempts: job?.attempts ?? null,
     status: job?.status ?? null,
-    ...extras
+    ...extras,
   };
 }
 
@@ -39,7 +47,7 @@ const HANDLERS = {
   "lifecycle.run": async ({ businessId = null } = {}) => {
     const out = await runLifecycleOnce({ businessId });
     return { ok: true, runs: out.length };
-  }
+  },
 };
 
 const REDIS_QUEUE_KEY = "pf:jobs:queue";
@@ -55,7 +63,12 @@ if (!REDIS_FORCE_DB && config.JOB_QUEUE_DRIVER === "redis" && config.REDIS_URL) 
 }
 
 function isTrackedJob(job) {
-  return Boolean(job && typeof job === "object" && job.id && ("status" in job || "job_type" in job || "created_at" in job));
+  return Boolean(
+    job &&
+    typeof job === "object" &&
+    job.id &&
+    ("status" in job || "job_type" in job || "created_at" in job),
+  );
 }
 
 function parseRedisQueueItem(item) {
@@ -67,7 +80,7 @@ function parseRedisQueueItem(item) {
     if (parsed && typeof parsed === "object") {
       return {
         jobId: typeof parsed.id === "string" ? parsed.id : null,
-        legacyJob: parsed
+        legacyJob: parsed,
       };
     }
   } catch {
@@ -92,12 +105,14 @@ async function claimQueuedJobById(jobId) {
            AND status='QUEUED'
            AND run_after <= now()
          RETURNING *`,
-        [jobId]
+        [jobId],
       );
       await client.query("COMMIT");
       return upd.rows[0] ?? null;
     } catch (e) {
-      try { await client.query("ROLLBACK"); } catch {}
+      try {
+        await client.query("ROLLBACK");
+      } catch {}
       throw e;
     }
   });
@@ -115,7 +130,7 @@ async function claimNextQueuedDbJob() {
            AND run_after <= now()
          ORDER BY created_at ASC
          FOR UPDATE SKIP LOCKED
-         LIMIT 1`
+         LIMIT 1`,
       );
       if (!lock.rowCount) {
         await client.query("ROLLBACK");
@@ -131,12 +146,14 @@ async function claimNextQueuedDbJob() {
              attempts=attempts+1
          WHERE id=$1
          RETURNING *`,
-        [jobId]
+        [jobId],
       );
       await client.query("COMMIT");
       return upd.rows[0] ?? null;
     } catch (e) {
-      try { await client.query("ROLLBACK"); } catch {}
+      try {
+        await client.query("ROLLBACK");
+      } catch {}
       throw e;
     }
   });
@@ -144,27 +161,30 @@ async function claimNextQueuedDbJob() {
 
 export async function enqueueJobWithDeps(
   deps,
-  { businessId = null, jobType, payload = {}, runAfter = null }
+  { businessId = null, jobType, payload = {}, runAfter = null },
 ) {
   const jobRecord = await deps.jobRepo.create({
     id: id(),
     business_id: businessId,
     job_type: jobType,
     payload,
-    run_after: runAfter
+    run_after: runAfter,
   });
 
   if (deps.redisClient && !runAfter) {
     try {
       await deps.redisClient.lPush(REDIS_QUEUE_KEY, JSON.stringify({ id: jobRecord.id }));
     } catch (err) {
-      deps.logger.warn({ err: err?.message, jobId: jobRecord.id }, "Job queue: redis enqueue failed, leaving job in DB queue");
+      deps.logger.warn(
+        { err: err?.message, jobId: jobRecord.id },
+        "Job queue: redis enqueue failed, leaving job in DB queue",
+      );
     }
   }
 
   deps.logger.info?.(
     jobLogContext(jobRecord, { queueDriver: deps.redisClient && !runAfter ? "redis" : "db" }),
-    "Background job enqueued"
+    "Background job enqueued",
   );
 
   return jobRecord;
@@ -175,9 +195,9 @@ export async function enqueueJob({ businessId = null, jobType, payload = {}, run
     {
       jobRepo: JobRepo,
       redisClient: redis,
-      logger
+      logger,
     },
-    { businessId, jobType, payload, runAfter }
+    { businessId, jobType, payload, runAfter },
   );
 }
 
@@ -218,7 +238,7 @@ export async function processPendingJobsOnce({ limit = 10 } = {}) {
                  error=$2,
                  completed_at=now()
              WHERE id=$1`,
-            [job.id, `Unknown job type: ${resolvedJobType}`]
+            [job.id, `Unknown job type: ${resolvedJobType}`],
           );
         });
         logger.warn(jobLogContext(job), "Background job failed: unknown job type");
@@ -230,9 +250,13 @@ export async function processPendingJobsOnce({ limit = 10 } = {}) {
     }
 
     const recoverable = trackedJob && RETRYABLE_JOB_TYPES.includes(resolvedJobType);
-    const heartbeat = recoverable ? setInterval(() => {
-      withDbClientContext({platformAdmin:true,tenantId:null}, client => heartbeatJob(client,job)).catch(() => logger.warn({jobId:job.id}, 'Job heartbeat failed'));
-    }, 30000) : null;
+    const heartbeat = recoverable
+      ? setInterval(() => {
+          withDbClientContext({ platformAdmin: true, tenantId: null }, (client) =>
+            heartbeatJob(client, job),
+          ).catch(() => logger.warn({ jobId: job.id }, "Job heartbeat failed"));
+        }, 30000)
+      : null;
     heartbeat?.unref();
     try {
       const businessId = job.business_id ?? job.payload?.businessId ?? null;
@@ -240,24 +264,33 @@ export async function processPendingJobsOnce({ limit = 10 } = {}) {
       const result = await handler({ ...(job.payload ?? {}), businessId });
       if (trackedJob) {
         await withDbClientContext({ platformAdmin: true, tenantId: null }, async (client) => {
-          await completeClaimedJob(client,job,result);
+          await completeClaimedJob(client, job, result);
         });
         logger.info(jobLogContext(job, { businessId }), "Background job completed");
       } else {
-        logger.info({ jobType: resolvedJobType, jobId: job.id || null }, "Job processed (Redis queue)");
+        logger.info(
+          { jobType: resolvedJobType, jobId: job.id || null },
+          "Job processed (Redis queue)",
+        );
       }
     } catch (e) {
       const message = e?.message ?? String(e);
       if (trackedJob) {
         await withDbClientContext({ platformAdmin: true, tenantId: null }, async (client) => {
-          if (recoverable) await failClaimedJob(client,job);
-          else await client.query("UPDATE background_jobs SET status='FAILED',error=$2,completed_at=now() WHERE id=$1 AND status='RUNNING' AND attempts=$3",[job.id,message,job.attempts]);
+          if (recoverable) await failClaimedJob(client, job);
+          else
+            await client.query(
+              "UPDATE background_jobs SET status='FAILED',error=$2,completed_at=now() WHERE id=$1 AND status='RUNNING' AND attempts=$3",
+              [job.id, message, job.attempts],
+            );
         });
         logger.warn(jobLogContext(job, { err: message }), "Background job failed");
       } else {
         logger.warn({ jobType: resolvedJobType, err: message }, "Job failed (Redis queue)");
       }
-    } finally { if (heartbeat) clearInterval(heartbeat); }
+    } finally {
+      if (heartbeat) clearInterval(heartbeat);
+    }
 
     processed += 1;
   }
@@ -273,6 +306,12 @@ export async function redisHealth() {
     return { driver: "redis", queueDepth: depth ?? 0, healthy: true, redis: "ok", lastError: null };
   } catch (err) {
     logger.warn({ err: err?.message }, "Job queue: redis health failed");
-    return { driver: "redis", queueDepth: -1, healthy: false, redis: "error", lastError: err?.message ?? String(err) };
+    return {
+      driver: "redis",
+      queueDepth: -1,
+      healthy: false,
+      redis: "error",
+      lastError: err?.message ?? String(err),
+    };
   }
 }

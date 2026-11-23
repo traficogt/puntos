@@ -1,17 +1,17 @@
 import {
   createDefaultAchievements,
   checkAndAwardAchievements,
-  getCustomerAchievementsWithProgress
+  getCustomerAchievementsWithProgress,
 } from "./gamification/achievements-service.js";
 import {
   createChallenge,
   getCustomerChallenges,
-  updateChallengeProgress
+  updateChallengeProgress,
 } from "./gamification/challenges-service.js";
 import {
   getPointsLeaderboard,
   getStreakLeaderboard,
-  getCustomerPosition
+  getCustomerPosition,
 } from "./gamification/leaderboards-service.js";
 
 export const GamificationService = {
@@ -23,5 +23,5 @@ export const GamificationService = {
   updateChallengeProgress,
   getPointsLeaderboard,
   getStreakLeaderboard,
-  getCustomerPosition
+  getCustomerPosition,
 };

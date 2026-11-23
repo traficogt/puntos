@@ -8,11 +8,20 @@ test("customer-facing routes use /registro while preserving temporary compatibil
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const loginHtml = fs.readFileSync(new URL("../../public/ingresar.html", import.meta.url), "utf8");
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const customerHtml = fs.readFileSync(new URL("../../public/customer.html", import.meta.url), "utf8");
+  const customerHtml = fs.readFileSync(
+    new URL("../../public/customer.html", import.meta.url),
+    "utf8",
+  );
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const customerJs = fs.readFileSync(new URL("../../public/customer/index.js", import.meta.url), "utf8");
+  const customerJs = fs.readFileSync(
+    new URL("../../public/customer/index.js", import.meta.url),
+    "utf8",
+  );
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const customerLoadJs = fs.readFileSync(new URL("../../public/customer/load.js", import.meta.url), "utf8");
+  const customerLoadJs = fs.readFileSync(
+    new URL("../../public/customer/load.js", import.meta.url),
+    "utf8",
+  );
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const joinJs = fs.readFileSync(new URL("../../public/join.js", import.meta.url), "utf8");
   // eslint-disable-next-line security/detect-non-literal-fs-filename
@@ -21,8 +30,14 @@ test("customer-facing routes use /registro while preserving temporary compatibil
   const adminJs = fs.readFileSync(new URL("../../public/admin.js", import.meta.url), "utf8");
 
   assert.match(customerHtml, /Pide al negocio su enlace de acceso/);
-  assert.match(customerLoadJs, /location\.href = `\/ingresar\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=sesion-vencida/);
-  assert.match(customerJs, /location\.href = `\/ingresar\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=salida`/);
+  assert.match(
+    customerLoadJs,
+    /location\.href = `\/ingresar\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=sesion-vencida/,
+  );
+  assert.match(
+    customerJs,
+    /location\.href = `\/ingresar\/\$\{encodeURIComponent\(cachedSlug\)\}\?motivo=salida`/,
+  );
   assert.match(joinJs, /mode: "register"/);
   assert.match(loginJs, /mode: "login"/);
   assert.match(adminJs, /\/registro\//);

@@ -24,7 +24,7 @@ export const StaffCreateSchema = z.object({
   password: passwordSchema,
   role: z.enum(["CASHIER", "MANAGER"]).optional(),
   branch_id: z.guid().optional(),
-  can_manage_gift_cards: z.boolean().optional()
+  can_manage_gift_cards: z.boolean().optional(),
 });
 
 export const StaffUpdateSchema = z.object({
@@ -32,7 +32,7 @@ export const StaffUpdateSchema = z.object({
   password: passwordSchema.optional(),
   role: z.enum(["CASHIER", "MANAGER"]).optional(),
   branch_id: z.guid().nullable().optional(),
-  can_manage_gift_cards: z.boolean().optional()
+  can_manage_gift_cards: z.boolean().optional(),
 });
 
 adminStaffRoutes.get(
@@ -45,7 +45,7 @@ adminStaffRoutes.get(
   asyncRoute(async (req, res) => {
     const rows = await StaffRepo.listByBusiness(req.tenantId);
     return res.json({ ok: true, staff: rows });
-  })
+  }),
 );
 
 adminStaffRoutes.post(
@@ -74,7 +74,7 @@ adminStaffRoutes.post(
     assertPasswordAllowed(v.data.password, {
       email: v.data.email,
       name: v.data.name,
-      phone: v.data.phone
+      phone: v.data.phone,
     });
     const password_hash = await hashPassword(v.data.password);
 
@@ -86,14 +86,14 @@ adminStaffRoutes.post(
       email: v.data.email,
       phone: v.data.phone ?? null,
       role: v.data.role ?? "CASHIER",
-      password_hash
+      password_hash,
     });
 
     if (v.data.can_manage_gift_cards !== undefined) {
-      await dbQuery(
-        "UPDATE staff_users SET can_manage_gift_cards = $2 WHERE id = $1",
-        [staff.id, Boolean(v.data.can_manage_gift_cards)]
-      );
+      await dbQuery("UPDATE staff_users SET can_manage_gift_cards = $2 WHERE id = $1", [
+        staff.id,
+        Boolean(v.data.can_manage_gift_cards),
+      ]);
     }
     const finalStaff = await StaffRepo.getById(staff.id);
 
@@ -105,10 +105,10 @@ adminStaffRoutes.post(
         email: finalStaff.email,
         role: finalStaff.role,
         branch_id: finalStaff.branch_id,
-        can_manage_gift_cards: finalStaff.can_manage_gift_cards
-      }
+        can_manage_gift_cards: finalStaff.can_manage_gift_cards,
+      },
     });
-  })
+  }),
 );
 
 adminStaffRoutes.patch(
@@ -127,7 +127,8 @@ adminStaffRoutes.patch(
       return res.status(404).json({ error: "Staff no encontrado" });
     }
 
-    if (target.role === "OWNER") return res.status(400).json({ error: "No se puede editar OWNER desde este panel" });
+    if (target.role === "OWNER")
+      return res.status(400).json({ error: "No se puede editar OWNER desde este panel" });
 
     const fields = [];
     const params = [];
@@ -154,7 +155,7 @@ adminStaffRoutes.patch(
       assertPasswordAllowed(v.data.password, {
         email: target.email,
         name: target.name,
-        phone: target.phone
+        phone: target.phone,
       });
       const password_hash = await hashPassword(v.data.password);
       fields.push(`password_hash = $${idx++}`);
@@ -171,20 +172,20 @@ adminStaffRoutes.patch(
       `UPDATE staff_users
        SET ${fields.join(", ")}
        WHERE id = $${idx++} AND business_id = $${idx}`,
-      params
+      params,
     );
 
     if (
-      v.data.active !== undefined
-      || v.data.password !== undefined
-      || v.data.role !== undefined
-      || v.data.branch_id !== undefined
-      || v.data.can_manage_gift_cards !== undefined
+      v.data.active !== undefined ||
+      v.data.password !== undefined ||
+      v.data.role !== undefined ||
+      v.data.branch_id !== undefined ||
+      v.data.can_manage_gift_cards !== undefined
     ) {
       await invalidateBrowserSessionsForActor({
         actorType: "STAFF",
         actorId: target.id,
-        reason: "staff_security_change"
+        reason: "staff_security_change",
       }).catch(() => {});
     }
 
@@ -198,8 +199,8 @@ adminStaffRoutes.patch(
         role: updated.role,
         branch_id: updated.branch_id,
         active: updated.active,
-        can_manage_gift_cards: updated.can_manage_gift_cards
-      }
+        can_manage_gift_cards: updated.can_manage_gift_cards,
+      },
     });
-  })
+  }),
 );

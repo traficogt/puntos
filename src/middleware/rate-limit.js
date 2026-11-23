@@ -18,35 +18,42 @@ if (config.RATE_LIMIT_DRIVER === "redis" && String(config.REDIS_URL || "").trim(
     redisReady = false;
     logger.warn({ err: err?.message }, "Redis rate-limit client error; using memory store");
   });
-  redisClient.connect()
+  redisClient
+    .connect()
     .then(() => {
       redisReady = true;
       logger.info("Redis rate-limit client connected");
     })
     .catch((err) => {
       redisReady = false;
-      logger.warn({ err: err?.message }, "Redis rate-limit client failed to connect; using memory store");
+      logger.warn(
+        { err: err?.message },
+        "Redis rate-limit client failed to connect; using memory store",
+      );
     });
 }
 
-setInterval(() => {
-  const now = Date.now();
-  const ttl = 60 * 60 * 1000;
+setInterval(
+  () => {
+    const now = Date.now();
+    const ttl = 60 * 60 * 1000;
 
-  for (const store of [userLimitStore, phoneLimitStore, ipLimitStore]) {
-    for (const [key, value] of store.entries()) {
-      if (!value || typeof value.resetTime !== "number" || (now - value.resetTime > ttl)) {
-        store.delete(key);
+    for (const store of [userLimitStore, phoneLimitStore, ipLimitStore]) {
+      for (const [key, value] of store.entries()) {
+        if (!value || typeof value.resetTime !== "number" || now - value.resetTime > ttl) {
+          store.delete(key);
+        }
       }
     }
-  }
-}, 5 * 60 * 1000).unref();
+  },
+  5 * 60 * 1000,
+).unref();
 
 function setRateLimitHeaders(res, { max, remaining, resetIn }) {
   res.set({
     "X-RateLimit-Limit": String(max),
     "X-RateLimit-Remaining": String(Math.max(0, Number(remaining ?? 0))),
-    "X-RateLimit-Reset": String(Math.max(0, Number(resetIn ?? 0)))
+    "X-RateLimit-Reset": String(Math.max(0, Number(resetIn ?? 0))),
   });
 }
 
@@ -88,7 +95,9 @@ export function rateLimitByIp(max = 120, windowMs = 60_000, opts = {}) {
       const key = `${keyPrefix}${ip}`;
 
       const result = redisReady
-        ? await checkLimitRedis(key, max, windowMs).catch(() => checkLimitMemory(ipLimitStore, key, max, windowMs))
+        ? await checkLimitRedis(key, max, windowMs).catch(() =>
+            checkLimitMemory(ipLimitStore, key, max, windowMs),
+          )
         : checkLimitMemory(ipLimitStore, key, max, windowMs);
 
       setRateLimitHeaders(res, { max, remaining: result.remaining, resetIn: result.resetIn });
@@ -110,12 +119,16 @@ export function rateLimitByUser(max = 100, windowMs = 60_000) {
 
       const key = `user:${userId}`;
       const result = redisReady
-        ? await checkLimitRedis(key, max, windowMs).catch(() => checkLimitMemory(userLimitStore, key, max, windowMs))
+        ? await checkLimitRedis(key, max, windowMs).catch(() =>
+            checkLimitMemory(userLimitStore, key, max, windowMs),
+          )
         : checkLimitMemory(userLimitStore, key, max, windowMs);
 
       setRateLimitHeaders(res, { max, remaining: result.remaining, resetIn: result.resetIn });
       if (!result.allowed) {
-        return next(tooManyRequests(`Rate limit exceeded. Try again in ${result.resetIn} seconds.`));
+        return next(
+          tooManyRequests(`Rate limit exceeded. Try again in ${result.resetIn} seconds.`),
+        );
       }
       return next();
     } catch (err) {
@@ -134,12 +147,18 @@ export function rateLimitByPhone(max = 3, windowMs = 60_000, opts = {}) {
       const normalizedPhone = String(phone).replace(/\D/g, "");
       const key = `${keyPrefix}${normalizedPhone}`;
       const result = redisReady
-        ? await checkLimitRedis(key, max, windowMs).catch(() => checkLimitMemory(phoneLimitStore, key, max, windowMs))
+        ? await checkLimitRedis(key, max, windowMs).catch(() =>
+            checkLimitMemory(phoneLimitStore, key, max, windowMs),
+          )
         : checkLimitMemory(phoneLimitStore, key, max, windowMs);
 
       setRateLimitHeaders(res, { max, remaining: result.remaining, resetIn: result.resetIn });
       if (!result.allowed) {
-        return next(tooManyRequests(`Too many requests for this phone number. Try again in ${result.resetIn} seconds.`));
+        return next(
+          tooManyRequests(
+            `Too many requests for this phone number. Try again in ${result.resetIn} seconds.`,
+          ),
+        );
       }
       return next();
     } catch (err) {
@@ -148,10 +167,16 @@ export function rateLimitByPhone(max = 3, windowMs = 60_000, opts = {}) {
   };
 }
 
-export const strictRateLimit = rateLimitByIp(5, 15 * 60 * 1000, { keyPrefix: "ip:strict:", message: "Too many attempts." });
+export const strictRateLimit = rateLimitByIp(5, 15 * 60 * 1000, {
+  keyPrefix: "ip:strict:",
+  message: "Too many attempts.",
+});
 export const moderateRateLimit = rateLimitByIp(60, 60 * 1000, { keyPrefix: "ip:moderate:" });
 export const lenientRateLimit = rateLimitByIp(120, 60 * 1000, { keyPrefix: "ip:lenient:" });
 
 export function globalApiRateLimit(skip) {
-  return rateLimitByIp(config.RATE_LIMIT_MAX, config.RATE_LIMIT_WINDOW_MS, { keyPrefix: "ip:api:", skip });
+  return rateLimitByIp(config.RATE_LIMIT_MAX, config.RATE_LIMIT_WINDOW_MS, {
+    keyPrefix: "ip:api:",
+    skip,
+  });
 }

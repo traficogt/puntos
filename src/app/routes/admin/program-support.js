@@ -4,7 +4,7 @@ import { maskSecret } from "./_util.js";
 
 export const ProgramSchema = z.object({
   program_type: z.enum(["SPEND", "VISIT", "ITEM", "DISCOUNT", "STAMP", "CASHBACK", "GIFT_CARD"]),
-  program_json: z.record(z.string(), z.any())
+  program_json: z.record(z.string(), z.any()),
 });
 
 export const AUTOMATION_TEMPLATES = [
@@ -21,8 +21,8 @@ export const AUTOMATION_TEMPLATES = [
       suspicious_digest_enabled: true,
       suspicious_digest_min_count: 2,
       scheduler_hour_local: 9,
-      scheduler_tz: "America/Guatemala"
-    }
+      scheduler_tz: "America/Guatemala",
+    },
   },
   {
     key: "reactivacion_fuerte",
@@ -37,8 +37,8 @@ export const AUTOMATION_TEMPLATES = [
       suspicious_digest_enabled: true,
       suspicious_digest_min_count: 1,
       scheduler_hour_local: 10,
-      scheduler_tz: "America/Guatemala"
-    }
+      scheduler_tz: "America/Guatemala",
+    },
   },
   {
     key: "solo_alertas",
@@ -53,40 +53,48 @@ export const AUTOMATION_TEMPLATES = [
       suspicious_digest_enabled: true,
       suspicious_digest_min_count: 1,
       scheduler_hour_local: 9,
-      scheduler_tz: "America/Guatemala"
-    }
-  }
+      scheduler_tz: "America/Guatemala",
+    },
+  },
 ];
 
 export const AutomationTemplateSchema = z.object({
-  template: z.enum(["cafeteria_basico", "reactivacion_fuerte", "solo_alertas"])
+  template: z.enum(["cafeteria_basico", "reactivacion_fuerte", "solo_alertas"]),
 });
 
-export const automationTemplateMap = Object.fromEntries(AUTOMATION_TEMPLATES.map((template) => [template.key, template.config]));
+export const automationTemplateMap = Object.fromEntries(
+  AUTOMATION_TEMPLATES.map((template) => [template.key, template.config]),
+);
 
 export const CampaignRulesSchema = z.object({
-  rules: z.array(z.object({
-    id: z.string().optional(),
-    name: z.string().min(1).max(120),
-    active: z.boolean().optional(),
-    kind: z.enum(["multiplier", "bonus_points"]),
-    value: z.number(),
-    max_points: z.number().optional(),
-    program_type: z.enum(["SPEND", "VISIT", "ITEM"]).optional(),
-    condition: z.object({
-      weekdays: z.array(z.number().int().min(0).max(6)).optional(),
-      min_amount_q: z.number().optional(),
-      min_visits: z.number().optional(),
-      min_items: z.number().optional(),
-      start_hour: z.number().int().min(0).max(23).optional(),
-      end_hour: z.number().int().min(0).max(23).optional()
-    }).optional()
-  })).max(100)
+  rules: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        name: z.string().min(1).max(120),
+        active: z.boolean().optional(),
+        kind: z.enum(["multiplier", "bonus_points"]),
+        value: z.number(),
+        max_points: z.number().optional(),
+        program_type: z.enum(["SPEND", "VISIT", "ITEM"]).optional(),
+        condition: z
+          .object({
+            weekdays: z.array(z.number().int().min(0).max(6)).optional(),
+            min_amount_q: z.number().optional(),
+            min_visits: z.number().optional(),
+            min_items: z.number().optional(),
+            start_hour: z.number().int().min(0).max(23).optional(),
+            end_hour: z.number().int().min(0).max(23).optional(),
+          })
+          .optional(),
+      }),
+    )
+    .max(100),
 });
 
 export const ExternalAwardsSchema = z.object({
   enabled: z.boolean(),
-  api_key: z.string().min(8).max(120).optional()
+  api_key: z.string().min(8).max(120).optional(),
 });
 
 export async function getBusinessOr404(res, tenantId) {
@@ -103,6 +111,6 @@ export function formatExternalAwards(programJson = {}) {
   return {
     enabled: Boolean(externalAwards.enabled),
     has_api_key: Boolean(externalAwards.api_key),
-    api_key_masked: maskSecret(externalAwards.api_key)
+    api_key_masked: maskSecret(externalAwards.api_key),
   };
 }

@@ -6,7 +6,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { gzipSync } from "node:zlib";
 
-const sqlDump = "-- PostgreSQL database dump\nCREATE TABLE public.backup_probe (id integer);\n-- PostgreSQL database dump complete\n";
+const sqlDump =
+  "-- PostgreSQL database dump\nCREATE TABLE public.backup_probe (id integer);\n-- PostgreSQL database dump complete\n";
 
 async function fixture(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "puntos-backup-test-"));
@@ -15,32 +16,68 @@ async function fixture(t) {
   const scripts = path.join(root, "src/scripts");
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   await fs.mkdir(scripts, { recursive: true });
-  for (const name of ["backup-db.sh", "verify-backup.mjs", "write-ops-report.mjs", "backup-health.sh"]) {
+  for (const name of [
+    "backup-db.sh",
+    "verify-backup.mjs",
+    "write-ops-report.mjs",
+    "backup-health.sh",
+  ]) {
     // Fixed operator scripts are copied into the isolated fixture.
-    await fs.copyFile(new URL(`../../src/scripts/${name}`, import.meta.url), path.join(scripts, name));
+    await fs.copyFile(
+      new URL(`../../src/scripts/${name}`, import.meta.url),
+      path.join(scripts, name),
+    );
   }
   const docker = path.join(root, "docker");
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  await fs.writeFile(docker, `#!/usr/bin/env node
+  await fs.writeFile(
+    docker,
+    `#!/usr/bin/env node
 require('node:fs').writeFileSync(process.env.MOCK_DOCKER_ARGS, JSON.stringify(process.argv.slice(2)));
 process.stdout.write(process.env.MOCK_SQL_DUMP);
 process.exit(process.env.MOCK_DUMP_FAILURE === '1' ? 1 : 0);
-`, { mode: 0o700 });
+`,
+    { mode: 0o700 },
+  );
   const argsFile = path.join(root, "docker-args.json");
   const output = path.join(root, "backups");
-  const env = { ...process.env, PATH: `${root}:${process.env.PATH}`, DB_USER: "restricted-app", BACKUP_DB_USER: "backup-admin", SECRETS_DIR: root, MOCK_DOCKER_ARGS: argsFile, MOCK_SQL_DUMP: sqlDump };
-  const run = (script, args = [], overrides = {}) => spawnSync("bash", [path.join(scripts, script), ...args], { cwd: root, env: { ...env, ...overrides }, encoding: "utf8" });
+  const env = {
+    ...process.env,
+    PATH: `${root}:${process.env.PATH}`,
+    DB_USER: "restricted-app",
+    BACKUP_DB_USER: "backup-admin",
+    SECRETS_DIR: root,
+    MOCK_DOCKER_ARGS: argsFile,
+    MOCK_SQL_DUMP: sqlDump,
+  };
+  const run = (script, args = [], overrides = {}) =>
+    spawnSync("bash", [path.join(scripts, script), ...args], {
+      cwd: root,
+      env: { ...env, ...overrides },
+      encoding: "utf8",
+    });
   return { root, output, argsFile, run, scripts };
 }
 
 test("backup verification rejects empty gzip archives and truncated SQL dumps", async (t) => {
   const { root, scripts } = await fixture(t);
-  for (const contents of ["", "-- PostgreSQL database dump\nCREATE TABLE public.incomplete(id integer);\n"]) {
+  for (const contents of [
+    "",
+    "-- PostgreSQL database dump\nCREATE TABLE public.incomplete(id integer);\n",
+  ]) {
     const file = path.join(root, "invalid.sql.gz");
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     await fs.writeFile(file, gzipSync(contents));
-    const result = spawnSync(process.execPath, [path.join(scripts, "verify-backup.mjs"), "--file", file], { encoding: "utf8" });
-    assert.notEqual(result.status, 0, "An empty or incomplete dump must not be considered recoverable");
+    const result = spawnSync(
+      process.execPath,
+      [path.join(scripts, "verify-backup.mjs"), "--file", file],
+      { encoding: "utf8" },
+    );
+    assert.notEqual(
+      result.status,
+      0,
+      "An empty or incomplete dump must not be considered recoverable",
+    );
   }
 });
 
@@ -48,8 +85,12 @@ test("failed pg_dump never leaves a published backup archive", async (t) => {
   const { run, output } = await fixture(t);
   const result = run("backup-db.sh", [output], { MOCK_DUMP_FAILURE: "1" });
   assert.notEqual(result.status, 0);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  assert.deepEqual(await fs.readdir(output), [], "Failed dumps must be removed, including temporary files");
+  assert.deepEqual(
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    await fs.readdir(output),
+    [],
+    "Failed dumps must be removed, including temporary files",
+  );
 });
 
 test("successful backups use the backup role and private files with verified metadata", async (t) => {
@@ -62,11 +103,23 @@ test("successful backups use the backup role and private files with verified met
   // over the network. The password is read from the mounted secrets directory *inside* the client
   // container, so it is never a literal on any command line, and that directory is mounted read-only.
   assert.ok(args.includes("PGUSER=backup-admin"), "pg_dump must run as the backup role");
-  assert.ok(!args.includes("PGUSER=restricted-app"), "pg_dump must not run as the application role");
-  assert.ok(args.some((arg) => /^PGHOST=.+/.test(arg)), "the client must target the configured database host");
-  assert.ok(args.some((arg) => /:\/run\/secrets:ro$/.test(arg)), "secrets must be mounted read-only into the client");
+  assert.ok(
+    !args.includes("PGUSER=restricted-app"),
+    "pg_dump must not run as the application role",
+  );
+  assert.ok(
+    args.some((arg) => /^PGHOST=.+/.test(arg)),
+    "the client must target the configured database host",
+  );
+  assert.ok(
+    args.some((arg) => /:\/run\/secrets:ro$/.test(arg)),
+    "secrets must be mounted read-only into the client",
+  );
   const passwordArgs = args.filter((arg) => arg.includes("PGPASSWORD="));
-  assert.ok(passwordArgs.length > 0 && passwordArgs.every((arg) => arg.includes('$(cat "/run/secrets/')), "the password must come from the secret file, never a literal");
+  assert.ok(
+    passwordArgs.length > 0 && passwordArgs.every((arg) => arg.includes('$(cat "/run/secrets/')),
+    "the password must come from the secret file, never a literal",
+  );
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const files = await fs.readdir(output);
   assert.equal(files.length, 3);
@@ -85,5 +138,9 @@ test("backup health rejects recent empty archives without verification metadata"
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   await fs.writeFile(path.join(root, "puntos_20260101_000000.sql.gz"), gzipSync(""));
   const result = run("backup-health.sh", ["--dir", root]);
-  assert.notEqual(result.status, 0, "A fresh modification time cannot make an empty backup healthy");
+  assert.notEqual(
+    result.status,
+    0,
+    "A fresh modification time cannot make an empty backup healthy",
+  );
 });

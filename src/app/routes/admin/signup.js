@@ -20,9 +20,11 @@ const SignupSchema = z.object({
   phone: z.string().min(6).optional(),
   password: passwordSchema,
   category: z.string().optional(),
-  program_type: z.enum(["SPEND", "VISIT", "ITEM", "DISCOUNT", "STAMP", "CASHBACK", "GIFT_CARD"]).optional(),
+  program_type: z
+    .enum(["SPEND", "VISIT", "ITEM", "DISCOUNT", "STAMP", "CASHBACK", "GIFT_CARD"])
+    .optional(),
   program_json: z.record(z.string(), z.any()).optional(),
-  captcha_token: z.string().max(500).optional()
+  captcha_token: z.string().max(500).optional(),
 });
 
 adminSignupRoutes.post(
@@ -36,7 +38,9 @@ adminSignupRoutes.post(
     const payload = v.data;
 
     if (config.SIGNUP_CAPTCHA_SECRET) {
-      const providedToken = String(req.headers["x-signup-captcha"] || req.body?.captcha_token || "").trim();
+      const providedToken = String(
+        req.headers["x-signup-captcha"] || req.body?.captcha_token || "",
+      ).trim();
       if (!providedToken || !timingSafeEqualString(providedToken, config.SIGNUP_CAPTCHA_SECRET)) {
         return res.status(403).json({ error: "CAPTCHA verification failed" });
       }
@@ -51,15 +55,26 @@ adminSignupRoutes.post(
       program_type: payload.program_type ?? "SPEND",
       // No silent default rule: the owner chooses a model (preset or manual) before any points are awarded.
       program_json: payload.program_json ?? {},
-      slug: null
+      slug: null,
     });
 
     // Auto-login owner (staff cookie)
-    const token = await signStaffToken({ sid: ownerId, bid: business.id, role: "OWNER", brid: branchId });
-    res.cookie(config.STAFF_COOKIE_NAME, token, { ...cookieOpts(req), maxAge: browserCookieMaxAge("STAFF") });
+    const token = await signStaffToken({
+      sid: ownerId,
+      bid: business.id,
+      role: "OWNER",
+      brid: branchId,
+    });
+    res.cookie(config.STAFF_COOKIE_NAME, token, {
+      ...cookieOpts(req),
+      maxAge: browserCookieMaxAge("STAFF"),
+    });
 
     /** @type {AdminSignupResponse} */
-    const response = { ok: true, business: { id: business.id, slug: business.slug, name: business.name } };
+    const response = {
+      ok: true,
+      business: { id: business.id, slug: business.slug, name: business.name },
+    };
     return res.json(response);
-  })
+  }),
 );

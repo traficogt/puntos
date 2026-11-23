@@ -17,7 +17,8 @@ const { publicRoutes } = await import("../../src/app/routes/public-routes.js");
 const { BusinessRepo } = await import("../../src/app/repositories/business-repository.js");
 const { StaffRepo } = await import("../../src/app/repositories/staff-repository.js");
 const { CustomerRepo } = await import("../../src/app/repositories/customer-repository.js");
-const { InternalMagicLinkRepo } = await import("../../src/app/repositories/internal-magic-link-repository.js");
+const { InternalMagicLinkRepo } =
+  await import("../../src/app/repositories/internal-magic-link-repository.js");
 const { AuditRepo } = await import("../../src/app/repositories/audit-repository.js");
 
 function routeLayer(router, path, method) {
@@ -52,7 +53,7 @@ function makeRes() {
     json(payload) {
       this.body = payload;
       return this;
-    }
+    },
   };
 }
 
@@ -87,7 +88,7 @@ test("super magic-link generation returns an owner panel link and audits it", as
     id: staffId,
     business_id: businessId,
     branch_id: "branch-1",
-    role: "OWNER"
+    role: "OWNER",
   });
   InternalMagicLinkRepo.create = async (record) => {
     createdRecords.push(record);
@@ -104,11 +105,11 @@ test("super magic-link generation returns an owner panel link and audits it", as
         actorType: "staff",
         actorId: staffId,
         businessId,
-        target: "admin-dashboard"
+        target: "admin-dashboard",
       },
       superAdmin: { email: "super@example.com" },
       headers: { "user-agent": "test-agent" },
-      ip: "127.0.0.1"
+      ip: "127.0.0.1",
     });
 
     assert.equal(res.statusCode, 200);
@@ -144,7 +145,7 @@ test("super magic-link generation rejects actor and business mismatches", async 
 
   CustomerRepo.getById = async () => ({
     id: customerId,
-    business_id: "33333333-3333-4333-8333-333333333333"
+    business_id: "33333333-3333-4333-8333-333333333333",
   });
   InternalMagicLinkRepo.create = async (record) => {
     createdRecords.push(record);
@@ -158,9 +159,9 @@ test("super magic-link generation rejects actor and business mismatches", async 
         actorType: "customer",
         actorId: customerId,
         businessId: requestBusinessId,
-        target: "customer-wallet"
+        target: "customer-wallet",
       },
-      superAdmin: { email: "super@example.com" }
+      superAdmin: { email: "super@example.com" },
     });
 
     assert.equal(res.statusCode, 400);
@@ -186,7 +187,7 @@ test("super magic-link generation rejects inactive staff users", async () => {
     id: staffId,
     business_id: businessId,
     role: "CASHIER",
-    active: false
+    active: false,
   });
   InternalMagicLinkRepo.create = async (record) => {
     createdRecords.push(record);
@@ -200,9 +201,9 @@ test("super magic-link generation rejects inactive staff users", async () => {
         actorType: "staff",
         actorId: staffId,
         businessId,
-        target: "staff"
+        target: "staff",
       },
-      superAdmin: { email: "super@example.com" }
+      superAdmin: { email: "super@example.com" },
     });
 
     assert.equal(res.statusCode, 400);
@@ -223,23 +224,26 @@ test("super business staff endpoint filters inactive and unsupported roles", asy
   const originalListByBusiness = StaffRepo.listByBusiness;
 
   BusinessRepo.getById = async () => ({ id: businessId, name: "Biz" });
-  StaffRepo.listByBusiness = async () => ([
+  StaffRepo.listByBusiness = async () => [
     { id: "staff-1", business_id: businessId, role: "OWNER", active: true },
     { id: "staff-2", business_id: businessId, role: "CASHIER", active: true },
     { id: "staff-3", business_id: businessId, role: "SUPPORT", active: true },
-    { id: "staff-4", business_id: businessId, role: "MANAGER", active: false }
-  ]);
+    { id: "staff-4", business_id: businessId, role: "MANAGER", active: false },
+  ];
 
   try {
     const res = await runFinalHandler(layer, {
       method: "GET",
       params: { businessId },
-      superAdmin: { email: "super@example.com" }
+      superAdmin: { email: "super@example.com" },
     });
 
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.ok, true);
-    assert.deepEqual(res.body.rows.map((row) => row.id), ["staff-1", "staff-2"]);
+    assert.deepEqual(
+      res.body.rows.map((row) => row.id),
+      ["staff-1", "staff-2"],
+    );
   } finally {
     BusinessRepo.getById = originalGetById;
     StaffRepo.listByBusiness = originalListByBusiness;
@@ -265,7 +269,7 @@ test("super business customer endpoint returns a bounded list", async () => {
     const res = await runFinalHandler(layer, {
       method: "GET",
       params: { businessId },
-      superAdmin: { email: "super@example.com" }
+      superAdmin: { email: "super@example.com" },
     });
 
     assert.equal(res.statusCode, 200);
@@ -289,7 +293,7 @@ test("super business staff endpoint returns 404 when the business does not exist
     const res = await runFinalHandler(layer, {
       method: "GET",
       params: { businessId: "11111111-1111-4111-8111-111111111111" },
-      superAdmin: { email: "super@example.com" }
+      superAdmin: { email: "super@example.com" },
     });
 
     assert.equal(res.statusCode, 404);
@@ -317,16 +321,16 @@ test("customer magic-link route redirects to /c and sets the customer cookie", a
     target: "customer-wallet",
     usage_mode: "reusable_window",
     used_at: null,
-    created_by: "super@example.com"
+    created_by: "super@example.com",
   });
   InternalMagicLinkRepo.touchReusable = async (id, meta) => ({
     id,
     used_at: "2026-04-03T12:00:00.000Z",
-    meta
+    meta,
   });
   CustomerRepo.getById = async () => ({
     id: customerId,
-    business_id: businessId
+    business_id: businessId,
   });
 
   try {
@@ -334,7 +338,7 @@ test("customer magic-link route redirects to /c and sets the customer cookie", a
       method: "GET",
       params: { token: "customer-token" },
       headers: { "user-agent": "customer-agent" },
-      ip: "127.0.0.1"
+      ip: "127.0.0.1",
     });
 
     assert.equal(res.statusCode, 302);
@@ -369,14 +373,14 @@ test("staff magic-link route redirects to /staff and sets the staff cookie", asy
     target: "staff",
     usage_mode: "single_use",
     used_at: null,
-    created_by: "super@example.com"
+    created_by: "super@example.com",
   });
   InternalMagicLinkRepo.consumeSingleUse = async (id, meta) => {
     consumeCalls += 1;
     return {
       id,
       used_at: "2026-04-03T12:00:00.000Z",
-      meta
+      meta,
     };
   };
   StaffRepo.getById = async () => ({
@@ -384,7 +388,7 @@ test("staff magic-link route redirects to /staff and sets the staff cookie", asy
     business_id: businessId,
     branch_id: "branch-1",
     role: "CASHIER",
-    active: true
+    active: true,
   });
 
   try {
@@ -392,7 +396,7 @@ test("staff magic-link route redirects to /staff and sets the staff cookie", asy
       method: "GET",
       params: { token: "staff-token" },
       headers: { "user-agent": "staff-agent" },
-      ip: "127.0.0.1"
+      ip: "127.0.0.1",
     });
 
     assert.equal(res.statusCode, 302);
@@ -427,14 +431,14 @@ test("magic-link route rejects actor type mismatches safely", async () => {
     business_id: businessId,
     target: "staff",
     usage_mode: "single_use",
-    used_at: null
+    used_at: null,
   });
   InternalMagicLinkRepo.consumeSingleUse = async (id, meta) => {
     consumeCalls += 1;
     return {
       id,
       used_at: "2026-04-03T12:00:00.000Z",
-      meta
+      meta,
     };
   };
   StaffRepo.getById = async () => ({
@@ -442,14 +446,14 @@ test("magic-link route rejects actor type mismatches safely", async () => {
     business_id: businessId,
     branch_id: "branch-1",
     role: "CASHIER",
-    active: true
+    active: true,
   });
 
   try {
     const res = await runFinalHandler(layer, {
       method: "GET",
       params: { token: "mismatch-token" },
-      headers: {}
+      headers: {},
     });
 
     assert.equal(res.statusCode, 400);

@@ -9,7 +9,9 @@ const CSRF_HEADER_NAME = "x-csrf-token";
 const CSRF_BODY_FIELD = "csrf_token";
 const CSRF_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const STATEFUL_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const TRUSTED_ORIGINS = new Set([config.APP_ORIGIN, ...(config.CORS_ORIGINS || [])].filter(Boolean));
+const TRUSTED_ORIGINS = new Set(
+  [config.APP_ORIGIN, ...(config.CORS_ORIGINS || [])].filter(Boolean),
+);
 
 function generateToken() {
   return crypto.randomBytes(32).toString("base64url");
@@ -40,7 +42,7 @@ function logDenied(req, method, reason) {
     actor_type: actor.actor_type,
     actor_id: actor.actor_id,
     business_id: req.staff?.business_id || req.customerAuth?.business_id || null,
-    meta: { reason }
+    meta: { reason },
   }).catch(() => {});
 }
 
@@ -48,17 +50,17 @@ function setCsrfCookies(res, token) {
   const cookieOptions = {
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
-    maxAge: CSRF_MAX_AGE_MS
+    maxAge: CSRF_MAX_AGE_MS,
   };
 
   res.cookie(CSRF_COOKIE_NAME, token, {
     ...cookieOptions,
-    httpOnly: true
+    httpOnly: true,
   });
   // The readable cookie is the client half of the double-submit pattern.
   res.cookie(`${CSRF_COOKIE_NAME}_readable`, token, {
     ...cookieOptions,
-    httpOnly: false
+    httpOnly: false,
   });
 }
 
@@ -137,7 +139,7 @@ export function csrfProtect(req, res, next) {
     logDenied(req, method, "missing_request_token");
     return res.status(403).json({
       error: "Token CSRF requerido",
-      hint: `Incluye el token en el header '${CSRF_HEADER_NAME}' o en el campo '${CSRF_BODY_FIELD}' del body`
+      hint: `Incluye el token en el header '${CSRF_HEADER_NAME}' o en el campo '${CSRF_BODY_FIELD}' del body`,
     });
   }
 

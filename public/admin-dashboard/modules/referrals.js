@@ -25,7 +25,9 @@ export function registerReferralsModule(app) {
           strong.textContent = ref.name;
           div.appendChild(strong);
 
-          div.appendChild(document.createTextNode(` - ${ref.referral_count} referidos (${ref.total_points} pts)`));
+          div.appendChild(
+            document.createTextNode(` - ${ref.referral_count} referidos (${ref.total_points} pts)`),
+          );
           container.appendChild(div);
         });
       }
@@ -51,12 +53,12 @@ export function registerReferralsModule(app) {
         referrer_reward_points: parseInt($("#refReferrerPoints").value, 10),
         referred_reward_points: parseInt($("#refReferredPoints").value, 10),
         min_purchase_to_complete: parseFloat($("#refMinPurchase").value) || null,
-        reward_on_signup: $("#refRewardOnSignup").checked
+        reward_on_signup: $("#refRewardOnSignup").checked,
       };
 
       await api("/api/admin/referral-settings", {
         method: "PUT",
-        body: JSON.stringify(settingsData)
+        body: JSON.stringify(settingsData),
       });
 
       toast("Configuración guardada");
@@ -72,7 +74,6 @@ export function registerReferralsModule(app) {
   app.registerTab("referrals", {
     feature: "referrals",
     allowManager: false,
-    load: loadReferrals
+    load: loadReferrals,
   });
 }
-

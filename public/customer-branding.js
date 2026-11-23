@@ -3,7 +3,7 @@ const DEFAULT_CUSTOMER_BRANDING = {
   primaryColor: "#B8572F",
   accentColor: "#D7A554",
   neutralTheme: "warm",
-  poweredByVisible: true
+  poweredByVisible: true,
 };
 
 /** @typedef {{
@@ -50,14 +50,17 @@ function darken(hex, ratio) {
 export function normalizeCustomerBranding(business) {
   /** @type {BrandingBusinessLike} */
   const base = business && typeof business === "object" ? business : {};
-  const raw = base.customer_branding && typeof base.customer_branding === "object"
-    ? base.customer_branding
-    : base.customer_branding_json && typeof base.customer_branding_json === "object"
-      ? base.customer_branding_json
-      : {};
+  const raw =
+    base.customer_branding && typeof base.customer_branding === "object"
+      ? base.customer_branding
+      : base.customer_branding_json && typeof base.customer_branding_json === "object"
+        ? base.customer_branding_json
+        : {};
 
   const businessName = trimmed(base.name) || "PuntosFieles";
-  const brandingMode = ["platform_led", "endorsed_brand", "white_label_ready"].includes(trimmed(raw.branding_mode))
+  const brandingMode = ["platform_led", "endorsed_brand", "white_label_ready"].includes(
+    trimmed(raw.branding_mode),
+  )
     ? trimmed(raw.branding_mode)
     : DEFAULT_CUSTOMER_BRANDING.brandingMode;
   const programName = trimmed(raw.customer_program_name) || businessName;
@@ -67,7 +70,8 @@ export function normalizeCustomerBranding(business) {
   const neutralTheme = ["warm", "neutral", "cool"].includes(trimmed(raw.neutral_theme))
     ? trimmed(raw.neutral_theme)
     : DEFAULT_CUSTOMER_BRANDING.neutralTheme;
-  const poweredByVisible = raw.powered_by_visible === false ? false : DEFAULT_CUSTOMER_BRANDING.poweredByVisible;
+  const poweredByVisible =
+    raw.powered_by_visible === false ? false : DEFAULT_CUSTOMER_BRANDING.poweredByVisible;
   const walletHeadline = trimmed(raw.wallet_headline) || `Tus puntos en ${businessName}`;
   const joinHeadline = trimmed(raw.join_headline) || `Unete y gana beneficios en ${businessName}`;
 
@@ -84,7 +88,7 @@ export function normalizeCustomerBranding(business) {
     joinHeadline,
     navKicker: brandingMode === "platform_led" ? "Programa de lealtad" : "Programa activo",
     navTitle: brandingMode === "platform_led" ? "PuntosFieles" : programName,
-    joinSubtitle: `Confirma tu telefono para acumular puntos en ${businessName}.`
+    joinSubtitle: `Confirma tu telefono para acumular puntos en ${businessName}.`,
   };
 }
 
@@ -114,7 +118,9 @@ function setLogo(selector, url) {
 }
 
 function ensureBrandingThemeTag() {
-  let tag = /** @type {HTMLStyleElement | null} */ (document.getElementById("customerBrandingTheme"));
+  let tag = /** @type {HTMLStyleElement | null} */ (
+    document.getElementById("customerBrandingTheme")
+  );
   if (tag) return tag;
   tag = document.createElement("style");
   tag.id = "customerBrandingTheme";
@@ -130,7 +136,9 @@ export function applyCustomerBrandingTheme(branding) {
   document.body?.setAttribute("data-branding-mode", branding.brandingMode);
   document.body?.setAttribute("data-branding-neutral-theme", branding.neutralTheme);
 
-  const themeColor = /** @type {HTMLMetaElement | null} */ (document.querySelector('meta[name="theme-color"]'));
+  const themeColor = /** @type {HTMLMetaElement | null} */ (
+    document.querySelector('meta[name="theme-color"]')
+  );
   if (themeColor) themeColor.content = branding.primaryColor;
 }
 
@@ -147,7 +155,10 @@ export function applyJoinBranding($, business) {
   setText("#title", branding.joinHeadline);
   setText("#subtitle", branding.joinSubtitle);
   setText("#doneTitle", `${branding.programName} ya esta activo.`);
-  setText("#doneSubtitle", "En breve abrimos tu vista de cliente para que puedas mostrar tu QR y ver tus puntos.");
+  setText(
+    "#doneSubtitle",
+    "En breve abrimos tu vista de cliente para que puedas mostrar tu QR y ver tus puntos.",
+  );
 
   const poweredBy = /** @type {HTMLElement | null} */ ($("#customerPoweredBy"));
   if (poweredBy) {

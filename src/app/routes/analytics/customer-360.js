@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { asyncRoute } from "../../../middleware/common.js";
 import { dbQuery } from "../../database.js";
-import { buildLedgerFinding, isLedgerBalanceMismatch } from "../../services/ledger-reconciliation-service.js";
+import {
+  buildLedgerFinding,
+  isLedgerBalanceMismatch,
+} from "../../services/ledger-reconciliation-service.js";
 
 export const analyticsCustomerRoutes = Router();
 
@@ -37,7 +40,7 @@ analyticsCustomerRoutes.get(
        LEFT JOIN customer_ltv cl ON cl.customer_id = c.id
        LEFT JOIN visit_streaks vs ON vs.customer_id = c.id
        WHERE c.id = $1 AND c.business_id = $2`,
-      [customerId, req.tenantId]
+      [customerId, req.tenantId],
     );
 
     if (!rows[0]) {
@@ -52,7 +55,7 @@ analyticsCustomerRoutes.get(
        JOIN customer_segments cs ON cs.id = csa.segment_id
        WHERE csa.customer_id = $1
          AND cs.business_id = $2`,
-      [customerId, req.tenantId]
+      [customerId, req.tenantId],
     );
 
     const { rows: achievements } = await dbQuery(
@@ -63,7 +66,7 @@ analyticsCustomerRoutes.get(
          AND a.business_id = $2
        ORDER BY ca.earned_at DESC
        LIMIT 10`,
-      [customerId, req.tenantId]
+      [customerId, req.tenantId],
     );
 
     const { rows: referralStats } = await dbQuery(
@@ -73,7 +76,7 @@ analyticsCustomerRoutes.get(
        FROM referrals
        WHERE referrer_customer_id = $1
          AND business_id = $2`,
-      [customerId, req.tenantId]
+      [customerId, req.tenantId],
     );
 
     const { rows: recentTransactions } = await dbQuery(
@@ -82,7 +85,7 @@ analyticsCustomerRoutes.get(
          AND business_id = $2
        ORDER BY created_at DESC
        LIMIT 10`,
-      [customerId, req.tenantId]
+      [customerId, req.tenantId],
     );
 
     return res.json({
@@ -91,9 +94,9 @@ analyticsCustomerRoutes.get(
       segments,
       achievements,
       referral_stats: referralStats[0],
-      recent_transactions: recentTransactions
+      recent_transactions: recentTransactions,
     });
-  })
+  }),
 );
 
 analyticsCustomerRoutes.get(
@@ -140,7 +143,7 @@ analyticsCustomerRoutes.get(
        LEFT JOIN adj_agg adj ON adj.customer_id = c.id
        WHERE c.id = $1
          AND c.business_id = $2`,
-      [customerId, req.tenantId]
+      [customerId, req.tenantId],
     );
 
     if (!rows[0]) {
@@ -162,7 +165,7 @@ analyticsCustomerRoutes.get(
          AND business_id = $2
        GROUP BY source, status
        ORDER BY source ASC, status ASC`,
-      [customerId, req.tenantId]
+      [customerId, req.tenantId],
     );
 
     const { rows: transactionRows } = await dbQuery(
@@ -184,7 +187,7 @@ analyticsCustomerRoutes.get(
          AND business_id = $2
        ORDER BY created_at DESC
        LIMIT 50`,
-      [customerId, req.tenantId]
+      [customerId, req.tenantId],
     );
 
     const { rows: redemptionRows } = await dbQuery(
@@ -202,7 +205,7 @@ analyticsCustomerRoutes.get(
          AND r.business_id = $2
        ORDER BY r.created_at DESC
        LIMIT 20`,
-      [customerId, req.tenantId]
+      [customerId, req.tenantId],
     );
 
     return res.json({
@@ -212,29 +215,29 @@ analyticsCustomerRoutes.get(
         business_id: balanceRow.business_id,
         name: balanceRow.name,
         phone: balanceRow.phone,
-        created_at: balanceRow.created_at
+        created_at: balanceRow.created_at,
       },
       balances: {
         stored: {
           points: finding.stored_points,
           pending_points: finding.stored_pending_points,
-          lifetime_points: finding.stored_lifetime_points
+          lifetime_points: finding.stored_lifetime_points,
         },
         expected: {
           points: finding.expected_points,
           pending_points: finding.expected_pending_points,
-          lifetime_points: finding.expected_lifetime_points
+          lifetime_points: finding.expected_lifetime_points,
         },
         delta: {
           points: finding.delta_points,
           pending_points: finding.delta_pending_points,
-          lifetime_points: finding.delta_lifetime_points
+          lifetime_points: finding.delta_lifetime_points,
         },
-        mismatch: isLedgerBalanceMismatch(balanceRow)
+        mismatch: isLedgerBalanceMismatch(balanceRow),
       },
       ledger_breakdown: breakdownRows,
       recent_transactions: transactionRows,
-      recent_redemptions: redemptionRows
+      recent_redemptions: redemptionRows,
     });
-  })
+  }),
 );

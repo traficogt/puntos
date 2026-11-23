@@ -25,5 +25,5 @@ export const PlanConfigService = {
   async listPlans() {
     const overrides = await this.getPlanFeatureOverrides();
     return listPlans(overrides);
-  }
+  },
 };

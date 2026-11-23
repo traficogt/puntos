@@ -2,7 +2,7 @@ import { config } from "../config/index.js";
 import {
   browserSessionStatus,
   createBrowserSession,
-  getBrowserSession
+  getBrowserSession,
 } from "../app/services/auth-session-service.js";
 
 export async function signStaffToken(payload, _expiresInSeconds = 30 * 24 * 60 * 60) {
@@ -14,7 +14,7 @@ export async function signStaffToken(payload, _expiresInSeconds = 30 * 24 * 60 *
     branchId: payload.brid ?? null,
     impersonatedBy: payload.imp ?? null,
     reauthVerified: payload.reauthVerified ?? true,
-    mfaVerified: payload.mfaVerified ?? false
+    mfaVerified: payload.mfaVerified ?? false,
   });
   return out.token;
 }
@@ -24,7 +24,7 @@ export async function signCustomerToken(payload, _expiresInSeconds = 180 * 24 * 
     actorType: "CUSTOMER",
     actorId: payload.cid,
     businessId: payload.bid,
-    meta: payload.slug ? { business_slug: payload.slug } : {}
+    meta: payload.slug ? { business_slug: payload.slug } : {},
   });
   return out.token;
 }
@@ -34,7 +34,7 @@ export async function signSuperToken(payload, _expiresInSeconds = 7 * 24 * 60 * 
     actorType: "SUPER",
     actorEmail: String(payload.email || "").toLowerCase(),
     reauthVerified: payload.reauthVerified ?? true,
-    mfaVerified: payload.mfaVerified ?? false
+    mfaVerified: payload.mfaVerified ?? false,
   });
   return out.token;
 }
@@ -50,19 +50,19 @@ export async function verifyToken(token) {
       bid: session.business_id,
       role: session.role,
       brid: session.branch_id,
-      imp: session.impersonated_by
+      imp: session.impersonated_by,
     };
   }
   if (session.actor_type === "CUSTOMER") {
     return {
       typ: "customer",
       cid: session.actor_id,
-      bid: session.business_id
+      bid: session.business_id,
     };
   }
   return {
     typ: "super",
-    email: session.actor_email
+    email: session.actor_email,
   };
 }
 
@@ -75,7 +75,9 @@ export function browserCookieMaxAge(actorType) {
 }
 
 function requestIsHttps(req) {
-  const forwardedProto = String(req?.get?.("x-forwarded-proto") || req?.headers?.["x-forwarded-proto"] || "")
+  const forwardedProto = String(
+    req?.get?.("x-forwarded-proto") || req?.headers?.["x-forwarded-proto"] || "",
+  )
     .split(",")[0]
     .trim()
     .toLowerCase();
@@ -87,25 +89,27 @@ function requestIsHttps(req) {
 
 export function cookieOpts(req = null) {
   const prod = config.NODE_ENV === "production";
-  const securePreferred = prod
-    || String(config.APP_ORIGIN || "").startsWith("https://")
-    || requestIsHttps(req);
+  const securePreferred =
+    prod || String(config.APP_ORIGIN || "").startsWith("https://") || requestIsHttps(req);
   return {
     httpOnly: true,
     sameSite: "strict",
     secure: securePreferred, // set true when behind HTTPS or in prod
-    path: "/"
+    path: "/",
   };
 }
 
 export function cookieOptsWith(reqOrOverrides = null, maybeOverrides = {}) {
-  const req = (reqOrOverrides && typeof reqOrOverrides === "object" && ("headers" in reqOrOverrides || "protocol" in reqOrOverrides || "secure" in reqOrOverrides))
-    ? reqOrOverrides
-    : null;
-  const overrides = req ? maybeOverrides : (reqOrOverrides || {});
+  const req =
+    reqOrOverrides &&
+    typeof reqOrOverrides === "object" &&
+    ("headers" in reqOrOverrides || "protocol" in reqOrOverrides || "secure" in reqOrOverrides)
+      ? reqOrOverrides
+      : null;
+  const overrides = req ? maybeOverrides : reqOrOverrides || {};
   return {
     ...cookieOpts(req),
-    ...overrides
+    ...overrides,
   };
 }
 

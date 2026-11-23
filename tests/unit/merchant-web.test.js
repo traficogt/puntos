@@ -12,8 +12,7 @@ test("merchant HTML uses unique matching CSP style nonce without broadening scri
   await new Promise((resolve) => server.once("listening", resolve));
   try {
     const address = server.address();
-    if (!address || typeof address === "string")
-      throw new Error("Missing address");
+    if (!address || typeof address === "string") throw new Error("Missing address");
     const first = await fetch(`http://127.0.0.1:${address.port}/merchant/`),
       second = await fetch(`http://127.0.0.1:${address.port}/merchant`);
     assert.equal(first.status, 200);
@@ -21,13 +20,8 @@ test("merchant HTML uses unique matching CSP style nonce without broadening scri
     const html = await first.text(),
       nonce = html.match(/name="pf-style-nonce" content="([^"]+)"/)?.[1];
     assert.ok(nonce && nonce !== "__PF_STYLE_NONCE__");
-    assert.ok(
-      first.headers.get("content-security-policy").includes(`nonce-${nonce}`),
-    );
-    assert.match(
-      first.headers.get("content-security-policy"),
-      /script-src 'self'/,
-    );
+    assert.ok(first.headers.get("content-security-policy").includes(`nonce-${nonce}`));
+    assert.match(first.headers.get("content-security-policy"), /script-src 'self'/);
     assert.equal(first.headers.get("cache-control"), "no-store");
     assert.notEqual(html, await second.text());
   } finally {

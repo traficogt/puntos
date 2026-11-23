@@ -5,7 +5,7 @@ import {
   isAppRoutePath,
   normalizeHostHeader,
   resolveHostSplitRedirect,
-  runtimeConfigForHost
+  runtimeConfigForHost,
 } from "../../src/utils/app-host-routing.js";
 
 test("normalizeHostHeader strips ports and casing", () => {
@@ -33,7 +33,7 @@ test("marketing host redirects product routes to app origin", () => {
     path: "/staff/login",
     originalUrl: "/staff/login?next=%2Fstaff",
     appOrigin: "http://app.localhost:3001",
-    marketingOrigin: "http://localhost:3001"
+    marketingOrigin: "http://localhost:3001",
   });
 
   assert.equal(redirect, "http://app.localhost:3001/staff/login?next=%2Fstaff");
@@ -46,7 +46,7 @@ test("live marketing host infers app origin when configured origins are still lo
     originalUrl: "/staff/login",
     forwardedProto: "https",
     appOrigin: "http://app.localhost:3001",
-    marketingOrigin: "http://localhost:3001"
+    marketingOrigin: "http://localhost:3001",
   });
 
   assert.equal(redirect, "https://app.puntosfieles.com/staff/login");
@@ -58,7 +58,7 @@ test("app host sends root traffic into the app shell", () => {
     path: "/",
     originalUrl: "/",
     appOrigin: "http://app.localhost:3001",
-    marketingOrigin: "http://localhost:3001"
+    marketingOrigin: "http://localhost:3001",
   });
 
   assert.equal(redirect, "http://app.localhost:3001/equipo/ingresar/");
@@ -71,7 +71,7 @@ test("live app host infers its own shell when configured origins are still local
     originalUrl: "/",
     forwardedProto: "https",
     appOrigin: "http://app.localhost:3001",
-    marketingOrigin: "http://localhost:3001"
+    marketingOrigin: "http://localhost:3001",
   });
 
   assert.equal(redirect, "https://app.puntosfieles.com/equipo/ingresar/");
@@ -82,30 +82,30 @@ test("runtime config points app pages at the app origin and marketing pages at m
     runtimeConfigForHost({
       host: "app.localhost:3001",
       appOrigin: "http://app.localhost:3001",
-      marketingOrigin: "http://localhost:3001"
+      marketingOrigin: "http://localhost:3001",
     }),
     {
       apiBaseUrl: "",
       publicWebOrigin: "http://app.localhost:3001",
       appOrigin: "http://app.localhost:3001",
       marketingOrigin: "http://localhost:3001",
-      shell: "web-app"
-    }
+      shell: "web-app",
+    },
   );
 
   assert.deepEqual(
     runtimeConfigForHost({
       host: "localhost:3001",
       appOrigin: "http://app.localhost:3001",
-      marketingOrigin: "http://localhost:3001"
+      marketingOrigin: "http://localhost:3001",
     }),
     {
       apiBaseUrl: "",
       publicWebOrigin: "http://localhost:3001",
       appOrigin: "http://app.localhost:3001",
       marketingOrigin: "http://localhost:3001",
-      shell: "web-marketing"
-    }
+      shell: "web-marketing",
+    },
   );
 });
 
@@ -115,34 +115,65 @@ test("runtime config infers live app and marketing origins from the incoming hos
       host: "app.puntosfieles.com",
       forwardedProto: "https",
       appOrigin: "http://app.localhost:3001",
-      marketingOrigin: "http://localhost:3001"
+      marketingOrigin: "http://localhost:3001",
     }),
     {
       apiBaseUrl: "",
       publicWebOrigin: "https://app.puntosfieles.com",
       appOrigin: "https://app.puntosfieles.com",
       marketingOrigin: "https://puntosfieles.com",
-      shell: "web-app"
-    }
+      shell: "web-app",
+    },
   );
 });
 
-test('shared host installations serve both shells without redirect loops', () => {
-  for (const path of ['/', '/admin', '/staff/login', '/c']) assert.equal(resolveHostSplitRedirect({ host: 'localhost:3111', path, originalUrl: path, appOrigin: 'http://localhost:3111', marketingOrigin: 'http://localhost:3001' }), '');
+test("shared host installations serve both shells without redirect loops", () => {
+  for (const path of ["/", "/admin", "/staff/login", "/c"])
+    assert.equal(
+      resolveHostSplitRedirect({
+        host: "localhost:3111",
+        path,
+        originalUrl: path,
+        appOrigin: "http://localhost:3111",
+        marketingOrigin: "http://localhost:3001",
+      }),
+      "",
+    );
 });
-
 
 test("Spanish browser routes move to the app host without moving resources or APIs", () => {
   const origins = {
     host: "puntosfieles.com",
     appOrigin: "https://app.puntosfieles.com",
-    marketingOrigin: "https://puntosfieles.com"
+    marketingOrigin: "https://puntosfieles.com",
   };
-  for (const path of ["/negocio/", "/demostracion/", "/administracion/", "/crear-negocio/", "/equipo/ingresar/", "/equipo/escaner/", "/mi-tarjeta/", "/plataforma/", "/vista-previa-app/", "/registro/", "/ingresar/"]) {
+  for (const path of [
+    "/negocio/",
+    "/demostracion/",
+    "/administracion/",
+    "/crear-negocio/",
+    "/equipo/ingresar/",
+    "/equipo/escaner/",
+    "/mi-tarjeta/",
+    "/plataforma/",
+    "/vista-previa-app/",
+    "/registro/",
+    "/ingresar/",
+  ]) {
     assert.equal(isAppRoutePath(path), true, path);
-    assert.equal(resolveHostSplitRedirect({ ...origins, path, originalUrl: `${path}?token=a%2Bb` }), `https://app.puntosfieles.com${path}?token=a%2Bb`);
+    assert.equal(
+      resolveHostSplitRedirect({ ...origins, path, originalUrl: `${path}?token=a%2Bb` }),
+      `https://app.puntosfieles.com${path}?token=a%2Bb`,
+    );
   }
-  for (const path of ["/api/admin", "/negocio/recursos/index.js", "/merchant/assets/index.js", "/staff.js", "/privacidad", "/unrelated"]) {
+  for (const path of [
+    "/api/admin",
+    "/negocio/recursos/index.js",
+    "/merchant/assets/index.js",
+    "/staff.js",
+    "/privacidad",
+    "/unrelated",
+  ]) {
     assert.equal(isAppRoutePath(path), false, path);
     assert.equal(resolveHostSplitRedirect({ ...origins, path, originalUrl: path }), "");
   }

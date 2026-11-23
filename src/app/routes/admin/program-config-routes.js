@@ -4,7 +4,11 @@ import { requireOwner, requireStaff, requireStaffPermission } from "../../../mid
 import { tenantContext } from "../../../middleware/tenant.js";
 import { requirePlanFeature } from "../../../middleware/plan-feature.js";
 import { validate } from "../../../utils/validation.js";
-import { planFeaturesWithOverrides, canUseProgramType, suggestedPlanForFeature } from "../../../utils/plan.js";
+import {
+  planFeaturesWithOverrides,
+  canUseProgramType,
+  suggestedPlanForFeature,
+} from "../../../utils/plan.js";
 import { Permission, hasPermission } from "../../../utils/permissions.js";
 import { withImpersonationMeta } from "../../../utils/impersonation.js";
 import { sanitizeProgramForClient } from "../../../utils/program-secrets.js";
@@ -17,7 +21,7 @@ import {
   AutomationTemplateSchema,
   automationTemplateMap,
   getBusinessOr404,
-  ProgramSchema
+  ProgramSchema,
 } from "./program-support.js";
 
 export function registerProgramConfigRoutes(router) {
@@ -33,9 +37,9 @@ export function registerProgramConfigRoutes(router) {
       return res.json({
         ok: true,
         program_type: business.program_type,
-        program_json: sanitizeProgramForClient(business.program_json)
+        program_json: sanitizeProgramForClient(business.program_json),
       });
-    })
+    }),
   );
 
   router.post(
@@ -57,8 +61,10 @@ export function registerProgramConfigRoutes(router) {
       if (!canUseProgramType(currentBusiness.plan, v.data.program_type, overrides)) {
         return res.status(403).json({
           error: "Las tarjetas de regalo están disponibles desde el plan Negocio.",
-          code: "PLAN_FEATURE_LOCKED", feature: "gift_cards",
-          plan: currentBusiness.plan, suggested_plan: suggestedPlanForFeature("gift_cards")
+          code: "PLAN_FEATURE_LOCKED",
+          feature: "gift_cards",
+          plan: currentBusiness.plan,
+          suggested_plan: suggestedPlanForFeature("gift_cards"),
         });
       }
       const hasAdvanced = hasPermission(req.staff.role, Permission.ADMIN_PROGRAM_UPDATE_ADVANCED);
@@ -79,10 +85,13 @@ export function registerProgramConfigRoutes(router) {
       const business = await BusinessRepo.updateProgram(req.tenantId, {
         program_type: v.data.program_type,
         program_json: nextProgram,
-        preserveIntegrations: true
+        preserveIntegrations: true,
       });
-      return res.json({ ok: true, business: { ...business, program_json: sanitizeProgramForClient(business?.program_json) } });
-    })
+      return res.json({
+        ok: true,
+        business: { ...business, program_json: sanitizeProgramForClient(business?.program_json) },
+      });
+    }),
   );
 
   router.get(
@@ -97,9 +106,9 @@ export function registerProgramConfigRoutes(router) {
       return res.json({
         ok: true,
         lifecycle: business.program_json?.lifecycle ?? {},
-        templates: AUTOMATION_TEMPLATES
+        templates: AUTOMATION_TEMPLATES,
       });
-    })
+    }),
   );
 
   router.put(
@@ -115,7 +124,10 @@ export function registerProgramConfigRoutes(router) {
       const business = await getBusinessOr404(res, req.tenantId);
       if (!business) return;
 
-      const updated = await BusinessRepo.updateLifecycle(req.tenantId, automationTemplateMap[v.data.template]);
+      const updated = await BusinessRepo.updateLifecycle(
+        req.tenantId,
+        automationTemplateMap[v.data.template],
+      );
       await AuditRepo.log({
         id: makeId(),
         business_id: req.tenantId,
@@ -124,9 +136,13 @@ export function registerProgramConfigRoutes(router) {
         action: "automation.template.apply",
         ip: null,
         ua: null,
-        meta: withImpersonationMeta({ template: v.data.template }, req.staff)
+        meta: withImpersonationMeta({ template: v.data.template }, req.staff),
       }).catch(() => {});
-      return res.json({ ok: true, lifecycle: updated?.program_json?.lifecycle ?? {}, template: v.data.template });
-    })
+      return res.json({
+        ok: true,
+        lifecycle: updated?.program_json?.lifecycle ?? {},
+        template: v.data.template,
+      });
+    }),
   );
 }

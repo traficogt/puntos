@@ -16,7 +16,7 @@ function makeRes() {
     json(payload) {
       this.body = payload;
       return this;
-    }
+    },
   };
 }
 
@@ -65,23 +65,23 @@ test("admin branding routes return and persist customer branding config", async 
     qr_logo_enabled: true,
     powered_by_visible: true,
     wallet_headline: "Tus puntos en un solo lugar",
-    join_headline: "Unete y gana beneficios"
+    join_headline: "Unete y gana beneficios",
   };
 
   BusinessRepo.getById = async () => ({
     id: "biz-1",
     plan: "EMPRESA",
-    customer_branding_json: persistedBranding
+    customer_branding_json: persistedBranding,
   });
   BusinessRepo.updateCustomerBranding = async (businessId, branding) => ({
     id: businessId,
-    customer_branding_json: branding
+    customer_branding_json: branding,
   });
 
   try {
     const getRes = await runFinalHandler(getLayer, {
       method: "GET",
-      tenantId: "biz-1"
+      tenantId: "biz-1",
     });
 
     assert.equal(getRes.statusCode, 200);
@@ -91,7 +91,7 @@ test("admin branding routes return and persist customer branding config", async 
     const putRes = await runFinalHandler(putLayer, {
       method: "PUT",
       tenantId: "biz-1",
-      body: persistedBranding
+      body: persistedBranding,
     });
 
     assert.equal(putRes.statusCode, 200);
@@ -126,7 +126,7 @@ test("admin branding routes reject premium QR logo below EMPRESA", async () => {
   BusinessRepo.getById = async () => ({
     id: "biz-1",
     plan: "NEGOCIO",
-    customer_branding_json: {}
+    customer_branding_json: {},
   });
   BusinessRepo.updateCustomerBranding = async () => {
     updateCalled = true;
@@ -141,8 +141,8 @@ test("admin branding routes reject premium QR logo below EMPRESA", async () => {
         branding_mode: "endorsed_brand",
         customer_program_name: "Cafe Bourbon Rewards",
         customer_logo_url: "https://cdn.example.com/logo.png",
-        qr_logo_enabled: true
-      }
+        qr_logo_enabled: true,
+      },
     });
 
     assert.equal(putRes.statusCode, 403);

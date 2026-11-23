@@ -1,7 +1,7 @@
 import { businessRegion } from "./regional-settings.js";
 import { badRequest } from "../../utils/http-error.js";
 import { dbQuery } from "../database.js";
-import { reportingPurchase } from './reporting-purchase.js';
+import { reportingPurchase } from "./reporting-purchase.js";
 
 // Sources identify the sale writers; type alone is unsafe because redemption,
 // expiration and lifecycle writers also inherit the PURCHASE column default.
@@ -30,7 +30,7 @@ WITH clock AS (
   JOIN windows w ON t.created_at >= w.start_at AND t.created_at < w.end_at
   WHERE t.business_id = $1::uuid
     AND ($2::uuid IS NULL OR t.branch_id = $2::uuid)
-    AND ${reportingPurchase('t')}
+    AND ${reportingPurchase("t")}
 ), customer_counts AS (
   SELECT period, customer_id, COUNT(*) AS purchases
   FROM purchases GROUP BY period, customer_id
@@ -102,15 +102,33 @@ FROM bounds b`;
  * @param {{businessId: string, branchId?: string | null, days?: number, now?: Date, timezone?: string}} options
  * @param {typeof dbQuery} query
  */
-export async function getMerchantOverview({ businessId, branchId = null, days = 30, now = new Date(), timezone = undefined }, query = dbQuery) {
+export async function getMerchantOverview(
+  { businessId, branchId = null, days = 30, now = new Date(), timezone = undefined },
+  query = dbQuery,
+) {
   if (![7, 30, 90].includes(days)) throw badRequest("El período debe ser de 7, 30 o 90 días.");
-  const business = (await query("SELECT to_jsonb(b)->'program_json' AS program_json FROM businesses b WHERE id=$1", [businessId])).rows[0];
-  const region = businessRegion(business); timezone ??= region.timezone;
+  const business = (
+    await query(
+      "SELECT to_jsonb(b)->'program_json' AS program_json FROM businesses b WHERE id=$1",
+      [businessId],
+    )
+  ).rows[0];
+  const region = businessRegion(business);
+  timezone ??= region.timezone;
   if (branchId) {
-    const branch = await query("SELECT id FROM branches WHERE id = $1::uuid AND business_id = $2::uuid", [branchId, businessId]);
+    const branch = await query(
+      "SELECT id FROM branches WHERE id = $1::uuid AND business_id = $2::uuid",
+      [branchId, businessId],
+    );
     if (!branch.rows.length) throw badRequest("La sucursal no pertenece a este negocio.");
   }
-  const { rows } = await query(OVERVIEW_SQL, [businessId, branchId, days, timezone, now.toISOString()]);
+  const { rows } = await query(OVERVIEW_SQL, [
+    businessId,
+    branchId,
+    days,
+    timezone,
+    now.toISOString(),
+  ]);
   const row = rows[0];
   return {
     ok: true,
@@ -123,7 +141,7 @@ export async function getMerchantOverview({ businessId, branchId = null, days = 
       start: new Date(row.start_at).toISOString(),
       end: new Date(row.end_at).toISOString(),
       previous_start: new Date(row.previous_start_at).toISOString(),
-      previous_end: new Date(row.previous_end_at).toISOString()
+      previous_end: new Date(row.previous_end_at).toISOString(),
     },
     scope: { branch_id: branchId },
     current: row.current,
@@ -137,7 +155,7 @@ export async function getMerchantOverview({ businessId, branchId = null, days = 
       "Los registros históricos de clientes eliminados se conservan en estos totales sin datos personales.",
       "Los saldos iniciales importados no cuentan como compras, visitas ni clientes activos. Sus compras posteriores sí se incluyen.",
       "Las compras sin sucursal asignada se incluyen únicamente al consultar todas las sucursales.",
-      "Premios usados: solo canjes completados, según su fecha de uso; los registros antiguos sin esa fecha usan la fecha de registro."
-    ]
+      "Premios usados: solo canjes completados, según su fecha de uso; los registros antiguos sin esa fecha usan la fecha de registro.",
+    ],
   };
 }

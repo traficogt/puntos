@@ -15,14 +15,25 @@ export const SecurityEventRepo = {
     ip = null,
     actor_type = null,
     actor_id = null,
-    meta = {}
+    meta = {},
   }) {
     if (!event_type) return;
     await exec(
       `INSERT INTO security_events
        (id, event_type, severity, business_id, route, method, ip, actor_type, actor_id, meta)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [id(), event_type, severity, business_id, route, method, ip, actor_type, actor_id, meta || {}]
+      [
+        id(),
+        event_type,
+        severity,
+        business_id,
+        route,
+        method,
+        ip,
+        actor_type,
+        actor_id,
+        meta || {},
+      ],
     );
   },
 
@@ -35,13 +46,21 @@ export const SecurityEventRepo = {
     ip = null,
     actor_type = null,
     actor_id = null,
-    meta = {}
+    meta = {},
   }) {
     if (!event_type) return;
-    await exec(
-      `SELECT app.security_event_log($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`,
-      [id(), event_type, severity, business_id, route, method, ip, actor_type, actor_id, JSON.stringify(meta || {})]
-    );
+    await exec(`SELECT app.security_event_log($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`, [
+      id(),
+      event_type,
+      severity,
+      business_id,
+      route,
+      method,
+      ip,
+      actor_type,
+      actor_id,
+      JSON.stringify(meta || {}),
+    ]);
   },
 
   async countByEventType({ hours = 24 } = {}) {
@@ -51,7 +70,7 @@ export const SecurityEventRepo = {
        WHERE created_at >= now() - ($1 || ' hours')::interval
        GROUP BY event_type
        ORDER BY count DESC`,
-      [String(Math.max(1, Number(hours || 24)))]
+      [String(Math.max(1, Number(hours || 24)))],
     );
   },
 
@@ -62,7 +81,7 @@ export const SecurityEventRepo = {
        WHERE created_at >= now() - ($1 || ' hours')::interval
        ORDER BY created_at DESC
        LIMIT $2`,
-      [String(Math.max(1, Number(hours || 24))), Math.min(200, Math.max(1, Number(limit || 30)))]
+      [String(Math.max(1, Number(hours || 24))), Math.min(200, Math.max(1, Number(limit || 30)))],
     );
-  }
+  },
 };

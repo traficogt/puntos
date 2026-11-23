@@ -35,12 +35,14 @@ function clampCap(value, ceiling) {
  */
 export function resolveWalletBroadcast(settingsMap, businessId) {
   const raw = (settingsMap && typeof settingsMap === "object" && settingsMap[businessId]) || null;
-  const channelPolicy = CHANNEL_POLICIES.includes(raw?.channel_policy) ? raw.channel_policy : DEFAULT_CHANNEL_POLICY;
+  const channelPolicy = CHANNEL_POLICIES.includes(raw?.channel_policy)
+    ? raw.channel_policy
+    : DEFAULT_CHANNEL_POLICY;
   return {
     enabled: raw?.enabled === true,
     dailyCap: clampCap(raw?.daily_cap, WALLET_BROADCAST_DAILY_CEIL),
     monthlyCap: clampCap(raw?.monthly_cap, WALLET_BROADCAST_MONTHLY_CEIL),
-    channelPolicy
+    channelPolicy,
   };
 }
 
@@ -56,6 +58,6 @@ export function walletBroadcastDelivery({ enabled, channelPolicy, hasPass, hasPh
   const policy = CHANNEL_POLICIES.includes(channelPolicy) ? channelPolicy : DEFAULT_CHANNEL_POLICY;
   return {
     tryWallet: enabled === true && hasPass === true && policy !== "sms_only",
-    smsFallback: policy !== "wallet_only" && hasPhone === true
+    smsFallback: policy !== "wallet_only" && hasPhone === true,
   };
 }

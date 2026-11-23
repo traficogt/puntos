@@ -25,7 +25,7 @@ function makeClassList(initial = []) {
     },
     contains(value) {
       return values.has(value);
-    }
+    },
   };
 }
 
@@ -42,7 +42,7 @@ function makeElement(initialClasses = []) {
     },
     getAttribute(name) {
       return attrs.has(name) ? attrs.get(name) : null;
-    }
+    },
   };
 }
 
@@ -71,13 +71,22 @@ describe("ui visibility helper", () => {
 
   it("application entrypoints expose the premium app shell markers", () => {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
-    const admin = fs.readFileSync(new URL("../../public/admin-dashboard.html", import.meta.url), "utf8");
+    const admin = fs.readFileSync(
+      new URL("../../public/admin-dashboard.html", import.meta.url),
+      "utf8",
+    );
     // eslint-disable-next-line security/detect-non-literal-fs-filename
-    const customer = fs.readFileSync(new URL("../../public/customer.html", import.meta.url), "utf8");
+    const customer = fs.readFileSync(
+      new URL("../../public/customer.html", import.meta.url),
+      "utf8",
+    );
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     const signup = fs.readFileSync(new URL("../../public/admin.html", import.meta.url), "utf8");
     // eslint-disable-next-line security/detect-non-literal-fs-filename
-    const staffLogin = fs.readFileSync(new URL("../../public/staff-login.html", import.meta.url), "utf8");
+    const staffLogin = fs.readFileSync(
+      new URL("../../public/staff-login.html", import.meta.url),
+      "utf8",
+    );
 
     assert.match(admin, /<body class="[^"]*\bapp-shell\b[^"]*\bpage-admin\b[^"]*">/);
     assert.match(admin, /class="nav app-topbar"/);

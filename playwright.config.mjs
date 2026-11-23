@@ -17,13 +17,13 @@ export default defineConfig({
     navigationTimeout: 30_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    video: "retain-on-failure"
+    video: "retain-on-failure",
   },
   projects: [
     {
       name: "firefox",
       testIgnore: "**/webkit-customer.spec.js",
-      use: { ...devices["Desktop Firefox"] }
+      use: { ...devices["Desktop Firefox"] },
     },
     {
       name: "chromium",
@@ -31,16 +31,20 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
-          args: ["--no-sandbox", "--disable-setuid-sandbox"]
-        }
-      }
+          args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        },
+      },
     },
-    ...(process.env.E2E_WEBKIT === "1" ? [{
-      name: "webkit",
-      testMatch: "**/webkit-customer.spec.js",
-      timeout: 120_000,
-      retries: 0,
-      use: { ...devices["Desktop Safari"], browserName: "webkit", serviceWorkers: "block" }
-    }] : [])
-  ]
+    ...(process.env.E2E_WEBKIT === "1"
+      ? [
+          {
+            name: "webkit",
+            testMatch: "**/webkit-customer.spec.js",
+            timeout: 120_000,
+            retries: 0,
+            use: { ...devices["Desktop Safari"], browserName: "webkit", serviceWorkers: "block" },
+          },
+        ]
+      : []),
+  ],
 });

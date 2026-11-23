@@ -30,7 +30,7 @@ const {
   DB_PASSWORD_FILE,
   DB_MIGRATIONS_USER,
   DB_MIGRATIONS_PASSWORD,
-  DB_MIGRATIONS_PASSWORD_FILE
+  DB_MIGRATIONS_PASSWORD_FILE,
 } = process.env;
 
 // Support both inline passwords and Docker/systemd *_FILE secrets: production
@@ -51,12 +51,12 @@ const DB_PASSWORD_RESOLVED =
 const RLS_EXEMPT_TENANT_TABLES = new Set([
   // Looked up by an unguessable secret token_hash BEFORE any tenant/login
   // context exists; a tenant-isolation policy would break token consumption.
-  "auth_action_tokens",   // password-reset / email-change action tokens
+  "auth_action_tokens", // password-reset / email-change action tokens
   "internal_magic_links", // staff/customer magic-link login
-  "auth_sessions",        // browser sessions; the session_token_hash lookup is how the tenant is derived
+  "auth_sessions", // browser sessions; the session_token_hash lookup is how the tenant is derived
   // Resolved before tenant context by a non-tenant key (login email / public slug).
-  "staff_login_index",    // email -> business/staff resolution during login
-  "business_public"       // public business projection, read by slug on unauthenticated pages
+  "staff_login_index", // email -> business/staff resolution during login
+  "business_public", // public business projection, read by slug on unauthenticated pages
 ]);
 
 async function assertTenantTablesHaveRls(db) {
@@ -77,7 +77,7 @@ async function assertTenantTablesHaveRls(db) {
   if (uncovered.length > 0) {
     throw new Error(
       `Tenant-scoped tables (have business_id) without RLS enabled: ${uncovered.join(", ")}. ` +
-      `Enable RLS in a migration, or add to RLS_EXEMPT_TENANT_TABLES with a documented reason.`
+        `Enable RLS in a migration, or add to RLS_EXEMPT_TENANT_TABLES with a documented reason.`,
     );
   }
   // Guard the exemptions too: if an exempt table gained RLS or disappeared,
@@ -88,7 +88,9 @@ async function assertTenantTablesHaveRls(db) {
       throw new Error(`Exempt table ${name} now has RLS; remove it from RLS_EXEMPT_TENANT_TABLES.`);
     }
   }
-  console.log(`RLS coverage: ${rows.length - uncovered.length}/${rows.length} business_id tables protected (${RLS_EXEMPT_TENANT_TABLES.size} documented exemption(s))`);
+  console.log(
+    `RLS coverage: ${rows.length - uncovered.length}/${rows.length} business_id tables protected (${RLS_EXEMPT_TENANT_TABLES.size} documented exemption(s))`,
+  );
 }
 
 const client = new pg.Client({
@@ -96,7 +98,7 @@ const client = new pg.Client({
   port: Number(DB_PORT),
   database: DB_NAME,
   user: DB_MIGRATIONS_USER || DB_USER,
-  password: DB_PASSWORD_RESOLVED
+  password: DB_PASSWORD_RESOLVED,
 });
 
 function assertEqual(actual, expected, message) {
@@ -140,21 +142,21 @@ async function main() {
       `INSERT INTO businesses (id, name, slug, email, password_hash) VALUES
        ($1,'Biz1',$3,$5,'hash1'),
        ($2,'Biz2',$4,$6,'hash2')`,
-      [b1, b2, `biz-${b1.slice(0, 6)}`, `biz-${b2.slice(0, 6)}`, `${b1}@x.test`, `${b2}@x.test`]
+      [b1, b2, `biz-${b1.slice(0, 6)}`, `biz-${b2.slice(0, 6)}`, `${b1}@x.test`, `${b2}@x.test`],
     );
 
     await client.query(
       `INSERT INTO customers (id, business_id, phone) VALUES
        ($1, $3, '+50211111111'),
        ($2, $4, '+50222222222')`,
-      [c1, c2, b1, b2]
+      [c1, c2, b1, b2],
     );
 
     await client.query(
       `INSERT INTO customer_balances (customer_id, points) VALUES
        ($1, 10),
        ($2, 20)`,
-      [c1, c2]
+      [c1, c2],
     );
 
     // Drop platform mode; strict RLS should hide everything until tenant is set.
@@ -166,12 +168,18 @@ async function main() {
 
     // Tenant-scoped view
     await client.query(`SELECT set_config('app.current_tenant', '${b1}', true)`);
-    const { rows: ctRows } = await client.query("SELECT current_setting('app.current_tenant', true) AS ct");
+    const { rows: ctRows } = await client.query(
+      "SELECT current_setting('app.current_tenant', true) AS ct",
+    );
     assertEqual(ctRows[0].ct, b1, "app.current_tenant GUC should be set");
     const onlyB1 = await client.query("SELECT count(*)::int AS c FROM customers");
     assertEqual(onlyB1.rows[0].c, 1, "RLS should restrict customers to current tenant");
     const balB1 = await client.query("SELECT count(*)::int AS c FROM customer_balances");
-    assertEqual(balB1.rows[0].c, 1, "Derived-tenant RLS should restrict customer_balances to current tenant");
+    assertEqual(
+      balB1.rows[0].c,
+      1,
+      "Derived-tenant RLS should restrict customer_balances to current tenant",
+    );
 
     // Platform-admin global view
     await client.query("SELECT set_config('app.current_tenant', '', true)");

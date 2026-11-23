@@ -18,7 +18,8 @@ export function notFound(req, res) {
   res.status(404).json({ error: "No encontrado", code: "NOT_FOUND", request_id: requestId });
 }
 
-export function errorHandler(err, req, res, next) { // eslint-disable-line
+// eslint-disable-next-line no-unused-vars
+export function errorHandler(err, req, res, next) {
   const status = err?.statusCode ?? err?.status ?? 500;
   const requestId = req.id || req.headers["x-request-id"] || randomUUID();
   let msg = err?.message ?? "Error interno del servidor";
@@ -48,28 +49,51 @@ export function errorHandler(err, req, res, next) { // eslint-disable-line
             code,
             requestId,
             method: req.method,
-            url: safeLogUrl(req.originalUrl || req.url)
+            url: safeLogUrl(req.originalUrl || req.url),
           },
-          "Handled client error"
+          "Handled client error",
         );
       }
     }
   }
   res.setHeader("X-Request-Id", requestId);
-  const recoveryCaseId = typeof err?.recoveryCaseId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(err.recoveryCaseId) ? err.recoveryCaseId : null;
-  res.status(status).json({ error: msg, code, request_id: requestId, ...(recoveryCaseId ? { recoveryCaseId } : {}) });
+  const recoveryCaseId =
+    typeof err?.recoveryCaseId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(err.recoveryCaseId)
+      ? err.recoveryCaseId
+      : null;
+  res.status(status).json({
+    error: msg,
+    code,
+    request_id: requestId,
+    ...(recoveryCaseId ? { recoveryCaseId } : {}),
+  });
 }
 
 function inferErrorCode(err, status) {
   if (typeof err?.code === "string" && err.code.trim()) return err.code.trim();
   const msg = String(err?.message || "").toLowerCase();
-  if (msg.includes("not authenticated") || msg.includes("no autenticado") || msg.includes("invalid token") || msg.includes("token invalido")) {
+  if (
+    msg.includes("not authenticated") ||
+    msg.includes("no autenticado") ||
+    msg.includes("invalid token") ||
+    msg.includes("token invalido")
+  ) {
     return "AUTH_REQUIRED";
   }
-  if (msg.includes("forbidden") || msg.includes("insufficient permission") || msg.includes("insufficient role")) {
+  if (
+    msg.includes("forbidden") ||
+    msg.includes("insufficient permission") ||
+    msg.includes("insufficient role")
+  ) {
     return "FORBIDDEN";
   }
-  if (msg.includes("validation failed") || msg.includes("zod") || msg.includes("invalid") || msg.includes("bad request")) {
+  if (
+    msg.includes("validation failed") ||
+    msg.includes("zod") ||
+    msg.includes("invalid") ||
+    msg.includes("bad request")
+  ) {
     return "VALIDATION_ERROR";
   }
   if (msg.includes("not found") || msg.includes("no encontrado")) return "NOT_FOUND";

@@ -6,34 +6,42 @@ export function resolveJoinCode({ requestCodeData, businessSlug, phone }) {
 
   let output = "";
   try {
-    output = execFileSync("docker", [
-      "compose",
-      "exec",
-      "-T",
-      "api",
-      "node",
-      "src/scripts/dev-issue-join-code.mjs",
-      "--slug",
-      String(businessSlug),
-      "--phone",
-      String(phone)
-    ], {
-      cwd: process.cwd(),
-      env: process.env,
-      encoding: "utf8"
-    });
+    output = execFileSync(
+      "docker",
+      [
+        "compose",
+        "exec",
+        "-T",
+        "api",
+        "node",
+        "src/scripts/dev-issue-join-code.mjs",
+        "--slug",
+        String(businessSlug),
+        "--phone",
+        String(phone),
+      ],
+      {
+        cwd: process.cwd(),
+        env: process.env,
+        encoding: "utf8",
+      },
+    );
   } catch {
-    output = execFileSync("node", [
-      "src/scripts/dev-issue-join-code.mjs",
-      "--slug",
-      String(businessSlug),
-      "--phone",
-      String(phone)
-    ], {
-      cwd: process.cwd(),
-      env: process.env,
-      encoding: "utf8"
-    });
+    output = execFileSync(
+      "node",
+      [
+        "src/scripts/dev-issue-join-code.mjs",
+        "--slug",
+        String(businessSlug),
+        "--phone",
+        String(phone),
+      ],
+      {
+        cwd: process.cwd(),
+        env: process.env,
+        encoding: "utf8",
+      },
+    );
   }
 
   const parsed = JSON.parse(String(output || "{}"));

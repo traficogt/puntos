@@ -7,7 +7,8 @@ export function registerRewardsModule(app) {
     if (!box || !badge) return;
     if (!details?.redemption || !details?.ledger) {
       badge.textContent = "Selecciona una recompensa";
-      box.textContent = "Aquí verás el detalle de un canje y si el movimiento de puntos asociado es consistente.";
+      box.textContent =
+        "Aquí verás el detalle de un canje y si el movimiento de puntos asociado es consistente.";
       return;
     }
 
@@ -20,7 +21,7 @@ export function registerRewardsModule(app) {
       `Costo esperado: ${Number(redemption.points_cost || 0)} pts`,
       `Movimiento vinculado: ${Number(ledger.linked_points_total || 0)} pts`,
       `Delta: ${Number(ledger.delta_points || 0)} pts${ledger.consistent ? "" : "  <- revisar"}`,
-      ""
+      "",
     ];
 
     if (!transactions.length) {
@@ -28,7 +29,9 @@ export function registerRewardsModule(app) {
     } else {
       lines.push("Transacciones vinculadas:");
       transactions.forEach((tx) => {
-        lines.push(`${new Date(tx.created_at).toLocaleString()} • ${tx.source} • ${Number(tx.points || 0)} pts • ${tx.status}`);
+        lines.push(
+          `${new Date(tx.created_at).toLocaleString()} • ${tx.source} • ${Number(tx.points || 0)} pts • ${tx.status}`,
+        );
       });
     }
 
@@ -76,9 +79,10 @@ export function registerRewardsModule(app) {
 
       const limit = Number(app.state.planInfo?.limits?.rewards ?? 0);
       const used = rows.length;
-      $("#rewardLimitsInfo").textContent = limit > 0
-        ? `${used} / ${limit} recompensas usadas en tu plan.`
-        : `${used} recompensas configuradas.`;
+      $("#rewardLimitsInfo").textContent =
+        limit > 0
+          ? `${used} / ${limit} recompensas usadas en tu plan.`
+          : `${used} recompensas configuradas.`;
 
       if (!rows.length) {
         app.setSmallMessage(box, "No hay recompensas configuradas.");
@@ -94,10 +98,17 @@ export function registerRewardsModule(app) {
         title.textContent = r.name;
         const meta = document.createElement("div");
         meta.className = "small";
-        const stockText = r.stock === null || r.stock === undefined ? "Canjes: sin límite" : `Canjes disponibles: ${r.stock}`;
-        const expText = r.valid_until ? `Vence: ${new Date(r.valid_until).toLocaleString()}` : "Sin vencimiento";
+        const stockText =
+          r.stock === null || r.stock === undefined
+            ? "Canjes: sin límite"
+            : `Canjes disponibles: ${r.stock}`;
+        const expText = r.valid_until
+          ? `Vence: ${new Date(r.valid_until).toLocaleString()}`
+          : "Sin vencimiento";
         const scopeLabels = Array.isArray(r.branch_labels) ? r.branch_labels : [];
-        const scopeText = scopeLabels.length ? `Sucursales: ${scopeLabels.join(", ")}` : "Todas las sucursales";
+        const scopeText = scopeLabels.length
+          ? `Sucursales: ${scopeLabels.join(", ")}`
+          : "Todas las sucursales";
         meta.textContent = `${r.active ? "✅ Activa" : "❌ Inactiva"} • ${r.points_cost} pts • ${stockText} • ${expText} • ${scopeText}`;
         card.append(title, meta);
 
@@ -117,7 +128,7 @@ export function registerRewardsModule(app) {
           try {
             await api(`/api/admin/rewards/${encodeURIComponent(r.id)}`, {
               method: "PATCH",
-              body: JSON.stringify({ active: !r.active })
+              body: JSON.stringify({ active: !r.active }),
             });
             toast("Recompensa actualizada.");
             await loadRewards();
@@ -134,7 +145,7 @@ export function registerRewardsModule(app) {
             title: "Cambiar costo",
             inputType: "number",
             value: String(r.points_cost),
-            placeholder: "Ej: 150"
+            placeholder: "Ej: 150",
           });
           const trimmed = raw ? String(raw).trim() : "";
           if (!trimmed) return;
@@ -146,7 +157,7 @@ export function registerRewardsModule(app) {
           try {
             await api(`/api/admin/rewards/${encodeURIComponent(r.id)}`, {
               method: "PATCH",
-              body: JSON.stringify({ points_cost: value })
+              body: JSON.stringify({ points_cost: value }),
             });
             toast("Costo actualizado.");
             await loadRewards();
@@ -160,7 +171,9 @@ export function registerRewardsModule(app) {
         inspectBtn.textContent = "Ver canje";
         inspectBtn.addEventListener("click", async () => {
           try {
-            const detail = await api(`/api/admin/analytics/rewards/${encodeURIComponent(r.id)}/redemptions`);
+            const detail = await api(
+              `/api/admin/analytics/rewards/${encodeURIComponent(r.id)}/redemptions`,
+            );
             const redemption = (detail.recent_redemptions || [])[0];
             if (!redemption?.id) {
               toast("No hay canjes recientes para esta recompensa.");
@@ -203,7 +216,7 @@ export function registerRewardsModule(app) {
         description: $("#rewardDescription").value.trim() || undefined,
         points_cost: pointsCost,
         stock: stockRaw ? Math.floor(Number(stockRaw)) : undefined,
-        valid_until: toApiDateTime($("#rewardValidUntil").value)
+        valid_until: toApiDateTime($("#rewardValidUntil").value),
       };
       const branchSel = $("#rewardBranchIds");
       if (branchSel && !branchSel.disabled) {
@@ -216,7 +229,9 @@ export function registerRewardsModule(app) {
       $("#rewardStock").value = "";
       $("#rewardValidUntil").value = "";
       if (branchSel) {
-        [...branchSel.options].forEach((o) => { o.selected = false; });
+        [...branchSel.options].forEach((o) => {
+          o.selected = false;
+        });
       }
       toast("Recompensa creada.");
       await loadRewards();
@@ -236,6 +251,6 @@ export function registerRewardsModule(app) {
   app.registerTab("rewards", {
     feature: "rewards",
     allowManager: false,
-    load: loadRewards
+    load: loadRewards,
   });
 }

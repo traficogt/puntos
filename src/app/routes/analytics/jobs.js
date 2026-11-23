@@ -17,14 +17,14 @@ analyticsJobRoutes.post(
     const job = await enqueueJob({
       businessId: req.tenantId,
       jobType: "analytics.calculate",
-      payload: { trigger: "manual" }
+      payload: { trigger: "manual" },
     });
     return res.status(202).json({
       ok: true,
       message: "Recalculo de analitica en cola",
-      job: { id: job.id, status: job.status, created_at: job.created_at }
+      job: { id: job.id, status: job.status, created_at: job.created_at },
     });
-  })
+  }),
 );
 
 analyticsJobRoutes.get(
@@ -45,18 +45,20 @@ analyticsJobRoutes.get(
         created_at: job.created_at,
         started_at: job.started_at,
         completed_at: job.completed_at,
-        error: job.error
-      }
+        error: job.error,
+      },
     });
-  })
+  }),
 );
 
 analyticsJobRoutes.get(
   "/admin/jobs",
   requireOwner,
-  validateQuery(z.object({
-    limit: z.coerce.number().int().min(1).max(100).default(20)
-  })),
+  validateQuery(
+    z.object({
+      limit: z.coerce.number().int().min(1).max(100).default(20),
+    }),
+  ),
   asyncRoute(async (req, res) => {
     const { limit } = req.validatedQuery;
     const jobs = await JobRepo.listByBusiness(req.tenantId, limit);
@@ -70,8 +72,8 @@ analyticsJobRoutes.get(
         created_at: j.created_at,
         started_at: j.started_at,
         completed_at: j.completed_at,
-        error: j.error
-      }))
+        error: j.error,
+      })),
     });
-  })
+  }),
 );

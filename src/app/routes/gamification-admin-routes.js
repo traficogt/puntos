@@ -14,7 +14,7 @@ import {
   ChallengeUpdateSchema,
   LeaderboardQuerySchema,
   loadGamificationRepository,
-  normalizeLeaderboardType
+  normalizeLeaderboardType,
 } from "./gamification-support.js";
 
 export const gamificationAdminRoutes = Router();
@@ -28,7 +28,7 @@ gamificationAdminRoutes.get(
     const GamificationRepository = await loadGamificationRepository();
     const achievements = await GamificationRepository.listAchievements(req.tenantId);
     res.json({ ok: true, achievements });
-  })
+  }),
 );
 
 gamificationAdminRoutes.post(
@@ -54,10 +54,10 @@ gamificationAdminRoutes.post(
       requirement_config: v.data.requirement_config,
       points_reward: v.data.points_reward,
       tier_boost: v.data.tier_boost,
-      active: v.data.active !== false
+      active: v.data.active !== false,
     });
     res.status(201).json({ ok: true, achievement });
-  })
+  }),
 );
 
 gamificationAdminRoutes.put(
@@ -72,14 +72,26 @@ gamificationAdminRoutes.put(
     if (!v.ok) return res.status(400).json({ error: v.error });
 
     const updates = {};
-    for (const key of ["name", "description", "icon_url", "badge_image_url", "requirement_value", "points_reward", "active"]) {
+    for (const key of [
+      "name",
+      "description",
+      "icon_url",
+      "badge_image_url",
+      "requirement_value",
+      "points_reward",
+      "active",
+    ]) {
       if (v.data[key] !== undefined) updates[key] = v.data[key];
     }
 
     const GamificationRepository = await loadGamificationRepository();
-    const achievement = await GamificationRepository.updateAchievementScoped(req.params.id, req.tenantId, updates);
+    const achievement = await GamificationRepository.updateAchievementScoped(
+      req.params.id,
+      req.tenantId,
+      updates,
+    );
     res.json({ ok: true, achievement });
-  })
+  }),
 );
 
 gamificationAdminRoutes.delete(
@@ -91,10 +103,13 @@ gamificationAdminRoutes.delete(
   requirePlanFeature("gamification"),
   asyncRoute(async (req, res) => {
     const GamificationRepository = await loadGamificationRepository();
-    const deleted = await GamificationRepository.deleteAchievementScoped(req.params.id, req.tenantId);
+    const deleted = await GamificationRepository.deleteAchievementScoped(
+      req.params.id,
+      req.tenantId,
+    );
     if (!deleted) return res.status(404).json({ error: "Not found" });
     res.json({ ok: true });
-  })
+  }),
 );
 
 gamificationAdminRoutes.get(
@@ -106,7 +121,7 @@ gamificationAdminRoutes.get(
     const GamificationRepository = await loadGamificationRepository();
     const challenges = await GamificationRepository.listActiveChallenges(req.tenantId);
     res.json({ ok: true, challenges });
-  })
+  }),
 );
 
 gamificationAdminRoutes.post(
@@ -132,10 +147,10 @@ gamificationAdminRoutes.post(
       end_date: v.data.end_date,
       recurrence: v.data.recurrence,
       max_completions: v.data.max_completions,
-      active: v.data.active !== false
+      active: v.data.active !== false,
     });
     res.status(201).json({ ok: true, challenge });
-  })
+  }),
 );
 
 gamificationAdminRoutes.put(
@@ -155,10 +170,14 @@ gamificationAdminRoutes.put(
     }
 
     const GamificationRepository = await loadGamificationRepository();
-    const challenge = await GamificationRepository.updateChallengeScoped(req.params.id, req.tenantId, updates);
+    const challenge = await GamificationRepository.updateChallengeScoped(
+      req.params.id,
+      req.tenantId,
+      updates,
+    );
     if (!challenge) return res.status(404).json({ error: "Not found" });
     res.json({ ok: true, challenge });
-  })
+  }),
 );
 
 gamificationAdminRoutes.delete(
@@ -173,7 +192,7 @@ gamificationAdminRoutes.delete(
     const deleted = await GamificationRepository.deleteChallengeScoped(req.params.id, req.tenantId);
     if (!deleted) return res.status(404).json({ error: "Not found" });
     res.json({ ok: true });
-  })
+  }),
 );
 
 gamificationAdminRoutes.get(
@@ -189,10 +208,11 @@ gamificationAdminRoutes.get(
     }
 
     const { timeframe, limit } = req.validatedQuery;
-    const leaderboard = leaderboardType === "points"
-      ? await GamificationService.getPointsLeaderboard(req.tenantId, limit, timeframe)
-      : await GamificationService.getStreakLeaderboard(req.tenantId, limit);
+    const leaderboard =
+      leaderboardType === "points"
+        ? await GamificationService.getPointsLeaderboard(req.tenantId, limit, timeframe)
+        : await GamificationService.getStreakLeaderboard(req.tenantId, limit);
 
     res.json({ ok: true, leaderboard });
-  })
+  }),
 );

@@ -58,7 +58,7 @@ async function main() {
         business_id: business.id,
         phone,
         code_hash: codeHash,
-        expires_at: expiresAt
+        expires_at: expiresAt,
       });
 
       return {
@@ -67,7 +67,7 @@ async function main() {
         slug,
         phone,
         code,
-        expires_at: expiresAt.toISOString()
+        expires_at: expiresAt.toISOString(),
       };
     });
 

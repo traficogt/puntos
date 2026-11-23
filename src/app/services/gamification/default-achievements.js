@@ -5,7 +5,7 @@ export const DEFAULT_ACHIEVEMENTS = [
     requirement_type: "spend",
     requirement_value: 1,
     points_reward: 10,
-    icon_url: "🎯"
+    icon_url: "🎯",
   },
   {
     name: "Regular Customer",
@@ -13,7 +13,7 @@ export const DEFAULT_ACHIEVEMENTS = [
     requirement_type: "visits",
     requirement_value: 5,
     points_reward: 25,
-    icon_url: "⭐"
+    icon_url: "⭐",
   },
   {
     name: "Loyal Customer",
@@ -21,7 +21,7 @@ export const DEFAULT_ACHIEVEMENTS = [
     requirement_type: "visits",
     requirement_value: 10,
     points_reward: 50,
-    icon_url: "🏆"
+    icon_url: "🏆",
   },
   {
     name: "VIP",
@@ -29,7 +29,7 @@ export const DEFAULT_ACHIEVEMENTS = [
     requirement_type: "visits",
     requirement_value: 25,
     points_reward: 100,
-    icon_url: "👑"
+    icon_url: "👑",
   },
   {
     name: "Big Spender",
@@ -37,7 +37,7 @@ export const DEFAULT_ACHIEVEMENTS = [
     requirement_type: "spend",
     requirement_value: 500,
     points_reward: 50,
-    icon_url: "💎"
+    icon_url: "💎",
   },
   {
     name: "Points Collector",
@@ -45,7 +45,7 @@ export const DEFAULT_ACHIEVEMENTS = [
     requirement_type: "points",
     requirement_value: 1000,
     points_reward: 100,
-    icon_url: "🎁"
+    icon_url: "🎁",
   },
   {
     name: "Social Butterfly",
@@ -53,7 +53,7 @@ export const DEFAULT_ACHIEVEMENTS = [
     requirement_type: "referrals",
     requirement_value: 3,
     points_reward: 150,
-    icon_url: "🦋"
+    icon_url: "🦋",
   },
   {
     name: "Week Warrior",
@@ -61,6 +61,6 @@ export const DEFAULT_ACHIEVEMENTS = [
     requirement_type: "streak",
     requirement_value: 7,
     points_reward: 75,
-    icon_url: "🔥"
-  }
+    icon_url: "🔥",
+  },
 ];

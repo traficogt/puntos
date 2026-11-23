@@ -6,29 +6,29 @@ const DEFAULT_RFM_SEGMENTS = [
     description: "Recent, frequent, high-value customers",
     segment_type: "rfm",
     criteria: { rfm_min: 12, rfm_max: 15 },
-    color: "#10B981"
+    color: "#10B981",
   },
   {
     name: "Loyal Customers",
     description: "Frequent customers with good spend",
     segment_type: "rfm",
     criteria: { rfm_min: 9, rfm_max: 11 },
-    color: "#3B82F6"
+    color: "#3B82F6",
   },
   {
     name: "At Risk",
     description: "Were good customers but declining",
     segment_type: "rfm",
     criteria: { rfm_min: 6, rfm_max: 8, recency_max: 2 },
-    color: "#F59E0B"
+    color: "#F59E0B",
   },
   {
     name: "Lost",
     description: "Haven't returned in a long time",
     segment_type: "rfm",
     criteria: { rfm_min: 3, rfm_max: 5 },
-    color: "#EF4444"
-  }
+    color: "#EF4444",
+  },
 ];
 
 export const segmentRepository = {
@@ -45,8 +45,8 @@ export const segmentRepository = {
         segmentData.segment_type,
         JSON.stringify(segmentData.criteria),
         segmentData.auto_update !== false,
-        segmentData.color || null
-      ]
+        segmentData.color || null,
+      ],
     );
     return rows[0];
   },
@@ -61,7 +61,7 @@ export const segmentRepository = {
        WHERE cs.business_id = $1
        GROUP BY cs.id
        ORDER BY cs.created_at DESC`,
-      [businessId]
+      [businessId],
     );
     return rows;
   },
@@ -73,7 +73,7 @@ export const segmentRepository = {
        VALUES ($1, $2, $3)
        ON CONFLICT (customer_id, segment_id) DO NOTHING
        RETURNING *`,
-      [customerId, segmentId, autoAssigned]
+      [customerId, segmentId, autoAssigned],
     );
     return rows[0];
   },
@@ -82,7 +82,7 @@ export const segmentRepository = {
     await dbQuery(
       `DELETE FROM customer_segment_assignments 
        WHERE customer_id = $1 AND segment_id = $2`,
-      [customerId, segmentId]
+      [customerId, segmentId],
     );
   },
 
@@ -100,7 +100,7 @@ export const segmentRepository = {
          AND c.deleted_at IS NULL
        ORDER BY csa.assigned_at DESC
        LIMIT $3 OFFSET $4`,
-      [segmentId, businessId, limit, offset]
+      [segmentId, businessId, limit, offset],
     );
     return rows;
   },
@@ -110,10 +110,10 @@ export const segmentRepository = {
     for (const segmentData of DEFAULT_RFM_SEGMENTS) {
       const segment = await this.createSegment({
         business_id: businessId,
-        ...segmentData
+        ...segmentData,
       });
       created.push(segment);
     }
     return created;
-  }
+  },
 };

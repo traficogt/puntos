@@ -2,12 +2,20 @@ import crypto from "node:crypto";
 import { BillingRepo } from "../repositories/billing-repository.js";
 import { logger } from "../../utils/logger.js";
 
-function id() { return crypto.randomUUID(); }
+function id() {
+  return crypto.randomUUID();
+}
 
 /**
  * Emit a billing/usage event. Non-blocking best-effort.
  */
-export async function emitBillingEvent({ businessId, eventType, amount = 1, unit = "count", metadata = {} }) {
+export async function emitBillingEvent({
+  businessId,
+  eventType,
+  amount = 1,
+  unit = "count",
+  metadata = {},
+}) {
   if (!businessId || !eventType) return;
   try {
     await BillingRepo.recordEvent({
@@ -16,7 +24,7 @@ export async function emitBillingEvent({ businessId, eventType, amount = 1, unit
       event_type: eventType,
       amount,
       unit,
-      metadata
+      metadata,
     });
   } catch (err) {
     // Avoid throwing in hot paths; rely on observability metrics/logs instead.

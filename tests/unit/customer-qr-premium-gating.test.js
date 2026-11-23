@@ -1,7 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { createQrController, shouldEmbedQrLogo, waitForQrLogoAsset } from "../../public/customer/qr.js";
+import {
+  createQrController,
+  shouldEmbedQrLogo,
+  waitForQrLogoAsset,
+} from "../../public/customer/qr.js";
 
 describe("customer qr premium gating", () => {
   it("rejects embedding below EMPRESA", () => {
@@ -9,9 +13,9 @@ describe("customer qr premium gating", () => {
       shouldEmbedQrLogo({
         plan: "NEGOCIO",
         logoUrl: "https://cdn.example.com/logo.png",
-        enabled: true
+        enabled: true,
       }),
-      false
+      false,
     );
   });
 
@@ -20,9 +24,9 @@ describe("customer qr premium gating", () => {
       shouldEmbedQrLogo({
         plan: "EMPRESA",
         logoUrl: "/assets/logo.png",
-        enabled: true
+        enabled: true,
       }),
-      false
+      false,
     );
   });
 
@@ -31,9 +35,9 @@ describe("customer qr premium gating", () => {
       shouldEmbedQrLogo({
         plan: "EMPRESA",
         logoUrl: "https://cdn.example.com/logo.png",
-        enabled: false
+        enabled: false,
       }),
-      false
+      false,
     );
   });
 
@@ -42,17 +46,17 @@ describe("customer qr premium gating", () => {
       shouldEmbedQrLogo({
         plan: "EMPRESA",
         logoUrl: "",
-        enabled: true
+        enabled: true,
       }),
-      false
+      false,
     );
     assert.equal(
       shouldEmbedQrLogo({
         plan: "EMPRESA",
         logoUrl: "https://cdn.example.com/logo.png",
-        enabled: false
+        enabled: false,
       }),
-      false
+      false,
     );
   });
 
@@ -61,9 +65,9 @@ describe("customer qr premium gating", () => {
       shouldEmbedQrLogo({
         plan: "EMPRESA",
         logoUrl: "https://cdn.example.com/logo.png",
-        enabled: true
+        enabled: true,
       }),
-      true
+      true,
     );
   });
 
@@ -84,9 +88,9 @@ describe("customer qr premium gating", () => {
     assert.equal(
       await waitForQrLogoAsset("https://cdn.example.com/logo.png", {
         ImageCtor: /** @type {typeof Image} */ (/** @type {unknown} */ (BrokenImage)),
-        timeoutMs: 25
+        timeoutMs: 25,
       }),
-      false
+      false,
     );
   });
 
@@ -107,18 +111,28 @@ describe("customer qr premium gating", () => {
     assert.equal(
       await waitForQrLogoAsset("https://cdn.example.com/logo.png", {
         ImageCtor: /** @type {typeof Image} */ (/** @type {unknown} */ (GoodImage)),
-        timeoutMs: 25
+        timeoutMs: 25,
       }),
-      true
+      true,
     );
   });
 });
 
-it("disposed QR controllers ignore a response that finishes after logout", async t => {
+it("disposed QR controllers ignore a response that finishes after logout", async (t) => {
   const messages = [];
   let finish = /** @type {(value: Response) => void} */ (() => {});
-  t.mock.method(globalThis, "fetch", () => new Promise(resolve => { finish = resolve; }));
-  const controller = createQrController({ $: () => null, toast: message => messages.push(message) });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const controller = createQrController({
+    $: () => null,
+    toast: (message) => messages.push(message),
+  });
   const pending = controller.generateQR();
   controller.dispose();
   finish(new Response("<svg />"));
@@ -126,10 +140,15 @@ it("disposed QR controllers ignore a response that finishes after logout", async
   assert.deepEqual(messages, []);
 });
 
-it("QR renewal never starts overlapping requests", async t => {
+it("QR renewal never starts overlapping requests", async (t) => {
   let calls = 0;
   let finish = /** @type {(value: Response) => void} */ (() => {});
-  t.mock.method(globalThis, "fetch", () => { calls += 1; return new Promise(resolve => { finish = resolve; }); });
+  t.mock.method(globalThis, "fetch", () => {
+    calls += 1;
+    return new Promise((resolve) => {
+      finish = resolve;
+    });
+  });
   const controller = createQrController({ $: () => null, toast() {} });
   const pending = controller.generateQR();
   const duplicate = controller.generateQR();

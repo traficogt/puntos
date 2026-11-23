@@ -1,6 +1,10 @@
 import { registerServiceWorker, setHidden, setBrowserRegion } from "/lib.js";
 import { copyCurrentViewUrl } from "./view-state.js";
-import { captureDashboardSession, initDashboardLogout, isDashboardSessionBlocked } from "./logout-controller.js";
+import {
+  captureDashboardSession,
+  initDashboardLogout,
+  isDashboardSessionBlocked,
+} from "./logout-controller.js";
 
 /** @typedef {import("./types.js").ApiFn} ApiFn */
 /** @typedef {import("./types.js").DashboardState} DashboardState */
@@ -14,7 +18,7 @@ export async function loadPlanInfo(api, state) {
     plan: out.plan || "",
     limits: out.limits || {},
     features: out.features || {},
-    usage: out.usage || {}
+    usage: out.usage || {},
   };
 }
 
@@ -41,13 +45,19 @@ export async function loadStaffSession({ api, $, state }) {
     const program = await api("/api/staff/program");
     if (!isCurrent()) return false;
     setBrowserRegion(program.region);
-    document.querySelectorAll("[data-business-currency]").forEach(node => { node.textContent = program.region?.currency || "GTQ"; });
-    document.querySelectorAll("[data-business-money]").forEach(node => { if(node instanceof HTMLInputElement)node.step=program.region?.minorUnits===0?"1":"0.01"; });
+    document.querySelectorAll("[data-business-currency]").forEach((node) => {
+      node.textContent = program.region?.currency || "GTQ";
+    });
+    document.querySelectorAll("[data-business-money]").forEach((node) => {
+      if (node instanceof HTMLInputElement)
+        node.step = program.region?.minorUnits === 0 ? "1" : "0.01";
+    });
     state.managerMode = state.currentStaff.role === "MANAGER";
     setHidden($("#needLogin"), true);
     setHidden($("#main"), false);
     const businessName = $("#businessName");
-    if (businessName) businessName.textContent = state.managerMode ? "Panel Gerente" : "Panel Admin";
+    if (businessName)
+      businessName.textContent = state.managerMode ? "Panel Gerente" : "Panel Admin";
     return true;
   } catch {
     setHidden($("#needLogin"), false);

@@ -20,7 +20,7 @@ function resolveDeps(overrides = {}) {
     customerRepo: overrides.CustomerRepo ?? CustomerRepo,
     signStaff: overrides.signStaffToken ?? signStaffToken,
     signCustomer: overrides.signCustomerToken ?? signCustomerToken,
-    runtimeConfig: overrides.config ?? config
+    runtimeConfig: overrides.config ?? config,
   };
 }
 
@@ -34,7 +34,9 @@ function makeRawToken(randomBytes) {
 }
 
 function normalizeActorType(actorType) {
-  return String(actorType || "").trim().toLowerCase();
+  return String(actorType || "")
+    .trim()
+    .toLowerCase();
 }
 
 function normalizeTargetRoute(actorType) {
@@ -62,14 +64,15 @@ function assertActorShape(actorType, actor) {
   const businessId = actor?.business_id ?? actor?.businessId ?? null;
   if (!actorId || !businessId) {
     throw badRequest(
-      actorType === "customer"
-        ? "Este cliente no es válido."
-        : "Este usuario no es válido."
+      actorType === "customer" ? "Este cliente no es válido." : "Este usuario no es válido.",
     );
   }
 }
 
-export async function buildInternalMagicLink({ actorType, actor, target, createdBy, origin }, deps = {}) {
+export async function buildInternalMagicLink(
+  { actorType, actor, target, createdBy, origin },
+  deps = {},
+) {
   const resolvedDeps = resolveDeps(deps);
   const normalizedActorType = normalizeActorType(actorType);
   if (!["staff", "customer"].includes(normalizedActorType)) {
@@ -95,15 +98,21 @@ export async function buildInternalMagicLink({ actorType, actor, target, created
     purpose: "internal_test_access",
     token_hash: hashInternalMagicToken(rawToken),
     created_by: createdBy ?? null,
-    expires_at: expiresAt
+    expires_at: expiresAt,
   });
 
-  const baseOrigin = String(origin || resolvedDeps.runtimeConfig.APP_ORIGIN || "").replace(/\/+$/, "");
+  const baseOrigin = String(origin || resolvedDeps.runtimeConfig.APP_ORIGIN || "").replace(
+    /\/+$/,
+    "",
+  );
   return {
     id,
-    url: new URL(`/api/magic/${normalizeTargetRoute(normalizedActorType)}/${rawToken}`, baseOrigin).toString(),
+    url: new URL(
+      `/api/magic/${normalizeTargetRoute(normalizedActorType)}/${rawToken}`,
+      baseOrigin,
+    ).toString(),
     usageMode,
-    expiresAt: expiresAt.toISOString()
+    expiresAt: expiresAt.toISOString(),
   };
 }
 
@@ -143,13 +152,13 @@ export async function consumeInternalMagicLink(rawToken, meta = {}, deps = {}) {
       bid: staff.business_id,
       brid: staff.branch_id,
       role: staff.role,
-      imp: record.created_by ?? null
+      imp: record.created_by ?? null,
     });
     return {
       actorType: "staff",
       cookieName: resolvedDeps.runtimeConfig.STAFF_COOKIE_NAME,
       token: tokenValue,
-      redirectTo: record.target === "admin-dashboard" ? "/admin-dashboard" : "/staff"
+      redirectTo: record.target === "admin-dashboard" ? "/admin-dashboard" : "/staff",
     };
   }
 
@@ -168,13 +177,13 @@ export async function consumeInternalMagicLink(rawToken, meta = {}, deps = {}) {
     }
     const tokenValue = await resolvedDeps.signCustomer({
       cid: customer.id,
-      bid: customer.business_id
+      bid: customer.business_id,
     });
     return {
       actorType: "customer",
       cookieName: resolvedDeps.runtimeConfig.CUSTOMER_COOKIE_NAME,
       token: tokenValue,
-      redirectTo: "/c"
+      redirectTo: "/c",
     };
   }
 

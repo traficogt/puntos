@@ -25,9 +25,7 @@ const Query = z
   })
   .strict();
 
-export function createReferralGrowthRoutes({
-  getGrowth = getReferralGrowth,
-} = {}) {
+export function createReferralGrowthRoutes({ getGrowth = getReferralGrowth } = {}) {
   const router = Router();
   router.get(
     "/admin/referral-growth",
@@ -38,15 +36,11 @@ export function createReferralGrowthRoutes({
     asyncRoute(async (req, res) => {
       const parsed = Query.safeParse(req.query);
       if (!parsed.success)
-        return res
-          .status(400)
-          .json({
-            error: "Selecciona un período, un filtro y una página válidos.",
-            code: "VALIDATION_ERROR",
-          });
-      return res.json(
-        await getGrowth({ businessId: req.tenantId, ...parsed.data }),
-      );
+        return res.status(400).json({
+          error: "Selecciona un período, un filtro y una página válidos.",
+          code: "VALIDATION_ERROR",
+        });
+      return res.json(await getGrowth({ businessId: req.tenantId, ...parsed.data }));
     }),
   );
   return router;

@@ -1,8 +1,14 @@
 // Rotate the generation to remove private API responses cached by older workers.
 const CACHE = "pf-v56";
 const CORE_ASSETS = [
-  "/crear-negocio/", "/equipo/ingresar/", "/equipo/escaner/",
-  "/mi-tarjeta/", "/administracion/", "/plataforma/", "/registro/", "/ingresar/",
+  "/crear-negocio/",
+  "/equipo/ingresar/",
+  "/equipo/escaner/",
+  "/mi-tarjeta/",
+  "/administracion/",
+  "/plataforma/",
+  "/registro/",
+  "/ingresar/",
   "/",
   "/admin",
   "/staff/login",
@@ -137,26 +143,34 @@ const CORE_ASSETS = [
   "/admin-dashboard/fragments/referrals.html",
   "/admin-dashboard/fragments/rewards.html",
   "/admin-dashboard/fragments/staff.html",
-  "/admin-dashboard/fragments/tiers.html"
+  "/admin-dashboard/fragments/tiers.html",
 ];
 const NETWORK_FIRST_DESTINATIONS = new Set(["document", "script", "style", "worker", "font"]);
 const NAVIGATION_FALLBACKS = new Map([
-  ["/crear-negocio", "/crear-negocio/"], ["/equipo/ingresar", "/equipo/ingresar/"],
-  ["/equipo/escaner", "/equipo/escaner/"], ["/mi-tarjeta", "/mi-tarjeta/"],
-  ["/administracion", "/administracion/"], ["/plataforma", "/plataforma/"],
-  ["/registro", "/registro/"], ["/ingresar", "/ingresar/"],
+  ["/crear-negocio", "/crear-negocio/"],
+  ["/equipo/ingresar", "/equipo/ingresar/"],
+  ["/equipo/escaner", "/equipo/escaner/"],
+  ["/mi-tarjeta", "/mi-tarjeta/"],
+  ["/administracion", "/administracion/"],
+  ["/plataforma", "/plataforma/"],
+  ["/registro", "/registro/"],
+  ["/ingresar", "/ingresar/"],
   ["/", "/index.html"],
   ["/admin", "/admin.html"],
   ["/staff/login", "/staff-login.html"],
   ["/staff", "/staff.html"],
   ["/c", "/customer.html"],
-  ["/super", "/super.html"]
+  ["/super", "/super.html"],
 ]);
 
 function isCacheable(response) {
   const cacheControl = response.headers.get("Cache-Control") || "";
-  const privateResponse = cacheControl.split(",").some((directive) => /^\s*(?:private|no-store)\s*(?:=|$)/i.test(directive));
-  return response.ok && !privateResponse && (response.type === "basic" || response.type === "default");
+  const privateResponse = cacheControl
+    .split(",")
+    .some((directive) => /^\s*(?:private|no-store)\s*(?:=|$)/i.test(directive));
+  return (
+    response.ok && !privateResponse && (response.type === "basic" || response.type === "default")
+  );
 }
 
 async function openCache() {
@@ -179,7 +193,7 @@ function cachedResponseFor(request, response) {
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
-      headers: response.headers
+      headers: response.headers,
     });
   }
   return response;
@@ -206,9 +220,8 @@ async function networkFirst(request, fallbackPath = "") {
 }
 
 function fallbackForPath(pathname) {
-  const normalizedPath = pathname.length > 1 && pathname.endsWith("/")
-    ? pathname.slice(0, -1)
-    : pathname;
+  const normalizedPath =
+    pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
 
   if (NAVIGATION_FALLBACKS.has(normalizedPath)) {
     return NAVIGATION_FALLBACKS.get(normalizedPath) || "";
@@ -239,19 +252,23 @@ async function staleWhileRevalidate(request) {
 }
 
 self.addEventListener("install", (event) => {
-  event.waitUntil((async () => {
-    const cache = await openCache();
-    await Promise.all(CORE_ASSETS.map((asset) => precacheAsset(cache, asset).catch(() => {})));
-    await self.skipWaiting();
-  })());
+  event.waitUntil(
+    (async () => {
+      const cache = await openCache();
+      await Promise.all(CORE_ASSETS.map((asset) => precacheAsset(cache, asset).catch(() => {})));
+      await self.skipWaiting();
+    })(),
+  );
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)));
-    await self.clients.claim();
-  })());
+  event.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)));
+      await self.clients.claim();
+    })(),
+  );
 });
 
 self.addEventListener("message", (event) => {
@@ -266,22 +283,46 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
   // Scheduled articles and their sitemap must always reflect server publication time.
-  if (/^\/guias(?:\/|$)/i.test(url.pathname) || url.pathname === '/sitemap.xml') return;
+  if (/^\/guias(?:\/|$)/i.test(url.pathname) || url.pathname === "/sitemap.xml") return;
   // Temporary editorial previews must not be retained or served stale offline.
   if (/^\/(?:revision-ilustraciones|revision-editorial)(?:\/|$)/i.test(url.pathname)) return;
   // Express accepts case-insensitive API mounts, including versioned routes.
   if (/^\/api(?:\/|$)/i.test(url.pathname)) return;
-  if (["/preferencias-de-mensajes", "/preferencias-de-mensajes/", "/marketing-preferences.html"].includes(url.pathname)) return;
+  if (
+    [
+      "/preferencias-de-mensajes",
+      "/preferencias-de-mensajes/",
+      "/marketing-preferences.html",
+    ].includes(url.pathname)
+  )
+    return;
   // Merchant reports are online-only; keep per-response style nonces out of caches.
-  if (["/merchant", "/merchant/", "/merchant/index.html", "/negocio", "/negocio/", "/demostracion", "/demostracion/", "/negocio/index.html", "/demostracion/index.html"].includes(url.pathname)) return;
+  if (
+    [
+      "/merchant",
+      "/merchant/",
+      "/merchant/index.html",
+      "/negocio",
+      "/negocio/",
+      "/demostracion",
+      "/demostracion/",
+      "/negocio/index.html",
+      "/demostracion/index.html",
+    ].includes(url.pathname)
+  )
+    return;
 
-  const isNetworkFirst = event.request.mode === "navigate"
-    || NETWORK_FIRST_DESTINATIONS.has(event.request.destination)
-    || /\.(?:js|css|html)$/i.test(url.pathname);
+  const isNetworkFirst =
+    event.request.mode === "navigate" ||
+    NETWORK_FIRST_DESTINATIONS.has(event.request.destination) ||
+    /\.(?:js|css|html)$/i.test(url.pathname);
 
   if (isNetworkFirst) {
     event.respondWith(
-      networkFirst(event.request, event.request.mode === "navigate" ? fallbackForPath(url.pathname) : "")
+      networkFirst(
+        event.request,
+        event.request.mode === "navigate" ? fallbackForPath(url.pathname) : "",
+      ),
     );
     return;
   }

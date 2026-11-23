@@ -8,12 +8,8 @@ import assert from "node:assert/strict";
 import bcrypt from "bcryptjs";
 
 const { verifyJoinCode } = await import("../../src/app/services/customer-service.js");
-const {
-  pool,
-  transactionPool,
-  getDbTenantId,
-  getDbPlatformAdmin
-} = await import("../../src/app/database.js");
+const { pool, transactionPool, getDbTenantId, getDbPlatformAdmin } =
+  await import("../../src/app/database.js");
 const { VerifyCodeRepo } = await import("../../src/app/repositories/verify-code-repository.js");
 const { CustomerRepo } = await import("../../src/app/repositories/customer-repository.js");
 
@@ -34,10 +30,11 @@ describe("customer service tenant context", () => {
     const seenTenants = [];
     const seenPlatforms = [];
 
-    pool.connect = async () => Object.assign(new EventEmitter(), {
-      query: async () => ({ rows: [] }),
-      release() {}
-    });
+    pool.connect = async () =>
+      Object.assign(new EventEmitter(), {
+        query: async () => ({ rows: [] }),
+        release() {},
+      });
     transactionPool.connect = pool.connect;
 
     VerifyCodeRepo.latestValid = async () => {
@@ -58,7 +55,7 @@ describe("customer service tenant context", () => {
         business_id: business.id,
         phone,
         name: null,
-        points: 0
+        points: 0,
       };
     };
     CustomerRepo.updateName = async () => {
@@ -73,7 +70,7 @@ describe("customer service tenant context", () => {
         code,
         name: "Cliente Test",
         referralCode: null,
-        requireExisting: false
+        requireExisting: false,
       });
 
       assert.equal(out.customer.id, "cust-test");

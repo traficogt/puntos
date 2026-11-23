@@ -13,6 +13,5 @@ adminRbacRoutes.get(
   requireOwner,
   tenantContext,
   requirePlanFeature("rbac_matrix"),
-  asyncRoute(async (_req, res) => res.json({ ok: true, matrix: getPermissionMatrix() }))
+  asyncRoute(async (_req, res) => res.json({ ok: true, matrix: getPermissionMatrix() })),
 );
-

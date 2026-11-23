@@ -16,7 +16,7 @@ function makeRes() {
     json(payload) {
       this.body = payload;
       return this;
-    }
+    },
   };
 }
 
@@ -61,8 +61,8 @@ test("public business profile includes sanitized customer branding for join and 
     program_json: {
       external_awards: {
         enabled: true,
-        api_key: "secret"
-      }
+        api_key: "secret",
+      },
     },
     customer_branding_json: {
       branding_mode: "white_label_ready",
@@ -74,14 +74,14 @@ test("public business profile includes sanitized customer branding for join and 
       powered_by_visible: false,
       wallet_headline: "Tus puntos en Cafe Bourbon",
       join_headline: "Unete y gana beneficios",
-      internal_notes: "should not leak"
-    }
+      internal_notes: "should not leak",
+    },
   });
 
   try {
     const res = await runFinalHandler(layer, {
       method: "GET",
-      params: { slug: "cafe-bourbon" }
+      params: { slug: "cafe-bourbon" },
     });
 
     assert.equal(res.statusCode, 200);
@@ -96,7 +96,7 @@ test("public business profile includes sanitized customer branding for join and 
       neutral_theme: "warm",
       powered_by_visible: false,
       wallet_headline: "Tus puntos en Cafe Bourbon",
-      join_headline: "Unete y gana beneficios"
+      join_headline: "Unete y gana beneficios",
     });
   } finally {
     BusinessRepo.getPublicBySlug = originalGetPublicBySlug;

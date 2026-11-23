@@ -62,9 +62,18 @@ export async function getCustomerStatement(client, { businessId, customerId, now
   if (!row) return null;
   return {
     as_of: new Date(row.end_at).toISOString(),
-    period: { days: 30, start: new Date(row.start_at).toISOString(), end: new Date(row.end_at).toISOString() },
+    period: {
+      days: 30,
+      start: new Date(row.start_at).toISOString(),
+      end: new Date(row.end_at).toISOString(),
+    },
     balance: { available: Number(row.available), pending: Number(row.pending) },
-    points: { earned: Number(row.earned), redeemed: Number(row.redeemed), expired: Number(row.expired), adjustments: Number(row.adjustments) },
-    rewards: { completed: Number(row.rewards) }
+    points: {
+      earned: Number(row.earned),
+      redeemed: Number(row.redeemed),
+      expired: Number(row.expired),
+      adjustments: Number(row.adjustments),
+    },
+    rewards: { completed: Number(row.rewards) },
   };
 }

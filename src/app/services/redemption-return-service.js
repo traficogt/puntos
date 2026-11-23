@@ -1,7 +1,7 @@
-import { badRequest, notFound } from '../../utils/http-error.js';
-import { dbQuery } from '../database.js';
-import { businessRegion } from './regional-settings.js';
-import { reportingPurchase } from './reporting-purchase.js';
+import { badRequest, notFound } from "../../utils/http-error.js";
+import { dbQuery } from "../database.js";
+import { businessRegion } from "./regional-settings.js";
+import { reportingPurchase } from "./reporting-purchase.js";
 
 // All counts come from one database statement/snapshot. There is no history
 // page limit and no customer-level data in the result. Eligibility uses current
@@ -53,7 +53,7 @@ WITH bounds AS (
         AND COALESCE(t.purchase_occurred_at, t.created_at) < b.end_at
         AND t.created_at < b.end_at
         AND (COALESCE(t.purchase_occurred_at, t.created_at) AT TIME ZONE $4)::date > (f.redeemed_at AT TIME ZONE $4)::date
-        AND ${reportingPurchase('t')}
+        AND ${reportingPurchase("t")}
     ) AS returned
   FROM first_redemption f CROSS JOIN bounds b
 ), totals AS (
@@ -88,16 +88,26 @@ FROM bounds b CROSS JOIN totals t`;
  * @param {{ businessId: string, branchId?: string | null, days?: number, now?: Date }} options
  * @param {typeof dbQuery} query
  */
-export async function getRedemptionReturns({ businessId, branchId = null, days = 90, now = new Date() }, query = dbQuery) {
-  if (![7, 30, 90].includes(days)) throw badRequest('El período debe ser de 7, 30 o 90 días.');
-  const business = (await query('SELECT program_json FROM businesses WHERE id = $1::uuid', [businessId])).rows[0];
-  if (!business) throw notFound('Negocio no encontrado.');
+export async function getRedemptionReturns(
+  { businessId, branchId = null, days = 90, now = new Date() },
+  query = dbQuery,
+) {
+  if (![7, 30, 90].includes(days)) throw badRequest("El período debe ser de 7, 30 o 90 días.");
+  const business = (
+    await query("SELECT program_json FROM businesses WHERE id = $1::uuid", [businessId])
+  ).rows[0];
+  if (!business) throw notFound("Negocio no encontrado.");
   const { timezone } = businessRegion(business);
   if (branchId) {
-    const branch = await query('SELECT id FROM branches WHERE id = $1::uuid AND business_id = $2::uuid', [branchId, businessId]);
-    if (!branch.rows.length) throw badRequest('La sucursal no pertenece a este negocio.');
+    const branch = await query(
+      "SELECT id FROM branches WHERE id = $1::uuid AND business_id = $2::uuid",
+      [branchId, businessId],
+    );
+    if (!branch.rows.length) throw badRequest("La sucursal no pertenece a este negocio.");
   }
-  const { rows: [row] } = await query(RETURN_SQL, [businessId, branchId, days, timezone, now.toISOString()]);
+  const {
+    rows: [row],
+  } = await query(RETURN_SQL, [businessId, branchId, days, timezone, now.toISOString()]);
   return {
     ok: true,
     generated_at: now.toISOString(),
@@ -108,22 +118,22 @@ export async function getRedemptionReturns({ businessId, branchId = null, days =
       start: new Date(row.start_at).toISOString(),
       end: new Date(row.end_at).toISOString(),
       customers: Number(row.customers),
-      legacy_timestamp_customers: Number(row.legacy_timestamp_customers)
+      legacy_timestamp_customers: Number(row.legacy_timestamp_customers),
     },
-    follow_up: { days: 30, definition: 'later_local_day_within_720_hours' },
+    follow_up: { days: 30, definition: "later_local_day_within_720_hours" },
     completed: row.completed,
     ongoing: row.ongoing,
     notes: [
-      'Cada cliente entra una vez, en su primer canje válido dentro del período elegido; no necesariamente es su primer canje histórico.',
-      'Volver significa una compra registrada en una fecha local posterior al canje y antes de que transcurran 30 días exactos (720 horas).',
-      'Se usa la fecha de compra cuando está disponible; si falta, se usa la fecha de registro en PF.',
-      'El porcentaje usa a todos los clientes que ya completaron los 30 días, incluso si no volvieron. Los clientes en seguimiento se muestran aparte.',
-      'Se excluyen canjes cancelados, restituidos, corregidos o con devoluciones registradas. Las autorizaciones de caja pendientes no cuentan como entrega.',
-      'Las compras incluyen puntos pendientes o posteriormente vencidos y excluyen devoluciones completas, ajustes, bonos y saldos iniciales importados. El vencimiento de puntos no anula una compra.',
-      'La sucursal seleccionada se aplica al canje y a la compra posterior. Los registros sin sucursal solo cuentan al consultar todas las sucursales.',
-      'Son visitas registradas en PF. Una compra fuera del programa no aparece; las sincronizaciones, devoluciones y correcciones posteriores pueden cambiar los resultados.',
-      'Los registros antiguos sin fecha de entrega usan su fecha de creación. El historial de clientes eliminados permanece en estos totales sin datos personales.',
-      'Muestra una asociación después del canje. No demuestra visitas causadas por la recompensa, ingresos incrementales ni retorno de inversión.'
-    ]
+      "Cada cliente entra una vez, en su primer canje válido dentro del período elegido; no necesariamente es su primer canje histórico.",
+      "Volver significa una compra registrada en una fecha local posterior al canje y antes de que transcurran 30 días exactos (720 horas).",
+      "Se usa la fecha de compra cuando está disponible; si falta, se usa la fecha de registro en PF.",
+      "El porcentaje usa a todos los clientes que ya completaron los 30 días, incluso si no volvieron. Los clientes en seguimiento se muestran aparte.",
+      "Se excluyen canjes cancelados, restituidos, corregidos o con devoluciones registradas. Las autorizaciones de caja pendientes no cuentan como entrega.",
+      "Las compras incluyen puntos pendientes o posteriormente vencidos y excluyen devoluciones completas, ajustes, bonos y saldos iniciales importados. El vencimiento de puntos no anula una compra.",
+      "La sucursal seleccionada se aplica al canje y a la compra posterior. Los registros sin sucursal solo cuentan al consultar todas las sucursales.",
+      "Son visitas registradas en PF. Una compra fuera del programa no aparece; las sincronizaciones, devoluciones y correcciones posteriores pueden cambiar los resultados.",
+      "Los registros antiguos sin fecha de entrega usan su fecha de creación. El historial de clientes eliminados permanece en estos totales sin datos personales.",
+      "Muestra una asociación después del canje. No demuestra visitas causadas por la recompensa, ingresos incrementales ni retorno de inversión.",
+    ],
   };
 }

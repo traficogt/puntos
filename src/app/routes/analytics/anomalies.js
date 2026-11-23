@@ -10,7 +10,7 @@ analyticsAnomalyRoutes.get(
     const businessId = req.tenantId;
 
     const { rows: summaryRows } = await dbQuery(
-       `WITH latest_run AS (
+      `WITH latest_run AS (
           SELECT id, mismatched_customers
           FROM ledger_reconciliation_runs
           WHERE status = 'COMPLETED'
@@ -55,7 +55,7 @@ analyticsAnomalyRoutes.get(
              AND status = 'PENDING'
          ), 0)::int AS pending_corrections_count,
          COALESCE((SELECT mismatched_customers FROM latest_run), 0)::int AS latest_reconciliation_mismatches`,
-      [businessId]
+      [businessId],
     );
     const summary = summaryRows[0] || {};
 
@@ -76,7 +76,7 @@ analyticsAnomalyRoutes.get(
          AND created_at >= now() - interval '24 hours'
        GROUP BY action
        ORDER BY count DESC, action ASC`,
-      [businessId]
+      [businessId],
     );
 
     const { rows: reversalActorRows } = await dbQuery(
@@ -92,7 +92,7 @@ analyticsAnomalyRoutes.get(
        GROUP BY actor_name, al.actor_id
        ORDER BY reversal_count DESC, actor_name ASC
        LIMIT 10`,
-      [businessId]
+      [businessId],
     );
 
     const { rows: negativeRows } = await dbQuery(
@@ -108,7 +108,7 @@ analyticsAnomalyRoutes.get(
          AND cb.points < 0
        ORDER BY cb.points ASC
        LIMIT 20`,
-      [businessId]
+      [businessId],
     );
 
     return res.json({
@@ -118,11 +118,11 @@ analyticsAnomalyRoutes.get(
         reversals_24h: Number(summary.reversals_24h || 0),
         replay_events_24h: Number(summary.replay_events_24h || 0),
         pending_corrections_count: Number(summary.pending_corrections_count || 0),
-        latest_reconciliation_mismatches: Number(summary.latest_reconciliation_mismatches || 0)
+        latest_reconciliation_mismatches: Number(summary.latest_reconciliation_mismatches || 0),
       },
       replay_breakdown: replayRows,
       top_refund_actors: reversalActorRows,
-      negative_balances: negativeRows
+      negative_balances: negativeRows,
     });
-  })
+  }),
 );

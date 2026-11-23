@@ -32,7 +32,7 @@ analyticsDashboardRoutes.get(
          LEFT JOIN customer_ltv cl ON cl.customer_id = c.id
          WHERE c.business_id = $1
            AND c.deleted_at IS NULL`,
-        [businessId]
+        [businessId],
       );
       summary = rows;
 
@@ -50,7 +50,7 @@ analyticsDashboardRoutes.get(
          WHERE c.business_id = $1
            AND c.deleted_at IS NULL
          GROUP BY segment`,
-        [businessId]
+        [businessId],
       );
       rfmDistribution = rRows;
 
@@ -67,7 +67,7 @@ analyticsDashboardRoutes.get(
            AND t.created_at > now() - interval '30 days'
          GROUP BY DATE(t.created_at)
          ORDER BY DATE(t.created_at) DESC`,
-        [businessId]
+        [businessId],
       );
       activity = aRows;
 
@@ -103,7 +103,7 @@ analyticsDashboardRoutes.get(
          ) rd ON true
          WHERE b.business_id = $1
          ORDER BY revenue_30d DESC, tx_30d DESC, b.name ASC`,
-        [businessId]
+        [businessId],
       );
       branchPerformance = pRows;
     } else {
@@ -139,7 +139,7 @@ analyticsDashboardRoutes.get(
            (SELECT COALESCE(AVG(cl.purchase_frequency), 0)
             FROM customer_ltv cl
             JOIN branch_customers bc ON bc.customer_id = cl.customer_id) AS avg_purchase_frequency`,
-        [businessId, branchId]
+        [businessId, branchId],
       );
       summary = rows;
 
@@ -162,7 +162,7 @@ analyticsDashboardRoutes.get(
          FROM customer_ltv cl
          JOIN branch_customers bc ON bc.customer_id = cl.customer_id
          GROUP BY segment`,
-        [businessId, branchId]
+        [businessId, branchId],
       );
       rfmDistribution = rRows;
 
@@ -179,7 +179,7 @@ analyticsDashboardRoutes.get(
            AND t.created_at > now() - interval '30 days'
          GROUP BY DATE(t.created_at)
          ORDER BY DATE(t.created_at) DESC`,
-        [businessId, branchId]
+        [businessId, branchId],
       );
       activity = aRows;
 
@@ -215,7 +215,7 @@ analyticsDashboardRoutes.get(
          ) rd ON true
          WHERE b.business_id = $1
            AND b.id = $2`,
-        [businessId, branchId]
+        [businessId, branchId],
       );
       branchPerformance = pRows;
     }
@@ -226,8 +226,7 @@ analyticsDashboardRoutes.get(
       rfm_distribution: rfmDistribution,
       recent_activity: activity,
       branch_performance: branchPerformance,
-      branch_id: branchId
+      branch_id: branchId,
     });
-  })
+  }),
 );
-

@@ -9,17 +9,10 @@ test("createMagicLinkCli returns a customer magic-link URL and usage mode", asyn
   let closeCount = 0;
 
   const output = await createMagicLinkCli({
-    argv: [
-      "--actor",
-      "customer",
-      "--target",
-      "customer-wallet",
-      "--customer-id",
-      "customer-123"
-    ],
+    argv: ["--actor", "customer", "--target", "customer-wallet", "--customer-id", "customer-123"],
     config: {
       APP_ORIGIN: "https://app.example.com",
-      PUBLIC_WEB_ORIGIN: "https://public.example.com"
+      PUBLIC_WEB_ORIGIN: "https://public.example.com",
     },
     withDbClientContext: async (ctx, fn) => {
       dbContexts.push(ctx);
@@ -31,21 +24,21 @@ test("createMagicLinkCli returns a customer magic-link URL and usage mode", asyn
     CustomerRepo: {
       getById: async (id) => ({
         id,
-        business_id: "biz-1"
-      })
+        business_id: "biz-1",
+      }),
     },
     StaffRepo: {
       getById: async () => null,
-      getByEmail: async () => null
+      getByEmail: async () => null,
     },
     buildInternalMagicLink: async (payload) => {
       buildCalls.push(payload);
       return {
         url: "https://app.example.com/api/magic/customer/raw-token",
         usageMode: "reusable_window",
-        expiresAt: "2026-04-03T12:15:00.000Z"
+        expiresAt: "2026-04-03T12:15:00.000Z",
       };
-    }
+    },
   });
 
   assert.match(output, /url:\s*https:\/\/app\.example\.com\/api\/magic\/customer\/raw-token/i);

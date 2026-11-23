@@ -52,7 +52,7 @@ export function registerBranchesModule(app) {
       const payload = {
         name: $("#branchName").value.trim(),
         address: $("#branchAddress").value.trim() || undefined,
-        code: $("#branchCode").value.trim() || undefined
+        code: $("#branchCode").value.trim() || undefined,
       };
       await api("/api/admin/branches", { method: "POST", body: JSON.stringify(payload) });
       $("#branchName").value = "";
@@ -80,7 +80,6 @@ export function registerBranchesModule(app) {
   app.registerTab("branches", {
     feature: "multi_branch",
     allowManager: false,
-    load: loadBranches
+    load: loadBranches,
   });
 }
-

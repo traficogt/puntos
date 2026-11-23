@@ -8,11 +8,14 @@ export async function businessSummary(businessId, branchId = null) {
   let red30;
 
   if (!branchId) {
-    customers = await one(`SELECT COUNT(*)::int AS c FROM customers WHERE business_id=$1 AND deleted_at IS NULL`, [businessId]);
+    customers = await one(
+      `SELECT COUNT(*)::int AS c FROM customers WHERE business_id=$1 AND deleted_at IS NULL`,
+      [businessId],
+    );
     active = await BusinessRepo.activeCustomerCount(businessId);
     red30 = await one(
       `SELECT COUNT(*)::int AS c FROM redemptions WHERE business_id=$1 AND created_at >= now() - interval '30 days'`,
-      [businessId]
+      [businessId],
     );
   } else {
     customers = await one(
@@ -22,7 +25,7 @@ export async function businessSummary(businessId, branchId = null) {
        WHERE c.business_id=$1
          AND c.deleted_at IS NULL
          AND t.branch_id = $2`,
-      [businessId, branchId]
+      [businessId, branchId],
     );
     active = await one(
       `SELECT COUNT(DISTINCT c.id)::int AS c
@@ -32,7 +35,7 @@ export async function businessSummary(businessId, branchId = null) {
          AND c.deleted_at IS NULL
          AND t.branch_id = $2
          AND COALESCE(c.last_visit_at, c.created_at) >= now() - interval '90 days'`,
-      [businessId, branchId]
+      [businessId, branchId],
     );
     red30 = await one(
       `SELECT COUNT(*)::int AS c
@@ -40,7 +43,7 @@ export async function businessSummary(businessId, branchId = null) {
        WHERE business_id=$1
          AND branch_id=$2
          AND created_at >= now() - interval '30 days'`,
-      [businessId, branchId]
+      [businessId, branchId],
     );
   }
 
@@ -50,7 +53,7 @@ export async function businessSummary(businessId, branchId = null) {
     customers: customers?.c ?? 0,
     activeCustomers: Number(active?.c ?? active ?? 0),
     tx30,
-    redemptions30: red30?.c ?? 0
+    redemptions30: red30?.c ?? 0,
   };
 }
 
@@ -62,6 +65,6 @@ export async function churnCandidates(businessId, days = 30, limit = 200) {
        AND COALESCE(last_visit_at, created_at) < now() - ($2 || ' days')::interval
      ORDER BY last_seen ASC
      LIMIT $3`,
-    [businessId, String(days), limit]
+    [businessId, String(days), limit],
   );
 }

@@ -7,7 +7,7 @@ import {
   runWithDbContext,
   setDbPlatformAdmin,
   setDbTenantId,
-  setDbWebhookIngest
+  setDbWebhookIngest,
 } from "./context.js";
 
 export function getDbClient() {
@@ -23,7 +23,10 @@ export async function setCurrentTenant(tenantId, opts = {}) {
   setDbTenantId(tenantId);
   const store = getDbContext();
   if (!store?.client) return;
-  await store.client.query("SELECT set_config('app.current_tenant', $1, $2)", [value, opts.local === true]);
+  await store.client.query("SELECT set_config('app.current_tenant', $1, $2)", [
+    value,
+    opts.local === true,
+  ]);
 }
 
 export async function setPlatformAdmin(platformAdmin, opts = {}) {
@@ -31,7 +34,10 @@ export async function setPlatformAdmin(platformAdmin, opts = {}) {
   setDbPlatformAdmin(platformAdmin);
   const store = getDbContext();
   if (!store?.client) return;
-  await store.client.query("SELECT set_config('app.platform_admin', $1, $2)", [value, opts.local === true]);
+  await store.client.query("SELECT set_config('app.platform_admin', $1, $2)", [
+    value,
+    opts.local === true,
+  ]);
 }
 
 export async function setWebhookIngest(webhookIngest, opts = {}) {
@@ -39,7 +45,10 @@ export async function setWebhookIngest(webhookIngest, opts = {}) {
   setDbWebhookIngest(webhookIngest);
   const store = getDbContext();
   if (!store?.client) return;
-  await store.client.query("SELECT set_config('app.webhook_ingest', $1, $2)", [value, opts.local === true]);
+  await store.client.query("SELECT set_config('app.webhook_ingest', $1, $2)", [
+    value,
+    opts.local === true,
+  ]);
 }
 
 export async function withDbClientContext(ctx, fn) {
@@ -50,9 +59,15 @@ export async function withDbClientContext(ctx, fn) {
   const prevIngest = getDbWebhookIngest();
 
   const run = async (client) => {
-    const tenantId = Object.prototype.hasOwnProperty.call(ctx, "tenantId") ? (ctx.tenantId ?? null) : prevTenantId;
-    const platformAdmin = Object.prototype.hasOwnProperty.call(ctx, "platformAdmin") ? (ctx.platformAdmin === true) : prevPlatform;
-    const webhookIngest = Object.prototype.hasOwnProperty.call(ctx, "webhookIngest") ? (ctx.webhookIngest === true) : prevIngest;
+    const tenantId = Object.prototype.hasOwnProperty.call(ctx, "tenantId")
+      ? (ctx.tenantId ?? null)
+      : prevTenantId;
+    const platformAdmin = Object.prototype.hasOwnProperty.call(ctx, "platformAdmin")
+      ? ctx.platformAdmin === true
+      : prevPlatform;
+    const webhookIngest = Object.prototype.hasOwnProperty.call(ctx, "webhookIngest")
+      ? ctx.webhookIngest === true
+      : prevIngest;
 
     return runWithDbContext(
       { ...(parent ?? {}), client, tenantId, platformAdmin, webhookIngest },
@@ -61,7 +76,7 @@ export async function withDbClientContext(ctx, fn) {
         await setWebhookIngest(webhookIngest);
         await setCurrentTenant(tenantId);
         return fn(client);
-      }
+      },
     );
   };
 
@@ -81,7 +96,7 @@ export async function withDbClientContext(ctx, fn) {
   } finally {
     try {
       await client.query(
-        "SELECT set_config('app.current_tenant', '', false), set_config('app.platform_admin', '', false), set_config('app.webhook_ingest', '', false)"
+        "SELECT set_config('app.current_tenant', '', false), set_config('app.platform_admin', '', false), set_config('app.webhook_ingest', '', false)",
       );
     } catch {}
     client.release();

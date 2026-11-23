@@ -5,7 +5,11 @@ function dateKey(value) {
   return date.toISOString().slice(0, 10);
 }
 
-export function computePurchaseFrequencyPerMonth(totalTransactions, firstPurchaseAt, lastPurchaseAt) {
+export function computePurchaseFrequencyPerMonth(
+  totalTransactions,
+  firstPurchaseAt,
+  lastPurchaseAt,
+) {
   const txCount = Number(totalTransactions || 0);
   if (txCount <= 0 || !firstPurchaseAt || !lastPurchaseAt) return 0;
 
@@ -25,7 +29,7 @@ export function calculateVisitStreakMetrics(visitDates) {
       currentStreak: 0,
       longestStreak: 0,
       lastVisitDate: null,
-      streakStartedAt: null
+      streakStartedAt: null,
     };
   }
 
@@ -59,12 +63,12 @@ export function calculateVisitStreakMetrics(visitDates) {
     currentStreak: lastRunLength,
     longestStreak: longest,
     lastVisitDate: normalized[normalized.length - 1],
-    streakStartedAt: lastRunStart
+    streakStartedAt: lastRunStart,
   };
 }
 
 function churnRiskScore(daysSinceLastPurchase, purchaseFrequency) {
-  const daysFactor = Math.min(1, (Number(daysSinceLastPurchase ?? 9999) / 90)) * 0.6;
+  const daysFactor = Math.min(1, Number(daysSinceLastPurchase ?? 9999) / 90) * 0.6;
   const frequencyFactor = purchaseFrequency < 0.5 ? 0.4 : purchaseFrequency < 1 ? 0.2 : 0;
   return Number(Math.min(1, daysFactor + frequencyFactor).toFixed(2));
 }
@@ -89,14 +93,14 @@ export async function refreshCustomerDerivedState(client, customerId) {
        AND type = 'PURCHASE'
        AND source <> 'reversal'
        AND status <> 'REVERSED'`,
-    [customerId]
+    [customerId],
   );
 
   const aggregate = rows[0] || {};
   const purchaseFrequency = computePurchaseFrequencyPerMonth(
     aggregate.total_transactions,
     aggregate.first_purchase_at,
-    aggregate.last_purchase_at
+    aggregate.last_purchase_at,
   );
 
   await client.query(
@@ -138,8 +142,8 @@ export async function refreshCustomerDerivedState(client, customerId) {
       aggregate.days_since_last_purchase ?? null,
       purchaseFrequency,
       predictedLtv(aggregate.avg_transaction_value, purchaseFrequency),
-      churnRiskScore(aggregate.days_since_last_purchase, purchaseFrequency)
-    ]
+      churnRiskScore(aggregate.days_since_last_purchase, purchaseFrequency),
+    ],
   );
 
   const { rows: visitRows } = await client.query(
@@ -151,7 +155,7 @@ export async function refreshCustomerDerivedState(client, customerId) {
        AND source <> 'reversal'
        AND status <> 'REVERSED'
      ORDER BY visit_date ASC`,
-    [customerId]
+    [customerId],
   );
 
   const streak = calculateVisitStreakMetrics(visitRows.map((row) => row.visit_date));
@@ -170,6 +174,12 @@ export async function refreshCustomerDerivedState(client, customerId) {
        last_visit_date = EXCLUDED.last_visit_date,
        streak_started_at = EXCLUDED.streak_started_at,
        updated_at = now()`,
-    [customerId, streak.currentStreak, streak.longestStreak, streak.lastVisitDate, streak.streakStartedAt]
+    [
+      customerId,
+      streak.currentStreak,
+      streak.longestStreak,
+      streak.lastVisitDate,
+      streak.streakStartedAt,
+    ],
   );
 }

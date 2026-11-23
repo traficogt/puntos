@@ -20,29 +20,63 @@ let sent;
 let server;
 let origin;
 let cookie;
-const originals = { staff: StaffRepo.getById, business: BusinessRepo.getById, audit: AuditRepo.log };
+const originals = {
+  staff: StaffRepo.getById,
+  business: BusinessRepo.getById,
+  audit: AuditRepo.log,
+};
 
 before(async () => {
-  StaffRepo.getById = async () => ({ id: staffId, business_id: businessId, role, branch_id: null, active: true, email: "owner@example.com" });
-  BusinessRepo.getById = async () => ({ id: businessId, name: "Café Prueba", slug: "cafe-prueba", plan: "EMPRENDEDOR" });
-  AuditRepo.log = async (entry) => { audits.push(entry); };
-  const session = await createBrowserSession({ actorType: "STAFF", actorId: staffId, businessId, role: "OWNER" });
+  StaffRepo.getById = async () => ({
+    id: staffId,
+    business_id: businessId,
+    role,
+    branch_id: null,
+    active: true,
+    email: "owner@example.com",
+  });
+  BusinessRepo.getById = async () => ({
+    id: businessId,
+    name: "Café Prueba",
+    slug: "cafe-prueba",
+    plan: "EMPRENDEDOR",
+  });
+  AuditRepo.log = async (entry) => {
+    audits.push(entry);
+  };
+  const session = await createBrowserSession({
+    actorType: "STAFF",
+    actorId: staffId,
+    businessId,
+    role: "OWNER",
+  });
   cookie = `${config.STAFF_COOKIE_NAME}=${session.token}`;
   const app = express();
   app.use(cookieParser());
   app.use(express.json());
   // The mailer is injected so the test never touches SMTP and can assert exactly what would be sent.
-  app.use("/api", createConciergeRoutes({ sendEmail: async (payload) => { sent.push(payload); } }));
+  app.use(
+    "/api",
+    createConciergeRoutes({
+      sendEmail: async (payload) => {
+        sent.push(payload);
+      },
+    }),
+  );
   app.use(errorHandler);
   server = app.listen(0, "127.0.0.1");
-  await new Promise(resolve => server.once("listening", resolve));
+  await new Promise((resolve) => server.once("listening", resolve));
   const address = server.address();
   assert.ok(address && typeof address === "object");
   origin = `http://127.0.0.1:${address.port}`;
 });
-beforeEach(() => { role = "OWNER"; audits = []; sent = []; });
+beforeEach(() => {
+  role = "OWNER";
+  audits = [];
+  sent = [];
+});
 after(async () => {
-  await new Promise(resolve => server?.close(resolve));
+  await new Promise((resolve) => server?.close(resolve));
   StaffRepo.getById = originals.staff;
   BusinessRepo.getById = originals.business;
   AuditRepo.log = originals.audit;
@@ -53,11 +87,20 @@ async function post(body, { authenticated = true, csrf = true } = {}) {
   const headers = { "content-type": "application/json", origin };
   if (authenticated) headers.cookie = csrf ? `${cookie}; pf_csrf=test-token` : cookie;
   if (csrf) headers["x-csrf-token"] = "test-token";
-  const response = await fetch(`${origin}/api/admin/concierge-request`, { method: "POST", headers, body: JSON.stringify(body) });
+  const response = await fetch(`${origin}/api/admin/concierge-request`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
   const text = await response.text();
   return { status: response.status, body: text.startsWith("{") ? JSON.parse(text) : text };
 }
-const good = { phone: "+502 5555 1234", business_type: "Cafetería", preferred_time: "por la tarde", note: "Abrimos una segunda sucursal en enero." };
+const good = {
+  phone: "+502 5555 1234",
+  business_type: "Cafetería",
+  preferred_time: "por la tarde",
+  note: "Abrimos una segunda sucursal en enero.",
+};
 
 describe("done-for-you concierge request", () => {
   it("requires an authenticated owner", async () => {

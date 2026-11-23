@@ -14,10 +14,22 @@ test("service worker core assets are explicit and exist on disk", () => {
 
   const assets = Array.from(match[1].matchAll(/"([^"]+)"/g)).map((entry) => entry[1]);
   /** @type {Array<[string, string]>} */
-  const fallbackEntries = Array.from(fallbackMatch[1].matchAll(/\[\s*"([^"]+)",\s*"([^"]+)"\s*\]/g))
-    .map((entry) => /** @type {[string, string]} */ ([entry[1], entry[2]]));
+  const fallbackEntries = Array.from(
+    fallbackMatch[1].matchAll(/\[\s*"([^"]+)",\s*"([^"]+)"\s*\]/g),
+  ).map((entry) => /** @type {[string, string]} */ ([entry[1], entry[2]]));
   const fallbackMap = new Map(fallbackEntries);
-  const canonicalFiles = new Map(Object.entries({ "/crear-negocio/": "/admin.html", "/equipo/ingresar/": "/staff-login.html", "/equipo/escaner/": "/staff.html", "/mi-tarjeta/": "/customer.html", "/administracion/": "/admin-dashboard.html", "/plataforma/": "/super.html", "/registro/": "/join.html", "/ingresar/": "/ingresar.html" }));
+  const canonicalFiles = new Map(
+    Object.entries({
+      "/crear-negocio/": "/admin.html",
+      "/equipo/ingresar/": "/staff-login.html",
+      "/equipo/escaner/": "/staff.html",
+      "/mi-tarjeta/": "/customer.html",
+      "/administracion/": "/admin-dashboard.html",
+      "/plataforma/": "/super.html",
+      "/registro/": "/join.html",
+      "/ingresar/": "/ingresar.html",
+    }),
+  );
   assert.ok(assets.length > 0, "CORE_ASSETS should not be empty");
 
   for (const asset of assets) {
@@ -29,13 +41,17 @@ test("service worker core assets are explicit and exist on disk", () => {
 
     const fallbackPath = canonicalFiles.get(asset) || fallbackMap.get(asset);
     assert.ok(fallbackPath, `Missing service-worker asset mapping: ${asset}`);
-    const fallbackRelativePath = fallbackPath.startsWith("/") ? fallbackPath.slice(1) : fallbackPath;
+    const fallbackRelativePath = fallbackPath.startsWith("/")
+      ? fallbackPath.slice(1)
+      : fallbackPath;
     const fallbackFilePath = new URL(`../../public/${fallbackRelativePath}`, import.meta.url);
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
-    assert.ok(fs.existsSync(fallbackFilePath), `Missing service-worker fallback asset: ${path.basename(fallbackRelativePath)}`);
+    assert.ok(
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      fs.existsSync(fallbackFilePath),
+      `Missing service-worker fallback asset: ${path.basename(fallbackRelativePath)}`,
+    );
   }
 });
-
 
 test("precache covers local script dependencies of offline pages and modules", () => {
   const publicDir = new URL("../../public/", import.meta.url);
@@ -61,13 +77,24 @@ test("precache covers local script dependencies of offline pages and modules", (
     const source = fs.readFileSync(fileUrl, "utf8");
     let dependencies;
     if (assetUrl.pathname.endsWith(".html")) {
-      dependencies = Array.from(source.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi), (match) => match[1]);
+      dependencies = Array.from(
+        source.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi),
+        (match) => match[1],
+      );
     } else {
       // JSDoc import types do not load code in the browser.
       const runtimeSource = source.replace(/\/\*[\s\S]*?\*\//g, "");
       dependencies = [
-        ...Array.from(runtimeSource.matchAll(/^\s*(?:import|export)\s+(?:[^;"']*?\bfrom\s*)?["']([^"']+)["']/gm), (match) => match[1]),
-        ...Array.from(runtimeSource.matchAll(/\bimport\s*\(\s*["']([^"']+)["']\s*\)/g), (match) => match[1])
+        ...Array.from(
+          runtimeSource.matchAll(
+            /^\s*(?:import|export)\s+(?:[^;"']*?\bfrom\s*)?["']([^"']+)["']/gm,
+          ),
+          (match) => match[1],
+        ),
+        ...Array.from(
+          runtimeSource.matchAll(/\bimport\s*\(\s*["']([^"']+)["']\s*\)/g),
+          (match) => match[1],
+        ),
       ];
     }
     for (const dependency of dependencies) {
@@ -81,5 +108,9 @@ test("precache covers local script dependencies of offline pages and modules", (
     }
   }
 
-  assert.deepEqual([...missing].sort(), [], "Offline scripts must be precached together with their transitive imports");
+  assert.deepEqual(
+    [...missing].sort(),
+    [],
+    "Offline scripts must be precached together with their transitive imports",
+  );
 });

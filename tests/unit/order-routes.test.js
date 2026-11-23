@@ -10,7 +10,7 @@ test("order create schema accepts identifier-based customer resolution", () => {
     identifierType: "loyalty_card",
     identifierValue: "ABC123",
     status: "paid",
-    amount_q: 50
+    amount_q: 50,
   });
 
   assert.equal(parsed.success, true);
@@ -23,7 +23,7 @@ test("order create schema rejects requests without any customer identity", () =>
     businessSlug: "cafe",
     externalOrderId: "ord-missing",
     status: "paid",
-    amount_q: 50
+    amount_q: 50,
   });
 
   assert.equal(parsed.success, false);

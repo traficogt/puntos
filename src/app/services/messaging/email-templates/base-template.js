@@ -3,7 +3,7 @@ function escapeHtml(value) {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
-    .replaceAll("\"", "&quot;")
+    .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
 
@@ -22,7 +22,10 @@ export function renderHtmlParagraphs(lines = []) {
   return lines
     .map((line) => String(line || "").trim())
     .filter(Boolean)
-    .map((line) => `<p style="margin:0 0 14px;font-size:16px;line-height:24px;color:#374151;">${escapeHtml(line)}</p>`)
+    .map(
+      (line) =>
+        `<p style="margin:0 0 14px;font-size:16px;line-height:24px;color:#374151;">${escapeHtml(line)}</p>`,
+    )
     .join("");
 }
 
@@ -32,7 +35,7 @@ export function renderBaseEmailTemplate({
   title = "",
   eyebrow = "",
   bodyHtml = "",
-  footerText = ""
+  footerText = "",
 }) {
   const brandName = escapeHtml(branding.brandName);
   const lockupHtml = branding.lockupUrl
@@ -48,7 +51,7 @@ export function renderBaseEmailTemplate({
   const rawHeaderBrandHtml = lockupHtml
     ? lockupHtml
     : brandMediaHtml || wordmarkHtml
-    ? `
+      ? `
       <table role="presentation" cellpadding="0" cellspacing="0">
         <tr>
           ${brandMediaHtml ? `<td style="vertical-align:middle;padding-right:14px;">${brandMediaHtml}</td>` : ""}
@@ -56,10 +59,11 @@ export function renderBaseEmailTemplate({
         </tr>
       </table>
     `
-    : brandTextHtml;
-  const headerBrandHtml = branding.scope === "platform"
-    ? `<a href="https://puntosfieles.com/" style="color:inherit;text-decoration:none;">${rawHeaderBrandHtml}</a>`
-    : rawHeaderBrandHtml;
+      : brandTextHtml;
+  const headerBrandHtml =
+    branding.scope === "platform"
+      ? `<a href="https://puntosfieles.com/" style="color:inherit;text-decoration:none;">${rawHeaderBrandHtml}</a>`
+      : rawHeaderBrandHtml;
   const poweredByHtml = branding.poweredByVisible
     ? `<p style="margin:12px 0 0;font-size:12px;line-height:18px;color:#6B7280;"><a href="https://puntosfieles.com/" style="color:#6B7280;text-decoration:underline;">Powered by PuntosFieles</a></p>`
     : "";

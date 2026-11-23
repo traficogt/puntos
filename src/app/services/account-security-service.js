@@ -6,12 +6,20 @@ import { AuthActionTokenRepo } from "../repositories/auth-action-token-repositor
 import { SuperAdminAuthRepo } from "../repositories/super-admin-auth-repository.js";
 import { SecurityEventRepo } from "../repositories/security-event-repository.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
-import { invalidateBrowserSessionsForActor, markBrowserSessionReauthenticated } from "./auth-session-service.js";
+import {
+  invalidateBrowserSessionsForActor,
+  markBrowserSessionReauthenticated,
+} from "./auth-session-service.js";
 import { assertPasswordAllowed } from "../../utils/password-policy.js";
 import { hashPassword, verifyPassword } from "../../utils/password-hash.js";
 import { badRequest, conflict, notFound, unauthorized } from "../../utils/http-error.js";
 import { encryptSecret, decryptSecretMaybe } from "../../utils/secret-crypto.js";
-import { buildOtpAuthUri, generateBase32Secret, verifyTotp, verifyTotpCounter } from "../../utils/totp.js";
+import {
+  buildOtpAuthUri,
+  generateBase32Secret,
+  verifyTotp,
+  verifyTotpCounter,
+} from "../../utils/totp.js";
 import { sendSecurityNotification } from "./security-notification-service.js";
 
 function id() {
@@ -19,7 +27,10 @@ function id() {
 }
 
 function hashActionToken(token) {
-  return crypto.createHash("sha256").update(String(token || ""), "utf8").digest("hex");
+  return crypto
+    .createHash("sha256")
+    .update(String(token || ""), "utf8")
+    .digest("hex");
 }
 
 function randomActionToken() {
@@ -27,7 +38,9 @@ function randomActionToken() {
 }
 
 function normalizeEmail(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .toLowerCase();
 }
 
 function requireTotpFormat(code) {
@@ -47,7 +60,7 @@ async function consumeTotpCounter(accountType, accountId, counter) {
     `INSERT INTO mfa_used_counters (account_type, account_id, counter)
      VALUES ($1, $2, $3)
      ON CONFLICT DO NOTHING`,
-    [accountType, String(accountId), Number(counter)]
+    [accountType, String(accountId), Number(counter)],
   );
   return rowCount === 1;
 }
@@ -58,12 +71,20 @@ async function consumeTotpCounter(accountType, accountId, counter) {
 export async function pruneExpiredMfaCounters({ olderThan = "1 day" } = {}) {
   const { rowCount } = await dbQuery(
     "DELETE FROM mfa_used_counters WHERE used_at < now() - $1::interval",
-    [olderThan]
+    [olderThan],
   );
   return rowCount ?? 0;
 }
 
-async function logAudit({ businessId = null, actorType, actorId = null, action, meta = {}, ip = null, ua = null }) {
+async function logAudit({
+  businessId = null,
+  actorType,
+  actorId = null,
+  action,
+  meta = {},
+  ip = null,
+  ua = null,
+}) {
   await AuditRepo.log({
     id: id(),
     business_id: businessId,
@@ -72,7 +93,7 @@ async function logAudit({ businessId = null, actorType, actorId = null, action, 
     action,
     ip,
     ua,
-    meta
+    meta,
   }).catch(() => {});
 }
 
@@ -84,7 +105,7 @@ function resetNotificationLines(token) {
   return [
     "Se solicitó un restablecimiento de contraseña para tu cuenta.",
     `Token: ${token}`,
-    "Si no fuiste tú, ignora este mensaje y revisa la seguridad de tu cuenta."
+    "Si no fuiste tú, ignora este mensaje y revisa la seguridad de tu cuenta.",
   ];
 }
 
@@ -92,7 +113,7 @@ function emailChangeLines(token, newEmail, role) {
   return [
     `Se solicitó cambiar el correo ${role} a: ${newEmail}`,
     `Token: ${token}`,
-    "Debes confirmar desde ambos correos para completar el cambio."
+    "Debes confirmar desde ambos correos para completar el cambio.",
   ];
 }
 
@@ -100,7 +121,7 @@ function passwordContextForStaff(staff, candidatePassword) {
   assertPasswordAllowed(candidatePassword, {
     email: staff.email,
     name: staff.name,
-    phone: staff.phone
+    phone: staff.phone,
   });
 }
 
@@ -108,7 +129,7 @@ function passwordContextForSuper(authRecord, candidatePassword) {
   assertPasswordAllowed(candidatePassword, {
     email: authRecord.email,
     name: "super admin",
-    businessName: "puntos"
+    businessName: "puntos",
   });
 }
 
@@ -134,7 +155,7 @@ export async function requestStaffPasswordReset({ email, ip = null, ua: _ua = nu
     purpose: "STAFF_PASSWORD_RESET",
     token_hash: hashActionToken(token),
     payload: {},
-    expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
   });
 
   await logSecurity({
@@ -146,20 +167,25 @@ export async function requestStaffPasswordReset({ email, ip = null, ua: _ua = nu
     ip,
     route: "/api/public/staff/password-reset/request",
     method: "POST",
-    meta: { email: normalizeEmail(staff.email) }
+    meta: { email: normalizeEmail(staff.email) },
   });
 
   await sendSecurityNotification({
     businessId: staff.business_id,
     to: staff.email,
     subject: "PuntosFieles • Restablecimiento de contraseña",
-    lines: resetNotificationLines(token)
+    lines: resetNotificationLines(token),
   });
 
   return { ok: true };
 }
 
-export async function completeStaffPasswordReset({ token, newPassword, ip = null, ua: _ua = null }) {
+export async function completeStaffPasswordReset({
+  token,
+  newPassword,
+  ip = null,
+  ua: _ua = null,
+}) {
   const active = await AuthActionTokenRepo.lookupActiveByTokenHash(hashActionToken(token));
   if (!active || active.purpose !== "STAFF_PASSWORD_RESET" || active.actor_type !== "STAFF") {
     throw badRequest("Invalid or expired reset token");
@@ -170,11 +196,18 @@ export async function completeStaffPasswordReset({ token, newPassword, ip = null
   const passwordHash = await hashPassword(newPassword);
 
   await withTransaction(async (client) => {
-    await client.query(`UPDATE staff_users SET password_hash = $2 WHERE id = $1`, [staff.id, passwordHash]);
+    await client.query(`UPDATE staff_users SET password_hash = $2 WHERE id = $1`, [
+      staff.id,
+      passwordHash,
+    ]);
     await AuthActionTokenRepo.markUsed(active.id, { completed: true }, client.query.bind(client));
   });
 
-  await invalidateBrowserSessionsForActor({ actorType: "STAFF", actorId: staff.id, reason: "password_reset" }).catch(() => {});
+  await invalidateBrowserSessionsForActor({
+    actorType: "STAFF",
+    actorId: staff.id,
+    reason: "password_reset",
+  }).catch(() => {});
   await logSecurity({
     event_type: "staff_password_reset_completed",
     severity: "HIGH",
@@ -184,13 +217,13 @@ export async function completeStaffPasswordReset({ token, newPassword, ip = null
     ip,
     route: "/api/public/staff/password-reset/confirm",
     method: "POST",
-    meta: { email: normalizeEmail(staff.email) }
+    meta: { email: normalizeEmail(staff.email) },
   });
   await sendSecurityNotification({
     businessId: staff.business_id,
     to: staff.email,
     subject: "PuntosFieles • Contraseña cambiada",
-    lines: ["La contraseña de tu cuenta fue cambiada.", "Se invalidaron tus sesiones activas."]
+    lines: ["La contraseña de tu cuenta fue cambiada.", "Se invalidaron tus sesiones activas."],
   });
   return { ok: true };
 }
@@ -206,7 +239,7 @@ export async function requestSuperPasswordReset({ email, ip = null, ua: _ua = nu
     purpose: "SUPER_PASSWORD_RESET",
     token_hash: hashActionToken(token),
     payload: {},
-    expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
   });
   await logSecurity({
     event_type: "super_password_reset_requested",
@@ -215,17 +248,22 @@ export async function requestSuperPasswordReset({ email, ip = null, ua: _ua = nu
     ip,
     route: "/api/public/super/password-reset/request",
     method: "POST",
-    meta: { email: normalizeEmail(auth.email) }
+    meta: { email: normalizeEmail(auth.email) },
   });
   await sendSecurityNotification({
     to: auth.email,
     subject: "PuntosFieles • Restablecimiento de contraseña super admin",
-    lines: resetNotificationLines(token)
+    lines: resetNotificationLines(token),
   });
   return { ok: true };
 }
 
-export async function completeSuperPasswordReset({ token, newPassword, ip = null, ua: _ua = null }) {
+export async function completeSuperPasswordReset({
+  token,
+  newPassword,
+  ip = null,
+  ua: _ua = null,
+}) {
   const active = await AuthActionTokenRepo.lookupActiveByTokenHash(hashActionToken(token));
   if (!active || active.purpose !== "SUPER_PASSWORD_RESET" || active.actor_type !== "SUPER") {
     throw badRequest("Invalid or expired reset token");
@@ -237,7 +275,11 @@ export async function completeSuperPasswordReset({ token, newPassword, ip = null
     await SuperAdminAuthRepo.update({ password_hash: passwordHash }, client.query.bind(client));
     await AuthActionTokenRepo.markUsed(active.id, { completed: true }, client.query.bind(client));
   });
-  await invalidateBrowserSessionsForActor({ actorType: "SUPER", actorEmail: normalizeEmail(auth.email), reason: "password_reset" }).catch(() => {});
+  await invalidateBrowserSessionsForActor({
+    actorType: "SUPER",
+    actorEmail: normalizeEmail(auth.email),
+    reason: "password_reset",
+  }).catch(() => {});
   await logSecurity({
     event_type: "super_password_reset_completed",
     severity: "HIGH",
@@ -245,12 +287,12 @@ export async function completeSuperPasswordReset({ token, newPassword, ip = null
     ip,
     route: "/api/public/super/password-reset/confirm",
     method: "POST",
-    meta: { email: normalizeEmail(auth.email) }
+    meta: { email: normalizeEmail(auth.email) },
   });
   await sendSecurityNotification({
     to: auth.email,
     subject: "PuntosFieles • Contraseña super admin cambiada",
-    lines: ["La contraseña del super admin fue cambiada.", "Se invalidaron las sesiones activas."]
+    lines: ["La contraseña del super admin fue cambiada.", "Se invalidaron las sesiones activas."],
   });
   return { ok: true };
 }
@@ -259,40 +301,52 @@ export async function requestStaffEmailChange({ staff, newEmail, ip = null, ua =
   const freshStaff = await getStaffMfaRecord(staff.id);
   const normalizedNewEmail = normalizeEmail(newEmail);
   if (!normalizedNewEmail) throw badRequest("Email required");
-  if (normalizeEmail(freshStaff.email) === normalizedNewEmail) throw conflict("New email matches current email");
+  if (normalizeEmail(freshStaff.email) === normalizedNewEmail)
+    throw conflict("New email matches current email");
   const existing = await StaffRepo.getByEmail(normalizedNewEmail);
-  if (existing && String(existing.id) !== String(freshStaff.id)) throw conflict("Email already in use");
+  if (existing && String(existing.id) !== String(freshStaff.id))
+    throw conflict("Email already in use");
 
   const requestId = id();
   const oldToken = randomActionToken();
   const newToken = randomActionToken();
-  const payload = { request_id: requestId, new_email: normalizedNewEmail, old_email: normalizeEmail(freshStaff.email) };
+  const payload = {
+    request_id: requestId,
+    new_email: normalizedNewEmail,
+    old_email: normalizeEmail(freshStaff.email),
+  };
 
   await withTransaction(async (client) => {
-    await AuthActionTokenRepo.create({
-      id: id(),
-      request_id: requestId,
-      actor_type: "STAFF",
-      actor_id: freshStaff.id,
-      actor_email: normalizeEmail(freshStaff.email),
-      business_id: freshStaff.business_id,
-      purpose: "STAFF_EMAIL_CHANGE_OLD",
-      token_hash: hashActionToken(oldToken),
-      payload,
-      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
-    }, client.query.bind(client));
-    await AuthActionTokenRepo.create({
-      id: id(),
-      request_id: requestId,
-      actor_type: "STAFF",
-      actor_id: freshStaff.id,
-      actor_email: normalizedNewEmail,
-      business_id: freshStaff.business_id,
-      purpose: "STAFF_EMAIL_CHANGE_NEW",
-      token_hash: hashActionToken(newToken),
-      payload,
-      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
-    }, client.query.bind(client));
+    await AuthActionTokenRepo.create(
+      {
+        id: id(),
+        request_id: requestId,
+        actor_type: "STAFF",
+        actor_id: freshStaff.id,
+        actor_email: normalizeEmail(freshStaff.email),
+        business_id: freshStaff.business_id,
+        purpose: "STAFF_EMAIL_CHANGE_OLD",
+        token_hash: hashActionToken(oldToken),
+        payload,
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      },
+      client.query.bind(client),
+    );
+    await AuthActionTokenRepo.create(
+      {
+        id: id(),
+        request_id: requestId,
+        actor_type: "STAFF",
+        actor_id: freshStaff.id,
+        actor_email: normalizedNewEmail,
+        business_id: freshStaff.business_id,
+        purpose: "STAFF_EMAIL_CHANGE_NEW",
+        token_hash: hashActionToken(newToken),
+        payload,
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      },
+      client.query.bind(client),
+    );
   });
 
   await logAudit({
@@ -302,19 +356,19 @@ export async function requestStaffEmailChange({ staff, newEmail, ip = null, ua =
     action: "staff.email_change.requested",
     ip,
     ua,
-    meta: { new_email: normalizedNewEmail }
+    meta: { new_email: normalizedNewEmail },
   });
   await sendSecurityNotification({
     businessId: freshStaff.business_id,
     to: freshStaff.email,
     subject: "PuntosFieles • Confirmación de cambio de correo",
-    lines: emailChangeLines(oldToken, normalizedNewEmail, "actual")
+    lines: emailChangeLines(oldToken, normalizedNewEmail, "actual"),
   });
   await sendSecurityNotification({
     businessId: freshStaff.business_id,
     to: normalizedNewEmail,
     subject: "PuntosFieles • Confirmación de correo nuevo",
-    lines: emailChangeLines(newToken, normalizedNewEmail, "nuevo")
+    lines: emailChangeLines(newToken, normalizedNewEmail, "nuevo"),
   });
   return { ok: true, requestId };
 }
@@ -330,19 +384,27 @@ async function maybeApplyStaffEmailChange(requestId, query = dbQuery) {
   const existing = await StaffRepo.getByEmail(newEmail);
   if (existing && String(existing.id) !== String(staff.id)) throw conflict("Email already in use");
   await query(`UPDATE staff_users SET email = $2 WHERE id = $1`, [staff.id, newEmail]);
-  await invalidateBrowserSessionsForActor({ actorType: "STAFF", actorId: staff.id, reason: "email_change" }).catch(() => {});
+  await invalidateBrowserSessionsForActor({
+    actorType: "STAFF",
+    actorId: staff.id,
+    reason: "email_change",
+  }).catch(() => {});
   await sendSecurityNotification({
     businessId: staff.business_id,
     to: newEmail,
     subject: "PuntosFieles • Correo actualizado",
-    lines: ["Tu correo de acceso fue actualizado.", "Se invalidaron tus sesiones activas."]
+    lines: ["Tu correo de acceso fue actualizado.", "Se invalidaron tus sesiones activas."],
   });
   return { applied: true, email: newEmail, staff };
 }
 
 export async function confirmStaffEmailChange({ token, ip = null, ua: _ua = null }) {
   const active = await AuthActionTokenRepo.lookupActiveByTokenHash(hashActionToken(token));
-  if (!active || active.actor_type !== "STAFF" || !String(active.purpose || "").startsWith("STAFF_EMAIL_CHANGE_")) {
+  if (
+    !active ||
+    active.actor_type !== "STAFF" ||
+    !String(active.purpose || "").startsWith("STAFF_EMAIL_CHANGE_")
+  ) {
     throw badRequest("Invalid or expired email-change token");
   }
   const used = await AuthActionTokenRepo.markUsed(active.id, { confirmed: true });
@@ -354,62 +416,79 @@ export async function confirmStaffEmailChange({ token, ip = null, ua: _ua = null
     action: "staff.email_change.confirmed",
     ip,
     ua: _ua,
-    meta: { purpose: active.purpose, request_id: active.request_id, applied: result.applied }
+    meta: { purpose: active.purpose, request_id: active.request_id, applied: result.applied },
   });
   return { ok: true, applied: result.applied };
 }
 
-export async function requestSuperEmailChange({ currentEmail, newEmail, ip = null, ua: _ua = null }) {
+export async function requestSuperEmailChange({
+  currentEmail,
+  newEmail,
+  ip = null,
+  ua: _ua = null,
+}) {
   const auth = await SuperAdminAuthRepo.getEffective();
-  if (normalizeEmail(currentEmail) !== normalizeEmail(auth.email)) throw unauthorized("Invalid super admin credentials");
+  if (normalizeEmail(currentEmail) !== normalizeEmail(auth.email))
+    throw unauthorized("Invalid super admin credentials");
   const normalizedNewEmail = normalizeEmail(newEmail);
   if (!normalizedNewEmail) throw badRequest("Email required");
-  if (normalizedNewEmail === normalizeEmail(auth.email)) throw conflict("New email matches current email");
+  if (normalizedNewEmail === normalizeEmail(auth.email))
+    throw conflict("New email matches current email");
 
   const requestId = id();
   const oldToken = randomActionToken();
   const newToken = randomActionToken();
-  const payload = { request_id: requestId, new_email: normalizedNewEmail, old_email: normalizeEmail(auth.email) };
+  const payload = {
+    request_id: requestId,
+    new_email: normalizedNewEmail,
+    old_email: normalizeEmail(auth.email),
+  };
 
   await withTransaction(async (client) => {
-    await AuthActionTokenRepo.create({
-      id: id(),
-      request_id: requestId,
-      actor_type: "SUPER",
-      actor_email: normalizeEmail(auth.email),
-      purpose: "SUPER_EMAIL_CHANGE_OLD",
-      token_hash: hashActionToken(oldToken),
-      payload,
-      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
-    }, client.query.bind(client));
-    await AuthActionTokenRepo.create({
-      id: id(),
-      request_id: requestId,
-      actor_type: "SUPER",
-      actor_email: normalizedNewEmail,
-      purpose: "SUPER_EMAIL_CHANGE_NEW",
-      token_hash: hashActionToken(newToken),
-      payload,
-      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
-    }, client.query.bind(client));
+    await AuthActionTokenRepo.create(
+      {
+        id: id(),
+        request_id: requestId,
+        actor_type: "SUPER",
+        actor_email: normalizeEmail(auth.email),
+        purpose: "SUPER_EMAIL_CHANGE_OLD",
+        token_hash: hashActionToken(oldToken),
+        payload,
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      },
+      client.query.bind(client),
+    );
+    await AuthActionTokenRepo.create(
+      {
+        id: id(),
+        request_id: requestId,
+        actor_type: "SUPER",
+        actor_email: normalizedNewEmail,
+        purpose: "SUPER_EMAIL_CHANGE_NEW",
+        token_hash: hashActionToken(newToken),
+        payload,
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      },
+      client.query.bind(client),
+    );
   });
 
   await sendSecurityNotification({
     to: auth.email,
     subject: "PuntosFieles • Confirmación de cambio de correo super admin",
-    lines: emailChangeLines(oldToken, normalizedNewEmail, "actual")
+    lines: emailChangeLines(oldToken, normalizedNewEmail, "actual"),
   });
   await sendSecurityNotification({
     to: normalizedNewEmail,
     subject: "PuntosFieles • Confirmación de correo nuevo super admin",
-    lines: emailChangeLines(newToken, normalizedNewEmail, "nuevo")
+    lines: emailChangeLines(newToken, normalizedNewEmail, "nuevo"),
   });
   await logSecurity({
     event_type: "super_email_change_requested",
     severity: "HIGH",
     actor_type: "SUPER_ADMIN",
     ip,
-    meta: { new_email: normalizedNewEmail }
+    meta: { new_email: normalizedNewEmail },
   });
   return { ok: true, requestId };
 }
@@ -421,18 +500,26 @@ async function maybeApplySuperEmailChange(requestId, query = dbQuery) {
   if (!oldToken || !newToken || !oldToken.used_at || !newToken.used_at) return { applied: false };
   const newEmail = normalizeEmail(oldToken.payload?.new_email);
   await SuperAdminAuthRepo.update({ email: newEmail }, query);
-  await invalidateBrowserSessionsForActor({ actorType: "SUPER", actorEmail: normalizeEmail(oldToken.payload?.old_email), reason: "email_change" }).catch(() => {});
+  await invalidateBrowserSessionsForActor({
+    actorType: "SUPER",
+    actorEmail: normalizeEmail(oldToken.payload?.old_email),
+    reason: "email_change",
+  }).catch(() => {});
   await sendSecurityNotification({
     to: newEmail,
     subject: "PuntosFieles • Correo super admin actualizado",
-    lines: ["El correo del super admin fue actualizado.", "Se invalidaron las sesiones activas."]
+    lines: ["El correo del super admin fue actualizado.", "Se invalidaron las sesiones activas."],
   });
   return { applied: true, email: newEmail };
 }
 
 export async function confirmSuperEmailChange({ token, ip = null, ua: _ua = null }) {
   const active = await AuthActionTokenRepo.lookupActiveByTokenHash(hashActionToken(token));
-  if (!active || active.actor_type !== "SUPER" || !String(active.purpose || "").startsWith("SUPER_EMAIL_CHANGE_")) {
+  if (
+    !active ||
+    active.actor_type !== "SUPER" ||
+    !String(active.purpose || "").startsWith("SUPER_EMAIL_CHANGE_")
+  ) {
     throw badRequest("Invalid or expired email-change token");
   }
   const used = await AuthActionTokenRepo.markUsed(active.id, { confirmed: true });
@@ -442,7 +529,7 @@ export async function confirmSuperEmailChange({ token, ip = null, ua: _ua = null
     severity: "HIGH",
     actor_type: "SUPER_ADMIN",
     ip,
-    meta: { purpose: active.purpose, request_id: active.request_id, applied: result.applied }
+    meta: { purpose: active.purpose, request_id: active.request_id, applied: result.applied },
   });
   return { ok: true, applied: result.applied };
 }
@@ -461,16 +548,16 @@ export async function startStaffMfaEnrollment({ staffId, businessId }) {
         SET mfa_pending_secret_enc = $2,
             mfa_pending_created_at = now()
       WHERE id = $1`,
-    [staff.id, encryptSecret(secret)]
+    [staff.id, encryptSecret(secret)],
   );
   return {
     secret,
     otpauth_uri: buildOtpAuthUri({
       issuer: "PuntosFieles",
       label: normalizeEmail(staff.email || `${staff.id}@staff.local`),
-      secret
+      secret,
     }),
-    businessId
+    businessId,
   };
 }
 
@@ -487,7 +574,7 @@ export async function confirmStaffMfaEnrollment({ staffId, code, sessionId = nul
             mfa_pending_created_at = NULL,
             mfa_confirmed_at = now()
       WHERE id = $1`,
-    [staff.id, encryptSecret(secret)]
+    [staff.id, encryptSecret(secret)],
   );
   if (sessionId) {
     await markBrowserSessionReauthenticated({ sessionId, mfaVerified: true }).catch(() => {});
@@ -496,14 +583,14 @@ export async function confirmStaffMfaEnrollment({ staffId, code, sessionId = nul
     businessId: staff.business_id,
     to: staff.email,
     subject: "PuntosFieles • MFA activado",
-    lines: ["La autenticación multifactor fue activada para tu cuenta."]
+    lines: ["La autenticación multifactor fue activada para tu cuenta."],
   });
   await logSecurity({
     event_type: "staff_mfa_enabled",
     severity: "HIGH",
     business_id: staff.business_id,
     actor_type: "STAFF",
-    actor_id: staff.id
+    actor_id: staff.id,
   });
   return { ok: true };
 }
@@ -517,14 +604,18 @@ export async function disableStaffMfa({ staffId }) {
             mfa_pending_secret_enc = NULL,
             mfa_pending_created_at = NULL
       WHERE id = $1`,
-    [staff.id]
+    [staff.id],
   );
-  await invalidateBrowserSessionsForActor({ actorType: "STAFF", actorId: staff.id, reason: "mfa_disabled" }).catch(() => {});
+  await invalidateBrowserSessionsForActor({
+    actorType: "STAFF",
+    actorId: staff.id,
+    reason: "mfa_disabled",
+  }).catch(() => {});
   await sendSecurityNotification({
     businessId: staff.business_id,
     to: staff.email,
     subject: "PuntosFieles • MFA desactivado",
-    lines: ["La autenticación multifactor fue desactivada para tu cuenta."]
+    lines: ["La autenticación multifactor fue desactivada para tu cuenta."],
   });
   return { ok: true };
 }
@@ -534,15 +625,15 @@ export async function startSuperMfaEnrollment() {
   const secret = generateBase32Secret();
   await SuperAdminAuthRepo.update({
     mfa_pending_secret_enc: encryptSecret(secret),
-    mfa_pending_created_at: new Date().toISOString()
+    mfa_pending_created_at: new Date().toISOString(),
   });
   return {
     secret,
     otpauth_uri: buildOtpAuthUri({
       issuer: "PuntosFieles",
       label: normalizeEmail(auth.email || "super-admin"),
-      secret
-    })
+      secret,
+    }),
   };
 }
 
@@ -556,7 +647,7 @@ export async function confirmSuperMfaEnrollment({ code, sessionId = null }) {
     mfa_secret_enc: encryptSecret(secret),
     mfa_pending_secret_enc: null,
     mfa_pending_created_at: null,
-    mfa_confirmed_at: new Date().toISOString()
+    mfa_confirmed_at: new Date().toISOString(),
   });
   if (sessionId) {
     await markBrowserSessionReauthenticated({ sessionId, mfaVerified: true }).catch(() => {});
@@ -564,7 +655,7 @@ export async function confirmSuperMfaEnrollment({ code, sessionId = null }) {
   await sendSecurityNotification({
     to: auth.email,
     subject: "PuntosFieles • MFA super admin activado",
-    lines: ["La autenticación multifactor fue activada para el super admin."]
+    lines: ["La autenticación multifactor fue activada para el super admin."],
   });
   return { ok: true };
 }
@@ -575,13 +666,17 @@ export async function disableSuperMfa() {
     mfa_enabled: false,
     mfa_secret_enc: null,
     mfa_pending_secret_enc: null,
-    mfa_pending_created_at: null
+    mfa_pending_created_at: null,
   });
-  await invalidateBrowserSessionsForActor({ actorType: "SUPER", actorEmail: normalizeEmail(auth.email), reason: "mfa_disabled" }).catch(() => {});
+  await invalidateBrowserSessionsForActor({
+    actorType: "SUPER",
+    actorEmail: normalizeEmail(auth.email),
+    reason: "mfa_disabled",
+  }).catch(() => {});
   await sendSecurityNotification({
     to: auth.email,
     subject: "PuntosFieles • MFA super admin desactivado",
-    lines: ["La autenticación multifactor fue desactivada para el super admin."]
+    lines: ["La autenticación multifactor fue desactivada para el super admin."],
   });
   return { ok: true };
 }
@@ -591,7 +686,8 @@ export async function verifyStaffMfaForLogin(staff, code) {
   const secret = decryptSecretMaybe(staff.mfa_secret_enc || "");
   const normalizedCode = String(code || "").trim();
   const counter = secret ? verifyTotpCounter(secret, normalizedCode) : null;
-  const validCode = counter !== null && await consumeTotpCounter("STAFF_LOGIN", staff.id, counter);
+  const validCode =
+    counter !== null && (await consumeTotpCounter("STAFF_LOGIN", staff.id, counter));
   if (!validCode) {
     await logSecurity({
       event_type: "staff_mfa_failed_after_password",
@@ -601,13 +697,16 @@ export async function verifyStaffMfaForLogin(staff, code) {
       actor_id: staff.id,
       route: "/api/staff/login",
       method: "POST",
-      meta: { email: normalizeEmail(staff.email) }
+      meta: { email: normalizeEmail(staff.email) },
     });
     await sendSecurityNotification({
       businessId: staff.business_id,
       to: staff.email,
       subject: "PuntosFieles • Falló MFA después de contraseña correcta",
-      lines: ["Se ingresó la contraseña correcta para tu cuenta, pero falló el segundo factor.", "Si no fuiste tú, cambia tu contraseña."]
+      lines: [
+        "Se ingresó la contraseña correcta para tu cuenta, pero falló el segundo factor.",
+        "Si no fuiste tú, cambia tu contraseña.",
+      ],
     });
     throw unauthorized("MFA_REQUIRED");
   }
@@ -620,7 +719,7 @@ export async function verifySuperMfaForLogin(code) {
   const secret = decryptSecretMaybe(auth.mfa_secret_enc || "");
   const normalizedCode = String(code || "").trim();
   const counter = secret ? verifyTotpCounter(secret, normalizedCode) : null;
-  const validCode = counter !== null && await consumeTotpCounter("SUPER_LOGIN", "SUPER", counter);
+  const validCode = counter !== null && (await consumeTotpCounter("SUPER_LOGIN", "SUPER", counter));
   if (!validCode) {
     await logSecurity({
       event_type: "super_mfa_failed_after_password",
@@ -628,12 +727,12 @@ export async function verifySuperMfaForLogin(code) {
       actor_type: "SUPER_ADMIN",
       route: "/api/super/login",
       method: "POST",
-      meta: { email: normalizeEmail(auth.email) }
+      meta: { email: normalizeEmail(auth.email) },
     });
     await sendSecurityNotification({
       to: auth.email,
       subject: "PuntosFieles • Falló MFA super admin",
-      lines: ["Se ingresó la contraseña correcta del super admin, pero falló el segundo factor."]
+      lines: ["Se ingresó la contraseña correcta del super admin, pero falló el segundo factor."],
     });
     throw unauthorized("MFA_REQUIRED");
   }
@@ -647,7 +746,8 @@ export async function reauthenticateStaffSession({ staff, password, mfaCode, ses
   if (fresh.mfa_enabled) {
     const secret = decryptSecretMaybe(fresh.mfa_secret_enc || "");
     const counter = secret ? verifyTotpCounter(secret, requireTotpFormat(mfaCode)) : null;
-    if (counter === null || !(await consumeTotpCounter("STAFF_REAUTH", fresh.id, counter))) throw unauthorized("Invalid MFA code");
+    if (counter === null || !(await consumeTotpCounter("STAFF_REAUTH", fresh.id, counter)))
+      throw unauthorized("Invalid MFA code");
   }
   await markBrowserSessionReauthenticated({ sessionId, mfaVerified: Boolean(fresh.mfa_enabled) });
   await logAudit({
@@ -655,21 +755,20 @@ export async function reauthenticateStaffSession({ staff, password, mfaCode, ses
     actorType: "STAFF",
     actorId: fresh.id,
     action: "staff.reauth",
-    meta: { mfa_enabled: Boolean(fresh.mfa_enabled) }
+    meta: { mfa_enabled: Boolean(fresh.mfa_enabled) },
   });
   return { ok: true };
 }
 
 export async function reauthenticateSuperSession({ password, mfaCode, sessionId }) {
   const auth = await SuperAdminAuthRepo.getEffective();
-  const ok = auth.password_hash
-    ? await verifyPassword(password, auth.password_hash)
-    : false;
+  const ok = auth.password_hash ? await verifyPassword(password, auth.password_hash) : false;
   if (!ok) throw unauthorized("Invalid credentials");
   if (auth.mfa_enabled) {
     const secret = decryptSecretMaybe(auth.mfa_secret_enc || "");
     const counter = secret ? verifyTotpCounter(secret, requireTotpFormat(mfaCode)) : null;
-    if (counter === null || !(await consumeTotpCounter("SUPER_REAUTH", "SUPER", counter))) throw unauthorized("Invalid MFA code");
+    if (counter === null || !(await consumeTotpCounter("SUPER_REAUTH", "SUPER", counter)))
+      throw unauthorized("Invalid MFA code");
   }
   await markBrowserSessionReauthenticated({ sessionId, mfaVerified: Boolean(auth.mfa_enabled) });
   return { ok: true };
@@ -680,13 +779,16 @@ export async function lockdownStaffAccount({ staffId, ip = null, ua = null }) {
   const revokedSessions = await invalidateBrowserSessionsForActor({
     actorType: "STAFF",
     actorId: staff.id,
-    reason: "compromised_account"
+    reason: "compromised_account",
   }).catch(() => 0);
   await sendSecurityNotification({
     businessId: staff.business_id,
     to: staff.email,
     subject: "PuntosFieles • Sesiones revocadas por seguridad",
-    lines: ["Se revocaron las sesiones activas de tu cuenta por una acción de seguridad.", "Debes volver a iniciar sesión."]
+    lines: [
+      "Se revocaron las sesiones activas de tu cuenta por una acción de seguridad.",
+      "Debes volver a iniciar sesión.",
+    ],
   });
   await logSecurity({
     event_type: "staff_account_lockdown",
@@ -695,7 +797,7 @@ export async function lockdownStaffAccount({ staffId, ip = null, ua = null }) {
     actor_type: "STAFF",
     actor_id: staff.id,
     ip,
-    meta: { revoked_sessions: revokedSessions }
+    meta: { revoked_sessions: revokedSessions },
   });
   await logAudit({
     businessId: staff.business_id,
@@ -704,7 +806,7 @@ export async function lockdownStaffAccount({ staffId, ip = null, ua = null }) {
     action: "staff.security.lockdown",
     ip,
     ua,
-    meta: { revoked_sessions: revokedSessions }
+    meta: { revoked_sessions: revokedSessions },
   });
   return { ok: true, revokedSessions };
 }
@@ -714,19 +816,22 @@ export async function lockdownSuperAccount({ ip = null, ua = null }) {
   const revokedSessions = await invalidateBrowserSessionsForActor({
     actorType: "SUPER",
     actorEmail: normalizeEmail(auth.email),
-    reason: "compromised_account"
+    reason: "compromised_account",
   }).catch(() => 0);
   await sendSecurityNotification({
     to: auth.email,
     subject: "PuntosFieles • Sesiones super admin revocadas",
-    lines: ["Se revocaron las sesiones activas del super admin por una acción de seguridad.", "Debes volver a iniciar sesión."]
+    lines: [
+      "Se revocaron las sesiones activas del super admin por una acción de seguridad.",
+      "Debes volver a iniciar sesión.",
+    ],
   });
   await logSecurity({
     event_type: "super_account_lockdown",
     severity: "HIGH",
     actor_type: "SUPER_ADMIN",
     ip,
-    meta: { revoked_sessions: revokedSessions, email: normalizeEmail(auth.email) }
+    meta: { revoked_sessions: revokedSessions, email: normalizeEmail(auth.email) },
   });
   await logAudit({
     businessId: null,
@@ -735,7 +840,7 @@ export async function lockdownSuperAccount({ ip = null, ua = null }) {
     action: "super.security.lockdown",
     ip,
     ua,
-    meta: { revoked_sessions: revokedSessions, email: normalizeEmail(auth.email) }
+    meta: { revoked_sessions: revokedSessions, email: normalizeEmail(auth.email) },
   });
   return { ok: true, revokedSessions };
 }

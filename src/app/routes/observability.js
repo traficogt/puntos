@@ -8,5 +8,5 @@ export default createObservabilityRouter({
   includeQueueHealth: true,
   includeBillingMetrics: true,
   includeQueueMetrics: true,
-  includeBackgroundJobMetrics: true
+  includeBackgroundJobMetrics: true,
 });

@@ -12,4 +12,3 @@ export function maskSecret(secret) {
   if (s.length <= 4) return "*".repeat(s.length);
   return `${"*".repeat(Math.max(4, s.length - 4))}${s.slice(-4)}`;
 }
-

@@ -1,18 +1,29 @@
-import {pauseCustomerDemand,loadCustomerDemand} from './demand-notebook.js';
+import { pauseCustomerDemand, loadCustomerDemand } from "./demand-notebook.js";
 import { clearRewardEntitlements, loadRewardEntitlements } from "./reward-entitlements.js";
 import { clearGrowthOffers, loadGrowthOffers } from "./growth-offers.js";
 import { clearCustomerCache, getCustomerCacheSnapshot, putCustomerCache } from "/idb.js";
 import { setHidden } from "/lib.js";
 import { setOnlineBadge } from "./network.js";
 import { renderFromMe } from "./me.js";
-import { clearWalletView, getCustomerEpoch, getCustomerIdentity, invalidateCustomerIdentity, isCustomerAuthError, readCustomerStorage, rememberCustomerIdentity } from "./session.js";
+import {
+  clearWalletView,
+  getCustomerEpoch,
+  getCustomerIdentity,
+  invalidateCustomerIdentity,
+  isCustomerAuthError,
+  readCustomerStorage,
+  rememberCustomerIdentity,
+} from "./session.js";
 import { walletDestination } from "./wallet-navigation.js";
 
 let latestLoad = 0;
 
 function isNetworkFailure(error) {
   if (error?.status || error?.code) return false;
-  return !navigator.onLine || /NetworkError|Failed to fetch|Load failed|abort/i.test(String(error?.message || ""));
+  return (
+    !navigator.onLine ||
+    /NetworkError|Failed to fetch|Load failed|abort/i.test(String(error?.message || ""))
+  );
 }
 
 export async function loadAll({ api, $, toast, silent = false }) {
@@ -42,15 +53,28 @@ export async function loadAll({ api, $, toast, silent = false }) {
     if (!isCurrent()) return { status: "superseded" };
     const snapshot = await getCustomerCacheSnapshot(currentIdentity).catch(() => null);
     if (!isCurrent()) return { status: "superseded" };
-    const result = await renderFromMe({ api, $, toast, isCurrent, identity: currentIdentity }, me, true, snapshot);
+    const result = await renderFromMe(
+      { api, $, toast, isCurrent, identity: currentIdentity },
+      me,
+      true,
+      snapshot,
+    );
     if (!isCurrent()) return { status: "superseded" };
-    await Promise.all([loadGrowthOffers({ api, $, isCurrent, region: me.business.region }), loadRewardEntitlements({ api, $, isCurrent })]);
+    await Promise.all([
+      loadGrowthOffers({ api, $, isCurrent, region: me.business.region }),
+      loadRewardEntitlements({ api, $, isCurrent }),
+    ]);
     if (!isCurrent()) return { status: "superseded" };
     // This form mounts above offers and tiers. Finish its layout before a
     // requested Wallet destination scrolls into view.
-    await loadCustomerDemand({api,$,isCurrent,identity:currentIdentity});
+    await loadCustomerDemand({ api, $, isCurrent, identity: currentIdentity });
     if (!isCurrent()) return { status: "superseded" };
-    if (!silent) toast(result?.status === "partial" ? "Algunos datos no se pudieron actualizar. Intenta de nuevo." : "Tarjeta actualizada.");
+    if (!silent)
+      toast(
+        result?.status === "partial"
+          ? "Algunos datos no se pudieron actualizar. Intenta de nuevo."
+          : "Tarjeta actualizada.",
+      );
     return result || { status: "live" };
   } catch (error) {
     if (!isCurrent()) return { status: "superseded" };
@@ -65,7 +89,9 @@ export async function loadAll({ api, $, toast, silent = false }) {
       }
       setHidden($("#needLogin"), false);
       const subtitle = $("#customerEntrySubtitle");
-      if (subtitle) subtitle.textContent = "No tienes una sesión activa. Entra desde el acceso del negocio para abrir tu tarjeta.";
+      if (subtitle)
+        subtitle.textContent =
+          "No tienes una sesión activa. Entra desde el acceso del negocio para abrir tu tarjeta.";
       return { status: "auth" };
     }
 
@@ -82,7 +108,9 @@ export async function loadAll({ api, $, toast, silent = false }) {
     clearWalletView($);
     setHidden($("#needLogin"), false);
     const subtitle = $("#customerEntrySubtitle");
-    if (subtitle) subtitle.textContent = "No pudimos cargar tu tarjeta. Revisa tu conexión e intenta actualizar de nuevo.";
+    if (subtitle)
+      subtitle.textContent =
+        "No pudimos cargar tu tarjeta. Revisa tu conexión e intenta actualizar de nuevo.";
     if (!silent) toast("No se pudo actualizar la tarjeta.");
     return { status: "error" };
   }

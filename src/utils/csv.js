@@ -15,7 +15,7 @@ function sanitizeForSpreadsheet(value) {
 export function toCSV(rows, columns) {
   const safeRows = (rows || []).map((r) => {
     const out = {};
-    for (const k of (Array.isArray(columns) ? columns : Object.keys(r || {}))) {
+    for (const k of Array.isArray(columns) ? columns : Object.keys(r || {})) {
       out[k] = sanitizeForSpreadsheet(r?.[k]);
     }
     return out;

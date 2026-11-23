@@ -38,7 +38,7 @@ export function registerStaffModule(app) {
             try {
               await api(`/api/admin/staff/${encodeURIComponent(s.id)}`, {
                 method: "PATCH",
-                body: JSON.stringify({ active: !s.active })
+                body: JSON.stringify({ active: !s.active }),
               });
               toast(`Usuario ${!s.active ? "activado" : "desactivado"}.`);
               await loadStaffMembers();
@@ -50,11 +50,13 @@ export function registerStaffModule(app) {
           const reset = document.createElement("button");
           reset.textContent = "Reset contraseña";
           reset.addEventListener("click", async () => {
-            const p = (await prompt(`Nueva contraseña para ${s.email}:`, {
-              title: "Reset contraseña",
-              inputType: "password",
-              placeholder: "8+ caracteres"
-            }))?.trim();
+            const p = (
+              await prompt(`Nueva contraseña para ${s.email}:`, {
+                title: "Reset contraseña",
+                inputType: "password",
+                placeholder: "8+ caracteres",
+              })
+            )?.trim();
             if (!p) return;
             if (!isStrongPassword(p)) {
               return toast(passwordHint);
@@ -62,7 +64,7 @@ export function registerStaffModule(app) {
             try {
               await api(`/api/admin/staff/${encodeURIComponent(s.id)}`, {
                 method: "PATCH",
-                body: JSON.stringify({ password: p })
+                body: JSON.stringify({ password: p }),
               });
               toast("Contraseña actualizada.");
             } catch (e) {
@@ -71,12 +73,14 @@ export function registerStaffModule(app) {
           });
 
           const giftBtn = document.createElement("button");
-          giftBtn.textContent = s.can_manage_gift_cards ? "Quitar acceso Gift Cards" : "Dar acceso Gift Cards";
+          giftBtn.textContent = s.can_manage_gift_cards
+            ? "Quitar acceso Gift Cards"
+            : "Dar acceso Gift Cards";
           giftBtn.addEventListener("click", async () => {
             try {
               await api(`/api/admin/staff/${encodeURIComponent(s.id)}`, {
                 method: "PATCH",
-                body: JSON.stringify({ can_manage_gift_cards: !s.can_manage_gift_cards })
+                body: JSON.stringify({ can_manage_gift_cards: !s.can_manage_gift_cards }),
               });
               toast("Permiso actualizado.");
               await loadStaffMembers();
@@ -104,7 +108,7 @@ export function registerStaffModule(app) {
         phone: $("#staffPhone").value.trim() || undefined,
         role: $("#staffRole").value,
         password: $("#staffPassword").value,
-        can_manage_gift_cards: false
+        can_manage_gift_cards: false,
       };
       if (!isStrongPassword(payload.password)) {
         return toast(passwordHint);
@@ -129,6 +133,6 @@ export function registerStaffModule(app) {
   app.registerTab("staff", {
     feature: "staff_management",
     allowManager: false,
-    load: loadStaffMembers
+    load: loadStaffMembers,
   });
 }

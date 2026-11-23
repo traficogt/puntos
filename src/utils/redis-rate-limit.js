@@ -7,6 +7,6 @@ export async function checkRedisRateLimit(client, key, maxRequests, windowMs) {
   return {
     allowed: count <= maxRequests,
     remaining: count > maxRequests ? 0 : maxRequests - count,
-    resetIn
+    resetIn,
   };
 }

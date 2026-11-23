@@ -9,20 +9,16 @@ test("order return lookup finds the latest replay row for the external return id
   const row = {
     id: "return-1",
     business_id: "business-1",
-    external_return_id: "ret-123"
+    external_return_id: "ret-123",
   };
   const client = {
     async query(sql, params) {
       calls.push({ sql, params });
       return { rows: [row], rowCount: 1 };
-    }
+    },
   };
 
-  const found = await OrderReturnRepo.findByBusinessAndExternalId(
-    client,
-    "business-1",
-    "ret-123"
-  );
+  const found = await OrderReturnRepo.findByBusinessAndExternalId(client, "business-1", "ret-123");
 
   assert.equal(found, row);
   assert.equal(calls.length, 1);
@@ -38,13 +34,13 @@ test("order return lookup by order id stays business scoped and deterministic", 
   const row = {
     id: "return-1",
     business_id: "business-1",
-    order_id: "order-1"
+    order_id: "order-1",
   };
   const client = {
     async query(sql, params) {
       calls.push({ sql, params });
       return { rows: [row], rowCount: 1 };
-    }
+    },
   };
 
   const found = await OrderReturnRepo.findByOrderId(client, "business-1", "order-1");
@@ -65,13 +61,13 @@ test("order return create stores meta as json and preserves persistence-only inp
     business_id: "business-1",
     customer_id: "customer-1",
     order_id: "order-1",
-    meta: { source: "refund-api" }
+    meta: { source: "refund-api" },
   };
   const client = {
     async query(sql, params) {
       calls.push({ sql, params });
       return { rows: [row], rowCount: 1 };
-    }
+    },
   };
 
   const created = await OrderReturnRepo.create(client, {
@@ -87,7 +83,7 @@ test("order return create stores meta as json and preserves persistence-only inp
     fingerprint: "fp-1",
     reversal_transaction_id: "txn-1",
     points_effect: -25,
-    outcome: "reversed_posted"
+    outcome: "reversed_posted",
   });
 
   assert.equal(created, row);
@@ -106,21 +102,19 @@ test("order return create stores meta as json and preserves persistence-only inp
     "fp-1",
     "txn-1",
     -25,
-    "reversed_posted"
+    "reversed_posted",
   ]);
 });
 
 test("order return migrations sort table before dedicated RLS", () => {
   // Fixed repository migration paths; no user-controlled filesystem input.
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const files = fs.readdirSync(new URL("../../src/app/migrations", import.meta.url))
+  const files = fs
+    .readdirSync(new URL("../../src/app/migrations", import.meta.url))
     .filter((file) => file.includes("order-returns"))
     .sort();
 
-  assert.deepEqual(files, [
-    "2026-04-15-order-returns.sql",
-    "2026-04-15-order-returns_rls.sql"
-  ]);
+  assert.deepEqual(files, ["2026-04-15-order-returns.sql", "2026-04-15-order-returns_rls.sql"]);
 });
 
 test("order return RLS lives in the dedicated migration", () => {
@@ -128,13 +122,13 @@ test("order return RLS lives in the dedicated migration", () => {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const tableSource = fs.readFileSync(
     new URL("../../src/app/migrations/2026-04-15-order-returns.sql", import.meta.url),
-    "utf8"
+    "utf8",
   );
   // Fixed repository migration paths; no user-controlled filesystem input.
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const rlsSource = fs.readFileSync(
     new URL("../../src/app/migrations/2026-04-15-order-returns_rls.sql", import.meta.url),
-    "utf8"
+    "utf8",
   );
 
   assert.doesNotMatch(tableSource, /ENABLE ROW LEVEL SECURITY/);
@@ -149,23 +143,20 @@ test("order return schema enforces order business and customer integrity", () =>
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const tableSource = fs.readFileSync(
     new URL("../../src/app/migrations/2026-04-15-order-returns.sql", import.meta.url),
-    "utf8"
+    "utf8",
   );
 
   assert.match(
     tableSource,
-    /ALTER TABLE orders\s+ADD CONSTRAINT orders_id_business_customer_external_unique\s+UNIQUE\s*\(id,\s*business_id,\s*customer_id,\s*external_order_id\)/i
+    /ALTER TABLE orders\s+ADD CONSTRAINT orders_id_business_customer_external_unique\s+UNIQUE\s*\(id,\s*business_id,\s*customer_id,\s*external_order_id\)/i,
   );
   assert.match(
     tableSource,
-    /FOREIGN KEY\s*\(order_id,\s*business_id,\s*customer_id,\s*external_order_id\)\s*REFERENCES orders\s*\(id,\s*business_id,\s*customer_id,\s*external_order_id\)/i
+    /FOREIGN KEY\s*\(order_id,\s*business_id,\s*customer_id,\s*external_order_id\)\s*REFERENCES orders\s*\(id,\s*business_id,\s*customer_id,\s*external_order_id\)/i,
   );
   assert.doesNotMatch(
     tableSource,
-    /ALTER TABLE orders\s+ADD CONSTRAINT orders_id_business_customer_unique\s+UNIQUE\s*\(id,\s*business_id,\s*customer_id\)/i
+    /ALTER TABLE orders\s+ADD CONSTRAINT orders_id_business_customer_unique\s+UNIQUE\s*\(id,\s*business_id,\s*customer_id\)/i,
   );
-  assert.doesNotMatch(
-    tableSource,
-    /CREATE INDEX IF NOT EXISTS idx_order_returns_order_id/i
-  );
+  assert.doesNotMatch(tableSource, /CREATE INDEX IF NOT EXISTS idx_order_returns_order_id/i);
 });

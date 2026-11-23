@@ -11,31 +11,33 @@ import { setCurrentTenant, withTransaction, withDbClientContext } from "../datab
 import { hashPassword } from "../../utils/password-hash.js";
 import { assertPasswordAllowed } from "../../utils/password-policy.js";
 
-function id() { return crypto.randomUUID(); }
+function id() {
+  return crypto.randomUUID();
+}
 
 const DEFAULT_REWARDS_BY_CATEGORY = {
   cafe: [
     { name: "Bebida gratis", points_cost: 100, description: "Café o bebida gratis" },
     { name: "Pastel gratis", points_cost: 150, description: "Porción de pastel" },
-    { name: "10% descuento", points_cost: 75, description: "Descuento en tu compra" }
+    { name: "10% descuento", points_cost: 75, description: "Descuento en tu compra" },
   ],
   salon: [
     { name: "Corte gratis", points_cost: 300, description: "Corte de cabello gratis" },
     { name: "Tratamiento", points_cost: 250, description: "Tratamiento especial" },
-    { name: "20% descuento", points_cost: 180, description: "Descuento en tu servicio" }
+    { name: "20% descuento", points_cost: 180, description: "Descuento en tu servicio" },
   ],
   gym: [
     { name: "1 clase gratis", points_cost: 200, description: "Clase gratis" },
     { name: "Smoothie gratis", points_cost: 120, description: "Smoothie gratis" },
-    { name: "Inscripción gratis", points_cost: 400, description: "Exoneración de inscripción" }
-  ]
+    { name: "Inscripción gratis", points_cost: 400, description: "Exoneración de inscripción" },
+  ],
 };
 const DEFAULT_REFERRAL_SETTINGS = {
   enabled: false,
   referrer_reward_points: 100,
   referred_reward_points: 50,
   min_purchase_to_complete: null,
-  reward_on_signup: false
+  reward_on_signup: false,
 };
 
 export async function createBusinessWithOwner({
@@ -47,7 +49,7 @@ export async function createBusinessWithOwner({
   program_type,
   program_json,
   slug: providedSlug,
-  plan: providedPlan = undefined
+  plan: providedPlan = undefined,
 }) {
   const slugBase = providedSlug || slugify(businessName);
   if (!slugBase) throw badRequest("Invalid business name");
@@ -57,7 +59,7 @@ export async function createBusinessWithOwner({
   assertPasswordAllowed(password, {
     email,
     businessName,
-    phone
+    phone,
   });
   const password_hash = await hashPassword(password);
 
@@ -95,7 +97,7 @@ export async function createBusinessWithOwner({
           category,
           plan,
           program_type: programType,
-          program_json: programJson
+          program_json: programJson,
         });
 
         const branchCode = `${slug}-main`;
@@ -104,7 +106,7 @@ export async function createBusinessWithOwner({
           business_id: businessId,
           name: "Principal",
           address: null,
-          code: branchCode
+          code: branchCode,
         });
 
         await StaffRepo.create({
@@ -115,7 +117,7 @@ export async function createBusinessWithOwner({
           email,
           phone,
           role: "OWNER",
-          password_hash
+          password_hash,
         });
 
         // Seed rewards respecting plan limits (use the existing tx; do NOT nest transactions).
@@ -123,7 +125,7 @@ export async function createBusinessWithOwner({
           await client.query(
             `INSERT INTO rewards (id, business_id, name, description, points_cost, active)
              VALUES ($1,$2,$3,$4,$5,true)`,
-            [id(), businessId, r.name, r.description ?? null, Number(r.points_cost)]
+            [id(), businessId, r.name, r.description ?? null, Number(r.points_cost)],
           );
         }
 
@@ -139,8 +141,10 @@ export async function createBusinessWithOwner({
       const constraint = String(err?.constraint || "");
       const msg = String(err?.message || "");
       const isUnique = code === "23505";
-      const isSlugConflict = isUnique && (constraint.includes("slug") || msg.toLowerCase().includes("slug"));
-      const isEmailConflict = isUnique && (constraint.includes("email") || msg.toLowerCase().includes("email"));
+      const isSlugConflict =
+        isUnique && (constraint.includes("slug") || msg.toLowerCase().includes("slug"));
+      const isEmailConflict =
+        isUnique && (constraint.includes("email") || msg.toLowerCase().includes("email"));
 
       if (isEmailConflict) throw conflict("Email already registered");
       if (providedSlug && isSlugConflict) throw conflict("Slug already in use");
@@ -149,7 +153,6 @@ export async function createBusinessWithOwner({
     }
   }
   throw lastErr ?? new Error("Could not allocate unique business slug");
-
 }
 
 async function runIntegrationHooks({ businessId, programType }) {
@@ -170,7 +173,7 @@ async function runIntegrationHooks({ businessId, programType }) {
       async () => {
         const { ReferralRepository } = await import("../repositories/referral-repository.js");
         await ReferralRepository.updateSettings(businessId, DEFAULT_REFERRAL_SETTINGS);
-      }
+      },
     ];
 
     for (const step of steps) {

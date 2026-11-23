@@ -50,9 +50,13 @@ async function main() {
         id: crypto.randomUUID(),
         business_id: business.id,
         phone,
-        name
+        name,
       });
-      const token = await signCustomerToken({ cid: customer.id, bid: business.id, slug: business.slug });
+      const token = await signCustomerToken({
+        cid: customer.id,
+        bid: business.id,
+        slug: business.slug,
+      });
 
       return {
         ok: true,
@@ -60,7 +64,7 @@ async function main() {
         slug: business.slug,
         customer_id: customer.id,
         phone,
-        token
+        token,
       };
     });
 

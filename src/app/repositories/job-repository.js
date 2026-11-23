@@ -5,7 +5,7 @@ export const JobRepo = {
     await exec(
       `INSERT INTO background_jobs (id, business_id, job_type, payload, run_after)
        VALUES ($1,$2,$3,$4,COALESCE($5, now()))`,
-      [id, business_id, job_type, payload, run_after]
+      [id, business_id, job_type, payload, run_after],
     );
     return this.getById(id);
   },
@@ -21,7 +21,7 @@ export const JobRepo = {
        WHERE business_id=$1
        ORDER BY created_at DESC
        LIMIT $2`,
-      [businessId, limit]
+      [businessId, limit],
     );
-  }
+  },
 };

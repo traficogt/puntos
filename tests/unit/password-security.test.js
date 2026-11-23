@@ -9,13 +9,13 @@ import {
   isArgon2Hash,
   isBcryptHash,
   needsPasswordRehash,
-  verifyPassword
+  verifyPassword,
 } from "../../src/utils/password-hash.js";
 import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
   assertPasswordAllowed,
-  passwordPolicyErrors
+  passwordPolicyErrors,
 } from "../../src/utils/password-policy.js";
 import { businessRegisterSchema } from "../../src/utils/schemas.js";
 
@@ -23,7 +23,10 @@ describe("password security", () => {
   it("verifies fixed password hashes created before the dependency upgrade", async () => {
     // Synthetic fixtures created with bcryptjs 2.4.3 and argon2 0.44.0.
     const password = "Dependency migration legacy fixture";
-    for (const hash of ["$2a$04$XGrJ1nL0DzzwysIb7ngSke5TVIKdCRQ104oAZqcuOwwy2OsCAzCM.", "$argon2id$v=19$m=19456,t=2,p=1$dimD8DtrvoyeZ3i0S98Fww$PVK/nNQ+8n4h1I7uN3BfpkV1woWU4mJJ3XHMc5VmENo"]) {
+    for (const hash of [
+      "$2a$04$XGrJ1nL0DzzwysIb7ngSke5TVIKdCRQ104oAZqcuOwwy2OsCAzCM.",
+      "$argon2id$v=19$m=19456,t=2,p=1$dimD8DtrvoyeZ3i0S98Fww$PVK/nNQ+8n4h1I7uN3BfpkV1woWU4mJJ3XHMc5VmENo",
+    ]) {
       assert.equal(await verifyPassword(password, hash), true);
       assert.equal(await verifyPassword("incorrect fixture password", hash), false);
     }
@@ -50,16 +53,13 @@ describe("password security", () => {
   });
 
   it("rejects common and context-derived passwords", () => {
-    assert.match(
-      passwordPolicyErrors("password123", {}).join(" "),
-      /too common/i
-    );
+    assert.match(passwordPolicyErrors("password123", {}).join(" "), /too common/i);
     assert.match(
       passwordPolicyErrors("CafeOwner-example-com-2026", {
         email: "owner@example.com",
-        businessName: "Cafe Owner"
+        businessName: "Cafe Owner",
       }).join(" "),
-      /account or app context/i
+      /account or app context/i,
     );
   });
 
@@ -67,7 +67,7 @@ describe("password security", () => {
     assert.doesNotThrow(() => {
       assertPasswordAllowed("cafe con leche para todos 2026", {
         email: "owner@example.com",
-        businessName: "Bean House"
+        businessName: "Bean House",
       });
     });
   });
@@ -80,17 +80,23 @@ describe("password security", () => {
       name: "Demo Coffee",
       slug: "demo-coffee",
       email: "owner@example.com",
-      phone: "12345678"
+      phone: "12345678",
     };
 
-    assert.equal(businessRegisterSchema.safeParse({
-      ...base,
-      password: "short7"
-    }).success, false);
+    assert.equal(
+      businessRegisterSchema.safeParse({
+        ...base,
+        password: "short7",
+      }).success,
+      false,
+    );
 
-    assert.equal(businessRegisterSchema.safeParse({
-      ...base,
-      password: "valid passphrase 2026"
-    }).success, true);
+    assert.equal(
+      businessRegisterSchema.safeParse({
+        ...base,
+        password: "valid passphrase 2026",
+      }).success,
+      true,
+    );
   });
 });

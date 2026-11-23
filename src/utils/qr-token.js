@@ -39,7 +39,6 @@ export async function verifyQrSignature(token) {
 }
 
 function qrClaims(payload) {
-
   const bid = String(payload.bid ?? "");
   const cid = String(payload.cid ?? "");
   const jti = String(payload.jti ?? "");

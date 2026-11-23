@@ -5,4 +5,11 @@ import { initAdminDashboard } from "./admin-dashboard/index.js";
 hydrateShellLinks();
 
 await ensureAdminDashboardLayout();
-await initAdminDashboard({ api, $, toast, alert: modalAlert, confirm: modalConfirm, prompt: modalPrompt });
+await initAdminDashboard({
+  api,
+  $,
+  toast,
+  alert: modalAlert,
+  confirm: modalConfirm,
+  prompt: modalPrompt,
+});

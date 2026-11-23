@@ -10,10 +10,12 @@ export const analyticsChurnRoutes = Router();
 
 analyticsChurnRoutes.get(
   "/admin/analytics/churn-risk",
-  validateQuery(branchFilterQuerySchema.extend({
-    threshold: z.coerce.number().min(0).max(1).default(0.7),
-    limit: z.coerce.number().int().min(1).max(200).default(50)
-  })),
+  validateQuery(
+    branchFilterQuerySchema.extend({
+      threshold: z.coerce.number().min(0).max(1).default(0.7),
+      limit: z.coerce.number().int().min(1).max(200).default(50),
+    }),
+  ),
   asyncRoute(async (req, res) => {
     const branchId = await resolveBranchFilter(req, res);
     if (branchId === "__invalid__") return;
@@ -21,7 +23,11 @@ analyticsChurnRoutes.get(
 
     let customers;
     if (!branchId) {
-      customers = await AnalyticsRepository.getHighChurnRiskCustomers(req.tenantId, threshold, limit);
+      customers = await AnalyticsRepository.getHighChurnRiskCustomers(
+        req.tenantId,
+        threshold,
+        limit,
+      );
     } else {
       const { rows } = await dbQuery(
         `WITH branch_customers AS (
@@ -47,11 +53,17 @@ analyticsChurnRoutes.get(
            AND cl.churn_risk_score >= $3
          ORDER BY cl.churn_risk_score DESC, cl.total_spend DESC
          LIMIT $4`,
-        [req.tenantId, branchId, threshold, limit]
+        [req.tenantId, branchId, threshold, limit],
       );
       customers = rows;
     }
 
-    return res.json({ ok: true, customers, threshold, branch_id: branchId, count: customers.length });
-  })
+    return res.json({
+      ok: true,
+      customers,
+      threshold,
+      branch_id: branchId,
+      count: customers.length,
+    });
+  }),
 );

@@ -1,7 +1,7 @@
 export const Role = {
   OWNER: "OWNER",
   MANAGER: "MANAGER",
-  CASHIER: "CASHIER"
+  CASHIER: "CASHIER",
 };
 
 export const Permission = {
@@ -11,7 +11,7 @@ export const Permission = {
   STAFF_REFUND: "staff.refund",
   ADMIN_PROGRAM_UPDATE_BASIC: "admin.program.update.basic",
   ADMIN_PROGRAM_UPDATE_ADVANCED: "admin.program.update.advanced",
-  ADMIN_SUSPICIOUS_VIEW: "admin.suspicious.view"
+  ADMIN_SUSPICIOUS_VIEW: "admin.suspicious.view",
 };
 
 const matrix = {
@@ -21,20 +21,16 @@ const matrix = {
     Permission.STAFF_SYNC,
     Permission.STAFF_REFUND,
     Permission.ADMIN_PROGRAM_UPDATE_BASIC,
-    Permission.ADMIN_SUSPICIOUS_VIEW
+    Permission.ADMIN_SUSPICIOUS_VIEW,
   ]),
   [Role.MANAGER]: new Set([
     Permission.STAFF_AWARD,
     Permission.STAFF_REDEEM,
     Permission.STAFF_SYNC,
     Permission.STAFF_REFUND,
-    Permission.ADMIN_SUSPICIOUS_VIEW
+    Permission.ADMIN_SUSPICIOUS_VIEW,
   ]),
-  [Role.CASHIER]: new Set([
-    Permission.STAFF_AWARD,
-    Permission.STAFF_REDEEM,
-    Permission.STAFF_SYNC
-  ])
+  [Role.CASHIER]: new Set([Permission.STAFF_AWARD, Permission.STAFF_REDEEM, Permission.STAFF_SYNC]),
 };
 
 export function hasPermission(role, permission) {
@@ -42,7 +38,5 @@ export function hasPermission(role, permission) {
 }
 
 export function getPermissionMatrix() {
-  return Object.fromEntries(
-    Object.entries(matrix).map(([role, perms]) => [role, [...perms]])
-  );
+  return Object.fromEntries(Object.entries(matrix).map(([role, perms]) => [role, [...perms]]));
 }

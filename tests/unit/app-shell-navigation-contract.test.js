@@ -4,15 +4,24 @@ import fs from "node:fs";
 
 test("app-facing shells expose host-aware navigation markers and role-based entry copy", () => {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const customerHtml = fs.readFileSync(new URL("../../public/customer.html", import.meta.url), "utf8");
+  const customerHtml = fs.readFileSync(
+    new URL("../../public/customer.html", import.meta.url),
+    "utf8",
+  );
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const joinHtml = fs.readFileSync(new URL("../../public/join.html", import.meta.url), "utf8");
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const staffLoginHtml = fs.readFileSync(new URL("../../public/staff-login.html", import.meta.url), "utf8");
+  const staffLoginHtml = fs.readFileSync(
+    new URL("../../public/staff-login.html", import.meta.url),
+    "utf8",
+  );
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const staffHtml = fs.readFileSync(new URL("../../public/staff.html", import.meta.url), "utf8");
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const adminHtml = fs.readFileSync(new URL("../../public/admin-dashboard.html", import.meta.url), "utf8");
+  const adminHtml = fs.readFileSync(
+    new URL("../../public/admin-dashboard.html", import.meta.url),
+    "utf8",
+  );
 
   for (const html of [customerHtml, joinHtml, staffLoginHtml, staffHtml, adminHtml]) {
     assert.match(html, /data-shell-link="marketing-home"/);

@@ -30,12 +30,14 @@ function makeRes() {
     json(payload) {
       this.body = payload;
       return this;
-    }
+    },
   };
 }
 
 async function runRoute(router, method, routePath, req) {
-  const layer = router.stack.find((entry) => entry.route?.path === routePath && entry.route?.methods?.[method]);
+  const layer = router.stack.find(
+    (entry) => entry.route?.path === routePath && entry.route?.methods?.[method],
+  );
   if (!layer) throw new Error(`Route not found: ${method.toUpperCase()} ${routePath}`);
 
   const res = makeRes();
@@ -68,14 +70,14 @@ async function runMountedOrderReturn(router, body) {
     originalUrl: "/api/v1/public/order-returns",
     headers: {
       "content-type": "application/json",
-      "x-signature": signature
+      "x-signature": signature,
     },
     body,
     rawBody,
     ip: "127.0.0.1",
     get(name) {
       return this.headers[String(name).toLowerCase()];
-    }
+    },
   };
   const res = {
     statusCode: 200,
@@ -109,7 +111,7 @@ async function runMountedOrderReturn(router, body) {
       this.body = payload;
       this.headersSent = true;
       return this;
-    }
+    },
   };
 
   await new Promise((resolve, reject) => {
@@ -133,7 +135,9 @@ async function runMountedOrderReturn(router, body) {
       return res;
     };
 
-    /** @type {typeof app & {handle: (request: typeof req, response: typeof res, next: (error?: Error) => void) => void}} */ (app).handle(req, res, (err) => {
+    /** @type {typeof app & {handle: (request: typeof req, response: typeof res, next: (error?: Error) => void) => void}} */ (
+      app
+    ).handle(req, res, (err) => {
       if (err) {
         settled = true;
         reject(err);
@@ -152,7 +156,7 @@ test("POST /public/order-returns rejects an invalid signature", async () => {
     processOrderReturn: async () => {
       serviceCalled = true;
       return {};
-    }
+    },
   });
 
   const res = await runRoute(router, "post", "/public/order-returns", {
@@ -165,13 +169,13 @@ test("POST /public/order-returns rejects an invalid signature", async () => {
     body: {
       businessSlug: "cafe-gt",
       externalReturnId: "ret-1",
-      externalOrderId: "ord-1"
+      externalOrderId: "ord-1",
     },
     rawBody: JSON.stringify({
       businessSlug: "cafe-gt",
       externalReturnId: "ret-1",
-      externalOrderId: "ord-1"
-    })
+      externalOrderId: "ord-1",
+    }),
   });
 
   assert.equal(res.statusCode, 401);
@@ -185,12 +189,12 @@ test("POST /public/order-returns rejects an invalid payload before service acces
     processOrderReturn: async () => {
       serviceCalled = true;
       return {};
-    }
+    },
   });
 
   const signedPayload = JSON.stringify({
     businessSlug: "cafe-gt",
-    externalReturnId: "ret-1"
+    externalReturnId: "ret-1",
   });
   const signature = crypto.createHmac("sha256", "topsecret").update(signedPayload).digest("hex");
   const res = await runRoute(router, "post", "/public/order-returns", {
@@ -202,9 +206,9 @@ test("POST /public/order-returns rejects an invalid payload before service acces
     headers: { "x-signature": signature },
     body: {
       businessSlug: "cafe-gt",
-      externalReturnId: "ret-1"
+      externalReturnId: "ret-1",
     },
-    rawBody: signedPayload
+    rawBody: signedPayload,
   });
 
   assert.equal(res.statusCode, 400);
@@ -218,7 +222,7 @@ test("POST /public/order-returns validates and verifies the request before reach
     externalOrderId: "ord-1",
     reason: "customer_refund",
     occurred_at: "2026-04-15T10:00:00.000Z",
-    meta: { channel: "pos" }
+    meta: { channel: "pos" },
   });
   const signature = crypto.createHmac("sha256", "topsecret").update(signedPayload).digest("hex");
   let serviceInput = null;
@@ -232,9 +236,9 @@ test("POST /public/order-returns validates and verifies the request before reach
         customerId: "33333333-3333-4333-8333-333333333333",
         outcome: "POSTED_REVERSED",
         pointsEffect: -12,
-        reversalTransactionId: "44444444-4444-4444-8444-444444444444"
+        reversalTransactionId: "44444444-4444-4444-8444-444444444444",
       };
-    }
+    },
   });
 
   const res = await runRoute(router, "post", "/public/order-returns", {
@@ -245,7 +249,7 @@ test("POST /public/order-returns validates and verifies the request before reach
     ip: "127.0.0.1",
     headers: { "x-signature": signature },
     body: JSON.parse(signedPayload),
-    rawBody: signedPayload
+    rawBody: signedPayload,
   });
 
   assert.equal(res.statusCode, 200);
@@ -257,7 +261,7 @@ test("POST /public/order-returns validates and verifies the request before reach
     externalOrderId: "ord-1",
     reason: "customer_refund",
     occurred_at: "2026-04-15T10:00:00.000Z",
-    meta: { channel: "pos" }
+    meta: { channel: "pos" },
   });
 });
 
@@ -265,13 +269,13 @@ test("POST /public/order-returns surfaces notFound through the real error handle
   const router = createOrderReturnRoutes({
     processOrderReturn: async () => {
       throw notFound("Order return not found");
-    }
+    },
   });
 
   const { response, json } = await runMountedOrderReturn(router, {
     businessSlug: "cafe-gt",
     externalReturnId: "ret-404",
-    externalOrderId: "ord-404"
+    externalOrderId: "ord-404",
   });
 
   assert.equal(response.statusCode, 404);
@@ -283,13 +287,13 @@ test("POST /public/order-returns surfaces conflict through the real error handle
   const router = createOrderReturnRoutes({
     processOrderReturn: async () => {
       throw conflict("Return already exists");
-    }
+    },
   });
 
   const { response, json } = await runMountedOrderReturn(router, {
     businessSlug: "cafe-gt",
     externalReturnId: "ret-409",
-    externalOrderId: "ord-409"
+    externalOrderId: "ord-409",
   });
 
   assert.equal(response.statusCode, 409);

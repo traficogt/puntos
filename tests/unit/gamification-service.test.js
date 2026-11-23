@@ -3,18 +3,15 @@ import { EventEmitter } from "node:events";
 import assert from "node:assert/strict";
 
 const { GamificationService } = await import("../../src/app/services/gamification-service.js");
-const { GamificationRepository } = await import("../../src/app/repositories/gamification-repository.js");
+const { GamificationRepository } =
+  await import("../../src/app/repositories/gamification-repository.js");
 const { transactionPool } = await import("../../src/app/db/pools.js");
-const { achievementProgressValue } = await import("../../src/app/services/gamification/achievements-service.js");
-const {
-  hasRecurringWindowElapsed,
-  calculateMilestoneCompletionDelta,
-  updateChallengeProgress
-} = await import("../../src/app/services/gamification/challenges-service.js");
-const {
-  expectedNonRecurringChallengeCompletions,
-  shouldRevokeRecurringChallengeCompletion
-} = await import("../../src/app/services/gamification/reconciliation-service.js");
+const { achievementProgressValue } =
+  await import("../../src/app/services/gamification/achievements-service.js");
+const { hasRecurringWindowElapsed, calculateMilestoneCompletionDelta, updateChallengeProgress } =
+  await import("../../src/app/services/gamification/challenges-service.js");
+const { expectedNonRecurringChallengeCompletions, shouldRevokeRecurringChallengeCompletion } =
+  await import("../../src/app/services/gamification/reconciliation-service.js");
 
 describe("gamification defaults", () => {
   it("creates default achievements with integer requirement values", async () => {
@@ -34,7 +31,11 @@ describe("gamification defaults", () => {
 
     assert.ok(created.length > 0, "default achievements were seeded");
     for (const ach of created) {
-      assert.equal(Number.isInteger(ach.requirement_value), true, `requirement_value must be integer for '${ach.name}'`);
+      assert.equal(
+        Number.isInteger(ach.requirement_value),
+        true,
+        `requirement_value must be integer for '${ach.name}'`,
+      );
     }
     assert.equal(created[0].name, "First Purchase");
     assert.equal(created[0].requirement_value, 1);
@@ -51,21 +52,19 @@ describe("achievement progress values", () => {
 describe("challenge recurrence windows", () => {
   it("blocks repeated daily completions within the same day", () => {
     const now = new Date("2026-03-07T18:00:00.000Z");
-    assert.equal(
-      hasRecurringWindowElapsed("2026-03-07T09:00:00.000Z", "daily", now),
-      false
-    );
+    assert.equal(hasRecurringWindowElapsed("2026-03-07T09:00:00.000Z", "daily", now), false);
   });
 
   it("allows recurring completions after the window rolls over", () => {
     const now = new Date("2026-03-08T00:01:00.000Z");
+    assert.equal(hasRecurringWindowElapsed("2026-03-07T23:30:00.000Z", "daily", now), true);
     assert.equal(
-      hasRecurringWindowElapsed("2026-03-07T23:30:00.000Z", "daily", now),
-      true
-    );
-    assert.equal(
-      hasRecurringWindowElapsed("2026-03-01T12:00:00.000Z", "weekly", new Date("2026-03-09T00:00:00.000Z")),
-      true
+      hasRecurringWindowElapsed(
+        "2026-03-01T12:00:00.000Z",
+        "weekly",
+        new Date("2026-03-09T00:00:00.000Z"),
+      ),
+      true,
     );
   });
 });
@@ -77,9 +76,9 @@ describe("challenge completion math", () => {
         previousProgress: 10,
         newProgress: 12,
         requirementValue: 10,
-        timesCompleted: 1
+        timesCompleted: 1,
       }),
-      0
+      0,
     );
 
     assert.equal(
@@ -87,9 +86,9 @@ describe("challenge completion math", () => {
         previousProgress: 19,
         newProgress: 21,
         requirementValue: 10,
-        timesCompleted: 1
+        timesCompleted: 1,
       }),
-      1
+      1,
     );
   });
 
@@ -100,9 +99,9 @@ describe("challenge completion math", () => {
         newProgress: 40,
         requirementValue: 10,
         timesCompleted: 0,
-        maxCompletions: 2
+        maxCompletions: 2,
       }),
-      2
+      2,
     );
   });
 });
@@ -111,10 +110,13 @@ describe("recurring challenge state transitions", () => {
   it("blocks repeat completion in the same window and allows completion after rollover", async () => {
     const originalConnect = transactionPool.connect;
     const originalListActiveChallenges = GamificationRepository.listActiveChallenges;
-    const originalGetCustomerChallengeProgress = GamificationRepository.getCustomerChallengeProgress;
-    const originalResetRecurringChallengeProgress = GamificationRepository.resetRecurringChallengeProgress;
+    const originalGetCustomerChallengeProgress =
+      GamificationRepository.getCustomerChallengeProgress;
+    const originalResetRecurringChallengeProgress =
+      GamificationRepository.resetRecurringChallengeProgress;
     const originalUpdateChallengeProgress = GamificationRepository.updateChallengeProgress;
-    const originalCompleteChallengeForCustomer = GamificationRepository.completeChallengeForCustomer;
+    const originalCompleteChallengeForCustomer =
+      GamificationRepository.completeChallengeForCustomer;
     const originalDate = global.Date;
 
     const challenge = {
@@ -125,7 +127,7 @@ describe("recurring challenge state transitions", () => {
       requirement_value: 1,
       reward_points: 5,
       recurrence: "daily",
-      max_completions: null
+      max_completions: null,
     };
 
     const progressState = {
@@ -136,7 +138,7 @@ describe("recurring challenge state transitions", () => {
       times_completed: 0,
       last_source_transaction_id: null,
       last_reward_transaction_id: null,
-      completion_history: []
+      completion_history: [],
     };
     const updates = [];
     const resets = [];
@@ -146,7 +148,8 @@ describe("recurring challenge state transitions", () => {
     const fakeClient = Object.assign(new EventEmitter(), {
       async query(sql, _params) {
         const text = String(sql);
-        if (text === "BEGIN" || text === "COMMIT" || text === "ROLLBACK") return { rows: [], rowCount: 0 };
+        if (text === "BEGIN" || text === "COMMIT" || text === "ROLLBACK")
+          return { rows: [], rowCount: 0 };
         if (text.includes("set_config(")) return { rows: [], rowCount: 0 };
         if (text.includes("SELECT status, reversed_transaction_id")) {
           return { rows: [{ status: "POSTED", reversed_transaction_id: null }], rowCount: 1 };
@@ -161,7 +164,7 @@ describe("recurring challenge state transitions", () => {
         }
         throw new Error(`Unexpected SQL in recurring challenge test: ${text}`);
       },
-      release() {}
+      release() {},
     });
 
     transactionPool.connect = async () => fakeClient;
@@ -175,12 +178,20 @@ describe("recurring challenge state transitions", () => {
       progressState.last_reset_at = new Date().toISOString();
       return { ...progressState };
     };
-    GamificationRepository.updateChallengeProgress = async (_customerId, _challengeId, progress) => {
+    GamificationRepository.updateChallengeProgress = async (
+      _customerId,
+      _challengeId,
+      progress,
+    ) => {
       updates.push(progress);
       progressState.progress = progress;
       return { ...progressState };
     };
-    GamificationRepository.completeChallengeForCustomer = async (_customerId, _challengeId, completion) => {
+    GamificationRepository.completeChallengeForCustomer = async (
+      _customerId,
+      _challengeId,
+      completion,
+    ) => {
       completions.push(completion);
       progressState.completed = true;
       progressState.completed_at = completion.completedAt;
@@ -189,32 +200,36 @@ describe("recurring challenge state transitions", () => {
       progressState.last_reward_transaction_id = completion.rewardTransactionId || null;
       progressState.completion_history = [
         ...(progressState.completion_history || []),
-        completion.historyEntry
+        completion.historyEntry,
       ];
       return { ...progressState };
     };
 
     function setFakeNow(isoString) {
       const fixed = new originalDate(isoString);
-      global.Date = /** @type {DateConstructor} */ (class FakeDate extends originalDate {
-        constructor(...args) {
-          super(args.length ? String(args[0]) : fixed.toISOString());
+      global.Date = /** @type {DateConstructor} */ (
+        class FakeDate extends originalDate {
+          constructor(...args) {
+            super(args.length ? String(args[0]) : fixed.toISOString());
+          }
+          static now() {
+            return fixed.getTime();
+          }
+          static parse(value) {
+            return originalDate.parse(value);
+          }
+          static UTC(...args) {
+            return originalDate.UTC.apply(originalDate, args);
+          }
         }
-        static now() {
-          return fixed.getTime();
-        }
-        static parse(value) {
-          return originalDate.parse(value);
-        }
-        static UTC(...args) {
-          return originalDate.UTC.apply(originalDate, args);
-        }
-      });
+      );
     }
 
     try {
       setFakeNow("2026-03-07T10:00:00.000Z");
-      const first = await updateChallengeProgress("customer-1", "visits", 1, { sourceTransactionId: "tx-1" });
+      const first = await updateChallengeProgress("customer-1", "visits", 1, {
+        sourceTransactionId: "tx-1",
+      });
       assert.equal(first.length, 1);
       assert.equal(progressState.times_completed, 1);
       assert.equal(transactionInsertCount, 1);
@@ -222,14 +237,18 @@ describe("recurring challenge state transitions", () => {
       assert.equal(progressState.last_source_transaction_id, "tx-1");
 
       setFakeNow("2026-03-07T18:00:00.000Z");
-      const second = await updateChallengeProgress("customer-1", "visits", 1, { sourceTransactionId: "tx-2" });
+      const second = await updateChallengeProgress("customer-1", "visits", 1, {
+        sourceTransactionId: "tx-2",
+      });
       assert.equal(second.length, 0);
       assert.equal(progressState.times_completed, 1);
       assert.equal(transactionInsertCount, 1);
       assert.equal(resets.length, 0);
 
       setFakeNow("2026-03-08T09:00:00.000Z");
-      const third = await updateChallengeProgress("customer-1", "visits", 1, { sourceTransactionId: "tx-3" });
+      const third = await updateChallengeProgress("customer-1", "visits", 1, {
+        sourceTransactionId: "tx-3",
+      });
       assert.equal(third.length, 1);
       assert.equal(progressState.times_completed, 2);
       assert.equal(transactionInsertCount, 2);
@@ -242,7 +261,8 @@ describe("recurring challenge state transitions", () => {
       transactionPool.connect = originalConnect;
       GamificationRepository.listActiveChallenges = originalListActiveChallenges;
       GamificationRepository.getCustomerChallengeProgress = originalGetCustomerChallengeProgress;
-      GamificationRepository.resetRecurringChallengeProgress = originalResetRecurringChallengeProgress;
+      GamificationRepository.resetRecurringChallengeProgress =
+        originalResetRecurringChallengeProgress;
       GamificationRepository.updateChallengeProgress = originalUpdateChallengeProgress;
       GamificationRepository.completeChallengeForCustomer = originalCompleteChallengeForCustomer;
       global.Date = originalDate;
@@ -264,9 +284,9 @@ describe("refund reconciliation helpers", () => {
         completed: true,
         completedAt: "2026-03-07T10:00:00.000Z",
         recurrence: "daily",
-        referenceAt: new Date("2026-03-07T18:00:00.000Z")
+        referenceAt: new Date("2026-03-07T18:00:00.000Z"),
       }),
-      true
+      true,
     );
 
     assert.equal(
@@ -276,9 +296,9 @@ describe("refund reconciliation helpers", () => {
         completed: true,
         completedAt: "2026-03-06T10:00:00.000Z",
         recurrence: "daily",
-        referenceAt: new Date("2026-03-07T18:00:00.000Z")
+        referenceAt: new Date("2026-03-07T18:00:00.000Z"),
       }),
-      false
+      false,
     );
   });
 });

@@ -19,16 +19,19 @@ pool.query = async (sql) => {
   if (text.includes("SELECT 1 as health")) return { rows: [{ health: 1 }], rowCount: 1 };
   if (text.includes("SELECT 1")) return { rows: [{ "?column?": 1 }], rowCount: 1 };
   if (text.includes("FROM pg_stat_activity")) {
-    return { rows: [{ active_connections: 1, idle_connections: 0, total_connections: 1 }], rowCount: 1 };
+    return {
+      rows: [{ active_connections: 1, idle_connections: 0, total_connections: 1 }],
+      rowCount: 1,
+    };
   }
   if (text.includes("FROM customers WHERE deleted_at IS NULL")) {
     return {
       rows: [
         { table_name: "customers", row_count: 0 },
         { table_name: "transactions", row_count: 0 },
-        { table_name: "redemptions", row_count: 0 }
+        { table_name: "redemptions", row_count: 0 },
       ],
-      rowCount: 3
+      rowCount: 3,
     };
   }
   if (text.includes("FROM webhook_deliveries")) return { rows: [], rowCount: 0 };
@@ -39,7 +42,14 @@ pool.query = async (sql) => {
 };
 pool.connect = async () => ({ query: pool.query, release() {} });
 
-function makeReq({ method = "GET", path = "/", headers = {}, body = undefined, cookies = {}, ip = "127.0.0.1" } = {}) {
+function makeReq({
+  method = "GET",
+  path = "/",
+  headers = {},
+  body = undefined,
+  cookies = {},
+  ip = "127.0.0.1",
+} = {}) {
   return {
     method,
     path,
@@ -51,7 +61,7 @@ function makeReq({ method = "GET", path = "/", headers = {}, body = undefined, c
     ip,
     get(name) {
       return this.headers[String(name).toLowerCase()];
-    }
+    },
   };
 }
 
@@ -111,7 +121,7 @@ function makeRes() {
       this.statusCode = code;
       Object.entries(headers).forEach(([key, value]) => this.setHeader(key, value));
       return this;
-    }
+    },
   };
 }
 
@@ -126,9 +136,11 @@ async function runHandlers(handlers, req, res) {
           run(index + 1);
         });
         if (maybe && typeof maybe.then === "function") {
-          maybe.then(() => {
-            if (res.sent || index === handlers.length - 1) resolve(undefined);
-          }).catch(reject);
+          maybe
+            .then(() => {
+              if (res.sent || index === handlers.length - 1) resolve(undefined);
+            })
+            .catch(reject);
         } else if (res.sent || index === handlers.length - 1) {
           resolve(undefined);
         }
@@ -141,12 +153,25 @@ async function runHandlers(handlers, req, res) {
 }
 
 function extractHandlers(router, routePath, method = "get") {
-  const layer = router.stack.find((entry) => entry.route?.path === routePath && entry.route.methods?.[method]);
+  const layer = router.stack.find(
+    (entry) => entry.route?.path === routePath && entry.route.methods?.[method],
+  );
   if (!layer) throw new Error(`Route ${method.toUpperCase()} ${routePath} not found`);
   return layer.route.stack.map((entry) => entry.handle);
 }
 
-async function invokeRoute(router, routePath, { method = "GET", headers = {}, body = undefined, cookies = {}, ip = "127.0.0.1", params = {} } = {}) {
+async function invokeRoute(
+  router,
+  routePath,
+  {
+    method = "GET",
+    headers = {},
+    body = undefined,
+    cookies = {},
+    ip = "127.0.0.1",
+    params = {},
+  } = {},
+) {
   const req = makeReq({ method, path: routePath, headers, body, cookies, ip });
   req.params = params;
   const res = makeRes();
@@ -177,8 +202,8 @@ describe("API security integration", () => {
           slug: `too-short-${i}`,
           email: "not-an-email",
           password: "short",
-          phone: "12345678"
-        }
+          phone: "12345678",
+        },
       }).catch((err) => {
         const req = makeReq({ method: "POST", path: "/public/business/register", body: {} });
         const res = makeRes();
@@ -199,8 +224,8 @@ describe("API security integration", () => {
         slug: "demo",
         email: "not-an-email",
         password: "short",
-        phone: "12345678"
-      }
+        phone: "12345678",
+      },
     });
     assert.equal(invalid.res.statusCode, 400);
     assert.ok(invalid.res.body?.error);
@@ -213,8 +238,8 @@ describe("API security integration", () => {
         slug: "demo-coffee",
         email: "'; DROP TABLE businesses; --",
         password: "VerySecurePassword123!",
-        phone: "+50212345678"
-      }
+        phone: "+50212345678",
+      },
     });
     assert.equal(injection.res.statusCode, 400);
   });
@@ -227,7 +252,7 @@ describe("API security integration", () => {
     assert.equal(customerMe.res.statusCode, 401);
 
     const invalidCustomer = await invokeRoute(customerRoutes, "/customer/me", {
-      cookies: { "__Host-pf_customer": "invalid-token" }
+      cookies: { "__Host-pf_customer": "invalid-token" },
     });
     assert.equal(invalidCustomer.res.statusCode, 401);
   });
@@ -240,8 +265,8 @@ describe("API security integration", () => {
         id: `evt-${Date.now()}`,
         status: "approved",
         businessSlug: "demo",
-        amount: 10
-      }
+        amount: 10,
+      },
     }).catch((err) => {
       const req = makeReq({ method: "POST", path: "/public/payments/webhook/cubo", body: {} });
       req.params = { provider: "cubo" };
@@ -264,12 +289,14 @@ describe("API security integration", () => {
       method: "OPTIONS",
       headers: {
         origin: "http://localhost:3001",
-        "access-control-request-method": "GET"
-      }
+        "access-control-request-method": "GET",
+      },
     });
     const preflightRes = makeRes();
     await runMiddleware(cors({ origin: true, credentials: true }), preflightReq, preflightRes);
-    assert.ok(preflightRes.statusCode === 204 || preflightRes.getHeader("access-control-allow-origin"));
+    assert.ok(
+      preflightRes.statusCode === 204 || preflightRes.getHeader("access-control-allow-origin"),
+    );
   });
 
   it("returns safe JSON errors for bad paths, malformed JSON, and oversized bodies", async () => {
@@ -313,7 +340,7 @@ describe("API security integration", () => {
     assert.equal(forbiddenMetrics.res.statusCode, 403);
 
     const authMetrics = await invokeRoute(healthRoutes, "/metrics", {
-      headers: { authorization: `Bearer ${config.METRICS_TOKEN}` }
+      headers: { authorization: `Bearer ${config.METRICS_TOKEN}` },
     });
     assert.equal(authMetrics.res.statusCode, 200);
     assert.equal(typeof authMetrics.res.body, "string");

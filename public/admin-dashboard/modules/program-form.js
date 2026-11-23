@@ -1,4 +1,4 @@
-import {currentBrowserRegion,regionalMoney} from "/lib.js";
+import { currentBrowserRegion, regionalMoney } from "/lib.js";
 /** @typedef {import("../types.js").ExternalAwardsConfig} ExternalAwardsConfig */
 /** @typedef {import("../types.js").LifecycleConfig} LifecycleConfig */
 /** @typedef {import("../types.js").ProgramPayload} ProgramPayload */
@@ -11,13 +11,13 @@ const DEFAULTS = {
   timezone: "America/Guatemala",
   schedulerHour: 9,
   tierMode: "lifetime",
-  winbackDays: 30
+  winbackDays: 30,
 };
 
 const AUTOMATION_TEMPLATE_LABELS = {
   cafeteria_basico: "Cafetería básico",
   reactivacion_fuerte: "Reactivación fuerte",
-  solo_alertas: "Solo alertas"
+  solo_alertas: "Solo alertas",
 };
 
 /**
@@ -107,10 +107,16 @@ export function fillLifecycleFields($, lifecycle = {}) {
   checkbox($, "#lifecycleBirthdayEnabled").checked = Boolean(lifecycle.birthday_enabled);
   field($, "#lifecycleBirthdayPoints").value = String(Number(lifecycle.birthday_points ?? 0));
   checkbox($, "#lifecycleWinbackEnabled").checked = Boolean(lifecycle.winback_enabled);
-  field($, "#lifecycleWinbackDays").value = String(Number(lifecycle.winback_days ?? DEFAULTS.winbackDays));
+  field($, "#lifecycleWinbackDays").value = String(
+    Number(lifecycle.winback_days ?? DEFAULTS.winbackDays),
+  );
   field($, "#lifecycleWinbackPoints").value = String(Number(lifecycle.winback_points ?? 0));
-  field($, "#lifecycleSchedulerHour").value = String(Number(lifecycle.scheduler_hour_local ?? DEFAULTS.schedulerHour));
-  field($, "#lifecycleSchedulerTz").value = String(lifecycle.scheduler_tz || currentBrowserRegion().timezone || DEFAULTS.timezone);
+  field($, "#lifecycleSchedulerHour").value = String(
+    Number(lifecycle.scheduler_hour_local ?? DEFAULTS.schedulerHour),
+  );
+  field($, "#lifecycleSchedulerTz").value = String(
+    lifecycle.scheduler_tz || currentBrowserRegion().timezone || DEFAULTS.timezone,
+  );
 }
 
 /**
@@ -145,15 +151,23 @@ export function fillProgramForm($, program = {}) {
   field($, "#guardMaxVisits").value = String(Number(guard.max_visits ?? 0));
   field($, "#guardMaxItems").value = String(Number(guard.max_items ?? 0));
   field($, "#guardSuspiciousPoints").value = String(Number(guard.suspicious_points_threshold ?? 0));
-  field($, "#guardSuspiciousAmount").value = String(Number(guard.suspicious_amount_q_threshold ?? 0));
+  field($, "#guardSuspiciousAmount").value = String(
+    Number(guard.suspicious_amount_q_threshold ?? 0),
+  );
 
   field($, "#pendingHoldDays").value = String(Number(cfg.pending_points_hold_days ?? 0));
   field($, "#pointsExpirationDays").value = String(Number(cfg.points_expiration_days ?? 0));
 
   field($, "#redeemMaxPerDay").value = String(Number(redemptionGuard.max_redemptions_per_day ?? 0));
-  field($, "#redeemMaxPerRewardDay").value = String(Number(redemptionGuard.max_reward_redemptions_per_day ?? 0));
-  field($, "#redeemCooldownHours").value = String(Number(redemptionGuard.reward_cooldown_hours ?? 0));
-  checkbox($, "#refundAllowNegativeBalance").checked = Boolean(balancePolicy.allow_negative_balance_on_refund);
+  field($, "#redeemMaxPerRewardDay").value = String(
+    Number(redemptionGuard.max_reward_redemptions_per_day ?? 0),
+  );
+  field($, "#redeemCooldownHours").value = String(
+    Number(redemptionGuard.reward_cooldown_hours ?? 0),
+  );
+  checkbox($, "#refundAllowNegativeBalance").checked = Boolean(
+    balancePolicy.allow_negative_balance_on_refund,
+  );
 
   fillLifecycleFields($, cfg.lifecycle || {});
   fillTierPolicyFields($, cfg.tier_policy || {});
@@ -189,31 +203,39 @@ export function buildProgramPayload($) {
       max_points_per_tx: Math.floor(Number(field($, "#guardMaxPoints").value || 0)),
       max_visits: Math.floor(Number(field($, "#guardMaxVisits").value || 0)),
       max_items: Math.floor(Number(field($, "#guardMaxItems").value || 0)),
-      suspicious_points_threshold: Math.floor(Number(field($, "#guardSuspiciousPoints").value || 0)),
-      suspicious_amount_q_threshold: Number(field($, "#guardSuspiciousAmount").value || 0)
+      suspicious_points_threshold: Math.floor(
+        Number(field($, "#guardSuspiciousPoints").value || 0),
+      ),
+      suspicious_amount_q_threshold: Number(field($, "#guardSuspiciousAmount").value || 0),
     },
     redemption_guard: {
       max_redemptions_per_day: Math.floor(Number(field($, "#redeemMaxPerDay").value || 0)),
-      max_reward_redemptions_per_day: Math.floor(Number(field($, "#redeemMaxPerRewardDay").value || 0)),
-      reward_cooldown_hours: Math.floor(Number(field($, "#redeemCooldownHours").value || 0))
+      max_reward_redemptions_per_day: Math.floor(
+        Number(field($, "#redeemMaxPerRewardDay").value || 0),
+      ),
+      reward_cooldown_hours: Math.floor(Number(field($, "#redeemCooldownHours").value || 0)),
     },
     balance_policy: {
-      allow_negative_balance_on_refund: checkbox($, "#refundAllowNegativeBalance").checked
+      allow_negative_balance_on_refund: checkbox($, "#refundAllowNegativeBalance").checked,
     },
     lifecycle: {
       birthday_enabled: checkbox($, "#lifecycleBirthdayEnabled").checked,
       birthday_points: Math.floor(Number(field($, "#lifecycleBirthdayPoints").value || 0)),
       winback_enabled: checkbox($, "#lifecycleWinbackEnabled").checked,
-      winback_days: Math.floor(Number(field($, "#lifecycleWinbackDays").value || DEFAULTS.winbackDays)),
+      winback_days: Math.floor(
+        Number(field($, "#lifecycleWinbackDays").value || DEFAULTS.winbackDays),
+      ),
       winback_points: Math.floor(Number(field($, "#lifecycleWinbackPoints").value || 0)),
-      scheduler_hour_local: Math.floor(Number(field($, "#lifecycleSchedulerHour").value || DEFAULTS.schedulerHour)),
-      scheduler_tz: field($, "#lifecycleSchedulerTz").value.trim() || DEFAULTS.timezone
+      scheduler_hour_local: Math.floor(
+        Number(field($, "#lifecycleSchedulerHour").value || DEFAULTS.schedulerHour),
+      ),
+      scheduler_tz: field($, "#lifecycleSchedulerTz").value.trim() || DEFAULTS.timezone,
     },
     tier_policy: {
       mode: field($, "#tierPolicyMode").value,
       rolling_days: Math.floor(Number(field($, "#tierPolicyDays").value || 365)),
-      grace_days: Math.floor(Number(field($, "#tierPolicyGrace").value || 0))
-    }
+      grace_days: Math.floor(Number(field($, "#tierPolicyGrace").value || 0)),
+    },
   };
 
   if (programType === "SPEND") {
@@ -222,8 +244,8 @@ export function buildProgramPayload($) {
       program_json: {
         points_per_q: Number(field($, "#programPointsPerQ").value || 0),
         round: field($, "#programRound").value,
-        ...common
-      }
+        ...common,
+      },
     };
   }
 
@@ -232,8 +254,8 @@ export function buildProgramPayload($) {
       program_type: programType,
       program_json: {
         points_per_visit: Math.floor(Number(field($, "#programPointsPerVisit").value || 0)),
-        ...common
-      }
+        ...common,
+      },
     };
   }
 
@@ -241,8 +263,8 @@ export function buildProgramPayload($) {
     program_type: programType,
     program_json: {
       points_per_item: Math.floor(Number(field($, "#programPointsPerItem").value || 0)),
-      ...common
-    }
+      ...common,
+    },
   };
 }
 
@@ -253,5 +275,6 @@ export function buildProgramPayload($) {
  */
 export function applyAutomationTemplateForm($, template, lifecycle = {}) {
   fillLifecycleFields($, lifecycle);
-  element($, "#automationStatus").textContent = `Plantilla aplicada: ${AUTOMATION_TEMPLATE_LABELS[template] || template}.`;
+  element($, "#automationStatus").textContent =
+    `Plantilla aplicada: ${AUTOMATION_TEMPLATE_LABELS[template] || template}.`;
 }

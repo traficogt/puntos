@@ -14,20 +14,33 @@
 // is `purchases_required` (= stamps_required - head_start). This pure helper only
 // derives the card's display state from that balance; it writes nothing.
 export function stampCard(business, { points = 0 } = {}) {
-  if (!business || business.program_type !== 'STAMP') return null;
+  if (!business || business.program_type !== "STAMP") return null;
   const cfg = business.program_json ?? {};
   const stamps_required = Math.max(2, Math.floor(Number(cfg.stamps_required) || 0) || 10);
   // At least one real purchase must remain, so gifted stamps cap at required - 1.
-  const head_start = Math.min(stamps_required - 1, Math.max(0, Math.floor(Number(cfg.head_start) || 0)));
+  const head_start = Math.min(
+    stamps_required - 1,
+    Math.max(0, Math.floor(Number(cfg.head_start) || 0)),
+  );
   const reward_label =
-    typeof cfg.reward_label === 'string' && cfg.reward_label.trim()
+    typeof cfg.reward_label === "string" && cfg.reward_label.trim()
       ? cfg.reward_label.trim()
-      : 'Premio';
-  const unit = cfg.stamp_unit === 'item' ? 'item' : 'visit';
-  const earned = Math.max(0, Math.floor(Number(points) || 0));     // real purchases
-  const purchases_required = stamps_required - head_start;         // real purchases to finish = reward cost
-  const filled = Math.min(stamps_required, head_start + earned);   // slots shown filled (gift + earned)
+      : "Premio";
+  const unit = cfg.stamp_unit === "item" ? "item" : "visit";
+  const earned = Math.max(0, Math.floor(Number(points) || 0)); // real purchases
+  const purchases_required = stamps_required - head_start; // real purchases to finish = reward cost
+  const filled = Math.min(stamps_required, head_start + earned); // slots shown filled (gift + earned)
   const remaining = Math.max(0, purchases_required - earned);
   const complete = earned >= purchases_required;
-  return { stamps_required, head_start, reward_label, unit, earned, filled, purchases_required, remaining, complete };
+  return {
+    stamps_required,
+    head_start,
+    reward_label,
+    unit,
+    earned,
+    filled,
+    purchases_required,
+    remaining,
+    complete,
+  };
 }

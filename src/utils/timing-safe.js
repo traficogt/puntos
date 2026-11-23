@@ -14,4 +14,3 @@ export function timingSafeEqualString(a, b) {
   const bb = Buffer.from(bv);
   return ab.length === bb.length && crypto.timingSafeEqual(ab, bb);
 }
-

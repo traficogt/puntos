@@ -7,14 +7,11 @@ const DEFAULT_SETTINGS = {
   referrer_reward_points: 100,
   referred_reward_points: 50,
   min_purchase_to_complete: null,
-  reward_on_signup: false
+  reward_on_signup: false,
 };
 
 async function getCustomerBusinessId(customerId) {
-  const { rows } = await dbQuery(
-    `SELECT business_id FROM customers WHERE id = $1`,
-    [customerId]
-  );
+  const { rows } = await dbQuery(`SELECT business_id FROM customers WHERE id = $1`, [customerId]);
   const customer = rows[0];
 
   if (!customer) {
@@ -61,7 +58,7 @@ async function getPurchaseTotal(customerId) {
     `SELECT COALESCE(SUM(amount_q), 0) AS total_spend
      FROM transactions
      WHERE customer_id = $1 AND amount_q IS NOT NULL`,
-    [customerId]
+    [customerId],
   );
 
   return Number.parseFloat(rows[0]?.total_spend ?? 0);
@@ -81,12 +78,7 @@ async function logReferralReward(client, referral, customerId, points, type) {
     `INSERT INTO transactions
      (business_id, customer_id, type, points, meta)
      VALUES ($1, $2, 'REFERRAL_REWARD', $3, $4)`,
-    [
-      referral.business_id,
-      customerId,
-      points,
-      JSON.stringify({ referral_id: referral.id, type })
-    ]
+    [referral.business_id, customerId, points, JSON.stringify({ referral_id: referral.id, type })],
   );
 }
 
@@ -94,7 +86,7 @@ export async function completeAndRewardReferralWithDeps(deps, referralId) {
   return deps.withTransaction(async (client) => {
     const { rows: referralRows } = await client.query(
       `SELECT * FROM referrals WHERE id = $1 FOR UPDATE`,
-      [referralId]
+      [referralId],
     );
     const referral = referralRows[0];
 
@@ -108,7 +100,7 @@ export async function completeAndRewardReferralWithDeps(deps, referralId) {
 
     const { rows: settingsRows } = await client.query(
       `SELECT * FROM referral_settings WHERE business_id = $1`,
-      [referral.business_id]
+      [referral.business_id],
     );
     const settings = settingsRows[0];
 
@@ -125,15 +117,14 @@ export async function completeAndRewardReferralWithDeps(deps, referralId) {
        WHERE id = $1
          AND status = 'pending'
        RETURNING *`,
-      [referralId, settings.referrer_reward_points, settings.referred_reward_points]
+      [referralId, settings.referrer_reward_points, settings.referred_reward_points],
     );
     const completedReferral = completedRows[0];
 
     if (!completedReferral) {
-      const { rows: latestRows } = await client.query(
-        `SELECT * FROM referrals WHERE id = $1`,
-        [referralId]
-      );
+      const { rows: latestRows } = await client.query(`SELECT * FROM referrals WHERE id = $1`, [
+        referralId,
+      ]);
       return latestRows[0] ?? referral;
     }
 
@@ -143,7 +134,7 @@ export async function completeAndRewardReferralWithDeps(deps, referralId) {
            lifetime_points = lifetime_points + GREATEST($1, 0),
            updated_at = now()
        WHERE customer_id = $2`,
-      [settings.referrer_reward_points, referral.referrer_customer_id]
+      [settings.referrer_reward_points, referral.referrer_customer_id],
     );
     await client.query(
       `UPDATE customer_balances
@@ -151,7 +142,7 @@ export async function completeAndRewardReferralWithDeps(deps, referralId) {
            lifetime_points = lifetime_points + GREATEST($1, 0),
            updated_at = now()
        WHERE customer_id = $2`,
-      [settings.referred_reward_points, referral.referred_customer_id]
+      [settings.referred_reward_points, referral.referred_customer_id],
     );
 
     await logReferralReward(
@@ -159,14 +150,14 @@ export async function completeAndRewardReferralWithDeps(deps, referralId) {
       referral,
       referral.referrer_customer_id,
       settings.referrer_reward_points,
-      "referrer"
+      "referrer",
     );
     await logReferralReward(
       client,
       referral,
       referral.referred_customer_id,
       settings.referred_reward_points,
-      "referred"
+      "referred",
     );
 
     await client.query(
@@ -176,12 +167,11 @@ export async function completeAndRewardReferralWithDeps(deps, referralId) {
            referred_rewarded_at = now()
        WHERE id = $1
        RETURNING *`,
-      [referralId]
+      [referralId],
     );
-    const { rows: rewardedRows } = await client.query(
-      `SELECT * FROM referrals WHERE id = $1`,
-      [referralId]
-    );
+    const { rows: rewardedRows } = await client.query(`SELECT * FROM referrals WHERE id = $1`, [
+      referralId,
+    ]);
     return rewardedRows[0] ?? completedReferral;
   });
 }
@@ -204,7 +194,7 @@ export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerI
        WHERE code = $1
          AND active = true
        FOR UPDATE`,
-      [String(referralCode || "").toUpperCase()]
+      [String(referralCode || "").toUpperCase()],
     );
     const code = codeRows[0];
     assertReferralCodeUsable(code, newCustomerId, businessId);
@@ -214,7 +204,7 @@ export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerI
        FROM referrals
        WHERE referred_customer_id = $1
        LIMIT 1`,
-      [newCustomerId]
+      [newCustomerId],
     );
     if (existing.rowCount > 0) {
       throw badRequest("Customer has already been referred");
@@ -226,7 +216,7 @@ export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerI
        WHERE id = $1
          AND (max_uses IS NULL OR uses_count < max_uses)
        RETURNING *`,
-      [code.id]
+      [code.id],
     );
     if (codeUpdate.rowCount !== 1) {
       throw badRequest("Referral code has reached maximum uses");
@@ -239,7 +229,7 @@ export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerI
          (business_id, referral_code_id, referrer_customer_id, referred_customer_id, status)
          VALUES ($1, $2, $3, $4, 'pending')
          RETURNING *`,
-        [businessId, code.id, code.referrer_customer_id, newCustomerId]
+        [businessId, code.id, code.referrer_customer_id, newCustomerId],
       );
       createdReferral = rows[0];
     } catch (error) {
@@ -251,12 +241,12 @@ export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerI
 
     const { rows: settingsRows } = await client.query(
       `SELECT * FROM referral_settings WHERE business_id = $1`,
-      [businessId]
+      [businessId],
     );
 
     return {
       referral: createdReferral,
-      settings: settingsRows[0] ?? null
+      settings: settingsRows[0] ?? null,
     };
   });
 
@@ -294,13 +284,13 @@ async function getCustomerReferralStats(customerId) {
   const [stats, referrals, code] = await Promise.all([
     ReferralRepository.getReferralStats(customerId),
     ReferralRepository.getReferralsByReferrer(customerId),
-    getCustomerReferralCode(customerId).catch(() => null)
+    getCustomerReferralCode(customerId).catch(() => null),
   ]);
 
   return {
     ...stats,
     referral_code: code?.code,
-    referrals
+    referrals,
   };
 }
 
@@ -318,5 +308,5 @@ export const ReferralService = {
   },
   getSettings(businessId) {
     return getSettingsWithDefaults(businessId);
-  }
+  },
 };

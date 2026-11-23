@@ -25,7 +25,12 @@ async function resolveByIdentifier(deps, businessId, identifierType, identifierV
   const repo = deps?.ContactIdentifierRepo;
   if (!repo?.getByBusinessTypeAndValue) return null;
 
-  const identifier = await repo.getByBusinessTypeAndValue(deps.client ?? deps.dbClient ?? null, businessId, type, value);
+  const identifier = await repo.getByBusinessTypeAndValue(
+    deps.client ?? deps.dbClient ?? null,
+    businessId,
+    type,
+    value,
+  );
   if (!identifier) return null;
 
   if (identifier.customer_id) {
@@ -49,7 +54,12 @@ export async function resolveCustomerForIntegrationWithDeps(deps, input) {
   const byCustomerId = await resolveByCustomerId(deps, businessId, input?.customerId);
   if (byCustomerId) return byCustomerId;
 
-  const byIdentifier = await resolveByIdentifier(deps, businessId, input?.identifierType, input?.identifierValue);
+  const byIdentifier = await resolveByIdentifier(
+    deps,
+    businessId,
+    input?.identifierType,
+    input?.identifierValue,
+  );
   if (byIdentifier) return byIdentifier;
 
   const byPhone = await resolveByPhone(deps, businessId, input?.customerPhone);

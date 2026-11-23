@@ -1,4 +1,9 @@
-import { renderBaseEmailTemplate, renderHtmlParagraphs, renderPoweredByText, renderTextParagraphs } from "./base-template.js";
+import {
+  renderBaseEmailTemplate,
+  renderHtmlParagraphs,
+  renderPoweredByText,
+  renderTextParagraphs,
+} from "./base-template.js";
 
 export function renderSecurityEmail({ branding, subject = "", title = "", lines = [] }) {
   const resolvedSubject = String(subject || `${branding.brandName}: aviso de seguridad`).trim();
@@ -13,7 +18,7 @@ export function renderSecurityEmail({ branding, subject = "", title = "", lines 
       eyebrow: branding.scope === "platform" ? "Seguridad" : "Seguridad del programa",
       title: resolvedTitle,
       footerText: "Si no reconoces esta actividad, revisa el acceso a tu cuenta.",
-      bodyHtml: renderHtmlParagraphs(safeLines)
-    })
+      bodyHtml: renderHtmlParagraphs(safeLines),
+    }),
   };
 }

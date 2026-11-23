@@ -12,7 +12,7 @@ const TAB_FRAGMENT_PATHS = [
   "/admin-dashboard/fragments/referrals.html",
   "/admin-dashboard/fragments/operations.html",
   "/admin-dashboard/fragments/reportes.html",
-  "/admin-dashboard/fragments/analytics.html"
+  "/admin-dashboard/fragments/analytics.html",
 ];
 
 async function loadFragment(path) {
@@ -40,7 +40,7 @@ export async function ensureAdminDashboardLayout() {
   const [programHtml, posHtml, ...tabFragments] = await Promise.all([
     loadFragment(PROGRAM_FRAGMENT_PATH),
     loadFragment(POS_FRAGMENT_PATH),
-    ...TAB_FRAGMENT_PATHS.map((path) => loadFragment(path))
+    ...TAB_FRAGMENT_PATHS.map((path) => loadFragment(path)),
   ]);
 
   const tabContent = document.createDocumentFragment();

@@ -6,7 +6,9 @@ test.use({ serviceWorkers: "block" });
 test.describe.configure({ mode: "serial" });
 
 function rand(len = 6) {
-  return Math.random().toString(36).slice(2, 2 + len);
+  return Math.random()
+    .toString(36)
+    .slice(2, 2 + len);
 }
 
 async function useRandomClientIp(page) {
@@ -23,8 +25,8 @@ async function createBusinessViaUi(page) {
   await page.fill("#businessName", businessName);
   await page.fill("#email", email);
   await page.fill("#password", password);
-  const signupRespPromise = page.waitForResponse((resp) =>
-    resp.request().method() === "POST" && resp.url().includes("/api/admin/signup")
+  const signupRespPromise = page.waitForResponse(
+    (resp) => resp.request().method() === "POST" && resp.url().includes("/api/admin/signup"),
   );
   await page.click("#btnCreate");
   const signupResp = await signupRespPromise;
@@ -36,7 +38,12 @@ async function createBusinessViaUi(page) {
   // so set an explicit rule the way a preset would (1 pt per Q10).
   const current = await apiGet(page, "/api/admin/launch/program");
   expectOk(current, "launch program should be readable");
-  const configured = await apiPut(page, "/api/admin/launch/program", { program_type: "SPEND", rate: 0.1, round: "ceil", version: current.body.program.version });
+  const configured = await apiPut(page, "/api/admin/launch/program", {
+    program_type: "SPEND",
+    rate: 0.1,
+    round: "ceil",
+    version: current.body.program.version,
+  });
   expectOk(configured, "earning rule should be configured");
   return { slug, email, password };
 }
@@ -49,9 +56,10 @@ test("adversarial: same QR token cannot be replayed", async ({ page }) => {
   await page.goto(`/join/${out.slug}`, { waitUntil: "domcontentloaded" });
   await page.fill("#phone", phone);
   await page.fill("#name", "Cliente Replay");
-  const reqCodeRespPromise = page.waitForResponse((resp) =>
-    resp.request().method() === "POST" &&
-    resp.url().includes(`/api/public/business/${out.slug}/join/request-code`)
+  const reqCodeRespPromise = page.waitForResponse(
+    (resp) =>
+      resp.request().method() === "POST" &&
+      resp.url().includes(`/api/public/business/${out.slug}/join/request-code`),
   );
   await page.click("#btnCode");
   const reqCodeResp = await reqCodeRespPromise;
@@ -67,8 +75,8 @@ test("adversarial: same QR token cannot be replayed", async ({ page }) => {
   await page.goto("/staff/login", { waitUntil: "domcontentloaded" });
   await page.fill("#email", out.email);
   await page.fill("#password", out.password);
-  const loginRespPromise = page.waitForResponse((resp) =>
-    resp.request().method() === "POST" && resp.url().includes("/api/staff/login")
+  const loginRespPromise = page.waitForResponse(
+    (resp) => resp.request().method() === "POST" && resp.url().includes("/api/staff/login"),
   );
   await page.click("#btnLogin");
   const loginResp = await loginRespPromise;
@@ -85,17 +93,37 @@ test("adversarial: same QR token cannot be replayed", async ({ page }) => {
   expect(token.length >= 20).toBeTruthy();
 
   const txId = globalThis.crypto.randomUUID();
-  const first = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 12, txId }, { csrf: true });
+  const first = await apiPost(
+    page,
+    "/api/staff/award",
+    { customerQrToken: token, amount_q: 12, txId },
+    { csrf: true },
+  );
   expectOk(first, "first award should succeed");
 
-  const second = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 12, txId }, { csrf: true });
+  const second = await apiPost(
+    page,
+    "/api/staff/award",
+    { customerQrToken: token, amount_q: 12, txId },
+    { csrf: true },
+  );
   expectOk(second, "duplicate award with same txId should replay cleanly");
   expect(second.body?.transactionId).toBe(first.body?.transactionId);
 
-  const differentId = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 12, txId: globalThis.crypto.randomUUID() }, { csrf: true });
+  const differentId = await apiPost(
+    page,
+    "/api/staff/award",
+    { customerQrToken: token, amount_q: 12, txId: globalThis.crypto.randomUUID() },
+    { csrf: true },
+  );
   expect(differentId.status, "a consumed QR cannot create another transaction UUID").toBe(409);
 
-  const changedAmount = await apiPost(page, "/api/staff/award", { customerQrToken: token, amount_q: 13, txId }, { csrf: true });
+  const changedAmount = await apiPost(
+    page,
+    "/api/staff/award",
+    { customerQrToken: token, amount_q: 13, txId },
+    { csrf: true },
+  );
   expect(changedAmount.status, "a repeated UUID cannot change the original award amount").toBe(409);
 });
 
@@ -104,7 +132,7 @@ test("adversarial: csrf is required for staff logout", async ({ page }) => {
   await createBusinessViaUi(page); // owner gets authenticated as staff
 
   const resp = await page.request.post("/api/staff/logout", {
-    data: {}
+    data: {},
   });
   expect(resp.status()).toBe(403);
   const body = await resp.json();
@@ -117,7 +145,7 @@ test("adversarial: super login endpoint rate-limits brute force attempts", async
   for (let i = 0; i < 6; i += 1) {
     const resp = await page.request.post("/api/super/login", {
       headers: { "x-forwarded-for": ip },
-      data: { email: "bad@example.com", password: "bad-password-123" }
+      data: { email: "bad@example.com", password: "bad-password-123" },
     });
     statuses.push(resp.status());
   }

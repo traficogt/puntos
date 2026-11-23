@@ -8,11 +8,11 @@ test("cookie opts force secure cookies for HTTPS requests even when local fallba
     secure: false,
     protocol: "http",
     headers: {
-      "x-forwarded-proto": "https"
+      "x-forwarded-proto": "https",
     },
     get(name) {
       return this.headers[String(name).toLowerCase()] || "";
-    }
+    },
   };
 
   const staffCookie = cookieOpts(req);

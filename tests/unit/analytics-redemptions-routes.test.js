@@ -8,70 +8,78 @@ pool.query = async (sql) => {
   const text = String(sql);
   if (text.includes("FROM rewards") && text.includes("WHERE id = $1")) {
     return {
-      rows: [{
-        id: "reward-1",
-        business_id: "biz-1",
-        name: "Free Coffee",
-        description: "Reward",
-        points_cost: 10,
-        active: true,
-        stock: 20
-      }],
-      rowCount: 1
+      rows: [
+        {
+          id: "reward-1",
+          business_id: "biz-1",
+          name: "Free Coffee",
+          description: "Reward",
+          points_cost: 10,
+          active: true,
+          stock: 20,
+        },
+      ],
+      rowCount: 1,
     };
   }
   if (text.includes("FROM redemptions r") && text.includes("WHERE r.reward_id = $1")) {
     return {
-      rows: [{
-        id: "red-1",
-        created_at: "2026-03-08T01:00:00.000Z",
-        status: "REDEEMED",
-        code: "ABC123",
-        points_cost: 10,
-        customer_name: "Customer One",
-        customer_phone: "+50255550000",
-        linked_points_total: -10,
-        linked_transaction_count: 1
-      }],
-      rowCount: 1
+      rows: [
+        {
+          id: "red-1",
+          created_at: "2026-03-08T01:00:00.000Z",
+          status: "REDEEMED",
+          code: "ABC123",
+          points_cost: 10,
+          customer_name: "Customer One",
+          customer_phone: "+50255550000",
+          linked_points_total: -10,
+          linked_transaction_count: 1,
+        },
+      ],
+      rowCount: 1,
     };
   }
   if (text.includes("FROM redemptions r") && text.includes("WHERE r.id = $1")) {
     return {
-      rows: [{
-        id: "red-1",
-        created_at: "2026-03-08T01:00:00.000Z",
-        status: "REDEEMED",
-        code: "ABC123",
-        points_cost: 10,
-        business_id: "biz-1",
-        customer_id: "cust-1",
-        reward_id: "reward-1",
-        staff_user_id: "staff-1",
-        customer_name: "Customer One",
-        customer_phone: "+50255550000",
-        reward_name: "Free Coffee",
-        reward_description: "Reward",
-        staff_name: "Manager One"
-      }],
-      rowCount: 1
+      rows: [
+        {
+          id: "red-1",
+          created_at: "2026-03-08T01:00:00.000Z",
+          status: "REDEEMED",
+          code: "ABC123",
+          points_cost: 10,
+          business_id: "biz-1",
+          customer_id: "cust-1",
+          reward_id: "reward-1",
+          staff_user_id: "staff-1",
+          customer_name: "Customer One",
+          customer_phone: "+50255550000",
+          reward_name: "Free Coffee",
+          reward_description: "Reward",
+          staff_name: "Manager One",
+        },
+      ],
+      rowCount: 1,
     };
   }
   if (text.includes("FROM transactions") && text.includes("meta->>'redemption_id' = $3")) {
     return {
-      rows: [{
-        id: "tx-1",
-        created_at: "2026-03-08T01:00:01.000Z",
-        source: "redeem",
-        status: "POSTED",
-        amount_q: 0,
-        points: -10,
-        original_transaction_id: null,
-        reversed_transaction_id: null,
-        reversal_reason: null,
-        meta: { redemption_id: "red-1" }
-      }],
-      rowCount: 1
+      rows: [
+        {
+          id: "tx-1",
+          created_at: "2026-03-08T01:00:01.000Z",
+          source: "redeem",
+          status: "POSTED",
+          amount_q: 0,
+          points: -10,
+          original_transaction_id: null,
+          reversed_transaction_id: null,
+          reversal_reason: null,
+          meta: { redemption_id: "red-1" },
+        },
+      ],
+      rowCount: 1,
     };
   }
   return { rows: [], rowCount: 0 };
@@ -89,7 +97,7 @@ function makeRes() {
     json(payload) {
       this.body = payload;
       return this;
-    }
+    },
   };
 }
 
@@ -120,7 +128,7 @@ describe("analytics redemption routes", () => {
       url: "/admin/analytics/rewards/reward-1/redemptions",
       originalUrl: "/admin/analytics/rewards/reward-1/redemptions",
       tenantId: "biz-1",
-      params: { id: "reward-1" }
+      params: { id: "reward-1" },
     });
 
     assert.equal(res.statusCode, 200);
@@ -138,7 +146,7 @@ describe("analytics redemption routes", () => {
       url: "/admin/analytics/redemptions/red-1",
       originalUrl: "/admin/analytics/redemptions/red-1",
       tenantId: "biz-1",
-      params: { id: "red-1" }
+      params: { id: "red-1" },
     });
 
     assert.equal(res.statusCode, 200);

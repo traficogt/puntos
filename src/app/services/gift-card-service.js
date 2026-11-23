@@ -1,4 +1,4 @@
-import {assertRegionAmount,businessRegion} from "./regional-settings.js";
+import { assertRegionAmount, businessRegion } from "./regional-settings.js";
 import crypto from "node:crypto";
 import { GiftCardRepo } from "../repositories/gift-card-repository.js";
 import { StaffRepo } from "../repositories/staff-repository.js";
@@ -24,7 +24,8 @@ async function assertGiftCardAccess(staff, { create = false } = {}) {
   if (!actor || !actor.active) throw forbidden("Staff no autorizado");
   if (actor.role === "OWNER") return actor;
   if (!actor.can_manage_gift_cards) throw forbidden("No tienes permiso de gift cards");
-  if (create && actor.role !== "MANAGER") throw forbidden("Solo Dueño o Gerente puede crear gift cards");
+  if (create && actor.role !== "MANAGER")
+    throw forbidden("Solo Dueño o Gerente puede crear gift cards");
   return actor;
 }
 
@@ -35,11 +36,13 @@ function validateMoney(v) {
 }
 
 async function validateRegionalMoney(client, businessId, amount) {
-  const {rows} = await client.query('SELECT program_json FROM businesses WHERE id=$1 FOR SHARE', [businessId]);
-  const business=rows[0];
-  if(!business)throw badRequest('Negocio no encontrado');
-  const region=businessRegion(business);
-  assertRegionAmount(amount,region.currency,business);
+  const { rows } = await client.query("SELECT program_json FROM businesses WHERE id=$1 FOR SHARE", [
+    businessId,
+  ]);
+  const business = rows[0];
+  if (!business) throw badRequest("Negocio no encontrado");
+  const region = businessRegion(business);
+  assertRegionAmount(amount, region.currency, business);
   return region;
 }
 
@@ -57,7 +60,7 @@ async function findExistingGiftCardTx(client, businessId, requestId, opts = {}) 
      WHERE tx.business_id = $1
        AND tx.request_id = $2
      LIMIT 1`,
-    [businessId, requestId]
+    [businessId, requestId],
   );
   const existing = rows[0] ?? null;
   if (!existing) return null;
@@ -75,10 +78,10 @@ async function findExistingGiftCardTx(client, businessId, requestId, opts = {}) 
 
 async function lockGiftCardRequest(client, businessId, requestId) {
   if (!requestId) return;
-  await client.query(
-    `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
-    [String(businessId), String(requestId)]
-  );
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
+    String(businessId),
+    String(requestId),
+  ]);
 }
 
 function hydrateGiftCardSnapshot(existing) {
@@ -98,40 +101,43 @@ function hydrateGiftCardSnapshot(existing) {
     expires_at: meta.expires_at ?? existing.expires_at ?? null,
     created_by: existing.created_by ?? null,
     created_at: existing.created_at,
-    updated_at: existing.updated_at
+    updated_at: existing.updated_at,
   };
 }
 
-export async function createGiftCardWithDeps(deps, {
-  staff,
-  amount_q,
-  issued_to_name,
-  issued_to_phone,
-  expires_at,
-  requestId = null
-}) {
-  const auditRepo=deps.AuditRepo??AuditRepo;
+export async function createGiftCardWithDeps(
+  deps,
+  { staff, amount_q, issued_to_name, issued_to_phone, expires_at, requestId = null },
+) {
+  const auditRepo = deps.AuditRepo ?? AuditRepo;
   const actor = await deps.assertGiftCardAccess(staff, { create: true });
   const amount = validateMoney(amount_q);
 
   return deps.withTransaction(async (client) => {
     await lockGiftCardRequest(client, actor.business_id, requestId);
-    const existing = await findExistingGiftCardTx(client, actor.business_id, requestId, { expectType: "ISSUE" });
+    const existing = await findExistingGiftCardTx(client, actor.business_id, requestId, {
+      expectType: "ISSUE",
+    });
     if (existing) {
-      await auditRepo.log({
-        id: crypto.randomUUID(),
-        business_id: actor.business_id,
-        actor_type: "STAFF",
-        actor_id: actor.id,
-        action: "gift_card.issue.replay",
-        ip: null,
-        ua: null,
-        meta: withImpersonationMeta({
-          gift_card_id: existing.id,
-          request_id: requestId ?? null,
-          code: existing.code
-        }, actor)
-      }).catch(() => {});
+      await auditRepo
+        .log({
+          id: crypto.randomUUID(),
+          business_id: actor.business_id,
+          actor_type: "STAFF",
+          actor_id: actor.id,
+          action: "gift_card.issue.replay",
+          ip: null,
+          ua: null,
+          meta: withImpersonationMeta(
+            {
+              gift_card_id: existing.id,
+              request_id: requestId ?? null,
+              code: existing.code,
+            },
+            actor,
+          ),
+        })
+        .catch(() => {});
       return hydrateGiftCardSnapshot(existing);
     }
 
@@ -160,29 +166,36 @@ export async function createGiftCardWithDeps(deps, {
             amount,
             "ACTIVE",
             expires_at ?? null,
-            actor.id
-          ]
+            actor.id,
+          ],
         );
         card = rows[0];
         break;
       } catch (err) {
         if (String(err?.code) === "23505" && requestId) {
-          const replay = await findExistingGiftCardTx(client, actor.business_id, requestId, { expectType: "ISSUE" });
+          const replay = await findExistingGiftCardTx(client, actor.business_id, requestId, {
+            expectType: "ISSUE",
+          });
           if (replay) {
-            await auditRepo.log({
-              id: crypto.randomUUID(),
-              business_id: actor.business_id,
-              actor_type: "STAFF",
-              actor_id: actor.id,
-              action: "gift_card.issue.replay",
-              ip: null,
-              ua: null,
-              meta: withImpersonationMeta({
-                gift_card_id: replay.id,
-                request_id: requestId ?? null,
-                code: replay.code
-              }, actor)
-            }).catch(() => {});
+            await auditRepo
+              .log({
+                id: crypto.randomUUID(),
+                business_id: actor.business_id,
+                actor_type: "STAFF",
+                actor_id: actor.id,
+                action: "gift_card.issue.replay",
+                ip: null,
+                ua: null,
+                meta: withImpersonationMeta(
+                  {
+                    gift_card_id: replay.id,
+                    request_id: requestId ?? null,
+                    code: replay.code,
+                  },
+                  actor,
+                ),
+              })
+              .catch(() => {});
             return hydrateGiftCardSnapshot(replay);
           }
         }
@@ -213,74 +226,85 @@ export async function createGiftCardWithDeps(deps, {
           initial_amount_q: Number(card.initial_amount_q || amount),
           balance_after_q: amount,
           status_after: "ACTIVE",
-          expires_at: card.expires_at ?? null
-        }
-      ]
+          expires_at: card.expires_at ?? null,
+        },
+      ],
     );
 
-    await auditRepo.log({
-      id: crypto.randomUUID(),
-      business_id: actor.business_id,
-      actor_type: "STAFF",
-      actor_id: actor.id,
-      action: "gift_card.issue",
-      ip: null,
-      ua: null,
-      meta: withImpersonationMeta({
-        gift_card_id: card.id,
-        gift_card_tx_id: txId,
-        request_id: requestId ?? null,
-        amount_q: amount,
-        currency: region.currency,
-        code: card.code
-      }, actor)
-    }).catch(() => {});
+    await auditRepo
+      .log({
+        id: crypto.randomUUID(),
+        business_id: actor.business_id,
+        actor_type: "STAFF",
+        actor_id: actor.id,
+        action: "gift_card.issue",
+        ip: null,
+        ua: null,
+        meta: withImpersonationMeta(
+          {
+            gift_card_id: card.id,
+            gift_card_tx_id: txId,
+            request_id: requestId ?? null,
+            amount_q: amount,
+            currency: region.currency,
+            code: card.code,
+          },
+          actor,
+        ),
+      })
+      .catch(() => {});
 
-    return {...card,currency:region.currency};
+    return { ...card, currency: region.currency };
   });
 }
 
-export async function redeemGiftCardWithDeps(deps, {
-  staff,
-  code_or_token,
-  amount_q,
-  note,
-  requestId = null
-}) {
-  const auditRepo=deps.AuditRepo??AuditRepo;
+export async function redeemGiftCardWithDeps(
+  deps,
+  { staff, code_or_token, amount_q, note, requestId = null },
+) {
+  const auditRepo = deps.AuditRepo ?? AuditRepo;
   const actor = await deps.assertGiftCardAccess(staff, { create: false });
   const amount = validateMoney(amount_q);
 
   return deps.withTransaction(async (client) => {
     await lockGiftCardRequest(client, actor.business_id, requestId);
-    const existing = await findExistingGiftCardTx(client, actor.business_id, requestId, { expectType: "REDEEM", cardToken: code_or_token });
+    const existing = await findExistingGiftCardTx(client, actor.business_id, requestId, {
+      expectType: "REDEEM",
+      cardToken: code_or_token,
+    });
     if (existing) {
-      await auditRepo.log({
-        id: crypto.randomUUID(),
-        business_id: actor.business_id,
-        actor_type: "STAFF",
-        actor_id: actor.id,
-        action: "gift_card.redeem.replay",
-        ip: null,
-        ua: null,
-        meta: withImpersonationMeta({
-          gift_card_id: existing.id,
-          request_id: requestId ?? null,
-          code: existing.code
-        }, actor)
-      }).catch(() => {});
+      await auditRepo
+        .log({
+          id: crypto.randomUUID(),
+          business_id: actor.business_id,
+          actor_type: "STAFF",
+          actor_id: actor.id,
+          action: "gift_card.redeem.replay",
+          ip: null,
+          ua: null,
+          meta: withImpersonationMeta(
+            {
+              gift_card_id: existing.id,
+              request_id: requestId ?? null,
+              code: existing.code,
+            },
+            actor,
+          ),
+        })
+        .catch(() => {});
       return hydrateGiftCardSnapshot(existing);
     }
 
     const region = await validateRegionalMoney(client, actor.business_id, amount);
     const lock = await client.query(
       `SELECT * FROM gift_cards WHERE business_id = $1 AND (code = $2 OR qr_token = $2) FOR UPDATE`,
-      [actor.business_id, code_or_token]
+      [actor.business_id, code_or_token],
     );
     const card = lock.rows[0];
     if (!card) throw badRequest("Gift card no encontrada");
     if (card.status !== "ACTIVE") throw badRequest("Gift card no está activa");
-    if (card.expires_at && new Date(card.expires_at).getTime() < Date.now()) throw badRequest("Gift card vencida");
+    if (card.expires_at && new Date(card.expires_at).getTime() < Date.now())
+      throw badRequest("Gift card vencida");
     const current = Number(card.balance_q || 0);
     if (amount > current) throw badRequest("Saldo insuficiente en la gift card");
 
@@ -289,7 +313,7 @@ export async function redeemGiftCardWithDeps(deps, {
 
     await client.query(
       `UPDATE gift_cards SET balance_q = $2, status = $3, updated_at = now() WHERE id = $1`,
-      [card.id, nextBalance, nextStatus]
+      [card.id, nextBalance, nextStatus],
     );
     const txId = crypto.randomUUID();
     await client.query(
@@ -315,29 +339,34 @@ export async function redeemGiftCardWithDeps(deps, {
           initial_amount_q: Number(card.initial_amount_q || 0),
           issued_to_name: card.issued_to_name ?? null,
           issued_to_phone: card.issued_to_phone ?? null,
-          expires_at: card.expires_at ?? null
-        }
-      ]
+          expires_at: card.expires_at ?? null,
+        },
+      ],
     );
 
-    await auditRepo.log({
-      id: crypto.randomUUID(),
-      business_id: actor.business_id,
-      actor_type: "STAFF",
-      actor_id: actor.id,
-      action: "gift_card.redeem",
-      ip: null,
-      ua: null,
-      meta: withImpersonationMeta({
-        gift_card_id: card.id,
-        gift_card_tx_id: txId,
-        request_id: requestId ?? null,
-        amount_q: amount,
-        currency: region.currency,
-        code: card.code
-      }, actor)
-    }).catch(() => {});
-    return { ...card, balance_q: nextBalance, status: nextStatus, currency:region.currency };
+    await auditRepo
+      .log({
+        id: crypto.randomUUID(),
+        business_id: actor.business_id,
+        actor_type: "STAFF",
+        actor_id: actor.id,
+        action: "gift_card.redeem",
+        ip: null,
+        ua: null,
+        meta: withImpersonationMeta(
+          {
+            gift_card_id: card.id,
+            gift_card_tx_id: txId,
+            request_id: requestId ?? null,
+            amount_q: amount,
+            currency: region.currency,
+            code: card.code,
+          },
+          actor,
+        ),
+      })
+      .catch(() => {});
+    return { ...card, balance_q: nextBalance, status: nextStatus, currency: region.currency };
   });
 }
 
@@ -345,7 +374,7 @@ const giftCardDeps = {
   GiftCardRepo,
   StaffRepo,
   withTransaction,
-  assertGiftCardAccess
+  assertGiftCardAccess,
 };
 
 export async function createGiftCard(args) {
@@ -393,9 +422,9 @@ export async function giftCardLedgerDetailsWithDeps(deps, { staff, code_or_token
       issue_total_q: Number(issueTotal.toFixed(2)),
       redeem_total_q: Number(redeemTotal.toFixed(2)),
       delta_q: delta,
-      mismatch: Math.abs(delta) > 0.00001
+      mismatch: Math.abs(delta) > 0.00001,
     },
-    transactions
+    transactions,
   };
 }
 

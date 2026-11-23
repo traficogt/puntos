@@ -1,4 +1,9 @@
-import { renderBaseEmailTemplate, renderHtmlParagraphs, renderPoweredByText, renderTextParagraphs } from "./base-template.js";
+import {
+  renderBaseEmailTemplate,
+  renderHtmlParagraphs,
+  renderPoweredByText,
+  renderTextParagraphs,
+} from "./base-template.js";
 
 function resolveEyebrow(tone) {
   if (tone === "celebration") return "Celebración";
@@ -6,7 +11,14 @@ function resolveEyebrow(tone) {
   return "Programa activo";
 }
 
-export function renderLifecycleEmail({ branding, subject = "", title = "", intro = "", lines = [], tone = "update" }) {
+export function renderLifecycleEmail({
+  branding,
+  subject = "",
+  title = "",
+  intro = "",
+  lines = [],
+  tone = "update",
+}) {
   const resolvedSubject = String(subject || branding.brandName).trim();
   const resolvedTitle = String(title || "Novedades de tu programa").trim();
   const safeLines = [intro, ...lines].map((line) => String(line || "").trim()).filter(Boolean);
@@ -19,7 +31,7 @@ export function renderLifecycleEmail({ branding, subject = "", title = "", intro
       eyebrow: resolveEyebrow(tone),
       title: resolvedTitle,
       footerText: "Gracias por seguir usando tu programa de lealtad.",
-      bodyHtml: renderHtmlParagraphs(safeLines)
-    })
+      bodyHtml: renderHtmlParagraphs(safeLines),
+    }),
   };
 }

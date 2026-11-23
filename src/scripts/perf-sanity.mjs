@@ -69,8 +69,12 @@ async function run() {
   const max = durations.length ? Math.max(...durations) : 0;
   const rps = totalMs > 0 ? (durations.length / totalMs) * 1000 : 0;
 
-  console.log(`requests=${durations.length} success=${success} failures=${failures} error_rate=${(errorRate * 100).toFixed(2)}%`);
-  console.log(`latency_ms avg=${avgMs.toFixed(1)} p50=${p50.toFixed(1)} p95=${p95.toFixed(1)} max=${max.toFixed(1)} rps=${rps.toFixed(1)}`);
+  console.log(
+    `requests=${durations.length} success=${success} failures=${failures} error_rate=${(errorRate * 100).toFixed(2)}%`,
+  );
+  console.log(
+    `latency_ms avg=${avgMs.toFixed(1)} p50=${p50.toFixed(1)} p95=${p95.toFixed(1)} max=${max.toFixed(1)} rps=${rps.toFixed(1)}`,
+  );
   console.log(`thresholds p95<=${maxP95Ms}ms error_rate<=${(maxErrorRate * 100).toFixed(2)}%`);
 
   if (success === 0) {

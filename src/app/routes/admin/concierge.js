@@ -13,12 +13,14 @@ import { StaffRepo } from "../../repositories/staff-repository.js";
 import { sendContactEmail } from "../../services/contact-service.js";
 import { makeId } from "./_util.js";
 
-const ConciergeRequestSchema = z.object({
-  phone: z.string().trim().min(7).max(25),
-  business_type: z.string().trim().min(1).max(60),
-  preferred_time: z.string().trim().max(120).optional().default(""),
-  note: z.string().trim().max(1000).optional().default("")
-}).strict();
+const ConciergeRequestSchema = z
+  .object({
+    phone: z.string().trim().min(7).max(25),
+    business_type: z.string().trim().min(1).max(60),
+    preferred_time: z.string().trim().max(120).optional().default(""),
+    note: z.string().trim().max(1000).optional().default(""),
+  })
+  .strict();
 
 /**
  * Done-for-you onboarding: the owner asks PuntosFieles to configure the program for them,
@@ -50,19 +52,33 @@ export function createConciergeRoutes({ sendEmail = sendContactEmail } = {}) {
         `Horario preferido: ${v.data.preferred_time || "sin preferencia"}`,
         `Plan actual: ${business.plan || "desconocido"} · slug: ${business.slug || "-"} · id: ${business.id}`,
         "",
-        v.data.note || "(sin nota)"
+        v.data.note || "(sin nota)",
       ].join("\n");
       await sendEmail(
-        { name: ownerEmail || business.name, business: business.name, contact, message, subject: `Configuración acompañada — ${business.name}` },
-        { host: req.get("host") }
+        {
+          name: ownerEmail || business.name,
+          business: business.name,
+          contact,
+          message,
+          subject: `Configuración acompañada — ${business.name}`,
+        },
+        { host: req.get("host") },
       );
       await AuditRepo.log({
-        id: makeId(), business_id: req.tenantId, actor_type: "STAFF", actor_id: req.staff.id,
-        action: "concierge.request", ip: null, ua: null,
-        meta: withImpersonationMeta({ business_type: v.data.business_type, preferred_time: v.data.preferred_time }, req.staff)
+        id: makeId(),
+        business_id: req.tenantId,
+        actor_type: "STAFF",
+        actor_id: req.staff.id,
+        action: "concierge.request",
+        ip: null,
+        ua: null,
+        meta: withImpersonationMeta(
+          { business_type: v.data.business_type, preferred_time: v.data.preferred_time },
+          req.staff,
+        ),
       }).catch(() => {});
       return res.json({ ok: true });
-    })
+    }),
   );
   return router;
 }

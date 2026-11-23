@@ -9,6 +9,6 @@ export function withImpersonationMeta(meta = {}, actor) {
   if (!impersonatedBy) return meta ?? {};
   return {
     ...(meta ?? {}),
-    impersonated_by_super_admin_email: impersonatedBy
+    impersonated_by_super_admin_email: impersonatedBy,
   };
 }

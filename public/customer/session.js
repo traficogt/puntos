@@ -23,17 +23,25 @@ export function readCustomerStorage(key) {
     }
     memoryStorage.delete(key);
     return stored;
-  } catch { return memoryStorage.get(key)?.value || ""; }
+  } catch {
+    return memoryStorage.get(key)?.value || "";
+  }
 }
 
 function writeCustomerStorage(key, value) {
   let stored;
-  try { stored = localStorage.getItem(key) || ""; } catch { /* Reads may also be restricted. */ }
+  try {
+    stored = localStorage.getItem(key) || "";
+  } catch {
+    /* Reads may also be restricted. */
+  }
   try {
     if (value) localStorage.setItem(key, value);
     else localStorage.removeItem(key);
     stored = value;
-  } catch { /* Keep this tab's session state when storage is full or restricted. */ }
+  } catch {
+    /* Keep this tab's session state when storage is full or restricted. */
+  }
   memoryStorage.set(key, { value, stored });
   if (key === EPOCH_KEY && stored !== undefined) observedStorageEpoch = stored;
 }
@@ -45,23 +53,46 @@ export function getCustomerEpoch() {
 export function getCustomerIdentity() {
   try {
     const identity = JSON.parse(readCustomerStorage(IDENTITY_KEY));
-    if (typeof identity?.businessId !== "string" || !identity.businessId || typeof identity?.customerId !== "string" || !identity.customerId) return null;
-    return { businessId: identity.businessId, customerId: identity.customerId, slug: String(identity.slug || "") };
-  } catch { return null; }
+    if (
+      typeof identity?.businessId !== "string" ||
+      !identity.businessId ||
+      typeof identity?.customerId !== "string" ||
+      !identity.customerId
+    )
+      return null;
+    return {
+      businessId: identity.businessId,
+      customerId: identity.customerId,
+      slug: String(identity.slug || ""),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function invalidateCustomerIdentity({ block = false } = {}) {
   getCustomerEpoch();
-  writeCustomerStorage(EPOCH_KEY, globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
+  writeCustomerStorage(
+    EPOCH_KEY,
+    globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
+  );
   writeCustomerStorage(IDENTITY_KEY, "");
   writeCustomerStorage("pf_phone", "");
   writeCustomerStorage("pf_customer_blocked", block ? "1" : "");
 }
 
 export function rememberCustomerIdentity(me) {
-  const identity = { businessId: String(me.business.id), customerId: String(me.customer.id), slug: String(me.business.slug || "") };
+  const identity = {
+    businessId: String(me.business.id),
+    customerId: String(me.customer.id),
+    slug: String(me.business.slug || ""),
+  };
   const previous = getCustomerIdentity();
-  if (previous && (previous.businessId !== identity.businessId || previous.customerId !== identity.customerId)) invalidateCustomerIdentity();
+  if (
+    previous &&
+    (previous.businessId !== identity.businessId || previous.customerId !== identity.customerId)
+  )
+    invalidateCustomerIdentity();
   writeCustomerStorage(IDENTITY_KEY, JSON.stringify(identity));
   writeCustomerStorage("pf_customer_slug", identity.slug);
   return identity;
@@ -69,18 +100,61 @@ export function rememberCustomerIdentity(me) {
 
 export function isCustomerAuthError(error) {
   const code = String(error?.code || "");
-  return error?.status === 401 || code.startsWith("AUTH_") || code === "CUSTOMER_NOT_FOUND"
-    || /^(No autenticado|Token invalido|Customer not found)(?:\s|$)/i.test(String(error?.message || ""));
+  return (
+    error?.status === 401 ||
+    code.startsWith("AUTH_") ||
+    code === "CUSTOMER_NOT_FOUND" ||
+    /^(No autenticado|Token invalido|Customer not found)(?:\s|$)/i.test(
+      String(error?.message || ""),
+    )
+  );
 }
 
 export function clearWalletView($) {
   for (const cleanup of viewCleanups) cleanup();
   $("#customerStatement")?.replaceChildren();
-  for (const selector of ["#rewardEntitlementsSection", "#growthOffersSection", "#main", "#btnLogout", "#tierSection", "#referralsSection", "#achievementsSection", "#billeteras", "#nativeWalletConfirm"]) {
+  for (const selector of [
+    "#rewardEntitlementsSection",
+    "#growthOffersSection",
+    "#main",
+    "#btnLogout",
+    "#tierSection",
+    "#referralsSection",
+    "#achievementsSection",
+    "#billeteras",
+    "#nativeWalletConfirm",
+  ]) {
     const element = $(selector);
-    if (element) { element.hidden = true; element.classList.toggle("is-hidden", true); }
+    if (element) {
+      element.hidden = true;
+      element.classList.toggle("is-hidden", true);
+    }
   }
-  for (const selector of ["#rewardEntitlements", "#growthOffers", "#who", "#points", "#pendingPoints", "#lifetime", "#lastVisit", "#bizName", "#nextReward", "#nextRewardBalance", "#nextRewardConditions", "#nextRewardEarning", "#tx", "#red", "#qrExp", "#qrHint", "#syncBadge", "#rewards", "#achievements", "#referralStats", "#tierPerks", "#qrWrap", "#nativeWalletStatus"]) {
+  for (const selector of [
+    "#rewardEntitlements",
+    "#growthOffers",
+    "#who",
+    "#points",
+    "#pendingPoints",
+    "#lifetime",
+    "#lastVisit",
+    "#bizName",
+    "#nextReward",
+    "#nextRewardBalance",
+    "#nextRewardConditions",
+    "#nextRewardEarning",
+    "#tx",
+    "#red",
+    "#qrExp",
+    "#qrHint",
+    "#syncBadge",
+    "#rewards",
+    "#achievements",
+    "#referralStats",
+    "#tierPerks",
+    "#qrWrap",
+    "#nativeWalletStatus",
+  ]) {
     const element = $(selector);
     if (element) element.replaceChildren();
   }

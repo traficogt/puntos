@@ -11,7 +11,13 @@ import { spendCashback } from "./cashback-service.js";
 // from the scanned QR (same verification the award flow uses), checks the
 // business runs CASHBACK, then debits inside a tenant-scoped transaction so RLS
 // and the account lock apply. Idempotent on requestId. Audited.
-export async function spendCashbackForStaff({ staff, customerQrToken, amount_q, requestId, note = null }) {
+export async function spendCashbackForStaff({
+  staff,
+  customerQrToken,
+  amount_q,
+  requestId,
+  note = null,
+}) {
   const { customer } = await lookupCustomerByQrToken({ staff, customerQrToken });
   const business = await BusinessRepo.getById(staff.business_id);
   if (!business || !["CASHBACK", "GIFT_CARD"].includes(business.program_type)) {
@@ -24,8 +30,8 @@ export async function spendCashbackForStaff({ staff, customerQrToken, amount_q, 
       staffUserId: staff.id,
       amountQ: amount_q,
       requestId,
-      meta: { note }
-    })
+      meta: { note },
+    }),
   );
   await AuditRepo.log({
     id: crypto.randomUUID(),
@@ -36,14 +42,19 @@ export async function spendCashbackForStaff({ staff, customerQrToken, amount_q, 
     ip: null,
     ua: null,
     meta: withImpersonationMeta(
-      { customer_id: customer.id, request_id: requestId ?? null, amount_q, balance_after_q: result.balance_after_q },
-      staff
-    )
+      {
+        customer_id: customer.id,
+        request_id: requestId ?? null,
+        amount_q,
+        balance_after_q: result.balance_after_q,
+      },
+      staff,
+    ),
   }).catch(() => {});
   return {
     customer: { id: customer.id, name: customer.name, phone: customer.phone },
     spent_q: result.spent_q,
     balance_after_q: result.balance_after_q,
-    replay: result.replay ?? false
+    replay: result.replay ?? false,
   };
 }

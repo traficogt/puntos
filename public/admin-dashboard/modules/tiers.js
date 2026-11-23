@@ -113,19 +113,22 @@ export function registerTiersModule(app) {
         points_multiplier: parseFloat($("#tierMultiplier").value),
         color: $("#tierColor").value.trim() || null,
         icon_url: $("#tierIcon").value.trim() || null,
-        perks: $("#tierPerks").value.split("\n").map((p) => p.trim()).filter(Boolean)
+        perks: $("#tierPerks")
+          .value.split("\n")
+          .map((p) => p.trim())
+          .filter(Boolean),
       };
 
       if (editingTierId) {
         await api(`/api/admin/tiers/${editingTierId}`, {
           method: "PUT",
-          body: JSON.stringify(tierData)
+          body: JSON.stringify(tierData),
         });
         toast("Nivel actualizado");
       } else {
         await api("/api/admin/tiers", {
           method: "POST",
-          body: JSON.stringify(tierData)
+          body: JSON.stringify(tierData),
         });
         toast("Nivel creado");
       }
@@ -138,9 +141,12 @@ export function registerTiersModule(app) {
   }
 
   async function deleteTier(tierId) {
-    const ok = await confirm("¿Eliminar este nivel? Solo se puede eliminar si no tiene clientes asignados.", {
-      title: "Eliminar nivel"
-    });
+    const ok = await confirm(
+      "¿Eliminar este nivel? Solo se puede eliminar si no tiene clientes asignados.",
+      {
+        title: "Eliminar nivel",
+      },
+    );
     if (!ok) return;
     try {
       await api(`/api/admin/tiers/${tierId}`, { method: "DELETE" });
@@ -167,12 +173,14 @@ export function registerTiersModule(app) {
   app.onAfterPlanReady(() => {
     $("#btnAddTier")?.addEventListener("click", openNewTierModal);
     $("#btnSaveTier")?.addEventListener("click", () => saveTier().catch(() => {}));
-    $("#btnCancelTier")?.addEventListener("click", () => { $("#tierModal").hidden = true; });
+    $("#btnCancelTier")?.addEventListener("click", () => {
+      $("#tierModal").hidden = true;
+    });
   });
 
   app.registerTab("tiers", {
     feature: "tiers",
     allowManager: false,
-    load: loadTiers
+    load: loadTiers,
   });
 }

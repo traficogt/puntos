@@ -13,7 +13,7 @@ export const OrderReturnRepo = {
          AND external_return_id = $2
        ORDER BY created_at DESC, id DESC
        LIMIT 1`,
-      [businessId, externalReturnId]
+      [businessId, externalReturnId],
     );
     return rows[0] ?? null;
   },
@@ -26,7 +26,7 @@ export const OrderReturnRepo = {
          AND order_id = $2
        ORDER BY created_at DESC, id DESC
        LIMIT 1`,
-      [businessId, orderId]
+      [businessId, orderId],
     );
     return rows[0] ?? null;
   },
@@ -51,9 +51,9 @@ export const OrderReturnRepo = {
         input.fingerprint,
         input.reversal_transaction_id ?? null,
         input.points_effect,
-        input.outcome
-      ]
+        input.outcome,
+      ],
     );
     return rows[0];
-  }
+  },
 };

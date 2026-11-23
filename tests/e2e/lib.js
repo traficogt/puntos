@@ -6,7 +6,7 @@ async function browserApi(page, { method, url, data, csrf, headers }) {
     url,
     data: data === undefined ? null : data,
     csrf: csrf === true,
-    headers: headers && typeof headers === "object" ? headers : {}
+    headers: headers && typeof headers === "object" ? headers : {},
   };
 
   return page.evaluate(async (p) => {
@@ -19,11 +19,12 @@ async function browserApi(page, { method, url, data, csrf, headers }) {
     }
 
     if (hasBody && p.csrf) {
-      const token = document.cookie
-        .split(";")
-        .map((v) => v.trim())
-        .find((v) => v.startsWith("pf_csrf_readable="))
-        ?.split("=")[1] || "";
+      const token =
+        document.cookie
+          .split(";")
+          .map((v) => v.trim())
+          .find((v) => v.startsWith("pf_csrf_readable="))
+          ?.split("=")[1] || "";
       if (token) h["x-csrf-token"] = decodeURIComponent(token);
     }
 
@@ -31,7 +32,7 @@ async function browserApi(page, { method, url, data, csrf, headers }) {
       method: methodUpper,
       credentials: "include",
       headers: h,
-      body: hasBody ? JSON.stringify(p.data ?? {}) : undefined
+      body: hasBody ? JSON.stringify(p.data ?? {}) : undefined,
     });
 
     const text = await resp.text();

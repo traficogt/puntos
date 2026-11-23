@@ -1,10 +1,15 @@
 import { test, expect } from "@playwright/test";
 
 async function useClientIp(page) {
-  await page.setExtraHTTPHeaders({ "x-forwarded-for": `10.219.${Math.floor(Math.random() * 200)}.${Math.floor(Math.random() * 200) + 1}` });
+  await page.setExtraHTTPHeaders({
+    "x-forwarded-for": `10.219.${Math.floor(Math.random() * 200)}.${Math.floor(Math.random() * 200) + 1}`,
+  });
 }
 
-test("admin logout hides both tabs offline and revokes the session on reconnect", async ({ page, context }) => {
+test("admin logout hides both tabs offline and revokes the session on reconnect", async ({
+  page,
+  context,
+}) => {
   await useClientIp(page);
   const token = globalThis.crypto.randomUUID();
   const signup = await page.request.post("/api/admin/signup", {
@@ -13,8 +18,10 @@ test("admin logout hides both tabs offline and revokes the session on reconnect"
       email: `logout-${token}@example.com`,
       password: "OrchardLanternMarble2026!",
       program_type: "SPEND",
-      ...(process.env.SIGNUP_CAPTCHA_SECRET ? { captcha_token: process.env.SIGNUP_CAPTCHA_SECRET } : {})
-    }
+      ...(process.env.SIGNUP_CAPTCHA_SECRET
+        ? { captcha_token: process.env.SIGNUP_CAPTCHA_SECRET }
+        : {}),
+    },
   });
   expect(signup.ok()).toBeTruthy();
   await page.goto("/admin-dashboard", { waitUntil: "domcontentloaded" });
@@ -28,10 +35,15 @@ test("admin logout hides both tabs offline and revokes the session on reconnect"
   await expect(page.locator("#main")).toBeHidden();
   await expect(page.locator("#needLogin")).toBeVisible();
   await expect(sibling.locator("#main")).toBeHidden();
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("pf_staff_logout_pending"))).toBe("1");
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("pf_staff_logout_pending")))
+    .toBe("1");
   await expect(page.locator("#toast")).toContainText("No se pudo cerrar");
 
-  const revoked = page.waitForResponse(response => response.request().method() === "POST" && response.url().includes("/api/staff/logout"));
+  const revoked = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" && response.url().includes("/api/staff/logout"),
+  );
   await context.setOffline(false);
   expect([200, 401]).toContain((await revoked).status());
   await page.waitForURL(/\/equipo\/ingresar\/$/);
@@ -39,7 +51,10 @@ test("admin logout hides both tabs offline and revokes the session on reconnect"
   expect(await page.evaluate(() => localStorage.getItem("pf_staff_logout_pending"))).toBeNull();
 });
 
-test("super logout hides both tabs offline and revokes the session on reconnect", async ({ page, context }) => {
+test("super logout hides both tabs offline and revokes the session on reconnect", async ({
+  page,
+  context,
+}) => {
   const email = process.env.SUPER_ADMIN_EMAIL || "";
   const password = process.env.SUPER_ADMIN_PASSWORD || "";
   test.skip(!email || !password, "Isolated super credentials are required");
@@ -60,12 +75,19 @@ test("super logout hides both tabs offline and revokes the session on reconnect"
   await expect(page.locator("#negocios")).toBeHidden();
   await expect(page.locator("#salud")).toBeHidden();
   await expect(sibling.locator("#planes")).toBeHidden();
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("pf_super_logout_pending"))).toBe("1");
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("pf_super_logout_pending")))
+    .toBe("1");
   await expect(page.locator("#toast")).toContainText("No se pudo cerrar");
 
-  const revoked = page.waitForResponse(response => response.request().method() === "POST" && response.url().includes("/api/super/logout"));
+  const revoked = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" && response.url().includes("/api/super/logout"),
+  );
   await context.setOffline(false);
   expect([200, 401]).toContain((await revoked).status());
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("pf_super_logout_pending"))).toBeNull();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("pf_super_logout_pending")))
+    .toBeNull();
   expect((await page.request.get("/api/super/me")).status()).toBe(401);
 });

@@ -2,7 +2,9 @@ import { test, expect } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
   await page.route("https://privatrack.com/**", (route) => route.fulfill({ body: "" }));
-  await page.route("https://challenges.cloudflare.com/**", (route) => route.fulfill({ body: "", contentType: "application/javascript" }));
+  await page.route("https://challenges.cloudflare.com/**", (route) =>
+    route.fulfill({ body: "", contentType: "application/javascript" }),
+  );
 });
 
 test("loyalty demonstration earns a reward and can restart", async ({ page }) => {
@@ -46,9 +48,11 @@ test("demo request validates missing fields and submits existing payload", async
   await page.locator("#contactSubmit").click();
   await expect(page.locator("#contactStatus")).toContainText("Recibimos tu solicitud");
   expect(submitted).toEqual({
-    name: "Ana López", business: "Café de prueba", contact: "ana@example.com",
+    name: "Ana López",
+    business: "Café de prueba",
+    contact: "ana@example.com",
     message: "Organizar el programa de lealtad.\n\nContexto operativo: 2 sucursales",
-    turnstileToken: "test-verification-token"
+    turnstileToken: "test-verification-token",
   });
 });
 
@@ -59,14 +63,21 @@ test("mobile navigation and FAQ work without horizontal overflow", async ({ page
   await expect(page).toHaveURL(/#contacto$/);
   await page.getByText("¿Mis clientes tienen que descargar una app?", { exact: true }).click();
   await expect(page.locator("#preguntas details").first()).toContainText("desde el navegador");
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
   await page.setViewportSize({ width: 320, height: 800 });
   await page.evaluate(() => document.fonts.ready);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
 });
 
 test("content and demo request remain visible without JavaScript", async ({ browser }) => {
-  const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({
+    javaScriptEnabled: false,
+    viewport: { width: 390, height: 844 },
+  });
   const page = await context.newPage();
   await page.goto(`${test.info().project.use.baseURL}/?sw=off`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -90,11 +101,17 @@ test("selected capabilities open the matching interactive example", async ({ pag
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     await expect(section.getByRole("link", { name: "Explora más funciones" })).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
   }
-  await section.getByRole("link", { name: "Explorar Recuperar clientes en la demostración" }).click();
+  await section
+    .getByRole("link", { name: "Explorar Recuperar clientes en la demostración" })
+    .click();
   await expect(page).toHaveURL(/\/demostracion\/(?:\?vista=libre)?#recuperar-clientes$/);
-  await expect(page.getByRole("heading", { name: "Recuperar clientes", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Recuperar clientes", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Vista previa · datos de ejemplo", { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });

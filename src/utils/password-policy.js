@@ -3,11 +3,7 @@ import { badRequest } from "./http-error.js";
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 128;
 
-const APP_CONTEXT_TOKENS = [
-  "puntos",
-  "puntosfieles",
-  "puntos fieles"
-];
+const APP_CONTEXT_TOKENS = ["puntos", "puntosfieles", "puntos fieles"];
 
 const COMMON_PASSWORDS = new Set([
   "123456",
@@ -50,7 +46,7 @@ const COMMON_PASSWORDS = new Set([
   "secret",
   "secret123",
   "welcome1",
-  "administrator"
+  "administrator",
 ]);
 
 function normalizeText(value) {
@@ -96,7 +92,9 @@ export function passwordPolicyErrors(password, context = {}) {
     }
   }
 
-  const email = String(context.email || "").trim().toLowerCase();
+  const email = String(context.email || "")
+    .trim()
+    .toLowerCase();
   if (email.includes("@")) {
     const [localPart, domainPart] = email.split("@");
     for (const token of tokenizeContext(localPart)) contextTokens.add(token);

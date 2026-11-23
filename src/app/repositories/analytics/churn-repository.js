@@ -18,7 +18,7 @@ export const churnRepository = {
        WHERE c.id = cl.customer_id 
          AND c.business_id = $1 
          AND c.deleted_at IS NULL`,
-      [businessId]
+      [businessId],
     );
   },
 
@@ -40,8 +40,8 @@ export const churnRepository = {
          AND cl.churn_risk_score >= $2
        ORDER BY cl.churn_risk_score DESC, cl.total_spend DESC
        LIMIT $3`,
-      [businessId, threshold, limit]
+      [businessId, threshold, limit],
     );
     return rows;
-  }
+  },
 };

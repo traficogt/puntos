@@ -9,7 +9,7 @@ const DEFAULT_TIERS = [
     min_points: 0,
     points_multiplier: 1,
     perks: ["Earn points on purchases", "Redeem rewards"],
-    color: "#CD7F32"
+    color: "#CD7F32",
   },
   {
     name: "Silver",
@@ -17,7 +17,7 @@ const DEFAULT_TIERS = [
     min_points: 500,
     points_multiplier: 1.25,
     perks: ["25% bonus points", "Early access to new rewards", "Birthday bonus"],
-    color: "#C0C0C0"
+    color: "#C0C0C0",
   },
   {
     name: "Gold",
@@ -25,8 +25,8 @@ const DEFAULT_TIERS = [
     min_points: 2000,
     points_multiplier: 1.5,
     perks: ["50% bonus points", "Exclusive rewards", "Priority support", "Free delivery"],
-    color: "#FFD700"
-  }
+    color: "#FFD700",
+  },
 ];
 
 async function findDefaultTier(customerId) {
@@ -36,7 +36,7 @@ async function findDefaultTier(customerId) {
      JOIN customers c ON c.business_id = lt.business_id
      WHERE c.id = $1 AND lt.tier_level = 1 AND lt.active = true
      LIMIT 1`,
-    [customerId]
+    [customerId],
   );
 
   return rows[0];
@@ -66,7 +66,7 @@ async function ensureUniqueTierLevel(businessId, tierLevel) {
 async function countCustomersInTier(tierId) {
   const { rows } = await dbQuery(
     `SELECT COUNT(*) AS count FROM customer_tiers WHERE tier_id = $1`,
-    [tierId]
+    [tierId],
   );
 
   return Number.parseInt(rows[0]?.count ?? 0, 10);
@@ -98,10 +98,12 @@ async function createDefaultTiers(businessId, _programType = "SPEND") {
   const tiers = [];
 
   for (const tierData of DEFAULT_TIERS) {
-    tiers.push(await TierRepository.create({
-      business_id: businessId,
-      ...tierData
-    }));
+    tiers.push(
+      await TierRepository.create({
+        business_id: businessId,
+        ...tierData,
+      }),
+    );
   }
 
   return tiers;
@@ -123,7 +125,7 @@ async function getCustomerTierInfo(customerId) {
     ...bronze,
     current_points: 0,
     points_to_next_tier: null,
-    next_tier_name: null
+    next_tier_name: null,
   };
 }
 
@@ -136,7 +138,7 @@ async function checkTierProgression(customerId) {
        LEFT JOIN customer_tiers ct ON ct.customer_id = c.id
        LEFT JOIN loyalty_tiers lt ON lt.id = ct.tier_id
        WHERE c.id = $1`,
-      [customerId]
+      [customerId],
     );
     const customer = customerRows[0];
 
@@ -153,7 +155,7 @@ async function checkTierProgression(customerId) {
          AND tier_level > $3
        ORDER BY tier_level DESC
        LIMIT 1`,
-      [customer.business_id, customer.points, currentTierLevel]
+      [customer.business_id, customer.points, currentTierLevel],
     );
     const newTier = eligibleTiers[0];
 
@@ -166,12 +168,12 @@ async function checkTierProgression(customerId) {
        VALUES ($1, $2)
        ON CONFLICT (customer_id)
        DO UPDATE SET tier_id = $2, updated_at = now()`,
-      [customerId, newTier.id]
+      [customerId, newTier.id],
     );
     await client.query(
       `INSERT INTO tier_history (customer_id, from_tier_id, to_tier_id, reason)
        VALUES ($1, $2, $3, 'points')`,
-      [customerId, customer.tier_id, newTier.id]
+      [customerId, customer.tier_id, newTier.id],
     );
 
     return { upgraded: true, newTier };
@@ -191,7 +193,7 @@ async function createTier(businessId, tierData) {
   await ensureUniqueTierLevel(businessId, tierData.tier_level);
   return TierRepository.create({
     business_id: businessId,
-    ...tierData
+    ...tierData,
   });
 }
 
@@ -226,7 +228,7 @@ async function runTierRetentionSweep(businessId, policy = {}) {
        FROM loyalty_tiers
        WHERE business_id = $1 AND active = true
        ORDER BY tier_level ASC`,
-      [businessId]
+      [businessId],
     );
     if (!tiers.length) {
       return { businessId, skipped: true, reason: "no_tiers" };
@@ -253,7 +255,7 @@ async function runTierRetentionSweep(businessId, policy = {}) {
        LEFT JOIN loyalty_tiers lt ON lt.id = ct.tier_id
        WHERE c.business_id = $1 AND c.deleted_at IS NULL
        GROUP BY c.id, ct.tier_id, lt.tier_level, ct.achieved_at`,
-      [businessId, String(rollingDays)]
+      [businessId, String(rollingDays)],
     );
 
     let upgrades = 0;
@@ -269,12 +271,12 @@ async function runTierRetentionSweep(businessId, policy = {}) {
           `INSERT INTO customer_tiers (customer_id, tier_id, achieved_at)
            VALUES ($1, $2, now())
            ON CONFLICT (customer_id) DO NOTHING`,
-          [customer.customer_id, target.id]
+          [customer.customer_id, target.id],
         );
         await client.query(
           `INSERT INTO tier_history (customer_id, from_tier_id, to_tier_id, reason)
            VALUES ($1, NULL, $2, 'retention_bootstrap')`,
-          [customer.customer_id, target.id]
+          [customer.customer_id, target.id],
         );
         continue;
       }
@@ -286,7 +288,7 @@ async function runTierRetentionSweep(businessId, policy = {}) {
       if (targetLevel < currentLevel && graceDays > 0 && customer.achieved_at) {
         const held = await client.query(
           `SELECT now() - $1::timestamptz < ($2 || ' days')::interval AS in_grace`,
-          [customer.achieved_at, String(graceDays)]
+          [customer.achieved_at, String(graceDays)],
         );
         if (held.rows?.[0]?.in_grace) {
           continue;
@@ -299,12 +301,12 @@ async function runTierRetentionSweep(businessId, policy = {}) {
              updated_at = now(),
              achieved_at = CASE WHEN $3 > $4 THEN now() ELSE achieved_at END
          WHERE customer_id = $1`,
-        [customer.customer_id, target.id, targetLevel, currentLevel]
+        [customer.customer_id, target.id, targetLevel, currentLevel],
       );
       await client.query(
         `INSERT INTO tier_history (customer_id, from_tier_id, to_tier_id, reason)
          VALUES ($1, $2, $3, 'retention_window')`,
-        [customer.customer_id, customer.current_tier_id, target.id]
+        [customer.customer_id, customer.current_tier_id, target.id],
       );
 
       if (targetLevel > currentLevel) {
@@ -321,7 +323,7 @@ async function runTierRetentionSweep(businessId, policy = {}) {
       reentryExtraPoints,
       upgrades,
       downgrades,
-      customers: customers.length
+      customers: customers.length,
     };
   });
 }
@@ -337,5 +339,5 @@ export const TierService = {
   createTier,
   updateTier,
   deleteTier,
-  runTierRetentionSweep
+  runTierRetentionSweep,
 };

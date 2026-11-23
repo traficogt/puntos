@@ -14,11 +14,16 @@ import { createEvolutionProvider } from "./messaging/providers/evolution-provide
 import { createTwilioProvider } from "./messaging/providers/twilio-provider.js";
 import { createBaileysProvider } from "./messaging/providers/baileys-provider.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
-import { getMarketingPreference, issueMarketingUnsubscribeUrl } from './marketing-preference-service.js';
-import { PlanConfigService } from './plan-config-service.js';
-import { hasPlanFeature } from '../../utils/plan.js';
+import {
+  getMarketingPreference,
+  issueMarketingUnsubscribeUrl,
+} from "./marketing-preference-service.js";
+import { PlanConfigService } from "./plan-config-service.js";
+import { hasPlanFeature } from "../../utils/plan.js";
 
-function id() { return crypto.randomUUID(); }
+function id() {
+  return crypto.randomUUID();
+}
 
 function inferDestinations(to, destinations) {
   const target = String(to || "").trim();
@@ -26,7 +31,7 @@ function inferDestinations(to, destinations) {
   const inferredPhone = !inferredEmail ? target : "";
   return {
     phone: destinations?.phone || inferredPhone || null,
-    email: destinations?.email || inferredEmail || null
+    email: destinations?.email || inferredEmail || null,
   };
 }
 
@@ -39,7 +44,7 @@ function buildProviderOrder() {
 
 function buildRouter(marketing = false) {
   return createMessageRouter({
-    order: buildProviderOrder().filter(name => !marketing || name !== "dev"),
+    order: buildProviderOrder().filter((name) => !marketing || name !== "dev"),
     providers: {
       dev: createDevProvider(),
       smtp_email: createSmtpProvider({ config }),
@@ -47,13 +52,17 @@ function buildRouter(marketing = false) {
       waha: createWahaProvider({ config }),
       evolution: createEvolutionProvider({ config }),
       twilio: createTwilioProvider({ config }),
-      baileys: createBaileysProvider({ config })
-    }
+      baileys: createBaileysProvider({ config }),
+    },
   });
 }
 
 export function marketingProviderReady() {
-  return buildRouter(true).canSend({channel:"campaign",body:"",destinations:{phone:"+50255550000",email:null}});
+  return buildRouter(true).canSend({
+    channel: "campaign",
+    body: "",
+    destinations: { phone: "+50255550000", email: null },
+  });
 }
 
 export async function sendMessage({
@@ -68,30 +77,43 @@ export async function sendMessage({
   email = null,
   privilegedLog = false,
   destinations = null,
-  unsubscribeUrl = null
+  unsubscribeUrl = null,
 }) {
-  const marketing = ['campaign','lifecycle','churn'].includes(String(channel).toLowerCase());
+  const marketing = ["campaign", "lifecycle", "churn"].includes(String(channel).toLowerCase());
   if (marketing) {
-    if (!customerId) return {ok:false,suppressed:true,error:'MARKETING_CONSENT_REQUIRED'};
-    const preference = await getMarketingPreference({businessId,customerId}).catch(() => null);
+    if (!customerId) return { ok: false, suppressed: true, error: "MARKETING_CONSENT_REQUIRED" };
+    const preference = await getMarketingPreference({ businessId, customerId }).catch(() => null);
     const business = await BusinessRepo.getById(businessId);
     const overrides = await PlanConfigService.getPlanFeatureOverrides();
-    if (!preference?.marketing_opt_in || !business || !hasPlanFeature(business.plan,'lifecycle_automation',overrides)) {
-      return {ok:false,suppressed:true,error:'MARKETING_NOT_AUTHORIZED'};
+    if (
+      !preference?.marketing_opt_in ||
+      !business ||
+      !hasPlanFeature(business.plan, "lifecycle_automation", overrides)
+    ) {
+      return { ok: false, suppressed: true, error: "MARKETING_NOT_AUTHORIZED" };
     }
-    if (String(channel).toLowerCase() !== 'campaign') {
-      const optOutUrl = unsubscribeUrl || await issueMarketingUnsubscribeUrl({businessId,customerId});
+    if (String(channel).toLowerCase() !== "campaign") {
+      const optOutUrl =
+        unsubscribeUrl || (await issueMarketingUnsubscribeUrl({ businessId, customerId }));
       const line = `Dejar de recibir promociones: ${optOutUrl}`;
       body = `${body}\n\n${line}`;
-      if (email) email = {...email,lines:[...(email.lines || []),line]};
+      if (email) email = { ...email, lines: [...(email.lines || []), line] };
     }
   }
   const logId = id();
-  const safeBody = (channel === "verify" ? String(body).replace(/\b\d{6}\b/g, "******") : String(body)).replace(/(\?token=)[A-Za-z0-9_-]+/g, '$1[REDACTED]');
-  const createLog = privilegedLog ? MessageLogRepo.createSecurity.bind(MessageLogRepo) : MessageLogRepo.create.bind(MessageLogRepo);
-  const updateLog = privilegedLog ? MessageLogRepo.updateSecurityStatus.bind(MessageLogRepo) : MessageLogRepo.updateStatus.bind(MessageLogRepo);
+  const safeBody = (
+    channel === "verify" ? String(body).replace(/\b\d{6}\b/g, "******") : String(body)
+  ).replace(/(\?token=)[A-Za-z0-9_-]+/g, "$1[REDACTED]");
+  const createLog = privilegedLog
+    ? MessageLogRepo.createSecurity.bind(MessageLogRepo)
+    : MessageLogRepo.create.bind(MessageLogRepo);
+  const updateLog = privilegedLog
+    ? MessageLogRepo.updateSecurityStatus.bind(MessageLogRepo)
+    : MessageLogRepo.updateStatus.bind(MessageLogRepo);
   const resolvedDestinations = inferDestinations(to, destinations);
-  const logTarget = String(to || resolvedDestinations.email || resolvedDestinations.phone || "").trim();
+  const logTarget = String(
+    to || resolvedDestinations.email || resolvedDestinations.phone || "",
+  ).trim();
   await createLog({
     id: logId,
     business_id: businessId,
@@ -101,7 +123,7 @@ export async function sendMessage({
     body: safeBody,
     status: "QUEUED",
     provider_id: null,
-    error: null
+    error: null,
   });
 
   let sendOk = false;
@@ -112,13 +134,13 @@ export async function sendMessage({
     if (resolvedDestinations.email) {
       const branding = await resolveEmailBranding({
         businessId,
-        getBusinessById: BusinessRepo.getById.bind(BusinessRepo)
+        getBusinessById: BusinessRepo.getById.bind(BusinessRepo),
       });
       const renderedEmail = await renderEmailMessage({
         channel,
         body,
         branding,
-        email: email || (subject ? { subject } : null)
+        email: email || (subject ? { subject } : null),
       });
       resolvedSubject = resolvedSubject || renderedEmail.subject;
       resolvedText = resolvedText || renderedEmail.text;
@@ -133,7 +155,7 @@ export async function sendMessage({
       subject: resolvedSubject,
       text: resolvedText,
       html: resolvedHtml,
-      destinations: resolvedDestinations
+      destinations: resolvedDestinations,
     });
     if (!routed?.ok) {
       if (routed?.error === "DELIVERY_UNCERTAIN") throw new Error("DELIVERY_UNCERTAIN");
@@ -142,22 +164,40 @@ export async function sendMessage({
     }
     // Acceptance is irreversible: bookkeeping errors must never tell callers to resend.
     sendOk = true;
-    const providerId = /^(?:waha|evolution):[a-f0-9]{64}$/.test(routed.providerId || '')
-      ? routed.providerId : `${routed.provider}:${crypto.createHash('sha256').update(String(routed.providerId || routed.provider)).digest('hex')}`;
-    await updateLog(logId, { status: "SENT", provider_id: providerId, error: null })
-      .catch(() => logger.warn({messageLogId:logId}, 'Accepted message log could not be updated'));
-    return { ok: true, id: logId, provider: routed.provider, providerId, accepted: routed.provider !== 'dev', simulated: routed.provider === 'dev' };
+    const providerId = /^(?:waha|evolution):[a-f0-9]{64}$/.test(routed.providerId || "")
+      ? routed.providerId
+      : `${routed.provider}:${crypto
+          .createHash("sha256")
+          .update(String(routed.providerId || routed.provider))
+          .digest("hex")}`;
+    await updateLog(logId, { status: "SENT", provider_id: providerId, error: null }).catch(() =>
+      logger.warn({ messageLogId: logId }, "Accepted message log could not be updated"),
+    );
+    return {
+      ok: true,
+      id: logId,
+      provider: routed.provider,
+      providerId,
+      accepted: routed.provider !== "dev",
+      simulated: routed.provider === "dev",
+    };
   } catch (e) {
-    const msg = String(e?.message || '').startsWith('NO_DELIVERY_PROVIDER') ? 'NO_DELIVERY_PROVIDER' : 'DELIVERY_UNCERTAIN';
+    const msg = String(e?.message || "").startsWith("NO_DELIVERY_PROVIDER")
+      ? "NO_DELIVERY_PROVIDER"
+      : "DELIVERY_UNCERTAIN";
     logger.error({ err: msg }, "sendMessage failed");
     await updateLog(logId, { status: "FAILED", error: msg, provider_id: null }).catch(() => {});
     return { ok: false, id: logId, error: msg };
-  }
-  finally {
+  } finally {
     // Record usage even on failure for billing transparency
     const base = { businessId, amount: 1, unit: "count", metadata: { channel } };
-    for (const eventType of ['message.attempt',sendOk ? 'message.sent' : 'message.failed']) {
-      await emitBillingEvent({ ...base, eventType }).catch(() => logger.warn({messageLogId:logId,eventType}, 'Message billing event could not be recorded'));
+    for (const eventType of ["message.attempt", sendOk ? "message.sent" : "message.failed"]) {
+      await emitBillingEvent({ ...base, eventType }).catch(() =>
+        logger.warn(
+          { messageLogId: logId, eventType },
+          "Message billing event could not be recorded",
+        ),
+      );
     }
   }
 }

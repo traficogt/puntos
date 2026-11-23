@@ -30,13 +30,15 @@ export async function upsertContactWithDeps(deps, input) {
   const customerRepo = deps?.CustomerRepo;
   if (!customerRepo) throw badRequest("CustomerRepo is required");
 
-  const existingById = customerId ? await customerRepo.getByBusinessAndId?.(businessId, customerId) ?? null : null;
+  const existingById = customerId
+    ? ((await customerRepo.getByBusinessAndId?.(businessId, customerId)) ?? null)
+    : null;
   if (customerId && !existingById) {
     throw notFound("Customer not found for this business");
   }
 
   if (phone) {
-    const existingByPhone = await customerRepo.getByBusinessAndPhone?.(businessId, phone) ?? null;
+    const existingByPhone = (await customerRepo.getByBusinessAndPhone?.(businessId, phone)) ?? null;
     if (existingByPhone && existingById && existingByPhone.id !== existingById.id) {
       throw conflict("phone and customerId refer to different customers");
     }
@@ -56,7 +58,7 @@ export async function upsertContactWithDeps(deps, input) {
       id: makeId(deps),
       business_id: businessId,
       phone,
-      name
+      name,
     });
   }
 

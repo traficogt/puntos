@@ -8,60 +8,67 @@ import {
   ledgerCertificationCsv,
   readLedgerCertificationReportWithDeps,
   rebuildLedgerCertificationIndexesWithDeps,
-  writeLedgerCertificationArtifactsWithDeps
+  writeLedgerCertificationArtifactsWithDeps,
 } from "../../src/app/services/ledger-certification-service.js";
 
 describe("ledger certification service", () => {
   it("builds certification totals and review status from query results", async () => {
-    const report = await readLedgerCertificationReportWithDeps({
-      dbQuery: async (sql) => {
-        const text = String(sql);
-        if (text.includes("FROM businesses")) {
-          return { rows: [{ id: "biz-1", name: "Cafe GT", slug: "cafe-gt" }], rowCount: 1 };
-        }
-        if (text.includes("WITH days AS")) {
-          return {
-            rows: [
-              {
-                day: "2026-03-01",
-                points_issued: 20,
-                points_redeemed: 10,
-                points_reversed: 0,
-                points_expired: 0,
-                adjustment_points: 0,
-                gift_cards_issued_q: "25.00",
-                gift_cards_redeemed_q: "5.00",
-                replay_events: 1
-              },
-              {
-                day: "2026-03-02",
-                points_issued: 15,
-                points_redeemed: 0,
-                points_reversed: 5,
-                points_expired: 2,
-                adjustment_points: 3,
-                gift_cards_issued_q: "0.00",
-                gift_cards_redeemed_q: "0.00",
-                replay_events: 0
-              }
-            ],
-            rowCount: 2
-          };
-        }
-        if (text.includes("WITH latest_run AS")) {
-          return {
-            rows: [{
-              pending_corrections_count: 1,
-              negative_balance_count: 0,
-              latest_reconciliation_mismatches: 2,
-              latest_reconciliation_completed_at: "2026-03-08T05:00:00.000Z"
-            }],
-            rowCount: 1
-          };
-        }
-        return { rows: [], rowCount: 0 };
-      }
-    }, "biz-1", "2026-03-01", "2026-03-02");
+    const report = await readLedgerCertificationReportWithDeps(
+      {
+        dbQuery: async (sql) => {
+          const text = String(sql);
+          if (text.includes("FROM businesses")) {
+            return { rows: [{ id: "biz-1", name: "Cafe GT", slug: "cafe-gt" }], rowCount: 1 };
+          }
+          if (text.includes("WITH days AS")) {
+            return {
+              rows: [
+                {
+                  day: "2026-03-01",
+                  points_issued: 20,
+                  points_redeemed: 10,
+                  points_reversed: 0,
+                  points_expired: 0,
+                  adjustment_points: 0,
+                  gift_cards_issued_q: "25.00",
+                  gift_cards_redeemed_q: "5.00",
+                  replay_events: 1,
+                },
+                {
+                  day: "2026-03-02",
+                  points_issued: 15,
+                  points_redeemed: 0,
+                  points_reversed: 5,
+                  points_expired: 2,
+                  adjustment_points: 3,
+                  gift_cards_issued_q: "0.00",
+                  gift_cards_redeemed_q: "0.00",
+                  replay_events: 0,
+                },
+              ],
+              rowCount: 2,
+            };
+          }
+          if (text.includes("WITH latest_run AS")) {
+            return {
+              rows: [
+                {
+                  pending_corrections_count: 1,
+                  negative_balance_count: 0,
+                  latest_reconciliation_mismatches: 2,
+                  latest_reconciliation_completed_at: "2026-03-08T05:00:00.000Z",
+                },
+              ],
+              rowCount: 1,
+            };
+          }
+          return { rows: [], rowCount: 0 };
+        },
+      },
+      "biz-1",
+      "2026-03-01",
+      "2026-03-02",
+    );
 
     assert.equal(report.business.name, "Cafe GT");
     assert.equal(report.summary.points_issued, 35);
@@ -92,19 +99,21 @@ describe("ledger certification service", () => {
         pending_corrections_count: 0,
         negative_balance_count: 0,
         latest_reconciliation_mismatches: 0,
-        latest_reconciliation_completed_at: "2026-03-08T08:00:00.000Z"
+        latest_reconciliation_completed_at: "2026-03-08T08:00:00.000Z",
       },
-      daily_rows: [{
-        date: "2026-03-08",
-        points_issued: 10,
-        points_redeemed: 5,
-        points_reversed: 0,
-        points_expired: 0,
-        adjustment_points: 0,
-        gift_cards_issued_q: 50,
-        gift_cards_redeemed_q: 10,
-        replay_events: 0
-      }]
+      daily_rows: [
+        {
+          date: "2026-03-08",
+          points_issued: 10,
+          points_redeemed: 5,
+          points_reversed: 0,
+          points_expired: 0,
+          adjustment_points: 0,
+          gift_cards_issued_q: 50,
+          gift_cards_redeemed_q: 10,
+          replay_events: 0,
+        },
+      ],
     };
 
     try {
@@ -115,7 +124,7 @@ describe("ledger certification service", () => {
         from: "2026-03-01",
         to: "2026-03-08",
         outputRoot: tmpDir,
-        retentionDays: 30
+        retentionDays: 30,
       });
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       const jsonBody = JSON.parse(fs.readFileSync(result.jsonPath, "utf8"));
@@ -158,9 +167,9 @@ describe("ledger certification service", () => {
           pending_corrections_count: 0,
           negative_balance_count: 0,
           latest_reconciliation_mismatches: 0,
-          latest_reconciliation_completed_at: null
+          latest_reconciliation_completed_at: null,
         },
-        daily_rows: []
+        daily_rows: [],
       });
 
       await writeLedgerCertificationArtifactsWithDeps({
@@ -170,7 +179,7 @@ describe("ledger certification service", () => {
         from: "2026-03-01",
         to: "2026-03-06",
         outputRoot: tmpDir,
-        retentionDays: 2
+        retentionDays: 2,
       });
       await writeLedgerCertificationArtifactsWithDeps({
         readReport: async () => mkReport("biz-mid", "Cafe Mid", "2026-03-07"),
@@ -179,7 +188,7 @@ describe("ledger certification service", () => {
         from: "2026-03-01",
         to: "2026-03-07",
         outputRoot: tmpDir,
-        retentionDays: 2
+        retentionDays: 2,
       });
       const latest = await writeLedgerCertificationArtifactsWithDeps({
         readReport: async () => mkReport("biz-new", "Cafe New", "2026-03-08"),
@@ -188,7 +197,7 @@ describe("ledger certification service", () => {
         from: "2026-03-01",
         to: "2026-03-08",
         outputRoot: tmpDir,
-        retentionDays: 2
+        retentionDays: 2,
       });
 
       assert.deepEqual(latest.prunedDays, ["2026-03-06"]);
@@ -202,7 +211,10 @@ describe("ledger certification service", () => {
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       const rootIndex = JSON.parse(fs.readFileSync(path.join(tmpDir, "index.json"), "utf8"));
       assert.equal(rootIndex.day_count, 2);
-      assert.deepEqual(rootIndex.days.map((day) => day.date), ["2026-03-08", "2026-03-07"]);
+      assert.deepEqual(
+        rootIndex.days.map((day) => day.date),
+        ["2026-03-08", "2026-03-07"],
+      );
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -215,19 +227,27 @@ describe("ledger certification service", () => {
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       fs.mkdirSync(dayDir, { recursive: true });
       // eslint-disable-next-line security/detect-non-literal-fs-filename
-      fs.writeFileSync(path.join(dayDir, "cafe_gt_biz-1.json"), `${JSON.stringify({
-        business: { id: "biz-1", name: "Cafe GT", slug: "cafe-gt" },
-        generated_at: "2026-03-08T10:00:00.000Z",
-        period: { from: "2026-03-01", to: "2026-03-08" },
-        certification_status: "OK"
-      }, null, 2)}\n`, "utf8");
+      fs.writeFileSync(
+        path.join(dayDir, "cafe_gt_biz-1.json"),
+        `${JSON.stringify(
+          {
+            business: { id: "biz-1", name: "Cafe GT", slug: "cafe-gt" },
+            generated_at: "2026-03-08T10:00:00.000Z",
+            period: { from: "2026-03-01", to: "2026-03-08" },
+            certification_status: "OK",
+          },
+          null,
+          2,
+        )}\n`,
+        "utf8",
+      );
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       fs.writeFileSync(path.join(dayDir, "cafe_gt_biz-1.csv"), "row_type,date\n", "utf8");
 
       const result = rebuildLedgerCertificationIndexesWithDeps({
         fsModule: fs,
         outputRoot: tmpDir,
-        retentionDays: 14
+        retentionDays: 14,
       });
 
       assert.deepEqual(result.prunedDays, []);
@@ -261,9 +281,9 @@ describe("ledger certification service", () => {
         pending_corrections_count: 0,
         negative_balance_count: 0,
         latest_reconciliation_mismatches: 0,
-        latest_reconciliation_completed_at: null
+        latest_reconciliation_completed_at: null,
       },
-      daily_rows: []
+      daily_rows: [],
     });
     assert.match(csv, /TOTAL,,10,5,0,0,0,50.00,10.00,0,OK,0,0,0/);
   });

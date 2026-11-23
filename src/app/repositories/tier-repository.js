@@ -19,8 +19,8 @@ export const TierRepository = {
         JSON.stringify(tierData.perks || []),
         tierData.color || null,
         tierData.icon_url || null,
-        tierData.active !== false
-      ]
+        tierData.active !== false,
+      ],
     );
     return rows[0];
   },
@@ -30,16 +30,13 @@ export const TierRepository = {
       `SELECT * FROM loyalty_tiers
        WHERE business_id = $1
        ORDER BY tier_level ASC`,
-      [businessId]
+      [businessId],
     );
     return rows;
   },
 
   async getById(tierId) {
-    const { rows } = await dbQuery(
-      `SELECT * FROM loyalty_tiers WHERE id = $1`,
-      [tierId]
-    );
+    const { rows } = await dbQuery(`SELECT * FROM loyalty_tiers WHERE id = $1`, [tierId]);
     return rows[0];
   },
 
@@ -67,7 +64,7 @@ export const TierRepository = {
        SET ${fields.join(", ")}
        WHERE id = $${paramCount}
        RETURNING *`,
-      values
+      values,
     );
     return rows[0];
   },
@@ -82,7 +79,7 @@ export const TierRepository = {
        FROM customer_tiers ct
        JOIN loyalty_tiers lt ON ct.tier_id = lt.id
        WHERE ct.customer_id = $1`,
-      [customerId]
+      [customerId],
     );
     return rows[0];
   },
@@ -104,7 +101,7 @@ export const TierRepository = {
          next_tier.tier_level = lt.tier_level + 1 AND
          next_tier.active = true
        WHERE ct.customer_id = $1`,
-      [customerId]
+      [customerId],
     );
     return rows[0];
   },
@@ -118,7 +115,7 @@ export const TierRepository = {
          tier_id = $2,
          updated_at = now()
        RETURNING *`,
-      [customerId, tierId]
+      [customerId, tierId],
     );
     return rows[0];
   },
@@ -134,7 +131,7 @@ export const TierRepository = {
        JOIN loyalty_tiers to_tier ON th.to_tier_id = to_tier.id
        WHERE th.customer_id = $1
        ORDER BY th.changed_at DESC`,
-      [customerId]
+      [customerId],
     );
     return rows;
   },
@@ -154,8 +151,8 @@ export const TierRepository = {
        WHERE lt.business_id = $1
        GROUP BY lt.id, lt.name, lt.tier_level
        ORDER BY lt.tier_level ASC`,
-      [businessId]
+      [businessId],
     );
     return rows;
-  }
+  },
 };

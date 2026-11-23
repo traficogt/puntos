@@ -11,7 +11,7 @@ export function createWalletNavigation({ $ }) {
   let ready = false;
   let readyEpoch = "";
 
-  const visible = element => element && !element.closest("[hidden], .is-hidden");
+  const visible = (element) => element && !element.closest("[hidden], .is-hidden");
 
   function navigate() {
     const hash = location.hash || "";
@@ -20,8 +20,15 @@ export function createWalletNavigation({ $ }) {
       observedHash = hash;
       pending = Boolean(destination);
     }
-    if (!pending || !ready || readyEpoch !== getCustomerEpoch() || !navigator.onLine
-        || document.visibilityState === "hidden" || !visible($("#main"))) return;
+    if (
+      !pending ||
+      !ready ||
+      readyEpoch !== getCustomerEpoch() ||
+      !navigator.onLine ||
+      document.visibilityState === "hidden" ||
+      !visible($("#main"))
+    )
+      return;
 
     const section = destination === "ofertas" ? $("#growthOffersSection") : $("#tierSection");
     const fallback = destination === "ofertas" ? $("#rewards")?.parentElement : $("#bizName");
@@ -37,7 +44,9 @@ export function createWalletNavigation({ $ }) {
 
   return {
     navigate,
-    pause() { ready = false; },
+    pause() {
+      ready = false;
+    },
     afterLoad(result) {
       if (result?.status === "superseded") return;
       // Saved offline content stays labeled by the existing wallet UI. Wait for
@@ -45,6 +54,6 @@ export function createWalletNavigation({ $ }) {
       ready = result?.status === "live" || result?.status === "partial";
       readyEpoch = getCustomerEpoch();
       navigate();
-    }
+    },
   };
 }

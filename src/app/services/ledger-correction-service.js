@@ -92,7 +92,7 @@ async function readCustomerLedgerRow(query, customerId) {
      LEFT JOIN adj_agg adj ON adj.customer_id = c.id
      WHERE c.id = $1
        AND c.deleted_at IS NULL`,
-    [customerId]
+    [customerId],
   );
   return rows[0] ?? null;
 }
@@ -113,8 +113,8 @@ async function applyBalanceAdjustment(client, correctionId, requestedByStaffId, 
       reason,
       finding.delta_points,
       finding.delta_pending_points,
-      finding.delta_lifetime_points
-    ]
+      finding.delta_lifetime_points,
+    ],
   );
   await client.query(
     `UPDATE customer_balances
@@ -127,8 +127,8 @@ async function applyBalanceAdjustment(client, correctionId, requestedByStaffId, 
       finding.customer_id,
       finding.delta_points,
       finding.delta_pending_points,
-      finding.delta_lifetime_points
-    ]
+      finding.delta_lifetime_points,
+    ],
   );
   return adjustmentId;
 }
@@ -144,7 +144,7 @@ function buildResolutionMeta(finding) {
     delta_points: finding.delta_points,
     delta_pending_points: finding.delta_pending_points,
     delta_lifetime_points: finding.delta_lifetime_points,
-    strategy: "LEDGER_BALANCE_ADJUSTMENT"
+    strategy: "LEDGER_BALANCE_ADJUSTMENT",
   };
 }
 
@@ -152,16 +152,19 @@ function buildResolutionMeta(finding) {
  * @param {LedgerCorrectionDeps} deps
  * @param {RequestLedgerCorrectionInput} args
  */
-export async function requestLedgerCorrectionWithDeps(deps, {
-  businessId,
-  customerId,
-  requestedByStaffId,
-  reason,
-  ip = null,
-  ua = null,
-  sourceRunId = null,
-  sourceFindingId = null
-}) {
+export async function requestLedgerCorrectionWithDeps(
+  deps,
+  {
+    businessId,
+    customerId,
+    requestedByStaffId,
+    reason,
+    ip = null,
+    ua = null,
+    sourceRunId = null,
+    sourceFindingId = null,
+  },
+) {
   const normalizedReason = normalizeReason(reason);
 
   return deps.withTransaction(async (client) => {
@@ -197,8 +200,8 @@ export async function requestLedgerCorrectionWithDeps(deps, {
         finding.stored_pending_points,
         finding.expected_pending_points,
         finding.stored_lifetime_points,
-        finding.expected_lifetime_points
-      ]
+        finding.expected_lifetime_points,
+      ],
     );
 
     await deps.AuditRepo.log({
@@ -213,8 +216,8 @@ export async function requestLedgerCorrectionWithDeps(deps, {
         correction_id: correctionId,
         customer_id: customerId,
         ...buildResolutionMeta(finding),
-        reason: normalizedReason
-      }
+        reason: normalizedReason,
+      },
     });
 
     return {
@@ -225,8 +228,8 @@ export async function requestLedgerCorrectionWithDeps(deps, {
         customer_id: customerId,
         requested_by_staff_id: requestedByStaffId,
         reason: normalizedReason,
-        ...buildResolutionMeta(finding)
-      }
+        ...buildResolutionMeta(finding),
+      },
     };
   });
 }
@@ -235,20 +238,17 @@ export async function requestLedgerCorrectionWithDeps(deps, {
  * @param {LedgerCorrectionDeps} deps
  * @param {ResolveLedgerCorrectionInput} args
  */
-export async function applyLedgerCorrectionWithDeps(deps, {
-  businessId,
-  correctionId,
-  resolvedByStaffId,
-  ip = null,
-  ua = null
-}) {
+export async function applyLedgerCorrectionWithDeps(
+  deps,
+  { businessId, correctionId, resolvedByStaffId, ip = null, ua = null },
+) {
   return deps.withTransaction(async (client) => {
     const { rows } = await client.query(
       `SELECT *
        FROM ledger_balance_corrections
        WHERE id = $1 AND business_id = $2
        FOR UPDATE`,
-      [correctionId, businessId]
+      [correctionId, businessId],
     );
     const correction = rows[0];
     if (!correction) throw notFound("Ledger correction not found");
@@ -258,7 +258,10 @@ export async function applyLedgerCorrectionWithDeps(deps, {
     }
 
     // Serialize with live awards/redemptions before rebuilding the authoritative balance.
-    await client.query('SELECT cb.customer_id FROM customer_balances cb JOIN customers c ON c.id=cb.customer_id WHERE cb.customer_id=$1 AND c.business_id=$2 FOR UPDATE OF cb', [correction.customer_id, businessId]);
+    await client.query(
+      "SELECT cb.customer_id FROM customer_balances cb JOIN customers c ON c.id=cb.customer_id WHERE cb.customer_id=$1 AND c.business_id=$2 FOR UPDATE OF cb",
+      [correction.customer_id, businessId],
+    );
     const row = await deps.readCustomerLedgerRow(client.query.bind(client), correction.customer_id);
     if (!row || String(row.business_id) !== String(businessId)) {
       throw notFound("Customer not found");
@@ -274,7 +277,7 @@ export async function applyLedgerCorrectionWithDeps(deps, {
       correctionId,
       resolvedByStaffId,
       correction.reason,
-      finding
+      finding,
     );
     await client.query(
       `UPDATE ledger_balance_corrections
@@ -288,9 +291,9 @@ export async function applyLedgerCorrectionWithDeps(deps, {
         resolvedByStaffId,
         JSON.stringify({
           adjustment_id: adjustmentId,
-          ...buildResolutionMeta(finding)
-        })
-      ]
+          ...buildResolutionMeta(finding),
+        }),
+      ],
     );
 
     await deps.AuditRepo.log({
@@ -306,8 +309,8 @@ export async function applyLedgerCorrectionWithDeps(deps, {
         adjustment_id: adjustmentId,
         customer_id: correction.customer_id,
         requested_by_staff_id: correction.requested_by_staff_id,
-        ...buildResolutionMeta(finding)
-      }
+        ...buildResolutionMeta(finding),
+      },
     });
 
     return {
@@ -318,8 +321,8 @@ export async function applyLedgerCorrectionWithDeps(deps, {
         customer_id: correction.customer_id,
         resolved_by_staff_id: resolvedByStaffId,
         adjustment_id: adjustmentId,
-        ...buildResolutionMeta(finding)
-      }
+        ...buildResolutionMeta(finding),
+      },
     };
   });
 }
@@ -328,14 +331,10 @@ export async function applyLedgerCorrectionWithDeps(deps, {
  * @param {LedgerCorrectionDeps} deps
  * @param {RejectLedgerCorrectionInput} args
  */
-export async function rejectLedgerCorrectionWithDeps(deps, {
-  businessId,
-  correctionId,
-  resolvedByStaffId,
-  reason,
-  ip = null,
-  ua = null
-}) {
+export async function rejectLedgerCorrectionWithDeps(
+  deps,
+  { businessId, correctionId, resolvedByStaffId, reason, ip = null, ua = null },
+) {
   const normalizedReason = normalizeReason(reason);
 
   return deps.withTransaction(async (client) => {
@@ -344,7 +343,7 @@ export async function rejectLedgerCorrectionWithDeps(deps, {
        FROM ledger_balance_corrections
        WHERE id = $1 AND business_id = $2
        FOR UPDATE`,
-      [correctionId, businessId]
+      [correctionId, businessId],
     );
     const correction = rows[0];
     if (!correction) throw notFound("Ledger correction not found");
@@ -360,7 +359,7 @@ export async function rejectLedgerCorrectionWithDeps(deps, {
            resolved_at = now(),
            resolution_meta = $3::jsonb
        WHERE id = $1`,
-      [correctionId, resolvedByStaffId, JSON.stringify({ reason: normalizedReason })]
+      [correctionId, resolvedByStaffId, JSON.stringify({ reason: normalizedReason })],
     );
 
     await deps.AuditRepo.log({
@@ -375,8 +374,8 @@ export async function rejectLedgerCorrectionWithDeps(deps, {
         correction_id: correctionId,
         customer_id: correction.customer_id,
         requested_by_staff_id: correction.requested_by_staff_id,
-        reason: normalizedReason
-      }
+        reason: normalizedReason,
+      },
     });
 
     return {
@@ -386,8 +385,8 @@ export async function rejectLedgerCorrectionWithDeps(deps, {
         status: "REJECTED",
         customer_id: correction.customer_id,
         resolved_by_staff_id: resolvedByStaffId,
-        reason: normalizedReason
-      }
+        reason: normalizedReason,
+      },
     };
   });
 }
@@ -396,7 +395,7 @@ const correctionDeps = {
   withTransaction,
   AuditRepo,
   readCustomerLedgerRow,
-  applyBalanceAdjustment
+  applyBalanceAdjustment,
 };
 
 /**
@@ -449,7 +448,7 @@ export async function listLedgerCorrections({ businessId = "", limit = 50 } = {}
      WHERE business_id = $1
      ORDER BY created_at DESC
      LIMIT $2`,
-    [businessId, cappedLimit]
+    [businessId, cappedLimit],
   );
   return rows;
 }

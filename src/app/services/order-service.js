@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { purchaseEventTime } from './purchase-event-time.js';
+import { purchaseEventTime } from "./purchase-event-time.js";
 
 import { setCurrentTenant, withTransaction } from "../database.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
@@ -26,7 +26,9 @@ function defaultHashPayload(payload) {
 }
 
 function normalizeStatus(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .toLowerCase();
 }
 
 function normalizeNumber(value) {
@@ -48,19 +50,23 @@ function normalizeValue(value) {
 
   if (!isPlainObject(value)) return value;
 
-  return Object.keys(value).sort().reduce((acc, key) => {
-    acc[key] = normalizeValue(value[key]);
-    return acc;
-  }, {});
+  return Object.keys(value)
+    .sort()
+    .reduce((acc, key) => {
+      acc[key] = normalizeValue(value[key]);
+      return acc;
+    }, {});
 }
 
 function normalizeLineItems(lineItemsJson) {
-  const normalizedItems = Array.isArray(lineItemsJson) ? lineItemsJson.map((item) => normalizeValue(item)) : [];
+  const normalizedItems = Array.isArray(lineItemsJson)
+    ? lineItemsJson.map((item) => normalizeValue(item))
+    : [];
   return normalizedItems
     .map((item, index) => ({
       item,
       sortKey: JSON.stringify(item),
-      index
+      index,
     }))
     .sort((left, right) => {
       if (left.sortKey < right.sortKey) return -1;
@@ -74,7 +80,19 @@ function normalizeMeta(meta) {
   return normalizeValue(meta && typeof meta === "object" ? meta : {});
 }
 
-function buildFingerprintPayload({ customerId, externalOrderId, status, amount_q, subtotal_q, discount_q, tax_q, currency, occurred_at, line_items_json, meta }) {
+function buildFingerprintPayload({
+  customerId,
+  externalOrderId,
+  status,
+  amount_q,
+  subtotal_q,
+  discount_q,
+  tax_q,
+  currency,
+  occurred_at,
+  line_items_json,
+  meta,
+}) {
   return {
     customerId: String(customerId || ""),
     externalOrderId: String(externalOrderId || ""),
@@ -86,7 +104,7 @@ function buildFingerprintPayload({ customerId, externalOrderId, status, amount_q
     currency: String(currency || "GTQ").toUpperCase(),
     occurred_at: occurred_at ?? null,
     line_items_json: Array.isArray(line_items_json) ? line_items_json : [],
-    meta: meta && typeof meta === "object" ? meta : {}
+    meta: meta && typeof meta === "object" ? meta : {},
   };
 }
 
@@ -99,10 +117,10 @@ async function createOrder(deps, client, input) {
 }
 
 async function lockOrderRequest(client, businessId, externalOrderId) {
-  await client.query(
-    `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
-    [String(businessId), String(externalOrderId)]
-  );
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
+    String(businessId),
+    String(externalOrderId),
+  ]);
 }
 
 async function processOrderWithClient(deps, client, input) {
@@ -111,7 +129,7 @@ async function processOrderWithClient(deps, client, input) {
 
   const status = normalizeStatus(input.status);
   if (!PROCESSABLE_STATUSES.has(status)) throw badRequest("Unsupported order status");
-  const purchaseTime = purchaseEventTime(input.occurred_at, 'order_receipt');
+  const purchaseTime = purchaseEventTime(input.occurred_at, "order_receipt");
 
   const lineItemsJson = normalizeLineItems(input.line_items_json);
   const meta = normalizeMeta(input.meta);
@@ -125,7 +143,10 @@ async function processOrderWithClient(deps, client, input) {
 
   await lockOrderRequest(client, business.id, externalOrderId);
   const existing = await findExistingOrder(deps, client, business.id, externalOrderId);
-  const holdDays = Math.max(0, Math.floor(Number(business.program_json?.pending_points_hold_days ?? 0)));
+  const holdDays = Math.max(
+    0,
+    Math.floor(Number(business.program_json?.pending_points_hold_days ?? 0)),
+  );
   const transactionStatus = holdDays > 0 ? "PENDING" : "POSTED";
   const availableAt = holdDays > 0 ? new Date(Date.now() + holdDays * 24 * 60 * 60 * 1000) : null;
 
@@ -141,7 +162,7 @@ async function processOrderWithClient(deps, client, input) {
       currency: input.currency,
       occurred_at: input.occurred_at,
       line_items_json: lineItemsJson,
-      meta
+      meta,
     });
     const earlyFingerprint = deps.hashPayload(earlyPayload);
     if (String(existing.fingerprint || "") !== String(earlyFingerprint || "")) {
@@ -154,13 +175,13 @@ async function processOrderWithClient(deps, client, input) {
       customerId: existing.customer_id,
       pointsAwarded: Number(existing.points_awarded || 0),
       status: existing.transaction_status,
-      replay: true
+      replay: true,
     };
   }
 
   const resolutionDeps = {
     ...deps,
-    client
+    client,
   };
 
   const customer = await resolveCustomerForIntegrationWithDeps(resolutionDeps, {
@@ -168,7 +189,7 @@ async function processOrderWithClient(deps, client, input) {
     customerId: input.customerId,
     identifierType: input.identifierType,
     identifierValue: input.identifierValue,
-    customerPhone: input.customerPhone
+    customerPhone: input.customerPhone,
   });
 
   const payload = buildFingerprintPayload({
@@ -182,12 +203,15 @@ async function processOrderWithClient(deps, client, input) {
     currency: input.currency,
     occurred_at: input.occurred_at,
     line_items_json: lineItemsJson,
-    meta
+    meta,
   });
   const fingerprint = deps.hashPayload(payload);
 
   if (existing) {
-    if (String(existing.customer_id) !== String(customer.id) || String(existing.fingerprint || "") !== String(fingerprint || "")) {
+    if (
+      String(existing.customer_id) !== String(customer.id) ||
+      String(existing.fingerprint || "") !== String(fingerprint || "")
+    ) {
       throw conflict("externalOrderId already used for a different payload");
     }
     return {
@@ -197,7 +221,7 @@ async function processOrderWithClient(deps, client, input) {
       customerId: existing.customer_id,
       pointsAwarded: Number(existing.points_awarded || 0),
       status: existing.transaction_status,
-      replay: true
+      replay: true,
     };
   }
 
@@ -208,12 +232,22 @@ async function processOrderWithClient(deps, client, input) {
   const currency = String(input.currency || "GTQ").toUpperCase();
   const basePoints = Number(deps.computePoints(business, { amount_q: amountQ }) || 0);
   const transactionId = id();
-  const bonus = typeof deps.claimTargetedOffer === "function"
-    ? await deps.claimTargetedOffer({ client, business, customerId: customer.id, transactionId,
-      source: "order", amountQ, basePoints, planFeatureOverrides: deps.planFeatureOverrides })
-    : { bonusPoints: 0 };
+  const bonus =
+    typeof deps.claimTargetedOffer === "function"
+      ? await deps.claimTargetedOffer({
+          client,
+          business,
+          customerId: customer.id,
+          transactionId,
+          source: "order",
+          amountQ,
+          basePoints,
+          planFeatureOverrides: deps.planFeatureOverrides,
+        })
+      : { bonusPoints: 0 };
   const pointsAwarded = basePoints + bonus.bonusPoints;
-  if (!isLedgerInteger(pointsAwarded)) throw badRequest("Computed points must be a non-negative ledger integer");
+  if (!isLedgerInteger(pointsAwarded))
+    throw badRequest("Computed points must be a non-negative ledger integer");
 
   await client.query(
     `INSERT INTO transactions
@@ -229,11 +263,11 @@ async function processOrderWithClient(deps, client, input) {
       availableAt,
       {
         external_order_id: externalOrderId,
-        order_fingerprint: fingerprint
+        order_fingerprint: fingerprint,
       },
       purchaseTime.occurredAt,
-      purchaseTime.source
-    ]
+      purchaseTime.source,
+    ],
   );
 
   await client.query(
@@ -243,13 +277,21 @@ async function processOrderWithClient(deps, client, input) {
          lifetime_points = lifetime_points + CASE WHEN $3 = 'POSTED' THEN GREATEST($2, 0) ELSE 0 END,
          updated_at = now()
      WHERE customer_id = $1`,
-    [customer.id, pointsAwarded, transactionStatus]
+    [customer.id, pointsAwarded, transactionStatus],
   );
 
   if (business.program_type === "CASHBACK" && transactionStatus === "POSTED") {
     const cashback = cashbackTerms(business, { amount_q: amountQ });
     if (cashback && cashback.earn_q > 0) {
-      await accrueCashback(client, { businessId: business.id, customerId: customer.id, amountQ, earnQ: cashback.earn_q, sourceTransactionId: transactionId, requestId: transactionId, meta: { percent: cashback.percent, source: "order" } });
+      await accrueCashback(client, {
+        businessId: business.id,
+        customerId: customer.id,
+        amountQ,
+        earnQ: cashback.earn_q,
+        sourceTransactionId: transactionId,
+        requestId: transactionId,
+        meta: { percent: cashback.percent, source: "order" },
+      });
     }
   }
 
@@ -270,7 +312,7 @@ async function processOrderWithClient(deps, client, input) {
     fingerprint,
     transaction_id: transactionId,
     points_awarded: pointsAwarded,
-    transaction_status: transactionStatus
+    transaction_status: transactionStatus,
   });
 
   return {
@@ -279,7 +321,7 @@ async function processOrderWithClient(deps, client, input) {
     transactionId,
     customerId: customer.id,
     pointsAwarded,
-    status: transactionStatus
+    status: transactionStatus,
   };
 }
 
@@ -287,8 +329,11 @@ export async function processOrderWithDeps(deps, input) {
   if (!deps || typeof deps.withTransaction !== "function") {
     throw badRequest("withTransaction dependency required");
   }
-  const planFeatureOverrides = typeof deps.getPlanFeatureOverrides === "function" && typeof deps.claimTargetedOffer === "function"
-    ? await deps.getPlanFeatureOverrides() : undefined;
+  const planFeatureOverrides =
+    typeof deps.getPlanFeatureOverrides === "function" &&
+    typeof deps.claimTargetedOffer === "function"
+      ? await deps.getPlanFeatureOverrides()
+      : undefined;
   const resolvedDeps = {
     planFeatureOverrides,
     BusinessRepo: deps.BusinessRepo ?? BusinessRepo,
@@ -299,22 +344,27 @@ export async function processOrderWithDeps(deps, input) {
     claimTargetedOffer: deps.claimTargetedOffer,
     hashPayload: deps.hashPayload ?? defaultHashPayload,
     withTransaction: deps.withTransaction,
-    setCurrentTenant: deps.setCurrentTenant ?? setCurrentTenant
+    setCurrentTenant: deps.setCurrentTenant ?? setCurrentTenant,
   };
 
-  return resolvedDeps.withTransaction((client) => processOrderWithClient(resolvedDeps, client, input));
+  return resolvedDeps.withTransaction((client) =>
+    processOrderWithClient(resolvedDeps, client, input),
+  );
 }
 
 export async function processOrder(input) {
-  return processOrderWithDeps({
-    withTransaction,
-    BusinessRepo,
-    CustomerRepo,
-    OrderRepo,
-    computePoints,
-    claimTargetedOffer,
-    getPlanFeatureOverrides: () => PlanConfigService.getPlanFeatureOverrides(),
-    hashPayload: defaultHashPayload,
-    setCurrentTenant
-  }, input);
+  return processOrderWithDeps(
+    {
+      withTransaction,
+      BusinessRepo,
+      CustomerRepo,
+      OrderRepo,
+      computePoints,
+      claimTargetedOffer,
+      getPlanFeatureOverrides: () => PlanConfigService.getPlanFeatureOverrides(),
+      hashPayload: defaultHashPayload,
+      setCurrentTenant,
+    },
+    input,
+  );
 }

@@ -7,7 +7,10 @@ function normalizePath(path) {
 }
 
 function normalizeOriginHost(value) {
-  return String(value || "").trim().toLowerCase().replace(/\.$/, "");
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, "");
 }
 
 function hostFromOrigin(origin) {
@@ -27,10 +30,12 @@ export function normalizeHostHeader(value) {
 
 function isLocalHost(host) {
   const normalized = normalizeHostHeader(host);
-  return normalized === "localhost"
-    || normalized === "127.0.0.1"
-    || normalized === "::1"
-    || normalized.endsWith(".localhost");
+  return (
+    normalized === "localhost" ||
+    normalized === "127.0.0.1" ||
+    normalized === "::1" ||
+    normalized.endsWith(".localhost")
+  );
 }
 
 function isLocalOrigin(origin) {
@@ -42,9 +47,14 @@ function isLocalOrigin(origin) {
  * @param {{ forwardedProto?: string, protocol?: string, host?: string }} params
  */
 function pickProtocol({ forwardedProto, protocol, host }) {
-  const forwarded = String(forwardedProto || "").split(",")[0]?.trim().toLowerCase();
+  const forwarded = String(forwardedProto || "")
+    .split(",")[0]
+    ?.trim()
+    .toLowerCase();
   if (forwarded === "https" || forwarded === "http") return forwarded;
-  const direct = String(protocol || "").trim().toLowerCase();
+  const direct = String(protocol || "")
+    .trim()
+    .toLowerCase();
   if (direct === "https") return "https";
   if (direct === "http" && isLocalHost(host)) return "http";
   return isLocalHost(host) ? "http" : "https";
@@ -62,30 +72,36 @@ function inferOriginsFromHost({ host, forwardedProto, protocol }) {
   if (normalizedHost.startsWith("app.") && normalizedHost.length > 4) {
     return {
       appOrigin: `${scheme}://${normalizedHost}`,
-      marketingOrigin: `${scheme}://${normalizedHost.slice(4)}`
+      marketingOrigin: `${scheme}://${normalizedHost.slice(4)}`,
     };
   }
   return {
     appOrigin: `${scheme}://app.${normalizedHost}`,
-    marketingOrigin: `${scheme}://${normalizedHost}`
+    marketingOrigin: `${scheme}://${normalizedHost}`,
   };
 }
 
 /**
  * @param {{ host?: string, forwardedProto?: string, protocol?: string, appOrigin?: string, marketingOrigin?: string }} params
  */
-function effectiveOriginsForRequest({ host, forwardedProto, protocol, appOrigin, marketingOrigin }) {
+function effectiveOriginsForRequest({
+  host,
+  forwardedProto,
+  protocol,
+  appOrigin,
+  marketingOrigin,
+}) {
   const normalizedHost = normalizeHostHeader(host);
   if (!normalizedHost) return { appOrigin, marketingOrigin };
 
   const appHost = hostFromOrigin(appOrigin);
   const marketingHost = hostFromOrigin(marketingOrigin);
   const localConfigured = isLocalOrigin(appOrigin) || isLocalOrigin(marketingOrigin);
-  const shouldInfer = !isLocalHost(normalizedHost) && (
-    localConfigured
-    || (!appHost && !marketingHost)
-    || (normalizedHost.startsWith("app.") && normalizedHost !== appHost)
-  );
+  const shouldInfer =
+    !isLocalHost(normalizedHost) &&
+    (localConfigured ||
+      (!appHost && !marketingHost) ||
+      (normalizedHost.startsWith("app.") && normalizedHost !== appHost));
 
   if (!shouldInfer) {
     return { appOrigin, marketingOrigin };
@@ -94,24 +110,40 @@ function effectiveOriginsForRequest({ host, forwardedProto, protocol, appOrigin,
   const inferred = inferOriginsFromHost({ host, forwardedProto, protocol });
   return {
     appOrigin: inferred.appOrigin || appOrigin,
-    marketingOrigin: inferred.marketingOrigin || marketingOrigin
+    marketingOrigin: inferred.marketingOrigin || marketingOrigin,
   };
 }
 
 export function isAppRoutePath(path) {
   const normalized = normalizePath(path);
-  return isSpanishWebRoutePath(normalized)
-    || /^\/join\/[^/]+$/i.test(normalized)
-    || /^\/ingresar\/[^/]+$/i.test(normalized)
-    || /^\/registro\/[^/]+$/i.test(normalized);
+  return (
+    isSpanishWebRoutePath(normalized) ||
+    /^\/join\/[^/]+$/i.test(normalized) ||
+    /^\/ingresar\/[^/]+$/i.test(normalized) ||
+    /^\/registro\/[^/]+$/i.test(normalized)
+  );
 }
 
 /**
  * @param {{ host?: string, path?: string, originalUrl?: string, forwardedProto?: string, protocol?: string, appOrigin?: string, marketingOrigin?: string }} params
  */
-export function resolveHostSplitRedirect({ host, path, originalUrl, forwardedProto, protocol, appOrigin, marketingOrigin }) {
+export function resolveHostSplitRedirect({
+  host,
+  path,
+  originalUrl,
+  forwardedProto,
+  protocol,
+  appOrigin,
+  marketingOrigin,
+}) {
   const normalizedHost = normalizeHostHeader(host);
-  const effectiveOrigins = effectiveOriginsForRequest({ host, forwardedProto, protocol, appOrigin, marketingOrigin });
+  const effectiveOrigins = effectiveOriginsForRequest({
+    host,
+    forwardedProto,
+    protocol,
+    appOrigin,
+    marketingOrigin,
+  });
   const appHost = hostFromOrigin(effectiveOrigins.appOrigin);
   const marketingHost = hostFromOrigin(effectiveOrigins.marketingOrigin);
   const normalizedPath = normalizePath(path);
@@ -136,8 +168,20 @@ export function resolveHostSplitRedirect({ host, path, originalUrl, forwardedPro
 /**
  * @param {{ host?: string, forwardedProto?: string, protocol?: string, appOrigin?: string, marketingOrigin?: string }} params
  */
-export function runtimeConfigForHost({ host, forwardedProto, protocol, appOrigin, marketingOrigin }) {
-  const effectiveOrigins = effectiveOriginsForRequest({ host, forwardedProto, protocol, appOrigin, marketingOrigin });
+export function runtimeConfigForHost({
+  host,
+  forwardedProto,
+  protocol,
+  appOrigin,
+  marketingOrigin,
+}) {
+  const effectiveOrigins = effectiveOriginsForRequest({
+    host,
+    forwardedProto,
+    protocol,
+    appOrigin,
+    marketingOrigin,
+  });
   const normalizedHost = normalizeHostHeader(host);
   const appHost = hostFromOrigin(effectiveOrigins.appOrigin);
   const isAppHost = Boolean(normalizedHost && appHost && normalizedHost === appHost);
@@ -147,6 +191,6 @@ export function runtimeConfigForHost({ host, forwardedProto, protocol, appOrigin
     publicWebOrigin: isAppHost ? effectiveOrigins.appOrigin : effectiveOrigins.marketingOrigin,
     appOrigin: effectiveOrigins.appOrigin,
     marketingOrigin: effectiveOrigins.marketingOrigin,
-    shell: isAppHost ? "web-app" : "web-marketing"
+    shell: isAppHost ? "web-app" : "web-marketing",
   };
 }

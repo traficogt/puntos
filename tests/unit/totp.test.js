@@ -1,7 +1,13 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { buildOtpAuthUri, decodeBase32, generateBase32Secret, totp, verifyTotp } from "../../src/utils/totp.js";
+import {
+  buildOtpAuthUri,
+  decodeBase32,
+  generateBase32Secret,
+  totp,
+  verifyTotp,
+} from "../../src/utils/totp.js";
 
 describe("totp utils", () => {
   it("generates verifiable six-digit codes", () => {
@@ -20,14 +26,13 @@ describe("totp utils", () => {
     const uri = buildOtpAuthUri({
       issuer: "PuntosFieles",
       label: "owner@example.com",
-      secret
+      secret,
     });
     assert.match(uri, /^otpauth:\/\/totp\//);
     assert.match(uri, /issuer=PuntosFieles/);
     assert.match(uri, /secret=JBSWY3DPEHPK3PXP/);
   });
 });
-
 
 import { describe as _d2, it as _it2 } from "node:test";
 import assert2 from "node:assert/strict";

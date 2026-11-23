@@ -42,11 +42,12 @@ function hotp(secret, counter, digits = 6) {
   buf.writeBigUInt64BE(BigInt(counter));
   const hmac = crypto.createHmac("sha1", key).update(buf).digest();
   const offset = hmac[hmac.length - 1] & 0x0f;
-  const binary = ((hmac[offset] & 0x7f) << 24)
-    | ((hmac[offset + 1] & 0xff) << 16)
-    | ((hmac[offset + 2] & 0xff) << 8)
-    | (hmac[offset + 3] & 0xff);
-  return leftPad(binary % (10 ** digits), digits);
+  const binary =
+    ((hmac[offset] & 0x7f) << 24) |
+    ((hmac[offset + 1] & 0xff) << 16) |
+    ((hmac[offset + 2] & 0xff) << 8) |
+    (hmac[offset + 3] & 0xff);
+  return leftPad(binary % 10 ** digits, digits);
 }
 
 export function totp(secret, { stepSeconds = 30, digits = 6, nowMs = Date.now() } = {}) {
@@ -56,7 +57,11 @@ export function totp(secret, { stepSeconds = 30, digits = 6, nowMs = Date.now() 
 
 // Returns the time-step counter the code matched (so the caller can enforce
 // single-use / reject replay within the validity window), or null if no match.
-export function verifyTotpCounter(secret, code, { stepSeconds = 30, digits = 6, window = 1, nowMs = Date.now() } = {}) {
+export function verifyTotpCounter(
+  secret,
+  code,
+  { stepSeconds = 30, digits = 6, window = 1, nowMs = Date.now() } = {},
+) {
   const normalizedCode = String(code || "").trim();
   if (!/^\d{6}$/.test(normalizedCode)) return null;
   const currentCounter = Math.floor(nowMs / 1000 / stepSeconds);

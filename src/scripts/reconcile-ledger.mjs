@@ -38,7 +38,8 @@ function prepareSecretFileEnv() {
 async function main() {
   prepareSecretFileEnv();
   const { closeDatabase, withDbClientContext } = await import("../app/database.js");
-  const { runLedgerReconciliation } = await import("../app/services/ledger-reconciliation-service.js");
+  const { runLedgerReconciliation } =
+    await import("../app/services/ledger-reconciliation-service.js");
 
   const businessId = arg("--business-id", "") || null;
   const customerId = arg("--customer-id", "") || null;
@@ -47,23 +48,28 @@ async function main() {
   const persist = !hasFlag("--no-persist");
 
   try {
-    const summary = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => (
+    const summary = await withDbClientContext({ platformAdmin: true, tenantId: null }, async () =>
       runLedgerReconciliation({
         businessId,
         customerId,
         limit,
         repair,
-        persist
-      })
-    ));
+        persist,
+      }),
+    );
 
     const outputDir = path.join(process.cwd(), "artifacts", "ledger-reconciliation");
     ensureDir(outputDir);
-    const outputPath = path.join(outputDir, `ledger_reconcile_${new Date().toISOString().replaceAll(":", "-")}.json`);
+    const outputPath = path.join(
+      outputDir,
+      `ledger_reconcile_${new Date().toISOString().replaceAll(":", "-")}.json`,
+    );
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.writeFileSync(outputPath, `${JSON.stringify(summary, null, 2)}\n`, "utf8");
 
-    console.log(`Ledger reconciliation complete: checked=${summary.checkedCustomers} mismatched=${summary.mismatchedCustomers} repaired=${summary.repairedCustomers}`);
+    console.log(
+      `Ledger reconciliation complete: checked=${summary.checkedCustomers} mismatched=${summary.mismatchedCustomers} repaired=${summary.repairedCustomers}`,
+    );
     console.log(`Ledger reconciliation artifact: ${path.relative(process.cwd(), outputPath)}`);
   } finally {
     await closeDatabase().catch(() => {});

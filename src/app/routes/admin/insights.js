@@ -26,7 +26,7 @@ adminInsightsRoutes.get(
     }
     const out = await businessSummary(req.tenantId, branchId);
     return res.json({ ok: true, ...out });
-  })
+  }),
 );
 
 adminInsightsRoutes.get(
@@ -34,9 +34,11 @@ adminInsightsRoutes.get(
   requireStaff,
   requireOwner,
   tenantContext,
-  validateQuery(z.object({
-    days: z.coerce.number().int().min(7).max(120).default(30)
-  })),
+  validateQuery(
+    z.object({
+      days: z.coerce.number().int().min(7).max(120).default(30),
+    }),
+  ),
   asyncRoute(async (req, res) => {
     const { days } = req.validatedQuery;
     const businessId = req.tenantId;
@@ -47,7 +49,7 @@ adminInsightsRoutes.get(
          FROM transactions
          WHERE business_id = $1
            AND created_at >= now() - ($2 || ' days')::interval`,
-        [businessId, String(days)]
+        [businessId, String(days)],
       ),
       dbQuery(
         `SELECT COUNT(*)::int AS tx_count, COALESCE(SUM(amount_q),0)::numeric(10,2) AS revenue
@@ -55,7 +57,7 @@ adminInsightsRoutes.get(
          WHERE business_id = $1
            AND created_at >= now() - (($2 * 2) || ' days')::interval
            AND created_at < now() - ($2 || ' days')::interval`,
-        [businessId, String(days)]
+        [businessId, String(days)],
       ),
       dbQuery(
         `SELECT
@@ -64,15 +66,15 @@ adminInsightsRoutes.get(
          FROM customers
          WHERE business_id = $1
            AND deleted_at IS NULL`,
-        [businessId, String(days)]
+        [businessId, String(days)],
       ),
       dbQuery(
         `SELECT COUNT(*)::int AS redemptions
          FROM redemptions
          WHERE business_id = $1
            AND created_at >= now() - ($2 || ' days')::interval`,
-        [businessId, String(days)]
-      )
+        [businessId, String(days)],
+      ),
     ]);
 
     const currRevenue = Number(curTx.rows?.[0]?.revenue ?? 0);
@@ -83,7 +85,8 @@ adminInsightsRoutes.get(
     const customersActive = Number(totals.rows?.[0]?.customers_active ?? 0);
     const redCount = Number(redemptions.rows?.[0]?.redemptions ?? 0);
 
-    const revenueGrowthPct = prevRevenue > 0 ? ((currRevenue - prevRevenue) / prevRevenue) * 100 : null;
+    const revenueGrowthPct =
+      prevRevenue > 0 ? ((currRevenue - prevRevenue) / prevRevenue) * 100 : null;
     const txGrowthPct = prevTxCount > 0 ? ((currTxCount - prevTxCount) / prevTxCount) * 100 : null;
     const repeatRatePct = customersTotal > 0 ? (customersActive / customersTotal) * 100 : 0;
     const redemptionRatePct = currTxCount > 0 ? (redCount / currTxCount) * 100 : 0;
@@ -102,8 +105,8 @@ adminInsightsRoutes.get(
         customers_active: customersActive,
         repeat_rate_pct: repeatRatePct,
         redemptions: redCount,
-        redemption_rate_pct: redemptionRatePct
-      }
+        redemption_rate_pct: redemptionRatePct,
+      },
     });
-  })
+  }),
 );

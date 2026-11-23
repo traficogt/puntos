@@ -10,7 +10,13 @@
  *   onTabActivated?: (tabName: string) => void
  * }} deps
  */
-export function createTabController({ state, tabRegistry, hasFeature, syncDashboardViewToUrl, onTabActivated = () => {} }) {
+export function createTabController({
+  state,
+  tabRegistry,
+  hasFeature,
+  syncDashboardViewToUrl,
+  onTabActivated = () => {},
+}) {
   function setSectionVisibility(id, visible) {
     const el = document.getElementById(id);
     if (el) el.hidden = !visible;
@@ -21,9 +27,11 @@ export function createTabController({ state, tabRegistry, hasFeature, syncDashbo
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab")).forEach((tab) => {
       tab.classList.toggle("active", tab.dataset.tab === tabName);
     });
-    /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab-content")).forEach((content) => {
-      content.classList.toggle("active", content.id === `${tabName}-content`);
-    });
+    /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab-content")).forEach(
+      (content) => {
+        content.classList.toggle("active", content.id === `${tabName}-content`);
+      },
+    );
     onTabActivated(tabName);
     if (syncUrl) syncDashboardViewToUrl();
   }
@@ -55,8 +63,9 @@ export function createTabController({ state, tabRegistry, hasFeature, syncDashbo
     const currentActive = /** @type {HTMLElement | null} */ (document.querySelector(".tab.active"));
     const activeHidden = !currentActive || currentActive.hidden;
     if (activeHidden) {
-      const firstVisible = Array.from(/** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab")))
-        .find((tab) => !tab.hidden);
+      const firstVisible = Array.from(
+        /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab")),
+      ).find((tab) => !tab.hidden);
       if (firstVisible) activateTab(firstVisible.dataset.tab);
     }
   }
@@ -83,6 +92,6 @@ export function createTabController({ state, tabRegistry, hasFeature, syncDashbo
     activateTab,
     applyFeatureGates,
     loadTabData,
-    initTabClicks
+    initTabClicks,
   };
 }

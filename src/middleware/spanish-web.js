@@ -16,7 +16,10 @@ export function createSpanishWebRedirects() {
 /** Spanish browser entry paths reuse the existing HTML and CSP-aware handlers. */
 export function createSpanishWeb(publicDir) {
   const router = express.Router();
-  router.use("/negocio/recursos", express.static(path.join(publicDir, "merchant/recursos"), { redirect: false }));
+  router.use(
+    "/negocio/recursos",
+    express.static(path.join(publicDir, "merchant/recursos"), { redirect: false }),
+  );
   router.use(["/negocio", "/demostracion"], createMerchantWeb(publicDir));
   router.use("/vista-previa-app", createMobilePreview(publicDir));
   router.get("/preferencias-de-mensajes/", (_req, res) => {
@@ -33,7 +36,7 @@ export function createSpanishWeb(publicDir) {
     "/mi-tarjeta/": "customer.html",
     "/plataforma/": "super.html",
     "/registro/": "join.html",
-    "/ingresar/": "ingresar.html"
+    "/ingresar/": "ingresar.html",
   };
   for (const [route, filename] of Object.entries(documents)) {
     router.get(route, (_req, res) => res.sendFile(path.join(publicDir, filename)));

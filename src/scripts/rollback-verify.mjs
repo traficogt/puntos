@@ -47,9 +47,12 @@ async function loadDatabaseModule() {
 }
 
 function cookieHeader(response) {
-  const cookies = typeof response.headers.getSetCookie === "function"
-    ? response.headers.getSetCookie()
-    : (response.headers.get("set-cookie") ? [response.headers.get("set-cookie")] : []);
+  const cookies =
+    typeof response.headers.getSetCookie === "function"
+      ? response.headers.getSetCookie()
+      : response.headers.get("set-cookie")
+        ? [response.headers.get("set-cookie")]
+        : [];
   return cookies
     .map((value) => value.split(";", 1)[0])
     .filter(Boolean)
@@ -63,7 +66,7 @@ async function request(baseUrl, pathname, timeoutMs, init = {}) {
     return await fetch(new URL(pathname, baseUrl), {
       redirect: "manual",
       ...init,
-      signal: controller.signal
+      signal: controller.signal,
     });
   } finally {
     clearTimeout(timer);
@@ -80,7 +83,10 @@ async function expectJson(baseUrl, pathname, timeoutMs, init = {}) {
 
 function migrationFiles() {
   const migrationsDir = path.join(process.cwd(), "src", "app", "migrations");
-  return fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort();
+  return fs
+    .readdirSync(migrationsDir)
+    .filter((file) => file.endsWith(".sql"))
+    .sort();
 }
 
 export async function runRollbackVerification({
@@ -91,7 +97,7 @@ export async function runRollbackVerification({
   expectBuildSha = process.env.EXPECT_BUILD_SHA || "",
   superEmail = process.env.SMOKE_SUPER_EMAIL || process.env.SUPER_ADMIN_EMAIL || "",
   superPassword = process.env.SMOKE_SUPER_PASSWORD || process.env.SUPER_ADMIN_PASSWORD || "",
-  requireSuperLogin = false
+  requireSuperLogin = false,
 } = {}) {
   const health = await expectJson(baseUrl, "/api/health", timeoutMs);
   const ready = await expectJson(baseUrl, "/api/ready", timeoutMs);
@@ -118,7 +124,7 @@ export async function runRollbackVerification({
     const loginResponse = await request(baseUrl, "/api/super/login", timeoutMs, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: superEmail, password: superPassword })
+      body: JSON.stringify({ email: superEmail, password: superPassword }),
     });
     if (!loginResponse.ok) {
       throw new Error(`/api/super/login returned HTTP ${loginResponse.status}`);
@@ -150,24 +156,30 @@ export async function runRollbackVerification({
     expected: {
       version: expectVersion || null,
       build_sha: expectBuildSha || null,
-      require_super_login: requireSuperLogin
+      require_super_login: requireSuperLogin,
     },
     observed: {
       version: info.version || null,
       build_sha: info.build_sha || null,
       health,
       ready,
-      super_session: superSession
+      super_session: superSession,
     },
     migrations: {
       applied_count: applied.length,
       applied_versions: applied.map((entry) => entry.version),
-      pending_versions: pending
-    }
+      pending_versions: pending,
+    },
   };
 
-  const resolvedOutput = outputPath
-    || path.join(process.cwd(), "artifacts", "rollback-verifications", `rollback_verify_${nowStamp()}.json`);
+  const resolvedOutput =
+    outputPath ||
+    path.join(
+      process.cwd(),
+      "artifacts",
+      "rollback-verifications",
+      `rollback_verify_${nowStamp()}.json`,
+    );
   ensureDir(path.dirname(resolvedOutput));
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   fs.writeFileSync(resolvedOutput, `${JSON.stringify(report, null, 2)}\n`, "utf8");
@@ -181,8 +193,14 @@ async function main() {
   const expectVersion = cliArg("--expect-version", process.env.EXPECT_VERSION || "");
   const expectBuildSha = cliArg("--expect-build-sha", process.env.EXPECT_BUILD_SHA || "");
   const requireSuperLogin = hasFlag("--require-super-login");
-  const superEmail = cliArg("--super-email", process.env.SMOKE_SUPER_EMAIL || process.env.SUPER_ADMIN_EMAIL || "");
-  const superPassword = cliArg("--super-password", process.env.SMOKE_SUPER_PASSWORD || process.env.SUPER_ADMIN_PASSWORD || "");
+  const superEmail = cliArg(
+    "--super-email",
+    process.env.SMOKE_SUPER_EMAIL || process.env.SUPER_ADMIN_EMAIL || "",
+  );
+  const superPassword = cliArg(
+    "--super-password",
+    process.env.SMOKE_SUPER_PASSWORD || process.env.SUPER_ADMIN_PASSWORD || "",
+  );
 
   try {
     const result = await runRollbackVerification({
@@ -193,9 +211,11 @@ async function main() {
       expectBuildSha,
       superEmail,
       superPassword,
-      requireSuperLogin
+      requireSuperLogin,
     });
-    console.log(`Rollback verification written to ${path.relative(process.cwd(), result.outputPath)}`);
+    console.log(
+      `Rollback verification written to ${path.relative(process.cwd(), result.outputPath)}`,
+    );
   } finally {
     const { closeDatabase } = await loadDatabaseModule();
     await closeDatabase().catch(() => {});

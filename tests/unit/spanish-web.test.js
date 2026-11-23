@@ -15,20 +15,21 @@ async function serveFixture(t, { splitHosts = false } = {}) {
   const fixtures = {
     "credenciales/index.html": "<main>Membership credentials</main>",
     "credenciales/credenciales.js": "window.credentialsPreview = true;",
-    "merchant/index.html": '<meta name="pf-style-nonce" content="__PF_STYLE_NONCE__"><main>Merchant</main>',
-    "merchant/recursos/new.js": 'window.newMerchant = true;',
-    "merchant/assets/old.js": 'window.oldMerchant = true;',
-    "app-preview/index.html": '<main>App preview</main>',
-    "app-preview/_expo/app.js": 'window.preview = true;',
-    "admin-dashboard.html": '<main>Administration</main>',
-    "admin.html": '<main>Signup</main>',
-    "staff-login.html": '<main>Team login</main>',
-    "staff.html": '<main>Scanner</main>',
-    "customer.html": '<main>Card</main>',
-    "super.html": '<main>Platform</main>',
-    "join.html": '<main>Registration</main>',
-    "ingresar.html": '<main>Customer login</main>',
-    "staff.js": 'window.staff = true;'
+    "merchant/index.html":
+      '<meta name="pf-style-nonce" content="__PF_STYLE_NONCE__"><main>Merchant</main>',
+    "merchant/recursos/new.js": "window.newMerchant = true;",
+    "merchant/assets/old.js": "window.oldMerchant = true;",
+    "app-preview/index.html": "<main>App preview</main>",
+    "app-preview/_expo/app.js": "window.preview = true;",
+    "admin-dashboard.html": "<main>Administration</main>",
+    "admin.html": "<main>Signup</main>",
+    "staff-login.html": "<main>Team login</main>",
+    "staff.html": "<main>Scanner</main>",
+    "customer.html": "<main>Card</main>",
+    "super.html": "<main>Platform</main>",
+    "join.html": "<main>Registration</main>",
+    "ingresar.html": "<main>Customer login</main>",
+    "staff.js": "window.staff = true;",
   };
   for (const [relative, contents] of Object.entries(fixtures)) {
     const file = path.join(directory, relative);
@@ -41,10 +42,17 @@ async function serveFixture(t, { splitHosts = false } = {}) {
   const app = express();
   app.use(helmet());
   app.use(createSpanishWebRedirects());
-  if (splitHosts) app.use((req, res, next) => {
-    const location = resolveHostSplitRedirect({ host: req.get("host"), path: req.path, originalUrl: req.originalUrl, appOrigin: "https://app.example.com", marketingOrigin: "https://example.com" });
-    return location ? res.redirect(302, location) : next();
-  });
+  if (splitHosts)
+    app.use((req, res, next) => {
+      const location = resolveHostSplitRedirect({
+        host: req.get("host"),
+        path: req.path,
+        originalUrl: req.originalUrl,
+        appOrigin: "https://app.example.com",
+        marketingOrigin: "https://example.com",
+      });
+      return location ? res.redirect(302, location) : next();
+    });
   app.use(createSpanishWeb(directory));
   app.use("/app-preview", createMobilePreview(directory));
   app.use(express.static(directory, { extensions: ["html"], redirect: false }));
@@ -57,18 +65,27 @@ async function serveFixture(t, { splitHosts = false } = {}) {
   });
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Missing server address");
-  return (pathname, options = {}) => new Promise((resolve, reject) => {
-    const request = httpRequest(`http://127.0.0.1:${address.port}${pathname}`, options, (response) => {
-      const chunks = [];
-      response.on("data", (chunk) => chunks.push(chunk));
-      response.on("end", () => resolve(new Response(Buffer.concat(chunks), {
-        status: response.statusCode,
-        headers: /** @type {Record<string, string>} */ (response.headers)
-      })));
+  return (pathname, options = {}) =>
+    new Promise((resolve, reject) => {
+      const request = httpRequest(
+        `http://127.0.0.1:${address.port}${pathname}`,
+        options,
+        (response) => {
+          const chunks = [];
+          response.on("data", (chunk) => chunks.push(chunk));
+          response.on("end", () =>
+            resolve(
+              new Response(Buffer.concat(chunks), {
+                status: response.statusCode,
+                headers: /** @type {Record<string, string>} */ (response.headers),
+              }),
+            ),
+          );
+        },
+      );
+      request.on("error", reject);
+      request.end();
     });
-    request.on("error", reject);
-    request.end();
-  });
 }
 
 test("browser aliases redirect only GET/HEAD with a permanent same-origin Location", async (t) => {
@@ -76,7 +93,10 @@ test("browser aliases redirect only GET/HEAD with a permanent same-origin Locati
   for (const method of ["GET", "HEAD"]) {
     const response = await request("/admin-dashboard.html?tab=rewards&token=a%2Bb", { method });
     assert.equal(response.status, 308);
-    assert.equal(response.headers.get("location"), "/administracion/?seccion=recompensas&token=a%2Bb");
+    assert.equal(
+      response.headers.get("location"),
+      "/administracion/?seccion=recompensas&token=a%2Bb",
+    );
   }
   for (const method of ["POST", "PUT", "DELETE"]) {
     const response = await request("/admin-dashboard?tab=rewards", { method });
@@ -90,7 +110,16 @@ test("browser aliases redirect only GET/HEAD with a permanent same-origin Locati
 
 test("canonical Spanish routes serve their existing HTML", async (t) => {
   const request = await serveFixture(t);
-  for (const [route, label] of Object.entries({ "/administracion/": "Administration", "/crear-negocio/": "Signup", "/equipo/ingresar/": "Team login", "/equipo/escaner/": "Scanner", "/mi-tarjeta/": "Card", "/plataforma/": "Platform", "/registro/": "Registration", "/ingresar/": "Customer login" })) {
+  for (const [route, label] of Object.entries({
+    "/administracion/": "Administration",
+    "/crear-negocio/": "Signup",
+    "/equipo/ingresar/": "Team login",
+    "/equipo/escaner/": "Scanner",
+    "/mi-tarjeta/": "Card",
+    "/plataforma/": "Platform",
+    "/registro/": "Registration",
+    "/ingresar/": "Customer login",
+  })) {
     const response = await request(route);
     assert.equal(response.status, 200, route);
     assert.equal(await response.text(), `<main>${label}</main>`, route);
@@ -109,7 +138,10 @@ test("merchant and demo HTML retain unique style nonces and strict script CSP", 
     nonces.add(nonce);
     assert.ok(response.headers.get("content-security-policy").includes(`nonce-${nonce}`));
     assert.match(response.headers.get("content-security-policy"), /script-src 'self'/);
-    assert.doesNotMatch(response.headers.get("content-security-policy"), /script-src[^;]*'unsafe-inline'/);
+    assert.doesNotMatch(
+      response.headers.get("content-security-policy"),
+      /script-src[^;]*'unsafe-inline'/,
+    );
     assert.equal(response.headers.get("cache-control"), "no-store");
   }
   assert.equal(nonces.size, 2);
@@ -117,7 +149,13 @@ test("merchant and demo HTML retain unique style nonces and strict script CSP", 
 
 test("new resources and old open-tab assets remain available without entry redirects", async (t) => {
   const request = await serveFixture(t);
-  for (const [route, contents] of Object.entries({ "/negocio/recursos/new.js": "window.newMerchant = true;", "/merchant/assets/old.js": "window.oldMerchant = true;", "/staff.js": "window.staff = true;", "/app-preview/_expo/app.js": "window.preview = true;", "/vista-previa-app/_expo/app.js": "window.preview = true;" })) {
+  for (const [route, contents] of Object.entries({
+    "/negocio/recursos/new.js": "window.newMerchant = true;",
+    "/merchant/assets/old.js": "window.oldMerchant = true;",
+    "/staff.js": "window.staff = true;",
+    "/app-preview/_expo/app.js": "window.preview = true;",
+    "/vista-previa-app/_expo/app.js": "window.preview = true;",
+  })) {
     const response = await request(route);
     assert.equal(response.status, 200, route);
     assert.equal(await response.text(), contents, route);
@@ -140,7 +178,10 @@ test("canonicalization precedes host splitting and keeps assets on the requested
   assert.equal(legacy.headers.get("location"), "/demostracion/?token=a%2Bb");
   const canonical = await request(legacy.headers.get("location"), { headers });
   assert.equal(canonical.status, 302);
-  assert.equal(canonical.headers.get("location"), "https://app.example.com/demostracion/?token=a%2Bb");
+  assert.equal(
+    canonical.headers.get("location"),
+    "https://app.example.com/demostracion/?token=a%2Bb",
+  );
   const app = await request("/demostracion/?token=a%2Bb", { headers: { host: "app.example.com" } });
   assert.equal(app.status, 200);
   assert.equal((await request("/negocio/recursos/new.js", { headers })).status, 200);
@@ -159,14 +200,12 @@ test("server mounts canonicalization before host split and Spanish documents bef
   assert.ok(documents > hostSplit && documents < staticFiles);
 });
 
-
 test("legacy business registration keeps its identifier, token and temporary redirect", async (t) => {
   const request = await serveFixture(t);
   const response = await request("/join/Cafe-Capital?token=a%2Bb&ref=one+two");
   assert.equal(response.status, 308);
   assert.equal(response.headers.get("location"), "/registro/Cafe-Capital?token=a%2Bb&ref=one+two");
 });
-
 
 test("credential landing accepts slashless links without redirecting to the app host", async (t) => {
   const request = await serveFixture(t, { splitHosts: true });

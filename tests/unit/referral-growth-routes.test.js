@@ -99,8 +99,7 @@ describe("referral growth owner endpoint", () => {
     assert.equal(calls.length, 0);
   });
   it("rejects cashiers and managers", async () => {
-    for (role of ["CASHIER", "MANAGER"])
-      assert.equal((await request()).status, 403);
+    for (role of ["CASHIER", "MANAGER"]) assert.equal((await request()).status, 403);
     assert.equal(calls.length, 0);
   });
   it("requires the referrals plan feature", async () => {
@@ -113,14 +112,11 @@ describe("referral growth owner endpoint", () => {
   });
   it("uses authenticated tenant and default query with no analytics dependency", async () => {
     assert.equal((await request()).status, 200);
-    assert.deepEqual(calls, [
-      { businessId, days: 30, phase: "all", limit: 25, offset: 0 },
-    ]);
+    assert.deepEqual(calls, [{ businessId, days: 30, phase: "all", limit: 25, offset: 0 }]);
   });
   it("accepts supported periods, purchase filters and bounded pagination", async () => {
     assert.equal(
-      (await request("?days=90&phase=awaiting_purchase&limit=100&offset=50"))
-        .status,
+      (await request("?days=90&phase=awaiting_purchase&limit=100&offset=50")).status,
       200,
     );
     assert.deepEqual(calls[0], {

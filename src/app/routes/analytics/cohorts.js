@@ -7,11 +7,11 @@ import { AnalyticsRepository } from "../../repositories/analytics-repository.js"
 export const analyticsCohortRoutes = Router();
 
 export const CohortRetentionQuerySchema = z.object({
-  months: z.coerce.number().int().min(1).max(60).default(12)
+  months: z.coerce.number().int().min(1).max(60).default(12),
 });
 
 export const TopCustomersQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(200).default(50)
+  limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 
 analyticsCohortRoutes.get(
@@ -23,7 +23,7 @@ analyticsCohortRoutes.get(
     const cohorts = await AnalyticsRepository.getCohortRetention(req.tenantId, months);
 
     return res.json({ ok: true, cohorts });
-  })
+  }),
 );
 
 analyticsCohortRoutes.get(
@@ -35,5 +35,5 @@ analyticsCohortRoutes.get(
     const customers = await AnalyticsRepository.getTopCustomersByLTV(req.tenantId, limit);
 
     return res.json({ ok: true, customers });
-  })
+  }),
 );

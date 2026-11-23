@@ -71,7 +71,9 @@ async function enforceNonSuperRuntime() {
     }
   }
   if (config.DB_USER === (config.DB_MIGRATIONS_USER || config.DB_USER)) {
-    logger.warn("DB_USER matches DB_MIGRATIONS_USER; consider separating runtime and migrations users.");
+    logger.warn(
+      "DB_USER matches DB_MIGRATIONS_USER; consider separating runtime and migrations users.",
+    );
   }
 }
 
@@ -125,7 +127,9 @@ export async function runManagedMigrations() {
     return;
   }
 
-  const files = orderMigrations(fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")));
+  const files = orderMigrations(
+    fs.readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")),
+  );
   if (!files.length) {
     logger.info("No managed migrations to apply.");
     return;
@@ -140,13 +144,13 @@ export async function runManagedMigrations() {
     const checksum = migrationChecksum(sql);
     const existing = await migrationPool.query(
       "SELECT checksum FROM schema_migrations WHERE version = $1",
-      [version]
+      [version],
     );
 
     if (existing.rows[0]) {
       if (existing.rows[0].checksum !== checksum) {
         throw new Error(
-          `Migration checksum mismatch for ${version}. Create a new migration instead of editing an applied one.`
+          `Migration checksum mismatch for ${version}. Create a new migration instead of editing an applied one.`,
         );
       }
       continue;
@@ -159,13 +163,15 @@ export async function runManagedMigrations() {
       await client.query(sql);
       await client.query(
         "INSERT INTO schema_migrations (version, checksum, execution_ms) VALUES ($1, $2, $3)",
-        [version, checksum, Date.now() - startedAt]
+        [version, checksum, Date.now() - startedAt],
       );
       await client.query("COMMIT");
       appliedCount += 1;
       logger.info({ version }, "Applied migration");
     } catch (error) {
-      try { await client.query("ROLLBACK"); } catch {}
+      try {
+        await client.query("ROLLBACK");
+      } catch {}
       throw error;
     } finally {
       client.release();
@@ -182,7 +188,7 @@ export async function runManagedMigrations() {
 export async function listManagedMigrations() {
   await ensureMigrationTable();
   const rows = await migrationPool.query(
-    "SELECT version, checksum, applied_at, execution_ms FROM schema_migrations ORDER BY version ASC"
+    "SELECT version, checksum, applied_at, execution_ms FROM schema_migrations ORDER BY version ASC",
   );
   return rows.rows;
 }

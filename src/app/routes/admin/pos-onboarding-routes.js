@@ -8,13 +8,18 @@ import { previewPosSale } from "../../services/pos-integration-service.js";
 
 export function createPosOnboardingRoutes(deps = {}) {
   const router = Router();
-  router.post("/admin/pos/preflight",
-    deps.requireStaff ?? requireStaff, requireOwner, tenantContext,
-    requirePlanFeature("external_awards"), csrfProtect,
+  router.post(
+    "/admin/pos/preflight",
+    deps.requireStaff ?? requireStaff,
+    requireOwner,
+    tenantContext,
+    requirePlanFeature("external_awards"),
+    csrfProtect,
     asyncRoute(async (req, res) => {
       res.set("Cache-Control", "no-store");
       return res.json(await (deps.previewPosSale ?? previewPosSale)(req.tenantId, req.body));
-    }));
+    }),
+  );
   return router;
 }
 

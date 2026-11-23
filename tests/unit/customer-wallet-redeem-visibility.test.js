@@ -8,7 +8,7 @@ test("redeemable rewards are marked as available in store", () => {
     id: "reward-1",
     name: "Café gratis",
     description: "Canjeable en caja",
-    points_cost: 100
+    points_cost: 100,
   });
 
   assert.equal(view.canRedeem, true);
@@ -26,22 +26,31 @@ test("sold-out and expired rewards never appear redeemable even with enough poin
 });
 
 test("the suggested next reward excludes unavailable rewards and handles none available", () => {
-  const out = rewardsWithState(100, [{ id: "sold-out", points_cost: 1, stock: 0 }, { id: "available", points_cost: 150 }]);
+  const out = rewardsWithState(100, [
+    { id: "sold-out", points_cost: 1, stock: 0 },
+    { id: "available", points_cost: 150 },
+  ]);
   assert.equal(out.next.id, "available");
   assert.equal(out.remain, 50);
   assert.equal(rewardsWithState(100, [{ points_cost: 1, stock: 0 }]).next, null);
 });
 
-test('an affordable choice takes precedence over a more expensive future target', () => {
-  const out = rewardsWithState(40, [{ id: 'future', points_cost: 100 }, { id: 'choice', points_cost: 20 }]);
-  assert.equal(out.next.id, 'choice');
+test("an affordable choice takes precedence over a more expensive future target", () => {
+  const out = rewardsWithState(40, [
+    { id: "future", points_cost: 100 },
+    { id: "choice", points_cost: 20 },
+  ]);
+  assert.equal(out.next.id, "choice");
   assert.equal(out.remain, 0);
 });
 
-test('reward expiry is a browser refresh deadline even without inventory', async () => {
-  const { nextInventoryRefresh } = await import('../../public/customer/rewards.js');
-  const now = Date.parse('2026-11-11T12:00:00Z');
-  assert.equal(nextInventoryRefresh([{ points_cost: 20, valid_until: '2026-11-11T12:01:00Z' }], now), now + 60000);
+test("reward expiry is a browser refresh deadline even without inventory", async () => {
+  const { nextInventoryRefresh } = await import("../../public/customer/rewards.js");
+  const now = Date.parse("2026-11-11T12:00:00Z");
+  assert.equal(
+    nextInventoryRefresh([{ points_cost: 20, valid_until: "2026-11-11T12:01:00Z" }], now),
+    now + 60000,
+  );
 });
 
 test("locked rewards explain how many points are missing", () => {
@@ -49,7 +58,7 @@ test("locked rewards explain how many points are missing", () => {
     id: "reward-2",
     name: "Postre gratis",
     description: "Canjeable en caja",
-    points_cost: 75
+    points_cost: 75,
   });
 
   assert.equal(view.canRedeem, false);
@@ -57,13 +66,55 @@ test("locked rewards explain how many points are missing", () => {
   assert.match(view.statusLabel, /Te faltan 35 puntos/);
 });
 
-test('manual pauses and unverified checked rewards cannot be suggested or redeemed',()=>{
- const manual=getRewardViewModel(100,{points_cost:50,available:false});assert.equal(manual.canRedeem,false);assert.match(manual.statusLabel,/temporalmente/i);
- for(const state of ['stale','unknown','unavailable']){const out=getRewardViewModel(100,{points_cost:50,inventory:{state,required:true,branches:[]}});assert.equal(out.canRedeem,false);assert.equal(out.available,false);}
+test("manual pauses and unverified checked rewards cannot be suggested or redeemed", () => {
+  const manual = getRewardViewModel(100, { points_cost: 50, available: false });
+  assert.equal(manual.canRedeem, false);
+  assert.match(manual.statusLabel, /temporalmente/i);
+  for (const state of ["stale", "unknown", "unavailable"]) {
+    const out = getRewardViewModel(100, {
+      points_cost: 50,
+      inventory: { state, required: true, branches: [] },
+    });
+    assert.equal(out.canRedeem, false);
+    assert.equal(out.available, false);
+  }
 });
-test('branch evidence distinguishes unchecked availability and automatically ages fresh observations',()=>{
- const now=Date.parse('2026-11-11T12:00:00Z'),base={id:'checked',points_cost:50,inventory:{state:'available',required:true,branches:[{branchId:'a',branchName:'Centro',state:'available',observedAt:'2026-11-11T11:59:00Z',freshUntil:'2026-11-11T12:04:00Z'}]}};
- const fresh=getRewardViewModel(100,base,now);assert.equal(fresh.canRedeem,true);assert.match(fresh.inventoryNote,/Centro/);assert.match(fresh.inventoryNote,/no se reservan/i);
- const old=getRewardViewModel(100,base,now+240001);assert.equal(old.canRedeem,false);assert.match(old.inventoryNote,/desactualizada/i);
- const mixed={...base,inventory:{...base.inventory,branches:[...base.inventory.branches,{branchId:'b',branchName:'Norte',state:'not_required'}]}};assert.equal(getRewardViewModel(100,mixed,now+240001).canRedeem,true);assert.match(getRewardViewModel(100,mixed,now+240001).inventoryNote,/Norte: confirma/i);
+test("branch evidence distinguishes unchecked availability and automatically ages fresh observations", () => {
+  const now = Date.parse("2026-11-11T12:00:00Z"),
+    base = {
+      id: "checked",
+      points_cost: 50,
+      inventory: {
+        state: "available",
+        required: true,
+        branches: [
+          {
+            branchId: "a",
+            branchName: "Centro",
+            state: "available",
+            observedAt: "2026-11-11T11:59:00Z",
+            freshUntil: "2026-11-11T12:04:00Z",
+          },
+        ],
+      },
+    };
+  const fresh = getRewardViewModel(100, base, now);
+  assert.equal(fresh.canRedeem, true);
+  assert.match(fresh.inventoryNote, /Centro/);
+  assert.match(fresh.inventoryNote, /no se reservan/i);
+  const old = getRewardViewModel(100, base, now + 240001);
+  assert.equal(old.canRedeem, false);
+  assert.match(old.inventoryNote, /desactualizada/i);
+  const mixed = {
+    ...base,
+    inventory: {
+      ...base.inventory,
+      branches: [
+        ...base.inventory.branches,
+        { branchId: "b", branchName: "Norte", state: "not_required" },
+      ],
+    },
+  };
+  assert.equal(getRewardViewModel(100, mixed, now + 240001).canRedeem, true);
+  assert.match(getRewardViewModel(100, mixed, now + 240001).inventoryNote, /Norte: confirma/i);
 });

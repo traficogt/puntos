@@ -2,13 +2,18 @@ import { api, $, toast, setHidden, hydrateShellLinks } from "/lib.js";
 import { enrollmentAcquisition } from "./acquisition-entry.js";
 import { applyJoinBranding } from "./customer-branding.js";
 import { clearCustomerCache } from "/idb.js";
-import { getCustomerEpoch, invalidateCustomerIdentity, isCustomerAuthError, readCustomerStorage } from "./customer/session.js";
+import {
+  getCustomerEpoch,
+  invalidateCustomerIdentity,
+  isCustomerAuthError,
+  readCustomerStorage,
+} from "./customer/session.js";
 import { renderNativeWallet } from "./customer/native-wallet.js";
 import { walletDestination } from "./customer/wallet-navigation.js";
 
 const returningSlugKey = "pf_customer_joined_slug";
 
-function normalizedPhone(value,country="GT") {
+function normalizedPhone(value, country = "GT") {
   const digits = String(value || "").replace(/\D/g, "");
   return country === "GT" && digits.length === 8 ? `502${digits}` : digits;
 }
@@ -91,12 +96,8 @@ function setModeCopy(mode, businessName, entryReason) {
   }
   if (switchLink && switchText) {
     switchLink.hidden = false;
-    switchLink.href = isLogin
-      ? `/registro/${slug}`
-      : `/ingresar/${slug}`;
-    switchText.textContent = isLogin
-      ? "Todavía no tengo tarjeta"
-      : "Ya tengo tarjeta";
+    switchLink.href = isLogin ? `/registro/${slug}` : `/ingresar/${slug}`;
+    switchText.textContent = isLogin ? "Todavía no tengo tarjeta" : "Ya tengo tarjeta";
   }
   if (entryContext) {
     if (isLogin) {
@@ -105,11 +106,15 @@ function setModeCopy(mode, businessName, entryReason) {
       } else if (entryReason === "logged-out" || entryReason === "salida") {
         entryContext.textContent = `Cerraste tu sesión de ${safeBusinessName}. Solicita un nuevo código si quieres volver a entrar desde este navegador.`;
       } else {
-        entryContext.textContent = "Recibe un código y vuelve a abrir tu tarjeta desde este navegador.";
+        entryContext.textContent =
+          "Recibe un código y vuelve a abrir tu tarjeta desde este navegador.";
       }
       entryContext.classList.remove("is-hidden");
       setFeedback("#joinRequestFeedback", "Solicita un nuevo código para ingresar.");
-      setFeedback("#joinVerifyFeedback", "Cuando recibas el código, verifícalo para abrir tu tarjeta.");
+      setFeedback(
+        "#joinVerifyFeedback",
+        "Cuando recibas el código, verifícalo para abrir tu tarjeta.",
+      );
     } else {
       entryContext.textContent = "";
       setHidden(entryContext, true);
@@ -139,14 +144,21 @@ export async function initCustomerAuthEntry({ mode }) {
   const searchParams = new URLSearchParams(location.search);
   const destination = walletDestination(searchParams.get("destino"));
   const entryReason = (searchParams.get("motivo") || "").trim();
-  const requestPath = mode === "login"
-    ? `/api/public/business/${slug}/login/request-code`
-    : `/api/public/business/${slug}/join/request-code`;
-  const verifyPath = mode === "login"
-    ? `/api/public/business/${slug}/login/verify`
-    : `/api/public/business/${slug}/join/verify`;
-  if (mode === "register" && ["session-expired", "logged-out", "sesion-vencida", "salida"].includes(entryReason)) {
-    location.replace(`/ingresar/${encodeURIComponent(slug)}${entryReason ? `?motivo=${encodeURIComponent(entryReason)}` : ""}`);
+  const requestPath =
+    mode === "login"
+      ? `/api/public/business/${slug}/login/request-code`
+      : `/api/public/business/${slug}/join/request-code`;
+  const verifyPath =
+    mode === "login"
+      ? `/api/public/business/${slug}/login/verify`
+      : `/api/public/business/${slug}/join/verify`;
+  if (
+    mode === "register" &&
+    ["session-expired", "logged-out", "sesion-vencida", "salida"].includes(entryReason)
+  ) {
+    location.replace(
+      `/ingresar/${encodeURIComponent(slug)}${entryReason ? `?motivo=${encodeURIComponent(entryReason)}` : ""}`,
+    );
     return;
   }
 
@@ -168,11 +180,16 @@ export async function initCustomerAuthEntry({ mode }) {
     const branding = applyJoinBranding($, business);
     if (business.region?.country && business.region.country !== "GT") {
       $("#phone").placeholder = "+ código de país y número";
-      if ($("#phoneHelp")) $("#phoneHelp").textContent = "Incluye + y el código internacional. Te enviaremos un código por los canales disponibles.";
+      if ($("#phoneHelp"))
+        $("#phoneHelp").textContent =
+          "Incluye + y el código internacional. Te enviaremos un código por los canales disponibles.";
     }
     setModeCopy(mode, branding.businessName, entryReason);
   } catch {
-    setFeedback("#joinRequestFeedback", "No pudimos cargar este negocio. Revisa el enlace o vuelve a cargar la página.");
+    setFeedback(
+      "#joinRequestFeedback",
+      "No pudimos cargar este negocio. Revisa el enlace o vuelve a cargar la página.",
+    );
     toast("No pudimos cargar el negocio");
     return;
   }
@@ -192,7 +209,13 @@ export async function initCustomerAuthEntry({ mode }) {
     $("#btnCode").textContent = "Enviar código";
     $("#phone").readOnly = false;
     $("#code").value = "";
-    for (const selector of ["#codeInfo", "#codeCooldownInfo", "#joinRequestFeedback", "#joinVerifyFeedback"]) setFeedback(selector, "");
+    for (const selector of [
+      "#codeInfo",
+      "#codeCooldownInfo",
+      "#joinRequestFeedback",
+      "#joinVerifyFeedback",
+    ])
+      setFeedback(selector, "");
     setHidden($("#joinVerifyStage"), true);
     setHidden($("#joinRequestForm"), false);
     setStep(1);
@@ -206,7 +229,10 @@ export async function initCustomerAuthEntry({ mode }) {
     document.body?.classList.toggle("wallet-enrollment-done", false);
     setModeCopy(mode, business.name, entryReason);
     resetPhone();
-    setFeedback("#joinRequestFeedback", "Tu sesión cambió. Verifica tu teléfono para continuar con esta tarjeta.");
+    setFeedback(
+      "#joinRequestFeedback",
+      "Tu sesión cambió. Verifica tu teléfono para continuar con esta tarjeta.",
+    );
   }
 
   function showCompletion() {
@@ -224,8 +250,13 @@ export async function initCustomerAuthEntry({ mode }) {
   }
 
   async function showWallet(me) {
-    if (!current() || me?.business?.id !== business.id || !me?.customer?.id
-        || (customerId && customerId !== me.customer.id)) return false;
+    if (
+      !current() ||
+      me?.business?.id !== business.id ||
+      !me?.customer?.id ||
+      (customerId && customerId !== me.customer.id)
+    )
+      return false;
     if (readCustomerStorage("pf_customer_blocked") === "1") return false;
     customerId = me.customer.id;
     if (destination) {
@@ -236,11 +267,18 @@ export async function initCustomerAuthEntry({ mode }) {
     showCompletion();
     setFeedback("#walletEnrollmentFeedback", "Buscando opciones para guardar tu tarjeta…");
     try {
-      await renderNativeWallet({ api, $, identity: { businessId: business.id, customerId }, isCurrent: current }, true);
+      await renderNativeWallet(
+        { api, $, identity: { businessId: business.id, customerId }, isCurrent: current },
+        true,
+      );
       if (!current()) return false;
       const unavailable = $("#billeteras").hidden;
-      setFeedback("#walletEnrollmentFeedback", unavailable
-        ? "Puedes abrir tu tarjeta y consultar tus puntos en el navegador. Si esperabas guardarla en Wallet, vuelve a intentar." : "");
+      setFeedback(
+        "#walletEnrollmentFeedback",
+        unavailable
+          ? "Puedes abrir tu tarjeta y consultar tus puntos en el navegador. Si esperabas guardarla en Wallet, vuelve a intentar."
+          : "",
+      );
       setHidden($("#btnRetryWallet"), !unavailable);
     } catch (error) {
       if (current() && isCustomerAuthError(error)) resetCompletion();
@@ -255,12 +293,15 @@ export async function initCustomerAuthEntry({ mode }) {
     try {
       const me = await api("/api/customer/me");
       if (!current()) return;
-      if (!await showWallet(me)) resetCompletion();
+      if (!(await showWallet(me))) resetCompletion();
     } catch (error) {
       if (!current()) return;
       if (isCustomerAuthError(error)) resetCompletion();
       else {
-        setFeedback("#walletEnrollmentFeedback", "No pudimos conectar. Revisa tu conexión y vuelve a intentar; tu cuenta sigue creada.");
+        setFeedback(
+          "#walletEnrollmentFeedback",
+          "No pudimos conectar. Revisa tu conexión y vuelve a intentar; tu cuenta sigue creada.",
+        );
         setHidden($("#btnRetryWallet"), false);
       }
     } finally {
@@ -269,13 +310,16 @@ export async function initCustomerAuthEntry({ mode }) {
     }
   }
   $("#btnRetryWallet")?.addEventListener("click", refreshWallet);
-  $("#phone").addEventListener("input", () => { interacted = true; });
+  $("#phone").addEventListener("input", () => {
+    interacted = true;
+  });
   // Phone ownership cannot be established through an unverified email address.
   const emailField = $("#email");
   if (emailField) {
     emailField.hidden = true;
     emailField.disabled = true;
-    if (emailField.previousElementSibling?.tagName === "LABEL") emailField.previousElementSibling.hidden = true;
+    if (emailField.previousElementSibling?.tagName === "LABEL")
+      emailField.previousElementSibling.hidden = true;
   }
 
   const requestCode = async (event) => {
@@ -297,7 +341,7 @@ export async function initCustomerAuthEntry({ mode }) {
       const name = $("#name")?.value.trim() || undefined;
       await api(requestPath, {
         method: "POST",
-        body: JSON.stringify({ phone, name })
+        body: JSON.stringify({ phone, name }),
       });
       sent = true;
       sentPhone = phone;
@@ -349,10 +393,17 @@ export async function initCustomerAuthEntry({ mode }) {
       setFeedback("#joinVerifyFeedback", "Verificando código...");
       const verified = await api(verifyPath, {
         method: "POST",
-        body: JSON.stringify({ phone, code, name, marketingOptIn: $("#marketingOptIn")?.checked === true, ...await acquisition })
+        body: JSON.stringify({
+          phone,
+          code,
+          name,
+          marketingOptIn: $("#marketingOptIn")?.checked === true,
+          ...(await acquisition),
+        }),
       });
       if (!active || verificationEpoch !== getCustomerEpoch()) return;
-      if (verified?.ok !== true || !verified?.customer?.id) throw new Error("No pudimos confirmar tu acceso. Vuelve a intentar.");
+      if (verified?.ok !== true || !verified?.customer?.id)
+        throw new Error("No pudimos confirmar tu acceso. Vuelve a intentar.");
       invalidateCustomerIdentity();
       walletEpoch = getCustomerEpoch();
       verificationEpoch = walletEpoch;
@@ -362,20 +413,28 @@ export async function initCustomerAuthEntry({ mode }) {
       try {
         localStorage.setItem(returningSlugKey, slug);
         localStorage.setItem("pf_customer_slug", slug);
-      } catch { /* Login remains available when storage is restricted. */ }
+      } catch {
+        /* Login remains available when storage is restricted. */
+      }
       showCompletion();
       setFeedback("#walletEnrollmentFeedback", "Preparando las opciones de tu tarjeta…");
       // The session cookie, not the submitted phone or a Wallet identity, authorizes issuance.
       const me = await api("/api/customer/me");
       if (!current()) return;
-      if (!await showWallet(me)) { resetCompletion(); return; }
+      if (!(await showWallet(me))) {
+        resetCompletion();
+        return;
+      }
       toast("Tu tarjeta está lista.");
     } catch (e) {
       if (!active || verificationEpoch !== getCustomerEpoch()) return;
       if (completed) {
         if (isCustomerAuthError(e)) resetCompletion();
         else {
-          setFeedback("#walletEnrollmentFeedback", "Tu acceso está verificado. No pudimos cargar Wallet; revisa tu conexión y vuelve a intentar.");
+          setFeedback(
+            "#walletEnrollmentFeedback",
+            "Tu acceso está verificado. No pudimos cargar Wallet; revisa tu conexión y vuelve a intentar.",
+          );
           setHidden($("#btnRetryWallet"), false);
         }
         return;
@@ -387,8 +446,13 @@ export async function initCustomerAuthEntry({ mode }) {
         try {
           const me = await api("/api/customer/me");
           if (!active || verificationEpoch !== getCustomerEpoch()) return;
-          if (me?.business?.id === business.id && me?.customer?.id && normalizedPhone(phone,business.region?.country||"GT")
-              && normalizedPhone(me.customer.phone,business.region?.country||"GT") === normalizedPhone(phone,business.region?.country||"GT")) {
+          if (
+            me?.business?.id === business.id &&
+            me?.customer?.id &&
+            normalizedPhone(phone, business.region?.country || "GT") &&
+            normalizedPhone(me.customer.phone, business.region?.country || "GT") ===
+              normalizedPhone(phone, business.region?.country || "GT")
+          ) {
             invalidateCustomerIdentity();
             walletEpoch = getCustomerEpoch();
             customerId = me.customer.id;
@@ -396,7 +460,9 @@ export async function initCustomerAuthEntry({ mode }) {
             if (current()) await showWallet(me);
             return;
           }
-        } catch { /* Keep the code form available for a fresh verification attempt. */ }
+        } catch {
+          /* Keep the code form available for a fresh verification attempt. */
+        }
       }
       const message = e?.message || "No se pudo verificar el código.";
       setFeedback("#joinVerifyFeedback", message);
@@ -419,7 +485,10 @@ export async function initCustomerAuthEntry({ mode }) {
     if ((event.key === "pf_customer_epoch" || event.key === null) && !current()) resetCompletion();
   });
   window.addEventListener("online", refreshWallet);
-  window.addEventListener("pagehide", () => { active = false; cooldownReset(); });
+  window.addEventListener("pagehide", () => {
+    active = false;
+    cooldownReset();
+  });
   window.addEventListener("pageshow", (event) => {
     if (!event.persisted) return;
     active = true;
@@ -427,7 +496,10 @@ export async function initCustomerAuthEntry({ mode }) {
     else if (completed) refreshWallet();
     else if (cooldownEndsAt) {
       cooldownReset();
-      cooldownReset = startCooldown($, Math.max(0, Math.ceil((cooldownEndsAt - Date.now()) / 1000)));
+      cooldownReset = startCooldown(
+        $,
+        Math.max(0, Math.ceil((cooldownEndsAt - Date.now()) / 1000)),
+      );
     }
   });
 
@@ -435,5 +507,7 @@ export async function initCustomerAuthEntry({ mode }) {
   try {
     const me = await api("/api/customer/me");
     if (!interacted && current()) await showWallet(me);
-  } catch { /* New customers and expired sessions continue with phone verification. */ }
+  } catch {
+    /* New customers and expired sessions continue with phone verification. */
+  }
 }

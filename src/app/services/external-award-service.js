@@ -12,9 +12,11 @@ import { completeAwardEvidence } from "./transaction-rule-evidence.js";
 import { badRequest, forbidden, notFound, conflict } from "../../utils/http-error.js";
 import { timingSafeEqualString } from "../../utils/timing-safe.js";
 import { isLedgerAmount, isLedgerInteger } from "../../utils/ledger-limits.js";
-import { purchaseEventTime, assertPurchaseTimeReplay } from './purchase-event-time.js';
+import { purchaseEventTime, assertPurchaseTimeReplay } from "./purchase-event-time.js";
 
-function id() { return crypto.randomUUID(); }
+function id() {
+  return crypto.randomUUID();
+}
 
 function hashPayload(prefix, payload) {
   return crypto
@@ -26,7 +28,11 @@ function hashPayload(prefix, payload) {
 function canonicalValue(value) {
   if (Array.isArray(value)) return value.map(canonicalValue);
   if (!value || typeof value !== "object") return value;
-  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalValue(value[key])]));
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, canonicalValue(value[key])]),
+  );
 }
 
 function buildExternalAwardFingerprint({ customerId, amountQ, visits, items, meta }) {
@@ -36,23 +42,26 @@ function buildExternalAwardFingerprint({ customerId, amountQ, visits, items, met
     amountQ: Number(amountQ || 0),
     visits: Number(visits || 0),
     items: Number(items || 0),
-    meta: canonicalValue(meta && typeof meta === "object" ? meta : {})
+    meta: canonicalValue(meta && typeof meta === "object" ? meta : {}),
   })}`;
 }
 
 function storedRequestFingerprint(existing) {
-  if ([existing.amount_q, existing.visits, existing.items].some((value) => value == null)) return null;
+  if ([existing.amount_q, existing.visits, existing.items].some((value) => value == null))
+    return null;
   // Older hashes depended on JSON key order, which JSONB does not preserve.
   // Compare their persisted sale fields instead of recomputing that lossy hash.
-  const meta = Object.fromEntries(Object.entries(existing.meta || {}).filter(([key]) => (
-    key !== "external_event_id" && key !== "external_request_fingerprint"
-  )));
+  const meta = Object.fromEntries(
+    Object.entries(existing.meta || {}).filter(
+      ([key]) => key !== "external_event_id" && key !== "external_request_fingerprint",
+    ),
+  );
   return buildExternalAwardFingerprint({
     customerId: existing.customer_id,
     amountQ: existing.amount_q,
     visits: existing.visits,
     items: existing.items,
-    meta
+    meta,
   });
 }
 
@@ -94,10 +103,10 @@ function storedRequestFingerprint(existing) {
  */
 
 async function lockExternalEventRequest(client, businessId, externalEventId) {
-  await client.query(
-    `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
-    [String(businessId), String(externalEventId)]
-  );
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
+    String(businessId),
+    String(externalEventId),
+  ]);
 }
 
 async function findExistingExternalEventTransaction(client, businessId, externalEventId) {
@@ -108,7 +117,7 @@ async function findExistingExternalEventTransaction(client, businessId, external
        AND source = 'external'
        AND meta->>'external_event_id' = $2
      LIMIT 1`,
-    [businessId, String(externalEventId)]
+    [businessId, String(externalEventId)],
   );
   return rows[0] ?? null;
 }
@@ -117,21 +126,24 @@ async function findExistingExternalEventTransaction(client, businessId, external
  * @param {ExternalAwardDeps} deps
  * @param {ExternalAwardInput} args
  */
-export async function awardFromExternalEventWithDeps(deps, {
-  businessSlug,
-  apiKey,
-  externalEventId,
-  customerId,
-  customerPhone,
-  amount_q = 0,
-  visits = 0,
-  items = 0,
-  meta = {},
-  expectedCurrency,
-  purchaseOccurredAt,
-  purchaseTimeSource = 'server_recorded',
-  skipApiKeyCheck = false
-}) {
+export async function awardFromExternalEventWithDeps(
+  deps,
+  {
+    businessSlug,
+    apiKey,
+    externalEventId,
+    customerId,
+    customerPhone,
+    amount_q = 0,
+    visits = 0,
+    items = 0,
+    meta = {},
+    expectedCurrency,
+    purchaseOccurredAt,
+    purchaseTimeSource = "server_recorded",
+    skipApiKeyCheck = false,
+  },
+) {
   const publicBiz = await deps.BusinessRepo.getPublicBySlug(businessSlug);
   if (!publicBiz) throw notFound("Business not found");
   await deps.setCurrentTenant(String(publicBiz.id));
@@ -139,29 +151,44 @@ export async function awardFromExternalEventWithDeps(deps, {
   if (!business) throw notFound("Business not found");
   // Carry the adapter denomination separately: changing legacy metadata would
   // invalidate existing request fingerprints. Freeze the fallback before locking.
-  const posCurrency = meta?.pos_sale && typeof meta.pos_sale === "object" ? (meta.pos_sale["currency"] ?? "GTQ") : undefined;
+  const posCurrency =
+    meta?.pos_sale && typeof meta.pos_sale === "object"
+      ? (meta.pos_sale["currency"] ?? "GTQ")
+      : undefined;
   const settlementCurrency = expectedCurrency ?? posCurrency ?? regionCurrency(business);
   const ext = business.program_json?.external_awards ?? {};
   if (!ext.enabled) throw forbidden("External awards are disabled");
-  if (!skipApiKeyCheck && (!apiKey || !deps.timingSafeEqualString(apiKey, ext.api_key))) throw forbidden("Invalid API key");
+  if (!skipApiKeyCheck && (!apiKey || !deps.timingSafeEqualString(apiKey, ext.api_key)))
+    throw forbidden("Invalid API key");
   const purchaseTime = purchaseEventTime(purchaseOccurredAt, purchaseTimeSource);
-  if (!externalEventId || String(externalEventId).length < 4) throw badRequest("externalEventId required");
+  if (!externalEventId || String(externalEventId).length < 4)
+    throw badRequest("externalEventId required");
   if (!isLedgerAmount(amount_q)) {
     throw badRequest("Amount must fit the ledger money column with at most two decimal places");
   }
   for (const quantity of [visits, items]) {
-    if (!isLedgerInteger(quantity)) throw badRequest("Quantities must be non-negative ledger integers");
+    if (!isLedgerInteger(quantity))
+      throw badRequest("Quantities must be non-negative ledger integers");
   }
 
   let customer = null;
   if (customerId) customer = await deps.CustomerRepo.getById(customerId);
-  if (!customer && customerPhone) customer = await deps.CustomerRepo.getByBusinessAndPhone(business.id, customerPhone);
-  if (!customer || customer.business_id !== business.id) throw notFound("Customer not found for this business");
+  if (!customer && customerPhone)
+    customer = await deps.CustomerRepo.getByBusinessAndPhone(business.id, customerPhone);
+  if (!customer || customer.business_id !== business.id)
+    throw notFound("Customer not found for this business");
 
-  let evaluated = typeof deps.computePointsWithEvidence === "function"
-    ? deps.computePointsWithEvidence(business, { amount_q, visits, items }) : null;
-  let points = evaluated ? evaluated.points : deps.computePoints(business, { amount_q, visits, items });
-  const holdDays = Math.max(0, Math.floor(Number(business.program_json?.pending_points_hold_days ?? 0)));
+  let evaluated =
+    typeof deps.computePointsWithEvidence === "function"
+      ? deps.computePointsWithEvidence(business, { amount_q, visits, items })
+      : null;
+  let points = evaluated
+    ? evaluated.points
+    : deps.computePoints(business, { amount_q, visits, items });
+  const holdDays = Math.max(
+    0,
+    Math.floor(Number(business.program_json?.pending_points_hold_days ?? 0)),
+  );
   const status = holdDays > 0 ? "PENDING" : "POSTED";
   const availableAt = holdDays > 0 ? new Date(Date.now() + holdDays * 24 * 60 * 60 * 1000) : null;
   const requestFingerprint = buildExternalAwardFingerprint({
@@ -169,14 +196,21 @@ export async function awardFromExternalEventWithDeps(deps, {
     amountQ: amount_q,
     visits,
     items,
-    meta
+    meta,
   });
 
-  const planFeatureOverrides = business.program_json?.targeted_offers_enabled === true && typeof deps.getPlanFeatureOverrides === "function"
-    ? await deps.getPlanFeatureOverrides() : undefined;
+  const planFeatureOverrides =
+    business.program_json?.targeted_offers_enabled === true &&
+    typeof deps.getPlanFeatureOverrides === "function"
+      ? await deps.getPlanFeatureOverrides()
+      : undefined;
   return deps.withTransaction(async (client) => {
     await lockExternalEventRequest(client, business.id, externalEventId);
-    const existing = await findExistingExternalEventTransaction(client, business.id, externalEventId);
+    const existing = await findExistingExternalEventTransaction(
+      client,
+      business.id,
+      externalEventId,
+    );
     if (existing) {
       assertPurchaseTimeReplay(existing, purchaseTime.occurredAt);
       const existingMeta = existing.meta && typeof existing.meta === "object" ? existing.meta : {};
@@ -190,7 +224,12 @@ export async function awardFromExternalEventWithDeps(deps, {
       if (comparisonFingerprint && comparisonFingerprint !== requestFingerprint) {
         throw conflict("externalEventId already used for a different payload");
       }
-      if (!comparisonFingerprint && (existingFingerprint || Number(existing.points || 0) !== Number(points) || String(existing.status || "") !== status)) {
+      if (
+        !comparisonFingerprint &&
+        (existingFingerprint ||
+          Number(existing.points || 0) !== Number(points) ||
+          String(existing.status || "") !== status)
+      ) {
         throw conflict("externalEventId already used for a different payload");
       }
       await AuditRepo.log({
@@ -204,8 +243,8 @@ export async function awardFromExternalEventWithDeps(deps, {
         meta: {
           transaction_id: existing.id,
           customer_id: customer.id,
-          external_event_id: String(externalEventId)
-        }
+          external_event_id: String(externalEventId),
+        },
       }).catch(() => {});
       return {
         ok: true,
@@ -214,28 +253,44 @@ export async function awardFromExternalEventWithDeps(deps, {
         pointsAwarded: Number(existing.points || 0),
         status: existing.status,
         availableAt: existing.available_at,
-        replay: true
+        replay: true,
       };
     }
 
     if (typeof deps.protectedEarningBusiness === "function") {
       business = await deps.protectedEarningBusiness(client, { business, customerId: customer.id });
       assertRegionAmount(amount_q, settlementCurrency, business);
-      evaluated = typeof deps.computePointsWithEvidence === "function"
-        ? deps.computePointsWithEvidence(business, { amount_q, visits, items }) : null;
-      points = evaluated ? evaluated.points : deps.computePoints(business, { amount_q, visits, items });
+      evaluated =
+        typeof deps.computePointsWithEvidence === "function"
+          ? deps.computePointsWithEvidence(business, { amount_q, visits, items })
+          : null;
+      points = evaluated
+        ? evaluated.points
+        : deps.computePoints(business, { amount_q, visits, items });
     }
 
     if (!isLedgerInteger(points)) {
       throw badRequest("Computed points must be a non-negative ledger integer");
     }
     const txId = id();
-    const bonus = typeof deps.claimTargetedOffer === "function"
-      ? await deps.claimTargetedOffer({ client, business, customerId: customer.id, transactionId: txId,
-        source: "external", amountQ: Number(amount_q), visits, items, basePoints: points, planFeatureOverrides })
-      : { bonusPoints: 0 };
+    const bonus =
+      typeof deps.claimTargetedOffer === "function"
+        ? await deps.claimTargetedOffer({
+            client,
+            business,
+            customerId: customer.id,
+            transactionId: txId,
+            source: "external",
+            amountQ: Number(amount_q),
+            visits,
+            items,
+            basePoints: points,
+            planFeatureOverrides,
+          })
+        : { bonusPoints: 0 };
     const awardedPoints = points + bonus.bonusPoints;
-    if (!isLedgerInteger(awardedPoints)) throw badRequest("Computed points must be a non-negative ledger integer");
+    if (!isLedgerInteger(awardedPoints))
+      throw badRequest("Computed points must be a non-negative ledger integer");
     await client.query(
       `INSERT INTO transactions
        (id, business_id, customer_id, amount_q, visits, items, points, status, available_at, source, meta, purchase_occurred_at, purchase_time_source)
@@ -252,14 +307,22 @@ export async function awardFromExternalEventWithDeps(deps, {
         availableAt,
         {
           ...meta,
-          ...(business.reward_promise_cycle_id ? { reward_promise_cycle_id: business.reward_promise_cycle_id } : {}),
+          ...(business.reward_promise_cycle_id
+            ? { reward_promise_cycle_id: business.reward_promise_cycle_id }
+            : {}),
           external_event_id: String(externalEventId),
           external_request_fingerprint: requestFingerprint,
-          award_evidence: completeAwardEvidence(evaluated?.evidence, { bonus, holdDays, status, availableAt, source: "external" })
+          award_evidence: completeAwardEvidence(evaluated?.evidence, {
+            bonus,
+            holdDays,
+            status,
+            availableAt,
+            source: "external",
+          }),
         },
         purchaseTime.occurredAt,
-        purchaseTime.source
-      ]
+        purchaseTime.source,
+      ],
     );
 
     const balanceUpdate = await client.query(
@@ -269,11 +332,19 @@ export async function awardFromExternalEventWithDeps(deps, {
            lifetime_points = lifetime_points + CASE WHEN $3 = 'POSTED' THEN GREATEST($2,0) ELSE 0 END,
            updated_at = now()
        WHERE customer_id = $1`,
-      [customer.id, awardedPoints, status]
+      [customer.id, awardedPoints, status],
     );
-    if (balanceUpdate.rowCount !== 1) throw conflict("Customer balance is unavailable; award was not applied");
+    if (balanceUpdate.rowCount !== 1)
+      throw conflict("Customer balance is unavailable; award was not applied");
 
-    return { ok: true, transactionId: txId, customerId: customer.id, pointsAwarded: awardedPoints, status, availableAt };
+    return {
+      ok: true,
+      transactionId: txId,
+      customerId: customer.id,
+      pointsAwarded: awardedPoints,
+      status,
+      availableAt,
+    };
   });
 }
 
@@ -287,7 +358,7 @@ const externalAwardDeps = {
   claimTargetedOffer,
   protectedEarningBusiness,
   getPlanFeatureOverrides: () => PlanConfigService.getPlanFeatureOverrides(),
-  timingSafeEqualString
+  timingSafeEqualString,
 };
 
 /**

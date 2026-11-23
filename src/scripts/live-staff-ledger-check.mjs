@@ -10,20 +10,22 @@ function arg(name, fallback = "") {
 }
 
 const baseUrl = arg("--base-url", process.env.TEST_API_URL || "http://localhost:3001");
-const browserOrigin = arg("--browser-origin", process.env.BROWSER_ORIGIN || process.env.APP_ORIGIN || new URL(baseUrl).origin);
+const browserOrigin = arg(
+  "--browser-origin",
+  process.env.BROWSER_ORIGIN || process.env.APP_ORIGIN || new URL(baseUrl).origin,
+);
 const superEmail = arg("--super-email", process.env.SUPER_ADMIN_EMAIL || "");
 const superPassword = arg("--super-password", process.env.SUPER_ADMIN_PASSWORD || "");
-const forwardedFor = process.env.TEST_CLIENT_IP
-  || `198.51.100.${Math.max(10, Math.floor(Math.random() * 200))}`;
+const forwardedFor =
+  process.env.TEST_CLIENT_IP || `198.51.100.${Math.max(10, Math.floor(Math.random() * 200))}`;
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
 function applySetCookieJar(jar, response) {
-  const values = typeof response.headers.getSetCookie === "function"
-    ? response.headers.getSetCookie()
-    : [];
+  const values =
+    typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
   for (const raw of values) {
     const first = String(raw || "").split(";")[0];
     const eq = first.indexOf("=");
@@ -33,7 +35,9 @@ function applySetCookieJar(jar, response) {
 }
 
 function cookieHeader(jar) {
-  return Array.from(jar.entries()).map(([key, value]) => `${key}=${value}`).join("; ");
+  return Array.from(jar.entries())
+    .map(([key, value]) => `${key}=${value}`)
+    .join("; ");
 }
 
 function csrfTokenFromJar(jar) {
@@ -52,7 +56,7 @@ async function request(jar, path, options = {}) {
   const headers = {
     "Content-Type": "application/json",
     "X-Forwarded-For": forwardedFor,
-    ...(options.headers || {})
+    ...(options.headers || {}),
   };
   const cookie = cookieHeader(jar);
   if (cookie) headers.Cookie = cookie;
@@ -64,27 +68,33 @@ async function request(jar, path, options = {}) {
 
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
-    headers
+    headers,
   });
   applySetCookieJar(jar, response);
   const text = await response.text();
   let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
   return { status: response.status, data };
 }
 
-async function waitForStableCustomer(customerJar, {
-  attempts = 12,
-  delayMs = 250,
-  stableReads = 2
-} = {}) {
+async function waitForStableCustomer(
+  customerJar,
+  { attempts = 12, delayMs = 250, stableReads = 2 } = {},
+) {
   let lastPoints = null;
   let stableCount = 0;
   let latest = null;
 
   for (let i = 0; i < attempts; i += 1) {
     latest = await request(customerJar, "/api/customer/me");
-    assert(latest.status === 200, `customer me failed while waiting for stability: ${latest.status}`);
+    assert(
+      latest.status === 200,
+      `customer me failed while waiting for stability: ${latest.status}`,
+    );
     const points = Number(latest.data?.customer?.points ?? 0);
     if (lastPoints !== null && points === lastPoints) {
       stableCount += 1;
@@ -102,27 +112,20 @@ async function waitForStableCustomer(customerJar, {
 function runHelperScript(scriptName, args) {
   let output = "";
   try {
-    output = execFileSync("docker", [
-      "compose",
-      "exec",
-      "-T",
-      "api",
-      "node",
-      `src/scripts/${scriptName}`,
-      ...args
-    ], {
-      cwd: process.cwd(),
-      env: process.env,
-      encoding: "utf8"
-    });
+    output = execFileSync(
+      "docker",
+      ["compose", "exec", "-T", "api", "node", `src/scripts/${scriptName}`, ...args],
+      {
+        cwd: process.cwd(),
+        env: process.env,
+        encoding: "utf8",
+      },
+    );
   } catch {
-    output = execFileSync("node", [
-      `src/scripts/${scriptName}`,
-      ...args
-    ], {
+    output = execFileSync("node", [`src/scripts/${scriptName}`, ...args], {
       cwd: process.cwd(),
       env: process.env,
-      encoding: "utf8"
+      encoding: "utf8",
     });
   }
   return JSON.parse(String(output || "{}"));
@@ -140,8 +143,8 @@ async function createBusinessAndOwnerSession(superJar, ownerJar, suffix) {
       email: ownerEmail,
       password,
       category: "cafe",
-      plan: "EMPRESA"
-    })
+      plan: "EMPRESA",
+    }),
   });
   assert(createdBusiness.status === 201, `create business failed: ${createdBusiness.status}`);
 
@@ -149,11 +152,15 @@ async function createBusinessAndOwnerSession(superJar, ownerJar, suffix) {
   const businessSlug = createdBusiness.data?.business?.slug;
   assert(businessId && businessSlug, "missing business identity");
 
-  const impersonate = await request(superJar, `/api/super/impersonate/${encodeURIComponent(businessId)}`, {
-    method: "POST",
-    csrf: true,
-    body: "{}"
-  });
+  const impersonate = await request(
+    superJar,
+    `/api/super/impersonate/${encodeURIComponent(businessId)}`,
+    {
+      method: "POST",
+      csrf: true,
+      body: "{}",
+    },
+  );
   assert(impersonate.status === 200, `impersonate failed: ${impersonate.status}`);
   copyStaffSessionCookies(superJar, ownerJar);
 
@@ -162,20 +169,33 @@ async function createBusinessAndOwnerSession(superJar, ownerJar, suffix) {
 
 async function createCustomerAndQr(customerJar, businessSlug) {
   // The direct verification-code fixture uses the same canonical digits as enrollment.
-  const customerPhone = `50255${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`;
+  const customerPhone = `50255${Math.floor(Math.random() * 1000000)
+    .toString()
+    .padStart(6, "0")}`;
   const verification = runHelperScript("dev-issue-join-code.mjs", [
     "--slug",
     String(businessSlug),
     "--phone",
-    String(customerPhone)
+    String(customerPhone),
   ]);
   assert(verification?.code, "failed to prepare customer verification");
   // The API must issue the session: test-mode sessions are local to its process.
-  const joined = await request(customerJar, `/api/public/business/${encodeURIComponent(businessSlug)}/join/verify`, {
-    method: "POST",
-    body: JSON.stringify({ phone: customerPhone, code: verification.code, name: "Ledger Test Customer" })
-  });
-  assert(joined.status === 200 && joined.data?.customer?.id, `customer verification failed: ${joined.status}`);
+  const joined = await request(
+    customerJar,
+    `/api/public/business/${encodeURIComponent(businessSlug)}/join/verify`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        phone: customerPhone,
+        code: verification.code,
+        name: "Ledger Test Customer",
+      }),
+    },
+  );
+  assert(
+    joined.status === 200 && joined.data?.customer?.id,
+    `customer verification failed: ${joined.status}`,
+  );
 
   const me = await request(customerJar, "/api/customer/me");
   assert(me.status === 200, `customer bootstrap failed: ${me.status}`);
@@ -183,7 +203,7 @@ async function createCustomerAndQr(customerJar, businessSlug) {
   const qr = await request(customerJar, "/api/public/customer/qr", {
     method: "POST",
     csrf: true,
-    body: "{}"
+    body: "{}",
   });
   assert(qr.status === 200, `customer qr failed: ${qr.status}`);
   assert(qr.data?.token, "missing qr token");
@@ -201,7 +221,7 @@ async function main() {
 
   const login = await request(superJar, "/api/super/login", {
     method: "POST",
-    body: JSON.stringify({ email: superEmail, password: superPassword })
+    body: JSON.stringify({ email: superEmail, password: superPassword }),
   });
   assert(login.status === 200, `super login failed: ${login.status}`);
 
@@ -216,8 +236,8 @@ async function main() {
     body: JSON.stringify({
       name: `Reward ${rand}`,
       description: "Ledger assurance reward",
-      points_cost: 5
-    })
+      points_cost: 5,
+    }),
   });
   assert(reward.status === 200, `create reward failed: ${reward.status}`);
   const rewardId = reward.data?.reward?.id;
@@ -229,8 +249,8 @@ async function main() {
     body: JSON.stringify({
       customerQrToken: qrToken,
       amount_q: 50,
-      txId: crypto.randomUUID()
-    })
+      txId: crypto.randomUUID(),
+    }),
   });
   assert(award.status === 200, `award failed: ${award.status}`);
   const purchaseTransactionId = award.data?.transactionId;
@@ -242,12 +262,29 @@ async function main() {
   const requestId = crypto.randomUUID();
   const redeemPayload = JSON.stringify({ customerId, rewardId, requestId });
   const [redeemA, redeemB] = await Promise.all([
-    request(cloneJar(ownerJar), "/api/staff/redeem", { method: "POST", csrf: true, body: redeemPayload }),
-    request(cloneJar(ownerJar), "/api/staff/redeem", { method: "POST", csrf: true, body: redeemPayload })
+    request(cloneJar(ownerJar), "/api/staff/redeem", {
+      method: "POST",
+      csrf: true,
+      body: redeemPayload,
+    }),
+    request(cloneJar(ownerJar), "/api/staff/redeem", {
+      method: "POST",
+      csrf: true,
+      body: redeemPayload,
+    }),
   ]);
-  assert(redeemA.status === 200 && redeemB.status === 200, `duplicate redeem failed: ${redeemA.status}/${redeemB.status}`);
-  assert(redeemA.data?.redemptionCode === redeemB.data?.redemptionCode, "duplicate redeem returned different codes");
-  assert(Number(redeemA.data?.newBalance ?? 0) === beforePoints - 5, "duplicate redeem balance drift");
+  assert(
+    redeemA.status === 200 && redeemB.status === 200,
+    `duplicate redeem failed: ${redeemA.status}/${redeemB.status}`,
+  );
+  assert(
+    redeemA.data?.redemptionCode === redeemB.data?.redemptionCode,
+    "duplicate redeem returned different codes",
+  );
+  assert(
+    Number(redeemA.data?.newBalance ?? 0) === beforePoints - 5,
+    "duplicate redeem balance drift",
+  );
 
   const refundAward = await request(ownerJar, "/api/staff/award", {
     method: "POST",
@@ -255,8 +292,8 @@ async function main() {
     body: JSON.stringify({
       customerQrToken: refundCustomer.qrToken,
       amount_q: 50,
-      txId: crypto.randomUUID()
-    })
+      txId: crypto.randomUUID(),
+    }),
   });
   assert(refundAward.status === 200, `refund setup award failed: ${refundAward.status}`);
   const refundTransactionId = refundAward.data?.transactionId;
@@ -266,36 +303,56 @@ async function main() {
   const refundPayload = JSON.stringify({
     transactionId: refundTransactionId,
     requestId: refundRequestId,
-    reason: "live ledger duplicate refund"
+    reason: "live ledger duplicate refund",
   });
   const [refundA, refundB] = await Promise.all([
-    request(cloneJar(ownerJar), "/api/staff/refund", { method: "POST", csrf: true, body: refundPayload }),
-    request(cloneJar(ownerJar), "/api/staff/refund", { method: "POST", csrf: true, body: refundPayload })
+    request(cloneJar(ownerJar), "/api/staff/refund", {
+      method: "POST",
+      csrf: true,
+      body: refundPayload,
+    }),
+    request(cloneJar(ownerJar), "/api/staff/refund", {
+      method: "POST",
+      csrf: true,
+      body: refundPayload,
+    }),
   ]);
-  assert(refundA.status === 200 && refundB.status === 200, `duplicate refund failed: ${refundA.status}/${refundB.status}`);
-  assert(refundA.data?.reversalTransactionId === refundB.data?.reversalTransactionId, "duplicate refund returned different reversals");
+  assert(
+    refundA.status === 200 && refundB.status === 200,
+    `duplicate refund failed: ${refundA.status}/${refundB.status}`,
+  );
+  assert(
+    refundA.data?.reversalTransactionId === refundB.data?.reversalTransactionId,
+    "duplicate refund returned different reversals",
+  );
 
   const afterMe = await waitForStableCustomer(refundCustomerJar);
   assert(
     Number(afterMe.data?.customer?.points ?? 0) === Number(refundA.data?.newBalance ?? NaN),
-    "refund final balance did not match the successful refund result"
+    "refund final balance did not match the successful refund result",
   );
 
-  process.stdout.write(`${JSON.stringify({
-    ok: true,
-    redeem: {
-      statuses: [redeemA.status, redeemB.status],
-      redemptionCode: redeemA.data?.redemptionCode,
-      newBalance: redeemA.data?.newBalance
-    },
-    refund: {
-      statuses: [refundA.status, refundB.status],
-      reversalTransactionId: refundA.data?.reversalTransactionId,
-      newBalance: afterMe.data?.customer?.points,
-      expectedBalance: refundA.data?.newBalance,
-      refundCustomerId: refundCustomer.customerId
-    }
-  }, null, 2)}\n`);
+  process.stdout.write(
+    `${JSON.stringify(
+      {
+        ok: true,
+        redeem: {
+          statuses: [redeemA.status, redeemB.status],
+          redemptionCode: redeemA.data?.redemptionCode,
+          newBalance: redeemA.data?.newBalance,
+        },
+        refund: {
+          statuses: [refundA.status, refundB.status],
+          reversalTransactionId: refundA.data?.reversalTransactionId,
+          newBalance: afterMe.data?.customer?.points,
+          expectedBalance: refundA.data?.newBalance,
+          refundCustomerId: refundCustomer.customerId,
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
 }
 
 main().catch((error) => {

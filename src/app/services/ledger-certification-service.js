@@ -15,7 +15,7 @@ export function resolveCertificationPeriod(query = {}) {
 
   return {
     from: query?.from ? String(query.from) : formatDate(start),
-    to: query?.to ? String(query.to) : formatDate(end)
+    to: query?.to ? String(query.to) : formatDate(end),
   };
 }
 
@@ -26,16 +26,18 @@ function replayActions() {
     "award.refund.replay",
     "gift_card.issue.replay",
     "gift_card.redeem.replay",
-    "external_award.replay"
+    "external_award.replay",
   ];
 }
 
 function sanitizeSlug(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "business";
+  return (
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "business"
+  );
 }
 
 function parseRetentionDays(value, fallback = 90) {
@@ -51,7 +53,9 @@ function relativeArtifactPath(outputRoot, filePath) {
   return path.relative(outputRoot, filePath).replaceAll(path.sep, "/");
 }
 
-function certificationOutputRoot(root = path.join(process.cwd(), "artifacts", "ledger-certifications")) {
+function certificationOutputRoot(
+  root = path.join(process.cwd(), "artifacts", "ledger-certifications"),
+) {
   return String(process.env.LEDGER_CERTIFICATION_OUTPUT_ROOT || root);
 }
 
@@ -69,7 +73,8 @@ function writeJsonFile(fsModule, filePath, payload) {
 
 function listDayDirectories(fsModule, outputRoot) {
   if (!fsModule.existsSync(outputRoot)) return [];
-  return fsModule.readdirSync(outputRoot, { withFileTypes: true })
+  return fsModule
+    .readdirSync(outputRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && dayDirectoryName(entry.name))
     .map((entry) => entry.name)
     .sort();
@@ -100,7 +105,8 @@ function buildDayManifest(fsModule, outputRoot, dayName) {
   const dayDir = path.join(outputRoot, dayName);
   if (!fsModule.existsSync(dayDir)) return null;
 
-  const artifacts = fsModule.readdirSync(dayDir)
+  const artifacts = fsModule
+    .readdirSync(dayDir)
     .filter((file) => file.endsWith(".json") && file !== "index.json")
     .sort()
     .map((file) => {
@@ -115,7 +121,7 @@ function buildDayManifest(fsModule, outputRoot, dayName) {
         period: report.period || {},
         generatedAt: report.generated_at || null,
         jsonPath: relativeArtifactPath(outputRoot, filePath),
-        csvPath: relativeArtifactPath(outputRoot, csvPath)
+        csvPath: relativeArtifactPath(outputRoot, csvPath),
       };
     });
 
@@ -123,7 +129,7 @@ function buildDayManifest(fsModule, outputRoot, dayName) {
     generated_at: new Date().toISOString(),
     date: dayName,
     business_count: artifacts.length,
-    artifacts
+    artifacts,
   };
   writeJsonFile(fsModule, path.join(dayDir, "index.json"), manifest);
   return manifest;
@@ -139,21 +145,23 @@ function safeArtifactFileName(value) {
 
 function refreshCertificationIndexes(fsModule, outputRoot, retentionDays) {
   const dayNames = listDayDirectories(fsModule, outputRoot);
-  const days = dayNames.map((dayName) => {
-    const manifest = buildDayManifest(fsModule, outputRoot, dayName);
-    return {
-      date: dayName,
-      business_count: manifest?.business_count || 0,
-      manifest_path: `${dayName}/index.json`,
-      artifact_dir: dayName
-    };
-  }).sort((a, b) => b.date.localeCompare(a.date));
+  const days = dayNames
+    .map((dayName) => {
+      const manifest = buildDayManifest(fsModule, outputRoot, dayName);
+      return {
+        date: dayName,
+        business_count: manifest?.business_count || 0,
+        manifest_path: `${dayName}/index.json`,
+        artifact_dir: dayName,
+      };
+    })
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   const rootIndex = {
     generated_at: new Date().toISOString(),
     retention_days: retentionDays,
     day_count: days.length,
-    days
+    days,
   };
 
   if (!fsModule.existsSync(outputRoot)) {
@@ -163,18 +171,13 @@ function refreshCertificationIndexes(fsModule, outputRoot, retentionDays) {
   return rootIndex;
 }
 
-export async function readLedgerCertificationReportWithDeps(
-  deps,
-  businessId,
-  from,
-  to
-) {
+export async function readLedgerCertificationReportWithDeps(deps, businessId, from, to) {
   const [{ rows: businessRows }, { rows: dailyRows }, { rows: statusRows }] = await Promise.all([
     deps.dbQuery(
       `SELECT id, name, slug
        FROM businesses
        WHERE id = $1`,
-      [businessId]
+      [businessId],
     ),
     deps.dbQuery(
       `WITH days AS (
@@ -237,7 +240,7 @@ export async function readLedgerCertificationReportWithDeps(
        LEFT JOIN gift_card_daily gc ON gc.day = d.day
        LEFT JOIN replay_daily rp ON rp.day = d.day
        ORDER BY d.day ASC`,
-      [businessId, from, to, replayActions()]
+      [businessId, from, to, replayActions()],
     ),
     deps.dbQuery(
       `WITH latest_run AS (
@@ -265,8 +268,8 @@ export async function readLedgerCertificationReportWithDeps(
          ), 0)::int AS negative_balance_count,
          COALESCE((SELECT mismatched_customers FROM latest_run), 0)::int AS latest_reconciliation_mismatches,
          (SELECT completed_at FROM latest_run) AS latest_reconciliation_completed_at`,
-      [businessId]
-    )
+      [businessId],
+    ),
   ]);
 
   const business = businessRows[0] ?? { id: businessId, name: "Unknown business", slug: "" };
@@ -280,29 +283,32 @@ export async function readLedgerCertificationReportWithDeps(
     adjustment_points: Number(row.adjustment_points || 0),
     gift_cards_issued_q: Number(row.gift_cards_issued_q || 0),
     gift_cards_redeemed_q: Number(row.gift_cards_redeemed_q || 0),
-    replay_events: Number(row.replay_events || 0)
+    replay_events: Number(row.replay_events || 0),
   }));
 
-  const totals = daily.reduce((acc, row) => {
-    acc.points_issued += row.points_issued;
-    acc.points_redeemed += row.points_redeemed;
-    acc.points_reversed += row.points_reversed;
-    acc.points_expired += row.points_expired;
-    acc.adjustment_points += row.adjustment_points;
-    acc.gift_cards_issued_q += row.gift_cards_issued_q;
-    acc.gift_cards_redeemed_q += row.gift_cards_redeemed_q;
-    acc.replay_events += row.replay_events;
-    return acc;
-  }, {
-    points_issued: 0,
-    points_redeemed: 0,
-    points_reversed: 0,
-    points_expired: 0,
-    adjustment_points: 0,
-    gift_cards_issued_q: 0,
-    gift_cards_redeemed_q: 0,
-    replay_events: 0
-  });
+  const totals = daily.reduce(
+    (acc, row) => {
+      acc.points_issued += row.points_issued;
+      acc.points_redeemed += row.points_redeemed;
+      acc.points_reversed += row.points_reversed;
+      acc.points_expired += row.points_expired;
+      acc.adjustment_points += row.adjustment_points;
+      acc.gift_cards_issued_q += row.gift_cards_issued_q;
+      acc.gift_cards_redeemed_q += row.gift_cards_redeemed_q;
+      acc.replay_events += row.replay_events;
+      return acc;
+    },
+    {
+      points_issued: 0,
+      points_redeemed: 0,
+      points_reversed: 0,
+      points_expired: 0,
+      adjustment_points: 0,
+      gift_cards_issued_q: 0,
+      gift_cards_redeemed_q: 0,
+      replay_events: 0,
+    },
+  );
 
   const summary = {
     ...totals,
@@ -311,14 +317,15 @@ export async function readLedgerCertificationReportWithDeps(
     pending_corrections_count: Number(status.pending_corrections_count || 0),
     negative_balance_count: Number(status.negative_balance_count || 0),
     latest_reconciliation_mismatches: Number(status.latest_reconciliation_mismatches || 0),
-    latest_reconciliation_completed_at: status.latest_reconciliation_completed_at || null
+    latest_reconciliation_completed_at: status.latest_reconciliation_completed_at || null,
   };
 
-  const certificationStatus = (
-    summary.pending_corrections_count > 0
-    || summary.negative_balance_count > 0
-    || summary.latest_reconciliation_mismatches > 0
-  ) ? "REVIEW_REQUIRED" : "OK";
+  const certificationStatus =
+    summary.pending_corrections_count > 0 ||
+    summary.negative_balance_count > 0 ||
+    summary.latest_reconciliation_mismatches > 0
+      ? "REVIEW_REQUIRED"
+      : "OK";
 
   return {
     ok: true,
@@ -327,7 +334,7 @@ export async function readLedgerCertificationReportWithDeps(
     period: { from, to },
     certification_status: certificationStatus,
     summary,
-    daily_rows: daily
+    daily_rows: daily,
   };
 }
 
@@ -355,7 +362,7 @@ export function toCertificationCsvRows(report) {
     latest_reconciliation_completed_at: report.summary.latest_reconciliation_completed_at || "",
     generated_at: report.generated_at,
     period_from: report.period.from,
-    period_to: report.period.to
+    period_to: report.period.to,
   };
 
   const dayRows = report.daily_rows.map((row) => ({
@@ -376,7 +383,7 @@ export function toCertificationCsvRows(report) {
     latest_reconciliation_completed_at: "",
     generated_at: "",
     period_from: "",
-    period_to: ""
+    period_to: "",
   }));
 
   return [totalRow, ...dayRows];
@@ -401,7 +408,7 @@ export function ledgerCertificationCsv(report) {
     "latest_reconciliation_completed_at",
     "generated_at",
     "period_from",
-    "period_to"
+    "period_to",
   ]);
 }
 
@@ -412,7 +419,7 @@ export async function writeLedgerCertificationArtifactsWithDeps({
   retentionDays = certificationRetentionDays(),
   businessId,
   from,
-  to
+  to,
 }) {
   const report = await readReport(businessId, from, to);
   const dayDir = path.join(outputRoot, report.period.to);
@@ -437,7 +444,7 @@ export async function writeLedgerCertificationArtifactsWithDeps({
     rootIndexPath: path.join(outputRoot, "index.json"),
     retentionDays,
     prunedDays: retention.prunedDays,
-    indexedDays: rootIndex.day_count
+    indexedDays: rootIndex.day_count,
   };
 }
 
@@ -446,7 +453,7 @@ export async function writeLedgerCertificationArtifacts({
   from,
   to,
   outputRoot = certificationOutputRoot(),
-  retentionDays = certificationRetentionDays()
+  retentionDays = certificationRetentionDays(),
 }) {
   return writeLedgerCertificationArtifactsWithDeps({
     readReport: readLedgerCertificationReport,
@@ -455,14 +462,14 @@ export async function writeLedgerCertificationArtifacts({
     retentionDays,
     businessId,
     from,
-    to
+    to,
   });
 }
 
 export function rebuildLedgerCertificationIndexesWithDeps({
   fsModule = fs,
   outputRoot = certificationOutputRoot(),
-  retentionDays = certificationRetentionDays()
+  retentionDays = certificationRetentionDays(),
 } = {}) {
   const retention = pruneOldCertificationDays(fsModule, outputRoot, retentionDays);
   const rootIndex = refreshCertificationIndexes(fsModule, outputRoot, retentionDays);
@@ -471,18 +478,18 @@ export function rebuildLedgerCertificationIndexesWithDeps({
     retentionDays,
     prunedDays: retention.prunedDays,
     indexedDays: rootIndex.day_count,
-    rootIndexPath: path.join(outputRoot, "index.json")
+    rootIndexPath: path.join(outputRoot, "index.json"),
   };
 }
 
 export function rebuildLedgerCertificationIndexes({
   outputRoot = certificationOutputRoot(),
-  retentionDays = certificationRetentionDays()
+  retentionDays = certificationRetentionDays(),
 } = {}) {
   return rebuildLedgerCertificationIndexesWithDeps({
     fsModule: fs,
     outputRoot,
-    retentionDays
+    retentionDays,
   });
 }
 
@@ -492,7 +499,7 @@ export function rebuildLedgerCertificationIndexes({
 export function readLedgerCertificationArchiveIndexWithDeps({
   fsModule = fs,
   outputRoot = certificationOutputRoot(),
-  businessId
+  businessId,
 } = {}) {
   const rootIndexPath = path.join(outputRoot, "index.json");
   if (!fsModule.existsSync(rootIndexPath)) {
@@ -500,7 +507,7 @@ export function readLedgerCertificationArchiveIndexWithDeps({
       generated_at: new Date().toISOString(),
       retention_days: certificationRetentionDays(),
       business_id: businessId,
-      available_days: []
+      available_days: [],
     };
   }
 
@@ -522,7 +529,7 @@ export function readLedgerCertificationArchiveIndexWithDeps({
       certification_status: artifact.certificationStatus || "UNKNOWN",
       period: artifact.period || {},
       json_file: artifact.jsonPath ? path.basename(String(artifact.jsonPath)) : "",
-      csv_file: artifact.csvPath ? path.basename(String(artifact.csvPath)) : ""
+      csv_file: artifact.csvPath ? path.basename(String(artifact.csvPath)) : "",
     });
   }
 
@@ -530,7 +537,7 @@ export function readLedgerCertificationArchiveIndexWithDeps({
     generated_at: rootIndex.generated_at || new Date().toISOString(),
     retention_days: Number(rootIndex.retention_days || certificationRetentionDays()),
     business_id: businessId,
-    available_days: availableDays
+    available_days: availableDays,
   };
 }
 
@@ -539,12 +546,12 @@ export function readLedgerCertificationArchiveIndexWithDeps({
  */
 export function readLedgerCertificationArchiveIndex({
   outputRoot = certificationOutputRoot(),
-  businessId
+  businessId,
 } = {}) {
   return readLedgerCertificationArchiveIndexWithDeps({
     fsModule: fs,
     outputRoot,
-    businessId
+    businessId,
   });
 }
 
@@ -556,7 +563,7 @@ export function readLedgerCertificationArtifactWithDeps({
   outputRoot = certificationOutputRoot(),
   businessId,
   date,
-  format = "json"
+  format = "json",
 } = {}) {
   const dayName = dayDirectoryName(date);
   if (!dayName) return null;
@@ -579,7 +586,7 @@ export function readLedgerCertificationArtifactWithDeps({
     businessId,
     fileName,
     format,
-    content: fsModule.readFileSync(filePath, "utf8")
+    content: fsModule.readFileSync(filePath, "utf8"),
   };
 }
 
@@ -590,13 +597,13 @@ export function readLedgerCertificationArtifact({
   outputRoot = certificationOutputRoot(),
   businessId,
   date,
-  format = "json"
+  format = "json",
 } = {}) {
   return readLedgerCertificationArtifactWithDeps({
     fsModule: fs,
     outputRoot,
     businessId,
     date,
-    format
+    format,
   });
 }

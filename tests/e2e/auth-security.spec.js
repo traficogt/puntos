@@ -4,7 +4,9 @@ import { totp } from "../../src/utils/totp.js";
 test.describe.configure({ mode: "serial" });
 
 function rand(len = 6) {
-  return Math.random().toString(36).slice(2, 2 + len);
+  return Math.random()
+    .toString(36)
+    .slice(2, 2 + len);
 }
 
 async function useRandomClientIp(page) {
@@ -23,7 +25,7 @@ async function createBusinessForAuthFlow(page, clientIp) {
       ...(clientIp ? { "x-forwarded-for": clientIp } : {}),
       ...(process.env.SIGNUP_CAPTCHA_SECRET
         ? { "x-signup-captcha": process.env.SIGNUP_CAPTCHA_SECRET }
-        : {})
+        : {}),
     },
     data: {
       businessName,
@@ -33,8 +35,8 @@ async function createBusinessForAuthFlow(page, clientIp) {
       program_type: "SPEND",
       ...(process.env.SIGNUP_CAPTCHA_SECRET
         ? { captcha_token: process.env.SIGNUP_CAPTCHA_SECRET }
-        : {})
-    }
+        : {}),
+    },
   });
   expect(resp.ok(), `admin signup should succeed: ${await resp.text()}`).toBeTruthy();
   const body = await resp.json();
@@ -49,8 +51,8 @@ async function loginStaffViaUi(page, { email, password, mfaCode = "" }) {
   await page.fill("#email", email);
   await page.fill("#password", password);
   await page.fill("#mfaCode", mfaCode);
-  const loginResp = page.waitForResponse((resp) =>
-    resp.request().method() === "POST" && resp.url().includes("/api/staff/login")
+  const loginResp = page.waitForResponse(
+    (resp) => resp.request().method() === "POST" && resp.url().includes("/api/staff/login"),
   );
   await page.click("#btnLogin");
   const resp = await loginResp;
@@ -83,14 +85,16 @@ test("staff can enable MFA through UI and use it on next login", async ({ page }
   await expect(page.locator("#btnStaffReauth")).toBeVisible();
 
   await page.fill("#staffReauthPassword", out.password);
-  const reauthResp = page.waitForResponse((resp) =>
-    resp.request().method() === "POST" && resp.url().includes("/api/staff/security/reauth")
+  const reauthResp = page.waitForResponse(
+    (resp) =>
+      resp.request().method() === "POST" && resp.url().includes("/api/staff/security/reauth"),
   );
   await page.click("#btnStaffReauth");
   expect((await reauthResp).ok()).toBeTruthy();
 
-  const enrollResp = page.waitForResponse((resp) =>
-    resp.request().method() === "POST" && resp.url().includes("/api/staff/security/mfa/enroll")
+  const enrollResp = page.waitForResponse(
+    (resp) =>
+      resp.request().method() === "POST" && resp.url().includes("/api/staff/security/mfa/enroll"),
   );
   await page.click("#btnStaffMfaEnroll");
   expect((await enrollResp).ok()).toBeTruthy();
@@ -101,14 +105,15 @@ test("staff can enable MFA through UI and use it on next login", async ({ page }
   const secret = String(match[1]);
 
   await page.fill("#staffMfaConfirmCode", totp(secret));
-  const confirmResp = page.waitForResponse((resp) =>
-    resp.request().method() === "POST" && resp.url().includes("/api/staff/security/mfa/confirm")
+  const confirmResp = page.waitForResponse(
+    (resp) =>
+      resp.request().method() === "POST" && resp.url().includes("/api/staff/security/mfa/confirm"),
   );
   await page.click("#btnStaffMfaConfirm");
   expect((await confirmResp).ok()).toBeTruthy();
 
-  const logoutResp = page.waitForResponse((resp) =>
-    resp.request().method() === "POST" && resp.url().includes("/api/staff/logout")
+  const logoutResp = page.waitForResponse(
+    (resp) => resp.request().method() === "POST" && resp.url().includes("/api/staff/logout"),
   );
   await page.click("#btnLogout");
   expect((await logoutResp).ok()).toBeTruthy();
@@ -116,8 +121,8 @@ test("staff can enable MFA through UI and use it on next login", async ({ page }
   await page.goto("/staff/login?sw=off", { waitUntil: "domcontentloaded" });
   await page.fill("#email", out.email);
   await page.fill("#password", out.password);
-  const failedLogin = page.waitForResponse((resp) =>
-    resp.request().method() === "POST" && resp.url().includes("/api/staff/login")
+  const failedLogin = page.waitForResponse(
+    (resp) => resp.request().method() === "POST" && resp.url().includes("/api/staff/login"),
   );
   await page.click("#btnLogin");
   expect((await failedLogin).status()).toBe(401);
@@ -127,14 +132,16 @@ test("staff can enable MFA through UI and use it on next login", async ({ page }
   await page.goto("/staff?sw=off", { waitUntil: "domcontentloaded" });
   await page.fill("#staffReauthPassword", out.password);
   await page.fill("#staffReauthMfaCode", totp(secret));
-  const reauthWithMfaResp = page.waitForResponse((resp) =>
-    resp.request().method() === "POST" && resp.url().includes("/api/staff/security/reauth")
+  const reauthWithMfaResp = page.waitForResponse(
+    (resp) =>
+      resp.request().method() === "POST" && resp.url().includes("/api/staff/security/reauth"),
   );
   await page.click("#btnStaffReauth");
   expect((await reauthWithMfaResp).ok()).toBeTruthy();
 
-  const disableResp = page.waitForResponse((resp) =>
-    resp.request().method() === "POST" && resp.url().includes("/api/staff/security/mfa/disable")
+  const disableResp = page.waitForResponse(
+    (resp) =>
+      resp.request().method() === "POST" && resp.url().includes("/api/staff/security/mfa/disable"),
   );
   await page.click("#btnStaffMfaDisable");
   expect((await disableResp).ok()).toBeTruthy();
@@ -154,21 +161,26 @@ test("super page exposes recovery controls and security actions", async ({ page 
 test("super can use MFA controls through UI when credentials are configured", async ({ page }) => {
   const email = process.env.SUPER_ADMIN_EMAIL || "";
   const password = process.env.SUPER_ADMIN_PASSWORD || "";
-  test.skip(!email || !password, "SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD are required for super UI auth test");
+  test.skip(
+    !email || !password,
+    "SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD are required for super UI auth test",
+  );
 
   await useRandomClientIp(page);
   await page.goto("/super?sw=off", { waitUntil: "domcontentloaded" });
   await page.fill("#email", email);
   await page.fill("#password", password);
 
-  const loginResp = page.waitForResponse((resp) =>
-    resp.request().method() === "POST" && resp.url().includes("/api/super/login")
+  const loginResp = page.waitForResponse(
+    (resp) => resp.request().method() === "POST" && resp.url().includes("/api/super/login"),
   );
   await page.click("#btnLogin");
   const response = await loginResp;
   expect(response.ok(), `super login returned HTTP ${response.status()}`).toBeTruthy();
 
-  await expect(page.getByRole("heading", { name: "Postura de seguridad (24h)", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Postura de seguridad (24h)", exact: true }),
+  ).toBeVisible();
   await expect(page.locator("#btnSuperReauth")).toBeVisible();
   await expect(page.locator("#btnSuperMfaEnroll")).toBeVisible();
   await expect(page.locator("#btnSuperMfaDisable")).toBeVisible();

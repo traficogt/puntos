@@ -46,8 +46,8 @@ const business = {
     customer_program_name: "Recompensas Test Biz",
     primary_color: "#6D3524",
     accent_color: "#D7A554",
-    powered_by_visible: true
-  }
+    powered_by_visible: true,
+  },
 };
 const customer = {
   id: customerId,
@@ -58,7 +58,7 @@ const customer = {
   pending_points: 0,
   lifetime_points: 100,
   created_at: new Date().toISOString(),
-  last_visit_at: new Date().toISOString()
+  last_visit_at: new Date().toISOString(),
 };
 
 // Patch repos to avoid DB
@@ -76,7 +76,7 @@ function makeReq(path) {
     headers: {},
     cookies: {},
     rawBody: "",
-    ip: "127.0.0.1"
+    ip: "127.0.0.1",
   };
 }
 
@@ -86,11 +86,27 @@ function makeRes() {
     headers: {},
     clearedCookies: [],
     body: null,
-    setHeader(name, value) { this.headers[name.toLowerCase()] = value; },
-    clearCookie(name) { this.clearedCookies.push(name); return this; },
-    status(code) { this.statusCode = code; return this; },
-    json(payload) { this.body = payload; this.sent = true; return this; },
-    send(payload) { this.body = payload; this.sent = true; return this; }
+    setHeader(name, value) {
+      this.headers[name.toLowerCase()] = value;
+    },
+    clearCookie(name) {
+      this.clearedCookies.push(name);
+      return this;
+    },
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(payload) {
+      this.body = payload;
+      this.sent = true;
+      return this;
+    },
+    send(payload) {
+      this.body = payload;
+      this.sent = true;
+      return this;
+    },
   };
   return res;
 }
@@ -107,9 +123,11 @@ async function runHandlers(handlers, req, res) {
       try {
         const maybe = handler(req, res, next);
         if (maybe && typeof maybe.then === "function") {
-          maybe.then(() => {
-            if (idx === handlers.length - 1) resolve(undefined);
-          }).catch(reject);
+          maybe
+            .then(() => {
+              if (idx === handlers.length - 1) resolve(undefined);
+            })
+            .catch(reject);
         } else if (idx === handlers.length - 1) {
           resolve(undefined);
         }
@@ -150,7 +168,10 @@ describe("customer happy path flow (no network/listen)", () => {
     assert.equal(resMe.statusCode, 200);
     assert.equal(resMe.body.customer.id, customerId);
     assert.equal(resMe.body.business.id, businessId);
-    assert.equal(resMe.body.business.customer_branding.customer_program_name, "Recompensas Test Biz");
+    assert.equal(
+      resMe.body.business.customer_branding.customer_program_name,
+      "Recompensas Test Biz",
+    );
 
     // /public/customer/qr.svg
     const reqQr = makeReq("/api/public/customer/qr.svg");
@@ -166,7 +187,10 @@ describe("customer happy path flow (no network/listen)", () => {
     assert.equal(resQr.statusCode, 200);
     assert.ok((resQr.headers["content-type"] || "").includes("image/svg+xml"));
     assert.ok(resQr.headers["x-qr-exp"]);
-    assert.ok(String(resQr.body || resQr.sent ? "" : "").includes("<svg") || String(resQr.body || "").includes("<svg"));
+    assert.ok(
+      String(resQr.body || resQr.sent ? "" : "").includes("<svg") ||
+        String(resQr.body || "").includes("<svg"),
+    );
   });
 
   it("clears stale customer auth when the customer no longer exists", async () => {

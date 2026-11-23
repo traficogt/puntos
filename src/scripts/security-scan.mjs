@@ -3,7 +3,15 @@ import path from "node:path";
 /* eslint security/detect-non-literal-fs-filename: off */
 
 const ROOT = process.cwd();
-const TARGET_DIRS = ["src/app", "public", "src/middleware", "src/utils", "src/scripts", "web/merchant/src", "web/astryx-prototype/src"];
+const TARGET_DIRS = [
+  "src/app",
+  "public",
+  "src/middleware",
+  "src/utils",
+  "src/scripts",
+  "web/merchant/src",
+  "web/astryx-prototype/src",
+];
 const SKIP_FILES = new Set([path.join(ROOT, "src", "scripts", "security-scan.mjs")]);
 const SKIP_DIRS = new Set(["node_modules", ".git", "playwright-report", "test-results"]);
 // React's compiled runtime contains DOM primitives. Check the maintained JSX
@@ -11,7 +19,7 @@ const SKIP_DIRS = new Set(["node_modules", ".git", "playwright-report", "test-re
 const GENERATED_DIRS = new Set([
   path.join(ROOT, "public", "merchant", "assets"),
   path.join(ROOT, "public", "merchant", "recursos"),
-  path.join(ROOT, "public", "revision-astryx", "9b72f5a1", "assets")
+  path.join(ROOT, "public", "revision-astryx", "9b72f5a1", "assets"),
 ]);
 const JS_EXT = new Set([".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx"]);
 
@@ -19,13 +27,13 @@ const RULES = [
   {
     name: "dangerous-dom-sink",
     re: /\b(innerHTML|outerHTML|insertAdjacentHTML|dangerouslySetInnerHTML)\b/,
-    message: "Potential XSS sink found. Prefer DOM nodes + textContent."
+    message: "Potential XSS sink found. Prefer DOM nodes + textContent.",
   },
   {
     name: "dynamic-code-exec",
     re: /\b(eval|new Function)\s*\(/,
-    message: "Dynamic code execution is blocked."
-  }
+    message: "Dynamic code execution is blocked.",
+  },
 ];
 
 function walk(dir, acc) {
@@ -54,7 +62,13 @@ function scanFile(file) {
     const codeOnly = line.includes("//") ? line.slice(0, line.indexOf("//")) : line;
     for (const rule of RULES) {
       if (rule.re.test(codeOnly)) {
-        issues.push({ file, line: i + 1, rule: rule.name, message: rule.message, snippet: line.trim() });
+        issues.push({
+          file,
+          line: i + 1,
+          rule: rule.name,
+          message: rule.message,
+          snippet: line.trim(),
+        });
       }
     }
   }

@@ -9,10 +9,15 @@
  *   notifyBranchFilterChanged: (branchId: string) => void
  * }} deps
  */
-export function createBranchFilter({ $, state, syncDashboardViewToUrl, notifyBranchFilterChanged }) {
+export function createBranchFilter({
+  $,
+  state,
+  syncDashboardViewToUrl,
+  notifyBranchFilterChanged,
+}) {
   function selectedBranchId() {
     const el = /** @type {HTMLSelectElement | null} */ ($("#branchFilter"));
-    return el ? (el.value || state.persistedBranchId || "") : (state.persistedBranchId || "");
+    return el ? el.value || state.persistedBranchId || "" : state.persistedBranchId || "";
   }
 
   function branchQueryString() {
@@ -44,6 +49,6 @@ export function createBranchFilter({ $, state, syncDashboardViewToUrl, notifyBra
     selectedBranchId,
     branchQueryString,
     selectedBranchLabel,
-    applyBranchDrilldown
+    applyBranchDrilldown,
   };
 }

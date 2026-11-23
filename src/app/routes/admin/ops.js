@@ -25,7 +25,7 @@ adminOpsRoutes.get(
            COUNT(*) FILTER (WHERE created_at >= now() - interval '24 hours')::int AS jobs_last_24h
          FROM background_jobs
          WHERE business_id = $1`,
-        [businessId]
+        [businessId],
       ),
       dbQuery(
         `SELECT
@@ -34,7 +34,7 @@ adminOpsRoutes.get(
          FROM webhook_deliveries d
          JOIN webhook_endpoints e ON e.id = d.endpoint_id
          WHERE e.business_id = $1`,
-        [businessId]
+        [businessId],
       ),
       dbQuery(
         `SELECT
@@ -42,7 +42,7 @@ adminOpsRoutes.get(
            COUNT(*) FILTER (WHERE status = 'FAILED')::int AS failed_payment_webhooks
          FROM payment_webhook_events
          WHERE business_id = $1`,
-        [businessId]
+        [businessId],
       ),
       dbQuery(
         `SELECT COUNT(*)::int AS suspicious_awards_24h
@@ -50,7 +50,7 @@ adminOpsRoutes.get(
          WHERE business_id = $1
            AND created_at >= now() - interval '24 hours'
            AND COALESCE((meta->'guard'->>'suspicious')::boolean, false) = true`,
-        [businessId]
+        [businessId],
       ),
       dbQuery(
         `SELECT id, job_type, status, created_at, error
@@ -59,8 +59,8 @@ adminOpsRoutes.get(
            AND status = 'FAILED'
          ORDER BY created_at DESC
          LIMIT 5`,
-        [businessId]
-      )
+        [businessId],
+      ),
     ]);
 
     const failedJobs = Number(jobsAgg.rows?.[0]?.failed_jobs ?? 0);
@@ -84,12 +84,12 @@ adminOpsRoutes.get(
         suspicious_awards_24h: suspicious24h,
         health_score: Math.max(
           0,
-          100 - (failedJobs * 8) - (failedWebhooks * 6) - (failedPaymentWebhooks * 5) - (suspicious24h * 2)
-        )
+          100 - failedJobs * 8 - failedWebhooks * 6 - failedPaymentWebhooks * 5 - suspicious24h * 2,
+        ),
       },
-      recent_failed_jobs: recentFailedJobs.rows
+      recent_failed_jobs: recentFailedJobs.rows,
     });
-  })
+  }),
 );
 
 adminOpsRoutes.post(
@@ -103,9 +103,10 @@ adminOpsRoutes.post(
     const job = await enqueueJob({
       businessId: req.tenantId,
       jobType: "lifecycle.run",
-      payload: { trigger: "manual" }
+      payload: { trigger: "manual" },
     });
-    return res.status(202).json({ ok: true, job: { id: job.id, status: job.status, created_at: job.created_at } });
-  })
+    return res
+      .status(202)
+      .json({ ok: true, job: { id: job.id, status: job.status, created_at: job.created_at } });
+  }),
 );
-

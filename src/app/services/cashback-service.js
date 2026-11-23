@@ -18,11 +18,11 @@ async function lockAccount(client, businessId, customerId) {
   await client.query(
     `INSERT INTO cashback_accounts (customer_id, business_id)
      VALUES ($1, $2) ON CONFLICT (customer_id) DO NOTHING`,
-    [customerId, businessId]
+    [customerId, businessId],
   );
   const row = await client.query(
     `SELECT balance_q FROM cashback_accounts WHERE customer_id = $1 FOR UPDATE`,
-    [customerId]
+    [customerId],
   );
   if (!row.rows.length) throw badRequest("No se pudo abrir la cuenta de cashback.");
   return Number(row.rows[0].balance_q);
@@ -33,7 +33,16 @@ async function lockAccount(client, businessId, customerId) {
 // source transaction id so a replayed award does not credit twice.
 export async function accrueCashback(
   client,
-  { businessId, customerId, staffUserId = null, amountQ = 0, earnQ, sourceTransactionId = null, requestId, meta = {} }
+  {
+    businessId,
+    customerId,
+    staffUserId = null,
+    amountQ = 0,
+    earnQ,
+    sourceTransactionId = null,
+    requestId,
+    meta = {},
+  },
 ) {
   const earn = round2(earnQ);
   if (!(earn > 0)) return null;
@@ -46,14 +55,24 @@ export async function accrueCashback(
      VALUES ($1, $2, $3, $4, $5, 'EARN', $6, $7, $8, $9)
      ON CONFLICT (business_id, request_id) DO NOTHING
      RETURNING id`,
-    [crypto.randomUUID(), businessId, customerId, staffUserId, reqId, earn, balanceAfter, sourceTransactionId, { ...meta, amount_q: round2(amountQ) }]
+    [
+      crypto.randomUUID(),
+      businessId,
+      customerId,
+      staffUserId,
+      reqId,
+      earn,
+      balanceAfter,
+      sourceTransactionId,
+      { ...meta, amount_q: round2(amountQ) },
+    ],
   );
   if (ins.rowCount !== 1) return { earn_q: 0, balance_after_q: balance, replay: true };
   await client.query(
     `UPDATE cashback_accounts
        SET balance_q = balance_q + $2, lifetime_earned_q = lifetime_earned_q + $2, updated_at = now()
      WHERE customer_id = $1`,
-    [customerId, earn]
+    [customerId, earn],
   );
   return { earn_q: earn, balance_after_q: balanceAfter };
 }
@@ -63,14 +82,14 @@ export async function accrueCashback(
 // balance_after_q, replay? }.
 export async function spendCashback(
   client,
-  { businessId, customerId, staffUserId = null, amountQ, requestId, meta = {} }
+  { businessId, customerId, staffUserId = null, amountQ, requestId, meta = {} },
 ) {
   const spend = round2(amountQ);
   if (!(spend > 0)) throw badRequest("El monto a usar debe ser mayor que cero.");
   const reqId = requestId || crypto.randomUUID();
   const already = await client.query(
     `SELECT tx_type, customer_id, balance_after_q FROM cashback_transactions WHERE business_id = $1 AND request_id = $2`,
-    [businessId, reqId]
+    [businessId, reqId],
   );
   if (already.rows.length) {
     const row = already.rows[0];
@@ -88,12 +107,12 @@ export async function spendCashback(
      VALUES ($1, $2, $3, $4, $5, 'SPEND', $6, $7, NULL, $8)
      ON CONFLICT (business_id, request_id) DO NOTHING
      RETURNING id`,
-    [crypto.randomUUID(), businessId, customerId, staffUserId, reqId, -spend, balanceAfter, meta]
+    [crypto.randomUUID(), businessId, customerId, staffUserId, reqId, -spend, balanceAfter, meta],
   );
   if (ins.rowCount !== 1) {
     const prev = await client.query(
       `SELECT tx_type, customer_id, balance_after_q FROM cashback_transactions WHERE business_id = $1 AND request_id = $2`,
-      [businessId, reqId]
+      [businessId, reqId],
     );
     const row = prev.rows[0];
     if (!row || row.tx_type !== "SPEND" || row.customer_id !== customerId) {
@@ -105,7 +124,7 @@ export async function spendCashback(
     `UPDATE cashback_accounts
        SET balance_q = balance_q - $2, lifetime_spent_q = lifetime_spent_q + $2, updated_at = now()
      WHERE customer_id = $1`,
-    [customerId, spend]
+    [customerId, spend],
   );
   return { spent_q: spend, balance_after_q: balanceAfter };
 }
@@ -119,20 +138,20 @@ export async function spendCashback(
 // earned).
 export async function reverseCashback(
   client,
-  { businessId, customerId, sourceTransactionId, meta = {} }
+  { businessId, customerId, sourceTransactionId, meta = {} },
 ) {
   const earnedRow = await client.query(
     `SELECT COALESCE(SUM(amount_q), 0) AS earned_q
        FROM cashback_transactions
       WHERE business_id = $1 AND source_transaction_id = $2 AND tx_type = 'EARN'`,
-    [businessId, sourceTransactionId]
+    [businessId, sourceTransactionId],
   );
   const accrued = round2(Number(earnedRow.rows[0]?.earned_q ?? 0));
   if (!(accrued > 0)) return null;
   const dup = await client.query(
     `SELECT balance_after_q FROM cashback_transactions
       WHERE business_id = $1 AND source_transaction_id = $2 AND tx_type = 'REVERSE'`,
-    [businessId, sourceTransactionId]
+    [businessId, sourceTransactionId],
   );
   if (dup.rows.length) {
     return { reversed_q: 0, balance_after_q: Number(dup.rows[0].balance_after_q), replay: true };
@@ -153,7 +172,17 @@ export async function reverseCashback(
      VALUES ($1, $2, $3, $4, $5, 'REVERSE', $6, $7, $8, $9)
      ON CONFLICT (business_id, request_id) DO NOTHING
      RETURNING id`,
-    [crypto.randomUUID(), businessId, customerId, null, reqId, -amount, balanceAfter, sourceTransactionId, { ...meta, accrued_q: accrued, shortfall_q: shortfall }]
+    [
+      crypto.randomUUID(),
+      businessId,
+      customerId,
+      null,
+      reqId,
+      -amount,
+      balanceAfter,
+      sourceTransactionId,
+      { ...meta, accrued_q: accrued, shortfall_q: shortfall },
+    ],
   );
   if (ins.rowCount !== 1) {
     return { reversed_q: 0, balance_after_q: balance, shortfall_q: shortfall, replay: true };
@@ -165,7 +194,7 @@ export async function reverseCashback(
               lifetime_earned_q = GREATEST(0, lifetime_earned_q - $2),
               updated_at = now()
         WHERE customer_id = $1`,
-      [customerId, amount]
+      [customerId, amount],
     );
   }
   return { reversed_q: amount, balance_after_q: balanceAfter, shortfall_q: shortfall };
@@ -176,13 +205,13 @@ export async function reverseCashback(
 export async function getCashbackBalance(client, customerId) {
   const row = await client.query(
     `SELECT balance_q, lifetime_earned_q, lifetime_spent_q FROM cashback_accounts WHERE customer_id = $1`,
-    [customerId]
+    [customerId],
   );
   if (!row.rows.length) return { balance_q: 0, lifetime_earned_q: 0, lifetime_spent_q: 0 };
   return {
     balance_q: Number(row.rows[0].balance_q),
     lifetime_earned_q: Number(row.rows[0].lifetime_earned_q),
-    lifetime_spent_q: Number(row.rows[0].lifetime_spent_q)
+    lifetime_spent_q: Number(row.rows[0].lifetime_spent_q),
   };
 }
 
@@ -196,7 +225,7 @@ export async function getCashbackBalance(client, customerId) {
 // { loaded_q, base_q, bonus_q, balance_after_q, replay? }.
 export async function loadStoredValue(
   client,
-  { businessId, customerId, staffUserId = null, amountQ, bonusQ = 0, requestId, meta = {} }
+  { businessId, customerId, staffUserId = null, amountQ, bonusQ = 0, requestId, meta = {} },
 ) {
   const base = round2(amountQ);
   const bonus = Math.max(0, round2(bonusQ));
@@ -211,14 +240,24 @@ export async function loadStoredValue(
      VALUES ($1, $2, $3, $4, $5, 'LOAD', $6, $7, NULL, $8)
      ON CONFLICT (business_id, request_id) DO NOTHING
      RETURNING id`,
-    [crypto.randomUUID(), businessId, customerId, staffUserId, reqId, total, balanceAfter, { ...meta, base_q: base, bonus_q: bonus }]
+    [
+      crypto.randomUUID(),
+      businessId,
+      customerId,
+      staffUserId,
+      reqId,
+      total,
+      balanceAfter,
+      { ...meta, base_q: base, bonus_q: bonus },
+    ],
   );
-  if (ins.rowCount !== 1) return { loaded_q: 0, base_q: 0, bonus_q: 0, balance_after_q: balance, replay: true };
+  if (ins.rowCount !== 1)
+    return { loaded_q: 0, base_q: 0, bonus_q: 0, balance_after_q: balance, replay: true };
   await client.query(
     `UPDATE cashback_accounts
        SET balance_q = balance_q + $2, lifetime_earned_q = lifetime_earned_q + $2, updated_at = now()
      WHERE customer_id = $1`,
-    [customerId, total]
+    [customerId, total],
   );
   return { loaded_q: total, base_q: base, bonus_q: bonus, balance_after_q: balanceAfter };
 }
@@ -230,11 +269,12 @@ export async function loadStoredValue(
 // { transferred_q, balance_after_q, replay? }.
 export async function transferStoredValue(
   client,
-  { businessId, fromCustomerId, toCustomerId, amountQ, requestId, meta = {} }
+  { businessId, fromCustomerId, toCustomerId, amountQ, requestId, meta = {} },
 ) {
   const amount = round2(amountQ);
   if (!(amount > 0)) throw badRequest("El monto a regalar debe ser mayor que cero.");
-  if (fromCustomerId === toCustomerId) throw badRequest("No puedes regalar saldo a tu misma cuenta.");
+  if (fromCustomerId === toCustomerId)
+    throw badRequest("No puedes regalar saldo a tu misma cuenta.");
   const reqId = requestId || crypto.randomUUID();
   // Lock both accounts first, in a deterministic order, so concurrent transfers
   // serialize and the idempotency check below sees any committed prior attempt.
@@ -244,10 +284,14 @@ export async function transferStoredValue(
   const already = await client.query(
     `SELECT balance_after_q FROM cashback_transactions
       WHERE business_id = $1 AND request_id = $2 AND tx_type = 'TRANSFER_OUT'`,
-    [businessId, reqId]
+    [businessId, reqId],
   );
   if (already.rows.length) {
-    return { transferred_q: amount, balance_after_q: Number(already.rows[0].balance_after_q), replay: true };
+    return {
+      transferred_q: amount,
+      balance_after_q: Number(already.rows[0].balance_after_q),
+      replay: true,
+    };
   }
   const fromBalance = bal[fromCustomerId];
   if (amount - fromBalance > 0.000001) throw badRequest("Saldo insuficiente para regalar.");
@@ -257,25 +301,41 @@ export async function transferStoredValue(
     `INSERT INTO cashback_transactions
        (id, business_id, customer_id, staff_user_id, request_id, tx_type, amount_q, balance_after_q, source_transaction_id, meta)
      VALUES ($1, $2, $3, NULL, $4, 'TRANSFER_OUT', $5, $6, NULL, $7)`,
-    [crypto.randomUUID(), businessId, fromCustomerId, reqId, -amount, fromAfter, { ...meta, to_customer_id: toCustomerId }]
+    [
+      crypto.randomUUID(),
+      businessId,
+      fromCustomerId,
+      reqId,
+      -amount,
+      fromAfter,
+      { ...meta, to_customer_id: toCustomerId },
+    ],
   );
   await client.query(
     `INSERT INTO cashback_transactions
        (id, business_id, customer_id, staff_user_id, request_id, tx_type, amount_q, balance_after_q, source_transaction_id, meta)
      VALUES ($1, $2, $3, NULL, $4, 'TRANSFER_IN', $5, $6, NULL, $7)`,
-    [crypto.randomUUID(), businessId, toCustomerId, crypto.randomUUID(), amount, toAfter, { ...meta, from_customer_id: fromCustomerId }]
+    [
+      crypto.randomUUID(),
+      businessId,
+      toCustomerId,
+      crypto.randomUUID(),
+      amount,
+      toAfter,
+      { ...meta, from_customer_id: fromCustomerId },
+    ],
   );
   await client.query(
     `UPDATE cashback_accounts
        SET balance_q = balance_q - $2, lifetime_spent_q = lifetime_spent_q + $2, updated_at = now()
      WHERE customer_id = $1`,
-    [fromCustomerId, amount]
+    [fromCustomerId, amount],
   );
   await client.query(
     `UPDATE cashback_accounts
        SET balance_q = balance_q + $2, lifetime_earned_q = lifetime_earned_q + $2, updated_at = now()
      WHERE customer_id = $1`,
-    [toCustomerId, amount]
+    [toCustomerId, amount],
   );
   return { transferred_q: amount, balance_after_q: fromAfter };
 }

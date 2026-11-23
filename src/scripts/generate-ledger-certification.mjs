@@ -27,17 +27,20 @@ async function main() {
   prepareSecretFileEnv();
   const { withDbClientContext, closeDatabase } = await import("../app/database.js");
   const { BusinessRepo } = await import("../app/repositories/business-repository.js");
-  const {
-    resolveCertificationPeriod,
-    writeLedgerCertificationArtifacts
-  } = await import("../app/services/ledger-certification-service.js");
+  const { resolveCertificationPeriod, writeLedgerCertificationArtifacts } =
+    await import("../app/services/ledger-certification-service.js");
 
   const businessId = cliArg("--business-id", "");
-  const outputRoot = cliArg("--output-root", path.join(process.cwd(), "artifacts", "ledger-certifications"));
-  const retentionDays = Number(cliArg("--retention-days", process.env.LEDGER_CERTIFICATION_RETENTION_DAYS || "90"));
+  const outputRoot = cliArg(
+    "--output-root",
+    path.join(process.cwd(), "artifacts", "ledger-certifications"),
+  );
+  const retentionDays = Number(
+    cliArg("--retention-days", process.env.LEDGER_CERTIFICATION_RETENTION_DAYS || "90"),
+  );
   const period = resolveCertificationPeriod({
     from: cliArg("--from", ""),
-    to: cliArg("--to", "")
+    to: cliArg("--to", ""),
   });
 
   try {
@@ -50,24 +53,32 @@ async function main() {
       }
       const out = [];
       for (const bid of businessIds) {
-        out.push(await writeLedgerCertificationArtifacts({
-          businessId: bid,
-          from: period.from,
-          to: period.to,
-          outputRoot,
-          retentionDays
-        }));
+        out.push(
+          await writeLedgerCertificationArtifacts({
+            businessId: bid,
+            from: period.from,
+            to: period.to,
+            outputRoot,
+            retentionDays,
+          }),
+        );
       }
       return out;
     });
 
-    process.stdout.write(`${JSON.stringify({
-      ok: true,
-      period,
-      retentionDays,
-      count: results.length,
-      artifacts: results
-    }, null, 2)}\n`);
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          ok: true,
+          period,
+          retentionDays,
+          count: results.length,
+          artifacts: results,
+        },
+        null,
+        2,
+      )}\n`,
+    );
   } finally {
     await closeDatabase().catch(() => {});
   }

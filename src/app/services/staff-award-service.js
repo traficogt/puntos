@@ -1,6 +1,6 @@
 import { assertRegionAmount, regionCurrency } from "./regional-settings.js";
 import crypto from "node:crypto";
-import { purchaseEventTime, assertPurchaseTimeReplay } from './purchase-event-time.js';
+import { purchaseEventTime, assertPurchaseTimeReplay } from "./purchase-event-time.js";
 
 import { BusinessRepo } from "../repositories/business-repository.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
@@ -32,10 +32,10 @@ function id() {
 }
 
 async function lockAwardRequest(client, businessId, txId) {
-  await client.query(
-    `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
-    [String(businessId), String(txId)]
-  );
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
+    String(businessId),
+    String(txId),
+  ]);
 }
 
 function logAwardGuardAction({ businessId, staff, action, meta }) {
@@ -47,21 +47,34 @@ function logAwardGuardAction({ businessId, staff, action, meta }) {
     action,
     ip: null,
     ua: null,
-    meta: withImpersonationMeta(meta, staff)
+    meta: withImpersonationMeta(meta, staff),
   }).catch(() => {});
 }
 
 async function settleCustomerPoints(customerId, businessId) {
   if (config.NODE_ENV === "test") return;
   await settlePendingPointsForCustomer(customerId, businessId).catch((err) => {
-    logger.warn({ err: err?.message, customerId, businessId }, "settlePendingPointsForCustomer failed");
+    logger.warn(
+      { err: err?.message, customerId, businessId },
+      "settlePendingPointsForCustomer failed",
+    );
   });
   await expirePointsForCustomer(customerId, businessId).catch((err) => {
     logger.warn({ err: err?.message, customerId, businessId }, "expirePointsForCustomer failed");
   });
 }
 
-async function enforceAwardGuards({ businessId, customerId, staff, guardCfg, amountQ, visits, items, points, currency="GTQ" }) {
+async function enforceAwardGuards({
+  businessId,
+  customerId,
+  staff,
+  guardCfg,
+  amountQ,
+  visits,
+  items,
+  points,
+  currency = "GTQ",
+}) {
   const maxAmountQ = Number(guardCfg.max_amount_q ?? 0);
   const maxVisits = Number(guardCfg.max_visits ?? 0);
   const maxItems = Number(guardCfg.max_items ?? 0);
@@ -72,7 +85,7 @@ async function enforceAwardGuards({ businessId, customerId, staff, guardCfg, amo
       businessId,
       staff,
       action: "award.denied.max_amount_q",
-      meta: { amount_q: amountQ, max_amount_q: maxAmountQ, customer_id: customerId }
+      meta: { amount_q: amountQ, max_amount_q: maxAmountQ, customer_id: customerId },
     });
     throw forbidden(`El monto supera el máximo permitido (${maxAmountQ} ${currency})`);
   }
@@ -82,7 +95,7 @@ async function enforceAwardGuards({ businessId, customerId, staff, guardCfg, amo
       businessId,
       staff,
       action: "award.denied.max_visits",
-      meta: { visits, max_visits: maxVisits, customer_id: customerId }
+      meta: { visits, max_visits: maxVisits, customer_id: customerId },
     });
     throw forbidden(`Visits exceed max allowed (${maxVisits})`);
   }
@@ -92,7 +105,7 @@ async function enforceAwardGuards({ businessId, customerId, staff, guardCfg, amo
       businessId,
       staff,
       action: "award.denied.max_items",
-      meta: { items, max_items: maxItems, customer_id: customerId }
+      meta: { items, max_items: maxItems, customer_id: customerId },
     });
     throw forbidden(`Items exceed max allowed (${maxItems})`);
   }
@@ -102,7 +115,7 @@ async function enforceAwardGuards({ businessId, customerId, staff, guardCfg, amo
       businessId,
       staff,
       action: "award.denied.max_points_per_tx",
-      meta: { points, max_points_per_tx: maxPointsPerTx, customer_id: customerId }
+      meta: { points, max_points_per_tx: maxPointsPerTx, customer_id: customerId },
     });
     throw forbidden(`Points exceed max allowed (${maxPointsPerTx})`);
   }
@@ -124,56 +137,130 @@ const defaultDeps = {
   enqueueWebhookEvent,
   loadTierService: () => import("./tier-service.js"),
   loadGamificationService: () => import("./gamification-service.js"),
-  loadReferralService: () => import("./referral-service.js")
+  loadReferralService: () => import("./referral-service.js"),
 };
 
 export async function awardPointsWithDeps(
   deps,
-  { staff, customerQrToken, amount_q = 0, visits = 0, items = 0, source = "online", meta = /** @type {Record<string, any>} */ ({}), txId = null, offlineGrant = null }
+  {
+    staff,
+    customerQrToken,
+    amount_q = 0,
+    visits = 0,
+    items = 0,
+    source = "online",
+    meta = /** @type {Record<string, any>} */ ({}),
+    txId = null,
+    offlineGrant = null,
+  },
 ) {
   const typedDeps = deps;
-  const normalizedVisits = Number.isFinite(Number(visits)) ? Math.max(0, Math.floor(Number(visits))) : 0;
-  const normalizedItems = Number.isFinite(Number(items)) ? Math.max(0, Math.floor(Number(items))) : 0;
+  const normalizedVisits = Number.isFinite(Number(visits))
+    ? Math.max(0, Math.floor(Number(visits)))
+    : 0;
+  const normalizedItems = Number.isFinite(Number(items))
+    ? Math.max(0, Math.floor(Number(items)))
+    : 0;
   const normalizedAmountQ = Number(amount_q ?? 0);
-  if (!isLedgerAmount(normalizedAmountQ) || !isLedgerInteger(normalizedVisits) || !isLedgerInteger(normalizedItems)) throw badRequest("El monto o las cantidades no son válidos.");
-  const purchaseTime = purchaseEventTime(source === 'offline' ? meta.client_ts : null, 'client_reported');
+  if (
+    !isLedgerAmount(normalizedAmountQ) ||
+    !isLedgerInteger(normalizedVisits) ||
+    !isLedgerInteger(normalizedItems)
+  )
+    throw badRequest("El monto o las cantidades no son válidos.");
+  const purchaseTime = purchaseEventTime(
+    source === "offline" ? meta.client_ts : null,
+    "client_reported",
+  );
 
   let decoded;
   let authorizationError = null;
   const nativeWallet = isNativeWalletCode(customerQrToken);
   if (nativeWallet && typeof txId === "string") txId = txId.toLowerCase();
-  const membershipArgs = { token: customerQrToken, staff, txId, source, grant: offlineGrant, capturedAt: meta.client_ts };
+  const membershipArgs = {
+    token: customerQrToken,
+    staff,
+    txId,
+    source,
+    grant: offlineGrant,
+    capturedAt: meta.client_ts,
+  };
   try {
     decoded = nativeWallet
       ? await (typedDeps.verifyNativeWalletAward ?? verifyNativeWalletAward)(membershipArgs)
       : source === "offline" && offlineGrant
-        ? await (typedDeps.verifyCapturedQr ?? verifyCapturedQr)({ token: customerQrToken, grant: offlineGrant, staff, capturedAt: meta.client_ts })
+        ? await (typedDeps.verifyCapturedQr ?? verifyCapturedQr)({
+            token: customerQrToken,
+            grant: offlineGrant,
+            staff,
+            capturedAt: meta.client_ts,
+          })
         : await typedDeps.verifyQrToken(customerQrToken);
   } catch (e) {
     authorizationError = e?.statusCode ? e : badRequest(e?.message ?? "Invalid QR token");
     if (!txId) throw authorizationError;
     try {
       decoded = nativeWallet
-        ? await (typedDeps.verifyNativeWalletAward ?? verifyNativeWalletAward)({ ...membershipArgs, allowRevoked: true })
+        ? await (typedDeps.verifyNativeWalletAward ?? verifyNativeWalletAward)({
+            ...membershipArgs,
+            allowRevoked: true,
+          })
         : await (typedDeps.verifyQrSignature ?? verifyQrSignature)(customerQrToken);
+    } catch {
+      throw authorizationError;
     }
-    catch { throw authorizationError; }
   }
 
   const { bid, cid, jti, exp } = decoded;
   if (bid !== staff.business_id) throw forbidden("QR token is for a different business");
 
-  const requestFingerprint = crypto.createHash("sha256")
-    .update(JSON.stringify([bid, cid, staff.id, jti, normalizedAmountQ, normalizedVisits, normalizedItems])).digest("hex");
+  const requestFingerprint = crypto
+    .createHash("sha256")
+    .update(
+      JSON.stringify([
+        bid,
+        cid,
+        staff.id,
+        jti,
+        normalizedAmountQ,
+        normalizedVisits,
+        normalizedItems,
+      ]),
+    )
+    .digest("hex");
   async function existingAward(client) {
-    const found = await client.query(`SELECT id, business_id, customer_id, staff_user_id, amount_q, visits, items, points, status, available_at, meta, purchase_occurred_at, purchase_time_source FROM transactions WHERE id=$1 AND business_id=$2`, [txId, bid]);
+    const found = await client.query(
+      `SELECT id, business_id, customer_id, staff_user_id, amount_q, visits, items, points, status, available_at, meta, purchase_occurred_at, purchase_time_source FROM transactions WHERE id=$1 AND business_id=$2`,
+      [txId, bid],
+    );
     const t = found.rows[0];
     if (!t) return null;
     assertPurchaseTimeReplay(t, purchaseTime.occurredAt);
     const fingerprint = t.meta?.staff_request_fingerprint;
-    if (t.business_id !== bid || t.customer_id !== cid || t.staff_user_id !== staff.id || Number(t.amount_q) !== normalizedAmountQ || Number(t.visits) !== normalizedVisits || Number(t.items) !== normalizedItems || ((nativeWallet || fingerprint) && fingerprint !== requestFingerprint)) throw conflict("txId already used for a different transaction payload");
-    const bal = await client.query(`SELECT points, pending_points FROM customer_balances WHERE customer_id=$1`, [cid]);
-    return { pointsAwarded: Number(t.points), newBalance: Number(bal.rows[0]?.points ?? 0), newPendingBalance: Number(bal.rows[0]?.pending_points ?? 0), customerId: cid, transactionId: t.id, status: t.status, availableAt: t.available_at, replay: true };
+    if (
+      t.business_id !== bid ||
+      t.customer_id !== cid ||
+      t.staff_user_id !== staff.id ||
+      Number(t.amount_q) !== normalizedAmountQ ||
+      Number(t.visits) !== normalizedVisits ||
+      Number(t.items) !== normalizedItems ||
+      ((nativeWallet || fingerprint) && fingerprint !== requestFingerprint)
+    )
+      throw conflict("txId already used for a different transaction payload");
+    const bal = await client.query(
+      `SELECT points, pending_points FROM customer_balances WHERE customer_id=$1`,
+      [cid],
+    );
+    return {
+      pointsAwarded: Number(t.points),
+      newBalance: Number(bal.rows[0]?.points ?? 0),
+      newPendingBalance: Number(bal.rows[0]?.pending_points ?? 0),
+      customerId: cid,
+      transactionId: t.id,
+      status: t.status,
+      availableAt: t.available_at,
+      replay: true,
+    };
   }
   // A committed transaction remains acknowledgeable after QR/grant expiry or
   // membership revocation. Receipt-only authorization can never create a row.
@@ -192,50 +279,68 @@ export async function awardPointsWithDeps(
   // counter. Earning always proceeds; upgrade pressure is surfaced to the owner out-of-band,
   // not as a failed award in front of a waiting customer.
 
-  let evaluated = typeof typedDeps.computePointsWithEvidence === "function"
-    ? typedDeps.computePointsWithEvidence(business, { amount_q, visits, items }) : null;
-  let points = evaluated ? evaluated.points : typedDeps.computePoints(business, { amount_q, visits, items });
-  if (!isLedgerInteger(points)) throw badRequest("Los puntos calculados exceden el límite permitido. Revisa la configuración del programa.");
+  let evaluated =
+    typeof typedDeps.computePointsWithEvidence === "function"
+      ? typedDeps.computePointsWithEvidence(business, { amount_q, visits, items })
+      : null;
+  let points = evaluated
+    ? evaluated.points
+    : typedDeps.computePoints(business, { amount_q, visits, items });
+  if (!isLedgerInteger(points))
+    throw badRequest(
+      "Los puntos calculados exceden el límite permitido. Revisa la configuración del programa.",
+    );
   const guardCfg = business.program_json?.award_guard ?? {};
 
   await enforceAwardGuards({
     businessId: bid,
     customerId: cid,
     staff,
-    guardCfg, currency: regionCurrency(business),
+    guardCfg,
+    currency: regionCurrency(business),
     amountQ: normalizedAmountQ,
     visits: normalizedVisits,
     items: normalizedItems,
-    points
+    points,
   });
 
   const suspiciousReasons = [];
   const suspiciousPointsThreshold = Number(guardCfg.suspicious_points_threshold ?? 0);
   const suspiciousAmountThreshold = Number(guardCfg.suspicious_amount_q_threshold ?? 0);
-  if (suspiciousPointsThreshold > 0 && points >= suspiciousPointsThreshold) suspiciousReasons.push("points_threshold");
-  if (suspiciousAmountThreshold > 0 && normalizedAmountQ >= suspiciousAmountThreshold) suspiciousReasons.push("amount_threshold");
+  if (suspiciousPointsThreshold > 0 && points >= suspiciousPointsThreshold)
+    suspiciousReasons.push("points_threshold");
+  if (suspiciousAmountThreshold > 0 && normalizedAmountQ >= suspiciousAmountThreshold)
+    suspiciousReasons.push("amount_threshold");
 
   const storedMeta = { ...meta, staff_request_fingerprint: requestFingerprint };
-  const metaForInsert = /** @type {Record<string, any>} */ (suspiciousReasons.length
-    ? {
-        ...storedMeta,
-        guard: {
-          suspicious: true,
-          reasons: suspiciousReasons,
-          points,
-          amount_q: normalizedAmountQ,
-          flagged_at: new Date().toISOString()
+  const metaForInsert = /** @type {Record<string, any>} */ (
+    suspiciousReasons.length
+      ? {
+          ...storedMeta,
+          guard: {
+            suspicious: true,
+            reasons: suspiciousReasons,
+            points,
+            amount_q: normalizedAmountQ,
+            flagged_at: new Date().toISOString(),
+          },
         }
-      }
-    : storedMeta);
+      : storedMeta
+  );
 
-  const holdDays = Math.max(0, Math.floor(Number(business.program_json?.pending_points_hold_days ?? 0)));
+  const holdDays = Math.max(
+    0,
+    Math.floor(Number(business.program_json?.pending_points_hold_days ?? 0)),
+  );
   const awardStatus = holdDays > 0 ? "PENDING" : "POSTED";
   const availableAt = holdDays > 0 ? new Date(Date.now() + holdDays * 24 * 60 * 60 * 1000) : null;
   const transactionId = txId ?? id();
 
-  const planFeatureOverrides = business.program_json?.targeted_offers_enabled === true && typeof typedDeps.getPlanFeatureOverrides === "function"
-    ? await typedDeps.getPlanFeatureOverrides() : undefined;
+  const planFeatureOverrides =
+    business.program_json?.targeted_offers_enabled === true &&
+    typeof typedDeps.getPlanFeatureOverrides === "function"
+      ? await typedDeps.getPlanFeatureOverrides()
+      : undefined;
   const result = await typedDeps.withTransaction(async (client) => {
     await lockAwardRequest(client, bid, transactionId);
     const existing = txId ? await existingAward(client) : null;
@@ -243,20 +348,35 @@ export async function awardPointsWithDeps(
 
     const cust = await client.query(
       `SELECT id FROM customers WHERE id=$1 AND business_id=$2 AND deleted_at IS NULL`,
-      [cid, bid]
+      [cid, bid],
     );
     if (!cust.rows.length) throw notFound("Customer not found");
 
     if (typeof typedDeps.protectedEarningBusiness === "function") {
       business = await typedDeps.protectedEarningBusiness(client, { business, customerId: cid });
       assertRegionAmount(normalizedAmountQ, regionCurrency(business), business);
-      evaluated = typeof typedDeps.computePointsWithEvidence === "function"
-        ? typedDeps.computePointsWithEvidence(business, { amount_q, visits, items }) : null;
-      points = evaluated ? evaluated.points : typedDeps.computePoints(business, { amount_q, visits, items });
-      if (!isLedgerInteger(points)) throw badRequest("Los puntos calculados exceden el límite permitido.");
-      await enforceAwardGuards({ businessId: bid, customerId: cid, staff, guardCfg, currency: regionCurrency(business),
-        amountQ: normalizedAmountQ, visits: normalizedVisits, items: normalizedItems, points });
-      if (business.reward_promise_cycle_id) metaForInsert.reward_promise_cycle_id = business.reward_promise_cycle_id;
+      evaluated =
+        typeof typedDeps.computePointsWithEvidence === "function"
+          ? typedDeps.computePointsWithEvidence(business, { amount_q, visits, items })
+          : null;
+      points = evaluated
+        ? evaluated.points
+        : typedDeps.computePoints(business, { amount_q, visits, items });
+      if (!isLedgerInteger(points))
+        throw badRequest("Los puntos calculados exceden el límite permitido.");
+      await enforceAwardGuards({
+        businessId: bid,
+        customerId: cid,
+        staff,
+        guardCfg,
+        currency: regionCurrency(business),
+        amountQ: normalizedAmountQ,
+        visits: normalizedVisits,
+        items: normalizedItems,
+        points,
+      });
+      if (business.reward_promise_cycle_id)
+        metaForInsert.reward_promise_cycle_id = business.reward_promise_cycle_id;
     }
 
     const insQr = await client.query(
@@ -264,7 +384,7 @@ export async function awardPointsWithDeps(
        VALUES ($1,$2,$3,to_timestamp($4))
        ON CONFLICT (jti) DO NOTHING
        RETURNING jti`,
-      [jti, bid, cid, exp]
+      [jti, bid, cid, exp],
     );
     if (insQr.rowCount !== 1) {
       await SecurityEventRepo.log({
@@ -275,29 +395,65 @@ export async function awardPointsWithDeps(
         business_id: bid,
         actor_type: "STAFF",
         actor_id: staff.id,
-        meta: withImpersonationMeta({ customer_id: cid, jti }, staff)
+        meta: withImpersonationMeta({ customer_id: cid, jti }, staff),
       }).catch(() => {});
       throw conflict("QR token already used (replay protection)");
     }
 
-    const bonus = typeof typedDeps.claimTargetedOffer === "function"
-      ? await typedDeps.claimTargetedOffer({ client, business, customerId: cid, transactionId, source,
-        amountQ: normalizedAmountQ, visits: normalizedVisits, items: normalizedItems, basePoints: points, planFeatureOverrides })
-      : { bonusPoints: 0 };
+    const bonus =
+      typeof typedDeps.claimTargetedOffer === "function"
+        ? await typedDeps.claimTargetedOffer({
+            client,
+            business,
+            customerId: cid,
+            transactionId,
+            source,
+            amountQ: normalizedAmountQ,
+            visits: normalizedVisits,
+            items: normalizedItems,
+            basePoints: points,
+            planFeatureOverrides,
+          })
+        : { bonusPoints: 0 };
     const awardedPoints = points + bonus.bonusPoints;
-    if (!isLedgerInteger(awardedPoints)) throw badRequest("Los puntos calculados exceden el límite permitido.");
+    if (!isLedgerInteger(awardedPoints))
+      throw badRequest("Los puntos calculados exceden el límite permitido.");
     if (bonus.bonusPoints) {
-      await enforceAwardGuards({ businessId: bid, customerId: cid, staff, guardCfg, currency: regionCurrency(business),
-        amountQ: normalizedAmountQ, visits: normalizedVisits, items: normalizedItems, points: awardedPoints });
-      if (suspiciousPointsThreshold > 0 && awardedPoints >= suspiciousPointsThreshold && !suspiciousReasons.includes("points_threshold")) {
+      await enforceAwardGuards({
+        businessId: bid,
+        customerId: cid,
+        staff,
+        guardCfg,
+        currency: regionCurrency(business),
+        amountQ: normalizedAmountQ,
+        visits: normalizedVisits,
+        items: normalizedItems,
+        points: awardedPoints,
+      });
+      if (
+        suspiciousPointsThreshold > 0 &&
+        awardedPoints >= suspiciousPointsThreshold &&
+        !suspiciousReasons.includes("points_threshold")
+      ) {
         suspiciousReasons.push("points_threshold");
       }
-      if (suspiciousReasons.length) metaForInsert.guard = { suspicious: true, reasons: suspiciousReasons,
-        points: awardedPoints, amount_q: normalizedAmountQ, flagged_at: new Date().toISOString() };
+      if (suspiciousReasons.length)
+        metaForInsert.guard = {
+          suspicious: true,
+          reasons: suspiciousReasons,
+          points: awardedPoints,
+          amount_q: normalizedAmountQ,
+          flagged_at: new Date().toISOString(),
+        };
     }
 
     metaForInsert.award_evidence = completeAwardEvidence(evaluated?.evidence, {
-      bonus, holdDays, status: awardStatus, availableAt, source, capturedAt: meta.client_ts
+      bonus,
+      holdDays,
+      status: awardStatus,
+      availableAt,
+      source,
+      capturedAt: meta.client_ts,
     });
 
     await client.query(
@@ -318,8 +474,8 @@ export async function awardPointsWithDeps(
         source,
         metaForInsert,
         purchaseTime.occurredAt,
-        purchaseTime.source
-      ]
+        purchaseTime.source,
+      ],
     );
 
     const balUpd = await client.query(
@@ -330,7 +486,7 @@ export async function awardPointsWithDeps(
            updated_at=now()
        WHERE customer_id=$1
        RETURNING points, pending_points`,
-      [cid, awardedPoints, awardStatus]
+      [cid, awardedPoints, awardStatus],
     );
     if (balUpd.rowCount !== 1) throw notFound("Customer balance not found");
 
@@ -342,9 +498,10 @@ export async function awardPointsWithDeps(
         `SELECT id FROM native_wallet_passes
          WHERE id=$1 AND business_id=$2 AND customer_id=$3 AND revoked_at IS NULL
          FOR SHARE`,
-        [decoded.passId, bid, cid]
+        [decoded.passId, bid, cid],
       );
-      if (!membership.rows.length) throw forbidden("La membresía fue revocada o ya no está disponible.");
+      if (!membership.rows.length)
+        throw forbidden("La membresía fue revocada o ya no está disponible.");
     }
 
     await client.query(`UPDATE customers SET last_visit_at=now() WHERE id=$1`, [cid]);
@@ -353,7 +510,16 @@ export async function awardPointsWithDeps(
     if (business.program_type === "CASHBACK" && awardStatus === "POSTED") {
       const cashback = cashbackTerms(business, { amount_q: normalizedAmountQ });
       if (cashback && cashback.earn_q > 0) {
-        await accrueCashback(client, { businessId: bid, customerId: cid, staffUserId: staff.id, amountQ: normalizedAmountQ, earnQ: cashback.earn_q, sourceTransactionId: transactionId, requestId: transactionId, meta: { percent: cashback.percent, source: "staff_award" } });
+        await accrueCashback(client, {
+          businessId: bid,
+          customerId: cid,
+          staffUserId: staff.id,
+          amountQ: normalizedAmountQ,
+          earnQ: cashback.earn_q,
+          sourceTransactionId: transactionId,
+          requestId: transactionId,
+          meta: { percent: cashback.percent, source: "staff_award" },
+        });
       }
     }
 
@@ -364,17 +530,19 @@ export async function awardPointsWithDeps(
       customerId: cid,
       transactionId,
       status: awardStatus,
-      availableAt
+      availableAt,
     };
   });
 
   if (!result.replay) {
-    await typedDeps.enqueueWebhookEvent(bid, "points.awarded", {
-      transaction_id: result.transactionId,
-      customer_id: cid,
-      points: result.pointsAwarded,
-      amount_q: normalizedAmountQ
-    }).catch(() => {});
+    await typedDeps
+      .enqueueWebhookEvent(bid, "points.awarded", {
+        transaction_id: result.transactionId,
+        customer_id: cid,
+        points: result.pointsAwarded,
+        amount_q: normalizedAmountQ,
+      })
+      .catch(() => {});
 
     await AuditRepo.log({
       id: id(),
@@ -384,13 +552,16 @@ export async function awardPointsWithDeps(
       action: suspiciousReasons.length ? "award.suspicious" : "award.success",
       ip: null,
       ua: null,
-      meta: withImpersonationMeta({
-        transaction_id: result.transactionId,
-        customer_id: cid,
-        points: result.pointsAwarded,
-        amount_q: normalizedAmountQ,
-        suspicious_reasons: suspiciousReasons
-      }, staff)
+      meta: withImpersonationMeta(
+        {
+          transaction_id: result.transactionId,
+          customer_id: cid,
+          points: result.pointsAwarded,
+          amount_q: normalizedAmountQ,
+          suspicious_reasons: suspiciousReasons,
+        },
+        staff,
+      ),
     }).catch(() => {});
 
     // Complete dependent ledger work before the HTTP request releases its
@@ -403,19 +574,22 @@ export async function awardPointsWithDeps(
       pointsAwarded: result.pointsAwarded,
       amountQ: normalizedAmountQ,
       visits: normalizedVisits,
-      items: normalizedItems
+      items: normalizedItems,
     });
   }
 
-  logger.info({
-    transactionId: result.transactionId,
-    businessId: bid,
-    customerId: cid,
-    staffId: staff.id,
-    pointsAwarded: result.pointsAwarded,
-    amountQ: normalizedAmountQ,
-    status: result.status
-  }, "Staff award completed");
+  logger.info(
+    {
+      transactionId: result.transactionId,
+      businessId: bid,
+      customerId: cid,
+      staffId: staff.id,
+      pointsAwarded: result.pointsAwarded,
+      amountQ: normalizedAmountQ,
+      status: result.status,
+    },
+    "Staff award completed",
+  );
 
   return result;
 }

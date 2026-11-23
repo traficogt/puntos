@@ -17,7 +17,7 @@ import {
   renderRevenueTrend,
   renderRfmDistribution,
   renderSummaryTiles,
-  renderValueAnomalies
+  renderValueAnomalies,
 } from "./render.js";
 /** @typedef {import("../../types.js").AdminDashboardApp} AdminDashboardApp */
 /** @typedef {import("../../types.js").AnalyticsDashboardDeps} AnalyticsDashboardDeps */
@@ -30,32 +30,33 @@ import {
  */
 export function createAnalyticsDashboardController(app, deps) {
   const { api, $, toast } = app;
-  const {
-    loadOpsSummary,
-    loadJobsStatus,
-    loadPaymentPending,
-    loadAuditTimeline
-  } = deps;
+  const { loadOpsSummary, loadJobsStatus, loadPaymentPending, loadAuditTimeline } = deps;
   async function loadAnalytics() {
     try {
       const query = app.branchQueryString();
       const branchId = app.selectedBranchId();
       const [dashboard, globalDashboard] = await Promise.all([
         api(`/api/admin/analytics/dashboard${query ? `?${query}` : ""}`),
-        branchId ? api("/api/admin/analytics/dashboard") : Promise.resolve(null)
+        branchId ? api("/api/admin/analytics/dashboard") : Promise.resolve(null),
       ]);
       const roiPrefetchPromise = api("/api/admin/roi?days=30");
       const alertsPrefetchPromise = api("/api/admin/alerts?limit=60");
       renderSummaryTiles({ $, summary: dashboard.summary || {}, app });
       renderRfmDistribution({ $, dashboard, app });
       const activityRows = renderRevenueTrend({ $, dashboard, app });
-      const churnDataPromise = api(`/api/admin/analytics/churn-risk?limit=10${query ? `&${query}` : ""}`);
+      const churnDataPromise = api(
+        `/api/admin/analytics/churn-risk?limit=10${query ? `&${query}` : ""}`,
+      );
       const perfRows = renderBranchPerformance({ $, dashboard, app });
       renderBranchCompareTable($, perfRows);
       await loadCohortSummary({ $, api });
       const benchmarkBranchRows = branchId ? activityRows : [];
-      const benchmarkGlobalRows = branchId ? (globalDashboard?.recent_activity || []) : activityRows;
-      renderBranchBenchmark($, { branchRows: benchmarkBranchRows, globalRows: benchmarkGlobalRows, branchLabel: app.selectedBranchLabel() });
+      const benchmarkGlobalRows = branchId ? globalDashboard?.recent_activity || [] : activityRows;
+      renderBranchBenchmark($, {
+        branchRows: benchmarkBranchRows,
+        globalRows: benchmarkGlobalRows,
+        branchLabel: app.selectedBranchLabel(),
+      });
       await loadOpsSummary();
       await loadJobsStatus();
       await loadPaymentPending();
@@ -68,7 +69,7 @@ export function createAnalyticsDashboardController(app, deps) {
         branchLabel: app.selectedBranchLabel(),
         branchPerformance: dashboard.branch_performance || [],
         branchId,
-        churnDataPromise
+        churnDataPromise,
       });
       renderChurnList({ $, churnCustomers: churnData?.customers || [], app });
       const anomalies = await api("/api/admin/analytics/anomalies");
@@ -115,23 +116,45 @@ export function createAnalyticsDashboardController(app, deps) {
   function init() {
     ensureLedgerCertificationDates($);
     $("#btnRecalcAnalytics")?.addEventListener("click", () => recalcAnalytics().catch(() => {}));
-    $("#btnRefreshLedgerReconciliation")?.addEventListener("click", () => loadAnalytics().catch(() => {}));
+    $("#btnRefreshLedgerReconciliation")?.addEventListener("click", () =>
+      loadAnalytics().catch(() => {}),
+    );
     $("#btnRefreshRoi")?.addEventListener("click", () => loadAnalytics().catch(() => {}));
     $("#btnRefreshAlerts")?.addEventListener("click", () => loadAnalytics().catch(() => {}));
-    $("#btnRefreshLedgerCertification")?.addEventListener("click", () => loadLedgerCertification({ $, api }).catch((error) => { toast(`Error cargando certificación: ${error.message}`); }));
-    $("#btnRefreshLedgerCertificationArchive")?.addEventListener("click", () => loadLedgerCertificationArchive({ $, api }).catch((error) => { toast(`Error cargando archivo de certificación: ${error.message}`); }));
-    $("#btnExportLedgerCertificationCsv")?.addEventListener("click", () => exportLedgerCertificationCsv($));
+    $("#btnRefreshLedgerCertification")?.addEventListener("click", () =>
+      loadLedgerCertification({ $, api }).catch((error) => {
+        toast(`Error cargando certificación: ${error.message}`);
+      }),
+    );
+    $("#btnRefreshLedgerCertificationArchive")?.addEventListener("click", () =>
+      loadLedgerCertificationArchive({ $, api }).catch((error) => {
+        toast(`Error cargando archivo de certificación: ${error.message}`);
+      }),
+    );
+    $("#btnExportLedgerCertificationCsv")?.addEventListener("click", () =>
+      exportLedgerCertificationCsv($),
+    );
     $("#btnRefreshAnomalies")?.addEventListener("click", () => loadAnalytics().catch(() => {}));
-    $("#btnRefreshLedgerCorrections")?.addEventListener("click", () => loadAnalytics().catch(() => {}));
-    $("#btnRequestLedgerCorrection")?.addEventListener("click", () => requestLedgerCorrection({ $, api, toast, loadAnalytics }).catch((error) => { toast(`Error solicitando corrección: ${error.message}`); }));
+    $("#btnRefreshLedgerCorrections")?.addEventListener("click", () =>
+      loadAnalytics().catch(() => {}),
+    );
+    $("#btnRequestLedgerCorrection")?.addEventListener("click", () =>
+      requestLedgerCorrection({ $, api, toast, loadAnalytics }).catch((error) => {
+        toast(`Error solicitando corrección: ${error.message}`);
+      }),
+    );
     $("#ledgerCorrectionsList")?.addEventListener("click", (event) => {
       const target = event.target instanceof HTMLElement ? event.target : null;
       const applyId = target?.dataset?.correctionApply;
       const rejectId = target?.dataset?.correctionReject;
       if (applyId) {
-        applyLedgerCorrection({ api, toast, loadAnalytics }, applyId).catch((error) => { toast(`Error aplicando corrección: ${error.message}`); });
+        applyLedgerCorrection({ api, toast, loadAnalytics }, applyId).catch((error) => {
+          toast(`Error aplicando corrección: ${error.message}`);
+        });
       } else if (rejectId) {
-        rejectLedgerCorrection({ api, toast, loadAnalytics }, rejectId).catch((error) => { toast(`Error rechazando corrección: ${error.message}`); });
+        rejectLedgerCorrection({ api, toast, loadAnalytics }, rejectId).catch((error) => {
+          toast(`Error rechazando corrección: ${error.message}`);
+        });
       }
     });
   }

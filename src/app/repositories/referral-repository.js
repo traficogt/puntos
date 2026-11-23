@@ -16,7 +16,7 @@ export const ReferralRepository = {
     let { rows } = await dbQuery(
       `SELECT * FROM referral_codes 
        WHERE referrer_customer_id = $1 AND business_id = $2`,
-      [customerId, businessId]
+      [customerId, businessId],
     );
 
     if (rows[0]) {
@@ -27,10 +27,9 @@ export const ReferralRepository = {
     let attempts = 0;
     while (attempts < 10) {
       code = this.generateReferralCode();
-      const { rows: existing } = await dbQuery(
-        `SELECT id FROM referral_codes WHERE code = $1`,
-        [code]
-      );
+      const { rows: existing } = await dbQuery(`SELECT id FROM referral_codes WHERE code = $1`, [
+        code,
+      ]);
       if (!existing[0]) break;
       attempts++;
     }
@@ -44,7 +43,7 @@ export const ReferralRepository = {
        (business_id, referrer_customer_id, code, active)
        VALUES ($1, $2, $3, true)
        RETURNING *`,
-      [businessId, customerId, code]
+      [businessId, customerId, code],
     );
 
     return created[0];
@@ -53,7 +52,7 @@ export const ReferralRepository = {
   async getByCode(code) {
     const { rows } = await dbQuery(
       `SELECT * FROM referral_codes WHERE code = $1 AND active = true`,
-      [code.toUpperCase()]
+      [code.toUpperCase()],
     );
     return rows[0];
   },
@@ -64,14 +63,14 @@ export const ReferralRepository = {
        (business_id, referral_code_id, referrer_customer_id, referred_customer_id, status)
        VALUES ($1, $2, $3, $4, 'pending')
        RETURNING *`,
-      [businessId, referralCodeId, referrerCustomerId, referredCustomerId]
+      [businessId, referralCodeId, referrerCustomerId, referredCustomerId],
     );
 
     await dbQuery(
       `UPDATE referral_codes 
        SET uses_count = uses_count + 1 
        WHERE id = $1`,
-      [referralCodeId]
+      [referralCodeId],
     );
 
     return rows[0];
@@ -87,14 +86,14 @@ export const ReferralRepository = {
          referred_reward_points = $3
        WHERE id = $1
        RETURNING *`,
-      [referralId, referrerRewardPoints, referredRewardPoints]
+      [referralId, referrerRewardPoints, referredRewardPoints],
     );
     return rows[0];
   },
 
   async markRewarded(referralId, rewardType = "both") {
     const updates = { status: "rewarded" };
-    
+
     if (rewardType === "referrer" || rewardType === "both") {
       updates.referrer_rewarded_at = "now()";
     }
@@ -110,7 +109,7 @@ export const ReferralRepository = {
 
     const { rows } = await dbQuery(
       `UPDATE referrals SET ${setClauses} WHERE id = $1 RETURNING *`,
-      values
+      values,
     );
     return rows[0];
   },
@@ -125,7 +124,7 @@ export const ReferralRepository = {
        JOIN customers c ON c.id = r.referred_customer_id
        WHERE r.referrer_customer_id = $1
        ORDER BY r.created_at DESC`,
-      [referrerCustomerId]
+      [referrerCustomerId],
     );
     return rows;
   },
@@ -139,7 +138,7 @@ export const ReferralRepository = {
          COALESCE(SUM(referrer_reward_points), 0) as total_points_earned
        FROM referrals
        WHERE referrer_customer_id = $1`,
-      [customerId]
+      [customerId],
     );
     return rows[0];
   },
@@ -150,24 +149,22 @@ export const ReferralRepository = {
        FROM referrals r
        WHERE r.business_id = $1
          AND r.status = 'pending'`,
-      [businessId]
+      [businessId],
     );
     return rows;
   },
 
   async getReferralForCustomer(customerId) {
-    const { rows } = await dbQuery(
-      `SELECT * FROM referrals WHERE referred_customer_id = $1`,
-      [customerId]
-    );
+    const { rows } = await dbQuery(`SELECT * FROM referrals WHERE referred_customer_id = $1`, [
+      customerId,
+    ]);
     return rows[0];
   },
 
   async getSettings(businessId) {
-    const { rows } = await dbQuery(
-      `SELECT * FROM referral_settings WHERE business_id = $1`,
-      [businessId]
-    );
+    const { rows } = await dbQuery(`SELECT * FROM referral_settings WHERE business_id = $1`, [
+      businessId,
+    ]);
     return rows[0];
   },
 
@@ -194,8 +191,8 @@ export const ReferralRepository = {
         settings.referred_reward_points,
         settings.min_purchase_to_complete || null,
         settings.reward_on_signup || false,
-        settings.custom_message || null
-      ]
+        settings.custom_message || null,
+      ],
     );
     return rows[0];
   },
@@ -213,8 +210,8 @@ export const ReferralRepository = {
        GROUP BY c.id, c.name
        ORDER BY referral_count DESC, total_points DESC
        LIMIT $2`,
-      [businessId, limit]
+      [businessId, limit],
     );
     return rows;
-  }
+  },
 };

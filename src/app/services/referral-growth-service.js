@@ -1,6 +1,6 @@
 import { config } from "../../config/index.js";
 import { dbQuery } from "../database.js";
-import { reportingPurchase } from './reporting-purchase.js';
+import { reportingPurchase } from "./reporting-purchase.js";
 
 // This is an observed purchase report, not a replay of the legacy reward
 // eligibility engine. Keep the two definitions explicit in the response/UI.
@@ -28,7 +28,7 @@ WITH bounds AS (
     FROM transactions t
     WHERE t.business_id = $1::uuid AND t.customer_id = c.referred_customer_id
       AND t.created_at >= c.created_at AND t.created_at < $7::timestamptz
-      AND ${reportingPurchase('t')}
+      AND ${reportingPurchase("t")}
   ) p ON true
 ), summary AS (
   SELECT jsonb_build_object(

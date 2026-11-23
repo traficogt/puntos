@@ -1,9 +1,12 @@
-import {runWithDbContext} from '../../src/app/database.js';
-import {BusinessRepo} from '../../src/app/repositories/business-repository.js';
+import { runWithDbContext } from "../../src/app/database.js";
+import { BusinessRepo } from "../../src/app/repositories/business-repository.js";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { normalizePaymentWebhook } from "../../src/app/services/payment-webhook-normalizer.js";
-import { processPaymentWebhook, resolvePaymentWebhookEventForBusiness } from "../../src/app/services/payment-webhook-service.js";
+import {
+  processPaymentWebhook,
+  resolvePaymentWebhookEventForBusiness,
+} from "../../src/app/services/payment-webhook-service.js";
 import { config } from "../../src/config/index.js";
 
 describe("payment-webhook-service", () => {
@@ -13,7 +16,7 @@ describe("payment-webhook-service", () => {
       status: "PAID",
       amount: "10.5",
       currency: "GTQ",
-      metadata: { businessSlug: "cafecito", customerPhone: "+50212345678" }
+      metadata: { businessSlug: "cafecito", customerPhone: "+50212345678" },
     });
     assert.equal(out.provider, "cubo");
     assert.equal(out.providerEventId, "tx123");
@@ -32,26 +35,27 @@ describe("payment-webhook-service", () => {
       config.PAYMENT_WEBHOOK_REQUIRE_AUTH = true;
       config.PAYMENT_WEBHOOK_SECRETS = {};
       config.PAYMENT_WEBHOOK_HMAC_SECRETS = {};
-	    await assert.rejects(
-	      () => processPaymentWebhook({
-	        provider: "cubo",
-	        payload: { transaction_id: "tx999" },
-	        secretHeader: "",
-	        signatureHeader: "",
-	        rawBody: "{}"
-	      }),
-	      (err) => {
-	        const e = /** @type {any} */ (err);
-	        assert.equal(e?.statusCode ?? e?.status, 403);
-	        return true;
-	      }
-	    );
+      await assert.rejects(
+        () =>
+          processPaymentWebhook({
+            provider: "cubo",
+            payload: { transaction_id: "tx999" },
+            secretHeader: "",
+            signatureHeader: "",
+            rawBody: "{}",
+          }),
+        (err) => {
+          const e = /** @type {any} */ (err);
+          assert.equal(e?.statusCode ?? e?.status, 403);
+          return true;
+        },
+      );
     } finally {
       config.PAYMENT_WEBHOOK_REQUIRE_AUTH = previousRequireAuth;
       config.PAYMENT_WEBHOOK_SECRETS = previousSecrets;
       config.PAYMENT_WEBHOOK_HMAC_SECRETS = previousHmacSecrets;
     }
-	  });
+  });
   it("does not treat x-signature as a static provider secret", async () => {
     const previousRequireAuth = config.PAYMENT_WEBHOOK_REQUIRE_AUTH;
     const previousSecrets = config.PAYMENT_WEBHOOK_SECRETS;
@@ -63,19 +67,20 @@ describe("payment-webhook-service", () => {
       config.PAYMENT_WEBHOOK_HMAC_SECRETS = {};
 
       await assert.rejects(
-        () => processPaymentWebhook({
-          provider: "cubo",
-          payload: { transaction_id: "tx-x-signature-only" },
-          secretHeader: "",
-          signatureHeader: "static-secret-123",
-          rawBody: "{}"
-        }),
+        () =>
+          processPaymentWebhook({
+            provider: "cubo",
+            payload: { transaction_id: "tx-x-signature-only" },
+            secretHeader: "",
+            signatureHeader: "static-secret-123",
+            rawBody: "{}",
+          }),
         (err) => {
           const e = /** @type {any} */ (err);
           assert.equal(e?.statusCode ?? e?.status, 403);
           assert.match(String(e?.message || ""), /Invalid provider webhook secret/);
           return true;
-        }
+        },
       );
     } finally {
       config.PAYMENT_WEBHOOK_REQUIRE_AUTH = previousRequireAuth;
@@ -85,17 +90,80 @@ describe("payment-webhook-service", () => {
   });
 });
 
-it('hands off normalized and stored payment currency without changing replay metadata',async t=>{
-  const previous=config.PAYMENT_WEBHOOK_REQUIRE_AUTH;config.PAYMENT_WEBHOOK_REQUIRE_AUTH=false;
-  t.mock.method(BusinessRepo,'getPublicBySlug',async()=>({id:'business-fixture'}));
-  let event={id:'event-fixture',status:'RECEIVED',business_slug:'fixture',business_id:'business-fixture',provider:'cubo',provider_event_id:'fixture-event',currency:'USD',amount_q:10};
-  const client={query:async(sql)=>({rows:sql.includes('payment_webhook_events')&&!sql.trim().startsWith('UPDATE')?[event]:[],rowCount:1})};
-  const awards=[];const dependencies={award:async input=>{awards.push(input);return{ok:true,transactionId:'transaction-fixture',customerId:'customer-fixture',pointsAwarded:10,status:'POSTED',availableAt:null,replay:false};}};
-  try{
-    await runWithDbContext({client,tenantId:null,platformAdmin:false},()=>processPaymentWebhook({provider:'cubo',payload:{transaction_id:'fixture-event',status:'PAID',amount:10,currency:'USD',metadata:{businessSlug:'fixture',customerId:'customer-fixture'}},secretHeader:undefined},dependencies));
-    assert.equal(awards[0].expectedCurrency,'USD');assert.equal(awards[0].meta.currency,'USD');
-    event={...event,status:'PENDING_MAPPING'};
-    await runWithDbContext({client,tenantId:'business-fixture',platformAdmin:false},()=>resolvePaymentWebhookEventForBusiness({businessId:'business-fixture',eventId:'event-fixture',customerId:'customer-fixture',customerPhone:undefined},dependencies));
-    assert.equal(awards[1].expectedCurrency,'USD');assert.deepEqual(awards[1].meta,{provider:'cubo',payment_event_id:'fixture-event',resolved_manually:true});
-  }finally{config.PAYMENT_WEBHOOK_REQUIRE_AUTH=previous;}
+it("hands off normalized and stored payment currency without changing replay metadata", async (t) => {
+  const previous = config.PAYMENT_WEBHOOK_REQUIRE_AUTH;
+  config.PAYMENT_WEBHOOK_REQUIRE_AUTH = false;
+  t.mock.method(BusinessRepo, "getPublicBySlug", async () => ({ id: "business-fixture" }));
+  let event = {
+    id: "event-fixture",
+    status: "RECEIVED",
+    business_slug: "fixture",
+    business_id: "business-fixture",
+    provider: "cubo",
+    provider_event_id: "fixture-event",
+    currency: "USD",
+    amount_q: 10,
+  };
+  const client = {
+    query: async (sql) => ({
+      rows:
+        sql.includes("payment_webhook_events") && !sql.trim().startsWith("UPDATE") ? [event] : [],
+      rowCount: 1,
+    }),
+  };
+  const awards = [];
+  const dependencies = {
+    award: async (input) => {
+      awards.push(input);
+      return {
+        ok: true,
+        transactionId: "transaction-fixture",
+        customerId: "customer-fixture",
+        pointsAwarded: 10,
+        status: "POSTED",
+        availableAt: null,
+        replay: false,
+      };
+    },
+  };
+  try {
+    await runWithDbContext({ client, tenantId: null, platformAdmin: false }, () =>
+      processPaymentWebhook(
+        {
+          provider: "cubo",
+          payload: {
+            transaction_id: "fixture-event",
+            status: "PAID",
+            amount: 10,
+            currency: "USD",
+            metadata: { businessSlug: "fixture", customerId: "customer-fixture" },
+          },
+          secretHeader: undefined,
+        },
+        dependencies,
+      ),
+    );
+    assert.equal(awards[0].expectedCurrency, "USD");
+    assert.equal(awards[0].meta.currency, "USD");
+    event = { ...event, status: "PENDING_MAPPING" };
+    await runWithDbContext({ client, tenantId: "business-fixture", platformAdmin: false }, () =>
+      resolvePaymentWebhookEventForBusiness(
+        {
+          businessId: "business-fixture",
+          eventId: "event-fixture",
+          customerId: "customer-fixture",
+          customerPhone: undefined,
+        },
+        dependencies,
+      ),
+    );
+    assert.equal(awards[1].expectedCurrency, "USD");
+    assert.deepEqual(awards[1].meta, {
+      provider: "cubo",
+      payment_event_id: "fixture-event",
+      resolved_manually: true,
+    });
+  } finally {
+    config.PAYMENT_WEBHOOK_REQUIRE_AUTH = previous;
+  }
 });

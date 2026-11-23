@@ -5,7 +5,7 @@ import {
   browserSessionStatus,
   getBrowserSession,
   invalidateBrowserSessionById,
-  touchBrowserSessionIfNeeded
+  touchBrowserSessionIfNeeded,
 } from "../app/services/auth-session-service.js";
 import { StaffRepo } from "../app/repositories/staff-repository.js";
 import { SuperAdminAuthRepo } from "../app/repositories/super-admin-auth-repository.js";
@@ -54,7 +54,7 @@ export async function requireStaff(req, res, next) {
       business_id: String(staff.business_id),
       role: String(staff.role ?? "CASHIER"),
       branch_id: staff.branch_id ? String(staff.branch_id) : null,
-      impersonated_by: session.impersonated_by ? String(session.impersonated_by) : null
+      impersonated_by: session.impersonated_by ? String(session.impersonated_by) : null,
     };
     next();
   } catch {
@@ -70,7 +70,7 @@ export async function requireCustomer(req, res, next) {
     await setCurrentTenant(String(session.business_id));
     req.customerAuth = {
       id: String(session.actor_id),
-      business_id: String(session.business_id)
+      business_id: String(session.business_id),
     };
     next();
   } catch {
@@ -113,7 +113,8 @@ requireOwner.__openapi = { staffRoles: ["OWNER"] };
 export function requireStaffRoles(...roles) {
   const middleware = (req, res, next) => {
     if (!req.staff) return res.status(401).json({ error: "No autenticado", code: "AUTH_REQUIRED" });
-    if (!roles.includes(req.staff.role)) return res.status(403).json({ error: "Rol insuficiente", code: "RBAC_ROLE_INSUFFICIENT" });
+    if (!roles.includes(req.staff.role))
+      return res.status(403).json({ error: "Rol insuficiente", code: "RBAC_ROLE_INSUFFICIENT" });
     next();
   };
   middleware.__openapi = { auth: "staff", staffRoles: roles };
@@ -124,7 +125,9 @@ export function requireStaffPermission(permission) {
   const middleware = (req, res, next) => {
     if (!req.staff) return res.status(401).json({ error: "No autenticado", code: "AUTH_REQUIRED" });
     if (!hasPermission(req.staff.role, permission)) {
-      return res.status(403).json({ error: "Permiso insuficiente", code: "RBAC_PERMISSION_DENIED" });
+      return res
+        .status(403)
+        .json({ error: "Permiso insuficiente", code: "RBAC_PERMISSION_DENIED" });
     }
     next();
   };
@@ -139,8 +142,10 @@ export function requireRecentReauth({ requireMfaIfEnabled = true } = {}) {
       return res.status(401).json({ error: "No autenticado", code: "AUTH_REQUIRED" });
     }
     const reauthAt = Date.parse(String(session.reauth_verified_at || ""));
-    if (!Number.isFinite(reauthAt) || (Date.now() - reauthAt) > RECENT_REAUTH_WINDOW_MS) {
-      return res.status(403).json({ error: "Reautenticación requerida", code: "RECENT_REAUTH_REQUIRED" });
+    if (!Number.isFinite(reauthAt) || Date.now() - reauthAt > RECENT_REAUTH_WINDOW_MS) {
+      return res
+        .status(403)
+        .json({ error: "Reautenticación requerida", code: "RECENT_REAUTH_REQUIRED" });
     }
 
     if (!requireMfaIfEnabled) return next();
@@ -149,8 +154,10 @@ export function requireRecentReauth({ requireMfaIfEnabled = true } = {}) {
       const staff = await StaffRepo.getById(String(req.staff.id));
       if (staff?.mfa_enabled) {
         const mfaAt = Date.parse(String(session.mfa_verified_at || ""));
-        if (!Number.isFinite(mfaAt) || (Date.now() - mfaAt) > RECENT_REAUTH_WINDOW_MS) {
-          return res.status(403).json({ error: "MFA reciente requerido", code: "RECENT_MFA_REQUIRED" });
+        if (!Number.isFinite(mfaAt) || Date.now() - mfaAt > RECENT_REAUTH_WINDOW_MS) {
+          return res
+            .status(403)
+            .json({ error: "MFA reciente requerido", code: "RECENT_MFA_REQUIRED" });
         }
       }
     }
@@ -159,8 +166,10 @@ export function requireRecentReauth({ requireMfaIfEnabled = true } = {}) {
       const auth = await SuperAdminAuthRepo.getEffective().catch(() => null);
       if (auth?.mfa_enabled) {
         const mfaAt = Date.parse(String(session.mfa_verified_at || ""));
-        if (!Number.isFinite(mfaAt) || (Date.now() - mfaAt) > RECENT_REAUTH_WINDOW_MS) {
-          return res.status(403).json({ error: "MFA reciente requerido", code: "RECENT_MFA_REQUIRED" });
+        if (!Number.isFinite(mfaAt) || Date.now() - mfaAt > RECENT_REAUTH_WINDOW_MS) {
+          return res
+            .status(403)
+            .json({ error: "MFA reciente requerido", code: "RECENT_MFA_REQUIRED" });
         }
       }
     }

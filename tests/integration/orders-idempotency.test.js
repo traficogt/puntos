@@ -15,8 +15,16 @@ function createAdminClient() {
     host: process.env.TEST_DB_HOST || process.env.DB_HOST || "localhost",
     port: Number(process.env.TEST_DB_PORT || process.env.DB_PORT || 5432),
     database: process.env.TEST_DB_NAME || process.env.DB_NAME || "puntos",
-    user: process.env.TEST_DB_USER || process.env.DB_MIGRATIONS_USER || process.env.DB_USER || "postgres",
-    password: process.env.TEST_DB_PASSWORD || process.env.DB_MIGRATIONS_PASSWORD || process.env.DB_PASSWORD || ""
+    user:
+      process.env.TEST_DB_USER ||
+      process.env.DB_MIGRATIONS_USER ||
+      process.env.DB_USER ||
+      "postgres",
+    password:
+      process.env.TEST_DB_PASSWORD ||
+      process.env.DB_MIGRATIONS_PASSWORD ||
+      process.env.DB_PASSWORD ||
+      "",
   });
 }
 
@@ -51,19 +59,21 @@ async function createFixture({ holdDays = 0 } = {}) {
         "cafe",
         "NEGOCIO",
         "SPEND",
-        { points_per_q: 0.1, pending_points_hold_days: holdDays }
-      ]
+        { points_per_q: 0.1, pending_points_hold_days: holdDays },
+      ],
     );
-    const customerPhone = `+50255${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`;
+    const customerPhone = `+50255${Math.floor(Math.random() * 1000000)
+      .toString()
+      .padStart(6, "0")}`;
     await client.query(
       `INSERT INTO customers (id, business_id, phone, name)
        VALUES ($1,$2,$3,$4)`,
-      [customerId, businessId, customerPhone, "Orders Customer"]
+      [customerId, businessId, customerPhone, "Orders Customer"],
     );
     await client.query(
       `INSERT INTO customer_balances (customer_id, points, pending_points, lifetime_points)
        VALUES ($1,0,0,0)`,
-      [customerId]
+      [customerId],
     );
   });
 
@@ -96,23 +106,23 @@ integrationDescribe("Orders API idempotency integration", () => {
           quantity: 1,
           name: "Banana",
           code: "B",
-          category: "fruit"
+          category: "fruit",
         },
         {
           category: "fruit",
           code: "A",
           name: "Apple",
-          quantity: 2
-        }
+          quantity: 2,
+        },
       ],
       meta: {
         z: 2,
         details: {
           b: 2,
-          a: 1
+          a: 1,
         },
-        a: 1
-      }
+        a: 1,
+      },
     };
     const secondRequest = {
       businessSlug: slug,
@@ -125,28 +135,28 @@ integrationDescribe("Orders API idempotency integration", () => {
           name: "Apple",
           quantity: 2,
           category: "fruit",
-          code: "A"
+          code: "A",
         },
         {
           category: "fruit",
           quantity: 1,
           code: "B",
-          name: "Banana"
-        }
+          name: "Banana",
+        },
       ],
       meta: {
         details: {
           a: 1,
-          b: 2
+          b: 2,
         },
         a: 1,
-        z: 2
-      }
+        z: 2,
+      },
     };
 
     const [first, second] = await Promise.all([
       processOrder(firstRequest),
-      processOrder(secondRequest)
+      processOrder(secondRequest),
     ]);
 
     assert.equal(first.ok, true);
@@ -154,17 +164,19 @@ integrationDescribe("Orders API idempotency integration", () => {
     assert.equal(first.transactionId, second.transactionId);
     assert.ok(first.replay === true || second.replay === true);
 
-    const { rows: orderRows } = await withAdminClient((client) => (
+    const { rows: orderRows } = await withAdminClient((client) =>
       client.query(
         "SELECT id, transaction_id FROM orders WHERE business_id = $1 AND external_order_id = $2",
-        [businessId, "ord-1"]
-      )
-    ));
+        [businessId, "ord-1"],
+      ),
+    );
     assert.equal(orderRows.length, 1);
 
-    const { rows: balanceRows } = await withAdminClient((client) => (
-      client.query("SELECT points, lifetime_points FROM customer_balances WHERE customer_id = $1", [customerId])
-    ));
+    const { rows: balanceRows } = await withAdminClient((client) =>
+      client.query("SELECT points, lifetime_points FROM customer_balances WHERE customer_id = $1", [
+        customerId,
+      ]),
+    );
     assert.equal(balanceRows.length, 1);
     assert.equal(Number(balanceRows[0].points), Number(first.pointsAwarded));
     assert.equal(Number(balanceRows[0].lifetime_points), Number(first.pointsAwarded));
@@ -178,24 +190,27 @@ integrationDescribe("Orders API idempotency integration", () => {
         customerId,
         externalOrderId: "ord-pending",
         status: "completed",
-        amount_q: 50
+        amount_q: 50,
       }),
       processOrder({
         businessSlug: slug,
         customerId,
         externalOrderId: "ord-pending",
         status: "completed",
-        amount_q: 50
-      })
+        amount_q: 50,
+      }),
     ]);
 
     assert.equal(first.status, "PENDING");
     assert.equal(second.status, "PENDING");
     assert.ok(first.replay === true || second.replay === true);
 
-    const { rows: balanceRows } = await withAdminClient((client) => (
-      client.query("SELECT points, pending_points, lifetime_points FROM customer_balances WHERE customer_id = $1", [customerId])
-    ));
+    const { rows: balanceRows } = await withAdminClient((client) =>
+      client.query(
+        "SELECT points, pending_points, lifetime_points FROM customer_balances WHERE customer_id = $1",
+        [customerId],
+      ),
+    );
     assert.equal(balanceRows.length, 1);
     assert.equal(Number(balanceRows[0].points), 0);
     assert.equal(Number(balanceRows[0].pending_points), Number(first.pointsAwarded));

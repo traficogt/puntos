@@ -5,8 +5,8 @@
  * The alias must be a code-supplied, unqualified SQL identifier.
  */
 export function reportingPurchase(alias) {
-  if (typeof alias !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(alias)) {
-    throw new TypeError('A trusted SQL table alias is required.');
+  if (typeof alias !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(alias)) {
+    throw new TypeError("A trusted SQL table alias is required.");
   }
   return `(${alias}.source IN ('online', 'offline', 'external', 'order')
     AND (${alias}.type = 'PURCHASE' OR ${alias}.type IS NULL)

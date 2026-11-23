@@ -25,9 +25,18 @@ function hasFlag(name) {
 
 const baseUrl = arg("--base-url", process.env.SMOKE_BASE_URL || "http://localhost:3001");
 const timeoutMs = Number(arg("--timeout-ms", process.env.SMOKE_TIMEOUT_MS || "5000"));
-const superEmail = arg("--super-email", process.env.SMOKE_SUPER_EMAIL || process.env.SUPER_ADMIN_EMAIL || "");
-const superPassword = arg("--super-password", process.env.SMOKE_SUPER_PASSWORD || process.env.SUPER_ADMIN_PASSWORD || "");
-const superCookieName = arg("--super-cookie-name", process.env.SMOKE_SUPER_COOKIE_NAME || "__Host-pf_super");
+const superEmail = arg(
+  "--super-email",
+  process.env.SMOKE_SUPER_EMAIL || process.env.SUPER_ADMIN_EMAIL || "",
+);
+const superPassword = arg(
+  "--super-password",
+  process.env.SMOKE_SUPER_PASSWORD || process.env.SUPER_ADMIN_PASSWORD || "",
+);
+const superCookieName = arg(
+  "--super-cookie-name",
+  process.env.SMOKE_SUPER_COOKIE_NAME || "__Host-pf_super",
+);
 const requireSuperLogin = hasFlag("--require-super-login");
 
 /**
@@ -52,7 +61,7 @@ async function request(pathname, init = {}) {
     return await fetch(new URL(pathname, baseUrl), {
       redirect: "manual",
       ...init,
-      signal: controller.signal
+      signal: controller.signal,
     });
   } finally {
     clearTimeout(timer);
@@ -83,12 +92,15 @@ async function expectAuthProtected(pathname, allowedStatuses = [401, 403]) {
   const response = await request(pathname);
   assert(
     allowedStatuses.includes(response.status),
-    `${pathname} returned HTTP ${response.status}, expected one of ${allowedStatuses.join(", ")}`
+    `${pathname} returned HTTP ${response.status}, expected one of ${allowedStatuses.join(", ")}`,
   );
   const contentType = response.headers.get("content-type") || "";
   assert(contentType.includes("application/json"), `${pathname} auth response did not return JSON`);
   const body = await response.json();
-  assert(typeof body?.error === "string" && body.error.length > 0, `${pathname} auth response missing error`);
+  assert(
+    typeof body?.error === "string" && body.error.length > 0,
+    `${pathname} auth response missing error`,
+  );
 }
 
 /**
@@ -118,7 +130,10 @@ async function expectStaticAsset(pathname, { origin = "", mustContain = [] } = {
   const isJs = contentType.includes("javascript") || contentType.includes("ecmascript");
   const isCss = contentType.includes("text/css");
   const isWorker = pathname.endsWith(".js") && isJs;
-  assert(isJs || isCss || isWorker, `${pathname} returned unexpected content-type ${contentType || "(empty)"}`);
+  assert(
+    isJs || isCss || isWorker,
+    `${pathname} returned unexpected content-type ${contentType || "(empty)"}`,
+  );
 
   const body = await response.text();
   assert(body.trim().length > 0, `${pathname} returned an empty asset body`);
@@ -132,9 +147,12 @@ async function expectStaticAsset(pathname, { origin = "", mustContain = [] } = {
  * @returns {string}
  */
 function cookieHeader(response) {
-  const cookies = typeof response.headers.getSetCookie === "function"
-    ? response.headers.getSetCookie()
-    : (response.headers.get("set-cookie") ? [response.headers.get("set-cookie")] : []);
+  const cookies =
+    typeof response.headers.getSetCookie === "function"
+      ? response.headers.getSetCookie()
+      : response.headers.get("set-cookie")
+        ? [response.headers.get("set-cookie")]
+        : [];
   return cookies
     .map((value) => value.split(";", 1)[0])
     .filter(Boolean)
@@ -143,7 +161,10 @@ function cookieHeader(response) {
 
 async function checkSuperSession() {
   if (!superEmail || !superPassword) {
-    assert(!requireSuperLogin, "Super-login smoke check requested but credentials were not provided.");
+    assert(
+      !requireSuperLogin,
+      "Super-login smoke check requested but credentials were not provided.",
+    );
     console.log("SMOKE skip auth: no super credentials configured");
     return;
   }
@@ -151,16 +172,18 @@ async function checkSuperSession() {
   const loginResponse = await request("/api/super/login", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: superEmail, password: superPassword })
+    body: JSON.stringify({ email: superEmail, password: superPassword }),
   });
   assert(loginResponse.ok, `/api/super/login returned HTTP ${loginResponse.status}`);
 
   const cookie = cookieHeader(loginResponse);
-  assert(cookie.split(";").some((part) => part.trim().startsWith(`${superCookieName}=`)),
-    `Super login did not issue the ${superCookieName} cookie`);
+  assert(
+    cookie.split(";").some((part) => part.trim().startsWith(`${superCookieName}=`)),
+    `Super login did not issue the ${superCookieName} cookie`,
+  );
 
   const meResponse = await request("/api/super/me", {
-    headers: { cookie }
+    headers: { cookie },
   });
   assert(meResponse.ok, `/api/super/me returned HTTP ${meResponse.status}`);
   console.log("SMOKE auth: super login/session path OK");
@@ -173,33 +196,36 @@ async function main() {
   await expectJson(
     "/api/health",
     /** @param {SmokeHealthResponse} body */ (body) => {
-    assert(body.service === "ok", "/api/health did not report service=ok");
-    assert(body.database === "ok", "/api/health did not report database=ok");
-    }
+      assert(body.service === "ok", "/api/health did not report service=ok");
+      assert(body.database === "ok", "/api/health did not report database=ok");
+    },
   );
   await expectJson(
     "/api/ready",
     /** @param {SmokeReadyResponse} body */ (body) => {
-    assert(body.ready === true, "/api/ready did not report ready=true");
-    }
+      assert(body.ready === true, "/api/ready did not report ready=true");
+    },
   );
   await expectJson(
     "/api/live",
     /** @param {SmokeLiveResponse} body */ (body) => {
-    assert(body.alive === true, "/api/live did not report alive=true");
-    }
+      assert(body.alive === true, "/api/live did not report alive=true");
+    },
   );
   await expectJson(
     "/api/info",
     /** @param {SmokeInfoResponse} body */ (body) => {
-    assert(typeof body.version === "string" && body.version.length > 0, "/api/info is missing version");
-    }
+      assert(
+        typeof body.version === "string" && body.version.length > 0,
+        "/api/info is missing version",
+      );
+    },
   );
   await expectJson(
     "/api/v1/openapi.json",
     /** @param {SmokeOpenApiResponse} body */ (body) => {
-    assert(typeof body.openapi === "string", "/api/v1/openapi.json is missing the openapi field");
-    }
+      assert(typeof body.openapi === "string", "/api/v1/openapi.json is missing the openapi field");
+    },
   );
 
   await expectHtml("/");
@@ -209,25 +235,49 @@ async function main() {
     ["/c", "/mi-tarjeta/"],
     ["/admin-dashboard.html", "/administracion/"],
     ["/staff-login.html", "/equipo/ingresar/"],
-    ["/super.html", "/plataforma/"]
+    ["/super.html", "/plataforma/"],
   ]) {
     const response = await request(legacy);
     assert(response.status === 308, `${legacy} did not permanently redirect`);
-    assert(response.headers.get("location") === canonical, `${legacy} redirected to an unexpected route`);
+    assert(
+      response.headers.get("location") === canonical,
+      `${legacy} redirected to an unexpected route`,
+    );
     await expectHtml(canonical);
   }
   await expectHtml("/negocio/");
 
   await expectStaticAsset("/customer.js", { origin, mustContain: ["initCustomerPage"] });
   await expectStaticAsset("/admin-dashboard.js", { origin, mustContain: ["initAdminDashboard"] });
-  await expectStaticAsset("/styles.css", { origin, mustContain: ["@import url(\"/styles/components.css\")"] });
+  await expectStaticAsset("/styles.css", {
+    origin,
+    mustContain: ['@import url("/styles/components.css")'],
+  });
   await expectStaticAsset("/styles/base.css", { origin, mustContain: [":root", "--display-font"] });
-  await expectStaticAsset("/styles/components.css", { origin, mustContain: [".is-hidden", "button.primary"] });
-  await expectStaticAsset("/styles/pages.css", { origin, mustContain: [".marketing-hero", ".panel-shell"] });
-  await expectStaticAsset("/styles/admin-panels.css", { origin, mustContain: [".modal-backdrop", ".analytics-kpi-grid"] });
-  await expectStaticAsset("/styles/analytics-visuals.css", { origin, mustContain: [".rfm-row", ".trend-bars"] });
-  await expectStaticAsset("/styles/responsive.css", { origin, mustContain: ["@media", ".marketing-hero"] });
-  await expectStaticAsset("/sw.js", { origin, mustContain: ["const CACHE =", "NETWORK_FIRST_DESTINATIONS"] });
+  await expectStaticAsset("/styles/components.css", {
+    origin,
+    mustContain: [".is-hidden", "button.primary"],
+  });
+  await expectStaticAsset("/styles/pages.css", {
+    origin,
+    mustContain: [".marketing-hero", ".panel-shell"],
+  });
+  await expectStaticAsset("/styles/admin-panels.css", {
+    origin,
+    mustContain: [".modal-backdrop", ".analytics-kpi-grid"],
+  });
+  await expectStaticAsset("/styles/analytics-visuals.css", {
+    origin,
+    mustContain: [".rfm-row", ".trend-bars"],
+  });
+  await expectStaticAsset("/styles/responsive.css", {
+    origin,
+    mustContain: ["@media", ".marketing-hero"],
+  });
+  await expectStaticAsset("/sw.js", {
+    origin,
+    mustContain: ["const CACHE =", "NETWORK_FIRST_DESTINATIONS"],
+  });
   await expectAuthProtected("/api/admin/analytics/ledger-certification");
   await expectAuthProtected("/api/admin/analytics/ledger-certification.csv");
 

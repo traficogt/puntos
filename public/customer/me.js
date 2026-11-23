@@ -12,7 +12,7 @@ import {
   renderReferralCode,
   renderReferralStats,
   renderRewards,
-  renderTier
+  renderTier,
 } from "./render.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
@@ -64,13 +64,25 @@ function renderOfflineSections($, snapshot) {
   const hasRewards = Boolean(sections.rewards?.rewards);
 
   renderOfflineStub($);
-  renderStatement($, sections.statement?.statement, { isLive: false, region: sections.me?.business?.region });
+  renderStatement($, sections.statement?.statement, {
+    isLive: false,
+    region: sections.me?.business?.region,
+  });
 
   if (hasRewards) {
-    renderRewards($, Number(me?.points ?? 0), sections.rewards.rewards, { progress: sections.rewards.progress, isLive: false, region: sections.me?.business?.region });
+    renderRewards($, Number(me?.points ?? 0), sections.rewards.rewards, {
+      progress: sections.rewards.progress,
+      isLive: false,
+      region: sections.me?.business?.region,
+    });
   }
   if (hasHistory) {
-    renderHistory($, sections.history.transactions, sections.history.redemptions, sections.me?.business?.region);
+    renderHistory(
+      $,
+      sections.history.transactions,
+      sections.history.redemptions,
+      sections.me?.business?.region,
+    );
   }
   if (sections.me?.business?.features?.tiers && sections.tier) {
     renderTier($, sections.tier.tier);
@@ -95,12 +107,30 @@ function renderOfflineSections($, snapshot) {
  * @param {boolean} isLive
  * @param {{ sections?: Record<string, any>, latestUpdatedAt?: string } | null} [snapshot]
  */
-export async function renderFromMe({ api, $, toast, isCurrent = () => true, identity = null }, me, isLive, snapshot = null) {
+export async function renderFromMe(
+  { api, $, toast, isCurrent = () => true, identity = null },
+  me,
+  isLive,
+  snapshot = null,
+) {
   identity ||= { businessId: me.business.id, customerId: me.customer.id };
   if (!isCurrent()) return { status: "superseded" };
   safeEl($, "#customerStatement")?.replaceChildren();
-  if (isLive && safeEl($, "#customerStatement")) safeEl($, "#customerStatement").textContent = "Cargando tu resumen…";
-  for (const selector of ["#rewards", "#nextReward", "#nextRewardBalance", "#nextRewardConditions", "#nextRewardEarning", "#achievements", "#referralStats", "#tierPerks", "#tx", "#red"]) safeEl($, selector)?.replaceChildren();
+  if (isLive && safeEl($, "#customerStatement"))
+    safeEl($, "#customerStatement").textContent = "Cargando tu resumen…";
+  for (const selector of [
+    "#rewards",
+    "#nextReward",
+    "#nextRewardBalance",
+    "#nextRewardConditions",
+    "#nextRewardEarning",
+    "#achievements",
+    "#referralStats",
+    "#tierPerks",
+    "#tx",
+    "#red",
+  ])
+    safeEl($, selector)?.replaceChildren();
   renderReferralCode($, null);
   const needLogin = safeEl($, "#needLogin");
   const main = safeEl($, "#main");
@@ -125,7 +155,8 @@ export async function renderFromMe({ api, $, toast, isCurrent = () => true, iden
   if (points) points.textContent = String(c?.points ?? 0);
   if (pendingPoints) pendingPoints.textContent = String(c?.pending_points ?? 0);
   if (lifetime) lifetime.textContent = String(c?.lifetime_points ?? 0);
-  if (lastVisit) lastVisit.textContent = c?.last_visit_at ? fmtDT(c.last_visit_at, me.business?.region) : "—";
+  if (lastVisit)
+    lastVisit.textContent = c?.last_visit_at ? fmtDT(c.last_visit_at, me.business?.region) : "—";
 
   const memberBenefit = safeEl($, "#memberBenefit");
   if (memberBenefit) {
@@ -142,7 +173,9 @@ export async function renderFromMe({ api, $, toast, isCurrent = () => true, iden
   if (stampWrap) {
     const sc = me.stamp_card;
     if (sc && Number(sc.stamps_required) > 0) {
-      const req = Number(sc.stamps_required), hs = Math.max(0, Number(sc.head_start) || 0), filled = Math.max(0, Number(sc.filled) || 0);
+      const req = Number(sc.stamps_required),
+        hs = Math.max(0, Number(sc.head_start) || 0),
+        filled = Math.max(0, Number(sc.filled) || 0);
       const grid = document.createElement("div");
       grid.className = "lc-stamp-grid";
       grid.setAttribute("aria-hidden", "true");
@@ -180,7 +213,10 @@ export async function renderFromMe({ api, $, toast, isCurrent = () => true, iden
   }
   const giftWrap = safeEl($, "#giftCardTransfer");
   if (giftWrap) {
-    setHidden(giftWrap, !(wallet && wallet.kind === "GIFT_CARD" && (Number(wallet.balance_q) || 0) > 0));
+    setHidden(
+      giftWrap,
+      !(wallet && wallet.kind === "GIFT_CARD" && (Number(wallet.balance_q) || 0) > 0),
+    );
   }
 
   const qrWrap = /** @type {HTMLElement | null} */ (safeEl($, "#qrWrap"));
@@ -218,34 +254,68 @@ export async function renderFromMe({ api, $, toast, isCurrent = () => true, iden
         else unavailable?.();
       }
     }
-    await loadSection("rewards", "/api/customer/rewards", (data, fresh) => {
-      if (fresh && data.progress) {
-        if (points) points.textContent = String(data.progress.available_points);
-        if (pendingPoints) pendingPoints.textContent = String(data.progress.pending_points);
-      }
-      renderRewards($, Number(c?.points ?? 0), data.rewards, { progress: data.progress, isLive: fresh, isCurrent, region: biz?.region });
-    }, () => {
-      const rewards = safeEl($, "#rewards");
-      if (rewards) rewards.textContent = "No se pudieron cargar las recompensas. Intenta actualizar de nuevo.";
-      const next = safeEl($, "#nextReward");
-      if (next) next.textContent = "Recompensas pendientes de actualizar";
-    });
-    await loadSection("history", "/api/customer/history", data => renderHistory($, data.transactions, data.redemptions, me?.business?.region), () => {
-      for (const selector of ["#tx", "#red"]) {
-        const element = safeEl($, selector);
-        if (element) element.textContent = "No se pudo cargar la actividad. Intenta actualizar de nuevo.";
-      }
-    });
-    await loadSection("statement", "/api/customer/statement", (data, fresh) => renderStatement($, data.statement, { isLive: fresh, region: biz?.region }), () => renderStatement($, null, { isLive: true }));
+    await loadSection(
+      "rewards",
+      "/api/customer/rewards",
+      (data, fresh) => {
+        if (fresh && data.progress) {
+          if (points) points.textContent = String(data.progress.available_points);
+          if (pendingPoints) pendingPoints.textContent = String(data.progress.pending_points);
+        }
+        renderRewards($, Number(c?.points ?? 0), data.rewards, {
+          progress: data.progress,
+          isLive: fresh,
+          isCurrent,
+          region: biz?.region,
+        });
+      },
+      () => {
+        const rewards = safeEl($, "#rewards");
+        if (rewards)
+          rewards.textContent =
+            "No se pudieron cargar las recompensas. Intenta actualizar de nuevo.";
+        const next = safeEl($, "#nextReward");
+        if (next) next.textContent = "Recompensas pendientes de actualizar";
+      },
+    );
+    await loadSection(
+      "history",
+      "/api/customer/history",
+      (data) => renderHistory($, data.transactions, data.redemptions, me?.business?.region),
+      () => {
+        for (const selector of ["#tx", "#red"]) {
+          const element = safeEl($, selector);
+          if (element)
+            element.textContent = "No se pudo cargar la actividad. Intenta actualizar de nuevo.";
+        }
+      },
+    );
+    await loadSection(
+      "statement",
+      "/api/customer/statement",
+      (data, fresh) => renderStatement($, data.statement, { isLive: fresh, region: biz?.region }),
+      () => renderStatement($, null, { isLive: true }),
+    );
     if (biz?.features?.tiers) {
-      await loadSection("tier", "/api/customer/tier", data => renderTier($, data.tier), () => setHidden(safeEl($, "#tierSection"), true));
+      await loadSection(
+        "tier",
+        "/api/customer/tier",
+        (data) => renderTier($, data.tier),
+        () => setHidden(safeEl($, "#tierSection"), true),
+      );
     } else setHidden(safeEl($, "#tierSection"), true);
     if (biz?.features?.gamification) {
-      await loadSection("achievements", "/api/customer/achievements", data => renderAchievements($, data));
+      await loadSection("achievements", "/api/customer/achievements", (data) =>
+        renderAchievements($, data),
+      );
     }
     if (biz?.features?.referrals) {
-      await loadSection("referralCode", "/api/customer/referral-code", data => renderReferralCode($, data.referral_code));
-      await loadSection("referralStats", "/api/customer/referrals", data => renderReferralStats($, data));
+      await loadSection("referralCode", "/api/customer/referral-code", (data) =>
+        renderReferralCode($, data.referral_code),
+      );
+      await loadSection("referralStats", "/api/customer/referrals", (data) =>
+        renderReferralStats($, data),
+      );
     }
     if (!isCurrent()) return { status: "superseded" };
     updateSyncBadge($, !partial, partial ? snapshot?.latestUpdatedAt : new Date().toISOString());

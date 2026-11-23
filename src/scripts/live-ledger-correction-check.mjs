@@ -9,20 +9,22 @@ function arg(name, fallback = "") {
 }
 
 const baseUrl = arg("--base-url", process.env.TEST_API_URL || "http://localhost:3001");
-const browserOrigin = arg("--browser-origin", process.env.BROWSER_ORIGIN || process.env.APP_ORIGIN || new URL(baseUrl).origin);
+const browserOrigin = arg(
+  "--browser-origin",
+  process.env.BROWSER_ORIGIN || process.env.APP_ORIGIN || new URL(baseUrl).origin,
+);
 const superEmail = arg("--super-email", process.env.SUPER_ADMIN_EMAIL || "");
 const superPassword = arg("--super-password", process.env.SUPER_ADMIN_PASSWORD || "");
-const forwardedFor = process.env.TEST_CLIENT_IP
-  || `198.51.100.${Math.max(10, Math.floor(Math.random() * 200))}`;
+const forwardedFor =
+  process.env.TEST_CLIENT_IP || `198.51.100.${Math.max(10, Math.floor(Math.random() * 200))}`;
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
 function applySetCookieJar(jar, response) {
-  const values = typeof response.headers.getSetCookie === "function"
-    ? response.headers.getSetCookie()
-    : [];
+  const values =
+    typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
   for (const raw of values) {
     const first = String(raw || "").split(";")[0];
     const eq = first.indexOf("=");
@@ -32,7 +34,9 @@ function applySetCookieJar(jar, response) {
 }
 
 function cookieHeader(jar) {
-  return Array.from(jar.entries()).map(([key, value]) => `${key}=${value}`).join("; ");
+  return Array.from(jar.entries())
+    .map(([key, value]) => `${key}=${value}`)
+    .join("; ");
 }
 
 function csrfTokenFromJar(jar) {
@@ -43,7 +47,7 @@ async function request(jar, path, options = {}) {
   const headers = {
     "Content-Type": "application/json",
     "X-Forwarded-For": forwardedFor,
-    ...(options.headers || {})
+    ...(options.headers || {}),
   };
   const cookie = cookieHeader(jar);
   if (cookie) headers.Cookie = cookie;
@@ -55,12 +59,16 @@ async function request(jar, path, options = {}) {
 
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
-    headers
+    headers,
   });
   applySetCookieJar(jar, response);
   const text = await response.text();
   let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
   return { response, status: response.status, data, text };
 }
 
@@ -76,8 +84,8 @@ async function createBusinessAndOwnerSession(superJar, ownerJar, suffix) {
       email: ownerEmail,
       password,
       category: "cafe",
-      plan: "EMPRESA"
-    })
+      plan: "EMPRESA",
+    }),
   });
   assert(createdBusiness.status === 201, `create business failed: ${createdBusiness.status}`);
 
@@ -85,11 +93,15 @@ async function createBusinessAndOwnerSession(superJar, ownerJar, suffix) {
   const businessSlug = createdBusiness.data?.business?.slug;
   assert(businessId && businessSlug, "missing business identity");
 
-  const impersonate = await request(superJar, `/api/super/impersonate/${encodeURIComponent(businessId)}`, {
-    method: "POST",
-    csrf: true,
-    body: "{}"
-  });
+  const impersonate = await request(
+    superJar,
+    `/api/super/impersonate/${encodeURIComponent(businessId)}`,
+    {
+      method: "POST",
+      csrf: true,
+      body: "{}",
+    },
+  );
   assert(impersonate.status === 200, `impersonate failed: ${impersonate.status}`);
   copyStaffSessionCookies(superJar, ownerJar);
 
@@ -100,29 +112,33 @@ async function createSecondOwner(superJar, businessId, suffix, ownerJar) {
   const email = `owner2-correction-${suffix}@example.com`;
   const password = "HarborCactusNimbus2026!";
 
-  const createUser = await request(superJar, `/api/super/businesses/${encodeURIComponent(businessId)}/users`, {
-    method: "POST",
-    csrf: true,
-    body: JSON.stringify({
-      name: "Owner Two",
-      email,
-      password,
-      role: "OWNER",
-      allow_multi_owner: true
-    })
-  });
+  const createUser = await request(
+    superJar,
+    `/api/super/businesses/${encodeURIComponent(businessId)}/users`,
+    {
+      method: "POST",
+      csrf: true,
+      body: JSON.stringify({
+        name: "Owner Two",
+        email,
+        password,
+        role: "OWNER",
+        allow_multi_owner: true,
+      }),
+    },
+  );
   assert(createUser.status === 201, `create second owner failed: ${createUser.status}`);
 
   const login = await request(ownerJar, "/api/staff/login", {
     method: "POST",
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ email, password }),
   });
   assert(login.status === 200, `second owner login failed: ${login.status}`);
 
   return {
     ownerId: createUser.data?.user?.id,
     email,
-    password
+    password,
   };
 }
 
@@ -131,7 +147,9 @@ async function createCustomerAndDrift(businessSlug, driftPoints) {
   const { BusinessRepo } = await import("../app/repositories/business-repository.js");
   const { CustomerRepo } = await import("../app/repositories/customer-repository.js");
 
-  const phone = `+50255${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`;
+  const phone = `+50255${Math.floor(Math.random() * 1000000)
+    .toString()
+    .padStart(6, "0")}`;
   const name = "Correction Smoke Customer";
 
   return withDbClientContext({ platformAdmin: true, tenantId: null }, async (client) => {
@@ -142,7 +160,7 @@ async function createCustomerAndDrift(businessSlug, driftPoints) {
       id: crypto.randomUUID(),
       business_id: business.id,
       phone,
-      name
+      name,
     });
 
     await client.query(
@@ -150,10 +168,15 @@ async function createCustomerAndDrift(businessSlug, driftPoints) {
        SET points = points + $2,
            updated_at = now()
        WHERE customer_id = $1`,
-      [customer.id, Number(driftPoints)]
+      [customer.id, Number(driftPoints)],
     );
 
-    return { businessId: business.id, customerId: customer.id, phone, driftPoints: Number(driftPoints) };
+    return {
+      businessId: business.id,
+      customerId: customer.id,
+      phone,
+      driftPoints: Number(driftPoints),
+    };
   });
 }
 
@@ -166,12 +189,16 @@ async function main() {
 
   const login = await request(superJar, "/api/super/login", {
     method: "POST",
-    body: JSON.stringify({ email: superEmail, password: superPassword })
+    body: JSON.stringify({ email: superEmail, password: superPassword }),
   });
   assert(login.status === 200, `super login failed: ${login.status}`);
 
   const rand = Math.random().toString(36).slice(2, 9);
-  const { businessId, businessSlug } = await createBusinessAndOwnerSession(superJar, ownerOneJar, rand);
+  const { businessId, businessSlug } = await createBusinessAndOwnerSession(
+    superJar,
+    ownerOneJar,
+    rand,
+  );
   const secondOwner = await createSecondOwner(superJar, businessId, rand, ownerTwoJar);
   assert(secondOwner.ownerId, "missing second owner id");
 
@@ -181,28 +208,42 @@ async function main() {
     csrf: true,
     body: JSON.stringify({
       customerId: firstCustomer.customerId,
-      reason: "Controlled drift introduced for smoke validation"
-    })
+      reason: "Controlled drift introduced for smoke validation",
+    }),
   });
   assert(createOne.status === 201, `request correction failed: ${createOne.status}`);
   const firstCorrectionId = createOne.data?.correction?.id;
   assert(firstCorrectionId, "missing first correction id");
 
-  const selfApply = await request(ownerOneJar, `/api/admin/analytics/ledger-corrections/${encodeURIComponent(firstCorrectionId)}/apply`, {
-    method: "POST",
-    csrf: true,
-    body: "{}"
-  });
+  const selfApply = await request(
+    ownerOneJar,
+    `/api/admin/analytics/ledger-corrections/${encodeURIComponent(firstCorrectionId)}/apply`,
+    {
+      method: "POST",
+      csrf: true,
+      body: "{}",
+    },
+  );
   assert(selfApply.status === 403, `self-apply should be forbidden, got ${selfApply.status}`);
 
-  const applyBySecondOwner = await request(ownerTwoJar, `/api/admin/analytics/ledger-corrections/${encodeURIComponent(firstCorrectionId)}/apply`, {
-    method: "POST",
-    csrf: true,
-    body: "{}"
-  });
-  assert(applyBySecondOwner.status === 200, `apply correction failed: ${applyBySecondOwner.status}`);
+  const applyBySecondOwner = await request(
+    ownerTwoJar,
+    `/api/admin/analytics/ledger-corrections/${encodeURIComponent(firstCorrectionId)}/apply`,
+    {
+      method: "POST",
+      csrf: true,
+      body: "{}",
+    },
+  );
+  assert(
+    applyBySecondOwner.status === 200,
+    `apply correction failed: ${applyBySecondOwner.status}`,
+  );
   assert(applyBySecondOwner.data?.correction?.status === "APPLIED", "correction did not apply");
-  assert(applyBySecondOwner.data?.correction?.adjustment_id, "applied correction missing adjustment_id");
+  assert(
+    applyBySecondOwner.data?.correction?.adjustment_id,
+    "applied correction missing adjustment_id",
+  );
 
   const secondCustomer = await createCustomerAndDrift(businessSlug, 7);
   const createTwo = await request(ownerTwoJar, "/api/admin/analytics/ledger-corrections", {
@@ -210,26 +251,37 @@ async function main() {
     csrf: true,
     body: JSON.stringify({
       customerId: secondCustomer.customerId,
-      reason: "Second drift introduced to validate rejection path"
-    })
+      reason: "Second drift introduced to validate rejection path",
+    }),
   });
   assert(createTwo.status === 201, `request second correction failed: ${createTwo.status}`);
   const secondCorrectionId = createTwo.data?.correction?.id;
   assert(secondCorrectionId, "missing second correction id");
 
-  const selfReject = await request(ownerTwoJar, `/api/admin/analytics/ledger-corrections/${encodeURIComponent(secondCorrectionId)}/reject`, {
-    method: "POST",
-    csrf: true,
-    body: JSON.stringify({ reason: "Owner cannot reject own request" })
-  });
+  const selfReject = await request(
+    ownerTwoJar,
+    `/api/admin/analytics/ledger-corrections/${encodeURIComponent(secondCorrectionId)}/reject`,
+    {
+      method: "POST",
+      csrf: true,
+      body: JSON.stringify({ reason: "Owner cannot reject own request" }),
+    },
+  );
   assert(selfReject.status === 403, `self-reject should be forbidden, got ${selfReject.status}`);
 
-  const rejectByFirstOwner = await request(ownerOneJar, `/api/admin/analytics/ledger-corrections/${encodeURIComponent(secondCorrectionId)}/reject`, {
-    method: "POST",
-    csrf: true,
-    body: JSON.stringify({ reason: "Reviewed and rejected during smoke validation" })
-  });
-  assert(rejectByFirstOwner.status === 200, `reject correction failed: ${rejectByFirstOwner.status}`);
+  const rejectByFirstOwner = await request(
+    ownerOneJar,
+    `/api/admin/analytics/ledger-corrections/${encodeURIComponent(secondCorrectionId)}/reject`,
+    {
+      method: "POST",
+      csrf: true,
+      body: JSON.stringify({ reason: "Reviewed and rejected during smoke validation" }),
+    },
+  );
+  assert(
+    rejectByFirstOwner.status === 200,
+    `reject correction failed: ${rejectByFirstOwner.status}`,
+  );
   assert(rejectByFirstOwner.data?.correction?.status === "REJECTED", "correction did not reject");
 
   const listed = await request(ownerOneJar, "/api/admin/analytics/ledger-corrections?limit=20");
@@ -238,21 +290,23 @@ async function main() {
   assert(statuses.get(firstCorrectionId) === "APPLIED", "applied correction missing from list");
   assert(statuses.get(secondCorrectionId) === "REJECTED", "rejected correction missing from list");
 
-  process.stdout.write(`${JSON.stringify({
-    ok: true,
-    businessId,
-    firstCorrection: {
-      id: firstCorrectionId,
-      selfApplyStatus: selfApply.status,
-      finalStatus: applyBySecondOwner.data?.correction?.status,
-      adjustmentId: applyBySecondOwner.data?.correction?.adjustment_id
-    },
-    secondCorrection: {
-      id: secondCorrectionId,
-      selfRejectStatus: selfReject.status,
-      finalStatus: rejectByFirstOwner.data?.correction?.status
-    }
-  })}\n`);
+  process.stdout.write(
+    `${JSON.stringify({
+      ok: true,
+      businessId,
+      firstCorrection: {
+        id: firstCorrectionId,
+        selfApplyStatus: selfApply.status,
+        finalStatus: applyBySecondOwner.data?.correction?.status,
+        adjustmentId: applyBySecondOwner.data?.correction?.adjustment_id,
+      },
+      secondCorrection: {
+        id: secondCorrectionId,
+        selfRejectStatus: selfReject.status,
+        finalStatus: rejectByFirstOwner.data?.correction?.status,
+      },
+    })}\n`,
+  );
 }
 
 main().catch((error) => {
