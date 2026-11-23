@@ -1,0 +1,513 @@
+# Architecture
+
+Orientation for engineers joining PuntosFieles. Every statement below was checked
+against the tree at commit `f8ce5c0` (2026-11-23); file paths are repository-relative.
+Where the code and older documents disagree, this file describes the code and names
+the stale document. Recommendations are marked as such.
+
+## 1. System shape
+
+**Processes**
+
+| Process | Entry | Role |
+| --- | --- | --- |
+| API | `src/app/server.js` (Express 5) | HTTP API under `/api` and `/api/v1`, static PWA, server-rendered marketing/help pages |
+| Worker | `src/app/worker.js` | Runs the worker share of `src/app/scheduler.js`; exposes `/health` and `/metrics` on `WORKER_PORT` (3002) |
+| PostgreSQL | central database VM | `docker-compose.yml` points both containers at `DB_HOST: ${APP_DB_HOST:-10.10.1.51}`; there is no `db` service in the production compose file any more (removed in `6198534`) |
+| Redis | optional | Only used when `RATE_LIMIT_DRIVER=redis` (`src/middleware/rate-limit.js`) or `JOB_QUEUE_DRIVER=redis` (`src/app/services/job-service.js`). Not present in `docker-compose.yml`; the e2e stack (`docker-compose.e2e.standalone.yml`) starts `redis:7-alpine` |
+
+The production database is PostgreSQL 17 on the central VM (`src/scripts/backup-db.sh`
+dumps with a `postgres:17` client because `pg_dump` refuses servers newer than itself);
+the test and e2e compose files run PostgreSQL `16.15-alpine`. Both processes build from
+the same `Dockerfile` (`node:24.22.2-alpine`, non-root `nodejs`, `dumb-init`).
+
+**Hosting.** The browser application is served at `app.puntosfieles.com` and the
+marketing site at `puntosfieles.com` (both monitored in `deploy/status/.upptimerc.yml`).
+One Express process serves both hosts: `src/utils/app-host-routing.js` treats `app.<host>`
+as the application origin and redirects application paths requested on the apex
+(`resolveHostSplitRedirect` in `server.js`). A TLS-terminating reverse proxy sits in front
+(`deploy/caddy-edge/Caddyfile` is the example); `TRUST_PROXY` must be `>= 1` in production
+(`src/config/index.js`).
+
+**"Self-hosted".** `README.md` and `package.json` have described the project as
+"self-hosted" since the initial import (`git log -S"Self-hosted" -- README.md`). What that
+means in practice: the owner operates a single hosted deployment, and the stack is
+self-hostable with Docker Compose. There is no multi-install distribution, and the compose
+defaults now assume the owner's central DB VM.
+
+**User-facing surfaces (three UI stacks plus two static sites):**
+
+1. **Vanilla-JS PWA** in `public/`: customer wallet (`/mi-tarjeta/` → `customer.html`),
+   staff scanner (`/equipo/escaner/` → `staff.html`), staff login (`/equipo/ingresar/`),
+   owner dashboard (`/administracion/` → `admin-dashboard.html`), business signup
+   (`/crear-negocio/` → `admin.html`), super console (`/plataforma/` → `super.html`),
+   join/sign-in pages, marketing pages, calculator and status page. Spanish document
+   routes live in `src/middleware/spanish-web.js`; English legacy paths (`/staff`, `/c`,
+   `/super`, ...) are still served by `server.js`.
+2. **React 19 + Mantine 9 merchant dashboard** in `web/merchant/` (Vite, `base: "/negocio/"`,
+   build output committed to `public/merchant`). `src/middleware/merchant-web.js` injects a
+   per-response nonce for Mantine's style tags. The service worker never caches
+   `/merchant/`, `/negocio/` or `/demostracion/` documents.
+3. **Expo native app** in `apps/customer/` (Expo ~57, version 0.1.0). Frozen per
+   `AGENTS.md`: iOS 0.1.0 (3) in TestFlight, Android 0.1.0 (13) internal testing. It has
+   no `expo-updates` dependency, so there is no over-the-air update channel.
+4. **Help center**: `help/` (MkDocs) builds into `public/ayuda` (CI runs
+   `python help/scripts/build.py --check`); `/guias` is server-rendered from
+   `src/content/guides` by `src/middleware/guides.js`.
+5. **Pertenece landing** (`deploy/pertenece/`): an independent Nginx container serving
+   `public/credenciales` assets at `pertenecegt.com`; the only route forwarded to PF is
+   `POST /api/public/contact`.
+
+`web/astryx-prototype/` (→ `public/revision-astryx/9b72f5a1/`) is an unlisted design
+preview, not a product surface.
+
+Three UI stacks is a known cost. `docs/FRONTEND_MIGRATION_PLAN.md` proposes an incremental
+React + Vite migration; only `web/merchant` has followed it. **Consolidation is an open
+decision**, not a plan in progress.
+
+## 2. Request lifecycle and tenancy
+
+Middleware order in `src/app/server.js`:
+
+1. `app.set("query parser", "extended")`, ETag off, `Cache-Control: no-store` on `/api`.
+2. `trust proxy` when `TRUST_PROXY` is set.
+3. `pino-http` with `genReqId` (honours `X-Request-Id`, else UUID) and a follow-up
+   middleware that sets `req.requestId` and `Permissions-Policy`.
+4. `helmet` (CSP allowing `privatrack.com`, Cloudflare Insights and Turnstile; HSTS in
+   production).
+5. CORS on `/api` only (`isAllowedApiOrigin`, `src/utils/cors-origin.js`).
+6. `cookieParser`.
+7. `mountPgClient(app)` (`src/middleware/pg-client.js`): `withPgClient` is mounted on
+   `PG_CLIENT_MOUNT_PATHS = ["/api"]` **only**. Static assets, HTML entry pages and
+   marketing routes never take a pool connection (changed in `5c084b4`; enforced by
+   `tests/unit/pg-client-mount-scope.test.js`).
+8. `csrfInit` (`src/middleware/csrf.js`): double-submit with an httpOnly `pf_csrf` cookie
+   and a readable `pf_csrf_readable` cookie; mutations must send `x-csrf-token` (header) or
+   `csrf_token` (body); denials are logged as `csrf_denied` security events.
+9. `metricsMiddleware`, then `globalApiRateLimit` on `/api` (probe paths exempt).
+10. `express.json({ limit: "1mb" })` keeping `req.rawBody`, `defaultRequestBody`,
+    `requestComplexityLimit`.
+11. Marketing/help/static layers: search visibility, editorial and illustration review,
+    guides, public plans, Spanish redirects, host-split redirect, `/runtime-config.js`,
+    `/sitio`, `/sw.js` no-cache, `/app-preview`, Spanish web, self-service web,
+    `express.static(public)`, friendly routes.
+12. `apiRoutes` (`src/app/routes/index.js`): every router is mounted twice through
+    `mountRoutes("/api/v1")` and `mountRoutes("/api")`; `apiRouteMounts` records the mounts
+    so `src/scripts/generate-openapi.mjs` does not depend on Express internals.
+13. `notFound`, `errorHandler` (`src/middleware/common.js`).
+
+**Request-pinned connection.** `withPgClient` takes a client from `pool`, runs the rest of
+the request inside `runWithDbContext({ client, tenantId: null, platformAdmin: false })`
+and sets `req.pgClient`. On `finish` it resets the three GUCs and releases the client; if
+the reset fails, or the response closed before it finished writing, the client is
+destroyed (`client.release(true)`) rather than returned to the pool with tenant state.
+
+**Ambient DB context.** `src/app/db/context.js` holds an `AsyncLocalStorage` store
+`{ client, tenantId, platformAdmin, webhookIngest }`. `src/app/db/session.js` exposes:
+
+- `dbQuery(sql, params)` → `getDbClient().query(...)`, where the client is the store's
+  client or, outside any context, the shared `pool`.
+- `setCurrentTenant`, `setPlatformAdmin`, `setWebhookIngest` → `set_config('app.current_tenant' | 'app.platform_admin' | 'app.webhook_ingest', $1, is_local)`
+  on the context client (no-op on the store when there is no client).
+- `withDbClientContext(ctx, fn)` for background and explicit contexts: reuses the parent
+  client if present, otherwise takes one from `pool`, applies the GUCs, and on exit resets
+  them; a failed reset destroys the connection (`5c084b4`).
+
+Auth middleware sets the context: `requireStaff` / `requireCustomer` call
+`setCurrentTenant(session.business_id)`; `requireSuperAdmin` calls `setPlatformAdmin(true)`
+(`src/middleware/auth.js`). `tenantContext` (`src/middleware/tenant.js`) additionally
+rejects requests without a business with `400 TENANT_REQUIRED` when
+`ENFORCE_TENANT_CONTEXT` is on (default).
+
+**Transactions.** `withTransaction(fn)` (`src/app/db/transactions.js`) uses the separate
+`transactionPool` (`DB_TX_POOL_MAX`, default 10; the request pool is `DB_POOL_MAX`, default
+20, `src/app/db/pools.js`). It `BEGIN`s, copies the ambient `platformAdmin`,
+`webhookIngest` and `tenantId` into transaction-local GUCs (`set_config(..., true)`), runs
+`fn(client)`, commits or rolls back, resets the session GUCs and destroys the client if the
+connection errored. Nested use re-enters the context with the new client.
+
+**Row-level security.** `src/app/migrations/2026-02-27-tenant-rls_canonical.sql` creates
+schema `app`, enables and `FORCE`s RLS on tenant tables and defines policies over
+`app.current_tenant`, `app.platform_admin` and `app.webhook_ingest`. The runtime role must
+be `NOSUPERUSER` (`enforceNonSuperRuntime` in `src/app/db/migrations.js` refuses to start
+otherwise, except in `NODE_ENV=test`). `docs/TENANT_RLS.md` remains the policy reference,
+but its statement that `withPgClient` runs for every request is stale: it runs for `/api`
+only.
+
+**Two DB-access idioms.** Counted with `grep` on 2026-11-23:
+
+| Idiom | `src/app/services` | `src/app/repositories` | `src/app/routes` |
+| --- | --- | --- | --- |
+| explicit `client.query(...)` | 864 | 28 | 0 |
+| ambient `dbQuery(...)` | 65 | 62 | 76 |
+
+The money paths (`cashback-service.js`, `gift-card-service.js`, `staff-award-service.js`,
+`order-service.js`, `external-award-service.js`, ...) all follow the same shape:
+`withTransaction(async (client) => { lock; look up existing request_id; write; })` with the
+client passed explicitly. `dbQuery()` is used for single-statement reads and writes that
+ride the request-pinned connection, and inside repositories.
+
+*Recommendation:* new transactional code should take the explicit `client` from
+`withTransaction` and pass it down (as the money services do); use `dbQuery()` only for
+request-scoped single statements. Never call `pool.query` from routes or services.
+
+## 3. Layering reality
+
+Counts: 100 route files, 180 service files, 38 repository files. SQL lives in services
+(864 explicit query calls plus 65 ambient) — `src/app/repositories/` holds 90 query calls
+in total and is **not** a general data-access layer. `docs/ARQUITECTURA_8_5.md` lists
+"repositorios de datos" as a layer; read that as aspiration.
+
+What actually lives in `src/app/repositories/`:
+
+- `base.js`: `one`, `many`, `exec` helpers over `dbQuery`.
+- Analytics read models and calculations: `analytics-repository.js` with
+  `analytics/{rfm,churn,cohorts,segments}-repository.js` (`calculateRFMScores`,
+  `calculateChurnRisk`, `calculatePredictedLTV`, `createCohorts`), consumed by
+  `src/app/routes/analytics/*` and the `analytics.calculate` job.
+- Shared row access used by several services: `business-repository.js` (`BusinessRepo`:
+  lookups, `updateProgram`, `listAllIds`, external-award key rotation),
+  `webhook-repository.js` (`WebhookRepo.claimPending`, secret encryption/rotation),
+  `job-repository.js`, `audit-repository.js`, `security-event-repository.js`,
+  `staff-repository.js`, `customer-repository.js`, auth session and token repositories,
+  native-wallet and mobile-push repositories, gift-card, tier, referral, reward, redemption,
+  transaction, order and verify-code repositories.
+
+48 services and 20 route files import a repository. Routes importing repositories directly
+(for example `src/app/routes/analytics/_util.js`, `super-routes.js`) is legacy, not a
+pattern to extend.
+
+*Convention going forward (recommendation):* routes validate and call services; services
+own SQL and transactions; a repository is justified only for row access shared by several
+services (sessions, audit, security events, jobs, webhooks, business) or for analytics
+read models. Do not "fix" a service by moving its SQL into a new repository, and do not add
+repository imports to routes.
+
+## 4. Validation and errors
+
+**Schemas** are zod (`src/utils/schemas.js` and route-local schemas). Four idioms coexist
+in `src/app/routes`:
+
+| Idiom | Count | Failure response |
+| --- | --- | --- |
+| `schema.safeParse(req.body)` inline | 253 | handler-specific, usually `res.status(400).json({ error: "Payload inválido" })` without `code` |
+| `validate(schema, body)` from `src/utils/validation.js` | 57 (12 files) | `res.status(400).json({ error: v.error })` where `error` is zod's `flattenError` object (`formErrors`/`fieldErrors`), no `code` |
+| `validateQuery(schema)` middleware (`src/utils/schemas.js`) | 21 | `{ error: "Invalid query parameters", details }`, no `code`, no `request_id` |
+| `validateRequest(schema)` middleware | 0 | defined, unused |
+
+Counts are for commit `f8ce5c0`. An uncommitted change to `src/utils/schemas.js` is in
+progress in the working tree (a shared `validationErrorBody` and a `validateParams`
+helper); re-verify this table against the tree once it lands.
+
+Only errors that reach `errorHandler` get the canonical envelope. A `ZodError` thrown from
+a handler becomes `400 VALIDATION_ERROR` with `details: [{ field, message }]`; this is the
+path to prefer for new code (parse with `schema.parse` inside `asyncRoute`, or throw
+`badRequest(message, code)`).
+
+**HttpError** (`src/utils/http-error.js`): `new HttpError(status, message, code)` plus
+helpers `badRequest`, `unauthorized`, `forbidden`, `notFound`, `conflict`,
+`tooManyRequests`. `code` must match `^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$` and must not look
+like a Node system code (`E...`, `ERR_...`); otherwise it is derived by `inferErrorCode`
+from message fragments and status (the legacy behaviour, kept so no existing path changed
+code).
+
+**errorHandler precedence** (`src/middleware/common.js`): an explicit well-formed
+`err.code` wins; otherwise the legacy message/status inference; `ZodError` → 400
+`VALIDATION_ERROR`; `entity.parse.failed` → `BAD_JSON`; 5xx in production is masked to
+`"Error interno del servidor"` / `INTERNAL_ERROR`. SQLSTATE values and Node system codes
+are never echoed. Response shape: `{ error, code, request_id, details?, recoveryCaseId? }`
+with `X-Request-Id` set; 4xx are logged at info, 5xx at error. User-facing messages are
+Spanish (124 messages were translated in `5c084b4`).
+
+**Codes clients key on** (`public/lib.js` `ERROR_BY_CODE`, plus explicit checks in
+`public/`): `AUTH_REQUIRED`, `FORBIDDEN`, `RBAC_ROLE_REQUIRED`, `RBAC_ROLE_INSUFFICIENT`,
+`RBAC_PERMISSION_DENIED`, `PLAN_FEATURE_LOCKED`, `BUSINESS_CONTEXT_REQUIRED`, `NOT_FOUND`,
+`BAD_JSON`, `VALIDATION_ERROR`, `INTERNAL_ERROR`, `RATE_LIMITED`, `CUSTOMER_NOT_FOUND`;
+the string `MFA_REQUIRED` arrives as the `error` text (thrown by
+`account-security-service.js`), not as a code. `AUTH_INVALID_TOKEN` is in the client map
+but no server path emits it (invalid tokens infer to `AUTH_REQUIRED`).
+
+Other codes the server emits explicitly: `TENANT_REQUIRED`, `RECENT_MFA_REQUIRED`,
+`RECENT_REAUTH_REQUIRED`, `REAUTH_VERIFICATION_FAILED`, `PROGRAM_NOT_CONFIGURED`,
+`DUPLICATE_PHONE`, `INVALID_PHONE`, `INVALID_NAME`, `INVALID_POINTS`, `INVALID_REGION`,
+`CURRENCY_MISMATCH`, `SYNC_FAILED`, `RETRY_QUEUE_FULL`, `TRANSACTION_HISTORY_UNAVAILABLE`,
+`OPERATIONS_UNAVAILABLE`, `ACTIVATION_INSIGHTS_UNAVAILABLE`, `APPLE_WALLET_*`; inferred
+ones include `CONFLICT`, `BAD_REQUEST`, `UNEXPECTED_ERROR`.
+
+**Known wart:** staff login failures are `401` with `code: "VALIDATION_ERROR"`
+(`src/app/services/staff-service.js` lines 117 and 135, kept for backward compatibility
+with the staff login page). Super-admin login failures return `401 { error }` with no code
+at all (`src/app/routes/super-routes.js:124`).
+
+## 5. Money and ledgers
+
+**Arithmetic.** `src/utils/money.js` keeps every amount as an integer in minor units
+(centavos) and does the intermediate work in `BigInt`: `toMinor(value, { scale, rounding })`
+parses NUMERIC strings exactly (no float round trip), `fromMinor` formats fixed-decimal SQL
+parameters, `toNumber` produces JSON output, and `add`/`sub`/`sum`/`mul`/`pct`/`compare`
+assert `Number.isSafeInteger` on every result. Default rounding is `half-up` (half away
+from zero), matching Postgres `round(numeric, n)` and `NUMERIC(p, s)` assignment; `scale`
+defaults to 2 (the `NUMERIC(10,2)`/`NUMERIC(12,2)` Q ledgers). Cashback, discount and
+gift-card code use it (`cashback-model.js`, `discount-model.js`, `cashback-service.js`,
+`gift-card-service.js`); SQL text was unchanged by the switch. Two concrete bugs it fixed:
+15% of Q33.30 paid 4.99 instead of 5.00 and 15% of Q4.10 paid 0.61 instead of 0.62
+(`tests/unit/cashback-model.test.js`, `tests/unit/cashback-service.test.js`).
+
+**Points ledger.** `transactions` is the single-entry ledger (`status` PENDING/POSTED,
+`points`, `request_id`, `original_transaction_id`); `customer_balances` is the snapshot
+(`points`, `pending_points`, `lifetime_points`), `src/app/schema.sql` lines 93–100.
+Cashback and gift cards keep their own money ledger: `cashback_accounts` +
+`cashback_transactions` (`NUMERIC(12,2)`, `2026-11-20-cashback-ledger.sql`; the
+non-negative balance CHECK was dropped by `2026-11-22-cashback-allow-negative.sql` so a
+refund can claw back already-spent credit), and `gift_card_transactions`.
+
+**Idempotency** is enforced in the schema with partial unique indexes on
+`(business_id, request_id)`:
+
+- `idx_txn_business_request_id ON transactions(business_id, request_id) WHERE request_id IS NOT NULL` — `schema.sql:163`, `2026-03-08-transaction-request-id.sql`
+- `idx_redemptions_business_request_id` — `schema.sql:189`, `2026-03-08-redemption-idempotency.sql`
+- `idx_gift_card_tx_business_request_id` — `schema.sql:371`, `2026-03-08-gift-card-idempotency.sql`
+- `uq_cashback_tx_request ON cashback_transactions(business_id, request_id)` — `2026-11-20-cashback-ledger.sql`
+- `idx_txn_unique_reversal_per_original` (one reversal per original) and
+  `idx_txn_external_event_id` — `schema.sql`
+- newer tables declare `UNIQUE (business_id, request_id)` inline (growth campaigns,
+  customer recovery/migration, service recovery, demand funding, ...).
+
+Services serialize replays before touching the ledger with
+`SELECT pg_advisory_xact_lock(hashtext($businessId), hashtext($requestId))` inside the
+transaction (`staff-award-service.js:35`, `gift-card-service.js:94`, `order-service.js:120`,
+`external-award-service.js:106`, and about 25 more call sites), then look up the existing
+row for that `request_id` and return it instead of writing twice.
+
+**Reconciliation and certification.** `src/app/services/ledger-reconciliation-service.js`
+recomputes each customer's expected balances from `transactions` (POSTED sum → points,
+PENDING sum → pending, positive POSTED sum → lifetime), compares them with
+`customer_balances`, and persists runs and findings in `ledger_reconciliation_runs` /
+`ledger_reconciliation_findings` (`2026-03-08-ledger-reconciliation.sql`); `repair: true`
+(`LEDGER_RECONCILE_REPAIR`) rewrites the snapshot, and `limit` (`LEDGER_RECONCILE_LIMIT`,
+default 10 000, clamped to 1–50 000) bounds a run. `ledger-certification-service.js` writes
+a per-business JSON + CSV certification for a 30-day window under
+`LEDGER_CERTIFICATION_OUTPUT_ROOT` (default `./artifacts/ledger-certifications`), pruned
+after `LEDGER_CERTIFICATION_RETENTION_DAYS` (90). Both run as the worker-only daily step
+`ledger.reconcile-and-certify`; CLI equivalents are `ops:ledger:reconcile`,
+`ops:ledger:certify`, `ops:ledger:certify:prune`. Manual corrections go through
+`ledger-correction-service.js` (audit-logged, `2026-03-08-ledger-corrections.sql`).
+
+## 6. Background work
+
+**Registry.** `src/app/scheduler.js` declares every periodic job once with the roles that
+run it. The worker runs its share unconditionally; the API runs its share only when
+`IN_PROCESS_WORKERS` is true (default `true` outside production, `false` in production).
+A `BOTH` job therefore runs twice if an API instance has `IN_PROCESS_WORKERS=true` next to
+a worker.
+
+| Job | Schedule | Runs in |
+| --- | --- | --- |
+| `native-wallet.updates` | every 60 s | api + worker |
+| `mobile-push.updates` | every 30 s | worker |
+| `webhooks.deliver` | every 60 s | api + worker |
+| `jobs.process` | every `JOB_WORKER_INTERVAL_MS` (15 000), batch `JOB_WORKER_BATCH_SIZE` (10) | api + worker |
+| `marketing.tick` | every 60 s | api + worker |
+| `guided-growth.tick` (`second-visit.prepare`, `owner-briefs.process`) | every 60 s | worker |
+| `pos.sync` | every 300 s | api + worker |
+| `daily.maintenance` | cron `0 ${CHURN_SEND_HOUR_LOCAL} * * *` in `CRON_TZ` | api + worker (steps filtered by role) |
+
+Daily steps, in order: `support.purge-expired-attachments` (worker), `lifecycle.daily`
+(both), `mfa.prune-counters` (worker), `ledger.reconcile-and-certify` (worker). Startup
+tasks (`runStartupMaintenance`, run before any timer and regardless of
+`IN_PROCESS_WORKERS`): `support.purge-expired-attachments` (worker) and
+`secrets.rotate-to-current-key` (both). Failures are logged and never propagate
+(`runGuarded`/`runSequence`). Note that the daily hour is `CHURN_SEND_HOUR_LOCAL` (default
+9); `LEDGER_RECONCILE_HOUR_LOCAL` is declared in `src/config/index.js` and forwarded by
+`docker-compose.yml` but nothing reads it.
+
+**Job queue** (`src/app/services/job-service.js`). Jobs live in `background_jobs`; the
+worker claims one at a time with `SELECT ... WHERE status='QUEUED' AND run_after <= now()
+ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1` under a platform-admin context, then
+marks it `RUNNING`. Handlers: `growth.campaign.prepare`, `customer.import`,
+`analytics.calculate`, `lifecycle.run`. Lease recovery and heartbeats for
+`RETRYABLE_JOB_TYPES` are in `job-recovery.js`. Redis is an optional accelerator: with
+`JOB_QUEUE_DRIVER=redis` and `REDIS_URL` set (and `JOB_QUEUE_FORCE_DB` false) job ids are
+also pushed to the list `pf:jobs:queue`; the client is created lazily, has an `error`
+listener (a missing listener previously could crash the worker) and falls back to the DB
+queue on connection failure. Enqueue with `enqueueJob({ businessId, jobType, payload, runAfter })`.
+
+**Schema lock and migrations** (`src/app/db/migrations.js`). `initDatabase()` and
+`runManagedMigrations()` run inside `withSchemaLock`, a session-level
+`pg_advisory_lock(SCHEMA_LOCK_KEY)` (`0x50465343`, "PFSC") taken on a dedicated
+`migrationPool` connection, so API, worker and the CLI (`src/scripts/migrations.mjs`,
+`npm run ops:migrate`) cannot interleave `schema.sql` with each other's migrations.
+`initDatabase` re-applies the idempotent `src/app/schema.sql` on every boot, applies
+`schema-extensions.sql` if `loyalty_tiers` is missing and `AUTO_APPLY_SCHEMA_EXTENSIONS` is
+on, and applies managed migrations only when `AUTO_APPLY_MIGRATIONS` is on (production
+default: off — run `ops:migrate` explicitly).
+
+Managed migrations are `src/app/migrations/*.sql` (87 files), tracked in
+`schema_migrations(version, checksum, applied_at, execution_ms)` with a SHA-256 of the
+file; each file runs in its own transaction; a checksum mismatch aborts startup. Order is
+sorted filename plus the explicit prerequisites in `src/app/db/migration-order.js`
+(depth-first), which repair same-day ordering without renaming files. Filename conventions
+as they exist: two legacy `001_*.sql`/`002_*.sql`; dated `YYYY-MM-DD-topic.sql`; same-day
+variants distinguished by suffixes (`_canonical`, `_lockdown`, `_rls`, `-fix`, `-hotfix`,
+`index2`...) or ordering letters (`-a-`, `-b-`, `-z-`, `-zz-`). `checksums.json` in the
+same directory pins every file (`npm run ops:migrate:lock` to add a new one,
+`ops:migrate:lock-check` in CI). **Applied migrations are never renamed or edited**: the
+version is the filename, so a rename re-applies the file and an edit fails the checksum.
+
+## 7. Frontend conventions (vanilla PWA)
+
+- **No `innerHTML`.** First-party `public/**/*.js` contains zero `innerHTML` uses; DOM is
+  built with `createElement`/`textContent`. `npm run ops:security-scan`
+  (`src/scripts/security-scan.mjs`) flags `innerHTML`, `outerHTML`, `insertAdjacentHTML`
+  and `dangerouslySetInnerHTML`. The committed Vite bundles under `public/merchant` and
+  `public/revision-astryx` are third-party output and are handled separately by the scan.
+- **`lib.js` `api()`**: `fetch` with `credentials: "include"`, JSON content type, and
+  `X-CSRF-Token` taken from the `pf_csrf_readable` cookie (falling back to
+  `localStorage["pf_csrf_token"]`) on POST/PUT/PATCH/DELETE; it stores a refreshed token
+  from the `x-csrf-token` response header, maps `code` through `ERROR_BY_CODE`, appends
+  `(Ref: <request_id>)` and exposes `code`, `status`, `requestId` on the thrown error.
+  Base URLs come from `/runtime-config.js` (`window.__PF_RUNTIME_CONFIG__`).
+- **`session-epoch.js`** is the single implementation of the cross-tab logout epoch and
+  pending-logout handshake for the `staff`, `super` and `customer` scopes (storage keys
+  `pf_staff_epoch`, `pf_staff_logout_pending`, `pf_staff_snapshot`, `pf_super_epoch`,
+  `pf_super_logout_pending`, `pf_customer_epoch`). Admin, staff, super, staff-login and
+  customer session code all import it.
+- **Admin dashboard module registry**: `admin-dashboard.js` → `admin-dashboard/index.js`
+  creates the app with `createAdminDashboardApp` (`core.js`) and calls twelve
+  `register*Module(app)` functions; each module registers tabs through
+  `app.registerTab(name, { feature, allowManager, load })` and renders fragments from
+  `admin-dashboard/fragments/*.html`.
+- **Composition roots**: `public/staff/index.js` (64 lines) and `public/super/index.js`
+  (54 lines) wire focused modules around one shared context (`page-context.js`); cross-module
+  reactions are injected as hooks to avoid import cycles. DOM ids, classes, storage keys
+  and API paths did not change in the split (`f8ce5c0`).
+- **Service worker** (`public/sw.js`): navigations, documents, scripts, styles, workers and
+  fonts (and any `.js/.css/.html` path) are **network-first** with cached fallback and
+  `NAVIGATION_FALLBACKS`; everything else is stale-while-revalidate; `private`/`no-store`
+  responses are never cached. The block between `// BEGIN GENERATED` and
+  `// END GENERATED` (`CACHE` and `CORE_ASSETS`) is produced by
+  `src/scripts/build-sw-assets.mjs`: `CACHE` is `pf-` + 12 hex digits hashed over the asset
+  list and file bytes, so it rotates exactly when a precached file changes. Run
+  `npm run sw:build` after changing any page, module or stylesheet; `npm run sw:check` and
+  `tests/unit/service-worker-assets.test.js` fail when the block is stale. Never hand-edit
+  the generated block; runtime-only URLs go in `EXTRA_ASSETS`, and `CACHE_EPOCH` forces a
+  rotation without an asset change.
+- **Type checking of browser files**: `tsconfig.json` (`checkJs`) includes `src/**` and
+  `tests/**` plus an explicit allowlist of `public/` files (admin-dashboard core and
+  analytics modules, `customer/*`, `session-epoch.js`, `staff/*`, `super/*`, `types.ts`);
+  `paths` maps `/lib.js` and `/idb.js` to `src/types/public-*.d.ts`. Add new browser modules
+  to that list when they are typed.
+
+## 8. Testing map
+
+See [TESTING.md](../TESTING.md) for commands and knobs; this is the shape.
+
+| Command | What runs | Needs |
+| --- | --- | --- |
+| `npm test` | `tests/unit/*.test.js` (293 files) + `test:integration` (`api-security`, `customer-flow` with a stubbed `pool.query`; the `RUN_INTEGRATION`-gated files `describe.skip`; PWA and cache-privacy browser shells) | Node, Playwright browsers for the browser shells |
+| `npm run test:db` | `src/scripts/run-live-integration-isolated.sh`: ephemeral PostgreSQL 16 + Redis + API, restricted `loyalty_app` role with RLS, all 10 `RUN_INTEGRATION` suites, super smoke and ledger smokes | Docker |
+| `npm run test:integration:domains` | `src/scripts/run-domain-integration-isolated.mjs`: private PostgreSQL container, one database per `*_TEST_DB_URL`-gated domain suite | Docker |
+| `npm run test:e2e` | `src/scripts/run-e2e-isolated.sh`: `docker-compose.e2e.standalone.yml` + Playwright (`tests/e2e`, 16 specs) | Docker |
+| `npm run test:all` | `npm test` then `npm run test:db` | Docker |
+
+Helpers and guardrails worth knowing:
+
+- `tests/helpers/browser-module-graph.js` — `loadBrowserModule(entryUrl, { stubs, instance })`
+  loads a browser ES module graph from `data:` URLs, rewriting relative imports recursively
+  and requiring every absolute specifier (`/lib.js`) to be stubbed; it replaced hand-rolled
+  specifier rewriting in the staff/super/session tests.
+- `tests/unit/module-size.test.js` — line-count ceilings for refactored hotspots (every new
+  staff/super module has one). Raise a threshold deliberately, not reflexively.
+- Source-text contract tests (26 `*contract*.test.js` plus files such as
+  `pg-client-mount-scope`, `server-static-cors-scope`, `no-inline-style-attrs`,
+  `no-fixed-secrets`) read source files and assert on patterns. After the Prettier adoption
+  (`18b47ef`) their matchers were made whitespace-tolerant so a reformat cannot break them;
+  write new ones the same way (`\s+`, not literal spacing).
+- `tests/unit/service-worker-assets.test.js` fails when `public/sw.js` is stale;
+  `tests/unit/migrations-schema-lock.test.js`, `scheduler-registry.test.js`,
+  `error-middleware.test.js`, `money.test.js`, `config-production.test.js` cover the
+  `5c084b4` changes.
+- CI (`.github/workflows/ci.yml`): migration lock check, typecheck (root and
+  `web/merchant`), lint, `format:check`, browser gates, `npm test`, OpenAPI freshness
+  (`openapi:generate` + `git diff --exit-code`), migrate, `rls-check`, `security-scan`,
+  `perf-sanity`, `npm audit`; separate jobs for domain integration, the live integration
+  runner (`test:db`), help-center build check, container scan and the alerts drill.
+
+## 9. Configuration
+
+`src/config/index.js` is the only module that reads `process.env` for runtime settings.
+Exceptions, by design: `src/utils/logger.js` (bootstrap: `LOG_LEVEL`, `NODE_ENV`), the
+dependency-injection loaders `src/app/services/native-wallet/config.js` and
+`src/app/services/mobile-push/config.js` (`env = process.env` parameter, testable), and
+`src/content/guides/preview.mjs` (dev tool). CLI scripts under `src/scripts/` read their
+own flags and env.
+
+Conventions: `envValue(name)` prefers `${name}_FILE` (secret files mounted read-only from
+`SECRETS_DIR`); `requireSecret` rejects placeholders and short values in production;
+`LEDGER_CERTIFICATION_OUTPUT_ROOT` and `LEDGER_CERTIFICATION_RETENTION_DAYS` are live
+accessors (read on each use). Production start fails fast unless: every `CORS_ORIGIN` and
+`APP_ORIGIN` is https, `TRUST_PROXY >= 1`, `METRICS_TOKEN` is set,
+`WEBHOOK_SECRET_ENC_KEY` has 32+ characters, `SUPER_ADMIN_EMAIL` comes with
+`SUPER_ADMIN_PASSWORD_HASH`, both QR PEM keys are present, and
+`CONTACT_TURNSTILE_SITE_KEY` is set whenever `CONTACT_TURNSTILE_SECRET` is set.
+
+Keys added or centralized in `5c084b4` (all verified in `src/config/index.js`):
+
+| Key | Default | Purpose |
+| --- | --- | --- |
+| `DB_POOL_MAX` | 20 | request-pinned pool ceiling per process; non-integer aborts startup |
+| `DB_TX_POOL_MAX` | 10 | transaction pool ceiling per process |
+| `CONTACT_TURNSTILE_SITE_KEY` | (empty) | public widget key served by `GET /api/public/support/config`; required in production when the secret is set — the hardcoded fallback is gone |
+| `IN_PROCESS_WORKERS` | `true` outside production, `false` in production | API runs its scheduler share |
+| `JOB_QUEUE_FORCE_DB` | `false` | keep the DB queue even with `JOB_QUEUE_DRIVER=redis` |
+| `APP_SESSION_IDLE_MS` / `APP_SESSION_ABSOLUTE_MS` | 900 000 / 28 800 000 | staff and customer browser sessions |
+| `SUPER_SESSION_IDLE_MS` / `SUPER_SESSION_ABSOLUTE_MS` | 600 000 / 14 400 000 | super console sessions |
+| `RECENT_REAUTH_WINDOW_MS` | 600 000 | how long a fresh re-authentication satisfies sensitive routes |
+| `RELEASE_SHA` / `BUILD_TIMESTAMP` | `GITHUB_SHA` / `GITHUB_RUN_STARTED_AT` fallbacks | release metadata on `/api/info` and build-info metrics |
+
+Related existing keys: `JOB_WORKER_INTERVAL_MS` (15 000), `JOB_WORKER_BATCH_SIZE` (10),
+`JOB_QUEUE_DRIVER` (`db`), `RATE_LIMIT_DRIVER` (`memory`), `REDIS_URL`, `CRON_TZ`,
+`CHURN_SEND_HOUR_LOCAL`, `LEDGER_RECONCILE_LIMIT`, `LEDGER_RECONCILE_REPAIR`.
+
+## 10. Known debt and open decisions
+
+- **Three UI stacks** (vanilla PWA, React/Mantine merchant dashboard, Expo native app).
+  Consolidation direction is undecided; `docs/FRONTEND_MIGRATION_PLAN.md` is a proposal.
+- **TypeScript strictness.** `strict` is off. Measured on this tree with `tsc` 7.0.2:
+  `--strictNullChecks` adds 2 276 errors and `--noImplicitAny` adds 13 044. Only
+  `strictFunctionTypes`, `strictBindCallApply`, `noImplicitThis`, `alwaysStrict` and
+  `noFallthroughCasesInSwitch` are on (zero errors).
+- **Native app gaps.** `apps/customer/src` has no `CASHBACK`, `GIFT_CARD`, `STAMP` or
+  `DISCOUNT` program handling and no `expo-updates`, so parity requires a store release.
+  Releases are owner-triggered only (`AGENTS.md`).
+- **Two CSS palettes.** `DESIGN.md` tokens (`#f7f5ef` paper, `#302820` espresso,
+  `#a43d28` terracotta, `#f0dda5` gold) are what `public/styles/marketing.css` and the
+  `customer-modern.css`/`operations-modern.css` overrides use; `public/styles/base.css`
+  still defines the older application palette (`--bg #f4ede4`, `--text #241712`,
+  `--accent #b8572f`, `--accent-3 #d7a554`) with its own dark theme.
+- **`?v=` query strings.** 19 HTML files still version stylesheets/scripts by hand
+  (`fonts.css?v=1`, `marketing.css?v=2` next to `marketing.css?v=activation1`). The
+  content-hashed service-worker cache makes them redundant; they should be removed in one
+  pass rather than bumped.
+- **`src/app/repositories/` naming.** The folder name promises a data layer it is not
+  (section 3). Renaming is cheap in code but churns imports across 68 files; decide before
+  adding more repositories.
+- **Validation response shapes.** Four idioms (section 4). At least 45 literal
+  `res.status(400).json({ error: "..." })` responses and every `validate()` failure response
+  carry no `code`. `validateRequest` is dead code.
+- **Login error codes.** Staff login returns `401 VALIDATION_ERROR`; super login returns
+  `401` without a code (section 4).
+- **`LEDGER_RECONCILE_HOUR_LOCAL`** is configured and passed to the worker but unused; the
+  daily job runs at `CHURN_SEND_HOUR_LOCAL`.
+- **Third-party analytics on authenticated pages.** `https://privatrack.com` is allowed by
+  the CSP and referenced from 10 HTML pages including `admin-dashboard.html`, `staff.html`,
+  `super.html` and `customer.html`. Whether an analytics script belongs on authenticated
+  screens is a product and privacy decision for the owner, not an engineering default.
+- **Hard limits to know.** Campaign audience snapshots are capped at 200 customers
+  (`growth-campaign-service.js:203`, `LIMIT 200 FOR SHARE` at line 279); customer imports
+  commit in chunks of 100 rows per job tick (`customer-import-job-service.js:233`).
+- **Stale documents.** `docs/TENANT_RLS.md` ("`withPgClient` runs for every request"),
+  `docs/ARQUITECTURA_8_5.md` (repositories as a layer; `database.js` already split),
+  `QUICKSTART.md` ("Postgres is exposed on 127.0.0.1:5432 in the dev profile" — compose no
+  longer has a `db` service) and `docs/TYPESCRIPT_ADOPTION.md` (`jsconfig.json`; the
+  project uses `tsconfig.json`).

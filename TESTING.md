@@ -1,5 +1,8 @@
 # Testing
 
+How the suites fit the system (helpers, guardrails, CI jobs) is summarised in
+[docs/ARCHITECTURE.md](/opt/puntos/docs/ARCHITECTURE.md) (section "Testing map").
+
 ## Local gates
 
 ```bash

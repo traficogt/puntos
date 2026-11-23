@@ -1,12 +1,13 @@
 # PuntosFieles
 
-Self-hosted loyalty platform for Guatemala with QR-based customer cards, staff scanning, rewards, analytics, and offline-capable web clients.
+Loyalty platform for Guatemala, operated as a hosted service at `app.puntosfieles.com`; the stack (Express API, worker, PostgreSQL, optional Redis) is self-hostable with Docker Compose. QR-based customer cards, staff scanning, rewards, analytics, and offline-capable web clients. Architecture: [docs/ARCHITECTURE.md](/opt/puntos/docs/ARCHITECTURE.md).
 
 ## Stack
 - Node.js 24.22.3 for server/web development (`.nvmrc`); the customer app has its own Node 22.23.5 pin.
-- Express
-- PostgreSQL 16
-- Vanilla HTML/CSS/JS
+- Express 5 (API and worker processes)
+- PostgreSQL 17 on the central database VM (`APP_DB_HOST`, default `10.10.1.51` in `docker-compose.yml`); PostgreSQL 16 in the test and e2e compose stacks
+- Redis 7, optional (`RATE_LIMIT_DRIVER=redis`, `JOB_QUEUE_DRIVER=redis`)
+- Vanilla HTML/CSS/JS PWA in `public/`; React 19 + Mantine 9 merchant dashboard in `web/merchant`; Expo native app in `apps/customer` (frozen, see `AGENTS.md`)
 - Playwright
 - Docker Compose
 
@@ -35,15 +36,19 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/puntos/secrets-dev
 ## Runtime model
 - API health endpoints are mounted under `/api/health`, `/api/ready`, `/api/live`, `/api/info`
 - A curated OpenAPI subset is served at `/api/v1/openapi.json`, `/api/v1/openapi.yaml`, and Swagger UI at `/api/v1/docs`
-- Docker Compose binds Postgres to loopback only in the dev profile
+- `docker-compose.yml` runs `api` and `worker` only; PostgreSQL lives on the central database VM (`APP_DB_HOST`). The e2e compose files start their own disposable PostgreSQL 16 and Redis
 - Secrets are loaded from files via `*_FILE` env vars and should live outside the repo tree
 
 ## Commands
 ```bash
 npm run typecheck
 npm run lint
-npm test
+npm run format            # Prettier; CI runs format:check
+npm test                  # unit + Docker-free integration
+npm run test:db           # all gated integration suites on an ephemeral Postgres (Docker)
+npm run test:integration:domains
 npm run test:e2e
+npm run sw:build          # regenerate the service worker precache block
 npm run openapi:generate
 npm run ops:migrate
 npm run ops:rls-check
@@ -83,6 +88,7 @@ asset change.
 - [ci.yml](/opt/puntos/.github/workflows/ci.yml) also supports `workflow_dispatch` now, so you can run the full CI/security path on demand for a branch before release tagging.
 
 ## Documentation
+- [docs/ARCHITECTURE.md](/opt/puntos/docs/ARCHITECTURE.md) — system shape, request lifecycle, tenancy, money, background work, frontend and testing conventions, known debt
 - [QUICKSTART.md](/opt/puntos/QUICKSTART.md)
 - [DEPLOYMENT_GUIDE.md](/opt/puntos/DEPLOYMENT_GUIDE.md)
 - [TROUBLESHOOTING_GUIDE.md](/opt/puntos/TROUBLESHOOTING_GUIDE.md)

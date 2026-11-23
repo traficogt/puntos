@@ -4,7 +4,8 @@ This guide describes the current production model.
 
 ## Requirements
 - Node.js 24.22.3 for local server tooling (`.nvmrc`); supported server range is `>=24.22.2 <25`. The reviewed Docker image pins 24.22.2 separately.
-- PostgreSQL 16+
+- PostgreSQL 16 or 17. Production uses PostgreSQL 17 on the central database VM (`docker-compose.yml` passes `DB_HOST: ${APP_DB_HOST:-10.10.1.51}` to `api` and `worker`; the compose file has no `db` service). The test and e2e stacks run PostgreSQL 16.
+- Redis 7 only if you enable `RATE_LIMIT_DRIVER=redis` or `JOB_QUEUE_DRIVER=redis`; the defaults (`memory`, `db`) need no Redis
 - A TLS-terminating reverse proxy such as Caddy or Nginx
 - An external secrets directory that is not inside the repo checkout
 
@@ -58,17 +59,81 @@ TRUST_PROXY=1
 AUTO_APPLY_MIGRATIONS=false
 ```
 
+With Docker Compose, point the containers at the database host with `APP_DB_HOST`
+(default `10.10.1.51`); `DB_HOST` above is read by host-side tooling such as
+`npm run ops:migrate`.
+
 Use `TRUST_PROXY=1` only when all inbound traffic comes through a trusted reverse proxy hop.
+
+### Contact form challenge (Turnstile)
+
+```env
+CONTACT_TURNSTILE_SECRET=<server secret>
+CONTACT_TURNSTILE_SITE_KEY=<public widget key>
+```
+
+**Required together.** In production the API refuses to start when
+`CONTACT_TURNSTILE_SECRET` is set and `CONTACT_TURNSTILE_SITE_KEY` is empty
+(`src/config/index.js`); there is no site-key fallback in code any more. Leave both empty
+to run the support form without a challenge. The site key is public and is served to the
+form by `GET /api/public/support/config`.
+
+### Optional runtime settings (defaults shown)
+
+```env
+# PostgreSQL connection ceilings per process (API and worker each open both pools)
+DB_POOL_MAX=20
+DB_TX_POOL_MAX=10
+
+# Background jobs: the worker always runs its share; the API runs its share only when true.
+# Default is false in production, true elsewhere. See src/app/scheduler.js for the registry.
+IN_PROCESS_WORKERS=false
+JOB_QUEUE_DRIVER=db          # db | redis (redis also needs REDIS_URL)
+JOB_QUEUE_FORCE_DB=false     # keep the durable DB queue even when JOB_QUEUE_DRIVER=redis
+JOB_WORKER_INTERVAL_MS=15000
+JOB_WORKER_BATCH_SIZE=10
+RATE_LIMIT_DRIVER=memory     # memory | redis
+
+# Browser sessions (milliseconds)
+APP_SESSION_IDLE_MS=900000
+APP_SESSION_ABSOLUTE_MS=28800000
+SUPER_SESSION_IDLE_MS=600000
+SUPER_SESSION_ABSOLUTE_MS=14400000
+RECENT_REAUTH_WINDOW_MS=600000
+
+# Release metadata reported by /api/info (CI falls back to GITHUB_SHA / GITHUB_RUN_STARTED_AT)
+RELEASE_SHA=
+BUILD_TIMESTAMP=
+
+# Daily maintenance (lifecycle, MFA counter pruning, ledger reconciliation and certification)
+# runs at CHURN_SEND_HOUR_LOCAL in CRON_TZ. LEDGER_RECONCILE_HOUR_LOCAL is accepted but unused.
+CHURN_SEND_HOUR_LOCAL=9
+CRON_TZ=America/Guatemala
+LEDGER_RECONCILE_LIMIT=10000
+LEDGER_RECONCILE_REPAIR=false
+LEDGER_CERTIFICATION_OUTPUT_ROOT=
+LEDGER_CERTIFICATION_RETENTION_DAYS=90
+```
+
+`DB_POOL_MAX` and `DB_TX_POOL_MAX` must be positive integers; anything else stops startup.
 
 ## 3. Database
 
 Run migrations explicitly:
 
 ```bash
+npm run ops:migrate:lock-check
 npm run ops:migrate:status
 npm run ops:migrate
 npm run ops:rls-check
 ```
+
+Schema initialization and managed migrations take a session-level PostgreSQL advisory lock
+(`SCHEMA_LOCK_KEY` in `src/app/db/migrations.js`), so starting `api`, `worker` and
+`ops:migrate` at the same time is safe: they wait for each other instead of interleaving.
+Keep `AUTO_APPLY_MIGRATIONS=false` in production and run `ops:migrate` as a deliberate step.
+Never rename or edit a migration that has been applied; add a new file and run
+`npm run ops:migrate:lock`.
 
 ## 4. Start the app
 
@@ -105,6 +170,19 @@ npm run ops:smoke -- --base-url https://your-domain.example --require-super-logi
 ```
 
 ## 7. Release gate
+
+Before building a release candidate, on a host with Docker:
+
+```bash
+npm run typecheck
+npm run lint
+npm run format:check
+npm run test:all      # npm test, then npm run test:db (all gated suites on an ephemeral Postgres with RLS)
+npm run sw:check      # the service worker precache block must be current
+```
+
+`npm run test:db` is the same runner as the `live-gamification-integration` CI job; see
+[TESTING.md](/opt/puntos/TESTING.md).
 
 After every deploy:
 
