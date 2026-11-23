@@ -59,6 +59,24 @@ npm run ops:backup:verify -- --file backups/<file>.sql.gz
 npm run ops:restore:drill -- backups/<file>.sql.gz
 ```
 
+### Service worker assets
+`public/sw.js` no longer carries a hand-maintained precache list or version. The block
+between `// BEGIN GENERATED (npm run sw:build)` and `// END GENERATED` is produced by
+`src/scripts/build-sw-assets.mjs`, which starts from the offline application documents
+(`NAVIGATION_FALLBACKS`, the Spanish document routes and the `sendFile` routes) and walks
+their scripts, ES module imports, stylesheets, `@import`/`url()` fonts, icons and the web
+manifest. `CACHE` is content-hashed (`pf-` + 12 hex digits over the asset list and file
+bytes), so it rotates exactly when a precached file changes; nobody bumps it by hand.
+
+```bash
+npm run sw:build   # rewrite the generated block after changing any page, module or stylesheet
+npm run sw:check   # exit 1 with a +/- summary when public/sw.js is stale (also enforced by test:unit)
+```
+
+Assets that only appear at runtime (URLs assembled from variables) go in the documented
+`EXTRA_ASSETS` list inside the script; `CACHE_EPOCH` there forces a rotation without an
+asset change.
+
 ## Release gate
 - [release-gate.yml](/opt/puntos/.github/workflows/release-gate.yml) blocks release candidates on scans, DB checks, HTTP smoke, Chromium flows, and visual regression.
 - Run it manually with `workflow_dispatch` or by pushing a `v*` tag.

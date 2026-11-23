@@ -8,8 +8,15 @@ function readStaffHtml() {
 }
 
 function readStaffModule() {
+  // The staff client is split into modules; contract copy may live in any of them.
+  const dir = new URL("../../public/staff/", import.meta.url);
   // eslint-disable-next-line security/detect-non-literal-fs-filename
-  return fs.readFileSync(new URL("../../public/staff/index.js", import.meta.url), "utf8");
+  const names = fs
+    .readdirSync(dir)
+    .filter((name) => name.endsWith(".js"))
+    .sort();
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  return names.map((name) => fs.readFileSync(new URL(name, dir), "utf8")).join("\n");
 }
 
 test("staff shell exposes an explicit customer-selection action before register or redeem", () => {

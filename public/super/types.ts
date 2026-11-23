@@ -119,3 +119,35 @@ export interface SuperBusinessUserCreateResponse {
     role?: string;
   };
 }
+
+export type SuperApiFn = (path: string, opts?: RequestInit) => Promise<any>;
+export type SuperQueryFn = (selector: string) => Element | null;
+export type SuperToastFn = (message: string) => void;
+
+export interface SuperPageDependencies {
+  api: SuperApiFn;
+  $: SuperQueryFn;
+  toast: SuperToastFn;
+}
+
+export interface SuperPageState {
+  planList: SuperPlanDefinition[];
+  businessList: SuperBusinessRow[];
+  magicActorRows: SuperStaffRow[] | SuperCustomerRow[];
+  /** Bumped on every login, logout or cross-tab session change; stale loads check it. */
+  sessionGeneration: number;
+  /** A logout was requested but the server has not confirmed the revocation yet. */
+  logoutPending: boolean;
+  sessionActionInProgress: boolean;
+}
+
+export interface SuperPageContext extends SuperPageDependencies {
+  state: SuperPageState;
+  element(selector: string): HTMLElement;
+  input(selector: string): HTMLInputElement;
+  select(selector: string): HTMLSelectElement;
+  run<T>(
+    task: () => Promise<T>,
+    onError?: (error: Error & { status?: number; code?: string }) => T | null | Promise<T | null>,
+  ): Promise<T | null>;
+}

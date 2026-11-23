@@ -69,6 +69,12 @@ function previewDiagnostics() {
   );
   return d;
 }
+// This public page deliberately keeps its own transport instead of the shared
+// client in /lib.js: the form shows the support service's Spanish copy verbatim
+// (the shared client replaces coded errors such as NOT_FOUND and appends a request
+// reference), uses distinct copy for connectivity failures and throttling, and
+// downloads the attachment as a blob. The CSRF token comes from the same
+// pf_csrf_readable cookie the shared client reads (base64url, so decoding is a no-op).
 function csrf() {
   return decodeURIComponent(
     document.cookie

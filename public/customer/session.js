@@ -1,10 +1,12 @@
+import { SESSION_SCOPES, newEpochId } from "../session-epoch.js";
+
 const viewCleanups = new Set();
 export function onCustomerViewClear(callback) {
   viewCleanups.add(callback);
   return () => viewCleanups.delete(callback);
 }
 const IDENTITY_KEY = "pf_customer_identity";
-const EPOCH_KEY = "pf_customer_epoch";
+const EPOCH_KEY = SESSION_SCOPES.customer.epoch;
 const memoryStorage = new Map();
 let observedStorageEpoch;
 
@@ -72,10 +74,7 @@ export function getCustomerIdentity() {
 
 export function invalidateCustomerIdentity({ block = false } = {}) {
   getCustomerEpoch();
-  writeCustomerStorage(
-    EPOCH_KEY,
-    globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
-  );
+  writeCustomerStorage(EPOCH_KEY, newEpochId());
   writeCustomerStorage(IDENTITY_KEY, "");
   writeCustomerStorage("pf_phone", "");
   writeCustomerStorage("pf_customer_blocked", block ? "1" : "");

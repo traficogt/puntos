@@ -9,7 +9,8 @@ test("service worker uses network-first updates for app code and pages", () => {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const libSource = fs.readFileSync(new URL("../../public/lib.js", import.meta.url), "utf8");
 
-  assert.match(swSource, /const CACHE = "pf-v\d+"/);
+  // Content-hashed by src/scripts/build-sw-assets.mjs (npm run sw:build).
+  assert.match(swSource, /const CACHE = "pf-[0-9a-f]{12}"/);
   assert.match(swSource, /NETWORK_FIRST_DESTINATIONS/);
   assert.match(swSource, /event\.request\.mode === "navigate"/);
   assert.match(swSource, /networkFirst\(\s*event\.request/);

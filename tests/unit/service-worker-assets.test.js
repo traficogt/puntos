@@ -2,6 +2,60 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import {
+  checkServiceWorkerAssets,
+  javascriptReferences,
+} from "../../src/scripts/build-sw-assets.mjs";
+
+test("generator reads runtime module references and ignores comments, types and templates", () => {
+  const source = [
+    '/** @typedef {import("./types.js").Shape} Shape */',
+    "// import ignored from './commented-out.js';",
+    "/* import ignored from './block-comment.js'; */",
+    'import { api } from "/lib.js";',
+    "import defaults, * as helpers from './helpers.js';",
+    'export { shared } from "./shared.js";',
+    "export * from './reexport.js';",
+    'import "./side-effect.js";',
+    "const label = \"import x from './inside-a-string.js'\";",
+    "const pattern = /['\"]\\/not-a-string\\.js/;",
+    "const lazy = () => import(`./lazy.js`);",
+    "const dynamic = (name) => import(`./modules/${name}.js`);",
+    'const worker = new URL("./worker.js", import.meta.url);',
+    'link.href = "/styles/injected.css";',
+    "return 1 / 2 / 3;",
+  ].join("\n");
+  const references = javascriptReferences(source);
+  assert.deepEqual(references.explicit.sort(), [
+    "./helpers.js",
+    "./lazy.js",
+    "./reexport.js",
+    "./shared.js",
+    "./side-effect.js",
+    "./worker.js",
+    "/lib.js",
+  ]);
+  assert.deepEqual(references.literals, ["/lib.js", "/styles/injected.css"]);
+});
+
+test("service worker precache block is generated and current (npm run sw:build)", () => {
+  const result = checkServiceWorkerAssets();
+  assert.match(result.cacheName, /^pf-[0-9a-f]{12}$/);
+  assert.ok(result.assets.length > 0, "the generator must discover precache assets");
+  assert.ok(
+    result.assets.includes("/staff.html") && result.assets.includes("/customer.html"),
+    "offline staff and customer documents must be precached",
+  );
+  assert.equal(
+    result.fresh,
+    true,
+    [
+      "public/sw.js is stale: its CACHE/CORE_ASSETS block differs from the generated one.",
+      "Run `npm run sw:build` and commit the result.",
+      ...result.summary.map((line) => `  ${line}`),
+    ].join("\n"),
+  );
+});
 
 test("service worker core assets are explicit and exist on disk", () => {
   // Fixed repo path for the service worker source.

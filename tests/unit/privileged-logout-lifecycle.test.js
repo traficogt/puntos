@@ -1,26 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
 
-const data = (source) => `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
-const library = data(
-  "export const setBrowserRegion=()=>{}, registerServiceWorker=async()=>{}, setHidden=(el,hidden)=>{if(el)el.hidden=hidden;}, isStrongPassword=()=>true, passwordRequirementsText=()=>'';",
-);
-// eslint-disable-next-line security/detect-non-literal-fs-filename -- Fixed repository fixture URL.
-const adminSource = await fs.readFile(
-  new URL("../../public/admin-dashboard/session-controller.js", import.meta.url),
-  "utf8",
-);
-// eslint-disable-next-line security/detect-non-literal-fs-filename -- Fixed repository fixture URL.
-const logoutSource = await fs.readFile(
-  new URL("../../public/admin-dashboard/logout-controller.js", import.meta.url),
-  "utf8",
-);
-// eslint-disable-next-line security/detect-non-literal-fs-filename -- Fixed repository fixture URL.
-const superSource = await fs.readFile(
-  new URL("../../public/super/index.js", import.meta.url),
-  "utf8",
-);
+import { loadBrowserModule } from "../helpers/browser-module-graph.js";
+
+const library =
+  "export const setBrowserRegion=()=>{}, registerServiceWorker=async()=>{}, setHidden=(el,hidden)=>{if(el)el.hidden=hidden;}, isStrongPassword=()=>true, passwordRequirementsText=()=>'';";
+const stubs = {
+  "/lib.js": library,
+  "./operations-health.js":
+    "export const createPlatformHealth=({container})=>({load:async()=>{},clear:()=>{container.textContent='';}});",
+  "./view-state.js": "export const copyCurrentViewUrl=async()=>{};",
+};
+const entries = {
+  admin: new URL("../../public/admin-dashboard/session-controller.js", import.meta.url),
+  super: new URL("../../public/super/index.js", import.meta.url),
+};
 let run = 0;
 
 async function setup(t, kind, api, initial = {}) {
@@ -69,33 +63,7 @@ async function setup(t, kind, api, initial = {}) {
       else delete globalThis[key];
     });
   }
-  const instance = ++run;
-  const module = await import(
-    data(
-      (kind === "admin" ? adminSource : superSource)
-        .replace('"/lib.js"', JSON.stringify(library))
-        .replace(
-          '"./operations-health.js"',
-          JSON.stringify(
-            data(
-              "export const createPlatformHealth=({container})=>({load:async()=>{},clear:()=>{container.textContent='';}});",
-            ),
-          ),
-        )
-        .replace(
-          '"./logout-controller.js"',
-          JSON.stringify(
-            data(
-              logoutSource.replace('"/lib.js"', JSON.stringify(library)) + `\n// run ${instance}`,
-            ),
-          ),
-        )
-        .replace(
-          '"./view-state.js"',
-          JSON.stringify(data("export const copyCurrentViewUrl=async()=>{};")),
-        ) + `\n// run ${instance}`,
-    )
-  );
+  const module = await loadBrowserModule(entries[kind], { stubs, instance: ++run });
   const deps = { api, $, toast: (text) => messages.push(text), syncDashboardViewToUrl() {} };
   if (kind === "admin") module.initDashboardChrome(deps);
   else await module.initSuperPage(deps);

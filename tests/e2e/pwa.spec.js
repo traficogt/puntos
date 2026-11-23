@@ -100,7 +100,7 @@ test.describe("PWA coverage", () => {
 
     expect(details.controllerUrl).toMatch(/\/sw\.js$/);
     expect(details.scope.endsWith("/")).toBeTruthy();
-    expect(details.cacheKeys.some((key) => /^pf-v\d+$/.test(key))).toBeTruthy();
+    expect(details.cacheKeys.some((key) => /^pf-[0-9a-f]{12}$/.test(key))).toBeTruthy();
 
     await page.evaluate(async () => {
       const { clearCustomerCache, putCustomerCache: writeCache } = await import("/idb.js");

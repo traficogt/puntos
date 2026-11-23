@@ -57,6 +57,10 @@ async function setup(t, api, initial = {}, search = "") {
           JSON.stringify(new URL("../../public/staff-return-path.js", import.meta.url).href),
         )
         .replace(
+          '"./session-epoch.js"',
+          JSON.stringify(new URL("../../public/session-epoch.js", import.meta.url).href),
+        )
+        .replace(
           '"/lib.js"',
           JSON.stringify(
             data(

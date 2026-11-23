@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 // eslint-disable-next-line security/detect-non-literal-fs-filename
-const superJs = fs.readFileSync(new URL("../../public/super/index.js", import.meta.url), "utf8");
+const superJs = fs.readFileSync(new URL("../../public/super/plans.js", import.meta.url), "utf8");
 
 describe("super plan packaging contract", () => {
   it("describes NEGOCIO as the practical target tier", () => {

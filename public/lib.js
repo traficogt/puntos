@@ -197,6 +197,8 @@ export async function api(path, opts = {}) {
         err = String(formErrors[0]);
       }
     }
+    // Fallback for older servers that still answer in English. Current servers send Spanish
+    // text plus a stable `code`; Spanish messages pass through these anchored patterns unchanged.
     if (typeof err === "string") {
       err = err.replace(
         /^Feature '([^']+)' not available in current plan$/,

@@ -1,5 +1,6 @@
 import { staffLoginDestination } from "./staff-return-path.js";
 import { api, $, toast, hydrateShellLinks } from "/lib.js";
+import { createSessionEpoch, revokeServerSession } from "./session-epoch.js";
 
 /** @typedef {import("./staff/types.js").StaffLoginPayload} StaffLoginPayload */
 
@@ -22,42 +23,20 @@ function element(selector) {
 hydrateShellLinks();
 
 let sessionActionInProgress = false;
-
-function hasPendingLogout() {
-  try {
-    return localStorage.getItem("pf_staff_logout_pending") === "1";
-  } catch {
-    return false;
-  }
-}
-
-function invalidateStaffSnapshot(pending) {
-  try {
-    localStorage.removeItem("pf_staff_snapshot");
-    if (pending) localStorage.setItem("pf_staff_logout_pending", "1");
-    else localStorage.removeItem("pf_staff_logout_pending");
-    localStorage.setItem("pf_staff_epoch", crypto.randomUUID());
-  } catch {
-    /* Online authentication remains available when browser storage is disabled. */
-  }
-}
+// Online authentication remains available when browser storage is disabled:
+// the shared session helpers swallow storage failures.
+const session = createSessionEpoch("staff");
 
 async function finishPendingLogout() {
-  try {
-    await api("/api/staff/logout", { method: "POST", body: "{}" });
-  } catch (error) {
-    if (error.status !== 401 && !String(error.code || "").startsWith("AUTH_")) throw error;
-  }
-  try {
-    localStorage.removeItem("pf_staff_logout_pending");
-  } catch {}
+  await revokeServerSession(api, "/api/staff/logout");
+  session.clearPendingLogout();
 }
 
 element("#btnLogin").addEventListener("click", async () => {
   if (sessionActionInProgress) return;
   sessionActionInProgress = true;
   try {
-    if (hasPendingLogout()) await finishPendingLogout();
+    if (session.hasPendingLogout()) await finishPendingLogout();
     /** @type {StaffLoginPayload} */
     const payload = {
       email: input("#email").value.trim(),
@@ -65,7 +44,7 @@ element("#btnLogin").addEventListener("click", async () => {
       ...(input("#mfaCode").value.trim() ? { mfaCode: input("#mfaCode").value.trim() } : {}),
     };
     const out = await api("/api/staff/login", { method: "POST", body: JSON.stringify(payload) });
-    invalidateStaffSnapshot(false);
+    session.invalidate({ pending: false });
     const role = String(out?.staff?.role || "").toUpperCase();
     const destination = staffLoginDestination(
       role,
@@ -140,7 +119,7 @@ element("#btnConfirmEmailChange").addEventListener("click", async () => {
 element("#btnLogout").addEventListener("click", async () => {
   if (sessionActionInProgress) return;
   sessionActionInProgress = true;
-  invalidateStaffSnapshot(true);
+  session.invalidate({ pending: true });
   try {
     await finishPendingLogout();
     toast("Sesión cerrada.");

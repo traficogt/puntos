@@ -1,3 +1,5 @@
+import { api as sharedApi } from "/lib.js";
+
 const $ = (id) => document.getElementById(id),
   form = $("case-update");
 const names = {
@@ -19,31 +21,27 @@ const categories = {
 let selected = null,
   offset = 0,
   attempt = null;
-const csrf = () =>
-  decodeURIComponent(
-    document.cookie
-      .split("; ")
-      .find((v) => v.startsWith("pf_csrf_readable="))
-      ?.split("=")
-      .slice(1)
-      .join("=") || "",
-  );
+/**
+ * Console requests ride on the shared client: CSRF double-submit header, JSON parsing and
+ * the Spanish error mapping with its request reference. Kept here: the support path
+ * prefix, uncached reads, and the login-card fallback when the administration session
+ * is gone (the shared client reports it as a 401/403 error).
+ */
 async function api(path, body, method = body ? "PATCH" : "GET") {
-  const response = await fetch(`/api/super/support/${path}`, {
-    method,
-    credentials: "same-origin",
-    cache: "no-store",
-    headers: body ? { "Content-Type": "application/json", "X-CSRF-Token": csrf() } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (response.status === 401 || response.status === 403) {
-    $("admin-login").hidden = false;
-    $("admin-workspace").hidden = true;
-    throw new Error("La sesión de administración no está disponible.");
+  try {
+    return await sharedApi(`/api/super/support/${path}`, {
+      method,
+      cache: "no-store",
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+  } catch (error) {
+    if (error.status === 401 || error.status === 403) {
+      $("admin-login").hidden = false;
+      $("admin-workspace").hidden = true;
+      throw new Error("La sesión de administración no está disponible.");
+    }
+    throw error;
   }
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "No pudimos completar la solicitud.");
-  return data;
 }
 function report(error) {
   $("admin-feedback").textContent =

@@ -40,6 +40,33 @@ describe("module size guardrails", () => {
       ["src/app/routes/gamification-admin-routes.js", 220],
       ["src/app/routes/super-routes.js", 600],
       ["src/app/repositories/analytics-repository.js", 420],
+      // Browser session handshake shared by staff, owner, super and customer surfaces.
+      ["public/session-epoch.js", 160],
+      ["public/admin-dashboard/logout-controller.js", 70],
+      ["public/staff-login.js", 140],
+      // Staff scanner page: thin composition root over cohesive modules.
+      ["public/staff/index.js", 90],
+      ["public/staff/page-context.js", 80],
+      ["public/staff/session.js", 350],
+      ["public/staff/program-rules.js", 170],
+      ["public/staff/wallet-panel.js", 80],
+      ["public/staff/customer-surface.js", 300],
+      ["public/staff/scanner.js", 150],
+      ["public/staff/award-flow.js", 270],
+      ["public/staff/redeem-flow.js", 100],
+      ["public/staff/wallet-actions.js", 130],
+      ["public/staff/security-actions.js", 120],
+      ["public/staff/service-mounts.js", 100],
+      // Super console: thin composition root over cohesive modules.
+      ["public/super/index.js", 80],
+      ["public/super/page-context.js", 60],
+      ["public/super/session.js", 160],
+      ["public/super/plans.js", 220],
+      ["public/super/magic-links.js", 260],
+      ["public/super/business-card.js", 180],
+      ["public/super/businesses.js", 160],
+      ["public/super/security-posture.js", 110],
+      ["public/super/account-security.js", 150],
     ];
 
     for (const [filePath, maxLines] of limits) {

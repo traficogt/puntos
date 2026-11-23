@@ -17,13 +17,9 @@ export interface StaffPermissionsResponse {
 
 export interface StaffProgramRule {
   region?: { currency: string; locale: string; timezone: string; minorUnits: number };
-  program_type: "SPEND" | "VISIT" | "ITEM";
-  program_json?: {
-    points_per_q?: number;
-    round?: string;
-    points_per_visit?: number;
-    points_per_item?: number;
-  };
+  /** SPEND, VISIT, ITEM, DISCOUNT, STAMP, CASHBACK or GIFT_CARD. */
+  program_type: string;
+  program_json?: Record<string, any>;
 }
 
 export interface StaffAwardResponse {
@@ -104,4 +100,94 @@ export interface QueuedStaffAward {
   status?: "queued" | "syncing" | "failed" | "quarantined";
   retry_count?: number;
   last_error?: string;
+}
+
+export type StaffApiFn = (path: string, opts?: RequestInit) => Promise<any>;
+export type StaffQueryFn = (selector: string) => Element | null;
+export type StaffToastFn = (message: string) => void;
+export type StaffActionError = Error & { code?: string; status?: number; recoveryCaseId?: string };
+
+export interface StaffPageDependencies {
+  api: StaffApiFn;
+  $: StaffQueryFn;
+  toast: StaffToastFn;
+  uuidv4: () => string;
+  addAward?: Function;
+  listAwards?: Function;
+  deleteAward?: Function;
+}
+
+export interface StaffOfflineGrant {
+  grant: string;
+  expiresAt: string;
+}
+
+/** A reward cycle whose earning terms are protected for the selected customer. */
+export interface StaffProtectedCycle {
+  program_type: string;
+  earning_terms?: Record<string, any> | null;
+  [key: string]: unknown;
+}
+
+/** Cached identity that lets the scanner keep working offline for 24 h. */
+export interface StaffOfflineSnapshot {
+  staff: StaffProfile;
+  permissions?: string[];
+  planFeatures?: Record<string, boolean>;
+  programRule?: StaffProgramRule | null;
+  offlineGrant?: StaffOfflineGrant | null;
+  updatedAt: string;
+}
+
+/** Secondary panels mounted once the session is valid. */
+export interface StaffServiceMounts {
+  serviceCases: any;
+  rewardEntitlements: any;
+  posRecording: any;
+  serviceBriefing: any;
+  demandNotebook: any;
+}
+
+export interface StaffPageState {
+  staff: StaffProfile | null;
+  protectedCycle: StaffProtectedCycle | null;
+  scanning: boolean;
+  lastCustomerId: string | null;
+  lastCustomerToken: string;
+  lastCashbackBalance: number;
+  lastCustomerPoints: number;
+  customerSelectionRevision: number;
+  awardInFlight: boolean;
+  unverifiedSelection: boolean;
+  storageFailed: boolean;
+  sessionEnded: boolean;
+  sessionOnline: boolean;
+  offlineGrant: StaffOfflineGrant | null;
+  programRule: StaffProgramRule | null;
+  rewardOptions: StaffRewardOption[];
+  permissionSet: Set<string> | null;
+  planFeatures: Record<string, boolean>;
+  lastCustomerMovement: string;
+  mounts: StaffServiceMounts;
+}
+
+export interface StaffPageContext extends StaffPageDependencies {
+  state: StaffPageState;
+  element(selector: string): HTMLElement;
+  input(selector: string): HTMLInputElement;
+  select(selector: string): HTMLSelectElement;
+  run<T>(
+    task: () => Promise<T>,
+    onError?: (error: StaffActionError) => T | null | Promise<T | null>,
+  ): Promise<T | null>;
+}
+
+/** UI reactions the session module triggers but other modules own. */
+export interface StaffSessionHooks {
+  renderProgramInfo(): void;
+  updateInputsForRule(): void;
+  applyUiPermissions(): void;
+  clearSelectedCustomer(): void;
+  stopCamera(): void;
+  destroyMounts(): void;
 }
