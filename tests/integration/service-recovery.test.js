@@ -470,7 +470,7 @@ suite("service recovery durable PostgreSQL", () => {
       caught = error;
     }
     assert.equal(caught.statusCode, 409);
-    assert.equal(caught.message, "Reward out of stock");
+    assert.equal(caught.message, "La recompensa no tiene existencias");
     assert.ok(caught.recoveryCaseId);
     const result = await service.getServiceCase(
       { businessId, staff, caseId: caught.recoveryCaseId },
@@ -515,7 +515,7 @@ suite("service recovery durable PostgreSQL", () => {
           requestId: randomUUID(),
         }),
       ),
-      { statusCode: 409, message: "Transaction already reversed" },
+      { statusCode: 409, message: "La transacción ya fue revertida" },
     );
     assert.equal((await pool.query("SELECT points FROM customer_balances")).rows[0].points, 100);
     assert.equal(

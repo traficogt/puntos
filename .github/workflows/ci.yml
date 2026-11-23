@@ -242,7 +242,7 @@ jobs:
       - build-test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Run isolated restricted-role refund + rollover integration
+      - name: Run isolated restricted-role live integration (smoke gates + every RUN_INTEGRATION suite)
         run: bash src/scripts/run-live-integration-isolated.sh
 
   migration-smoke:

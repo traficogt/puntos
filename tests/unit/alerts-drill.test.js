@@ -25,6 +25,17 @@ async function fixture(t, script = "alerts-drill.sh") {
       path.join(scripts, name),
     );
   }
+  // The live runner refuses to start when a listed integration test file is
+  // missing, so mirror the files it names into the fixture as empty stand-ins.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  const scriptSource = await fs.readFile(path.join(scripts, script), "utf8");
+  for (const match of scriptSource.matchAll(/^\s*(tests\/integration\/[\w.-]+\.test\.js)\s*$/gm)) {
+    const placeholder = path.join(root, match[1]);
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    await fs.mkdir(path.dirname(placeholder), { recursive: true });
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    await fs.writeFile(placeholder, "", { mode: 0o600 });
+  }
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   await fs.mkdir(path.join(root, "deploy/e2e"), { recursive: true });
   await fs.copyFile(

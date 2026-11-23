@@ -2,7 +2,11 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-COMPOSE_ARGS=(-f docker-compose.e2e.standalone.yml -p "${E2E_COMPOSE_PROJECT:-puntos-live-integration}")
+COMPOSE_PROJECT="${E2E_COMPOSE_PROJECT:-puntos-live-integration}"
+# --env-file /dev/null: interpolate the compose file only from the variables this
+# script exports, never from the repository .env (deployment secrets, often unreadable
+# for the local user). Service env_file entries such as deploy/e2e/api.env still apply.
+COMPOSE_ARGS=(-f docker-compose.e2e.standalone.yml --env-file /dev/null -p "$COMPOSE_PROJECT")
 INTERNAL_BASE_URL="${TEST_API_URL:-http://api:3001}"
 # In-network smoke checks must use the same host as the configured browser shells.
 export E2E_APP_ORIGIN="${E2E_APP_ORIGIN:-$INTERNAL_BASE_URL}"
@@ -23,6 +27,34 @@ TEST_DB_PORT="${TEST_DB_PORT:-5432}"
 TEST_DB_NAME="${TEST_DB_NAME:-puntos_e2e}"
 TEST_DB_USER="${TEST_DB_USER:-loyalty_admin}"
 TEST_DB_PASSWORD="${TEST_DB_PASSWORD:-$E2E_DB_ADMIN_PASSWORD}"
+
+# Every RUN_INTEGRATION-gated file under tests/integration. These suites are
+# describe.skip unless RUN_INTEGRATION=true, a live API (TEST_API_URL) and admin
+# database access (TEST_DB_*) exist, so `npm test` never exercises them; this
+# script is their runnable target (`npm run test:db`). Pass test paths as
+# arguments for a focused run:
+#   bash src/scripts/run-live-integration-isolated.sh tests/integration/orders-idempotency.test.js
+LIVE_INTEGRATION_FILES=(
+  tests/integration/external-award-idempotency.test.js
+  tests/integration/gift-card-idempotency.test.js
+  tests/integration/order-returns-idempotency.test.js
+  tests/integration/orders-idempotency.test.js
+  tests/integration/plan-enforcement.test.js
+  tests/integration/recurring-gamification.test.js
+  tests/integration/refund-gamification.test.js
+  tests/integration/staff-ledger-idempotency.test.js
+  tests/integration/super-giftcards.test.js
+  tests/integration/transaction-pool-isolation.test.js
+)
+if [[ $# -gt 0 ]]; then
+  LIVE_INTEGRATION_FILES=("$@")
+fi
+for test_file in "${LIVE_INTEGRATION_FILES[@]}"; do
+  if [[ ! -f "$ROOT_DIR/$test_file" ]]; then
+    echo "[live] Test file not found: $test_file" >&2
+    exit 1
+  fi
+done
 
 cleanup() {
   docker compose "${COMPOSE_ARGS[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
@@ -83,7 +115,10 @@ docker compose "${COMPOSE_ARGS[@]}" run --rm \
   api \
   node src/scripts/live-ledger-correction-check.mjs
 
-echo "[live] Running refund + rollover integration tests..."
+echo "[live] Running ${#LIVE_INTEGRATION_FILES[@]} RUN_INTEGRATION-gated suites against the live stack (restricted role, RLS enforced)..."
+# The tests run inside the api image (same Node, pg and src/ as the server) with the
+# repository tests mounted read-only; the image itself ships without tests/.
+# SUPER_ADMIN_EMAIL comes from deploy/e2e/api.env through the service env_file.
 docker compose "${COMPOSE_ARGS[@]}" run --rm \
   -v "${ROOT_DIR}/tests:/app/tests:ro" \
   -e RUN_INTEGRATION=true \
@@ -93,8 +128,9 @@ docker compose "${COMPOSE_ARGS[@]}" run --rm \
   -e TEST_DB_NAME="$TEST_DB_NAME" \
   -e TEST_DB_USER="$TEST_DB_USER" \
   -e TEST_DB_PASSWORD="$TEST_DB_PASSWORD" \
+  -e SUPER_ADMIN_PASSWORD="$E2E_SUPER_ADMIN_PASSWORD" \
   api \
-  node --test tests/integration/refund-gamification.test.js tests/integration/recurring-gamification.test.js
+  node --test --test-concurrency=1 "${LIVE_INTEGRATION_FILES[@]}"
 
 echo "[live] Running duplicate redeem/refund ledger check..."
 docker compose "${COMPOSE_ARGS[@]}" run --rm \
@@ -102,3 +138,5 @@ docker compose "${COMPOSE_ARGS[@]}" run --rm \
   -e SUPER_ADMIN_PASSWORD="$E2E_SUPER_ADMIN_PASSWORD" \
   api \
   node src/scripts/live-staff-ledger-check.mjs
+
+echo "[live] All live integration gates passed in ${SECONDS}s."
