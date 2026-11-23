@@ -51,7 +51,7 @@ test("branded enrollment QR requires the owner and paid feature within their ten
       staffAuth: (req, res, next) => {
         if (!req.get("x-role")) return res.status(401).json({ error: "Sign in" });
         req.staff = { id: "owner", business_id: "own-business", role: req.get("x-role") };
-        next();
+        return next();
       },
     }),
   );

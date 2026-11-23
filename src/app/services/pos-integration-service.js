@@ -27,6 +27,7 @@ import {
 } from "./pos-refund-service.js";
 import { assertPurchaseTimeReplay } from "./purchase-event-time.js";
 import { posMeasurementReceipt, recordPosMeasurementReceipts } from "./pos-measurement-receipts.js";
+import { errorMessage, errorStatus } from "../../utils/error-shape.js";
 
 const SettingsSchema = z
   .object({
@@ -190,7 +191,7 @@ async function resolveLoyverseCredentials(deps, business, data, current) {
         region: businessRegion(business),
       });
     } catch (error) {
-      throw badRequest(error.message);
+      throw badRequest(errorMessage(error));
     }
     native = {
       access_token: accessToken,
@@ -390,13 +391,14 @@ async function evaluateSaleRow(deps, business, input) {
     }
     row.customerPhone = sale.customerPhone;
   } catch (error) {
-    if (!error.statusCode || error.statusCode >= 500) throw error;
+    const statusCode = errorStatus(error);
+    if (!statusCode || statusCode >= 500) throw error;
     Object.assign(row, {
       status: "error",
-      code: `SALE_${error.statusCode}`,
-      message: error.message,
+      code: `SALE_${statusCode}`,
+      message: errorMessage(error),
     });
-    if (receipt) receipt.status = error.statusCode === 404 ? "unmatched" : "rejected";
+    if (receipt) receipt.status = statusCode === 404 ? "unmatched" : "rejected";
   }
   return { row, receipt, ready };
 }
@@ -445,18 +447,19 @@ async function awardPreparedSale(deps, business, result, { sale, meta, row, rece
     if (receipt)
       Object.assign(receipt, { status: "matched", transactionId: award.transactionId ?? null });
   } catch (error) {
-    if (!error.statusCode || error.statusCode >= 500) throw error;
+    const statusCode = errorStatus(error);
+    if (!statusCode || statusCode >= 500) throw error;
     result.errors += 1;
     result.issues.push({
       row: row.row,
       saleId: sale.saleId,
-      code: `SALE_${error.statusCode}`,
+      code: `SALE_${statusCode}`,
       message:
-        error.statusCode === 409
+        statusCode === 409
           ? "La venta ya existe con otros datos; revisa el registro."
           : "No se pudo registrar esta venta. Revisa el cliente y la conexión.",
     });
-    if (receipt) receipt.status = error.statusCode === 404 ? "unmatched" : "rejected";
+    if (receipt) receipt.status = statusCode === 404 ? "unmatched" : "rejected";
   }
   if (receipt) await deps.recordReceipts(business.id, [receipt]);
 }

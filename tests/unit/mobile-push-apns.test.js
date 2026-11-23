@@ -89,6 +89,7 @@ function transport(replies) {
                   Buffer.from(reply.body || JSON.stringify({ reason: reply.reason })),
                 );
                 stream.emit("end");
+                return undefined;
               });
             },
           });

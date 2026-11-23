@@ -16,6 +16,7 @@ import {
   toMinor,
   toNumber,
 } from "../../utils/money.js";
+import { errorCode } from "../../utils/error-shape.js";
 
 function makeCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -188,7 +189,7 @@ export async function createGiftCardWithDeps(
         card = rows[0];
         break;
       } catch (err) {
-        if (String(err?.code) === "23505" && requestId) {
+        if (String(errorCode(err)) === "23505" && requestId) {
           const replay = await findExistingGiftCardTx(client, actor.business_id, requestId, {
             expectType: "ISSUE",
           });
@@ -215,7 +216,7 @@ export async function createGiftCardWithDeps(
             return hydrateGiftCardSnapshot(replay);
           }
         }
-        if (String(err?.code) !== "23505" || attempt === 4) throw err;
+        if (String(errorCode(err)) !== "23505" || attempt === 4) throw err;
       }
     }
 

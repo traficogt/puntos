@@ -111,9 +111,11 @@ suite("service operation browser persistence in isolated database", () => {
           resolveId(id) {
             if (id === "/lib.js") return new URL("../../public/lib.js", import.meta.url).pathname;
             if (id === "/service-check.jsx") return "\0service-check.jsx";
+            return undefined;
           },
           load(id) {
             if (id === "\0service-check.jsx") return entry;
+            return undefined;
           },
         },
         react(),

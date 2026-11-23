@@ -64,7 +64,7 @@ element("#btnLogin").addEventListener("click", async () => {
       location.href = destination;
     }, 400);
   } catch (e) {
-    toast(e.message);
+    toast(e instanceof Error ? e.message : String(e));
   } finally {
     sessionActionInProgress = false;
   }
@@ -80,7 +80,7 @@ element("#btnRequestReset").addEventListener("click", async () => {
     });
     toast("Si el correo existe, enviamos un token de reset.");
   } catch (e) {
-    toast(e.message);
+    toast(e instanceof Error ? e.message : String(e));
   }
 });
 
@@ -97,7 +97,7 @@ element("#btnConfirmReset").addEventListener("click", async () => {
     input("#resetPassword").value = "";
     toast("Contraseña actualizada. Ya puedes iniciar sesión.");
   } catch (e) {
-    toast(e.message);
+    toast(e instanceof Error ? e.message : String(e));
   }
 });
 
@@ -112,7 +112,7 @@ element("#btnConfirmEmailChange").addEventListener("click", async () => {
     input("#emailChangeToken").value = "";
     toast("Cambio de correo confirmado.");
   } catch (e) {
-    toast(e.message);
+    toast(e instanceof Error ? e.message : String(e));
   }
 });
 

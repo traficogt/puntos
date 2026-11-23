@@ -12,6 +12,7 @@ import {
 } from "../services/native-wallet/runtime.js";
 import { NativeWalletRepo } from "../repositories/native-wallet-repository.js";
 import { isApplePushToken } from "../services/native-wallet/apple-push-token.js";
+import { isErrorLike } from "../../utils/error-shape.js";
 
 const opaque = /^[A-Za-z0-9_-]{8,256}$/;
 const serial = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -106,7 +107,7 @@ export function createNativeWalletRoutes({
           }),
         );
       } catch (e) {
-        if (e?.constraint === "native_wallet_device_limit")
+        if (isErrorLike(e) && e.constraint === "native_wallet_device_limit")
           throw tooManyRequests("Device registration limit reached");
         throw e;
       }

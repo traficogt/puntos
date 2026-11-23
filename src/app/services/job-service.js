@@ -15,6 +15,7 @@ import { runLifecycleOnce } from "./lifecycle-service.js";
 import { config } from "../../config/index.js";
 import { logger } from "../../utils/logger.js";
 import { createClient } from "redis";
+import { errorMessage } from "../../utils/error-shape.js";
 
 function id() {
   return crypto.randomUUID();
@@ -87,7 +88,7 @@ export async function closeJobQueueRedis() {
     if (client.isOpen) await client.close();
     else client.destroy();
   } catch (err) {
-    logger.warn({ err: err?.message }, "Job queue: Redis client did not close cleanly");
+    logger.warn({ err: errorMessage(err) }, "Job queue: Redis client did not close cleanly");
   }
 }
 
@@ -210,7 +211,7 @@ export async function enqueueJobWithDeps(
       await deps.redisClient.lPush(REDIS_QUEUE_KEY, JSON.stringify({ id: jobRecord.id }));
     } catch (err) {
       deps.logger.warn(
-        { err: err?.message, jobId: jobRecord.id },
+        { err: errorMessage(err), jobId: jobRecord.id },
         "Job queue: redis enqueue failed, leaving job in DB queue",
       );
     }
@@ -311,7 +312,7 @@ export async function processPendingJobsOnce({ limit = 10 } = {}) {
         );
       }
     } catch (e) {
-      const message = e?.message ?? String(e);
+      const message = errorMessage(e) ?? String(e);
       if (trackedJob) {
         await withDbClientContext({ platformAdmin: true, tenantId: null }, async (client) => {
           if (recoverable) await failClaimedJob(client, job);
@@ -343,13 +344,13 @@ export async function redisHealth() {
     const depth = await queue.lLen(REDIS_QUEUE_KEY);
     return { driver: "redis", queueDepth: depth ?? 0, healthy: true, redis: "ok", lastError: null };
   } catch (err) {
-    logger.warn({ err: err?.message }, "Job queue: redis health failed");
+    logger.warn({ err: errorMessage(err) }, "Job queue: redis health failed");
     return {
       driver: "redis",
       queueDepth: -1,
       healthy: false,
       redis: "error",
-      lastError: err?.message ?? String(err),
+      lastError: errorMessage(err) ?? String(err),
     };
   }
 }

@@ -47,6 +47,7 @@ import { consumeInternalMagicLink } from "../services/internal-magic-link-servic
 import { sendContactEmail, verifyTurnstile } from "../services/contact-service.js";
 import { getRequestIp } from "../../utils/request-ip.js";
 import { withDbClientContext } from "../database.js";
+import { errorCode, errorMessage } from "../../utils/error-shape.js";
 
 export const publicRoutes = Router();
 
@@ -115,8 +116,8 @@ async function withMagicLinkDbContext(task) {
     }
     return withDbClientContext({ platformAdmin: true, tenantId: null }, task);
   } catch (error) {
-    const code = String(error?.code || "");
-    const message = String(error?.message || "");
+    const code = String(errorCode(error) || "");
+    const message = String(errorMessage(error) || "");
     if (code === "28P01" || /password authentication failed/i.test(message)) {
       return task();
     }

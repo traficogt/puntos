@@ -33,6 +33,7 @@ import {
 import { snapshotCompletedRedemption } from "./reward-economics-service.js";
 import { assertNoPendingCheckout } from "./pos-checkout-guard.js";
 import { assertRewardInventory } from "./reward-inventory-service.js";
+import { errorCode, errorMessage, errorStatus, isErrorLike } from "../../utils/error-shape.js";
 
 function id() {
   return crypto.randomUUID();
@@ -48,10 +49,10 @@ export async function lookupCustomerByQrTokenWithDeps(deps, { staff, customerQrT
         })
       : await deps.verifyQrToken(customerQrToken);
   } catch (error) {
-    if (isNativeWalletCode(customerQrToken) && error?.statusCode) throw error;
+    if (isNativeWalletCode(customerQrToken) && errorStatus(error)) throw error;
     throw badRequest(
-      error?.message ?? "Código QR no válido",
-      error?.message == null ? "VALIDATION_ERROR" : undefined,
+      errorMessage(error) ?? "Código QR no válido",
+      errorMessage(error) == null ? "VALIDATION_ERROR" : undefined,
     );
   }
 
@@ -486,7 +487,7 @@ async function insertRedemptionRow(
       );
       break;
     } catch (e) {
-      if (String(e?.code) === "23505") {
+      if (String(errorCode(e)) === "23505") {
         const replayAfterConflict = await findExistingRedemptionByRequestId(
           client,
           staff.business_id,
@@ -698,7 +699,7 @@ export async function redeemRewardWithRecovery(args, injected = {}) {
   } catch (error) {
     try {
       const recoveryCaseId = await record({ ...args, error });
-      if (recoveryCaseId) error.recoveryCaseId = recoveryCaseId;
+      if (recoveryCaseId && isErrorLike(error)) error.recoveryCaseId = recoveryCaseId;
     } catch {
       /* Recording must never replace the original redemption error. */
     }
@@ -723,7 +724,7 @@ export async function syncAwards({ staff, awards }) {
       });
       results.push({ txId: award.txId, ok: true, result });
     } catch (e) {
-      results.push({ txId: award.txId, ok: false, error: e?.message ?? String(e) });
+      results.push({ txId: award.txId, ok: false, error: errorMessage(e) ?? String(e) });
     }
   }
   return results;

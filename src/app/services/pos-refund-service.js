@@ -7,6 +7,7 @@ import { badRequest, conflict, forbidden, notFound } from "../../utils/http-erro
 import { dbQuery, withTransaction } from "../database.js";
 import { posEventId } from "./pos/common.js";
 import { refundAwardTransactionWithClient } from "./loyalty-ops-service.js";
+import { errorMessage, errorStatus } from "../../utils/error-shape.js";
 
 const receiptId = z
   .string()
@@ -275,8 +276,8 @@ export async function reconcilePosRefund(
           await client.query("ROLLBACK TO SAVEPOINT pos_refund_ledger");
           await client.query("RELEASE SAVEPOINT pos_refund_ledger");
           reason =
-            error.statusCode === 409 &&
-            /negative balance|saldo en negativo|saldos negativos/i.test(error.message)
+            errorStatus(error) === 409 &&
+            /negative balance|saldo en negativo|saldos negativos/i.test(errorMessage(error))
               ? "insufficient_balance"
               : "retryable_error";
         }

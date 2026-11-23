@@ -13,6 +13,7 @@ import {
   startResponseDropProxy,
   summarizeMeasurements,
 } from "../../src/scripts/workload-lib.mjs";
+import { errorMessage } from "../../src/utils/error-shape.js";
 
 assert.equal(process.env.PF_DISPOSABLE_WORKLOAD, "1", "Use the isolated workload launcher");
 assert.ok(
@@ -394,8 +395,8 @@ async function main() {
     assert.equal(measurements.filter((row) => row.outcome === "interrupted").length, 1);
     report.correctness.ok = true;
   } catch (error) {
-    report.correctness.error = error.message;
-    console.error(`[workload] Scenario failed: ${error.message}`);
+    report.correctness.error = errorMessage(error);
+    console.error(`[workload] Scenario failed: ${errorMessage(error)}`);
     if (apiOutput) console.error(apiOutput);
   } finally {
     report.counts = {

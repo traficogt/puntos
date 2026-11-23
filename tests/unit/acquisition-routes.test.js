@@ -31,7 +31,7 @@ test("acquisition owner APIs enforce tenant, role, plan, strict writes and CSRF"
       staffAuth: (req, res, next) => {
         if (!req.get("x-role")) return res.sendStatus(401);
         req.staff = { id: "owner", business_id: "own", role: req.get("x-role") };
-        next();
+        return next();
       },
       service: {
         listSources: async (b) => {

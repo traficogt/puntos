@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { runCommand } from "./run-domain-integration-isolated.mjs";
 import { parseWorkloadOptions, assertWorkloadHost, workloadEnvironment } from "./workload-lib.mjs";
+import { errorMessage } from "../utils/error-shape.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const postgresImage =
@@ -168,7 +169,7 @@ async function main() {
     if (!report?.correctness?.ok || !report?.recovery?.ok || !report?.performance?.ok)
       exitCode ||= 1;
   } catch (error) {
-    console.error(`[workload] ${redact(error.message)}`);
+    console.error(`[workload] ${redact(errorMessage(error))}`);
     exitCode ||= 1;
   } finally {
     clearTimeout(timeout);

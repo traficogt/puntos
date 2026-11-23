@@ -36,7 +36,7 @@ before(async () => {
           role: req.get("x-role"),
           impersonated_by: "authenticated-support@example.test",
         };
-        next();
+        return next();
       },
       service: /** @type {any} */ ({
         previewCustomerMigration: async (input) => {

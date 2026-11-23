@@ -192,7 +192,7 @@ export function createObservabilityRouter(options = {}) {
         },
       });
     }
-    res.json(info);
+    return res.json(info);
   });
 
   return router;

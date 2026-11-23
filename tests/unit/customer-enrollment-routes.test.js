@@ -32,7 +32,7 @@ test("business invitation routes use the authenticated Branding scope and canoni
       staffAuth: (req, res, next) => {
         if (!req.get("x-test-role")) return res.status(401).json({ error: "Sign in" });
         req.staff = { id: "owner", business_id: business.id, role: req.get("x-test-role") };
-        next();
+        return next();
       },
     }),
   );

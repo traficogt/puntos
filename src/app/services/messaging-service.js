@@ -20,6 +20,7 @@ import {
 } from "./marketing-preference-service.js";
 import { PlanConfigService } from "./plan-config-service.js";
 import { hasPlanFeature } from "../../utils/plan.js";
+import { errorMessage } from "../../utils/error-shape.js";
 
 function id() {
   return crypto.randomUUID();
@@ -182,7 +183,7 @@ export async function sendMessage({
       simulated: routed.provider === "dev",
     };
   } catch (e) {
-    const msg = String(e?.message || "").startsWith("NO_DELIVERY_PROVIDER")
+    const msg = String(errorMessage(e) || "").startsWith("NO_DELIVERY_PROVIDER")
       ? "NO_DELIVERY_PROVIDER"
       : "DELIVERY_UNCERTAIN";
     logger.error({ err: msg }, "sendMessage failed");

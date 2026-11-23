@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { isSecureClientOrigin, isValidClientOrigin, normalizeOrigin } from "../utils/origin.js";
+import { isErrorLike } from "../utils/error-shape.js";
 
 /** @typedef {import("../types/config.js").AppConfig} AppConfig */
 
@@ -38,7 +39,7 @@ function readFileValue(fileVarName) {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     return fs.readFileSync(resolved, "utf8").trim();
   } catch (err) {
-    const code = err && typeof err === "object" ? err.code : "";
+    const code = isErrorLike(err) ? err.code : "";
     if (!IS_PROD && (code === "ENOENT" || code === "ENOTDIR")) {
       return undefined;
     }

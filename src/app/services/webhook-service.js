@@ -8,6 +8,7 @@ import { config } from "../../config/index.js";
 import { decryptSecretMaybe } from "../../utils/secret-crypto.js";
 import { emitBillingEvent } from "./billing-service.js";
 import { withDbClientContext } from "../database.js";
+import { errorMessage, isErrorLike } from "../../utils/error-shape.js";
 
 function id() {
   return crypto.randomUUID();
@@ -109,7 +110,8 @@ async function deliverOne(j) {
       });
     });
   } catch (e) {
-    const msg = e?.name === "AbortError" ? "Timeout" : (e?.message ?? String(e));
+    const msg =
+      isErrorLike(e) && e.name === "AbortError" ? "Timeout" : (errorMessage(e) ?? String(e));
     logger.warn({ id: j.id, err: msg }, "Webhook delivery failed");
     await withDbClientContext({ tenantId: j.business_id, platformAdmin: false }, async () => {
       await WebhookRepo.recordFailure(j.id, msg, config.WEBHOOK_MAX_ATTEMPTS);

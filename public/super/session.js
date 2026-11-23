@@ -114,6 +114,7 @@ export function createSuperSession(ctx, { platformHealth, loadPrivateData }) {
     element("#btnLogout").addEventListener("click", logout);
     window.addEventListener("online", () => {
       if (state.logoutPending) return logout();
+      return undefined;
     });
     window.addEventListener("storage", (event) => {
       if (!epoch.touchedBy(event)) return;

@@ -60,7 +60,8 @@ export function mountServiceOperations({ container, api }) {
       pending = null;
       feedback.textContent = "Paso ficticio guardado.";
     } catch (e) {
-      feedback.textContent = e.message || "No se guardó. Puedes reintentar el mismo paso.";
+      feedback.textContent =
+        (e instanceof Error && e.message) || "No se guardó. Puedes reintentar el mismo paso.";
       feedback.setAttribute("role", "alert");
     } finally {
       busy = false;
@@ -214,7 +215,7 @@ export function mountServiceOperations({ container, api }) {
               });
               await refresh();
             } catch (e) {
-              feedback.textContent = e.message;
+              feedback.textContent = e instanceof Error ? e.message : String(e);
             } finally {
               busy = false;
             }

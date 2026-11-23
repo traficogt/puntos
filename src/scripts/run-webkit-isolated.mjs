@@ -8,6 +8,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { isolatedEnvironment, runCommand } from "./run-domain-integration-isolated.mjs";
+import { errorMessage } from "../utils/error-shape.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const postgresImage =
@@ -284,7 +285,7 @@ async function main() {
       JSON.stringify(validateWebkitReport(JSON.parse(await readFile(reportPath, "utf8")))),
     );
   } catch (error) {
-    console.error(`[webkit] ${redact(error.message)}`);
+    console.error(`[webkit] ${redact(errorMessage(error))}`);
     exitCode = 1;
   } finally {
     relay.closeAllConnections();

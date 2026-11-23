@@ -1,5 +1,6 @@
 import { createSmtpProvider } from "./messaging/providers/smtp-provider.js";
 import { config } from "../../config/index.js";
+import { isErrorLike } from "../../utils/error-shape.js";
 export const ownerBriefEmailReady = () => Boolean(config.SMTP_HOST && config.SMTP_FROM);
 // Dedicated SMTP delivery avoids simulated acceptance and phone-provider fallbacks.
 export async function sendOwnerBriefEmail(
@@ -20,7 +21,7 @@ export async function sendOwnerBriefEmail(
   } catch (error) {
     return {
       ok: false,
-      definiteFailure: error?.deliveryUncertain === false,
+      definiteFailure: isErrorLike(error) && error.deliveryUncertain === false,
       error: "DELIVERY_UNCERTAIN",
     };
   }

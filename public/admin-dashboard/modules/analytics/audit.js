@@ -166,7 +166,9 @@ export function createAnalyticsAuditController(app) {
       renderAuditDetail(out);
     } catch (e) {
       const box = $("#auditDetail");
-      if (box) box.textContent = "Error cargando detalle de auditoría: " + e.message;
+      if (box)
+        box.textContent =
+          "Error cargando detalle de auditoría: " + (e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -241,7 +243,7 @@ export function createAnalyticsAuditController(app) {
       });
       renderAuditDetail(null);
     } catch (e) {
-      box.textContent = "Error cargando auditoría: " + e.message;
+      box.textContent = "Error cargando auditoría: " + (e instanceof Error ? e.message : String(e));
     }
   }
 

@@ -159,7 +159,7 @@ export function createQrController({ $, toast }) {
         if (ms < 12_000) generateQR().catch(() => {});
       }, 3_000);
     } catch (e) {
-      if (isCurrent()) toast(e.message || "No se pudo generar QR");
+      if (isCurrent()) toast((e instanceof Error && e.message) || "No se pudo generar QR");
     } finally {
       inFlight = false;
     }

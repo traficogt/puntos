@@ -51,6 +51,7 @@ import {
   requestStaffEmailChange,
   startStaffMfaEnrollment,
 } from "../services/account-security-service.js";
+import { errorMessage, errorStatus } from "../../utils/error-shape.js";
 
 export const staffRoutes = Router();
 
@@ -105,13 +106,13 @@ staffRoutes.post(
       // A failed proof does not mean the existing browser session expired.
       // requireStaff above still returns 401 for a missing or invalid session.
       if (
-        error.statusCode === 401 &&
+        errorStatus(error) === 401 &&
         [
           "Credenciales inválidas",
           "Código MFA inválido",
           "Invalid credentials",
           "Invalid MFA code",
-        ].includes(error.message)
+        ].includes(errorMessage(error))
       ) {
         return res.status(400).json({
           error:

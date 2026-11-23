@@ -29,7 +29,7 @@ export function createCustomerMigrationRoutes({
       return res
         .status(400)
         .json({ error: "Esta acción usa el negocio de tu sesión, sin filtros adicionales." });
-    next();
+    return next();
   });
   router.get(
     base,

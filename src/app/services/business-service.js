@@ -10,6 +10,7 @@ import { logger } from "../../utils/logger.js";
 import { setCurrentTenant, withTransaction, withDbClientContext } from "../database.js";
 import { hashPassword } from "../../utils/password-hash.js";
 import { assertPasswordAllowed } from "../../utils/password-policy.js";
+import { errorMessage, isErrorLike } from "../../utils/error-shape.js";
 
 function id() {
   return crypto.randomUUID();
@@ -137,9 +138,10 @@ export async function createBusinessWithOwner({
       return { business, ownerId, branchId };
     } catch (err) {
       lastErr = err;
-      const code = err?.code;
-      const constraint = String(err?.constraint || "");
-      const msg = String(err?.message || "");
+      const details = isErrorLike(err) ? err : undefined;
+      const code = details?.code;
+      const constraint = String(details?.constraint || "");
+      const msg = String(details?.message || "");
       const isUnique = code === "23505";
       const isSlugConflict =
         isUnique && (constraint.includes("slug") || msg.toLowerCase().includes("slug"));
@@ -181,7 +183,7 @@ async function runIntegrationHooks({ businessId, programType }) {
       try {
         await step();
       } catch (err) {
-        logger.warn({ err: err?.message }, "Post-create hook failed");
+        logger.warn({ err: errorMessage(err) }, "Post-create hook failed");
       }
     }
   });

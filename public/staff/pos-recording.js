@@ -183,8 +183,10 @@ export function mountPosRecording({ container, api, getContext }) {
       } catch (error) {
         if (current(token)) {
           status.textContent =
-            error.message || "No se confirmó la comprobación. Reintenta con los mismos datos.";
-          if ([401, 403, 404, 409].includes(error.status)) {
+            (error instanceof Error && error.message) ||
+            "No se confirmó la comprobación. Reintenta con los mismos datos.";
+          const httpStatus = error instanceof Error && "status" in error ? error.status : undefined;
+          if (typeof httpStatus === "number" && [401, 403, 404, 409].includes(httpStatus)) {
             body.replaceChildren(
               node(
                 "p",
@@ -229,7 +231,7 @@ export function mountPosRecording({ container, api, getContext }) {
     } catch (error) {
       if (current(token))
         status.textContent =
-          error.message ||
+          (error instanceof Error && error.message) ||
           "No pudimos consultar la caja. El canje en PF sigue confirmado. Vuelve a consultar.";
     } finally {
       if (current(token)) {

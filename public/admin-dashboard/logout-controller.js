@@ -47,6 +47,7 @@ export function initDashboardLogout({ api, $, toast }) {
   $("#btnLogout")?.addEventListener("click", logout);
   window.addEventListener("online", () => {
     if (sessionBlocked && session.hasPendingLogout()) return logout();
+    return undefined;
   });
   window.addEventListener("storage", (event) => {
     if (session.supersededBy(event)) hidePrivateView();

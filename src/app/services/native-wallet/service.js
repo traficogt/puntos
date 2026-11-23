@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID, createHash, timingSafeEqual } from "node:crypto";
 import { HttpError, notFound, unauthorized } from "../../../utils/http-error.js";
+import { errorCode } from "../../../utils/error-shape.js";
 
 const unavailable = () =>
   new HttpError(503, "La tarjeta no está disponible en este momento. Intenta de nuevo más tarde.");
@@ -36,7 +37,7 @@ export function createNativeWalletService({
     } catch (e) {
       // Disabled deployments may precede the additive migration; existing passes
       // stay visible for revocation whenever storage is available.
-      if (!names.length && e?.code === "42P01") passes = [];
+      if (!names.length && errorCode(e) === "42P01") passes = [];
       else throw e;
     }
     return {

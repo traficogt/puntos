@@ -59,7 +59,7 @@ export function createStaffContext({ api, $, toast, uuidv4 }) {
       try {
         return await task();
       } catch (error) {
-        if (onError) return onError(error);
+        if (onError) return onError(error instanceof Error ? error : new Error(String(error)));
         return null;
       }
     },

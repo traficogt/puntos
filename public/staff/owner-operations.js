@@ -27,7 +27,9 @@ export function mountOwnerOperations(container, api) {
       pendingRequest = null;
       await render();
     } catch (error) {
-      status.textContent = error.message || "No se pudo guardar. Actualiza e intenta de nuevo.";
+      status.textContent =
+        (error instanceof Error && error.message) ||
+        "No se pudo guardar. Actualiza e intenta de nuevo.";
     } finally {
       pending = false;
     }
@@ -75,7 +77,7 @@ export function mountOwnerOperations(container, api) {
           button("Descartar con motivo", () => {
             if (reason.value.trim().length < 3) {
               status.textContent = "Escribe un motivo de al menos 3 caracteres.";
-              return;
+              return undefined;
             }
             return mutate(
               "/api/staff/decisions/review",
@@ -136,7 +138,8 @@ export function mountOwnerOperations(container, api) {
         container.append(section);
       }
     } catch (error) {
-      status.textContent = error.message || "No se pudieron cargar los pendientes.";
+      status.textContent =
+        (error instanceof Error && error.message) || "No se pudieron cargar los pendientes.";
     }
     container.append(button("Actualizar pendientes y autorizaciones", render));
   }

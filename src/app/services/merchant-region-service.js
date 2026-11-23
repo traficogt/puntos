@@ -4,6 +4,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { dbQuery, withTransaction } from "../database.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 import { businessRegion, REGIONAL_COUNTRIES, validateRegionalInput } from "./regional-settings.js";
+import { errorMessage } from "../../utils/error-shape.js";
 const version = (business) =>
   createHash("sha256")
     .update(JSON.stringify(businessRegion(business)))
@@ -53,7 +54,7 @@ export async function updateMerchantRegion(
     const { version: _version, confirmed_currency: _confirmed, ...value } = input;
     region = validateRegionalInput(value);
   } catch (error) {
-    throw badRequest(error.message);
+    throw badRequest(errorMessage(error));
   }
   const d = { ...dfl, ...injected };
   await d.transaction(async (client) => {

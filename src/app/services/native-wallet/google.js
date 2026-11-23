@@ -1,5 +1,6 @@
 import { importPKCS8, SignJWT } from "jose";
 import { parsePublicWalletUrl } from "./config.js";
+import { isErrorLike } from "../../../utils/error-shape.js";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const API_BASE = "https://walletobjects.googleapis.com/walletobjects/v1";
@@ -187,7 +188,7 @@ export function createGoogleProvider(config, { fetchImpl = fetch, now = () => Da
         allowedStatuses,
       );
     } catch (error) {
-      if (error.status === 401 && accessToken === token) {
+      if (isErrorLike(error) && error.status === 401 && accessToken === token) {
         accessToken = undefined;
         tokenExpiresAt = 0;
       }

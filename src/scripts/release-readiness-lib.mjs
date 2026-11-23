@@ -317,6 +317,7 @@ export function evaluateEvidence({
 import { execFileSync, spawn } from "node:child_process";
 import { lstat, readFile, readlink, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { errorCode } from "../utils/error-shape.js";
 
 export async function inspectSource(cwd) {
   const git = (args) =>
@@ -365,7 +366,7 @@ export async function inspectSource(cwd) {
       const oid = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
       if (expected && (expected.oid !== oid || expected.mode !== mode)) modifiedTrackedFiles++;
     } catch (error) {
-      if (error.code !== "ENOENT") throw error;
+      if (errorCode(error) !== "ENOENT") throw error;
       entry = [file, "missing"];
       if (committed.has(file)) modifiedTrackedFiles++;
     }

@@ -26,10 +26,12 @@ async function setup(t, mode = "normal") {
       setItem(key, value) {
         if (state.mode !== "normal") return denied();
         saved.set(key, value);
+        return undefined;
       },
       removeItem(key) {
         if (state.mode === "denied" || state.mode === "readonly") return denied();
         saved.delete(key);
+        return undefined;
       },
     },
   });

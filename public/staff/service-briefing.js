@@ -177,13 +177,14 @@ export function mountServiceBriefing({ container, api, program }) {
               }
             } catch (error) {
               if (!destroyed) {
-                feedback.textContent =
-                  error.status === 409
-                    ? "El aviso cambió. Vuelve a cargar y lee la nueva versión."
-                    : "No se guardó la lectura. Revisa tu conexión y vuelve a intentar.";
+                const versionConflict =
+                  error instanceof Error && "status" in error && error.status === 409;
+                feedback.textContent = versionConflict
+                  ? "El aviso cambió. Vuelve a cargar y lee la nueva versión."
+                  : "No se guardó la lectura. Revisa tu conexión y vuelve a intentar.";
                 feedback.setAttribute("role", "alert");
                 ack.disabled = false;
-                if (error.status === 409)
+                if (versionConflict)
                   article.append(button("Cargar nueva versión", () => refresh()));
               }
             }

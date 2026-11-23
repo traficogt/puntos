@@ -142,7 +142,7 @@ function transport({ status = 200, body = "", failure = "" } = {}) {
     end(payload) {
       calls.push({ payload });
       queueMicrotask(() => {
-        if (failure === "timeout") return;
+        if (failure === "timeout") return undefined;
         if (failure === "session") return session.emit("error", new Error("secret TLS error"));
         if (failure === "stream") return request.emit("error", new Error("secret stream error"));
         if (failure === "close") return request.emit("close");
@@ -150,6 +150,7 @@ function transport({ status = 200, body = "", failure = "" } = {}) {
         request.emit("response", { ":status": status });
         if (body) request.emit("data", body);
         request.emit("end");
+        return undefined;
       });
     },
   });

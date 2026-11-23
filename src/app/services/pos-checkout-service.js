@@ -26,6 +26,7 @@ import {
   redemptionEvidence,
   ensureFulfillmentRecord,
 } from "./redemption-pos-store.js";
+import { errorCode, errorStatus } from "../../utils/error-shape.js";
 export { getCheckoutSources, configureCheckoutSource } from "./pos-checkout-config.js";
 const overrides = (deps) =>
   (deps.getPlanFeatureOverrides ?? (() => PlanConfigService.getPlanFeatureOverrides()))();
@@ -63,7 +64,7 @@ export async function getPosCheckoutOptions(business, input, deps = {}) {
           reward,
         });
       } catch (e) {
-        if (e?.statusCode === 409) continue;
+        if (errorStatus(e) === 409) continue;
         throw e;
       }
       const branches =
@@ -203,7 +204,7 @@ export async function authorizePosCheckout(business, input, deps = {}) {
       return checkoutResponse(row);
     });
   } catch (e) {
-    if (e?.code === "23505")
+    if (errorCode(e) === "23505")
       throw conflict("Este cliente o línea ya tiene una autorización pendiente.");
     throw e;
   }
@@ -357,7 +358,8 @@ export async function cancelPosCheckout(business, input, deps = {}) {
       return checkoutResponse(tombstone);
     });
   } catch (e) {
-    if (e?.code === "23505") throw conflict("La referencia de cancelación o línea ya fue usada.");
+    if (errorCode(e) === "23505")
+      throw conflict("La referencia de cancelación o línea ya fue usada.");
     throw e;
   }
 }

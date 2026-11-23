@@ -1,6 +1,7 @@
 import { ReferralRepository } from "../repositories/referral-repository.js";
 import { dbQuery, withTransaction } from "../database.js";
 import { notFound, badRequest, forbidden } from "../../utils/http-error.js";
+import { errorCode } from "../../utils/error-shape.js";
 
 const DEFAULT_SETTINGS = {
   enabled: false,
@@ -233,7 +234,7 @@ export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerI
       );
       createdReferral = rows[0];
     } catch (error) {
-      if (String(error?.code) === "23505") {
+      if (String(errorCode(error)) === "23505") {
         throw badRequest("Este cliente ya fue referido");
       }
       throw error;

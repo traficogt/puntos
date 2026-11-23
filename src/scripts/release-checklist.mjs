@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { errorMessage } from "../utils/error-shape.js";
 
 const rootDir = process.cwd();
 const migrationsDir = path.join(rootDir, "src", "app", "migrations");
@@ -152,6 +153,6 @@ function main() {
 try {
   main();
 } catch (error) {
-  console.error(`Static release checklist: FAIL: ${error?.message || error}`);
+  console.error(`Static release checklist: FAIL: ${errorMessage(error) || error}`);
   process.exit(1);
 }

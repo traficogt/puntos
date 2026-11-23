@@ -149,7 +149,10 @@ export function mountServiceCases({ container, api, getContext }) {
       );
     } catch (error) {
       if (!destroyed && sequence === refreshSequence)
-        message(error.message || "No se pudieron consultar los casos. Vuelve a actualizar.");
+        message(
+          (error instanceof Error && error.message) ||
+            "No se pudieron consultar los casos. Vuelve a actualizar.",
+        );
     }
   }
   function contextChanged() {
@@ -262,7 +265,7 @@ export function mountServiceCases({ container, api, getContext }) {
         await openCase(row.id);
         message("Seguimiento guardado.");
       } catch (e) {
-        message(e.message);
+        message(e instanceof Error ? e.message : String(e));
       } finally {
         busy = false;
         controls();
@@ -397,7 +400,8 @@ export function mountServiceCases({ container, api, getContext }) {
       } catch (error) {
         if (!destroyed)
           message(
-            error.message || "No se confirmó la resolución. Puedes reintentar la misma solicitud.",
+            (error instanceof Error && error.message) ||
+              "No se confirmó la resolución. Puedes reintentar la misma solicitud.",
           );
       } finally {
         busy = false;
@@ -419,7 +423,8 @@ export function mountServiceCases({ container, api, getContext }) {
         return;
       renderDetail(result.case, result.restoration, result);
     } catch (error) {
-      if (!destroyed) message(error.message || "No se pudo consultar el caso.");
+      if (!destroyed)
+        message((error instanceof Error && error.message) || "No se pudo consultar el caso.");
     }
   }
   form.addEventListener("submit", async (event) => {
@@ -453,7 +458,8 @@ export function mountServiceCases({ container, api, getContext }) {
     } catch (error) {
       if (!destroyed)
         message(
-          error.message || "No se confirmó el registro. Puedes reintentar la misma solicitud.",
+          (error instanceof Error && error.message) ||
+            "No se confirmó el registro. Puedes reintentar la misma solicitud.",
         );
     } finally {
       busy = false;

@@ -13,6 +13,7 @@ import {
   migrationCommitSchema,
 } from "./customer-migration-service.js";
 import { businessRegion } from "./regional-settings.js";
+import { errorStatus } from "../../utils/error-shape.js";
 export const largeImportLimits = { rows: 5000, bytes: 750 * 1024 };
 export const importJobPreviewSchema = migrationPreviewSchema.extend({
   csv: z
@@ -286,7 +287,8 @@ export async function runCustomerImportJob(payload, injected = {}) {
         total: result.job.total,
       };
     } catch (error) {
-      if (error.statusCode && error.statusCode < 500) {
+      const status = errorStatus(error);
+      if (status && status < 500) {
         await d.query(
           "UPDATE customer_import_jobs SET status='failed',last_error=$3,updated_at=now() WHERE business_id=$1 AND id=$2 AND status IN ('queued','running')",
           [

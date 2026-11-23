@@ -23,6 +23,6 @@ export async function loadCohortSummary({ $, api }) {
       box.appendChild(line);
     });
   } catch (error) {
-    box.textContent = `Error cargando cohortes: ${error.message}`;
+    box.textContent = `Error cargando cohortes: ${error instanceof Error ? error.message : String(error)}`;
   }
 }

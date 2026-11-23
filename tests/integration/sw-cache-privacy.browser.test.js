@@ -56,7 +56,7 @@ test(
         sessionActive && /(?:^|;\s*)dummy_session=dummy-a(?:;|$)/.test(req.headers.cookie || "");
       visits.push({ path: req.originalUrl, method: req.method, authorized: allowed });
       if (!allowed) return res.status(401).json({ error: "No autenticado", code: "AUTH_REQUIRED" });
-      next();
+      return next();
     });
     api.get("/customer/me", (_req, res) => res.json(dummyMe));
     api.post("/public/customer/logout", (req, res) => {
@@ -64,7 +64,7 @@ test(
         return res.status(403).json({ error: "CSRF" });
       sessionActive = false;
       res.clearCookie("dummy_session", { path: "/" });
-      res.json({ ok: true });
+      return res.json({ ok: true });
     });
     api.get("/customer/rewards", (_req, res) => res.json({ rewards: [] }));
     api.get("/customer/history", (_req, res) => res.json({ transactions: [], redemptions: [] }));

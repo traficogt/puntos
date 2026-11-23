@@ -19,6 +19,7 @@ import {
   publicMapping,
   publicFulfillment,
 } from "./redemption-pos-store.js";
+import { errorCode } from "../../utils/error-shape.js";
 const qty = (n) => Math.round(Number(n) * 1e6);
 const matching = (a, b) =>
   a.source === b.source &&
@@ -267,7 +268,7 @@ export async function recordPosFulfillmentEvent(business, input, injected = {}) 
       };
     });
   } catch (error) {
-    if (error?.code === "23505")
+    if (errorCode(error) === "23505")
       throw conflict("El recibo o evento ya está vinculado a otro canje.");
     throw error;
   }

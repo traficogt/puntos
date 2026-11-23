@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { errorMessage } from "../../src/utils/error-shape.js";
 
 const baseUrl = process.env.PWA_BASE_URL || process.env.E2E_BASE_URL || "http://127.0.0.1:3001";
 
@@ -14,7 +15,7 @@ async function gotoStable(page, url, options) {
       return;
     } catch (error) {
       lastError = error;
-      if (!/ERR_ABORTED/i.test(String(error?.message || error))) {
+      if (!/ERR_ABORTED/i.test(String(errorMessage(error) || error))) {
         throw error;
       }
       await page.waitForLoadState("domcontentloaded").catch(() => {});

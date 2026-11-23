@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { BillingRepo } from "../repositories/billing-repository.js";
 import { logger } from "../../utils/logger.js";
+import { errorMessage } from "../../utils/error-shape.js";
 
 function id() {
   return crypto.randomUUID();
@@ -28,6 +29,9 @@ export async function emitBillingEvent({
     });
   } catch (err) {
     // Avoid throwing in hot paths; rely on observability metrics/logs instead.
-    logger.warn({ err: err?.message || err, businessId, eventType }, "emitBillingEvent failed");
+    logger.warn(
+      { err: errorMessage(err) || err, businessId, eventType },
+      "emitBillingEvent failed",
+    );
   }
 }

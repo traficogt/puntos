@@ -42,7 +42,7 @@ export function achievementProgressValue(stats, requirementType) {
 }
 
 async function awardAchievementPoints(client, stats, customerId, achievement, context = {}) {
-  if (achievement.points_reward <= 0) return;
+  if (achievement.points_reward <= 0) return undefined;
   const rewardTransactionId = id();
   await client.query(
     `UPDATE customer_balances

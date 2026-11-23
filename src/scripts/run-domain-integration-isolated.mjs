@@ -18,6 +18,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
+import { errorMessage, isErrorLike } from "../utils/error-shape.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const postgresImage =
@@ -638,8 +639,9 @@ async function main() {
     );
     if (results.length !== suites.length) exitCode ||= 1;
   } catch (error) {
-    console.error(`[domains] ${redact(error.message)}`);
-    exitCode ||= error.exitCode || 1;
+    const details = isErrorLike(error) ? error : undefined;
+    console.error(`[domains] ${redact(errorMessage(error))}`);
+    exitCode ||= Number(details?.exitCode) || 1;
   } finally {
     if (containerId && /^[a-f0-9]{64}$/.test(containerId)) {
       const cleanup = await docker(["rm", "--force", "--volumes", containerId], false, true);

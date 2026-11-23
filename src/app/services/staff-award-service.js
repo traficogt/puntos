@@ -26,6 +26,7 @@ import { refreshCustomerDerivedState } from "./customer-derived-state.js";
 import { isLedgerInteger, isLedgerAmount } from "../../utils/ledger-limits.js";
 import { protectedEarningBusiness } from "./reward-promise-service.js";
 import { isNativeWalletCode, verifyNativeWalletAward } from "./native-wallet/membership.js";
+import { errorMessage, errorStatus } from "../../utils/error-shape.js";
 
 function id() {
   return crypto.randomUUID();
@@ -188,11 +189,11 @@ async function authorizeAwardToken(
           })
         : await typedDeps.verifyQrToken(customerQrToken);
   } catch (e) {
-    authorizationError = e?.statusCode
+    authorizationError = errorStatus(e)
       ? e
       : badRequest(
-          e?.message ?? "Código QR no válido",
-          e?.message == null ? "VALIDATION_ERROR" : undefined,
+          errorMessage(e) ?? "Código QR no válido",
+          errorMessage(e) == null ? "VALIDATION_ERROR" : undefined,
         );
     if (!txId) throw authorizationError;
     try {

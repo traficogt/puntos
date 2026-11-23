@@ -4,6 +4,7 @@ import { tooManyRequests } from "../utils/http-error.js";
 import { logger } from "../utils/logger.js";
 import { getRequestIp } from "../utils/request-ip.js";
 import { checkRedisRateLimit } from "../utils/redis-rate-limit.js";
+import { errorMessage } from "../utils/error-shape.js";
 
 const userLimitStore = new Map();
 const phoneLimitStore = new Map();
@@ -52,7 +53,7 @@ export async function closeRateLimitRedis() {
     if (client.isOpen) await client.close();
     else client.destroy();
   } catch (err) {
-    logger.warn({ err: err?.message }, "Redis rate-limit client did not close cleanly");
+    logger.warn({ err: errorMessage(err) }, "Redis rate-limit client did not close cleanly");
   }
 }
 
@@ -106,7 +107,7 @@ async function checkLimit(store, key, maxRequests, windowMs) {
     return await checkRedisRateLimit(redisClient, key, maxRequests, windowMs);
   } catch (err) {
     // The key may carry an IP or phone number, so only the error is logged.
-    logger.warn({ err: err?.message }, "Redis rate-limit check failed; using memory store");
+    logger.warn({ err: errorMessage(err) }, "Redis rate-limit check failed; using memory store");
     return checkLimitMemory(store, key, maxRequests, windowMs);
   }
 }

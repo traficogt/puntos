@@ -12,6 +12,7 @@ import { signQrToken } from "../../utils/qr-token.js";
 import { badRequest, notFound, tooManyRequests, unauthorized } from "../../utils/http-error.js";
 import { logger } from "../../utils/logger.js";
 import { withDbClientContext, withTransaction } from "../database.js";
+import { errorCode, errorMessage } from "../../utils/error-shape.js";
 
 function id() {
   return crypto.randomUUID();
@@ -154,7 +155,7 @@ export async function verifyJoinCodeWithDeps(
         } catch (err) {
           await client.query("ROLLBACK TO SAVEPOINT acquisition_signup");
           logger.warn(
-            { code: err?.code || "ACQUISITION_UNAVAILABLE" },
+            { code: errorCode(err) || "ACQUISITION_UNAVAILABLE" },
             "Acquisition attribution unavailable; verified registration continues",
           );
         }
@@ -178,7 +179,7 @@ export async function verifyJoinCodeWithDeps(
         );
       } catch (err) {
         logger.warn(
-          { err: err?.message || err, customerId: customer.id },
+          { err: errorMessage(err) || err, customerId: customer.id },
           "Marketing opt-in not recorded at signup",
         );
       }
@@ -192,7 +193,7 @@ export async function verifyJoinCodeWithDeps(
             await TierService.getCustomerTierInfo(customer.id);
           } catch (err) {
             logger.warn(
-              { err: err?.message || err, customerId: customer.id },
+              { err: errorMessage(err) || err, customerId: customer.id },
               "Tier initialization failed",
             );
           }
@@ -204,7 +205,7 @@ export async function verifyJoinCodeWithDeps(
             }
           } catch (err) {
             logger.warn(
-              { err: err?.message || err, customerId: customer.id },
+              { err: errorMessage(err) || err, customerId: customer.id },
               "Referral code application failed",
             );
           }
@@ -214,7 +215,7 @@ export async function verifyJoinCodeWithDeps(
             await GamificationService.checkAndAwardAchievements(customer.id, "signup");
           } catch (err) {
             logger.warn(
-              { err: err?.message || err, customerId: customer.id },
+              { err: errorMessage(err) || err, customerId: customer.id },
               "Achievement check failed",
             );
           }

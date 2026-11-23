@@ -9,6 +9,7 @@ import sharp from "sharp";
 import path from "node:path";
 import { mkdir } from "node:fs/promises";
 import { chromium } from "@playwright/test";
+import { asError } from "../../src/utils/error-shape.js";
 const url = process.env.SUPPORT_CASES_TEST_DB_URL;
 const suite = url ? describe : describe.skip;
 let admin,
@@ -562,11 +563,12 @@ suite("support cases on disposable PostgreSQL with restricted runtime role", () 
       assert.equal(await adminPage.locator("#queue-filters").getAttribute("method"), "post");
     } catch (error) {
       await page.screenshot({ path: "/tmp/support-browser-failure.png", fullPage: true });
-      error.message += ` Page: ${page.url()} Errors: ${JSON.stringify(errors)} Feedback: ${await page
+      const failure = asError(error);
+      failure.message += ` Page: ${page.url()} Errors: ${JSON.stringify(errors)} Feedback: ${await page
         .locator("#support-feedback")
         .textContent()
         .catch(() => "-")}`;
-      throw error;
+      throw failure;
     } finally {
       await browser.close();
     }

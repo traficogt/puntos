@@ -11,6 +11,7 @@ import {
   transactionHistoryFilters,
   validHistoryInterval,
 } from "../services/transaction-explanation-service.js";
+import { errorStatus } from "../../utils/error-shape.js";
 
 const empty = z.object({}).strict();
 const query = z
@@ -53,7 +54,8 @@ async function respond(res, fn) {
   try {
     return res.json(await fn());
   } catch (error) {
-    if (error?.statusCode && error.statusCode < 500) throw error;
+    const status = errorStatus(error);
+    if (status && status < 500) throw error;
     return res.status(503).json({
       error: "No se pudo consultar el historial. Vuelve a intentar.",
       code: "TRANSACTION_HISTORY_UNAVAILABLE",

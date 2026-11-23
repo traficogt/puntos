@@ -5,6 +5,7 @@ import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import pg from "pg";
 import { orderMigrations } from "../../src/app/db/migration-order.js";
+import { errorMessage } from "../../src/utils/error-shape.js";
 
 // Opt in only with a dedicated, disposable database. Never use DB_* defaults.
 const databaseUrl =
@@ -740,7 +741,7 @@ test(
               await admin.query("COMMIT");
             } catch (error) {
               await admin.query("ROLLBACK");
-              throw new Error(`Historical migration ${file} failed: ${error.message}`, {
+              throw new Error(`Historical migration ${file} failed: ${errorMessage(error)}`, {
                 cause: error,
               });
             }

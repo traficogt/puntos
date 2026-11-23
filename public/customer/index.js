@@ -44,7 +44,7 @@ async function run(action, onError) {
   try {
     return await action();
   } catch (error) {
-    if (onError) onError(error);
+    if (onError) onError(error instanceof Error ? error : new Error(String(error)));
     return null;
   }
 }
@@ -165,7 +165,7 @@ export async function initCustomerPage({ api, $, toast, mountIosInstallHint, mod
     } catch (error) {
       if (statusEl)
         statusEl.textContent =
-          error && error.message ? error.message : "No se pudo regalar el saldo.";
+          error instanceof Error && error.message ? error.message : "No se pudo regalar el saldo.";
     } finally {
       if (btn) btn.disabled = false;
     }

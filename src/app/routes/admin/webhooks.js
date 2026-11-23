@@ -10,6 +10,7 @@ import { config } from "../../../config/index.js";
 import { WebhookRepo } from "../../repositories/webhook-repository.js";
 import { validateWebhookUrl } from "../../../utils/webhook-url.js";
 import { makeId, maskSecret } from "./_util.js";
+import { errorMessage } from "../../../utils/error-shape.js";
 
 export const adminWebhookRoutes = Router();
 
@@ -54,7 +55,7 @@ adminWebhookRoutes.post(
         allowlist: config.WEBHOOK_ALLOWLIST,
       });
     } catch (e) {
-      return res.status(400).json({ error: e?.message ?? "Invalid webhook URL" });
+      return res.status(400).json({ error: errorMessage(e) ?? "Invalid webhook URL" });
     }
 
     const ep = await WebhookRepo.createEndpoint({

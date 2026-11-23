@@ -4,6 +4,7 @@ import { requireStaff, requireOwner } from "../../middleware/auth.js";
 import { tenantContext } from "../../middleware/tenant.js";
 import { asyncRoute } from "../../middleware/common.js";
 import { getOperationsHealth } from "../services/merchant-operations-service.js";
+import { errorStatus } from "../../utils/error-shape.js";
 
 const Empty = z.object({}).strict();
 function noStore(_req, res, next) {
@@ -36,7 +37,8 @@ export function createMerchantOperationsRoutes(deps = {}) {
           await (deps.getOperationsHealth ?? getOperationsHealth)({ businessId: req.tenantId }),
         );
       } catch (error) {
-        if (error?.statusCode && error.statusCode < 500) throw error;
+        const status = errorStatus(error);
+        if (status && status < 500) throw error;
         // The dashboard must fail visibly without returning database/provider details.
         return res.status(503).json({
           error: "No se pudo cargar el estado operativo. Vuelve a intentar.",

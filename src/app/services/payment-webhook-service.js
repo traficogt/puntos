@@ -8,6 +8,7 @@ import { normalizePaymentWebhook } from "./payment-webhook-normalizer.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
 import { badRequest, forbidden, notFound } from "../../utils/http-error.js";
 import { logger } from "../../utils/logger.js";
+import { errorMessage } from "../../utils/error-shape.js";
 
 function id() {
   return crypto.randomUUID();
@@ -338,7 +339,7 @@ export async function processPaymentWebhook(
     );
     return { ok: true, applied: true, eventId: event.id, transactionId: out.transactionId };
   } catch (e) {
-    const msg = e?.message ?? String(e);
+    const msg = errorMessage(e) ?? String(e);
     const reason = /Customer not found/i.test(msg) ? "customer_not_found" : "award_failed";
     const nextStatus = reason === "customer_not_found" ? "PENDING_MAPPING" : "FAILED";
     await setEventStatus(event.id, {

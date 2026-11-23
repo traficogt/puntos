@@ -1,5 +1,6 @@
 import { logger } from "../../utils/logger.js";
 import { dbQuery } from "../database.js";
+import { errorMessage } from "../../utils/error-shape.js";
 
 async function sourceTransactionIsActive(sourceTransactionId, deps = null) {
   if (!sourceTransactionId) return true;
@@ -32,7 +33,7 @@ export async function runPostAwardHooks({
     await TierService.checkTierProgression(customerId);
   } catch (err) {
     logger.warn(
-      { err: err?.message || err, customerId, businessId },
+      { err: errorMessage(err) || err, customerId, businessId },
       "Tier progression check failed",
     );
   }
@@ -54,7 +55,10 @@ export async function runPostAwardHooks({
       );
     }
   } catch (err) {
-    logger.warn({ err: err?.message || err, customerId, businessId }, "Achievement check failed");
+    logger.warn(
+      { err: errorMessage(err) || err, customerId, businessId },
+      "Achievement check failed",
+    );
   }
 
   try {
@@ -82,7 +86,7 @@ export async function runPostAwardHooks({
     }
   } catch (err) {
     logger.warn(
-      { err: err?.message || err, customerId, businessId },
+      { err: errorMessage(err) || err, customerId, businessId },
       "Challenge progress update failed",
     );
   }
@@ -93,7 +97,7 @@ export async function runPostAwardHooks({
     await ReferralService.checkAndCompleteReferral(customerId);
   } catch (err) {
     logger.warn(
-      { err: err?.message || err, customerId, businessId },
+      { err: errorMessage(err) || err, customerId, businessId },
       "Referral completion check failed",
     );
   }

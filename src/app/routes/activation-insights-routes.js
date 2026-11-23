@@ -5,6 +5,7 @@ import { tenantContext } from "../../middleware/tenant.js";
 import { requirePlanFeature } from "../../middleware/plan-feature.js";
 import { asyncRoute } from "../../middleware/common.js";
 import * as services from "../services/activation-insights-service.js";
+import { errorStatus } from "../../utils/error-shape.js";
 const query = z
   .object({
     branch_id: z
@@ -52,7 +53,8 @@ export function createActivationInsightsRoutes(deps = {}) {
             await read({ businessId: req.tenantId, branchId: parsed.data.branch_id ?? null }),
           );
         } catch (error) {
-          if (error?.statusCode && error.statusCode < 500) throw error;
+          const status = errorStatus(error);
+          if (status && status < 500) throw error;
           return res.status(503).json({
             error: "No se pudo consultar este resumen. Vuelve a intentar.",
             code: "ACTIVATION_INSIGHTS_UNAVAILABLE",

@@ -212,13 +212,18 @@ describe("recurring challenge state transitions", () => {
           constructor(...args) {
             super(args.length ? String(args[0]) : fixed.toISOString());
           }
+          /** @override */
           static now() {
             return fixed.getTime();
           }
+          /** @override */
           static parse(value) {
             return originalDate.parse(value);
           }
-          /** @param {Parameters<typeof Date.UTC>} args */
+          /**
+           * @override
+           * @param {Parameters<typeof Date.UTC>} args
+           */
           static UTC(...args) {
             return originalDate.UTC(...args);
           }

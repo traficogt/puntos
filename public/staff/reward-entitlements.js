@@ -52,7 +52,8 @@ export function mountRewardEntitlements({
     } catch (error) {
       if (!destroyed && getContext().customerId === customer)
         status.textContent =
-          error.message || "No se confirmó la acción. Reintenta para consultar el mismo resultado.";
+          (error instanceof Error && error.message) ||
+          "No se confirmó la acción. Reintenta para consultar el mismo resultado.";
     } finally {
       busy = false;
       controls();
@@ -214,7 +215,8 @@ export function mountRewardEntitlements({
     } catch (error) {
       if (!destroyed && generation === sequence)
         status.textContent =
-          error.message || "No pudimos consultar los beneficios. Vuelve a actualizar.";
+          (error instanceof Error && error.message) ||
+          "No pudimos consultar los beneficios. Vuelve a actualizar.";
     } finally {
       controls();
     }

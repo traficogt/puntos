@@ -15,6 +15,7 @@ import { SecurityEventRepo } from "../repositories/security-event-repository.js"
 import { tenantContext } from "../../middleware/tenant.js";
 import { getRequestIp } from "../../utils/request-ip.js";
 import { safeLogUrl } from "../../utils/logger.js";
+import { isErrorLike } from "../../utils/error-shape.js";
 
 export const paymentWebhookRoutes = Router();
 
@@ -51,7 +52,8 @@ paymentWebhookRoutes.post(
         rawBody: req.rawBody || "",
       });
     } catch (err) {
-      const status = Number(err?.statusCode || err?.status || 500);
+      const details = isErrorLike(err) ? err : undefined;
+      const status = Number(details?.statusCode || details?.status || 500);
       if (status === 403) {
         await SecurityEventRepo.log({
           event_type: "webhook_auth_failed",
@@ -60,7 +62,7 @@ paymentWebhookRoutes.post(
           method: "POST",
           ip: getRequestIp(req),
           actor_type: "ANON",
-          meta: { provider, reason: String(err?.message || "forbidden") },
+          meta: { provider, reason: String(details?.message || "forbidden") },
         }).catch(() => {});
       }
       throw err;

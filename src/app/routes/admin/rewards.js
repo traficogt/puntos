@@ -17,6 +17,7 @@ import {
   validateParams,
 } from "../../../utils/schemas.js";
 import { makeId } from "./_util.js";
+import { errorMessage } from "../../../utils/error-shape.js";
 
 export const adminRewardsRoutes = Router();
 
@@ -67,7 +68,7 @@ adminRewardsRoutes.post(
     } catch (e) {
       return res
         .status(400)
-        .json({ error: e.message || "Sucursales inválidas para la recompensa" });
+        .json({ error: errorMessage(e) || "Sucursales inválidas para la recompensa" });
     }
 
     const business = await BusinessRepo.getById(req.tenantId);
@@ -116,7 +117,7 @@ adminRewardsRoutes.patch(
       } catch (e) {
         return res
           .status(400)
-          .json({ error: e.message || "Sucursales inválidas para la recompensa" });
+          .json({ error: errorMessage(e) || "Sucursales inválidas para la recompensa" });
       }
       delete patch.branch_ids;
     }

@@ -3,6 +3,7 @@ import { one, many } from "./base.js";
 import { withTransaction } from "../database.js";
 import { encryptSecret, decryptSecretMaybe, isEncryptedSecret } from "../../utils/secret-crypto.js";
 import { HttpError } from "../../utils/http-error.js";
+import { errorCode } from "../../utils/error-shape.js";
 
 const hash = (value) => createHash("sha256").update(String(value)).digest("hex");
 const validConsent = `d.enabled AND d.consent_expires_at>now()
@@ -122,7 +123,7 @@ export const MobilePushRepo = {
         return { enabled: true, expiresAt: new Date(row.consent_expires_at).toISOString() };
       });
     } catch (error) {
-      if (error?.code === "23505") throw unavailable();
+      if (errorCode(error) === "23505") throw unavailable();
       throw error;
     }
   },

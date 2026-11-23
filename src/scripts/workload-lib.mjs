@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
+import { errorMessage } from "../utils/error-shape.js";
 
 /** Drops exactly one completed upstream response. This simulates a lost response after commit,
  * not a crash at an arbitrary point inside a database transaction. @param {string} baseUrl */
@@ -36,7 +37,7 @@ export async function startResponseDropProxy(baseUrl) {
       resolveObserved(result);
       res.destroy();
     } catch (error) {
-      resolveObserved({ error: error.message });
+      resolveObserved({ error: errorMessage(error) });
       res.destroy();
     }
   });

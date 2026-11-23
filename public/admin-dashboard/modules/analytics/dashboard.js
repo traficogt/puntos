@@ -81,7 +81,7 @@ export function createAnalyticsDashboardController(app, deps) {
       await loadLedgerCorrections({ $, api });
       await loadAuditTimeline();
     } catch (error) {
-      toast(`Error cargando analítica: ${error.message}`);
+      toast(`Error cargando analítica: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   async function recalcAnalytics() {
@@ -110,7 +110,7 @@ export function createAnalyticsDashboardController(app, deps) {
       toast(done ? "Analitica recalculada." : "Recalculo en proceso; refresca en unos segundos.");
       await loadAnalytics();
     } catch (error) {
-      toast(`Error: ${error.message}`);
+      toast(`Error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   function init() {

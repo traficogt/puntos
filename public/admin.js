@@ -135,7 +135,7 @@ element("#btnCreate").addEventListener("click", async () => {
     element("#joinUrl").textContent = join;
     toast("Negocio creado. Ya estás con sesión de propietario.");
   } catch (e) {
-    toast(e.message);
+    toast(e instanceof Error ? e.message : String(e));
   } finally {
     btn.disabled = false;
     btn.textContent = "Crear negocio";

@@ -35,7 +35,7 @@ export function createSuperContext({ api, $, toast }) {
         return await task();
       } catch (error) {
         if (onError) {
-          return onError(error);
+          return onError(error instanceof Error ? error : new Error(String(error)));
         }
         return null;
       }

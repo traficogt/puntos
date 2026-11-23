@@ -323,7 +323,7 @@ test("concurrent saves share token refresh and recover real class and object ins
   const waiting = new Map();
   const { provider, state } = harness({
     hook: (request) => {
-      if (request.init.method !== "GET") return;
+      if (request.init.method !== "GET") return undefined;
       if (!waiting.has(request.url)) {
         return new Promise((resolve) => {
           waiting.set(request.url, resolve);
@@ -335,6 +335,7 @@ test("concurrent saves share token refresh and recover real class and object ins
         release(jsonResponse(404, {}));
         return jsonResponse(404, {});
       }
+      return undefined;
     },
   });
   const links = await Promise.all([provider.savePass(snapshot), provider.savePass(snapshot)]);
@@ -378,6 +379,7 @@ test("an object conflict cannot reassign a pass belonging to another business", 
         });
         return jsonResponse(409, {});
       }
+      return undefined;
     },
   });
   await assert.rejects(provider.savePass(snapshot), { code: "GOOGLE_WALLET_RESOURCE_MISMATCH" });
@@ -394,6 +396,7 @@ test("class conflicts validate the resource identifier before continuing", async
         current.classes.set(classId, { id: "other-issuer.other-class" });
         return jsonResponse(409, {});
       }
+      return undefined;
     },
   });
   await assert.rejects(provider.savePass(snapshot), { code: "GOOGLE_WALLET_RESOURCE_MISMATCH" });
@@ -514,6 +517,7 @@ test("a rejected bearer token is discarded so the next attempt refreshes credent
         rejected = true;
         return jsonResponse(401, { message: "credential detail must not escape" });
       }
+      return undefined;
     },
   });
   await assert.rejects(provider.savePass(snapshot), {
@@ -650,6 +654,7 @@ test("over Google's notification quota, the message degrades to a silent TEXT up
         notifyingAttempts += 1;
         return jsonResponse(429, { reason: "QuotaExceededException" });
       }
+      return undefined;
     },
   });
   await provider.savePass(snapshot);

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { randomUUID, randomBytes } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import pg from "pg";
+import { errorMessage } from "../../src/utils/error-shape.js";
 const databaseUrl = process.env.MOBILE_PUSH_TEST_DATABASE_URL;
 test(
   "mobile push real SQL consent, ownership, isolation and durable delivery",
@@ -868,7 +869,7 @@ test(
               await admin.query("COMMIT");
             } catch (error) {
               await admin.query("ROLLBACK");
-              throw new Error(`Migration ${file} failed: ${error.message}`, { cause: error });
+              throw new Error(`Migration ${file} failed: ${errorMessage(error)}`, { cause: error });
             }
           }
           await admin.query(migration);

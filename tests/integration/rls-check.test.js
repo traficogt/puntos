@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { orderMigrations } from "../../src/app/db/migration-order.js";
+import { errorMessage } from "../../src/utils/error-shape.js";
 
 const databaseUrl = process.env.RLS_CHECK_TEST_DATABASE_URL;
 
@@ -42,7 +43,7 @@ test(
           await client.query("COMMIT");
         } catch (error) {
           await client.query("ROLLBACK");
-          throw new Error(`Migration ${file} failed: ${error.message}`, { cause: error });
+          throw new Error(`Migration ${file} failed: ${errorMessage(error)}`, { cause: error });
         }
       }
 

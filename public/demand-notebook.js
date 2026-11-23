@@ -151,9 +151,10 @@ export function mountDemandNotebook({
         history.append(list);
       }
     } catch (error) {
-      if (error.name !== "AbortError") {
+      if (!(error instanceof Error && error.name === "AbortError")) {
         refreshError =
-          error.message || "No pudimos cargar los pedidos. Actualiza para intentar otra vez.";
+          (error instanceof Error && error.message) ||
+          "No pudimos cargar los pedidos. Actualiza para intentar otra vez.";
         notice.textContent = refreshError;
       }
     }
@@ -192,8 +193,10 @@ export function mountDemandNotebook({
           ? "Este cliente ya tiene un pedido de este tema. Se conserva un solo registro."
           : "Pedido guardado. El negocio podrá revisarlo.";
       } catch (error) {
-        if (error.name !== "AbortError")
-          notice.textContent = error.message || "No pudimos guardar. Reintenta con conexión.";
+        if (!(error instanceof Error && error.name === "AbortError"))
+          notice.textContent =
+            (error instanceof Error && error.message) ||
+            "No pudimos guardar. Reintenta con conexión.";
       } finally {
         busy = false;
         setPaused(paused);

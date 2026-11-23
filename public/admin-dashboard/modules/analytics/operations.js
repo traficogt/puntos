@@ -19,7 +19,7 @@ export function createAnalyticsOperationsController(app) {
     try {
       return await task();
     } catch (error) {
-      onError(error);
+      onError(error instanceof Error ? error : new Error(String(error)));
       return null;
     }
   }
