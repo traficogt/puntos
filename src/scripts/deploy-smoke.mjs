@@ -251,7 +251,8 @@ async function main() {
   await expectStaticAsset("/admin-dashboard.js", { origin, mustContain: ["initAdminDashboard"] });
   await expectStaticAsset("/styles.css", {
     origin,
-    mustContain: ['@import url("/styles/components.css")'],
+    // Asset versioning appends ?v=<hash> to the import; match the path prefix only.
+    mustContain: ['@import url("/styles/components.css'],
   });
   await expectStaticAsset("/styles/base.css", { origin, mustContain: [":root", "--display-font"] });
   await expectStaticAsset("/styles/components.css", {
