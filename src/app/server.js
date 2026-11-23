@@ -28,6 +28,7 @@ import { metricsMiddleware } from "../middleware/metrics.js";
 import { closeRateLimitRedis, globalApiRateLimit } from "../middleware/rate-limit.js";
 import { isAllowedApiOrigin } from "../utils/cors-origin.js";
 import { resolveHostSplitRedirect, runtimeConfigForHost } from "../utils/app-host-routing.js";
+import { setStaticCacheHeaders } from "../utils/static-cache-headers.js";
 
 const app = express();
 // Preserve the existing bracket/array query contract across Express majors.
@@ -215,7 +216,10 @@ app.get("/sw.js", (req, res, next) => {
 app.use("/app-preview", createMobilePreview(publicDir));
 app.use(createSpanishWeb(publicDir));
 app.use(createSelfServiceWeb(publicDir));
-app.use(express.static(publicDir, { extensions: ["html"], redirect: false }));
+// Versioned asset requests (?v=<content hash>) are immutable for a year; documents and
+// sw.js keep their headers (src/utils/static-cache-headers.js).
+const setHeaders = setStaticCacheHeaders;
+app.use(express.static(publicDir, { extensions: ["html"], redirect: false, setHeaders }));
 
 // Friendly routes
 app.get("/", (req, res) => res.sendFile(path.join(publicDir, "index.html")));

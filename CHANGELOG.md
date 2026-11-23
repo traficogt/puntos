@@ -65,6 +65,14 @@ package version is unchanged. Operator-facing summary; see
   assessment under `docs/`.
 
 ### Browser application
+- Static asset versions are content-derived. `npm run sw:build` first rewrites every local
+  `<script>`, `<link>`, `<img>`/`srcset` and CSS `url()`/`@import` reference in the
+  hand-written pages and stylesheets to `?v=<first 8 hex digits of the file's SHA-256>`
+  (198 references across 19 pages and 2 stylesheets, replacing the hand-bumped `?v=1`..`?v=6`
+  and `?v=activation1`), and `express.static` answers `?v=` requests with
+  `Cache-Control: public, max-age=31536000, immutable`. Documents, `sw.js`, `/api` and
+  unversioned requests keep their headers; `.js` sources are not rewritten. `npm run sw:check`
+  and `test:unit` fail when a page is stale. Installed native apps are unaffected.
 - `public/sw.js` precache list and cache name are generated: `npm run sw:build` rewrites
   the block from the entry pages and their import graph, and `CACHE` is a content hash
   (replaces the hand-maintained 143-entry list and `pf-v56`). `npm run sw:check` and a

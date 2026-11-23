@@ -3,8 +3,9 @@
 /**
  * Service worker precache generator.
  *
- *   npm run sw:build   rewrite the generated block in public/sw.js
- *   npm run sw:check   exit 1 with a change summary when public/sw.js is stale
+ *   npm run sw:build   refresh the ?v= asset versions of the hand-written pages, then
+ *                      rewrite the generated block in public/sw.js
+ *   npm run sw:check   exit 1 when a page carries stale versions or public/sw.js is stale
  *   node src/scripts/build-sw-assets.mjs --report   print the asset list and the
  *                                                   difference against the shipped block
  *
@@ -27,6 +28,11 @@
  * `@import` targets and `url()` references (fonts, images); the web manifest
  * contributes its icons.
  *
+ * Asset versions come first: src/scripts/build-asset-versions.mjs rewrites `?v=<content
+ * hash>` on the local references of every hand-written page and stylesheet, and this
+ * generator keeps query strings exactly as the pages request them, so the precache keys
+ * and the pages always agree. `npm run sw:check` verifies both outputs.
+ *
  * The cache name is `pf-` plus twelve hex digits of a SHA-256 over the sorted
  * asset keys and the bytes of every precached file, so it changes exactly when a
  * precached file changes. Bump CACHE_EPOCH to force a rotation without an asset
@@ -36,6 +42,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { LINK_RELS, checkAssetVersions, writeAssetVersions } from "./build-asset-versions.mjs";
 
 const SCRIPT_PATH = fs.realpathSync(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.resolve(path.dirname(SCRIPT_PATH), "..", "..");
@@ -79,17 +86,6 @@ const EXCLUDED_PATH_PATTERNS = [
 ];
 
 const SKIPPED_SCHEMES = /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i;
-const LINK_RELS = new Set([
-  "stylesheet",
-  "icon",
-  "shortcut icon",
-  "apple-touch-icon",
-  "apple-touch-icon-precomposed",
-  "mask-icon",
-  "manifest",
-  "modulepreload",
-  "preload",
-]);
 const ASSET_LITERAL =
   /^\/(?!\/)[\w@.-]+(?:\/[\w@.-]+)*\.(?:css|html|js|mjs|json|webmanifest|svg|png|jpe?g|webp|gif|ico|woff2?|ttf|otf)(?:\?[\w=&%.-]*)?$/;
 const REGEX_KEYWORDS = new Set([
@@ -795,13 +791,18 @@ function main() {
   if (args.has("--help") || args.has("-h")) {
     console.log(
       "Usage: node src/scripts/build-sw-assets.mjs [--check] [--report]\n" +
-        "  (no flag)  rewrite the generated CACHE/CORE_ASSETS block in public/sw.js\n" +
-        "  --check    exit 1 with a change summary when public/sw.js is stale\n" +
+        "  (no flag)  refresh ?v= asset versions, then rewrite the generated CACHE/CORE_ASSETS block in public/sw.js\n" +
+        "  --check    exit 1 when asset versions or public/sw.js are stale\n" +
         "  --report   print the computed asset list and the changes against the shipped block",
     );
     return;
   }
   if (args.has("--report")) {
+    const versions = checkAssetVersions();
+    console.log(
+      `asset versions: ${versions.versioned} references in ${versions.files.length} files` +
+        (versions.fresh ? "" : ` (${versions.stale.length} stale)`),
+    );
     const check = checkServiceWorkerAssets();
     console.log(`CACHE ${check.cacheName} (${check.assets.length} assets)`);
     for (const asset of check.assets) console.log(`  ${asset}`);
@@ -810,17 +811,38 @@ function main() {
     return;
   }
   if (args.has("--check")) {
+    const versions = checkAssetVersions();
     const check = checkServiceWorkerAssets();
-    if (check.fresh) {
+    if (versions.fresh && check.fresh) {
+      console.log(
+        `asset versions are up to date (${versions.versioned} references in ${versions.files.length} files)`,
+      );
       console.log(
         `${relative(check.swPath)} is up to date (${check.cacheName}, ${check.assets.length} assets)`,
       );
       return;
     }
-    console.error(`${relative(check.swPath)} is stale. Run: npm run sw:build`);
-    for (const line of check.summary) console.error(`  ${line}`);
+    if (!versions.fresh) {
+      console.error(
+        `${versions.stale.length} file(s) carry stale ?v= asset versions. Run: npm run sw:build`,
+      );
+      for (const line of versions.summary) console.error(`  ${line}`);
+    }
+    if (!check.fresh) {
+      console.error(`${relative(check.swPath)} is stale. Run: npm run sw:build`);
+      for (const line of check.summary) console.error(`  ${line}`);
+    }
     process.exitCode = 1;
     return;
+  }
+  const versions = writeAssetVersions();
+  if (versions.fresh) {
+    console.log(
+      `asset versions already up to date (${versions.versioned} references in ${versions.files.length} files)`,
+    );
+  } else {
+    console.log(`Refreshed ?v= asset versions in ${versions.stale.length} file(s)`);
+    for (const line of versions.summary) console.log(`  ${line}`);
   }
   const written = writeServiceWorkerAssets();
   if (written.fresh) {

@@ -25,7 +25,7 @@ await mkdir(site);
 let html = await readFile(path.join(root, "public/estado.html"), "utf8");
 html = html
   .replaceAll("/status/", "./")
-  .replaceAll("/styles/fonts.css?v=1", "./fonts.css")
+  .replace(/\/styles\/fonts\.css(?:\?v=[^"']*)?/g, "./fonts.css")
   .replaceAll("/icon.svg", "./icon.svg")
   .replace(
     'href="https://puntosfieles.com/estado"',

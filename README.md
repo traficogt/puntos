@@ -48,7 +48,7 @@ npm test                  # unit + Docker-free integration
 npm run test:db           # all gated integration suites on an ephemeral Postgres (Docker)
 npm run test:integration:domains
 npm run test:e2e
-npm run sw:build          # regenerate the service worker precache block
+npm run sw:build          # refresh ?v= asset versions and the service worker precache block
 npm run openapi:generate
 npm run ops:migrate
 npm run ops:rls-check
@@ -64,7 +64,20 @@ npm run ops:backup:verify -- --file backups/<file>.sql.gz
 npm run ops:restore:drill -- backups/<file>.sql.gz
 ```
 
-### Service worker assets
+### Asset versions and service worker assets
+Hand-written pages and stylesheets under `public/` reference their local assets as
+`/asset.ext?v=<8 hex digits of the file's SHA-256>`. `src/scripts/build-asset-versions.mjs`
+rewrites those values (`<script src>`, `<link>` stylesheets/icons/manifest/preloads,
+`<img>`/`<source>` `src` and `srcset`, CSS `url()` and `@import`), leaf first (fonts ->
+stylesheets -> pages), and `express.static` serves any `?v=` request as
+`Cache-Control: public, max-age=31536000, immutable` (`src/utils/static-cache-headers.js`)
+while documents and `sw.js` keep their headers. Vite output under `public/merchant/`,
+`public/ayuda/`, `public/revision-astryx/` and `public/pwa-test/` are not touched.
+JavaScript sources are never rewritten: assets a script requests by string literal
+(`/styles/demand-notebook.css`, the admin dashboard fragments, `/runtime-config.js`, ES
+module imports) stay unversioned and are served network-first by the worker; the list is
+`RUNTIME_REFERENCED_ASSETS` in the script.
+
 `public/sw.js` no longer carries a hand-maintained precache list or version. The block
 between `// BEGIN GENERATED (npm run sw:build)` and `// END GENERATED` is produced by
 `src/scripts/build-sw-assets.mjs`, which starts from the offline application documents
@@ -74,8 +87,8 @@ manifest. `CACHE` is content-hashed (`pf-` + 12 hex digits over the asset list a
 bytes), so it rotates exactly when a precached file changes; nobody bumps it by hand.
 
 ```bash
-npm run sw:build   # rewrite the generated block after changing any page, module or stylesheet
-npm run sw:check   # exit 1 with a +/- summary when public/sw.js is stale (also enforced by test:unit)
+npm run sw:build   # refresh ?v= versions, then rewrite the generated block (after changing any page, module, stylesheet or image)
+npm run sw:check   # exit 1 when a page carries stale versions or public/sw.js is stale (also enforced by test:unit)
 ```
 
 Assets that only appear at runtime (URLs assembled from variables) go in the documented

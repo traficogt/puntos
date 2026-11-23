@@ -26,14 +26,20 @@ test("marketing header and entry points reference the canonical PF icon", () => 
   const joinHtml = read("public/join.html");
   const adminDashboardHtml = read("public/admin-dashboard.html");
 
-  assert.match(indexHtml, /rel="icon" href="\/icon\.svg\?v=4" type="image\/svg\+xml"/);
+  // Asset versions are content hashes written by npm run sw:build.
+  const version = "\\?v=[0-9a-f]{8}";
+  const icon = new RegExp(`rel="icon" href="\\/icon\\.svg${version}" type="image\\/svg\\+xml"`);
+  assert.match(indexHtml, icon);
   assert.match(indexHtml, /<a href="\/" class="brand" aria-label="PuntosFieles, inicio">/);
-  assert.match(indexHtml, /<img src="\/icon\.svg\?v=4" alt="" width="36" height="36"\/>/);
-  assert.match(indexHtml, /href="\/styles\/fonts\.css\?v=1"/);
+  assert.match(
+    indexHtml,
+    new RegExp(`<img src="\\/icon\\.svg${version}" alt="" width="36" height="36"\\/>`),
+  );
+  assert.match(indexHtml, new RegExp(`href="\\/styles\\/fonts\\.css${version}"`));
   assert.match(read("public/styles/fonts.css"), /font-family: 'Bricolage Grotesque'/);
-  assert.match(customerHtml, /rel="icon" href="\/icon\.svg\?v=4" type="image\/svg\+xml"/);
-  assert.match(joinHtml, /rel="icon" href="\/icon\.svg\?v=4" type="image\/svg\+xml"/);
-  assert.match(adminDashboardHtml, /rel="icon" href="\/icon\.svg\?v=4" type="image\/svg\+xml"/);
+  assert.match(customerHtml, icon);
+  assert.match(joinHtml, icon);
+  assert.match(adminDashboardHtml, icon);
 });
 
 test("manifest stays installable and aligned with the canonical icon set", () => {

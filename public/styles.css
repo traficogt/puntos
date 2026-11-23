@@ -1,6 +1,6 @@
-@import url("/styles/base.css");
-@import url("/styles/components.css");
-@import url("/styles/pages.css");
-@import url("/styles/admin-panels.css");
-@import url("/styles/analytics-visuals.css");
-@import url("/styles/responsive.css");
+@import url("/styles/base.css?v=bbd18f8a");
+@import url("/styles/components.css?v=3281a5f4");
+@import url("/styles/pages.css?v=41d809fe");
+@import url("/styles/admin-panels.css?v=aa1db6f8");
+@import url("/styles/analytics-visuals.css?v=201db3ca");
+@import url("/styles/responsive.css?v=862f5cc1");

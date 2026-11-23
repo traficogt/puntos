@@ -9,7 +9,7 @@ test.describe("Visual regression (chromium baseline)", () => {
   test.beforeEach(async ({ page, baseURL }) => {
     // Legacy screens request these same faces from Google. Keep visual evidence
     // independent of CDN availability, using PF's checked-in, licensed fonts.
-    const fonts = new URL("/styles/fonts.css?v=1", baseURL).href;
+    const fonts = new URL("/styles/fonts.css", baseURL).href;
     await page.route("https://fonts.googleapis.com/**", (route) =>
       route.fulfill({
         contentType: "text/css",

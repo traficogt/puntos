@@ -178,7 +178,7 @@ npm run typecheck
 npm run lint
 npm run format:check
 npm run test:all      # npm test, then npm run test:db (all gated suites on an ephemeral Postgres with RLS)
-npm run sw:check      # the service worker precache block must be current
+npm run sw:check      # asset versions and the service worker precache block must be current
 ```
 
 `npm run test:db` is the same runner as the `live-gamification-integration` CI job; see

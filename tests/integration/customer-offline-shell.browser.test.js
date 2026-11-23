@@ -77,7 +77,8 @@ test(
       await page.waitForFunction(() => document.querySelector("#points")?.textContent === "10");
       const retained = await page.evaluate(() =>
         Array.from(document.styleSheets).some((sheet) => {
-          if (!sheet.href?.endsWith("/styles/customer-wallet-refresh.css")) return false;
+          const stylesheetPath = sheet.href ? new URL(sheet.href).pathname : "";
+          if (!stylesheetPath.endsWith("/styles/customer-wallet-refresh.css")) return false;
           try {
             return sheet.cssRules.length > 0;
           } catch {

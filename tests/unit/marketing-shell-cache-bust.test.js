@@ -8,7 +8,8 @@ test("marketing entrypoint avoids service-worker registration and uses versioned
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const js = fs.readFileSync(new URL("../../public/index.js", import.meta.url), "utf8");
 
-  assert.match(html, /href="\/styles\/marketing\.css\?v=\d+"/);
-  assert.match(html, /src="\/index\.js\?v=\d+"/);
+  // Versions are the first eight hex digits of each file's SHA-256 (npm run sw:build).
+  assert.match(html, /href="\/styles\/marketing\.css\?v=[0-9a-f]{8}"/);
+  assert.match(html, /src="\/index\.js\?v=[0-9a-f]{8}"/);
   assert.doesNotMatch(js, /registerServiceWorker\(/);
 });

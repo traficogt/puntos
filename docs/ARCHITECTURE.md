@@ -391,7 +391,14 @@ version is the filename, so a rename re-applies the file and an edit fails the c
   `npm run sw:build` after changing any page, module or stylesheet; `npm run sw:check` and
   `tests/unit/service-worker-assets.test.js` fail when the block is stale. Never hand-edit
   the generated block; runtime-only URLs go in `EXTRA_ASSETS`, and `CACHE_EPOCH` forces a
-  rotation without an asset change.
+  rotation without an asset change. `npm run sw:build` first runs
+  `src/scripts/build-asset-versions.mjs`, which rewrites the local asset references of the
+  hand-written pages and stylesheets to `?v=<8 hex digits of the file's SHA-256>` (leaf
+  first: fonts -> stylesheets -> pages; `public/merchant/` Vite output, `ayuda/`,
+  `revision-astryx/` and `pwa-test/` excluded; `.js` sources never rewritten), and
+  `express.static` serves `?v=` requests as `public, max-age=31536000, immutable`
+  (`src/utils/static-cache-headers.js`) while documents and `sw.js` keep `max-age=0` /
+  `no-store`.
 - **Type checking of browser files**: `tsconfig.json` (`checkJs`) includes `src/**` and
   `tests/**` plus an explicit allowlist of `public/` files (admin-dashboard core and
   analytics modules, `customer/*`, `session-epoch.js`, `staff/*`, `super/*`, `types.ts`);
@@ -485,10 +492,13 @@ Related existing keys: `JOB_WORKER_INTERVAL_MS` (15 000), `JOB_WORKER_BATCH_SIZE
   `customer-modern.css`/`operations-modern.css` overrides use; `public/styles/base.css`
   still defines the older application palette (`--bg #f4ede4`, `--text #241712`,
   `--accent #b8572f`, `--accent-3 #d7a554`) with its own dark theme.
-- **`?v=` query strings.** 19 HTML files still version stylesheets/scripts by hand
-  (`fonts.css?v=1`, `marketing.css?v=2` next to `marketing.css?v=activation1`). The
-  content-hashed service-worker cache makes them redundant; they should be removed in one
-  pass rather than bumped.
+- **Runtime-referenced assets stay unversioned.** `?v=` values in `public/` pages are
+  content hashes written by `npm run sw:build`, but assets requested from JavaScript by
+  string literal (`/styles/demand-notebook.css`, the admin dashboard fragments, ES module
+  imports) and the server-rendered guides (`src/content/guides/render.js`, hand-written
+  `?v=4`) are not rewritten; they rely on `max-age=0` revalidation and the worker's
+  network-first fetch. See `RUNTIME_REFERENCED_ASSETS` in
+  `src/scripts/build-asset-versions.mjs`.
 - **`src/app/repositories/` naming.** The folder name promises a data layer it is not
   (section 3). Renaming is cheap in code but churns imports across 68 files; decide before
   adding more repositories.

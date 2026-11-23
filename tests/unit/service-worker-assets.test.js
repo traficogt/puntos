@@ -6,6 +6,7 @@ import {
   checkServiceWorkerAssets,
   javascriptReferences,
 } from "../../src/scripts/build-sw-assets.mjs";
+import { VERSION_PATTERN, checkAssetVersions } from "../../src/scripts/build-asset-versions.mjs";
 
 test("generator reads runtime module references and ignores comments, types and templates", () => {
   const source = [
@@ -55,6 +56,35 @@ test("service worker precache block is generated and current (npm run sw:build)"
       ...result.summary.map((line) => `  ${line}`),
     ].join("\n"),
   );
+});
+
+test("hand-written pages and stylesheets carry content-hashed asset versions (npm run sw:build)", () => {
+  const versions = checkAssetVersions();
+  assert.ok(
+    versions.pages.length >= 20 && versions.versioned >= 150,
+    "the versioning step must cover the hand-written pages under public/",
+  );
+  assert.equal(
+    versions.fresh,
+    true,
+    [
+      "public/ pages or stylesheets carry stale ?v= asset versions.",
+      "Run `npm run sw:build` and commit the result.",
+      ...versions.summary.map((line) => `  ${line}`),
+    ].join("\n"),
+  );
+  for (const page of versions.pages) {
+    for (const match of page.source.matchAll(/(?:src|href)="\/[^"]*\?v=([^"&#]*)"/g)) {
+      assert.match(match[1], VERSION_PATTERN, `${page.relativePath}: ${match[0]}`);
+    }
+  }
+  // The precache requests exactly the versioned keys the pages and stylesheets emit.
+  const worker = checkServiceWorkerAssets();
+  for (const pathname of ["/styles/fonts.css", "/styles.css", "/icon.svg", "/styles/base.css"]) {
+    const hash = versions.hashes.get(pathname);
+    assert.ok(hash, `${pathname} must be a versioned target`);
+    assert.ok(worker.assets.includes(`${pathname}?v=${hash}`), `${pathname}?v=${hash} precached`);
+  }
 });
 
 test("service worker core assets are explicit and exist on disk", () => {
