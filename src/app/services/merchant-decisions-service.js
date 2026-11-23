@@ -229,8 +229,10 @@ export async function reviewDecision(options, injected = {}) {
       ).rowCount
     )
       throw badRequest("Selecciona una persona activa de este negocio.");
+    // ReviewDecisionInput's refine requires snooze_hours exactly when status is "snoozed".
+    const snoozeHours = /** @type {number} */ (input.snooze_hours);
     const until =
-        input.status === "snoozed" ? new Date(now.getTime() + input.snooze_hours * 3600000) : null,
+        input.status === "snoozed" ? new Date(now.getTime() + snoozeHours * 3600000) : null,
       reason = input.dismiss_reason ?? null;
     const values = [
       options.businessId,
@@ -329,12 +331,12 @@ export async function setOperatingMode(options, injected = {}) {
         referenceId: input.request_id,
       });
     }
+    // OperatingModeInput's refine requires minutes exactly when the mode is not "normal".
+    const minutes = /** @type {number} */ (input.minutes);
     const value = {
       mode: input.mode,
       until:
-        input.mode !== "normal"
-          ? new Date(now.getTime() + input.minutes * 60000).toISOString()
-          : null,
+        input.mode !== "normal" ? new Date(now.getTime() + minutes * 60000).toISOString() : null,
       capacity: input.capacity ?? operatingMode(business, now).capacity,
     };
     const next = (

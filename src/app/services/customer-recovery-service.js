@@ -82,7 +82,7 @@ function publicRun(row) {
  * The unique request key is claimed before reading the audience. A concurrent
  * duplicate waits for commit, then reads the original run in a fresh statement.
  * A failed/empty snapshot rolls back both the claim and its members.
- * @param {{businessId:string,staffId:string,requestId:string,name:string,notes?:string,inactiveDays:number,limit?:number,now?:Date,ip?:string,ua?:string}} options
+ * @param {{businessId:string,staffId:string,requestId:string,name:string,notes?:string,inactiveDays:number,limit?:number,now?:Date,ip?:string|null,ua?:string|null}} options
  */
 export async function createRecoveryRun(
   {
@@ -259,7 +259,7 @@ function publicMember(row) {
 /**
  * Lock both the member and active customer so a concurrent deletion cannot be
  * followed by a new contact event. Terminal states are immutable and retryable.
- * @param {{businessId:string,staffId:string,runId:string,customerId:string,status:string,contactConfirmed?:boolean,ip?:string,ua?:string}} options
+ * @param {{businessId:string,staffId:string,runId:string,customerId:string,status:string,contactConfirmed?:boolean,ip?:string|null,ua?:string|null}} options
  */
 export async function updateRecoveryMember(
   {

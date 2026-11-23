@@ -6,6 +6,19 @@ function id() {
 }
 
 export const SecurityEventRepo = {
+  /**
+   * @param {{
+   *   event_type: string,
+   *   severity?: string,
+   *   business_id?: string | null,
+   *   route?: string | null,
+   *   method?: string | null,
+   *   ip?: string | null,
+   *   actor_type?: string | null,
+   *   actor_id?: string | null,
+   *   meta?: Record<string, unknown>
+   * }} event
+   */
   async log({
     event_type,
     severity = "MEDIUM",

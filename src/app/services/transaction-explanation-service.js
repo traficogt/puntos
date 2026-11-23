@@ -255,6 +255,15 @@ function requireTenant(businessId) {
   if (!uuid.safeParse(businessId).success || String(getDbTenantId() || "") !== String(businessId))
     throw notFound("Negocio no disponible.");
 }
+/**
+ * @param {{
+ *   businessId: string,
+ *   limit?: number,
+ *   cursor?: unknown,
+ *   kind?: string,
+ *   [filter: string]: unknown
+ * }} query
+ */
 export async function listTransactionHistory({
   businessId,
   limit = 25,
@@ -268,6 +277,7 @@ export async function listTransactionHistory({
   const parsedFilters = transactionHistoryFilters.refine(validHistoryInterval).safeParse(filters);
   if (!parsedFilters.success) throw badRequest("Filtros de persona, origen o fechas no válidos.");
   const filter = parsedFilters.data;
+  /** @type {z.infer<typeof cursorSchema> | null} */
   let after = null;
   if (cursor) {
     try {

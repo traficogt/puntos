@@ -11,6 +11,16 @@ function resolveEyebrow(tone) {
   return "Programa activo";
 }
 
+/**
+ * @param {{
+ *   branding: import("../email-branding.js").EmailBranding,
+ *   subject?: string,
+ *   title?: string,
+ *   intro?: string,
+ *   lines?: string[],
+ *   tone?: string
+ * }} input
+ */
 export function renderLifecycleEmail({
   branding,
   subject = "",

@@ -42,6 +42,19 @@ async function lockAccount(client, businessId, customerId) {
 // Credit a purchase's cashback. Returns null when there is nothing to earn, or
 // { earn_q, balance_after_q, replay? } otherwise. `requestId` should be the
 // source transaction id so a replayed award does not credit twice.
+/**
+ * @param {{ query: (...args: any[]) => Promise<any> }} client
+ * @param {{
+ *   businessId: string,
+ *   customerId: string,
+ *   staffUserId?: string | null,
+ *   amountQ?: number,
+ *   earnQ: number,
+ *   sourceTransactionId?: string | null,
+ *   requestId?: string | null,
+ *   meta?: Record<string, unknown>
+ * }} accrual
+ */
 export async function accrueCashback(
   client,
   {

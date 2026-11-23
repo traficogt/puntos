@@ -147,8 +147,9 @@ export async function awardFromExternalEventWithDeps(
   const publicBiz = await deps.BusinessRepo.getPublicBySlug(businessSlug);
   if (!publicBiz) throw notFound("Business not found");
   await deps.setCurrentTenant(String(publicBiz.id));
-  let business = await deps.BusinessRepo.getById(String(publicBiz.id));
-  if (!business) throw notFound("Business not found");
+  const loadedBusiness = await deps.BusinessRepo.getById(String(publicBiz.id));
+  if (!loadedBusiness) throw notFound("Business not found");
+  let business = loadedBusiness;
   // Carry the adapter denomination separately: changing legacy metadata would
   // invalidate existing request fingerprints. Freeze the fallback before locking.
   const posCurrency =
@@ -171,6 +172,7 @@ export async function awardFromExternalEventWithDeps(
       throw badRequest("Quantities must be non-negative ledger integers");
   }
 
+  /** @type {{ id: string, business_id: string } | null} */
   let customer = null;
   if (customerId) customer = await deps.CustomerRepo.getById(customerId);
   if (!customer && customerPhone)

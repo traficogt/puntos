@@ -83,6 +83,11 @@ export async function createDefaultAchievements(businessId) {
   return achievements;
 }
 
+/**
+ * @param {string} customerId
+ * @param {string | null} [_eventType]
+ * @param {{ sourceTransactionId?: string | null }} [context]
+ */
 export async function checkAndAwardAchievements(customerId, _eventType = null, context = {}) {
   return withTransaction(async (client) => {
     const q = client.query.bind(client);

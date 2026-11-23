@@ -188,8 +188,8 @@ export async function getRehearsal({ businessId, staff }, deps = {}) {
         (!r.branch_ids.length || r.branch_ids.includes(member.branch_id)),
     );
     const blockers = [];
-    if (!programBasics(config).rate || programBasics(config).rate <= 0)
-      blockers.push("Guarda una regla de puntos positiva.");
+    const rate = programBasics(config).rate;
+    if (!rate || rate <= 0) blockers.push("Guarda una regla de puntos positiva.");
     if (!ready.length) blockers.push("Prepara una recompensa disponible para esta sucursal.");
     if (ready.some((r) => !r.description?.trim()))
       blockers.push("Describe qué recibe el cliente en cada recompensa disponible.");

@@ -15,6 +15,7 @@ export function sourceHealth(sources, now = new Date()) {
         coverage = Date.parse(h?.coverage_through),
         received = Date.parse(h?.received_at);
       const minutes = Number(s.expected_minutes);
+      /** @type {keyof typeof sourceHealthReasons | null} */
       let reason = null;
       if (!h) reason = "source_initial_sync";
       else if (

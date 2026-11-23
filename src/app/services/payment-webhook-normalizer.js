@@ -1,4 +1,11 @@
-function pick(obj, keys, fallback = null) {
+/**
+ * @template T
+ * @param {Record<string, any> | null | undefined} obj
+ * @param {string[]} keys
+ * @param {T} fallback
+ * @returns {any}
+ */
+function pick(obj, keys, fallback) {
   for (const k of keys) {
     if (obj?.[k] !== undefined && obj?.[k] !== null && obj?.[k] !== "") return obj[k];
   }

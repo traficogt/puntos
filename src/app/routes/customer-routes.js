@@ -119,9 +119,10 @@ customerRoutes.get(
             complete: stamp.complete,
           }
         : null,
-      cashback: cashback
-        ? { balance_q: Math.max(0, Number(cashback.balance_q)), percent: cbTerms.percent }
-        : null,
+      cashback:
+        cashback && cbTerms
+          ? { balance_q: Math.max(0, Number(cashback.balance_q)), percent: cbTerms.percent }
+          : null,
       wallet:
         wallet && walletBalance
           ? {

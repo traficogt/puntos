@@ -196,7 +196,8 @@ export async function updateLaunchProgram(options, injected = {}) {
               ? {
                   stamps_required: input.stamps_required,
                   head_start: Math.min(
-                    input.stamps_required - 1,
+                    // The schema's superRefine requires stamps_required for STAMP programs.
+                    /** @type {number} */ (input.stamps_required) - 1,
                     Math.max(0, input.head_start ?? 2),
                   ),
                   reward_label: (input.reward_label || "").trim(),

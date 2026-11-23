@@ -96,6 +96,8 @@ export function campaignMeasurement({
   // that 30 participants is sufficient. The interval is retained either way.
   else if (!planning && (treatment.members < 30 || control.members < 30))
     state = "insufficient_sample";
+  // Unreachable: a missing interval already resolved to "incomplete_data" above.
+  else if (!difference) state = "incomplete_data";
   else if (difference.lower_pp > 0) state = "positive_difference";
   else if (difference.upper_pp < 0) state = "negative_difference";
   else state = "inconclusive";

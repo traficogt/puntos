@@ -145,9 +145,11 @@ export async function createServiceCase(options, injected = {}) {
       [businessId, customerId],
     );
     if (!customer.rowCount) throw notFound("Cliente no encontrado.");
-    let branchId = staff.branch_id ?? null,
-      redemption = null,
-      reward = null;
+    let branchId = staff.branch_id ?? null;
+    /** @type {Record<string, any> | null} */
+    let redemption = null;
+    /** @type {{ id: string, name: string } | null} */
+    let reward = null;
     if (redemptionId) {
       const found = await client.query(
         "SELECT id,branch_id,customer_id,reward_id,points_cost,status,redeemed_at FROM redemptions WHERE business_id=$1 AND id=$2",
@@ -230,6 +232,16 @@ export async function createServiceCase(options, injected = {}) {
     return { ok: true, case: visible(row), replay: false };
   });
 }
+/**
+ * @param {{
+ *   businessId: string,
+ *   staff: any,
+ *   status?: string,
+ *   offset?: number,
+ *   customerId?: string | null
+ * }} filter
+ * @param {Record<string, unknown>} [injected]
+ */
 export async function listServiceCases(
   { businessId, staff: session, status = "open", offset = 0, customerId = null },
   injected = {},
@@ -661,8 +673,9 @@ export async function manageServiceCase(options, injected = {}) {
       throw conflict("El caso cambió. Actualiza antes de continuar.");
     let assignment = row.assigned_staff_id,
       escalated = row.escalated_at,
-      escalation = row.escalation_reason,
-      extension = null;
+      escalation = row.escalation_reason;
+    /** @type {{ id: string } | null} */
+    let extension = null;
     if (action === "assign") {
       if (staff.role !== "OWNER") throw forbidden("El dueño asigna los casos.");
       assignment = options.assignedStaffId ?? null;

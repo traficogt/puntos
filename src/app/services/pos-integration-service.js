@@ -338,6 +338,7 @@ async function evaluateSaleRow(deps, business, input) {
     code: "",
     message: "Lista para sumar puntos.",
   };
+  /** @type {{ row: typeof row, sale: ReturnType<typeof normalizePosSale>, meta: { pos_sale: Record<string, unknown> }, receipt: typeof receipt } | null} */
   let ready = null;
   try {
     const sale = normalizePosSale(input, business);

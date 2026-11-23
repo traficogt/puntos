@@ -2,6 +2,10 @@ import { logger } from "../../utils/logger.js";
 import { dbQuery } from "../database.js";
 import { errorMessage } from "../../utils/error-shape.js";
 
+/**
+ * @param {string | null | undefined} sourceTransactionId
+ * @param {{ isSourceTransactionActive?: (id: string) => Promise<unknown> | unknown } | null} [deps]
+ */
 async function sourceTransactionIsActive(sourceTransactionId, deps = null) {
   if (!sourceTransactionId) return true;
   if (typeof deps?.isSourceTransactionActive === "function") {

@@ -72,6 +72,11 @@ export const canTransitionSupport = (from, to) =>
       closed: ["open"],
     }[from] || []
   ).includes(to);
+/**
+ * @param {Record<string, any>} row
+ * @param {Array<{ visibility?: string, kind?: string, message?: string, created_at?: unknown, [key: string]: unknown }>} [events]
+ * @param {{ expires_at: unknown } | null} [attachment]
+ */
 export function publicSupportCase(row, events = [], attachment = null) {
   return {
     reference: row.reference,
@@ -158,6 +163,15 @@ async function detail(client, row, admin = false) {
       }
     : publicSupportCase(row, events, attachment);
 }
+/**
+ * @typedef {{ businessId: string | null, actorType: string | null, actorId: string | null }} SupportContext
+ * @typedef {{ transaction?: typeof withTransaction, [dep: string]: unknown }} SupportDeps
+ * @param {unknown} input
+ * @param {SupportDeps & {
+ *   verify?: (token: string) => Promise<boolean>,
+ *   context?: SupportContext | null
+ * }} [options]
+ */
 export async function createSupportCase(
   input,
   { verify = async (_token) => false, context = null, ...deps } = {},
@@ -279,6 +293,10 @@ export async function replySupportCase(input, deps = {}) {
     deps,
   );
 }
+/**
+ * @param {{ status?: string, search?: string, offset?: number }} [filter]
+ * @param {SupportDeps} [deps]
+ */
 export async function listSupportCases(
   { status = undefined, search = "", offset = 0 } = {},
   deps = {},
@@ -357,6 +375,10 @@ export async function updateSupportCase(id, input, actorEmail, deps = {}) {
     return detail(c, updated, true);
   });
 }
+/**
+ * @param {{ trackingToken?: string | null, caseId?: string | null }} lookup
+ * @param {SupportDeps} [deps]
+ */
 export async function getSupportAttachment({ trackingToken = null, caseId = null }, deps = {}) {
   return scope(
     trackingToken,

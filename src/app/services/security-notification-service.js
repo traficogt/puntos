@@ -1,6 +1,14 @@
 import { sendMessage } from "./messaging-service.js";
 import { logger } from "../../utils/logger.js";
 
+/**
+ * @param {{
+ *   businessId?: string | null,
+ *   to: string | null | undefined,
+ *   subject: string,
+ *   lines?: string[]
+ * }} notification
+ */
 export async function sendSecurityNotification({ businessId = null, to, subject, lines = [] }) {
   const target = String(to || "").trim();
   if (!target) return { ok: false, skipped: true };

@@ -43,6 +43,28 @@ function normalizeLogoUrl(value) {
   }
 }
 
+/**
+ * Branding the e-mail templates render with; only the brand name is mandatory.
+ * @typedef {{
+ *   brandName: string,
+ *   scope?: string,
+ *   logoUrl?: string,
+ *   wordmarkUrl?: string,
+ *   lockupUrl?: string,
+ *   primaryColor?: string,
+ *   accentColor?: string,
+ *   poweredByVisible?: boolean
+ * }} EmailBranding
+ */
+
+/**
+ * @typedef {{ name?: string | null, customer_branding_json?: Record<string, any> | null }} BrandingSource
+ * @param {{
+ *   businessId?: string | null,
+ *   business?: BrandingSource | null,
+ *   getBusinessById?: (businessId: string) => Promise<BrandingSource | null>
+ * }} [options]
+ */
 export async function resolveEmailBranding({
   businessId = null,
   business = null,

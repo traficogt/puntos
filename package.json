@@ -25,6 +25,7 @@
     "test:watch": "NODE_ENV=test node --test --watch tests/unit/*.test.js tests/integration/*.test.js",
     "test:coverage": "NODE_ENV=test node --test --experimental-test-coverage tests/unit/*.test.js tests/integration/*.test.js",
     "typecheck": "tsc --noEmit --singleThreaded",
+    "typecheck:strict": "tsc --noEmit --singleThreaded -p tsconfig.strict.json",
     "typecheck:focused": "tsc --noEmit --singleThreaded",
     "lint": "eslint src public tests --ext .js,.mjs,.cjs --max-warnings=0",
     "test:e2e": "bash src/scripts/run-e2e-isolated.sh",

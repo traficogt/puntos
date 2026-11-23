@@ -41,6 +41,19 @@ const DEFAULT_REFERRAL_SETTINGS = {
   reward_on_signup: false,
 };
 
+/**
+ * @param {{
+ *   businessName: string,
+ *   email: string,
+ *   phone?: string | null,
+ *   password: string,
+ *   category?: string | null,
+ *   program_type?: string,
+ *   program_json?: Record<string, any>,
+ *   slug?: string | null,
+ *   plan?: string | undefined
+ * }} input
+ */
 export async function createBusinessWithOwner({
   businessName,
   email,
@@ -77,6 +90,7 @@ export async function createBusinessWithOwner({
   const seeds = DEFAULT_REWARDS_BY_CATEGORY[String(category ?? "").toLowerCase()] ?? [];
   const toCreate = seeds.slice(0, limits.rewards);
 
+  /** @type {unknown} */
   let lastErr = null;
   for (let attempt = 0; attempt < 25; attempt += 1) {
     slug = attempt === 0 ? slugBase : `${slugBase}-${attempt}`;

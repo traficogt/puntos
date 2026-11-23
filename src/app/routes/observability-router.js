@@ -106,6 +106,7 @@ export function createObservabilityRouter(options = {}) {
         new Promise((_, reject) => setTimeout(() => reject(new Error("Database timeout")), 2000)),
       ]);
       checks.database = "ok";
+      /** @type {{ healthy?: boolean, driver?: string, queueDepth?: number } | null} */
       let queueHealth = null;
       if (includeQueueHealth && typeof getQueueHealth === "function") {
         queueHealth = await getQueueHealth();

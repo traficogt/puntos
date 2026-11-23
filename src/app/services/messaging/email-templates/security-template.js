@@ -5,6 +5,14 @@ import {
   renderTextParagraphs,
 } from "./base-template.js";
 
+/**
+ * @param {{
+ *   branding: import("../email-branding.js").EmailBranding,
+ *   subject?: string,
+ *   title?: string,
+ *   lines?: string[]
+ * }} input
+ */
 export function renderSecurityEmail({ branding, subject = "", title = "", lines = [] }) {
   const resolvedSubject = String(subject || `${branding.brandName}: aviso de seguridad`).trim();
   const resolvedTitle = String(title || "Aviso de seguridad").trim();

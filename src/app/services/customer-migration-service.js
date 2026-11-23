@@ -46,6 +46,7 @@ export const migrationCommitSchema = migrationPreviewSchema
   })
   .strict();
 
+/** @param {string} businessId @param {string} [staffId] */
 function requireIdentity(businessId, staffId = undefined) {
   if (
     !uuid.safeParse(businessId).success ||
@@ -76,6 +77,17 @@ async function existingPhones(query, businessId, phones) {
   return rows.map((row) => row.phone);
 }
 
+/**
+ * @typedef {import("./customer-migration-csv.js").MigrationSource} MigrationSource
+ * @param {{
+ *   businessId: string,
+ *   csv: string,
+ *   columns: unknown,
+ *   existingPolicy?: string,
+ *   source?: MigrationSource | null
+ * }} input
+ * @param {Record<string, unknown>} [injected]
+ */
 export async function previewCustomerMigration(
   { businessId, csv, columns, existingPolicy = "skip", source = undefined },
   injected = {},
@@ -119,6 +131,23 @@ export async function listCustomerMigrations({ businessId }, injected = {}) {
   return { batches: rows.map(publicBatch) };
 }
 
+/**
+ * @param {{
+ *   businessId: string,
+ *   staffId: string,
+ *   requestId: string,
+ *   label: string,
+ *   csv: string,
+ *   columns: unknown,
+ *   existingPolicy?: string,
+ *   confirmed: boolean,
+ *   source?: MigrationSource | null,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null
+ * }} input
+ * @param {Record<string, unknown>} [injected]
+ */
 export async function commitCustomerMigration(
   {
     businessId,
@@ -204,10 +233,9 @@ export async function commitCustomerMigration(
       country: businessRegion(business).country,
       source,
     });
-    if (normalized.rows.some((row) => row.issues.length))
-      throw badRequest(
-        "Corrige todas las filas con errores antes de importar. No se guardó ningún cliente.",
-      );
+    const incompleteRows =
+      "Corrige todas las filas con errores antes de importar. No se guardó ningún cliente.";
+    if (normalized.rows.some((row) => row.issues.length)) throw badRequest(incompleteRows);
     const batchId = randomUUID();
     let imported = 0,
       skipped = 0,
@@ -215,6 +243,8 @@ export async function commitCustomerMigration(
     // The same phone lock used by verified enrollment also orders concurrent signup.
     // Stable ordering prevents imports with overlapping phone sets from deadlocking.
     for (const row of [...normalized.rows].sort((a, b) => a.phone.localeCompare(b.phone))) {
+      // A non-integer balance is reported as a row issue, so it was rejected above.
+      if (row.points === null) throw badRequest(incompleteRows);
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1),hashtext($2))", [
         businessId,
         row.phone,

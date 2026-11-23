@@ -175,6 +175,12 @@ export function createGoogleProvider(config, { fetchImpl = fetch, now = () => Da
     }
   }
 
+  /**
+   * @param {string} method
+   * @param {string} resource
+   * @param {Record<string, unknown> | undefined} [body]
+   * @param {number[]} [allowedStatuses]
+   */
   async function api(method, resource, body = undefined, allowedStatuses = []) {
     const token = await getAccessToken();
     try {

@@ -9,6 +9,15 @@ export function ownerOutcomeFindings(outcomes) {
       currency: region.currency || "GTQ",
     }).format(value);
   const items = [];
+  /**
+   * @param {string} key
+   * @param {number} priority
+   * @param {string} title
+   * @param {string} explanation
+   * @param {Record<string, unknown>} evidence
+   * @param {{ label: string, href: string }} action
+   * @param {{ days: number, start: unknown, end: unknown } | null} [window]
+   */
   const add = (key, priority, title, explanation, evidence, action, window = null) =>
     items.push({
       key,

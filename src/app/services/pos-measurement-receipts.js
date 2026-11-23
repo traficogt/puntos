@@ -13,6 +13,7 @@ export function posMeasurementReceipt(input, status = "unmatched") {
     !/^[\p{L}\p{N} ._:-]{1,180}$/u.test(source)
   )
     return null;
+  /** @type {string | null} */
   let occurredAt = null;
   try {
     occurredAt = normalizePurchaseOccurredAt(input.occurredAt);

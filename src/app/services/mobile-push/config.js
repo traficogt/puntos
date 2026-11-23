@@ -1,12 +1,17 @@
 import { readFileSync } from "node:fs";
 import { createPrivateKey } from "node:crypto";
 
-/** @param {Record<string,string>} env */
+/**
+ * @typedef {{ teamId: string, keyId: string, topic: string, privateKey: unknown }} MobilePushConfig
+ * @param {Record<string, string | undefined>} [env]
+ * @param {{readFile?: (path: string, encoding?: string) => string | Buffer}} [options]
+ */
 export function loadMobilePushConfig(
   env = process.env,
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   { readFile = (path) => readFileSync(path, "utf8") } = {},
 ) {
+  /** @type {{ enabled: boolean, ready: boolean, errors: string[], config: MobilePushConfig | null }} */
   const result = {
     enabled: env.MOBILE_PUSH_ENABLED === "true",
     ready: false,

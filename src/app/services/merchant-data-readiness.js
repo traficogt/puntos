@@ -21,6 +21,9 @@ export function readinessForBusiness(business = {}, now = new Date()) {
   const source = ["loyverse", "csv", "api"].includes(pos.mode) ? pos.mode : "manual";
   const automatic = source === "loyverse" && pos.automatic === true;
   const completed = stamp(pos.last_completed_at);
+  // Date.parse(null) is NaN, exactly like Date.parse on a missing stamp.
+  const completedAt = completed === null ? NaN : Date.parse(completed);
+  /** @type {keyof typeof summaries | keyof typeof sourceHealthReasons | null} */
   let reason = null;
   if (automatic && pos.enabled !== true) reason = "integration_paused";
   else if (pos.enabled === true || automatic) {
@@ -33,9 +36,8 @@ export function readinessForBusiness(business = {}, now = new Date()) {
       reason = "sync_errors";
     else if (sync.has_more === true) reason = "sync_incomplete";
     else if (automatic && !completed) reason = "initial_sync_incomplete";
-    else if (automatic && Date.parse(completed) > now.getTime() + 5 * 60000)
-      reason = "sync_time_invalid";
-    else if (automatic && now.getTime() - Date.parse(completed) > 24 * HOUR) reason = "sync_stale";
+    else if (automatic && completedAt > now.getTime() + 5 * 60000) reason = "sync_time_invalid";
+    else if (automatic && now.getTime() - completedAt > 24 * HOUR) reason = "sync_stale";
   }
   const sources = sourceHealth(business.program_json?.data_health?.sources, now);
   const blockedSource = sources.find((item) => item.state === "blocked");
@@ -70,7 +72,7 @@ export function campaignNeedsFreshActivity(campaign = {}) {
       ),
   );
 }
-/** @param {{business?:any,campaign?:any,rule?:string,now?:Date}} options */
+/** @param {{business?:any,campaign?:any,rule?:string|null,now?:Date}} options */
 export function promotionDelay({ business = {}, campaign = null, rule = null, now = new Date() }) {
   const mode = business.program_json?.merchant_operating_mode,
     until = stamp(mode?.until);

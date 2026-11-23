@@ -45,6 +45,24 @@ export async function catalogRequest(client, { businessId, source, requestId, op
     throw conflict("Esta solicitud ya se usó con otros datos.");
   return { fingerprint, replay: old ? { ...old.result, replay: true } : null };
 }
+/**
+ * @param {{ query: (...args: any[]) => Promise<any> }} client
+ * @param {{
+ *   businessId: string,
+ *   source: string,
+ *   requestId: string,
+ *   operation: string,
+ *   input: {
+ *     observedAt?: string | null,
+ *     items?: Array<{ productRef: string }>,
+ *     branchId?: string | null,
+ *     [key: string]: unknown
+ *   },
+ *   fingerprint: string,
+ *   result: unknown,
+ *   actor?: { id: string } | null
+ * }} event
+ */
 export async function catalogEvent(
   client,
   { businessId, source, requestId, operation, input, fingerprint, result, actor = null },
@@ -67,7 +85,12 @@ export async function catalogEvent(
   if (["catalog", "inventory"].includes(operation)) {
     const affected = await client.query(
       "SELECT id FROM reward_pos_mappings WHERE business_id=$1 AND source=$2 AND product_ref=ANY($3::text[]) AND enabled AND inventory_required AND ($4::uuid IS NULL OR branch_id=$4) LIMIT 1",
-      [businessId, source, input.items.map((item) => item.productRef), input.branchId ?? null],
+      [
+        businessId,
+        source,
+        (input.items ?? []).map((item) => item.productRef),
+        input.branchId ?? null,
+      ],
     );
     if (affected.rowCount) await markRewardInventoryWallets(client, businessId);
   }

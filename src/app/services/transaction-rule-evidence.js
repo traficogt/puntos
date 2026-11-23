@@ -44,7 +44,7 @@ function ruleContent(rule, index) {
       : null,
     kind: rule?.kind === "bonus_points" ? "bonus_points" : "multiplier",
     value: Number(rule?.kind === "bonus_points" ? rule?.value || 0 : rule?.value || 1),
-    max_points: finite(rule?.max_points) > 0 ? finite(rule.max_points) : null,
+    max_points: (finite(rule?.max_points) ?? 0) > 0 ? finite(rule?.max_points) : null,
     condition: {
       weekdays:
         Array.isArray(c.weekdays) && c.weekdays.length
@@ -232,6 +232,17 @@ function safeTargetedCriteria(value) {
   return parsed.success ? parsed.data : "not_snapshotted";
 }
 
+/**
+ * @param evidence the evaluator's evidence object (returned enriched, so its shape is preserved)
+ * @param {{
+ *   bonus: { bonusPoints?: number, campaignId?: string | null, criteria?: unknown } | null | undefined,
+ *   holdDays: number,
+ *   status: string,
+ *   availableAt: Date | null,
+ *   source?: string | null,
+ *   capturedAt?: string | null
+ * }} outcome
+ */
 export function completeAwardEvidence(
   evidence,
   { bonus, holdDays, status, availableAt, source = null, capturedAt = null },

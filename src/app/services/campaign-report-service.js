@@ -138,23 +138,26 @@ export async function readCampaignReport({ businessId, campaignId }, { query = d
   });
   const end = campaign.observation_ends_at ?? campaign.expires_at,
     reconcile = campaign.reconciliation_ends_at ?? end;
+  // Date.parse(null) is NaN; keep that for stamps the campaign does not have yet.
+  /** @param {string | null | undefined} value */
+  const parseTime = (value) => (value == null ? NaN : Date.parse(value));
   const postTreatment = group(r.groups, "treatment", campaign.treatment_count, "followup"),
     postControl = group(r.groups, "control", campaign.control_count, "followup");
   const followup = {
     state:
       !end || Date.parse(asOf) < Date.parse(end)
         ? "waiting"
-        : Date.parse(asOf) < Date.parse(reconcile)
+        : Date.parse(asOf) < parseTime(reconcile)
           ? "reconciling"
           : "complete",
     starts_at: campaign.expires_at,
     ends_at: end,
     reconciliation_ends_at: reconcile,
-    available: !!end && Date.parse(end) > Date.parse(campaign.expires_at),
+    available: !!end && Date.parse(end) > parseTime(campaign.expires_at),
     treatment: postTreatment,
     control: postControl,
     return_difference:
-      quiet || !end || Date.parse(end) <= Date.parse(campaign.expires_at)
+      quiet || !end || Date.parse(end) <= parseTime(campaign.expires_at)
         ? null
         : returnDifference(postTreatment, postControl),
     interpretation:

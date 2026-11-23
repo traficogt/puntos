@@ -66,6 +66,22 @@ export function marketingProviderReady() {
   });
 }
 
+/**
+ * @param {{
+ *   businessId: string | null,
+ *   customerId?: string | null,
+ *   channel: string,
+ *   to: string | null | undefined,
+ *   body: string,
+ *   subject?: string | null,
+ *   text?: string | null,
+ *   html?: string | null,
+ *   email?: import("./messaging/email-renderer.js").EmailContent | null,
+ *   privilegedLog?: boolean,
+ *   destinations?: { phone?: string | null, email?: string | null } | null,
+ *   unsubscribeUrl?: string | null
+ * }} message
+ */
 export async function sendMessage({
   businessId,
   customerId = null,

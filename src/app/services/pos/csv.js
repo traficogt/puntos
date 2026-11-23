@@ -259,6 +259,7 @@ export function normalizePosCsv(
       issue("INVALID_ITEMS", "La cantidad de artículos debe ser un entero no negativo.");
       continue;
     }
+    /** @type {string | null} */
     let occurredAt = null;
     try {
       occurredAt = normalizePurchaseOccurredAt(

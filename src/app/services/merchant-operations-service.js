@@ -33,6 +33,14 @@ function count(value) {
 function metric(key, label, value) {
   return { key, label, value };
 }
+/**
+ * @param {string} id
+ * @param {string} state
+ * @param {string} summary
+ * @param {string | Date | null} [lastObservedAt]
+ * @param {ReturnType<typeof metric>[]} [metrics]
+ * @param {object[]} [reasons]
+ */
 function section(id, state, summary, lastObservedAt = null, metrics = [], reasons = []) {
   return {
     id,
@@ -60,6 +68,7 @@ async function providerReadiness({ includeMessaging, includeOwnerBrief }) {
   // by its existing runtime; diagnostics neither load credentials themselves nor
   // send requests. Only boolean readiness crosses this boundary.
   const { walletSettings } = await import("./native-wallet/runtime.js");
+  /** @type {boolean | null} */
   let messaging = null;
   if (includeMessaging || includeOwnerBrief) {
     const { marketingProviderReady } = await import("./messaging-service.js");

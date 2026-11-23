@@ -10,14 +10,25 @@ import { logger } from "../../../utils/logger.js";
 export const walletSettings = loadNativeWalletConfig();
 export const walletGlobalContext = (fn) =>
   withDbClientContext({ platformAdmin: true, tenantId: null }, fn);
+/**
+ * loadNativeWalletConfig only marks a provider ready after storing its config;
+ * a missing config fails provider construction just like an invalid one.
+ * @template Config
+ * @param {import("./config.js").ProviderSettings<Config>} settings
+ */
+function providerConfig(settings) {
+  if (!settings.config) throw new Error("Provider configuration missing");
+  return settings.config;
+}
 const providers = {};
+const providerFactories = {
+  apple: () => createAppleProvider(providerConfig(walletSettings.apple)),
+  google: () => createGoogleProvider(providerConfig(walletSettings.google)),
+};
 for (const name of ["apple", "google"]) {
   if (walletSettings[name].ready) {
     try {
-      providers[name] =
-        name === "apple"
-          ? createAppleProvider(walletSettings[name].config)
-          : createGoogleProvider(walletSettings[name].config);
+      providers[name] = providerFactories[name]();
     } catch {
       walletSettings[name].ready = false;
       walletSettings[name].errors.push("PROVIDER_INITIALIZATION_FAILED");

@@ -13,6 +13,14 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+/**
+ * @param {{
+ *   branding: import("../email-branding.js").EmailBranding,
+ *   businessName?: string,
+ *   code?: string,
+ *   expiresText?: string
+ * }} input
+ */
 export function renderVerifyEmail({
   branding,
   businessName = "",

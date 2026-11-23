@@ -53,6 +53,7 @@ const HANDLERS = {
 
 const REDIS_QUEUE_KEY = "pf:jobs:queue";
 
+/** @type {ReturnType<typeof createClient<{}, {}, {}, 2, {}>> | null} */
 let redis = null;
 let redisRequested = false;
 

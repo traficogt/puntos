@@ -2,6 +2,7 @@ import { BusinessRepo } from "../repositories/business-repository.js";
 import { TxnRepo } from "../repositories/transaction-repository.js";
 import { many, one } from "../repositories/base.js";
 
+/** @param {string} businessId @param {string | null} [branchId] */
 export async function businessSummary(businessId, branchId = null) {
   let customers;
   let active;

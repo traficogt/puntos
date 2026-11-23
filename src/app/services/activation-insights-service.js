@@ -74,6 +74,7 @@ SELECT
  'known_snapshot_cost_q',CASE WHEN COUNT(*)=0 THEN 0 ELSE SUM(unit_cost_q) END) FROM completed) AS completed,
  (SELECT start_at FROM bounds) AS history_start`;
 
+/** @param {{ businessId: string, branchId?: string | null, now?: Date }} scopeInput */
 export async function getRewardExposure({ businessId, branchId = null, now = new Date() }) {
   const region = await scope(businessId, branchId, now);
   const { rows } = await dbQuery(exposureSql, [
@@ -163,6 +164,7 @@ SELECT (SELECT start_at FROM bounds) AS start_at,
  COALESCE((SELECT jsonb_agg(to_jsonb(sources) ORDER BY "group") FROM sources),'[]'::jsonb) AS sources,
  (SELECT COUNT(*)::int FROM grouped WHERE actor_group='staff') AS staff_total`;
 
+/** @param {{ businessId: string, branchId?: string | null, now?: Date }} scopeInput */
 export async function getStaffActivity({ businessId, branchId = null, now = new Date() }) {
   const region = await scope(businessId, branchId, now);
   const { rows } = await dbQuery(activitySql, [

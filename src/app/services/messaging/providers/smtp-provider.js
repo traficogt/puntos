@@ -29,6 +29,7 @@ export function createSmtpProvider({ config, transportFactory = nodemailer.creat
     canSend({ destinations }) {
       return Boolean(destinations?.email && config.SMTP_HOST);
     },
+    /** @param {Omit<import("../message-router.js").RoutedMessage, "channel"> & { channel?: string }} message */
     async send({
       destinations,
       body,
@@ -52,7 +53,7 @@ export function createSmtpProvider({ config, transportFactory = nodemailer.creat
       const info = await transport.sendMail({
         from: config.SMTP_FROM,
         to: destinations.email,
-        subject,
+        subject: subject ?? undefined,
         text: String(text || body || ""),
         ...(html ? { html } : {}),
       });

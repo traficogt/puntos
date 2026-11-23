@@ -159,6 +159,7 @@ export async function createGiftCardWithDeps(
 
     const region = await validateRegionalMoney(client, actor.business_id, amount);
     const amountMinor = toMinor(amount);
+    /** @type {Record<string, any> | null} */
     let card = null;
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const id = crypto.randomUUID();

@@ -5,6 +5,15 @@ import {
   renderTextParagraphs,
 } from "./base-template.js";
 
+/**
+ * @param {{
+ *   branding: import("../email-branding.js").EmailBranding,
+ *   subject?: string,
+ *   title?: string,
+ *   intro?: string,
+ *   lines?: string[]
+ * }} input
+ */
 export function renderChurnEmail({ branding, subject = "", title = "", intro = "", lines = [] }) {
   const resolvedSubject = String(subject || `${branding.brandName}: te extrañamos`).trim();
   const resolvedTitle = String(title || "Te extrañamos").trim();

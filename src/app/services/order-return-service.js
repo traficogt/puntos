@@ -76,6 +76,10 @@ async function loadOriginalTransaction(client, transactionId) {
   return rows[0] ?? null;
 }
 
+/**
+ * @param {{ query: (...args: any[]) => Promise<any> }} client
+ * @param {{ transactionId: string, reversalTransactionId?: string | null, reason?: string | null }} input
+ */
 async function markOriginalTransactionReturned(
   client,
   { transactionId, reversalTransactionId = null, reason = null },
@@ -202,7 +206,9 @@ async function processOrderReturnWithClient(deps, client, input) {
 
   const points = Number(originalTransaction.points ?? order.points_awarded ?? 0);
   const pointsEffect = -Math.abs(points);
+  /** @type {"PENDING_CANCELLED" | "POSTED_REVERSED" | null} */
   let outcome = null;
+  /** @type {string | null} */
   let reversalTransactionId = null;
 
   if (originalStatus === "PENDING") {

@@ -96,6 +96,14 @@ function memoryInvalidateById(id, reason) {
   return null;
 }
 
+/**
+ * @param {{
+ *   actorType: string,
+ *   actorId?: string | null,
+ *   actorEmail?: string | null,
+ *   reason?: string | null
+ * }} actor
+ */
 function memoryInvalidateByActor({ actorType, actorId = null, actorEmail = null, reason }) {
   let count = 0;
   for (const [key, record] of TEST_MEMORY_SESSIONS.entries()) {
@@ -207,6 +215,7 @@ export async function touchBrowserSessionIfNeeded(session) {
   };
 }
 
+/** @param {string | null | undefined} id @param {string | null} [reason] */
 export async function invalidateBrowserSessionById(id, reason = null) {
   if (!id) return null;
   return sessionMode() === "memory"
@@ -214,6 +223,14 @@ export async function invalidateBrowserSessionById(id, reason = null) {
     : AuthSessionRepo.invalidateById(id, reason);
 }
 
+/**
+ * @param {{
+ *   actorType: string,
+ *   actorId?: string | null,
+ *   actorEmail?: string | null,
+ *   reason?: string | null
+ * }} actor
+ */
 export async function invalidateBrowserSessionsForActor({
   actorType,
   actorId = null,

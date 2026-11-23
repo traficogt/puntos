@@ -128,6 +128,8 @@ export function recommendSecondVisit(business, rewards = [], costPerPoint = null
   const cost = costPerPoint == null ? null : Number(costPerPoint),
     known = cost !== null && Number.isFinite(cost) && cost >= 0,
     guard = Number(config.award_guard?.max_points_per_tx ?? 0);
+  /** @type {string[]} */
+  const missing = [];
   const empty = {
     purchase_point_cap: guard > 0 ? guard : null,
     settings: null,
@@ -136,7 +138,7 @@ export function recommendSecondVisit(business, rewards = [], costPerPoint = null
     cost_state: known ? "configured_estimate" : "unknown",
     estimated_cost: null,
     maximum_points_commitment: null,
-    missing: [],
+    missing,
   };
   if (!Number.isFinite(rate) || rate <= 0) empty.missing.push("earning_rule");
   if (!reward) empty.missing.push("active_reward");

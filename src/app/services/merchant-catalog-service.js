@@ -184,6 +184,18 @@ export async function recordInventorySnapshot(business, input, injected = {}) {
     return result;
   });
 }
+/**
+ * @param {{
+ *   businessId: string,
+ *   staff: any,
+ *   query?: string,
+ *   source?: string,
+ *   branchId?: string,
+ *   offset?: number,
+ *   limit?: number
+ * }} filter
+ * @param {{ transaction?: typeof withTransaction }} [injected]
+ */
 export async function listMerchantCatalog(
   {
     businessId,

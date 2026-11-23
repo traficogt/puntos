@@ -32,6 +32,30 @@ function legacyHtml(body) {
     .join("");
 }
 
+/**
+ * Structured e-mail content; the `type` selects the template and the remaining
+ * fields are that template's inputs.
+ * @typedef {{
+ *   type?: string,
+ *   subject?: string,
+ *   title?: string,
+ *   intro?: string,
+ *   lines?: string[],
+ *   tone?: string,
+ *   businessName?: string,
+ *   code?: string,
+ *   expiresText?: string
+ * }} EmailContent
+ */
+
+/**
+ * @param {{
+ *   channel: string,
+ *   body?: string,
+ *   branding: import("./email-branding.js").EmailBranding,
+ *   email?: EmailContent | null
+ * }} message
+ */
 export async function renderEmailMessage({ channel, body = "", branding, email = null }) {
   if (email?.type === "verify") return renderVerifyEmail({ branding, ...email });
   if (email?.type === "security") return renderSecurityEmail({ branding, ...email });

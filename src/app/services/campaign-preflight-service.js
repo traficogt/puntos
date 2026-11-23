@@ -10,6 +10,10 @@ import { computePointsWithEvidence } from "./points-service.js";
 const digest = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 /** Read all participating customers in one statement. No phone/name is returned
  * to the owner or stored in the preview; the private digest binds eligibility. */
+/**
+ * @param {{ businessId: string, campaign: any, business?: any, now?: Date | null }} input
+ * @param {{ query: (...args: any[]) => Promise<any> }} client
+ */
 export async function evaluateCampaignPreflight(
   { businessId, campaign, business = null, now = null },
   client,

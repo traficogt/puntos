@@ -10,6 +10,7 @@ const PLAN_FIELDS = [
 ];
 const Z975 = 1.959963984540054,
   Z80 = 0.8416212335729143;
+/** @param {unknown} value @returns {value is number} */
 const finite = (value) => typeof value === "number" && Number.isFinite(value);
 const object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
@@ -71,6 +72,7 @@ function allocate(total, holdoutPercent) {
 export function planCampaignExperiment({ plan, holdoutPercent = 50, availableMembers } = {}) {
   if (plan == null) return null;
   const normalized = normalizeMeasurementPlan(plan, { holdoutPercent });
+  if (normalized == null) return null;
   if (availableMembers != null && (!Number.isSafeInteger(availableMembers) || availableMembers < 0))
     throw badRequest("El tamaño de la audiencia debe ser un número entero de clientes.");
   const p0 = normalized.baseline_return_rate_pct / 100,
@@ -145,13 +147,18 @@ const money = (value) => {
   const cents = minor(value);
   return cents == null ? null : toNumber(cents);
 };
+/**
+ * @typedef {{members: number, recorded_sales_q: number}} SalesGroup
+ * @param {SalesGroup | null | undefined} group
+ * @returns {group is SalesGroup}
+ */
 const comparableSales = (group) =>
   group != null &&
   Number.isSafeInteger(group.members) &&
   group.members > 0 &&
   finite(group.recorded_sales_q);
 
-/** @param {{treatment?: {members: number, recorded_sales_q: number}, control?: {members: number, recorded_sales_q: number}, costs?: Record<string, number|null>}} options */
+/** @param {{treatment?: SalesGroup, control?: SalesGroup, costs?: Record<string, number|null>|null}} options */
 export function campaignContribution({ treatment, control, costs = null } = {}) {
   if (
     costs != null &&
@@ -178,7 +185,8 @@ export function campaignContribution({ treatment, control, costs = null } = {}) 
     validTreatment && validControl
       ? treatment.recorded_sales_q / treatment.members - control.recorded_sales_q / control.members
       : null;
-  const incrementalSales = perMember == null ? null : perMember * treatment.members;
+  const incrementalSales =
+    validTreatment && perMember != null ? perMember * treatment.members : null;
   // The per-member difference is a quotient and stays a float until it is
   // rounded to the centavo; from the gross contribution on, every step is exact
   // centavo arithmetic (the merchant's costs have at most two decimals).
@@ -226,13 +234,13 @@ const verdict = (code, title, summary, next_action) => ({
 /**
  * @typedef {{lower_pp:number, upper_pp:number, estimate_pp?:number}} ReturnDifference
  * @typedef {object} ExperimentMeasurement
- * @property {string} [state]
- * @property {{state?:string, reason?:string}} [data_readiness]
+ * @property {string | null} [state]
+ * @property {{state?:string|null, reason?:string|null}} [data_readiness]
  * @property {boolean} [assignment_counts_match]
- * @property {number} [unavailable_members]
+ * @property {number | null} [unavailable_members]
  * @property {{complete?:boolean}} [window]
- * @property {{treatment:number, control:number}} [sample_counts]
- * @property {ReturnDifference} [return_difference]
+ * @property {{treatment:number, control:number} | null} [sample_counts]
+ * @property {ReturnDifference | null} [return_difference]
  * @typedef {object} ExperimentDiagnostics
  * @property {string} [capture_state]
  * @property {boolean} [assignment_counts_match]
@@ -244,7 +252,7 @@ const verdict = (code, title, summary, next_action) => ({
  * @property {number} [missing_preperiod_members]
  * @property {boolean} [baseline_imbalance]
  */
-/** @param {{measurement?: ExperimentMeasurement, planning?: ReturnType<typeof planCampaignExperiment>, diagnostics?: ExperimentDiagnostics, contribution?: ReturnType<typeof campaignContribution>, followup?: {state?:string,return_difference?:ReturnDifference}}} options */
+/** @param {{measurement?: ExperimentMeasurement, planning?: ReturnType<typeof planCampaignExperiment>, diagnostics?: ExperimentDiagnostics, contribution?: ReturnType<typeof campaignContribution>, followup?: {state?:string|null,return_difference?:ReturnDifference|null}}} options */
 export function campaignDecision({
   measurement,
   planning,
@@ -283,14 +291,17 @@ export function campaignDecision({
       "Los participantes observados no coinciden con la asignación original.",
       "Corrige el registro de participantes conservando a todos los asignados en su grupo original.",
     );
-  if (diagnostics.pending_refunds > 0)
+  if ((diagnostics.pending_refunds ?? 0) > 0)
     return verdict(
       "pending_refunds",
       "Concilia las devoluciones pendientes",
       "Hay devoluciones todavía sin resolver que pueden cambiar las ventas y la contribución estimada.",
       "Resuelve las devoluciones y actualiza los costos antes de cerrar la evaluación.",
     );
-  if (diagnostics.untrusted_time_purchases > 0 || diagnostics.missing_purchase_dates > 0)
+  if (
+    (diagnostics.untrusted_time_purchases ?? 0) > 0 ||
+    (diagnostics.missing_purchase_dates ?? 0) > 0
+  )
     return verdict(
       "untrusted_time",
       "Verifica cuándo ocurrieron las compras",
@@ -299,7 +310,7 @@ export function campaignDecision({
     );
   if (
     measurement.state === "incomplete_data" ||
-    measurement.unavailable_members > 0 ||
+    (measurement.unavailable_members ?? 0) > 0 ||
     measurement.data_readiness?.state === "blocked" ||
     diagnostics.capture_state === "incomplete"
   )
@@ -316,14 +327,14 @@ export function campaignDecision({
       "Esta oferta no tiene un grupo de comparación aleatorio. Sus ventas y costos son descriptivos.",
       "Usa los registros para revisar la operación y planifica una prueba con comparación si necesitas medir un efecto.",
     );
-  if (diagnostics.overlap_members > 0)
+  if ((diagnostics.overlap_members ?? 0) > 0)
     return verdict(
       "overlapping_campaigns",
       "Revisa las otras ofertas",
       "Hay participantes expuestos a otras campañas durante la observación; la diferencia no separa el efecto de cada oferta.",
       "Revisa las coincidencias y organiza la próxima prueba para evitar ofertas simultáneas.",
     );
-  if (diagnostics.missing_preperiod_members > 0)
+  if ((diagnostics.missing_preperiod_members ?? 0) > 0)
     return verdict(
       "missing_preperiod",
       "Revisa el punto de partida",
@@ -347,7 +358,7 @@ export function campaignDecision({
   if (
     measurement.state === "in_progress" ||
     measurement.window?.complete !== true ||
-    !["complete", "reconciling"].includes(followup?.state)
+    !["complete", "reconciling"].includes(followup?.state ?? "")
   )
     return verdict(
       "waiting",
@@ -373,8 +384,9 @@ export function campaignDecision({
   if (
     measurement.state === "insufficient_sample" ||
     planning.feasible !== true ||
-    !Number.isSafeInteger(counts?.treatment) ||
-    !Number.isSafeInteger(counts?.control) ||
+    counts == null ||
+    !Number.isSafeInteger(counts.treatment) ||
+    !Number.isSafeInteger(counts.control) ||
     counts.treatment < planning.required_treatment ||
     counts.control < planning.required_control
   )

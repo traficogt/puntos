@@ -57,6 +57,15 @@ export function posEventId(sale) {
     .digest("hex")}`;
 }
 
+/**
+ * @param {{ program_json?: Record<string, any> | null } | null | undefined} business
+ * @param {{
+ *   authorization?: unknown,
+ *   signature?: unknown,
+ *   rawBody?: unknown,
+ *   allowDisabled?: boolean
+ * }} [credentials]
+ */
 export function verifyPosCredentials(
   business,
   {

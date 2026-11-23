@@ -60,7 +60,7 @@ export async function resolveNativeWalletMembership(
  * existing QR replay protection without consuming the membership permanently.
  * allowRevoked skips purchase authorization ONLY for the caller's receipt path;
  * the caller must require a matching stored fingerprint and never insert a row.
- * @param {{token: string, staff: {id: string, business_id: string}, txId: string, source?: string, grant?: string, capturedAt?: string, allowRevoked?: boolean, now?: Date}} input
+ * @param {{token: string, staff: {id: string, business_id: string}, txId: string, source?: string, grant?: string | null, capturedAt?: string, allowRevoked?: boolean, now?: Date}} input
  * @param {MembershipDeps} [dependencies]
  */
 export async function verifyNativeWalletAward(

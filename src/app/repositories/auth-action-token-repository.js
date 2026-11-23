@@ -1,6 +1,21 @@
 import { dbQuery } from "../database.js";
 
 export const AuthActionTokenRepo = {
+  /**
+   * @param {{
+   *   id: string,
+   *   request_id?: string | null,
+   *   actor_type: string,
+   *   actor_id?: string | null,
+   *   actor_email?: string | null,
+   *   business_id?: string | null,
+   *   purpose: string,
+   *   token_hash: string,
+   *   payload?: Record<string, unknown>,
+   *   expires_at: string | Date
+   * }} token
+   * @param {typeof dbQuery} [query]
+   */
   async create(
     {
       id,

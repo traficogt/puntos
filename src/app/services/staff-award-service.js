@@ -168,6 +168,7 @@ async function authorizeAwardToken(
   { customerQrToken, staff, txId, source, meta, offlineGrant, nativeWallet },
 ) {
   let decoded;
+  /** @type {unknown} */
   let authorizationError = null;
   const membershipArgs = {
     token: customerQrToken,
@@ -677,6 +678,20 @@ async function prepareAward(typedDeps, business, ctx) {
   };
 }
 
+/**
+ * @param deps
+ * @param {{
+ *   staff: any,
+ *   customerQrToken: string,
+ *   amount_q?: number,
+ *   visits?: number,
+ *   items?: number,
+ *   source?: string,
+ *   meta?: Record<string, any>,
+ *   txId?: string | null,
+ *   offlineGrant?: string | null
+ * }} input
+ */
 export async function awardPointsWithDeps(
   deps,
   {

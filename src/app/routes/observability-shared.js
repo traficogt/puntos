@@ -38,7 +38,9 @@ export function createCachedMetricSection(
   load,
   { ttlMs = DEFAULT_METRICS_CACHE_TTL_MS, now = Date.now } = {},
 ) {
+  /** @type {{ ts: number, lines: any[] } | null} */
   let cache = null;
+  /** @type {Promise<any[]> | null} */
   let inFlight = null;
 
   return async function getCachedMetricSection() {

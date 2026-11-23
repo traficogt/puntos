@@ -14,6 +14,21 @@ const entitled = (business, overrides) =>
  * binds the claim to that INSERT; any ledger/guard/balance failure rolls back both.
  * A server-time window deliberately ignores offline client timestamps.
  */
+/**
+ * @param {{
+ *   client: { query: (...args: any[]) => Promise<any> },
+ *   business: any,
+ *   customerId: string,
+ *   transactionId: string,
+ *   source: string,
+ *   amountQ: number,
+ *   visits?: number,
+ *   items?: number,
+ *   basePoints: number,
+ *   planFeatureOverrides?: Record<string, any> | undefined
+ * }} claim
+ * @param {{ getPlanFeatureOverrides?: () => Promise<Record<string, any>> }} [deps]
+ */
 export async function claimTargetedOffer(
   {
     client,

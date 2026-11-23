@@ -1,6 +1,25 @@
 import { dbQuery } from "../database.js";
 
 export const AuthSessionRepo = {
+  /**
+   * @param {{
+   *   id: string,
+   *   session_token_hash: string,
+   *   actor_type: string,
+   *   actor_id: string | null,
+   *   actor_email: string | null,
+   *   business_id: string | null,
+   *   role: string | null,
+   *   branch_id: string | null,
+   *   impersonated_by: string | null,
+   *   reauth_verified_at?: string | null,
+   *   mfa_verified_at?: string | null,
+   *   idle_expires_at: string,
+   *   absolute_expires_at: string,
+   *   meta?: object
+   * }} session
+   * @param {typeof dbQuery} [query]
+   */
   async create(
     {
       id,
@@ -83,6 +102,15 @@ export const AuthSessionRepo = {
     return { id, invalidation_reason: reason ?? null };
   },
 
+  /**
+   * @param {{
+   *   actorType: string,
+   *   actorId?: string | null,
+   *   actorEmail?: string | null,
+   *   reason?: string | null
+   * }} actor
+   * @param {typeof dbQuery} [query]
+   */
   async invalidateByActor(
     { actorType, actorId = null, actorEmail = null, reason },
     query = dbQuery,

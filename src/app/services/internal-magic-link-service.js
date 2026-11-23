@@ -43,6 +43,11 @@ function normalizeTargetRoute(actorType) {
   return actorType === "customer" ? "customer" : "staff";
 }
 
+/**
+ * @param {string} actorType
+ * @param {string} target
+ * @param {{ role?: string | null } | null} [actor]
+ */
 function assertValidTargetForActor(actorType, target, actor = null) {
   if (actorType === "customer") {
     if (target !== "customer-wallet") {

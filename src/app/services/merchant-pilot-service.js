@@ -12,10 +12,16 @@ import { PlanConfigService } from "./plan-config-service.js";
 import { hasPlanFeature } from "../../utils/plan.js";
 import { badRequest, conflict, forbidden, notFound } from "../../utils/http-error.js";
 import { reportingPurchase } from "./reporting-purchase.js";
-export const PILOT_CHECKS = pilotChecksForVersion(
-  currentPilotChecklistVersion,
-  allPilotCapabilities,
+/**
+ * public/pilot-checklists.js declares `capabilities = null`, which TypeScript
+ * reads as "only null"; the function actually takes the capability map below.
+ * Remove this re-typing once that file carries the JSDoc parameter type.
+ * @typedef {(version: number, capabilities?: Record<string, boolean> | null) => ReturnType<typeof pilotChecksForVersion>} PilotChecksForVersion
+ */
+const checksForVersion = /** @type {PilotChecksForVersion} */ (
+  /** @type {unknown} */ (pilotChecksForVersion)
 );
+export const PILOT_CHECKS = checksForVersion(currentPilotChecklistVersion, allPilotCapabilities);
 export const PilotCapabilities = z
   .object({ wallet: z.boolean(), promotional_messaging: z.boolean(), pos: z.boolean() })
   .strict();
@@ -155,7 +161,7 @@ export async function createPilot(options, injected = {}) {
         capabilities,
       ],
     );
-    for (const check of pilotChecksForVersion(currentPilotChecklistVersion, capabilities))
+    for (const check of checksForVersion(currentPilotChecklistVersion, capabilities))
       await client.query(
         "INSERT INTO merchant_pilot_checks(business_id,pilot_id,check_key) VALUES($1,$2,$3)",
         [businessId, id, check.key],

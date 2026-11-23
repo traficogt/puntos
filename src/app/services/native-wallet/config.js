@@ -26,8 +26,13 @@ export function parsePublicWalletUrl(value) {
 }
 
 // Read only explicitly enabled provider credentials. Never report their contents or paths.
-/** @param {Record<string,string>} env
- * @param {{readFile?: (path:string, encoding?:string)=>string|Buffer}} options */
+/**
+ * @template Config
+ * @typedef {{ enabled: boolean, ready: boolean, errors: string[], config: Config | null }} ProviderSettings
+ */
+
+/** @param {Record<string, string | undefined>} [env]
+ * @param {{readFile?: (path:string, encoding?:string)=>string|Buffer}} [options] */
 export function loadNativeWalletConfig(
   env = process.env,
   // eslint-disable-next-line security/detect-non-literal-fs-filename
@@ -36,12 +41,14 @@ export function loadNativeWalletConfig(
   const appUrl = parsePublicWalletUrl(env.APP_ORIGIN);
   const appOrigin = appUrl?.origin || "";
   const organizationName = String(env.WALLET_ORGANIZATION_NAME || "PuntosFieles").slice(0, 80);
+  /** @type {ProviderSettings<import("./apple.js").AppleConfig>} */
   const apple = {
     enabled: env.APPLE_WALLET_ENABLED === "true",
     ready: false,
     errors: [],
     config: null,
   };
+  /** @type {ProviderSettings<Parameters<typeof import("./google.js").createGoogleProvider>[0]>} */
   const google = {
     enabled: env.GOOGLE_WALLET_ENABLED === "true",
     ready: false,

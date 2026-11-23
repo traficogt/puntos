@@ -182,8 +182,10 @@ export async function consumeStaffAuthority(
       throw conflict("Esta referencia ya se usó para otra acción.");
     return usageResult(prior, true);
   }
-  let grant = null,
-    remaining = null;
+  /** @type {Record<string, any> | null} */
+  let grant = null;
+  /** @type {number | null} */
+  let remaining = null;
   if (member.role !== "OWNER") {
     const candidates = await client.query(
       `SELECT * FROM staff_service_grants WHERE business_id=$1 AND staff_id=$2 AND action=$3 AND revoked_at IS NULL
@@ -278,6 +280,26 @@ export async function consumeServiceAllowance(
     referenceId: requestId,
   });
 }
+/**
+ * @param {{
+ *   businessId: string,
+ *   staff: any,
+ *   staffId: string,
+ *   branchId?: string | null,
+ *   action?: string,
+ *   perActionPoints: number,
+ *   totalPoints: number,
+ *   startsAt: unknown,
+ *   endsAt: unknown,
+ *   requestId: string,
+ *   maxActions?: number,
+ *   frequencyLimit?: number,
+ *   frequencyMinutes?: number,
+ *   perActionCost?: number,
+ *   totalCost?: number
+ * }} grant
+ * @param {typeof defaults} [deps]
+ */
 export async function createServiceGrant(
   {
     businessId,
@@ -529,6 +551,19 @@ function noticeText(value, max) {
     throw badRequest("Usa texto breve sin datos de clientes, teléfonos, correos ni etiquetas.");
   return value.trim();
 }
+/**
+ * @param {{
+ *   businessId: string,
+ *   staff: any,
+ *   noticeId?: string | null,
+ *   expectedVersion?: number,
+ *   title: string,
+ *   body: string,
+ *   branchId?: string | null,
+ *   expiresAt: unknown
+ * }} notice
+ * @param {typeof defaults} [deps]
+ */
 export async function publishShiftNotice(
   {
     businessId,
@@ -547,7 +582,10 @@ export async function publishShiftNotice(
   const expires = date(expiresAt);
   if (
     noticeId &&
-    (!uuid(noticeId) || !Number.isSafeInteger(expectedVersion) || expectedVersion < 1)
+    (!uuid(noticeId) ||
+      expectedVersion === undefined ||
+      !Number.isSafeInteger(expectedVersion) ||
+      expectedVersion < 1)
   )
     throw badRequest("Revisa la versión del aviso.");
   return deps.transaction(async (client) => {

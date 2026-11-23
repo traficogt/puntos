@@ -178,6 +178,11 @@ export async function enqueuePosRefund(
   });
 }
 
+/**
+ * @param {string} businessId
+ * @param {string} refundId
+ * @param {{ staff?: Record<string, any> | null, automatic?: boolean }} [options]
+ */
 export async function reconcilePosRefund(
   businessId,
   refundId,
@@ -219,8 +224,10 @@ export async function reconcilePosRefund(
       [businessId, posEventId({ source: receipt.source, saleId: receipt.original_sale_id })],
     );
     const tx = original.rows[0];
-    let reason = null,
-      reversalId = null;
+    /** @type {string | null} */
+    let reason = null;
+    /** @type {string | null} */
+    let reversalId = null;
     if (!tx) reason = "original_not_found";
     else if (
       original.rows.length !== 1 ||
@@ -277,7 +284,7 @@ export async function reconcilePosRefund(
           await client.query("RELEASE SAVEPOINT pos_refund_ledger");
           reason =
             errorStatus(error) === 409 &&
-            /negative balance|saldo en negativo|saldos negativos/i.test(errorMessage(error))
+            /negative balance|saldo en negativo|saldos negativos/i.test(errorMessage(error) ?? "")
               ? "insufficient_balance"
               : "retryable_error";
         }

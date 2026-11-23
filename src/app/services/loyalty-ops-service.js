@@ -44,6 +44,7 @@ function allowNegativeRefundBalance(programJson = {}) {
   return programJson?.balance_policy?.allow_negative_balance_on_refund === true;
 }
 
+/** @param {{ businessId: string, client?: { query: (...args: any[]) => Promise<any> } | null }} options */
 async function getPointsExpirationDays({ businessId, client = null }) {
   const q = client ? client.query.bind(client) : dbQuery;
   const { rows } = await q(

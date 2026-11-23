@@ -112,7 +112,7 @@ staffRoutes.post(
           "Código MFA inválido",
           "Invalid credentials",
           "Invalid MFA code",
-        ].includes(errorMessage(error))
+        ].includes(errorMessage(error) ?? "")
       ) {
         return res.status(400).json({
           error:

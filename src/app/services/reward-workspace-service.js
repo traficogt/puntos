@@ -143,6 +143,11 @@ function publicReward(row) {
   });
   return { ...reward, version };
 }
+/**
+ * @param {{ query: (...args: any[]) => Promise<any> }} client
+ * @param {string} businessId
+ * @param {string | null} [rewardId]
+ */
 async function readRewards(client, businessId, rewardId = null) {
   const rows = (
     await client.query(
@@ -298,6 +303,7 @@ export async function saveRewardWorkspace({ businessId, staff, input }, injected
     );
     if (!features.rewards) throw forbidden("Tu plan no incluye recompensas.");
     const rewardId = value.rewardId ?? randomUUID();
+    /** @type {Record<string, any> | null} */
     let old = null;
     if (value.rewardId) {
       if (
@@ -310,6 +316,7 @@ export async function saveRewardWorkspace({ businessId, staff, input }, injected
       )
         throw notFound("Recompensa no encontrada.");
       old = (await readRewards(client, businessId, rewardId))[0];
+      if (!old) throw notFound("Recompensa no encontrada.");
       if (old.version !== value.version)
         throw conflict("La recompensa cambió. Actualiza antes de guardar.");
     } else {

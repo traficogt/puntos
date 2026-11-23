@@ -83,6 +83,18 @@ function assertProviderAuthConfigured(provider) {
   }
 }
 
+/**
+ * @param {{
+ *   provider: string,
+ *   event?: Record<string, any> | null,
+ *   businessId?: string | null,
+ *   businessSlug?: string | null,
+ *   customerPhone?: string | null,
+ *   customerId?: string | null,
+ *   providerEventId?: string | null,
+ *   extra?: Record<string, unknown>
+ * }} context
+ */
 function webhookLogContext({
   provider,
   event = null,
@@ -208,6 +220,7 @@ export async function processPaymentWebhook(
     throw badRequest("providerEventId missing in webhook payload");
   }
 
+  /** @type {string | null} */
   let businessId = null;
   if (n.businessSlug) {
     const business = await BusinessRepo.getPublicBySlug(n.businessSlug);
@@ -374,6 +387,7 @@ export async function processPaymentWebhook(
   }
 }
 
+/** @param {{ businessId: string, status?: string | null, limit?: number }} filter */
 export async function listPaymentWebhookEventsForBusiness({
   businessId,
   status = null,

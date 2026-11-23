@@ -78,6 +78,7 @@ export const TxnRepo = {
     return rows.map(publicCustomerTransaction);
   },
 
+  /** @param {string} businessId @param {number} [days] @param {string | null} [branchId] */
   async summaryByBusiness(businessId, days = 30, branchId = null) {
     const params = [businessId, String(days)];
     let branchClause = "";

@@ -135,6 +135,7 @@ export function validateCampaignTerms({
   if (offerKind === "quiet") {
     if (
       durationDays !== null ||
+      durationMinutes === null ||
       !Number.isInteger(durationMinutes) ||
       durationMinutes < 30 ||
       durationMinutes > 240 ||
@@ -254,8 +255,9 @@ export async function createGrowthCampaign(
         throw conflict("Esta solicitud ya se usó con otros datos.");
       return { campaign: publicGrowthCampaign(c) };
     }
-    let audience,
-      audienceSnapshot = null;
+    let audience;
+    /** @type {Awaited<ReturnType<typeof snapshotCustomerAudience>>["snapshot"] | null} */
+    let audienceSnapshot = null;
     if (audienceSegmentId) {
       const result = await snapshotCustomerAudience(
         {

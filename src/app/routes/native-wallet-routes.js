@@ -127,7 +127,7 @@ export function createNativeWalletRoutes({
     `${prefix}/devices/:device/registrations/:passType`,
     asyncRoute(async (req, res) => {
       if (
-        req.params.passType !== settings.apple.config.passTypeIdentifier ||
+        req.params.passType !== settings.apple.config?.passTypeIdentifier ||
         !opaque.test(req.params.device)
       )
         throw notFound();

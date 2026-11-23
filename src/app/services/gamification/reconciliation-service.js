@@ -186,6 +186,20 @@ async function getCurrentChallengeRows(client, customerId) {
   return rows;
 }
 
+/**
+ * @param {{ query: (...args: any[]) => Promise<any> }} client
+ * @param {{
+ *   customerId: string,
+ *   businessId: string,
+ *   type: string,
+ *   entityField: string,
+ *   entityId: string,
+ *   sourceTransactionId?: string | null,
+ *   limit?: number,
+ *   startAt?: Date | null,
+ *   endAt?: Date | null
+ * }} lookup
+ */
 async function getRewardTransactions(
   client,
   {
@@ -200,6 +214,7 @@ async function getRewardTransactions(
     endAt = null,
   },
 ) {
+  /** @type {Array<string | number | Date>} */
   const params = [customerId, businessId, type, entityField, entityId];
   let where = `
     t.customer_id = $1
@@ -287,6 +302,14 @@ async function reverseRewardTransaction(client, tx, staff, reason, meta = {}) {
   return reversalId;
 }
 
+/**
+ * @param {{ query: (...args: any[]) => Promise<any> }} client
+ * @param {string} customerId
+ * @param {string} requirementType
+ * @param {Date | null} [startAt]
+ * @param {Date | null} [endAt]
+ * @param {Record<string, any> | null} [stats]
+ */
 async function getChallengeMetricValue(
   client,
   customerId,
@@ -354,6 +377,14 @@ async function getChallengeMetricValue(
   return Number(rows?.[0]?.total || 0);
 }
 
+/**
+ * @param {{ query: (...args: any[]) => Promise<any> }} client
+ * @param {string} customerId
+ * @param {any} staff
+ * @param {string} reason
+ * @param {Date | null} [_referenceAt]
+ * @param {string | null} [refundedTransactionId]
+ */
 async function reconcileAchievements(
   client,
   customerId,
