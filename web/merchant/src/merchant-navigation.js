@@ -4,6 +4,7 @@
 // tools live under "Avanzado" so the main flow stays small and legible.
 export const dailyNavigation = [
   { page: "overview", label: "Inicio" },
+  { page: "reports", label: "Reportes" },
   { page: "fulfillment", label: "Canjes y caja" },
   { page: "cases", label: "Atención al cliente" },
 ];
@@ -16,7 +17,11 @@ export const navigationGroups = [
       { page: "launch", label: "Preparar mi programa" },
       { page: "rewards", label: "Recompensas y catálogo" },
       { page: "campaigns", label: "Reglas de puntos" },
+      { page: "limits", label: "Límites y políticas" },
       { page: "automations", label: "Notificaciones automáticas" },
+      { page: "tiers", label: "Niveles de cliente" },
+      { page: "gamification", label: "Logros y retos" },
+      { page: "giftcards", label: "Tarjetas de regalo" },
     ],
   },
   {
@@ -47,6 +52,7 @@ export const navigationGroups = [
       { page: "authority", label: "Permisos del equipo" },
       { page: "branches", label: "Sucursales" },
       { page: "brand", label: "Marca y QR" },
+      { page: "branding", label: "Identidad del programa" },
       { page: "pos", label: "Conectar caja" },
       { page: "settings", label: "Configuración" },
       { page: "region", label: "Región del negocio" },
@@ -66,6 +72,7 @@ export const navigationGroups = [
       { page: "migration", label: "Importar clientes" },
       { page: "pilot", label: "Mi piloto" },
       { page: "operations", label: "Estado de la operación" },
+      { page: "onboarding", label: "Puesta en marcha y guías" },
     ],
   },
 ];
@@ -88,10 +95,16 @@ export const demoNavigation = [
 // Plan features each page requires to be usable (ALL must be present). Derived
 // from the components' own lock checks (Campaigns, Automations, Recovery,
 // Referrals, GrowthCampaigns, Audiences, OwnerTeam, OwnerBranches, BrandedQr,
-// PosConnect, Economics, Pilot). Pages not listed are core and always shown —
-// including overview/launch/rewards/customers/settings/acquisition, which only
-// lock a sub-widget, not the whole page.
+// PosConnect, Economics, Pilot, OwnerTiers, OwnerGamification, OwnerGiftCards,
+// OwnerReports, OwnerProgramLimits). Pages not listed are core and always shown —
+// including overview/launch/rewards/customers/settings/acquisition/branding/
+// onboarding, which only lock a sub-widget, not the whole page.
 export const pageFeatures = {
+  reports: ["basic_reporting"],
+  limits: ["program_rules"],
+  tiers: ["tiers"],
+  gamification: ["gamification"],
+  giftcards: ["gift_cards"],
   campaigns: ["campaign_rules"],
   automations: ["lifecycle_automation"],
   recovery: ["analytics"],

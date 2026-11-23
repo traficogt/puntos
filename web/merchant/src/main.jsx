@@ -35,6 +35,13 @@ const OwnerCustomers = lazy(() => import('./OwnerCustomers.tsx'));
 const OwnerTeam = lazy(() => import('./OwnerTeam.tsx'));
 const OwnerBranches = lazy(() => import('./OwnerBranches.tsx'));
 const OwnerSettings = lazy(() => import('./OwnerSettings.tsx'));
+const OwnerBranding = lazy(() => import('./OwnerBranding.tsx'));
+const OwnerTiers = lazy(() => import('./OwnerTiers.tsx'));
+const OwnerGamification = lazy(() => import('./OwnerGamification.tsx'));
+const OwnerGiftCards = lazy(() => import('./OwnerGiftCards.tsx'));
+const OwnerReports = lazy(() => import('./OwnerReports.tsx'));
+const OwnerProgramLimits = lazy(() => import('./OwnerProgramLimits.tsx'));
+const OwnerOnboarding = lazy(() => import('./OwnerOnboarding.tsx'));
 const RewardsWorkspace = lazy(() => import('./RewardsWorkspace.jsx'));
 const Fulfillment = lazy(() => import('./Fulfillment.jsx'));
 const RegionSettings = lazy(() => import('./RegionSettings.jsx'));
@@ -389,6 +396,20 @@ function Merchant({ staff }) {
                   <OwnerBranches staff={staff} features={plan.data?.features || {}} limits={plan.data?.limits || {}} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "settings" ? (
                   <OwnerSettings staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                ) : page === "branding" ? (
+                  <OwnerBranding staff={staff} features={plan.data?.features || {}} plan={plan.data?.plan} onDirty={setDirty} onNavigate={navigate} />
+                ) : page === "tiers" ? (
+                  <OwnerTiers staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                ) : page === "gamification" ? (
+                  <OwnerGamification staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                ) : page === "giftcards" ? (
+                  <OwnerGiftCards staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                ) : page === "reports" ? (
+                  <OwnerReports staff={staff} features={plan.data?.features || {}} limits={plan.data?.limits || {}} usage={plan.data?.usage} onNavigate={navigate} />
+                ) : page === "limits" ? (
+                  <OwnerProgramLimits staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                ) : page === "onboarding" ? (
+                  <OwnerOnboarding staff={staff} features={plan.data?.features || {}} onNavigate={navigate} />
                 ) : page === "decisions" ? (
                   <Decisions />
                 ) : page === "cases" ? (

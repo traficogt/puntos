@@ -29,6 +29,13 @@ const fragments = {
   fulfillment: "canjes",
   rewards: "recompensas",
   automations: "automatizaciones",
+  reports: "reportes",
+  limits: "limites",
+  tiers: "niveles",
+  gamification: "logros-y-retos",
+  giftcards: "tarjetas-de-regalo",
+  branding: "identidad",
+  onboarding: "puesta-en-marcha",
 };
 export const merchantPages = Object.keys(fragments);
 export function pageFromHash(hash) {

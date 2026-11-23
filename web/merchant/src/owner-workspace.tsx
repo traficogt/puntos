@@ -11,7 +11,11 @@ export interface OwnerPageProps {
   onDirty?: (dirty: boolean) => void;
   onNavigate?: (page: string) => void;
   request?: OwnerRequest;
-  limits?: {branches?: number};
+  limits?: {branches?: number; activeCustomers?: number; rewards?: number};
+  /** Plan code as the server reports it (EMPRENDEDOR, NEGOCIO, EMPRESA). */
+  plan?: string;
+  /** Soft-cap usage from /api/admin/plan; active_customers is null when the server could not count. */
+  usage?: {active_customers: number | null} | null;
 }
 export interface OwnerFailure {message: string; status?: number; code?: string}
 export interface Branch {id: string; name: string; address: string | null; code: string}
@@ -60,6 +64,12 @@ export function OwnerRestricted({title,owner=true}:{title:string;owner?:boolean}
 export function VerifyIdentity({send,onVerified}:{send:OwnerRequest;onVerified:()=>void}) {
   const [password,setPassword]=useState(''),[code,setCode]=useState('');const mutation=useOwnerMutation();
   return <section aria-labelledby="owner-verify-heading"><Stack maw={520}><Title order={2} id="owner-verify-heading">Verifica tu identidad</Title><Text>Para administrar accesos, confirma tu contraseña. Si tienes verificación en dos pasos, incluye el código actual.</Text>{mutation.error&&<OwnerError error={mutation.error}/>}<form onSubmit={event=>{event.preventDefault();mutation.run(()=>send('/api/staff/security/reauth',{method:'POST',body:JSON.stringify({password,...(code?{mfaCode:code}:{})})}),()=>{setPassword('');setCode('');onVerified();});}}><Stack><PasswordInput label="Tu contraseña" autoComplete="current-password" required maxLength={128} value={password} onChange={event=>setPassword(event.currentTarget.value)} disabled={mutation.busy}/><TextInput label="Código de verificación (si está activado)" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={code} onChange={event=>setCode(event.currentTarget.value)} disabled={mutation.busy}/><Group><Button type="submit" loading={mutation.busy}>Verificar y continuar</Button></Group></Stack></form></Stack></section>;
+}
+export function ownerDateTime(value: string | null | undefined) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '—';
+  return new Intl.DateTimeFormat(merchantRegion().locale,{dateStyle:'medium',timeStyle:'short',timeZone:merchantRegion().timezone}).format(date);
 }
 export function ownerDate(value: string | null) {return value?new Intl.DateTimeFormat(merchantRegion().locale,{dateStyle:'medium',timeZone:merchantRegion().timezone}).format(new Date(value)):'Sin visitas registradas';}
 export {request};

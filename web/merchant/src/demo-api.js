@@ -1,5 +1,6 @@
 import {DEMO_CATALOG} from './demo-catalog.js';
 import {demoOwnerWorkspace} from './demo-owner-workspace.ts';
+import {demoOwnerProgram} from './demo-owner-program.ts';
 import {demoServiceCompletion} from './demo-service-completion.js';
 import {demoDemandFunding} from './demo-demand-funding.js';
 import {demoEvidenceHealth} from './demo-evidence-health.js';
@@ -124,6 +125,8 @@ export async function demoApi(path, options = {}) {
   const url = new URL(path, "https://preview.invalid");
   const ownerResponse = demoOwnerWorkspace(url, options);
   if (ownerResponse !== undefined) return structuredClone(ownerResponse);
+  const programResponse = demoOwnerProgram(url, options);
+  if (programResponse !== undefined) return structuredClone(programResponse);
   if(url.pathname==='/api/admin/data-health'||url.pathname==='/api/admin/transaction-rejections'||url.pathname.startsWith('/api/admin/analytics/ledger-corrections'))return demoEvidenceHealth(url,options);
   if (['/api/admin/demand-notebook','/api/admin/supplier-funding'].some(prefix=>url.pathname.startsWith(prefix))) return demoDemandFunding(url,options);
   if (url.pathname.startsWith('/api/admin/service-operations')) return demoServiceCompletion(url,options);
@@ -171,19 +174,27 @@ export async function demoApi(path, options = {}) {
       case "/api/admin/plan":
         result = {
           plan: "NEGOCIO",
-          limits: { branches: 3 },
+          limits: { branches: 3, activeCustomers: 2000, rewards: 9999 },
+          // Soft-cap usage, as /api/admin/plan reports it; the demo sits comfortably under the cap.
+          usage: { active_customers: 184 },
+          // The demo mixes tools from several plans so every screen can be explored.
           features: {
+            basic_reporting: true,
+            rewards: true,
             staff_management: true,
             customer_export: true,
             gift_cards: true,
             analytics: true,
             program_rules: true,
+            fraud_monitoring: true,
             lifecycle_automation: true,
             referrals: true,
             external_awards: true,
             campaign_rules: true,
             branded_qr: true,
             multi_branch: true,
+            tiers: true,
+            gamification: true,
           },
         };
         break;
@@ -205,9 +216,6 @@ export async function demoApi(path, options = {}) {
         break;
       case "/api/admin/analytics/first-purchase-returns":
         result = demoFirstPurchaseReturns(url);
-        break;
-      case "/api/admin/program":
-        result = { program_type: "SPEND", program_json: { points_per_q: 0.1 } };
         break;
       case "/api/admin/rewards":
         result = {
