@@ -27,6 +27,13 @@ process.env.DB_PASSWORD ||= "docs-build-placeholder-db-password";
 process.env.JWT_SECRET ||= "docs-build-placeholder-jwt";
 
 const { BranchSchema } = await import("../app/routes/admin/branches.js");
+const {
+  OwnerProgressAcknowledgeSchema,
+  OwnerProgressGoalSchema,
+  OwnerProgressReviewSchema,
+  OwnerProgressVisibilitySchema,
+  OwnerProgressSettingsSchema,
+} = await import("../app/services/owner-progress-service.js");
 const { ProgramSchema, AutomationTemplateSchema, CampaignRulesSchema, ExternalAwardsSchema } =
   await import("../app/routes/admin/program-support.js");
 const { StaffCreateSchema, StaffUpdateSchema } = await import("../app/routes/admin/staff.js");
@@ -394,6 +401,11 @@ const schemas = {
   CampaignRulesRequest: CampaignRulesSchema,
   ExternalAwardsRequest: ExternalAwardsSchema,
   AutomationTemplateRequest: AutomationTemplateSchema,
+  OwnerProgressAcknowledgeRequest: OwnerProgressAcknowledgeSchema,
+  OwnerProgressGoalRequest: OwnerProgressGoalSchema,
+  OwnerProgressReviewRequest: OwnerProgressReviewSchema,
+  OwnerProgressVisibilityRequest: OwnerProgressVisibilitySchema,
+  OwnerProgressSettingsRequest: OwnerProgressSettingsSchema,
   OrderCreateRequest: OrderCreateSchema,
   OrderReturnCreateRequest: OrderReturnCreateSchema,
   PublicContactUpsertRequest: PublicContactUpsertSchema,
@@ -710,6 +722,21 @@ const routeSchemaBindings = {
   },
   "/api/v1/admin/program/external-awards": {
     put: { body: "ExternalAwardsRequest" },
+  },
+  "/api/v1/admin/owner-progress/acknowledge": {
+    post: { body: "OwnerProgressAcknowledgeRequest" },
+  },
+  "/api/v1/admin/owner-progress/goal": {
+    post: { body: "OwnerProgressGoalRequest" },
+  },
+  "/api/v1/admin/owner-progress/review": {
+    post: { body: "OwnerProgressReviewRequest" },
+  },
+  "/api/v1/admin/owner-progress/visibility": {
+    post: { body: "OwnerProgressVisibilityRequest" },
+  },
+  "/api/v1/super/platform-settings/owner-progress": {
+    put: { body: "OwnerProgressSettingsRequest" },
   },
   "/api/v1/admin/analytics/cohorts": {
     get: { query: "AnalyticsCohortsQuery" },
@@ -1895,6 +1922,98 @@ const curatedPaths = {
         401: { description: "Not authenticated" },
         403: { description: "Owner role and plan feature required" },
         404: { description: "Business not found" },
+      },
+    },
+  },
+  "/api/v1/admin/owner-progress": {
+    get: {
+      summary: 'Get the owner progress ("Tu progreso") for the current business',
+      description:
+        "Launch path, suggested goal, milestones with first-reached dates, weekly momentum and unacknowledged milestones. Derived from existing records only. Owner role, every plan; 404 when the platform mode is off.",
+      security: [{ staffAuth: [] }],
+      responses: {
+        200: { description: "Owner progress payload" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role required" },
+        404: { description: "Owner progress is turned off for the platform" },
+      },
+    },
+  },
+  "/api/v1/admin/owner-progress/acknowledge": {
+    post: {
+      summary: "Acknowledge newly reached milestones",
+      description: "Idempotent: unknown or unreached keys are ignored.",
+      security: [{ staffAuth: [] }],
+      responses: {
+        200: { description: "Acknowledged keys and the refreshed progress payload" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role or CSRF token required" },
+        404: { description: "Owner progress is turned off for the platform" },
+      },
+    },
+  },
+  "/api/v1/admin/owner-progress/goal": {
+    post: {
+      summary: "Choose or dismiss the suggested goal",
+      description:
+        "Exactly one of key or dismiss. Dismissed goals are not re-suggested for 30 days.",
+      security: [{ staffAuth: [] }],
+      responses: {
+        200: { description: "Refreshed progress payload" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role or CSRF token required" },
+        404: { description: "Owner progress is turned off for the platform" },
+      },
+    },
+  },
+  "/api/v1/admin/owner-progress/review": {
+    post: {
+      summary: "Record an explicit program review (keep or adjust)",
+      description: "Timestamps the review and grants the primera_revision milestone.",
+      security: [{ staffAuth: [] }],
+      responses: {
+        200: { description: "Refreshed progress payload" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role or CSRF token required" },
+        404: { description: "Owner progress is turned off for the platform" },
+      },
+    },
+  },
+  "/api/v1/admin/owner-progress/visibility": {
+    post: {
+      summary: "Hide or show the owner progress card (persists)",
+      security: [{ staffAuth: [] }],
+      responses: {
+        200: { description: "Refreshed progress payload" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role or CSRF token required" },
+        404: { description: "Owner progress is turned off for the platform" },
+      },
+    },
+  },
+  "/api/v1/super/platform-settings/owner-progress": {
+    get: {
+      summary: "Get the platform owner-progress settings (mode and holdout share)",
+      security: [{ superAuth: [] }],
+      responses: {
+        200: { description: "Current settings" },
+        401: { description: "Not authenticated" },
+      },
+    },
+    put: {
+      summary: "Update the platform owner-progress settings",
+      description:
+        "mode: off | checklist | full (default full); holdout_pct: 0-100 (default 0). Variants already assigned to a business are never reassigned.",
+      security: [{ superAuth: [] }],
+      responses: {
+        200: { description: "Saved settings" },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "CSRF token required" },
       },
     },
   },

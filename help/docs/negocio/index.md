@@ -38,6 +38,7 @@ Encuentra el ajuste, conoce sus efectos y revisa lo que quedó guardado. Las ins
 ## Atender lo que ocurre hoy
 
 - [Leer el resumen del negocio](/ayuda/negocio/resumen/)
+- [Seguir tu progreso como dueño](/ayuda/negocio/tu-progreso/)
 - [Atender una decisión pendiente](/ayuda/negocio/decisiones/)
 - [Cambiar el ritmo y aprobar ofertas del equipo](/ayuda/negocio/ritmo/)
 - [Buscar y explicar un movimiento](/ayuda/negocio/movimientos/)

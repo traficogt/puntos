@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-22T05:08:29.423Z",
+  "generated_at": "2026-11-23T06:31:59.971Z",
   "files": {
     "001_add_transactions_type.sql": "34e119c91fa5c744920b65a77dedeb89276bfd86a1b45e9a7edd59d73e8ffefc",
     "002_reward_branch_scope.sql": "5a076cc3a0b4df04031c5dc6d8ec26f75ebf44e648ca14a234dd8dfea08af401",
@@ -87,6 +87,7 @@
     "2026-11-18-mfa-used-counters.sql": "8c96508435d1c14731f90fc22a3f0d6104999d05abe8a346b817671c3b8d473f",
     "2026-11-18-wallet-pending-message.sql": "e2bc07972eb65c95258a8135c2c90dd29012f630f8483e01cfe53652a895aa94",
     "2026-11-20-cashback-ledger.sql": "73ed17adde8ff2841a8261fb81436c3f213f07906222d81a903635fcda35b484",
-    "2026-11-22-cashback-allow-negative.sql": "535ea70e09ad08b52c2803f6a596532958c8769ea12296528e85d43c78f3bc8f"
+    "2026-11-22-cashback-allow-negative.sql": "535ea70e09ad08b52c2803f6a596532958c8769ea12296528e85d43c78f3bc8f",
+    "2026-11-23-owner-progress.sql": "4db619370a4ed2a62119b32582299bc00c301e447eca7c7180f533ace86886ac"
   }
 }

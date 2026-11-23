@@ -81,6 +81,16 @@ export interface SuperPlansResponse {
   plans?: SuperPlanDefinition[];
 }
 
+export interface SuperOwnerProgressSettings {
+  mode: "off" | "checklist" | "full";
+  holdout_pct: number;
+}
+
+export interface SuperOwnerProgressSettingsResponse {
+  ok?: boolean;
+  settings?: SuperOwnerProgressSettings;
+}
+
 export interface SuperBusinessesResponse {
   businesses?: SuperBusinessRow[];
 }
@@ -132,6 +142,7 @@ export interface SuperPageDependencies {
 
 export interface SuperPageState {
   planList: SuperPlanDefinition[];
+  ownerProgressSettings?: SuperOwnerProgressSettings | null;
   businessList: SuperBusinessRow[];
   magicActorRows: SuperStaffRow[] | SuperCustomerRow[];
   /** Bumped on every login, logout or cross-tab session change; stale loads check it. */

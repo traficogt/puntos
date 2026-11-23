@@ -3049,6 +3049,217 @@ paths:
       x-required-roles:
         - OWNER
       parameters: undefined
+  /api/v1/admin/owner-progress:
+    get:
+      summary: "Get the owner progress (\"Tu progreso\") for the current business"
+      responses:
+        200:
+          description: "Owner progress payload"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Owner progress is turned off for the platform"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+      description: "Launch path, suggested goal, milestones with first-reached dates, weekly momentum and unacknowledged milestones. Derived from existing records only. Owner role, every plan; 404 when the platform mode is off."
+  /api/v1/admin/owner-progress/acknowledge:
+    post:
+      summary: "Acknowledge newly reached milestones"
+      responses:
+        200:
+          description: "Acknowledged keys and the refreshed progress payload"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role or CSRF token required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Owner progress is turned off for the platform"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OwnerProgressAcknowledgeRequest"
+      description: "Idempotent: unknown or unreached keys are ignored."
+  /api/v1/admin/owner-progress/goal:
+    post:
+      summary: "Choose or dismiss the suggested goal"
+      responses:
+        200:
+          description: "Refreshed progress payload"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role or CSRF token required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Owner progress is turned off for the platform"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OwnerProgressGoalRequest"
+      description: "Exactly one of key or dismiss. Dismissed goals are not re-suggested for 30 days."
+  /api/v1/admin/owner-progress/review:
+    post:
+      summary: "Record an explicit program review (keep or adjust)"
+      responses:
+        200:
+          description: "Refreshed progress payload"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role or CSRF token required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Owner progress is turned off for the platform"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OwnerProgressReviewRequest"
+      description: "Timestamps the review and grants the primera_revision milestone."
+  /api/v1/admin/owner-progress/visibility:
+    post:
+      summary: "Hide or show the owner progress card (persists)"
+      responses:
+        200:
+          description: "Refreshed progress payload"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "Owner role or CSRF token required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Owner progress is turned off for the platform"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OwnerProgressVisibilityRequest"
   /api/v1/admin/payment-webhooks:
     get:
       summary: "Derived GET /api/v1/admin/payment-webhooks"
@@ -7338,6 +7549,57 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/SuperPlanFeaturesRequest"
+  /api/v1/super/platform-settings/owner-progress:
+    get:
+      summary: "Get the platform owner-progress settings (mode and holdout share)"
+      responses:
+        200:
+          description: "Current settings"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      parameters: undefined
+    put:
+      summary: "Update the platform owner-progress settings"
+      responses:
+        200:
+          description: "Saved settings"
+        400:
+          description: "Validation error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        403:
+          description: "CSRF token required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      x-csrf-required: true
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OwnerProgressSettingsRequest"
+      description: "mode: off | checklist | full (default full); holdout_pct: 0-100 (default 0). Variants already assigned to a business are never reassigned."
   /api/v1/super/security/email-change:
     post:
       summary: "Derived POST /api/v1/super/security/email-change"
@@ -8696,6 +8958,94 @@ components:
             - solo_alertas
       required:
         - template
+      additionalProperties: false
+    OwnerProgressAcknowledgeRequest:
+      type: object
+      properties:
+        keys:
+          minItems: 1
+          maxItems: 40
+          type: array
+          items:
+            type: string
+            enum:
+              - programa_en_marcha
+              - primer_cliente
+              - ya_estan_volviendo
+              - primera_recompensa
+              - primera_revision
+              - clientes_50
+              - clientes_100
+              - clientes_300
+              - primera_automatizacion
+              - primera_campana_medida
+              - primer_pase_wallet
+              - pos_conectado
+              - momentum_4
+              - pionero
+      required:
+        - keys
+      additionalProperties: false
+    OwnerProgressGoalRequest:
+      type: object
+      properties:
+        key:
+          type: string
+          enum:
+            - launch
+            - first_customer
+            - redemption_comfort
+            - returning_5
+            - reward_speed_review
+            - monthly_review
+        dismiss:
+          type: string
+          enum:
+            - launch
+            - first_customer
+            - redemption_comfort
+            - returning_5
+            - reward_speed_review
+            - monthly_review
+      additionalProperties: false
+    OwnerProgressReviewRequest:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum:
+            - keep
+            - adjust
+        note:
+          type: string
+          maxLength: 500
+      required:
+        - decision
+      additionalProperties: false
+    OwnerProgressVisibilityRequest:
+      type: object
+      properties:
+        hidden:
+          type: boolean
+      required:
+        - hidden
+      additionalProperties: false
+    OwnerProgressSettingsRequest:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum:
+            - off
+            - checklist
+            - full
+        holdout_pct:
+          type: integer
+          minimum: 0
+          maximum: 100
+      required:
+        - mode
+        - holdout_pct
       additionalProperties: false
     OrderCreateRequest:
       type: object

@@ -137,6 +137,8 @@ export const APP_TABLE_PRIVILEGES = {
   gift_cards: ["SELECT", "INSERT", "UPDATE"],
   gift_card_transactions: ["SELECT", "INSERT"],
   platform_settings: ["SELECT", "INSERT", "UPDATE"],
+  owner_progress_milestones: ["SELECT", "INSERT", "UPDATE"],
+  owner_progress_state: ["SELECT", "INSERT", "UPDATE"],
   loyalty_tiers: ["SELECT", "INSERT", "UPDATE", "DELETE"],
   customer_tiers: ["SELECT", "INSERT", "UPDATE"],
   tier_history: ["SELECT", "INSERT"],

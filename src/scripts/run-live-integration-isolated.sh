@@ -39,6 +39,7 @@ LIVE_INTEGRATION_FILES=(
   tests/integration/gift-card-idempotency.test.js
   tests/integration/order-returns-idempotency.test.js
   tests/integration/orders-idempotency.test.js
+  tests/integration/owner-progress.test.js
   tests/integration/plan-enforcement.test.js
   tests/integration/recurring-gamification.test.js
   tests/integration/refund-gamification.test.js

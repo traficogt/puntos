@@ -75,6 +75,7 @@
     "public/super/index.js",
     "public/super/magic-links.js",
     "public/super/page-context.js",
+    "public/super/owner-progress-settings.js",
     "public/super/plans.js",
     "public/super/security-posture.js",
     "public/super/session.js",

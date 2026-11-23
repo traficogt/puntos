@@ -1,5 +1,5 @@
 // BEGIN GENERATED (npm run sw:build)
-const CACHE = "pf-5a9115b11ec8";
+const CACHE = "pf-abd943d9e39c";
 const CORE_ASSETS = [
   "/",
   "/admin",
@@ -176,6 +176,7 @@ const CORE_ASSETS = [
   "/super/index.js",
   "/super/magic-links.js",
   "/super/operations-health.js",
+  "/super/owner-progress-settings.js",
   "/super/page-context.js",
   "/super/plans.js",
   "/super/security-posture.js",

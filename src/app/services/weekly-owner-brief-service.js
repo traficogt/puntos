@@ -11,6 +11,7 @@ import { businessRegion } from "./regional-settings.js";
 import { readinessForBusiness } from "./merchant-data-readiness.js";
 import { reportingPurchase } from "./reporting-purchase.js";
 import { getOwnerOutcomeEvidence } from "./owner-outcome-service.js";
+import { ownerProgressBriefLine } from "./owner-progress-service.js";
 import { ownerOutcomeFindings, selectWeeklyFindings } from "./owner-outcome-model.js";
 import { hasPlanFeature } from "../../utils/plan.js";
 import { badRequest, conflict, forbidden, notFound } from "../../utils/http-error.js";
@@ -29,6 +30,7 @@ export const WeeklyBriefSettings = z
 const defaults = { enabled: false, weekday: 1, hour: 9 };
 const depsDefault = {
   getOwnerOutcomeEvidence,
+  ownerProgressBriefLine,
   query: dbQuery,
   transaction: withTransaction,
   audit: AuditRepo.log,
@@ -255,11 +257,20 @@ async function buildBrief(client, business, now, deps) {
     },
   );
   const selected = selectWeeklyFindings(candidates);
+  // "Tu progreso": one line with the week's milestones and the current goal. Never blocks
+  // the brief; absent when the mode is off, for holdout businesses or a hidden card.
+  let ownerProgress = null;
+  try {
+    ownerProgress = await deps.ownerProgressBriefLine(client.query.bind(client), business, now);
+  } catch (error) {
+    logger.warn({ businessId, err: error }, "Owner progress line omitted from the weekly brief");
+  }
   return {
     business_name: business.name,
     generated_at: now.toISOString(),
     period: { since: since.toISOString(), until: now.toISOString() },
     timezone: businessRegion(business).timezone,
+    owner_progress: ownerProgress,
     ...selected,
     inbox_href: href("decisiones"),
     note: "Cada hallazgo indica su propio período. Los enlaces requieren iniciar sesión como propietario. Preparar una muestra no envía mensajes.",
@@ -437,7 +448,8 @@ function bodyFor(snapshot) {
     snapshot.additional_count > 0
       ? `\n\nHay ${snapshot.additional_count} ${snapshot.additional_count === 1 ? "observación adicional" : "observaciones adicionales"}. Revisa la bandeja de decisiones: ${snapshot.inbox_href}`
       : "";
-  return `${snapshot.business_name}: tu resumen semanal de PuntosFieles${date}\n\n${findings}${more}\n\nLos enlaces requieren iniciar sesión. Puedes pausar este resumen en Automatizaciones.`;
+  const progress = snapshot.owner_progress?.text ? `${snapshot.owner_progress.text}\n\n` : "";
+  return `${snapshot.business_name}: tu resumen semanal de PuntosFieles${date}\n\n${progress}${findings}${more}\n\nLos enlaces requieren iniciar sesión. Puedes pausar este resumen en Automatizaciones.`;
 }
 async function dispatchTransaction(fn) {
   // Keep the transaction pool free for provider entitlement/billing reads.

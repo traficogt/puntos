@@ -13,7 +13,10 @@ async function scope(businessId, branchId, now) {
     throw badRequest("Sucursal no válida.");
   if (!(now instanceof Date) || !Number.isFinite(now.getTime()))
     throw badRequest("Fecha no válida.");
-  const { rows } = await dbQuery("SELECT program_json FROM businesses WHERE id=$1", [businessId]);
+  const { rows } = await dbQuery(
+    "SELECT program_json,owner_progress_variant FROM businesses WHERE id=$1",
+    [businessId],
+  );
   if (!rows[0]) throw notFound("Negocio no disponible.");
   if (
     branchId &&
@@ -25,7 +28,12 @@ async function scope(businessId, branchId, now) {
     ).rowCount
   )
     throw notFound("Sucursal no disponible.");
-  return businessRegion(rows[0]);
+  return {
+    ...businessRegion(rows[0]),
+    // "Tu progreso" variant (treatment | holdout | null before first read) so activation
+    // can be compared by variant; see docs/product/2026-11-23-owner-progress.md.
+    owner_progress_variant: rows[0].owner_progress_variant ?? null,
+  };
 }
 
 const exposureSql = `WITH issued AS (
@@ -85,9 +93,11 @@ export async function getRewardExposure({ businessId, branchId = null, now = new
   ]);
   const row = rows[0],
     cost = row.cost_per_point_q === null ? null : Number(row.cost_per_point_q);
+  const { owner_progress_variant, ...regionOnly } = region;
   return {
     ok: true,
-    region,
+    region: regionOnly,
+    owner_progress_variant,
     currency: region.currency,
     timezone: region.timezone,
     generated_at: now.toISOString(),
@@ -174,9 +184,11 @@ export async function getStaffActivity({ businessId, branchId = null, now = new 
     region.timezone,
   ]);
   const row = rows[0];
+  const { owner_progress_variant, ...regionOnly } = region;
   return {
     ok: true,
-    region,
+    region: regionOnly,
+    owner_progress_variant,
     currency: region.currency,
     timezone: region.timezone,
     generated_at: now.toISOString(),

@@ -43,6 +43,33 @@ export const PlatformSettingsRepo = {
     });
   },
 
+  // Owner progress ("Tu progreso") mode and holdout share. Platform-owned; read in a
+  // self-contained platform-admin transaction so owner requests can load it without
+  // elevating their own tenant context (platform_settings is platform-admin only).
+  async getOwnerProgress() {
+    return withTransaction(async (client) => {
+      await client.query("SELECT set_config('app.platform_admin', 'true', true)");
+      const { rows } = await client.query(
+        "SELECT value FROM platform_settings WHERE key = 'owner_progress'",
+      );
+      return rows[0]?.value ?? {};
+    });
+  },
+
+  async setOwnerProgress(value) {
+    return withTransaction(async (client) => {
+      await client.query("SELECT set_config('app.platform_admin', 'true', true)");
+      const { rows } = await client.query(
+        `INSERT INTO platform_settings (key, value, updated_at)
+         VALUES ('owner_progress', $1, now())
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()
+         RETURNING value`,
+        [value],
+      );
+      return rows[0]?.value ?? value;
+    });
+  },
+
   async setWalletBroadcastForBusiness(businessId, patch) {
     return withTransaction(async (client) => {
       await client.query("SELECT set_config('app.platform_admin', 'true', true)");

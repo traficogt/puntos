@@ -13,7 +13,7 @@ export async function getPlatformOperationsHealth({ limit = 25, offset = 0 }, in
   const now = d.now();
   const { rows } = await d.query(
     `WITH page AS (
- SELECT id,name,slug,program_json FROM businesses ORDER BY name,id LIMIT $1 OFFSET $2
+ SELECT id,name,slug,program_json,owner_progress_variant FROM businesses ORDER BY name,id LIMIT $1 OFFSET $2
  ) SELECT b.*,
  (SELECT jsonb_object_agg(br.id::text,br.name) FROM branches br WHERE br.business_id=b.id) AS branch_names,
  (SELECT count(*)::int FROM customers c WHERE c.business_id=b.id AND c.deleted_at IS NULL) AS members,
@@ -71,6 +71,7 @@ export async function getPlatformOperationsHealth({ limit = 25, offset = 0 }, in
         id: b.id,
         name: b.name,
         slug: b.slug,
+        owner_progress_variant: b.owner_progress_variant ?? null,
         readiness,
         issues,
         state: issues.length ? "needs_attention" : "observed",

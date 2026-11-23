@@ -59,6 +59,26 @@ function ruleContent(rule, index) {
   };
 }
 
+/**
+ * The PROGRAM_NOT_CONFIGURED predicate, shared with owner progress ("Tu progreso"):
+ * a program is configured when a live award would not be refused for lack of a rule.
+ * Non-points programs and stamp cards need no rate; a points program needs its own
+ * explicit rate (no implicit default).
+ */
+export function programRuleConfigured(business) {
+  const type = business?.program_type ?? "SPEND",
+    cfg = business?.program_json ?? {};
+  if (type === "DISCOUNT" || type === "CASHBACK" || type === "GIFT_CARD" || type === "STAMP")
+    return true;
+  const rate =
+    type === "VISIT"
+      ? cfg.points_per_visit
+      : type === "ITEM"
+        ? cfg.points_per_item
+        : cfg.points_per_q;
+  return rate != null;
+}
+
 /** Pure evaluator. Its safe evidence and award are produced by the same pass.
  * The supplied clock belongs to the server wrapper, never an offline capture.
  */
@@ -112,7 +132,7 @@ export function evaluatePointRules(
         : programType === "ITEM"
           ? cfg.points_per_item
           : cfg.points_per_q;
-  if (requireRule && rawRate == null) {
+  if (requireRule && !programRuleConfigured(business)) {
     const err = /** @type {Error & { code?: string }} */ (
       badRequest("Configura la regla de puntos de tu programa antes de registrar compras.")
     );
