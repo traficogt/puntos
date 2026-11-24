@@ -334,6 +334,14 @@ suite("quiet offers, campaign preflight and durable preparation in isolated Post
     await assert.rejects(growth.createGrowthCampaign(input({ audienceLimit: 5000 }), deps), {
       statusCode: 400,
     });
+    // Plan-aware: the fixture business is Impulsa (NEGOCIO, 2,000 customers); 5,000
+    // needs Expande, and the owner is told so in Spanish.
+    await assert.rejects(prepare.createCampaignPreparation(input({ audienceLimit: 2001 }), deps), {
+      statusCode: 400,
+      code: "PLAN_AUDIENCE_LIMIT",
+      message: /plan Impulsa permite hasta 2,000 clientes/,
+    });
+    await db.query("UPDATE businesses SET plan='EMPRESA' WHERE id=$1", [businessId]);
     const opts = input({ audienceLimit: 5000 });
     const first = await prepare.createCampaignPreparation(opts, deps);
     const replay = await prepare.createCampaignPreparation(opts, deps);

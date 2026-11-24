@@ -459,10 +459,37 @@ async function businessRow(query, businessId) {
   if (!rows[0]) throw notFound("Negocio no disponible.");
   return rows[0];
 }
-/** Assigns the variant on first read and never reassigns it afterwards. */
+/**
+ * "Exposed" means the owner already used the full experience: an acknowledged
+ * milestone, a chosen or dismissed goal, a review, or a visibility change (the latter
+ * three all create the owner_progress_state row). Milestone rows alone do not count:
+ * they are recorded for every variant.
+ */
+async function wasExposed(query, businessId) {
+  const { rows } = await query(
+    `SELECT (EXISTS(SELECT 1 FROM owner_progress_state WHERE business_id=$1)
+      OR EXISTS(SELECT 1 FROM owner_progress_milestones WHERE business_id=$1 AND acknowledged_at IS NOT NULL)) AS exposed`,
+    [businessId],
+  );
+  return rows[0]?.exposed === true;
+}
+/**
+ * Variant rule (design doc, "Modes and measurement"):
+ * 1. A variant stored on the business row is final; it is never reassigned, whatever
+ *    the holdout share becomes later.
+ * 2. While `holdout_pct` is 0 nothing is stored and every business is implicitly
+ *    `treatment`. Storing "treatment" at 0% would make a share set later apply only to
+ *    businesses never read before, which defeats the measurement plan.
+ * 3. When `holdout_pct` > 0 and the business has no stored variant, a business already
+ *    exposed to the full experience is stored as `treatment` (it has already seen it);
+ *    a business never exposed gets the deterministic hash against the current share.
+ */
 async function ensureVariant(query, business, settings) {
   if (business.owner_progress_variant) return business.owner_progress_variant;
-  const variant = assignOwnerProgressVariant(business.id, settings.holdout_pct);
+  if (!(Number(settings.holdout_pct) > 0)) return "treatment";
+  const variant = (await wasExposed(query, business.id))
+    ? "treatment"
+    : assignOwnerProgressVariant(business.id, settings.holdout_pct);
   const { rows } = await query(
     "UPDATE businesses SET owner_progress_variant=$2 WHERE id=$1 AND owner_progress_variant IS NULL RETURNING owner_progress_variant",
     [business.id, variant],
@@ -504,7 +531,8 @@ async function upsertState(query, businessId, patch, now) {
 
 /**
  * Evaluates one business, persists newly reached milestones (first-reached time only),
- * assigns the variant on first read, and returns the API payload.
+ * stores the variant when the holdout rule says so (see ensureVariant), and returns
+ * the API payload.
  * @param {{businessId: string, settings?: {mode:string,holdout_pct:number}, now?: Date}} options
  */
 export async function getOwnerProgress(options, injected = {}) {

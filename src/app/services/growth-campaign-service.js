@@ -11,6 +11,7 @@ import { snapshotCustomerAudience } from "./customer-audience-service.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 import { badRequest, conflict, forbidden, notFound } from "../../utils/http-error.js";
 import { hasMaxScale } from "../../utils/money.js";
+import { SYNC_AUDIENCE_LIMIT, assertAudienceWithinPlan } from "./scale-limits.js";
 
 export function publicGrowthCampaign(row) {
   return {
@@ -69,6 +70,7 @@ export async function lockEntitledBusiness(client, businessId, overrides) {
   ) {
     throw forbidden("Tu plan no incluye campañas con medición.");
   }
+  return rows[0];
 }
 export async function auditChange(
   audit,
@@ -202,9 +204,13 @@ export async function createGrowthCampaign(
       audienceSegmentVersion > 2147483647 ||
       !Number.isInteger(audienceLimit) ||
       audienceLimit < (offerKind === "quiet" ? 1 : 10) ||
-      audienceLimit > 200)
+      audienceLimit > SYNC_AUDIENCE_LIMIT)
   )
-    throw badRequest("Indica la versión de la audiencia y un límite de 10 a 200 clientes.");
+    // Synchronous creation is bounded (see scale-limits.js); the route sends larger
+    // audiences, up to the plan limit, through the background preparation job.
+    throw badRequest(
+      `Indica la versión de la audiencia y un límite de ${offerKind === "quiet" ? 1 : 10} a ${SYNC_AUDIENCE_LIMIT} clientes. Las audiencias mayores se preparan en segundo plano.`,
+    );
   if (recoveryRunId && (audienceSegmentVersion !== null || audienceLimit !== null))
     throw badRequest("Los ajustes de audiencia no corresponden a una lista de recuperación.");
   if (
@@ -223,7 +229,7 @@ export async function createGrowthCampaign(
   // holding a purchase/campaign transaction so a busy pool cannot wait on itself.
   const overrides = await getPlanFeatureOverrides();
   return transaction(async (client) => {
-    await lockEntitledBusiness(client, businessId, overrides);
+    const business = await lockEntitledBusiness(client, businessId, overrides);
     const existing = await client.query(
       "SELECT * FROM growth_campaigns WHERE business_id=$1::uuid AND request_id=$2::uuid",
       [businessId, requestId],
@@ -255,6 +261,7 @@ export async function createGrowthCampaign(
         throw conflict("Esta solicitud ya se usó con otros datos.");
       return { campaign: publicGrowthCampaign(c) };
     }
+    if (audienceSegmentId) assertAudienceWithinPlan(business.plan, audienceLimit);
     let audience;
     /** @type {Awaited<ReturnType<typeof snapshotCustomerAudience>>["snapshot"] | null} */
     let audienceSnapshot = null;
@@ -279,8 +286,10 @@ export async function createGrowthCampaign(
       if (!run.rowCount) throw notFound("No se encontró la lista de recuperación.");
       audience = await client.query(
         `SELECT c.id FROM recovery_members m JOIN customers c ON c.business_id=m.business_id AND c.id=m.customer_id
-        WHERE m.business_id=$1::uuid AND m.run_id=$2::uuid AND c.deleted_at IS NULL ORDER BY c.id LIMIT 200 FOR SHARE OF c`,
-        [businessId, recoveryRunId],
+        WHERE m.business_id=$1::uuid AND m.run_id=$2::uuid AND c.deleted_at IS NULL ORDER BY c.id LIMIT $3::int FOR SHARE OF c`,
+        // Recovery runs hold at most 200 members (analytics/recovery.js), so this bound
+        // never truncates a run; it keeps the synchronous insert loop within budget.
+        [businessId, recoveryRunId, SYNC_AUDIENCE_LIMIT],
       );
     }
     if (!audience.rowCount) throw badRequest("No hay clientes activos en esta lista.");

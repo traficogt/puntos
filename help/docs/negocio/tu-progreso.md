@@ -35,7 +35,7 @@ Solo cuenta la actividad genuina: compras no reversadas de clientes no eliminado
 
 ## Si algo no funciona
 
-**La tarjeta no aparece:** la plataforma puede tener el progreso apagado o tu negocio puede estar en el grupo de control, que ve solo la puesta en marcha. **Un paso no se marca:** revisa que la regla de puntos esté guardada y la recompensa activa, que la práctica se haya completado hasta el final y que la compra real tenga puntos. **El impulso bajó:** una semana con pendientes sin atender y sin compras rompe la racha cuando ya usaste la pausa disponible. **Un logro no llega:** los logros se calculan al abrir la pantalla o al preparar el resumen semanal; vuelve a cargar.
+**La tarjeta no aparece:** la plataforma puede tener el progreso apagado o tu negocio puede estar en el grupo de control, que ve solo la puesta en marcha. El grupo de control se asigna una sola vez y únicamente a negocios que todavía no habían usado Tu progreso cuando la plataforma activó la medición; si ya reconociste un logro, elegiste una meta, hiciste una revisión u ocultaste la tarjeta, tu negocio no pasa al grupo de control. **Un paso no se marca:** revisa que la regla de puntos esté guardada y la recompensa activa, que la práctica se haya completado hasta el final y que la compra real tenga puntos. **El impulso bajó:** una semana con pendientes sin atender y sin compras rompe la racha cuando ya usaste la pausa disponible. **Un logro no llega:** los logros se calculan al abrir la pantalla o al preparar el resumen semanal; vuelve a cargar.
 
 ## Continúa con otra tarea
 

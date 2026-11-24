@@ -16,7 +16,7 @@ Fuentes oficiales revisadas el 10 de noviembre de 2026. Las capacidades publicad
 
 QR de inscripción con marca en Negocio y Empresa, SVG imprimible con contraste, margen y decodificación verificados. Logo solo si existe en un formato embebido seguro; el QR estándar permanece.
 
-Campañas desde listas de hasta 200 clientes; al activar se requieren 10 como mínimo. Bono fijo de 1 a 10,000 puntos, compra mínima, vigencia de 7, 14 o 30 días, términos y grupos fijos. Una compra recibe como máximo una oferta dirigida. Reversos siguen el libro contable existente.
+Campañas desde listas de hasta 200 clientes de forma inmediata y, desde el 24 de noviembre de 2026, hasta el límite del plan (Impulsa 2,000; Expande sin límite de plan, techo técnico 5,000 por campaña) con preparación en segundo plano por lotes; al activar se requieren 10 como mínimo. Bono fijo de 1 a 10,000 puntos, compra mínima, vigencia de 7, 14 o 30 días, términos y grupos fijos. Una compra recibe como máximo una oferta dirigida. Reversos siguen el libro contable existente.
 
 Consentimiento por cliente y negocio, baja verificable, cola persistente, comparación excluida de mensajes, horario y frecuencia. Aceptado por proveedor no significa entregado. Respuestas ambiguas no se reintentan automáticamente.
 

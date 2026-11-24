@@ -12,6 +12,12 @@ import {
   validateCampaignTerms,
 } from "./growth-campaign-service.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
+import {
+  AUDIENCE_TECHNICAL_CEILING,
+  PREPARATION_CHUNK,
+  assertAudienceWithinPlan,
+  formatCount,
+} from "./scale-limits.js";
 
 const JOB_TYPE = "growth.campaign.prepare";
 const transactionDefaults = {
@@ -42,33 +48,41 @@ export async function createCampaignPreparation(options, dependencies = {}) {
     name,
     bonusPoints,
     minimumPurchaseQ = 0,
-    durationDays,
+    durationDays = null,
     holdoutPercent = 20,
     pointsBudget = null,
     estimatedCostPerPointQ = null,
+    // Quiet offers reach this path only through the route's delegation of audiences
+    // above SYNC_AUDIENCE_LIMIT; the explicit /prepare endpoint stays experiment-only.
+    offerKind = "experiment",
+    durationMinutes = null,
   } = options;
   validateCampaignTerms({
     name,
     bonusPoints,
     minimumPurchaseQ,
     durationDays,
+    offerKind,
+    durationMinutes,
     holdoutPercent,
     pointsBudget,
     estimatedCostPerPointQ,
   });
   if (
     options.recoveryRunId ||
-    (options.offerKind && options.offerKind !== "experiment") ||
+    !["experiment", "quiet"].includes(offerKind) ||
     !audienceSegmentId ||
     !Number.isInteger(audienceSegmentVersion) ||
     audienceSegmentVersion < 1 ||
     !Number.isInteger(audienceLimit) ||
-    audienceLimit < 10 ||
-    audienceLimit > 5000
+    audienceLimit < (offerKind === "quiet" ? 1 : 10) ||
+    audienceLimit > AUDIENCE_TECHNICAL_CEILING
   )
     throw badRequest(
-      "Selecciona una audiencia guardada, su versión y un máximo de 5,000 clientes.",
+      `Selecciona una audiencia guardada, su versión y un máximo de ${formatCount(AUDIENCE_TECHNICAL_CEILING)} clientes.`,
     );
+  if (offerKind === "quiet" && options.measurementPlan != null)
+    throw badRequest("Una oferta breve no admite un plan experimental.");
   const measurementPlan = normalizeMeasurementPlan(options.measurementPlan ?? null, {
     durationDays,
     holdoutPercent,
@@ -87,12 +101,14 @@ export async function createCampaignPreparation(options, dependencies = {}) {
         pointsBudget,
         estimatedCostPerPointQ,
         ...(measurementPlan ? { measurementPlan } : {}),
+        // Experiment fingerprints are unchanged so stored replays keep matching.
+        ...(offerKind === "quiet" ? { offerKind, durationMinutes } : {}),
       }),
     )
     .digest("hex");
   const overrides = await getPlanFeatureOverrides();
   return transaction(async (client) => {
-    await lockEntitledBusiness(client, businessId, overrides);
+    const business = await lockEntitledBusiness(client, businessId, overrides);
     const previous = (
       await client.query(
         "SELECT g.*,p.request_fingerprint FROM growth_campaigns g LEFT JOIN growth_campaign_preparations p ON p.business_id=g.business_id AND p.campaign_id=g.id WHERE g.business_id=$1 AND g.request_id=$2",
@@ -104,6 +120,7 @@ export async function createCampaignPreparation(options, dependencies = {}) {
         throw conflict("Esta solicitud ya se usó con otros datos.");
       return { campaign: publicGrowthCampaign(previous) };
     }
+    assertAudienceWithinPlan(business.plan, audienceLimit);
     const segment = (
       await client.query(
         "SELECT * FROM merchant_audiences WHERE business_id=$1 AND id=$2 FOR SHARE",
@@ -126,8 +143,8 @@ export async function createCampaignPreparation(options, dependencies = {}) {
     };
     const campaign = (
       await client.query(
-        `INSERT INTO growth_campaigns(id,business_id,request_id,name,bonus_points,minimum_purchase_q,duration_days,holdout_percent,points_budget,estimated_cost_per_point_q,audience_snapshot,created_by_staff_id,preparation_status,measurement_plan)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'queued',$13::jsonb) RETURNING *`,
+        `INSERT INTO growth_campaigns(id,business_id,request_id,name,bonus_points,minimum_purchase_q,duration_days,holdout_percent,points_budget,estimated_cost_per_point_q,audience_snapshot,created_by_staff_id,preparation_status,measurement_plan,offer_kind,duration_minutes)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'queued',$13::jsonb,$14,$15) RETURNING *`,
         [
           campaignId,
           businessId,
@@ -142,6 +159,8 @@ export async function createCampaignPreparation(options, dependencies = {}) {
           snapshot,
           staffId,
           measurementPlan,
+          offerKind,
+          durationMinutes,
         ],
       )
     ).rows[0];
@@ -214,7 +233,10 @@ export async function runCampaignPreparationJob(
               [businessId, campaignId, captured.snapshot],
             );
           }
-          const chunk = ids.slice(campaign.prepared_count, campaign.prepared_count + 250);
+          const chunk = ids.slice(
+            campaign.prepared_count,
+            campaign.prepared_count + PREPARATION_CHUNK,
+          );
           // Lock existing customers through insertion; erased IDs remain only in
           // the preparation snapshot, never reappear as new members on replay.
           const active = (

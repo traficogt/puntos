@@ -18,7 +18,7 @@ Comprueba el progreso y los conflictos de un archivo procesado en segundo plano.
 
 ## Antes de empezar
 
-Prepara el CSV y la revisión de saldos. Este flujo admite hasta 5,000 clientes; cada lote de cien filas se confirma por separado.
+Prepara el CSV y la revisión de saldos. Este flujo admite hasta 5,000 clientes por archivo; el trabajo avanza en lotes de 200 filas que se confirman por separado, y si se interrumpe continúa desde el último lote guardado sin repetir clientes.
 
 ## Paso a paso
 

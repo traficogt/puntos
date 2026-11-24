@@ -92,7 +92,28 @@ Dismissed goals are not re-suggested for 30 days.
 `owner_progress_mode`: `off` | `checklist` | `full` (default `full`).
 `owner_progress_holdout_pct` (default 0): deterministic variant per business
 (`treatment` | `holdout`); holdout sees the launch path only. Variant is
-exported with activation insights. Pilot evaluation questions: time to a
+exported with activation insights.
+
+Assignment rule (2026-11-24, `ensureVariant` in
+`src/app/services/owner-progress-service.js`):
+
+1. A variant stored in `businesses.owner_progress_variant` is final; it is never
+   reassigned, whatever the share becomes later.
+2. While the share is 0 nothing is stored and every business is implicitly
+   `treatment`. (Storing `treatment` at 0% would make a share set later apply
+   only to businesses never read before, defeating the comparison.)
+3. When the share is above 0, a business without a stored variant is assigned
+   on its next read. A business already exposed to the full experience (an
+   acknowledged milestone, a chosen or dismissed goal, a review, or a
+   visibility change) is stored as `treatment`: it has already seen it. A
+   business never exposed receives the deterministic hash
+   (`sha256(business_id) mod 100 < share`) against the current share.
+
+Consequence for the plan: the holdout can only contain businesses that had not
+used the full experience when the share was set, so set the share before the
+cohort you intend to measure is onboarded, and compare only businesses created
+after that date. Setting the share back to 0 stops new assignments but does not
+move stored holdouts back. Pilot evaluation questions: time to a
 working program and first genuine participation; real activity across
 successive weeks and successful redemptions; whether owners can explain
 what happened and choose a sensible next action; burden signals (hides,

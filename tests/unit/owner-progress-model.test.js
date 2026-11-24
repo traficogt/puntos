@@ -376,3 +376,96 @@ test("platform settings validate strictly and normalize malformed stored values"
   ])
     assert.equal(OwnerProgressSettingsSchema.safeParse(bad).success, false, JSON.stringify(bad));
 });
+
+// Holdout assignment rule (design doc, "Modes and measurement"): nothing is stored
+// while the share is 0; a share set later persists a variant only for businesses
+// without one, and never moves an already exposed business into the holdout.
+const BUSINESS = "11111111-1111-4111-8111-111111111111";
+function fakeDb({ variant = null, exposed = false, stateRow = null } = {}) {
+  const updates = [],
+    exposureSql = [];
+  const query = async (sql, params) => {
+    const text = sql.trim();
+    if (text.startsWith("SELECT id,name,program_json,owner_progress_variant"))
+      return {
+        rows: [
+          {
+            id: params[0],
+            name: "Café",
+            program_json: { points_per_q: 1 },
+            owner_progress_variant: variant,
+          },
+        ],
+      };
+    if (text.startsWith("UPDATE businesses SET owner_progress_variant")) {
+      updates.push(params[1]);
+      variant = params[1];
+      return { rows: [{ owner_progress_variant: params[1] }] };
+    }
+    if (text.includes("AS exposed")) {
+      exposureSql.push(text);
+      return { rows: [{ exposed }] };
+    }
+    if (text.startsWith("SELECT * FROM owner_progress_state"))
+      return { rows: stateRow ? [stateRow] : [] };
+    if (text.startsWith("SELECT key,reached_at,acknowledged_at")) return { rows: [] };
+    if (text.startsWith("SELECT\n b.program_type"))
+      return {
+        rows: [{ program_type: "SPEND", program_json: {}, award_weeks: [], todo_weeks: [] }],
+      };
+    return { rows: [] };
+  };
+  return { query, updates, exposureSql };
+}
+const read = (db, holdout_pct) =>
+  getOwnerProgress(
+    { businessId: BUSINESS, settings: { mode: "full", holdout_pct }, now },
+    { query: db.query },
+  );
+
+test("holdout share 0 persists nothing and treats every business as treatment", async () => {
+  const db = fakeDb();
+  const payload = await read(db, 0);
+  assert.equal(payload.variant, "treatment");
+  assert.equal(payload.experience, "full");
+  assert.deepEqual(db.updates, []);
+  assert.deepEqual(db.exposureSql, [], "no exposure lookup while the share is 0");
+});
+
+test("a share set later can place a never-exposed business in the holdout", async () => {
+  assert.equal(assignOwnerProgressVariant(BUSINESS, 100), "holdout");
+  const db = fakeDb({ exposed: false });
+  const payload = await read(db, 100);
+  assert.equal(payload.variant, "holdout");
+  assert.equal(payload.experience, "checklist");
+  assert.deepEqual(payload.milestones, []);
+  assert.deepEqual(db.updates, ["holdout"], "persisted once, on this read");
+});
+
+test("an exposed business becomes treatment even when the hash says holdout", async () => {
+  const db = fakeDb({ exposed: true });
+  const payload = await read(db, 100);
+  assert.equal(payload.variant, "treatment");
+  assert.equal(payload.experience, "full");
+  assert.deepEqual(db.updates, ["treatment"]);
+  // Exposure = owner_progress_state row (goal, review, visibility) or an acknowledged milestone.
+  assert.equal(db.exposureSql.length, 1);
+  assert.match(db.exposureSql[0], /owner_progress_state WHERE business_id=\$1/);
+  assert.match(
+    db.exposureSql[0],
+    /owner_progress_milestones WHERE business_id=\$1 AND acknowledged_at IS NOT NULL/,
+  );
+});
+
+test("a persisted variant is never reassigned", async () => {
+  const stored = fakeDb({ variant: "holdout", exposed: true });
+  const keptHoldout = await read(stored, 0);
+  assert.equal(keptHoldout.variant, "holdout", "share back to 0 does not restore treatment");
+  assert.equal(keptHoldout.experience, "checklist");
+  const treatment = fakeDb({ variant: "treatment", exposed: false });
+  const keptTreatment = await read(treatment, 100);
+  assert.equal(keptTreatment.variant, "treatment", "hash says holdout, stored value wins");
+  assert.deepEqual(stored.updates, []);
+  assert.deepEqual(treatment.updates, []);
+  assert.deepEqual(stored.exposureSql.concat(treatment.exposureSql), []);
+});

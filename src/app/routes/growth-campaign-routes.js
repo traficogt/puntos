@@ -37,6 +37,7 @@ import {
   cancelCampaignPreparation,
 } from "../services/campaign-preparation-service.js";
 import { getCustomerGrowthOffers } from "../services/targeted-offer-service.js";
+import { AUDIENCE_TECHNICAL_CEILING, SYNC_AUDIENCE_LIMIT } from "../services/scale-limits.js";
 
 const uuid = z.guid().transform((value) => value.toLowerCase());
 const Empty = z.object({}).strict();
@@ -67,7 +68,9 @@ const CreateBody = z
     recovery_run_id: uuid.optional(),
     audience_segment_id: uuid.optional(),
     audience_segment_version: z.number().int().min(1).max(2147483647).optional(),
-    audience_limit: z.number().int().min(10).max(200).optional(),
+    // Up to the technical ceiling here; the service enforces the plan limit and the
+    // handler sends audiences above SYNC_AUDIENCE_LIMIT to background preparation.
+    audience_limit: z.number().int().min(10).max(AUDIENCE_TECHNICAL_CEILING).optional(),
     name: z.string().trim().min(1).max(100),
     bonus_points: z.number().int().min(1).max(10000),
     points_budget: z.number().int().min(1).max(2000000).nullable().default(null),
@@ -100,7 +103,7 @@ const ExpansionTerms = {
 const QuietBody = z
   .object({
     ...ExpansionTerms,
-    audience_limit: z.number().int().min(1).max(200),
+    audience_limit: z.number().int().min(1).max(AUDIENCE_TECHNICAL_CEILING),
     points_budget: z.number().int().min(1).max(2000000),
     duration_minutes: z.number().int().min(30).max(240),
   })
@@ -109,7 +112,7 @@ const QuietBody = z
 const PreparationBody = z
   .object({
     ...ExpansionTerms,
-    audience_limit: z.number().int().min(10).max(5000),
+    audience_limit: z.number().int().min(10).max(AUDIENCE_TECHNICAL_CEILING),
     points_budget: z.number().int().min(1).max(2000000).nullable().default(null),
     measurement_plan: MeasurementPlanInput.nullable().optional(),
     duration_days: z.union([z.literal(7), z.literal(14), z.literal(30)]),
@@ -283,24 +286,29 @@ export function createGrowthCampaignRouter(deps = {}) {
         durationDays: data.duration_days,
         holdoutPercent: data.holdout_percent,
       });
-      return res.status(201).json(
-        await services.createGrowthCampaign({
-          ...actor(req),
-          requestId: data.request_id,
-          recoveryRunId: data.recovery_run_id,
-          audienceSegmentId: data.audience_segment_id,
-          audienceSegmentVersion: data.audience_segment_version,
-          audienceLimit: data.audience_limit,
-          name: data.name,
-          bonusPoints: data.bonus_points,
-          pointsBudget: data.points_budget,
-          minimumPurchaseQ: data.minimum_purchase_q,
-          durationDays: data.duration_days,
-          holdoutPercent: data.holdout_percent,
-          estimatedCostPerPointQ: data.estimated_cost_per_point_q,
-          measurementPlan: data.measurement_plan,
-        }),
-      );
+      const options = {
+        ...actor(req),
+        requestId: data.request_id,
+        recoveryRunId: data.recovery_run_id,
+        audienceSegmentId: data.audience_segment_id,
+        audienceSegmentVersion: data.audience_segment_version,
+        audienceLimit: data.audience_limit,
+        name: data.name,
+        bonusPoints: data.bonus_points,
+        pointsBudget: data.points_budget,
+        minimumPurchaseQ: data.minimum_purchase_q,
+        durationDays: data.duration_days,
+        holdoutPercent: data.holdout_percent,
+        estimatedCostPerPointQ: data.estimated_cost_per_point_q,
+        measurementPlan: data.measurement_plan,
+      };
+      // Saved audiences above the synchronous bound are prepared by the job queue in
+      // chunks (202 Accepted); the plan limit is enforced inside the service either way.
+      if (data.audience_segment_id && (data.audience_limit ?? 0) > SYNC_AUDIENCE_LIMIT) {
+        const { recoveryRunId: _run, ...prepared } = options;
+        return res.status(202).json(await services.createCampaignPreparation(prepared));
+      }
+      return res.status(201).json(await services.createGrowthCampaign(options));
     }),
   );
   router.post(
@@ -309,16 +317,17 @@ export function createGrowthCampaignRouter(deps = {}) {
     asyncRoute(async (req, res) => {
       const body = QuietBody.safeParse(req.body);
       if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
-      return res.status(201).json(
-        await services.createGrowthCampaign({
-          ...actor(req),
-          ...expansionOptions(body.data),
-          offerKind: "quiet",
-          durationMinutes: body.data.duration_minutes,
-          durationDays: null,
-          holdoutPercent: 0,
-        }),
-      );
+      const options = {
+        ...actor(req),
+        ...expansionOptions(body.data),
+        offerKind: "quiet",
+        durationMinutes: body.data.duration_minutes,
+        durationDays: null,
+        holdoutPercent: 0,
+      };
+      if (body.data.audience_limit > SYNC_AUDIENCE_LIMIT)
+        return res.status(202).json(await services.createCampaignPreparation(options));
+      return res.status(201).json(await services.createGrowthCampaign(options));
     }),
   );
   router.post(

@@ -2,10 +2,17 @@ import { parsePosCsv } from "./pos/csv.js";
 import { normalizePhone } from "../../utils/phone.js";
 import { badRequest } from "../../utils/http-error.js";
 import { MAX_LEDGER_INTEGER } from "../../utils/ledger-limits.js";
+import { IMPORT_CHUNK_ROWS } from "./scale-limits.js";
 
 export const migrationTemplate =
   "Teléfono,Nombre,Saldo\r\n55550001,Ana de ejemplo,100\r\n55550002,Luis de ejemplo,0\r\n";
-export const migrationLimits = { rows: 100, bytes: 200 * 1024, points: MAX_LEDGER_INTEGER };
+// One request commits at most one import chunk's worth of rows (scale-limits.js);
+// larger files go through the background import job.
+export const migrationLimits = {
+  rows: IMPORT_CHUNK_ROWS,
+  bytes: 200 * 1024,
+  points: MAX_LEDGER_INTEGER,
+};
 
 /**
  * Pure, bounded normalization shared by the server and the isolated demonstration.
@@ -54,7 +61,7 @@ export function normalizeCustomerMigration({
   // Validated above whenever the balance is converted; plain balances import 1:1.
   const pointsPerUnit =
     typeof conversion?.points_per_unit === "number" ? conversion.points_per_unit : 1;
-  const document = parsePosCsv(csv, limits);
+  const document = parsePosCsv(csv, limits ?? migrationLimits);
   if (!document.rows.length) throw badRequest("Incluye al menos un cliente debajo del encabezado.");
   if (columns === undefined) return { headers: document.headers, rows: [] };
   if (!columns || typeof columns !== "object" || Array.isArray(columns))

@@ -204,7 +204,7 @@ describe("growth API boundaries", () => {
       { recovery_run_id },
       { audience_limit: undefined },
       { audience_segment_version: undefined },
-      { audience_limit: 201 },
+      { audience_limit: 5001 },
       { audience_limit: 9 },
       { audience_segment_version: "2" },
       { audience_segment_version: 0 },
@@ -396,7 +396,7 @@ describe("campaign expansion boundaries", () => {
       { duration_minutes: 29 },
       { duration_minutes: 241 },
       { points_budget: null },
-      { audience_limit: 201 },
+      { audience_limit: 5001 },
       { holdout_percent: 20 },
       { duration_days: 7 },
     ])
@@ -407,7 +407,7 @@ describe("campaign expansion boundaries", () => {
     role = "CASHIER";
     assert.equal((await request("/quiet", { method: "POST", body: quiet })).status, 403);
   });
-  it("keeps the 200-person synchronous contract and offers a bounded explicit preparation endpoint", async () => {
+  it("creates up to 200 members synchronously and prepares larger audiences in the background", async () => {
     const payload = {
       ...body,
       recovery_run_id: undefined,
@@ -418,15 +418,73 @@ describe("campaign expansion boundaries", () => {
     assert.equal((await request("/prepare", { method: "POST", body: payload })).status, 202);
     assert.equal(calls.at(-1).name, "prepare");
     assert.equal(calls.at(-1).args.audienceLimit, 5000);
-    assert.equal((await request("", { method: "POST", body: payload })).status, 400);
+    // The generic endpoint accepts the same ceiling: above 200 it delegates to the
+    // preparation job (202) and never calls the synchronous service.
+    assert.equal((await request("", { method: "POST", body: payload })).status, 202);
+    assert.equal(calls.at(-1).name, "prepare");
+    assert.equal(calls.at(-1).args.audienceLimit, 5000);
+    assert.equal(calls.at(-1).args.audienceSegmentId, payload.audience_segment_id);
+    assert.equal("recoveryRunId" in calls.at(-1).args, false);
     assert.equal(
-      (await request("/prepare", { method: "POST", body: { ...payload, audience_limit: 5001 } }))
-        .status,
-      400,
+      (await request("", { method: "POST", body: { ...payload, audience_limit: 201 } })).status,
+      202,
     );
+    assert.equal(calls.at(-1).name, "prepare");
+    assert.equal(
+      (await request("", { method: "POST", body: { ...payload, audience_limit: 200 } })).status,
+      201,
+    );
+    assert.equal(calls.at(-1).name, "create");
+    assert.equal(calls.at(-1).args.audienceLimit, 200);
+    for (const path of ["", "/prepare"])
+      assert.equal(
+        (await request(path, { method: "POST", body: { ...payload, audience_limit: 5001 } }))
+          .status,
+        400,
+        `${path || "/"} rejects audiences above the technical ceiling`,
+      );
+    // Recovery-run campaigns are always synchronous (runs hold at most 200 members).
+    assert.equal((await request("", { method: "POST", body })).status, 201);
+    assert.equal(calls.at(-1).name, "create");
     assert.equal(
       (await request("/prepare", { method: "POST", body: payload, token: "" })).status,
       403,
+    );
+  });
+  it("delegates a quiet offer above 200 customers to the preparation job as a quiet offer", async () => {
+    const quiet = {
+      request_id: randomUUID(),
+      name: "Tarde tranquila",
+      audience_segment_id: randomUUID(),
+      audience_segment_version: 1,
+      audience_limit: 200,
+      bonus_points: 20,
+      points_budget: 4000,
+      duration_minutes: 90,
+    };
+    assert.equal((await request("/quiet", { method: "POST", body: quiet })).status, 201);
+    assert.equal(calls.at(-1).name, "create");
+    assert.equal(calls.at(-1).args.offerKind, "quiet");
+    const large = await request("/quiet", {
+      method: "POST",
+      body: { ...quiet, audience_limit: 2000 },
+    });
+    assert.equal(large.status, 202);
+    assert.equal(calls.at(-1).name, "prepare");
+    assert.deepEqual(
+      [
+        calls.at(-1).args.offerKind,
+        calls.at(-1).args.durationMinutes,
+        calls.at(-1).args.holdoutPercent,
+        calls.at(-1).args.durationDays,
+        calls.at(-1).args.audienceLimit,
+      ],
+      ["quiet", 90, 0, null, 2000],
+    );
+    assert.equal(
+      (await request("/quiet", { method: "POST", body: { ...quiet, audience_limit: 5001 } }))
+        .status,
+      400,
     );
   });
   it("provides CSRF-protected preflight and cancellation, accepts only the preview identity on activation", async () => {

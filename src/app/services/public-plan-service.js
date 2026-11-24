@@ -1,4 +1,8 @@
-const names = { EMPRENDEDOR: "Conecta", NEGOCIO: "Impulsa", EMPRESA: "Expande" };
+export const PLAN_DISPLAY_NAMES = {
+  EMPRENDEDOR: "Conecta",
+  NEGOCIO: "Impulsa",
+  EMPRESA: "Expande",
+};
 const rows = [
   ["rewards", "Puntos y recompensas"],
   ["staff_management", "Accesos para el equipo"],
@@ -20,10 +24,10 @@ export function publicPlanCatalog(plans) {
     pricing_status: "quotation",
     comparison_currency: "USD",
     plans: plans
-      .filter((p) => Object.hasOwn(names, p.plan))
+      .filter((p) => Object.hasOwn(PLAN_DISPLAY_NAMES, p.plan))
       .map((p) => ({
         id: p.plan,
-        name: names[p.plan],
+        name: PLAN_DISPLAY_NAMES[p.plan],
         limits: {
           activeCustomers: p.limits.activeCustomers,
           branches: p.limits.branches,

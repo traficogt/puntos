@@ -14,7 +14,8 @@ import {
 } from "./customer-migration-service.js";
 import { businessRegion } from "./regional-settings.js";
 import { errorStatus } from "../../utils/error-shape.js";
-export const largeImportLimits = { rows: 5000, bytes: 750 * 1024 };
+import { IMPORT_CHUNK_ROWS, IMPORT_FILE_ROWS, importChunk } from "./scale-limits.js";
+export const largeImportLimits = { rows: IMPORT_FILE_ROWS, bytes: 750 * 1024 };
 export const importJobPreviewSchema = migrationPreviewSchema.extend({
   csv: z
     .string()
@@ -231,7 +232,10 @@ export async function processCustomerImportChunk({ businessId, importJobId }, in
       ).rows[0];
       return { job: publicJob(stopped), terminal: true };
     }
-    const chunk = job.rows_json.slice(job.processed, job.processed + 100);
+    // The cursor is job.processed: a restarted job recomputes the same chunk, and the
+    // chunk commit advances the cursor in the same transaction (below).
+    const window = importChunk(job.processed, job.total, IMPORT_CHUNK_ROWS);
+    const chunk = job.rows_json.slice(window.start, window.end);
     if (!chunk.length) throw new Error("Import progress does not match stored rows");
     // Chunk commit and cursor advancement share one transaction. A lost reply cannot duplicate points.
     const csv =
@@ -242,7 +246,7 @@ export async function processCustomerImportChunk({ businessId, importJobId }, in
         businessId,
         staffId: job.created_by_staff_id,
         requestId: randomUUID(),
-        label: `${job.label.slice(0, 80)} · ${Math.floor(job.processed / 100) + 1}`,
+        label: `${job.label.slice(0, 80)} · ${window.index}`,
         csv,
         columns: { phone: "phone", name: "name", points: "points" },
         existingPolicy: job.existing_policy,

@@ -73,6 +73,7 @@ suite("regional settings, large import and fenced workers in disposable PostgreS
       "2026-11-11-customer-import-jobs.sql",
       "2026-11-11-regional-settings.sql",
       "2026-11-11-regional-settings2.sql",
+      "2026-11-24-import-batch-200.sql",
     ])
       await db.query(
         await readFile(new URL(`../../src/app/migrations/${name}`, import.meta.url), "utf8"),
@@ -106,24 +107,31 @@ suite("regional settings, large import and fenced workers in disposable PostgreS
     assert.equal((await db.query("SELECT count(*) FROM customers")).rows[0].count, "0");
   });
   it("concurrent chunks serialize, preserve progress, and never double opening balances", async () => {
-    const { job } = await create(payload());
+    const { job } = await create(payload(450));
     const p = { businessId, importJobId: job.id };
+    // Chunks are 200 rows: two serialized chunks cover 400 of 450 rows.
     await Promise.all([
       imports.processCustomerImportChunk(p, d),
       imports.processCustomerImportChunk(p, d),
     ]);
     assert.equal(
       (await db.query("SELECT processed FROM customer_import_jobs")).rows[0].processed,
-      200,
+      400,
     );
     await imports.runCustomerImportJob(p, d);
     await imports.runCustomerImportJob(p, d);
     const out = (await imports.listCustomerImportJobs({ businessId }, d)).jobs[0];
     assert.equal(out.status, "completed");
-    assert.equal(out.imported, 250);
+    assert.equal(out.imported, 450);
     assert.equal(out.batch_ids.length, 3);
-    assert.equal(Number(out.opening_points), 500);
-    assert.equal((await db.query("SELECT count(*) FROM transactions")).rows[0].count, "250");
+    assert.deepEqual(
+      (await db.query("SELECT label FROM customer_migration_batches ORDER BY created_at")).rows.map(
+        (row) => row.label,
+      ),
+      ["Saldo anterior · 1", "Saldo anterior · 2", "Saldo anterior · 3"],
+    );
+    assert.equal(Number(out.opening_points), 900);
+    assert.equal((await db.query("SELECT count(*) FROM transactions")).rows[0].count, "450");
     assert.deepEqual(
       (await db.query("SELECT rows_json FROM customer_import_jobs")).rows[0].rows_json,
       [],
@@ -139,8 +147,8 @@ suite("regional settings, large import and fenced workers in disposable PostgreS
     );
     const out = await imports.runCustomerImportJob(p, d);
     assert.equal(out.status, "cancelled");
-    assert.equal(out.processed, 100);
-    assert.equal((await db.query("SELECT count(*) FROM customers")).rows[0].count, "100");
+    assert.equal(out.processed, 200);
+    assert.equal((await db.query("SELECT count(*) FROM customers")).rows[0].count, "200");
     assert.deepEqual(
       (await db.query("SELECT rows_json FROM customer_import_jobs")).rows[0].rows_json,
       [],

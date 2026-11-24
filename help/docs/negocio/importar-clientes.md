@@ -34,7 +34,7 @@ Los clientes nuevos reciben los saldos iniciales confirmados; cuentan como dispo
 
 ## Tamaño del archivo
 
-El flujo normal admite hasta cien clientes y 200 KB. Para un archivo mayor, usa la opción de segundo plano y revisa sus límites antes de cargarlo.
+El flujo normal admite hasta 200 clientes y 200 KB en una sola confirmación. Para un archivo mayor, usa la opción de segundo plano (hasta 5,000 clientes por archivo) y revisa sus límites antes de cargarlo.
 
 ## Si algo no funciona
 

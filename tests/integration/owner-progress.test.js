@@ -270,5 +270,58 @@ integrationDescribe("Owner progress (Tu progreso) integration", () => {
     assert.equal(managerLogin.status, 200);
     assert.equal((await request(managerJar, "/api/admin/owner-progress")).status, 403);
     assert.equal((await request(new Map(), "/api/admin/owner-progress")).status, 401);
+
+    // Holdout rule (design doc, "Modes and measurement"): a share set after the fact
+    // never moves an exposed business (this one acknowledged, chose a goal, reviewed and
+    // hid the card) out of treatment; a business that never used the experience is
+    // assigned once, and the stored variant survives the share going back to 0.
+    const setShare = (holdout_pct) =>
+      request(superJar, "/api/super/platform-settings/owner-progress", {
+        method: "PUT",
+        csrf: true,
+        body: JSON.stringify({ mode: "full", holdout_pct }),
+      });
+    assert.equal((await setShare(100)).status, 200);
+    try {
+      progress = await request(ownerJar, "/api/admin/owner-progress");
+      assert.equal(progress.status, 200);
+      assert.equal(progress.data.variant, "treatment", "exposed business stays in treatment");
+      assert.equal(progress.data.experience, "full");
+      const freshRand = Math.random().toString(36).slice(2, 9);
+      const freshBusiness = await request(superJar, "/api/super/businesses", {
+        method: "POST",
+        csrf: true,
+        body: JSON.stringify({
+          businessName: `Control ${freshRand}`,
+          email: `owner-control-${freshRand}@example.com`,
+          password,
+          category: "cafe",
+          plan: "EMPRENDEDOR",
+        }),
+      });
+      assert.equal(freshBusiness.status, 201);
+      const freshImpersonation = await request(
+        superJar,
+        `/api/super/impersonate/${freshBusiness.data.business.id}`,
+        { method: "POST", csrf: true, body: "{}" },
+      );
+      assert.equal(freshImpersonation.status, 200);
+      const freshJar = new Map();
+      for (const [key, value] of superJar.entries())
+        if (key === config.STAFF_COOKIE_NAME || key.startsWith("pf_csrf")) freshJar.set(key, value);
+      let fresh = await request(freshJar, "/api/admin/owner-progress");
+      assert.equal(fresh.status, 200);
+      assert.equal(fresh.data.variant, "holdout", "never-exposed business joins the holdout");
+      assert.equal(fresh.data.experience, "checklist");
+      assert.deepEqual(fresh.data.milestones, []);
+      assert.equal(fresh.data.launch.total, 5, "the launch path is still shown");
+      assert.equal((await setShare(0)).status, 200);
+      fresh = await request(freshJar, "/api/admin/owner-progress");
+      assert.equal(fresh.data.variant, "holdout", "stored variants are final");
+      progress = await request(ownerJar, "/api/admin/owner-progress");
+      assert.equal(progress.data.variant, "treatment");
+    } finally {
+      assert.equal((await setShare(0)).status, 200, "platform default restored");
+    }
   });
 });
