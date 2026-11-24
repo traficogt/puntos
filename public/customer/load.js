@@ -16,16 +16,26 @@ import {
 } from "./session.js";
 import { walletDestination } from "./wallet-navigation.js";
 
+/** @typedef {import("../types.js").CustomerApiError} CustomerApiError */
+/** @typedef {import("../types.js").CustomerLoadResult} CustomerLoadResult */
+/** @typedef {import("../types.js").CustomerPageDependencies} CustomerPageDependencies */
+
 let latestLoad = 0;
 
+/** @param {unknown} error */
 function isNetworkFailure(error) {
-  if (error?.status || error?.code) return false;
+  const failure = /** @type {CustomerApiError | null | undefined} */ (error);
+  if (failure?.status || failure?.code) return false;
   return (
     !navigator.onLine ||
-    /NetworkError|Failed to fetch|Load failed|abort/i.test(String(error?.message || ""))
+    /NetworkError|Failed to fetch|Load failed|abort/i.test(String(failure?.message || ""))
   );
 }
 
+/**
+ * @param {Pick<CustomerPageDependencies, "api" | "$" | "toast"> & { silent?: boolean }} deps
+ * @returns {Promise<CustomerLoadResult>}
+ */
 export async function loadAll({ api, $, toast, silent = false }) {
   const loadId = ++latestLoad;
   let epoch = getCustomerEpoch();

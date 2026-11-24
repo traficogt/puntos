@@ -1,6 +1,11 @@
 /** @typedef {import("./types.js").SuperPageContext} SuperPageContext */
 /** @typedef {import("./types.js").SuperSecurityPostureResponse} SuperSecurityPostureResponse */
 
+/**
+ * @param {string} label
+ * @param {string | number} value
+ * @param {string} [tone]
+ */
 function counterCard(label, value, tone = "") {
   const card = document.createElement("div");
   card.className = "card compact-card counter-card";

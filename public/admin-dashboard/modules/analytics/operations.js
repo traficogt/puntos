@@ -1,5 +1,7 @@
 import { regionalMoney } from "/lib.js";
 /** @typedef {import("../../types.js").AdminDashboardApp} AdminDashboardApp */
+/** @typedef {import("../../types.js").AdminJobRow} AdminJobRow */
+/** @typedef {import("../../types.js").AdminPaymentEvent} AdminPaymentEvent */
 /** @typedef {import("../../types.js").AnalyticsOperationsController} AnalyticsOperationsController */
 
 /**
@@ -163,7 +165,7 @@ export function createAnalyticsOperationsController(app) {
         });
         box.appendChild(grid);
 
-        const failedJobs = out.recent_failed_jobs || [];
+        const failedJobs = /** @type {AdminJobRow[]} */ (out.recent_failed_jobs || []);
         if (!failedJobs.length) {
           failedJobsBox.textContent = "No hay jobs fallidos recientes.";
           return;
@@ -185,6 +187,7 @@ export function createAnalyticsOperationsController(app) {
     );
   }
 
+  /** @param {{ roi?: Record<string, unknown> } | null} [prefetched] */
   async function loadRoiReport(prefetched) {
     const box = element("#roiReport");
     return await run(
@@ -204,7 +207,7 @@ export function createAnalyticsOperationsController(app) {
     await run(
       async () => {
         const out = await api("/api/admin/jobs?limit=12");
-        const jobs = out.jobs || [];
+        const jobs = /** @type {AdminJobRow[]} */ (out.jobs || []);
         box.replaceChildren();
         if (!jobs.length) {
           box.textContent = "No hay trabajos recientes.";
@@ -252,7 +255,7 @@ export function createAnalyticsOperationsController(app) {
     await run(
       async () => {
         const out = await api("/api/admin/payment-webhooks?status=PENDING_MAPPING&limit=20");
-        const events = out.events || [];
+        const events = /** @type {AdminPaymentEvent[]} */ (out.events || []);
         box.replaceChildren();
         if (!events.length) {
           box.textContent = "No hay pagos pendientes por asignar.";
@@ -310,6 +313,7 @@ export function createAnalyticsOperationsController(app) {
     );
   }
 
+  /** @param {{ alerts?: Array<Record<string, unknown>> } | null} [prefetched] */
   async function loadAlertsCenter(prefetched) {
     const box = element("#alertsCenter");
     return await run(
@@ -328,6 +332,7 @@ export function createAnalyticsOperationsController(app) {
     if (input("#ivaFrom").value && input("#ivaTo").value) return;
     const now = new Date();
     const from = new Date(now.getFullYear(), now.getMonth(), 1);
+    /** @param {Date} value */
     const yyyy = (value) => value.toISOString().slice(0, 10);
     input("#ivaFrom").value = yyyy(from);
     input("#ivaTo").value = yyyy(now);

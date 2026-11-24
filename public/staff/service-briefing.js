@@ -1,9 +1,16 @@
 import { mountServiceOperations } from "./service-operations.js";
-/** Fictional practice keeps its state in this closure; it has no API dependency. */
+/** @typedef {import("./types.js").StaffApiFn} StaffApiFn */
+/** @typedef {import("./types.js").StaffProgramRule} StaffProgramRule */
+/**
+ * Fictional practice keeps its state in this closure; it has no API dependency.
+ * @param {StaffProgramRule | null | undefined} program
+ * @param {Array<{ id: string, name: string, points_cost: number, active?: boolean, valid_until?: string | null }>} [rewards]
+ */
 export function createPracticeSession(program, rewards = []) {
-  const type = program?.program_type,
-    cfg = program?.program_json || {};
-  if (!["SPEND", "VISIT", "ITEM"].includes(type))
+  const type = program?.program_type;
+  /** @type {NonNullable<StaffProgramRule["program_json"]>} */
+  const cfg = program?.program_json || {};
+  if (!type || !["SPEND", "VISIT", "ITEM"].includes(type))
     throw new Error("No hay una configuración disponible para practicar.");
   const rate = Number(
     type === "SPEND"
@@ -38,6 +45,7 @@ export function createPracticeSession(program, rewards = []) {
       program: { type, rate, round },
       rewards: choices.map((row) => ({ ...row })),
     }),
+    /** @param {{ amount?: unknown, visits?: unknown, items?: unknown }} [input] */
     earn(input = {}) {
       const quantity = Number(
         type === "SPEND" ? input.amount : type === "VISIT" ? input.visits : input.items,
@@ -60,6 +68,7 @@ export function createPracticeSession(program, rewards = []) {
       balance += earned;
       return earned;
     },
+    /** @param {string} rewardId */
     redeem(rewardId) {
       const reward = choices.find((row) => row.id === rewardId);
       if (!reward) throw new Error("Selecciona una recompensa disponible.");
@@ -85,6 +94,7 @@ export function createPracticeSession(program, rewards = []) {
   };
 }
 let mountNumber = 0;
+/** @type {Record<string, string>} */
 const actionNames = {
   restore_redemption: "Restituir puntos",
   extend_promise: "Ampliar vigencia",
@@ -93,22 +103,39 @@ const actionNames = {
   offer_template: "Activar oferta aprobada",
   assigned_decision: "Atender decisión asignada",
 };
+/** @param {number} value */
 const format = (value) => new Intl.NumberFormat("es-GT").format(value);
+/**
+ * @template {keyof HTMLElementTagNameMap} K
+ * @param {K} tag
+ * @param {string} [text]
+ * @param {Record<string, string | number>} [attrs]
+ * @returns {HTMLElementTagNameMap[K]}
+ */
 function element(tag, text, attrs = {}) {
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
   for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
   return node;
 }
+/**
+ * @param {string} text
+ * @param {(event: MouseEvent) => unknown} fn
+ * @param {Record<string, string>} [attrs]
+ */
 function button(text, fn, attrs = {}) {
   const node = element("button", text, { type: "button", ...attrs });
   node.addEventListener("click", fn);
   return node;
 }
-/** api follows public/lib.js: JSON request bodies are already stringified. */
+/**
+ * api follows public/lib.js: JSON request bodies are already stringified.
+ * @param {{ container: HTMLElement | null, api: StaffApiFn, program: StaffProgramRule | null }} options
+ */
 export function mountServiceBriefing({ container, api, program }) {
   if (!container || typeof api !== "function")
     throw new TypeError("A container and API adapter are required.");
+  /** @param {string} value */
   const when = (value) =>
     new Intl.DateTimeFormat(program?.region?.locale, {
       dateStyle: "short",
@@ -128,6 +155,10 @@ export function mountServiceBriefing({ container, api, program }) {
   const operations = mountServiceOperations({ container: root, api });
   let destroyed = false,
     refreshNumber = 0;
+  /**
+   * @param {HTMLElement} target
+   * @param {string} message
+   */
   function showFailure(target, message) {
     target.replaceChildren(
       element("p", message, { role: "alert" }),

@@ -1,5 +1,6 @@
 import { createSessionEpoch } from "../session-epoch.js";
 
+/** @typedef {import("./types.js").StaffActionError} StaffActionError */
 /** @typedef {import("./types.js").StaffMeResponse} StaffMeResponse */
 /** @typedef {import("./types.js").StaffOfflineSnapshot} StaffOfflineSnapshot */
 /** @typedef {import("./types.js").StaffPageContext} StaffPageContext */
@@ -11,12 +12,14 @@ const SNAPSHOT_MAX_AGE_MS = 86400000;
 const PENDING_LOGOUT_MESSAGE =
   "Sesión bloqueada en este dispositivo. El cierre en el servidor está pendiente de conexión; tus ventas siguen guardadas para su cuenta original.";
 
+/** @param {unknown} error */
 export function isAuthError(error) {
-  const code = String(error?.code || "");
-  const message = String(error?.message || "");
+  const failure = /** @type {StaffActionError | null | undefined} */ (error);
+  const code = String(failure?.code || "");
+  const message = String(failure?.message || "");
   return (
-    error?.status === 401 ||
-    error?.status === 403 ||
+    failure?.status === 401 ||
+    failure?.status === 403 ||
     code === "AUTH_REQUIRED" ||
     code === "AUTH_INVALID_TOKEN" ||
     code === "FORBIDDEN" ||
@@ -24,9 +27,11 @@ export function isAuthError(error) {
   );
 }
 
+/** @param {unknown} error */
 export function isNetworkFailure(error) {
-  if (error?.status || error?.code) return false;
-  const message = String(error?.message || "");
+  const failure = /** @type {StaffActionError | null | undefined} */ (error);
+  if (failure?.status || failure?.code) return false;
+  const message = String(failure?.message || "");
   return !navigator.onLine || /NetworkError|Failed to fetch|fetch|abort/i.test(message);
 }
 
@@ -151,10 +156,12 @@ export function createStaffSession(ctx, hooks) {
     return logoutFlight;
   }
 
+  /** @param {string} permission */
   function hasPerm(permission) {
     return !state.sessionEnded && state.permissionSet ? state.permissionSet.has(permission) : false;
   }
 
+  /** @param {string} feature */
   function hasFeature(feature) {
     return Object.prototype.hasOwnProperty.call(state.planFeatures, feature)
       ? Boolean(state.planFeatures[feature])

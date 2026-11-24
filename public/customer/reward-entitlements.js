@@ -1,21 +1,35 @@
 import { setHidden } from "/lib.js";
 import { isCustomerAuthError } from "./session.js";
+/** @typedef {import("../types.js").CustomerApiFn} CustomerApiFn */
+/** @typedef {import("../types.js").CustomerQueryFn} CustomerQueryFn */
+/** @typedef {import("../types.js").CustomerRewardEntitlementsResponse} CustomerRewardEntitlementsResponse */
+/** @param {CustomerQueryFn} $ */
 export function clearRewardEntitlements($) {
   $("#rewardEntitlements")?.replaceChildren();
   setHidden($("#rewardEntitlementsSection"), true);
 }
+/** @param {{ api: CustomerApiFn, $: CustomerQueryFn, isCurrent: () => boolean }} deps */
 export async function loadRewardEntitlements({ api, $, isCurrent }) {
   clearRewardEntitlements($);
   const list = $("#rewardEntitlements");
   if (!list) return;
+  /**
+   * @template {keyof HTMLElementTagNameMap} K
+   * @param {K} tag
+   * @param {string} text
+   * @returns {HTMLElementTagNameMap[K]}
+   */
   const node = (tag, text) => {
     const el = document.createElement(tag);
     el.textContent = text;
     return el;
   };
   try {
-    const data = await api("/api/customer/reward-entitlements", { cache: "no-store" });
+    const data = /** @type {CustomerRewardEntitlementsResponse} */ (
+      await api("/api/customer/reward-entitlements", { cache: "no-store" })
+    );
     if (!isCurrent() || !navigator.onLine) return;
+    /** @param {string} value */
     const when = (value) =>
       new Intl.DateTimeFormat(data.region?.locale, {
         dateStyle: "medium",

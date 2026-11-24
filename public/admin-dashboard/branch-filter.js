@@ -33,6 +33,7 @@ export function createBranchFilter({
     return found.code ? `${found.name} (${found.code})` : found.name;
   }
 
+  /** @param {string} branchId */
   async function applyBranchDrilldown(branchId) {
     const sel = /** @type {HTMLSelectElement | null} */ ($("#branchFilter"));
     state.persistedBranchId = branchId || "";

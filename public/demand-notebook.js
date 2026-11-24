@@ -6,6 +6,7 @@ const categories = {
   service: "Un servicio",
   other: "Otra idea",
 };
+/** @type {Record<string, string>} */
 const states = {
   new: "Recibida",
   reviewing: "En revisión",
@@ -55,6 +56,12 @@ export function mountDemandNotebook({
     refreshError = "";
   /** @type {{ key: string, body: DemandNotebookBody & { request_id: string } } | null} */
   let pending = null;
+  /**
+   * @template {keyof HTMLElementTagNameMap} K
+   * @param {K} tag
+   * @param {string} [text]
+   * @returns {HTMLElementTagNameMap[K]}
+   */
   const make = (tag, text) => {
     const element = document.createElement(tag);
     if (text) element.textContent = text;
@@ -75,8 +82,16 @@ export function mountDemandNotebook({
     ),
   );
   const form = make("form");
+  /** @type {Record<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>} */
   const fields = {};
-  function field(name, label, tag = "input") {
+  /**
+   * @template {"input" | "select" | "textarea"} [K="input"]
+   * @param {string} name
+   * @param {string} label
+   * @param {K} [tag]
+   * @returns {HTMLElementTagNameMap[K]}
+   */
+  function field(name, label, tag = /** @type {K} */ ("input")) {
     const wrapper = make("div"),
       control = make(tag),
       id = `${prefix}-${name}`;
@@ -122,6 +137,7 @@ export function mountDemandNotebook({
   form.append(submit);
   section.append(form, notice, reload, history);
   container.append(section);
+  /** @param {boolean} value */
   function setPaused(value) {
     paused = Boolean(value);
     submit.disabled = paused || busy;
@@ -138,7 +154,7 @@ export function mountDemandNotebook({
       if (refreshError && notice.textContent === refreshError) notice.textContent = "";
       refreshError = "";
       const selectedReward = reward.value || getContext().rewardId;
-      const previousLabel = [...reward.children].find(
+      const previousLabel = /** @type {HTMLOptionElement[]} */ ([...reward.children]).find(
         (option) => option.value === selectedReward,
       )?.textContent;
       reward.replaceChildren(none);
@@ -148,7 +164,8 @@ export function mountDemandNotebook({
         option.value = row.id;
         reward.append(option);
       }
-      if (rewards.some((row) => row.id === selectedReward)) reward.value = selectedReward;
+      if (rewards.some((row) => row.id === selectedReward))
+        reward.value = /** @type {string} */ (selectedReward);
       else if (selectedReward && pending?.body.reward_id === selectedReward) {
         // A catalog change must not change the body/key of an uncertain retry.
         const label = previousLabel?.endsWith(" (envío pendiente)")

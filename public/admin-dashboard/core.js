@@ -16,6 +16,7 @@ import { initDashboardChrome, loadPlanInfo, loadStaffSession } from "./session-c
 /** @typedef {import("./types.js").DashboardState} DashboardState */
 /** @typedef {import("./types.js").TabDefinition} TabDefinition */
 
+/** @type {Record<string, string>} */
 const PLAN_LABELS = {
   analytics: "NEGOCIO",
   tiers: "NEGOCIO",
@@ -30,6 +31,7 @@ const PLAN_LABELS = {
   external_awards: "EMPRESA",
 };
 
+/** @type {Record<string, { title: string, description: string, plan: string }>} */
 const TAB_PRESENTATION = {
   branding: {
     title: "Branding",
@@ -113,6 +115,7 @@ export function requiredPlanLabel(feature) {
   return PLAN_LABELS[feature] || "";
 }
 
+/** @param {string} tabName */
 function tabPresentation(tabName) {
   return (
     TAB_PRESENTATION[tabName] || {
@@ -172,6 +175,7 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     tabRegistry.set(tabName, { feature, allowManager, load });
   }
 
+  /** @param {string} feature */
   function hasFeature(feature) {
     return Boolean(state.planInfo?.features?.[feature]);
   }
@@ -201,11 +205,13 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     },
   });
 
+  /** @param {unknown} v @param {string} [fallback] */
   function safeColor(v, fallback = "#ddd") {
     const s = String(v || "").trim();
     return /^#[0-9a-fA-F]{3,8}$/.test(s) ? s : fallback;
   }
 
+  /** @param {Element} container @param {string} message */
   function setSmallMessage(container, message) {
     container.replaceChildren();
     const p = document.createElement("p");
@@ -274,6 +280,7 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     if (stageScope) stageScope.textContent = selectedScopeLabel();
   }
 
+  /** @param {string} tabName */
   function focusTab(tabName) {
     const tabEl = /** @type {HTMLElement | null} */ (
       document.querySelector(`.tab[data-tab="${tabName}"]`)
@@ -283,6 +290,7 @@ export function createAdminDashboardApp({ api, $, toast, alert, confirm, prompt 
     loadTabData(tabName).catch(() => {});
   }
 
+  /** @param {DashboardBranch[]} next */
   function setBranches(next) {
     /** @type {DashboardBranch[]} */
     state.branchCache = Array.isArray(next) ? next : [];

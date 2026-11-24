@@ -1,6 +1,8 @@
 import { regionalMoney } from "/lib.js";
 /** @typedef {import("../../types.js").AdminDashboardApp} AdminDashboardApp */
 /** @typedef {import("../../types.js").AnalyticsAuditController} AnalyticsAuditController */
+/** @typedef {import("../../types.js").AuditEvent} AuditEvent */
+/** @typedef {import("../../types.js").AuditEventDetail} AuditEventDetail */
 
 /**
  * @param {AdminDashboardApp} app
@@ -57,6 +59,7 @@ export function createAnalyticsAuditController(app) {
     window.history.replaceState(null, "", nextUrl);
   }
 
+  /** @param {string} value */
   function formatAuditDateLabel(value) {
     if (!value) return "";
     return new Date(`${value}T00:00:00`).toLocaleDateString();
@@ -95,6 +98,7 @@ export function createAnalyticsAuditController(app) {
     window.open(`/api/admin/audit.csv${q ? `?${q}` : ""}`, "_blank");
   }
 
+  /** @param {AuditEventDetail | null} detail */
   function renderAuditDetail(detail) {
     const box = $("#auditDetail");
     if (!box) return;
@@ -160,6 +164,7 @@ export function createAnalyticsAuditController(app) {
     box.textContent = lines.join("\n");
   }
 
+  /** @param {string} eventId */
   async function loadAuditDetail(eventId) {
     try {
       const out = await api(`/api/admin/audit/${encodeURIComponent(eventId)}`);
@@ -188,7 +193,7 @@ export function createAnalyticsAuditController(app) {
       if (to) params.set("to", to);
       if (impersonatedOnly) params.set("impersonated_only", "1");
       const out = await api(`/api/admin/audit?${params.toString()}`);
-      const rows = out.events || [];
+      const rows = /** @type {AuditEvent[]} */ (out.events || []);
       box.replaceChildren();
       if (!rows.length) {
         box.textContent = impersonatedOnly

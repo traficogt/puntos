@@ -35,6 +35,7 @@ const SUMMARY_FIELDS = [
 export function initProgramListeners(app, actions) {
   const { $ } = app;
 
+  /** @param {() => Promise<unknown>} task */
   function fire(task) {
     return () => {
       task().catch(() => {});

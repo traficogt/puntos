@@ -1,8 +1,26 @@
+/** @typedef {import("./types.js").StaffApiFn} StaffApiFn */
+/** @typedef {import("./types.js").StaffHospitalityAuthorityResponse} StaffHospitalityAuthorityResponse */
+/** @typedef {import("./types.js").StaffPanelContext} StaffPanelContext */
+/** @typedef {import("./types.js").StaffProtectedCycle} StaffProtectedCycle */
+/** @typedef {import("./types.js").StaffRedeemResponse} StaffRedeemResponse */
+/** @typedef {import("./types.js").StaffRewardEntitlementsResponse} StaffRewardEntitlementsResponse */
+
+/** @template {keyof HTMLElementTagNameMap} K @param {K} tag @param {string} [text] @returns {HTMLElementTagNameMap[K]} */
 function node(tag, text) {
   const el = document.createElement(tag);
   if (text !== undefined) el.textContent = text;
   return el;
 }
+/**
+ * @param {{
+ *   container: HTMLElement | null,
+ *   api: StaffApiFn,
+ *   getContext: () => StaffPanelContext,
+ *   onCycle?: (cycle: StaffProtectedCycle | null) => void,
+ *   onBalance?: (balance: number) => void,
+ *   onRedeemed?: (result: StaffRedeemResponse & { customerId: string | null }) => void,
+ * }} options
+ */
 export function mountRewardEntitlements({
   container,
   api,
@@ -21,16 +39,24 @@ export function mountRewardEntitlements({
   container.replaceChildren(heading, status, refreshButton, body);
   let destroyed = false,
     sequence = 0,
-    busy = false,
-    selected = null;
+    busy = false;
+  /** @type {string | null} */
+  let selected = null;
   /** @type {{ key: string, id: string } | null} */
   let pending = null;
   const online = () => navigator.onLine && getContext().online;
   function controls() {
     refreshButton.disabled = busy || !online() || !getContext().customerId;
-    for (const button of body.querySelectorAll("button,select,input"))
+    for (const button of /** @type {NodeListOf<HTMLButtonElement | HTMLSelectElement | HTMLInputElement>} */ (
+      body.querySelectorAll("button,select,input")
+    ))
       button.disabled = busy || !online();
   }
+  /**
+   * @param {string} path
+   * @param {Record<string, unknown>} payload
+   * @param {string} success
+   */
   async function act(path, payload, success) {
     if (busy || !online()) return;
     const customer = getContext().customerId,
@@ -66,13 +92,17 @@ export function mountRewardEntitlements({
     if (!customerId || !online()) return;
     status.textContent = "Consultando beneficios y autorizaciones…";
     try {
-      const [data, authority] = await Promise.all([
-        api(`/api/staff/reward-entitlements?customer_id=${encodeURIComponent(customerId)}`),
-        api("/api/staff/hospitality"),
-      ]);
+      const [data, authority] =
+        /** @type {[StaffRewardEntitlementsResponse, StaffHospitalityAuthorityResponse]} */ (
+          await Promise.all([
+            api(`/api/staff/reward-entitlements?customer_id=${encodeURIComponent(customerId)}`),
+            api("/api/staff/hospitality"),
+          ])
+        );
       if (destroyed || generation !== sequence || customerId !== getContext().customerId) return;
       body.replaceChildren();
       onCycle?.(data.cycle);
+      /** @param {string} value */
       const when = (value) =>
         new Intl.DateTimeFormat(data.region?.locale, {
           dateStyle: "short",

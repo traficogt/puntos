@@ -9,6 +9,7 @@ import {
 } from "./program-form.js";
 
 /** @typedef {import("../types.js").AdminDashboardApp} AdminDashboardApp */
+/** @typedef {import("../types.js").SuspiciousAwardRow} SuspiciousAwardRow */
 
 /**
  * @param {AdminDashboardApp} app
@@ -24,11 +25,17 @@ export function createProgramActions(app) {
     return /** @type {HTMLInputElement | HTMLTextAreaElement} */ ($(selector));
   }
 
+  /**
+   * @template T
+   * @param {() => Promise<T>} task
+   * @param {(error: Error) => void} onError Receives what `api()` or `JSON.parse` threw; both throw Errors.
+   * @returns {Promise<T | null>}
+   */
   async function run(task, onError) {
     try {
       return await task();
     } catch (error) {
-      onError(error);
+      onError(/** @type {Error} */ (error));
       return null;
     }
   }
@@ -95,6 +102,7 @@ export function createProgramActions(app) {
     if (!app.hasFeature("external_awards")) return;
     await run(
       async () => {
+        /** @type {{ enabled: boolean, api_key?: string }} */
         const payload = {
           enabled: /** @type {HTMLInputElement} */ ($("#externalAwardsEnabled")).checked,
         };
@@ -119,7 +127,7 @@ export function createProgramActions(app) {
       async () => {
         const q = app.branchQueryString();
         const out = await api(`/api/admin/awards/suspicious?limit=30${q ? `&${q}` : ""}`);
-        const rows = out.awards || [];
+        const rows = /** @type {SuspiciousAwardRow[]} */ (out.awards || []);
         const box = /** @type {HTMLElement} */ ($("#suspiciousAwards"));
         if (!rows.length) {
           box.textContent = "Sin transacciones sospechosas.";
@@ -160,6 +168,7 @@ export function createProgramActions(app) {
     );
   }
 
+  /** @param {string} template */
   async function applyAutomationTemplate(template) {
     await run(
       async () => {

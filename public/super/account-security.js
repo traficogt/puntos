@@ -9,6 +9,10 @@
 export function bindAccountSecurity(ctx, { loadMe }) {
   const { api, toast, run, element, input } = ctx;
 
+  /**
+   * @param {string | null | undefined} secret
+   * @param {string} [otpauthUri]
+   */
   function setPendingSuperMfa(secret, otpauthUri = "") {
     const pendingSuperMfaSecret = String(secret || "").trim();
     const box = element("#superMfaSecret");

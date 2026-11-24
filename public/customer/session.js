@@ -1,15 +1,24 @@
 import { SESSION_SCOPES, newEpochId } from "../session-epoch.js";
 
+/** @typedef {import("../types.js").CustomerApiError} CustomerApiError */
+/** @typedef {import("../types.js").CustomerIdentity} CustomerIdentity */
+/** @typedef {import("../types.js").CustomerQueryFn} CustomerQueryFn */
+
+/** @type {Set<() => void>} */
 const viewCleanups = new Set();
+/** @param {() => void} callback */
 export function onCustomerViewClear(callback) {
   viewCleanups.add(callback);
   return () => viewCleanups.delete(callback);
 }
 const IDENTITY_KEY = "pf_customer_identity";
 const EPOCH_KEY = SESSION_SCOPES.customer.epoch;
+/** @type {Map<string, { value: string, stored: string | undefined }>} */
 const memoryStorage = new Map();
+/** @type {string | undefined} */
 let observedStorageEpoch;
 
+/** @param {string} key */
 export function readCustomerStorage(key) {
   try {
     const epoch = localStorage.getItem(EPOCH_KEY) || "";
@@ -30,7 +39,12 @@ export function readCustomerStorage(key) {
   }
 }
 
+/**
+ * @param {string} key
+ * @param {string} value
+ */
 function writeCustomerStorage(key, value) {
+  /** @type {string | undefined} */
   let stored;
   try {
     stored = localStorage.getItem(key) || "";
@@ -52,6 +66,7 @@ export function getCustomerEpoch() {
   return readCustomerStorage(EPOCH_KEY);
 }
 
+/** @returns {CustomerIdentity | null} */
 export function getCustomerIdentity() {
   try {
     const identity = JSON.parse(readCustomerStorage(IDENTITY_KEY));
@@ -80,6 +95,10 @@ export function invalidateCustomerIdentity({ block = false } = {}) {
   writeCustomerStorage("pf_customer_blocked", block ? "1" : "");
 }
 
+/**
+ * @param {{ business: { id?: string | null, slug?: string | null }, customer: { id?: string | null } }} me
+ * @returns {CustomerIdentity}
+ */
 export function rememberCustomerIdentity(me) {
   const identity = {
     businessId: String(me.business.id),
@@ -97,18 +116,21 @@ export function rememberCustomerIdentity(me) {
   return identity;
 }
 
+/** @param {unknown} error */
 export function isCustomerAuthError(error) {
-  const code = String(error?.code || "");
+  const failure = /** @type {CustomerApiError | null | undefined} */ (error);
+  const code = String(failure?.code || "");
   return (
-    error?.status === 401 ||
+    failure?.status === 401 ||
     code.startsWith("AUTH_") ||
     code === "CUSTOMER_NOT_FOUND" ||
     /^(No autenticado|Token invalido|Customer not found)(?:\s|$)/i.test(
-      String(error?.message || ""),
+      String(failure?.message || ""),
     )
   );
 }
 
+/** @param {CustomerQueryFn} $ */
 export function clearWalletView($) {
   for (const cleanup of viewCleanups) cleanup();
   $("#customerStatement")?.replaceChildren();
@@ -157,7 +179,7 @@ export function clearWalletView($) {
     const element = $(selector);
     if (element) element.replaceChildren();
   }
-  const referralCode = $("#referralCode");
+  const referralCode = /** @type {HTMLInputElement | null} */ ($("#referralCode"));
   if (referralCode) referralCode.value = "";
   const nativeWallet = $("#billeteras");
   if (nativeWallet?.dataset) nativeWallet.dataset.nativeWalletOwner = "";

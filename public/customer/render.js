@@ -59,13 +59,19 @@ export function renderRewards($, points, rewards, options = {}) {
     (!targetChoice || targetChoice.available)
       ? target
       : null;
+  /** @param {number} value */
   const number = (value) => new Intl.NumberFormat("es").format(value);
+  /** @param {string} value */
   const date = (value) =>
     new Intl.DateTimeFormat(options.region?.locale || "es-GT", {
       dateStyle: "medium",
       timeStyle: "short",
       timeZone: options.region?.timezone || "America/Guatemala",
     }).format(new Date(value));
+  /**
+   * @param {string} id
+   * @param {string} value
+   */
   const text = (id, value) => {
     const element = safeEl($, id);
     if (element) element.textContent = value;
@@ -199,12 +205,14 @@ export function renderRewards($, points, rewards, options = {}) {
  * @param {{ locale?: string, timezone?: string, currency?: string }} [region]
  */
 export function renderHistory($, transactions, redemptions, region = undefined) {
+  /** @param {string} value */
   const whenInRegion = (value) =>
     new Intl.DateTimeFormat(region?.locale || "es-GT", {
       dateStyle: "short",
       timeStyle: "short",
       timeZone: region?.timezone || "America/Guatemala",
     }).format(new Date(value));
+  /** @param {number | null | undefined} value */
   const moneyInRegion = (value) =>
     new Intl.NumberFormat(region?.locale || "es-GT", {
       style: "currency",
@@ -288,6 +296,7 @@ export function renderTier($, tier) {
   }
   setHidden(section, false);
 
+  /** @type {Record<number, string>} */
   const icons = {
     1: "🥉", // Bronze
     2: "🥈", // Silver
@@ -301,7 +310,7 @@ export function renderTier($, tier) {
   const progEl = safeEl($, "#tierProgress");
   const barEl = safeEl($, "#tierProgressBar");
 
-  if (iconEl) iconEl.textContent = icons[tier.tier_level] || "⭐";
+  if (iconEl) iconEl.textContent = icons[tier.tier_level ?? 0] || "⭐";
   if (nameEl) nameEl.textContent = tier.name || "Bronce";
   if (multEl) multEl.textContent = `${tier.points_multiplier || 1.0}x puntos`;
 

@@ -1,9 +1,11 @@
 /** @typedef {import("./types.js").SuperCustomerListResponse} SuperCustomerListResponse */
+/** @typedef {import("./types.js").SuperMagicActorView} SuperMagicActorView */
 /** @typedef {import("./types.js").SuperMagicLinkResponse} SuperMagicLinkResponse */
 /** @typedef {import("./types.js").SuperPageContext} SuperPageContext */
 /** @typedef {import("./types.js").SuperStaffListResponse} SuperStaffListResponse */
 /** @typedef {import("./types.js").SuperStaffRow | import("./types.js").SuperCustomerRow} SuperMagicActorRow */
 
+/** @type {Record<string, { value: string, label: string }[]>} */
 const MAGIC_TARGET_OPTIONS = {
   staff: [
     { value: "staff", label: "Escáner" },
@@ -61,6 +63,7 @@ export function createMagicLinks(ctx) {
     box.textContent = role === "OWNER" ? "Uso interno · Un solo uso" : "Uso interno · Un solo uso";
   }
 
+  /** @param {string} text */
   function setMagicOutput(text) {
     element("#magicLinkOutput").textContent = text || "(sin enlace generado)";
   }
@@ -99,6 +102,7 @@ export function createMagicLinks(ctx) {
     targetSel.disabled = mode === "customer";
   }
 
+  /** @param {SuperMagicActorView[]} rows */
   function renderMagicActorOptions(rows) {
     const actorSel = getMagicActorSelect();
     actorSel.replaceChildren();

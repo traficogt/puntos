@@ -15,6 +15,7 @@ import { createSessionEpoch } from "../session-epoch.js";
 import { createWalletNavigation, walletDestination } from "./wallet-navigation.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
+/** @typedef {import("../types.js").CustomerPageDependencies} CustomerPageDependencies */
 
 const session = createSessionEpoch("customer");
 
@@ -49,6 +50,7 @@ async function run(action, onError) {
   }
 }
 
+/** @param {CustomerPageDependencies} deps */
 export async function initCustomerPage({ api, $, toast, mountIosInstallHint, modalAlert }) {
   const entryParams = new URLSearchParams(location.search || "");
   if (entryParams.get("sesion") === "nueva") {

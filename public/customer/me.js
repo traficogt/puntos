@@ -16,12 +16,21 @@ import {
 } from "./render.js";
 
 /** @typedef {import("../types.js").CustomerAchievementsResponse} CustomerAchievementsResponse */
+/** @typedef {import("../types.js").CustomerCardBusiness} CustomerCardBusiness */
 /** @typedef {import("../types.js").CustomerHistoryResponse} CustomerHistoryResponse */
+/** @typedef {import("../types.js").CustomerLoadResult} CustomerLoadResult */
 /** @typedef {import("../types.js").CustomerMeResponse} CustomerMeResponse */
+/** @typedef {import("../types.js").CustomerQueryFn} CustomerQueryFn */
 /** @typedef {import("../types.js").CustomerReferralCodeResponse} CustomerReferralCodeResponse */
 /** @typedef {import("../types.js").CustomerReferralStats} CustomerReferralStats */
 /** @typedef {import("../types.js").CustomerRewardsResponse} CustomerRewardsResponse */
 /** @typedef {import("../types.js").CustomerTierResponse} CustomerTierResponse */
+/** @typedef {{ statement?: import("./statement.js").CustomerStatement | null }} CustomerStatementResponse */
+/**
+ * Cached wallet sections keyed by section name, plus the newest write time; the cache stores
+ * each section's JSON as written, so the renderers below re-read it as untyped data.
+ * @typedef {{ sections?: Record<string, any>, latestUpdatedAt?: string }} CustomerCacheSnapshot
+ */
 
 /**
  * @param {(selector: string) => Element | null} $
@@ -32,6 +41,11 @@ function safeEl($, id) {
   return /** @type {HTMLElement | HTMLInputElement | null} */ ($(id));
 }
 
+/**
+ * @param {CustomerQueryFn} $
+ * @param {boolean} isLive
+ * @param {string | undefined} updatedAt
+ */
 function updateSyncBadge($, isLive, updatedAt) {
   const badge = safeEl($, "#syncBadge");
   if (!badge) return;
@@ -49,7 +63,12 @@ function updateSyncBadge($, isLive, updatedAt) {
   badge.classList.remove("status-online");
 }
 
+/**
+ * @param {CustomerQueryFn} $
+ * @param {CustomerCardBusiness} business
+ */
 function applyCustomerFeatureVisibility($, business) {
+  /** @type {NonNullable<CustomerCardBusiness["features"]>} */
   const features = business?.features || {};
   const referralsSection = safeEl($, "#referralsSection");
   const achievementsSection = safeEl($, "#achievementsSection");
@@ -57,6 +76,10 @@ function applyCustomerFeatureVisibility($, business) {
   setHidden(achievementsSection, !features.gamification);
 }
 
+/**
+ * @param {CustomerQueryFn} $
+ * @param {CustomerCacheSnapshot | null} snapshot
+ */
 function renderOfflineSections($, snapshot) {
   const sections = snapshot?.sections || {};
   const me = sections.me?.customer || {};
@@ -102,10 +125,11 @@ function renderOfflineSections($, snapshot) {
 }
 
 /**
- * @param {{ api: (path: string, opts?: RequestInit) => Promise<any>; $: (selector: string) => Element | null; toast: (message: string) => void; isCurrent?: () => boolean; identity?: {businessId: string, customerId: string} | null }} deps
+ * @param {{ api: (path: string, opts?: RequestInit) => Promise<any>; $: CustomerQueryFn; toast: (message: string) => void; isCurrent?: () => boolean; identity?: {businessId: string, customerId: string} | null }} deps
  * @param {CustomerMeResponse} me
  * @param {boolean} isLive
- * @param {{ sections?: Record<string, any>, latestUpdatedAt?: string } | null} [snapshot]
+ * @param {CustomerCacheSnapshot | null} [snapshot]
+ * @returns {Promise<CustomerLoadResult>}
  */
 export async function renderFromMe(
   { api, $, toast, isCurrent = () => true, identity = null },
@@ -240,6 +264,13 @@ export async function renderFromMe(
 
   if (isLive) {
     let partial = false;
+    /**
+     * @template T
+     * @param {string} key
+     * @param {string} path
+     * @param {(data: T, fresh: boolean) => void} render
+     * @param {() => void} [unavailable]
+     */
     async function loadSection(key, path, render, unavailable) {
       if (!isCurrent()) return;
       try {
@@ -259,7 +290,7 @@ export async function renderFromMe(
     await loadSection(
       "rewards",
       "/api/customer/rewards",
-      (data, fresh) => {
+      (/** @type {CustomerRewardsResponse} */ data, fresh) => {
         if (fresh && data.progress) {
           if (points) points.textContent = String(data.progress.available_points);
           if (pendingPoints) pendingPoints.textContent = String(data.progress.pending_points);
@@ -283,7 +314,8 @@ export async function renderFromMe(
     await loadSection(
       "history",
       "/api/customer/history",
-      (data) => renderHistory($, data.transactions, data.redemptions, me?.business?.region),
+      (/** @type {CustomerHistoryResponse} */ data) =>
+        renderHistory($, data.transactions, data.redemptions, me?.business?.region),
       () => {
         for (const selector of ["#tx", "#red"]) {
           const element = safeEl($, selector);
@@ -295,28 +327,36 @@ export async function renderFromMe(
     await loadSection(
       "statement",
       "/api/customer/statement",
-      (data, fresh) => renderStatement($, data.statement, { isLive: fresh, region: biz?.region }),
+      (/** @type {CustomerStatementResponse} */ data, fresh) =>
+        renderStatement($, data.statement, { isLive: fresh, region: biz?.region }),
       () => renderStatement($, null, { isLive: true }),
     );
     if (biz?.features?.tiers) {
       await loadSection(
         "tier",
         "/api/customer/tier",
-        (data) => renderTier($, data.tier),
+        (/** @type {CustomerTierResponse} */ data) => renderTier($, data.tier),
         () => setHidden(safeEl($, "#tierSection"), true),
       );
     } else setHidden(safeEl($, "#tierSection"), true);
     if (biz?.features?.gamification) {
-      await loadSection("achievements", "/api/customer/achievements", (data) =>
-        renderAchievements($, data),
+      await loadSection(
+        "achievements",
+        "/api/customer/achievements",
+        (/** @type {CustomerAchievementsResponse} */ data) => renderAchievements($, data),
       );
     }
     if (biz?.features?.referrals) {
-      await loadSection("referralCode", "/api/customer/referral-code", (data) =>
-        renderReferralCode($, data.referral_code),
+      await loadSection(
+        "referralCode",
+        "/api/customer/referral-code",
+        (/** @type {CustomerReferralCodeResponse} */ data) =>
+          renderReferralCode($, data.referral_code),
       );
-      await loadSection("referralStats", "/api/customer/referrals", (data) =>
-        renderReferralStats($, data),
+      await loadSection(
+        "referralStats",
+        "/api/customer/referrals",
+        (/** @type {CustomerReferralStats} */ data) => renderReferralStats($, data),
       );
     }
     if (!isCurrent()) return { status: "superseded" };

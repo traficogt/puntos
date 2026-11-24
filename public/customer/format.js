@@ -1,4 +1,7 @@
-/** @param {{ locale?: string, timezone?: string }} [region] */
+/**
+ * @param {string | number | Date | null | undefined} s
+ * @param {{ locale?: string, timezone?: string }} [region]
+ */
 export function fmtDT(s, region = undefined) {
   if (!s) return "—";
   const d = new Date(s);

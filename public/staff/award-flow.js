@@ -10,6 +10,7 @@ import { createAwardQueue } from "./award-queue.js";
 import { isNetworkFailure } from "./session.js";
 
 /** @typedef {import("./types.js").StaffAwardResponse} StaffAwardResponse */
+/** @typedef {import("./types.js").StaffAwardScope} StaffAwardScope */
 /** @typedef {import("./types.js").StaffPageContext} StaffPageContext */
 
 /**
@@ -67,6 +68,10 @@ export function createAwardFlow(ctx, { session, surface }) {
     await refreshQueue();
   }
 
+  /**
+   * @param {string} token
+   * @param {StaffAwardScope | null} scope
+   */
   async function award(token, scope) {
     const selectionAtRequest = state.customerSelectionRevision;
     const scopeAtRequest = JSON.stringify([scope, state.staff?.branch_id ?? null]);

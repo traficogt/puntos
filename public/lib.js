@@ -4,6 +4,7 @@ const CSRF_COOKIE = "pf_csrf_readable";
 const CSRF_STORAGE_KEY = "pf_csrf_token";
 const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+/** @type {Record<string, string>} */
 const ERROR_BY_CODE = {
   AUTH_REQUIRED: "No autenticado",
   AUTH_INVALID_TOKEN: "Token invalido",
@@ -22,11 +23,25 @@ const ERROR_BY_CODE = {
 
 let csrfTokenMemory = "";
 
+/**
+ * Deployment settings the server injects into the page before this module loads.
+ * @typedef {{
+ *   apiBaseUrl?: string,
+ *   publicWebOrigin?: string,
+ *   appOrigin?: string,
+ *   marketingOrigin?: string,
+ *   shell?: string,
+ * }} RuntimeConfig
+ */
+
+/** @returns {RuntimeConfig} */
 function readRuntimeConfig() {
-  const runtime = globalThis?.[RUNTIME_CONFIG_KEY];
-  return runtime && typeof runtime === "object" ? runtime : {};
+  const scope = /** @type {Record<string, unknown>} */ (globalThis);
+  const runtime = scope?.[RUNTIME_CONFIG_KEY];
+  return runtime && typeof runtime === "object" ? /** @type {RuntimeConfig} */ (runtime) : {};
 }
 
+/** @param {unknown} value */
 function normalizeBaseUrl(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
@@ -37,10 +52,15 @@ function normalizeBaseUrl(value) {
   }
 }
 
+/** @param {unknown} value */
 function isAbsoluteUrl(value) {
   return /^[a-z][a-z\d+\-.]*:/i.test(String(value || ""));
 }
 
+/**
+ * @param {string} path
+ * @param {string} base
+ */
 function withBase(path, base) {
   const rawPath = String(path || "").trim();
   if (!rawPath) return base || "";
@@ -71,6 +91,7 @@ function readStoredCsrfToken() {
   return csrfTokenMemory;
 }
 
+/** @param {unknown} token */
 function storeCsrfToken(token) {
   const nextToken = String(token || "").trim();
   if (!nextToken) return;
@@ -99,18 +120,22 @@ export function getMarketingOrigin() {
   return normalizeBaseUrl(readRuntimeConfig().marketingOrigin);
 }
 
+/** @param {string} path */
 export function apiUrl(path) {
   return withBase(path, getApiBaseUrl());
 }
 
+/** @param {string} path */
 export function publicUrl(path) {
   return withBase(path, getPublicWebOrigin());
 }
 
+/** @param {string} path */
 export function appUrl(path) {
   return withBase(path, getAppOrigin() || getPublicWebOrigin());
 }
 
+/** @param {string} path */
 export function marketingUrl(path) {
   return withBase(path, getMarketingOrigin() || getPublicWebOrigin());
 }
@@ -189,11 +214,13 @@ export async function api(path, { rawError = false, ...opts } = {}) {
     const requestId =
       (typeof bodyRequestId === "string" && bodyRequestId) || res.headers.get("x-request-id") || "";
     const serverError = typeof data?.error === "string" ? data.error : "";
+    // The server's `error` is the message text or, for validation failures, a detail object.
+    const bodyError = /** @type {string | Record<string, unknown> | undefined} */ (data?.error);
     let err = rawError
-      ? (data?.error ?? "")
+      ? (bodyError ?? "")
       : serverError === "MFA_REQUIRED"
         ? "Se requiere código MFA"
-        : ERROR_BY_CODE[code] || data?.error || `HTTP ${res.status}`;
+        : ERROR_BY_CODE[code] || bodyError || `HTTP ${res.status}`;
     if (err && typeof err === "object") {
       // A non-null object narrows to `object`; read its optional fields through a record view.
       const shape = /** @type {Record<string, unknown>} */ (err);
@@ -288,9 +315,11 @@ export async function api(path, { rawError = false, ...opts } = {}) {
   return data;
 }
 
+/** @param {string} sel */
 export function $(sel) {
   return document.querySelector(sel);
 }
+/** @param {string} sel */
 export function $all(sel) {
   return [...document.querySelectorAll(sel)];
 }
@@ -362,6 +391,7 @@ export function registerServiceWorker() {
     .catch(() => null);
 }
 
+/** @param {string} msg */
 export function toast(msg) {
   const t = /** @type {(HTMLElement & { _to?: ReturnType<typeof setTimeout> }) | null} */ (
     document.querySelector("#toast")
@@ -384,10 +414,12 @@ export function toast(msg) {
   }, 3200);
 }
 
+/** @param {unknown} n */
 export function fmtQ(n) {
   return regionalMoney(n);
 }
 
+/** @param {unknown} value */
 export function isStrongPassword(value) {
   const password = String(value || "");
   return password.length >= 8 && password.length <= 128 && password.trim().length >= 1;
@@ -401,6 +433,25 @@ function canRenderModal() {
   return typeof document !== "undefined" && Boolean(document.body);
 }
 
+/**
+ * @typedef {{
+ *   title?: string,
+ *   message: string,
+ *   pre?: boolean,
+ *   input?: boolean,
+ *   inputType?: string,
+ *   value?: string,
+ *   placeholder?: string,
+ *   confirmText?: string,
+ *   cancelText?: string,
+ *   showCancel?: boolean,
+ * }} ModalOptions
+ */
+
+/**
+ * @param {ModalOptions} options
+ * @returns {Promise<boolean | string | null>} The confirmation, or the typed value (`null` when dismissed).
+ */
 function openModal({
   title,
   message,
@@ -470,11 +521,13 @@ function openModal({
       document.removeEventListener("keydown", onKeydown);
     };
 
+    /** @param {boolean | string | null} result */
     const close = (result) => {
       cleanup();
       resolve(result);
     };
 
+    /** @param {KeyboardEvent} e */
     const onKeydown = (e) => {
       if (e.key === "Escape") {
         close(input ? null : false);
@@ -509,6 +562,10 @@ function openModal({
   });
 }
 
+/**
+ * @param {string} message
+ * @param {{ title?: string, pre?: boolean, confirmText?: string }} [opts]
+ */
 export function modalAlert(message, opts = {}) {
   return openModal({
     title: opts.title || "Aviso",
@@ -519,6 +576,10 @@ export function modalAlert(message, opts = {}) {
   });
 }
 
+/**
+ * @param {string} message
+ * @param {{ title?: string, confirmText?: string, cancelText?: string }} [opts]
+ */
 export function modalConfirm(message, opts = {}) {
   return openModal({
     title: opts.title || "Confirmar",
@@ -529,6 +590,10 @@ export function modalConfirm(message, opts = {}) {
   }).then((result) => Boolean(result));
 }
 
+/**
+ * @param {string} message
+ * @param {{ title?: string, inputType?: string, value?: string, placeholder?: string, confirmText?: string, cancelText?: string }} [opts]
+ */
 export function modalPrompt(message, opts = {}) {
   return openModal({
     title: opts.title || "Ingresar",
@@ -627,6 +692,7 @@ let browserRegion = {
   timezone: "America/Guatemala",
   minorUnits: 2,
 };
+/** @param {Partial<typeof browserRegion>} [region] */
 export function setBrowserRegion(region) {
   browserRegion = {
     currency: "GTQ",
@@ -639,6 +705,7 @@ export function setBrowserRegion(region) {
 export function currentBrowserRegion() {
   return browserRegion;
 }
+/** @param {unknown} value */
 export function regionalMoney(value) {
   return new Intl.NumberFormat(browserRegion.locale, {
     style: "currency",

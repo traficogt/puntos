@@ -1,4 +1,12 @@
 import { regionalMoney } from "/lib.js";
+/** @typedef {import("../../types.js").QueryFn} QueryFn */
+/** @typedef {{ roi?: Record<string, unknown> } | null | undefined} RoiReport */
+/** @typedef {{ alerts?: Array<Record<string, unknown>> } | null | undefined} AlertsCenter */
+/** @typedef {{ count?: number, customers?: unknown[] } | null | undefined} ChurnData */
+/** @typedef {Array<Record<string, unknown>> | null | undefined} BranchPerformance */
+/** @typedef {ReturnType<typeof executiveMetrics>} ExecutiveMetrics */
+
+/** @param {unknown} value @param {string} [fallback] */
 function formatCount(value, fallback = "--") {
   if (value === null || value === undefined || value === "") return fallback;
   const num = Number(value);
@@ -6,6 +14,7 @@ function formatCount(value, fallback = "--") {
   return new Intl.NumberFormat("es-GT", { maximumFractionDigits: 0 }).format(num);
 }
 
+/** @param {unknown} value @param {string} [fallback] */
 function formatCurrency(value, fallback = "--") {
   if (value === null || value === undefined || value === "") return fallback;
   const num = Number(value);
@@ -13,6 +22,7 @@ function formatCurrency(value, fallback = "--") {
   return regionalMoney(num);
 }
 
+/** @param {unknown} value @param {string} [fallback] */
 function formatPercent(value, fallback = "--") {
   if (value === null || value === undefined || value === "") return fallback;
   const num = Number(value);
@@ -20,6 +30,7 @@ function formatPercent(value, fallback = "--") {
   return `${num.toFixed(1)}%`;
 }
 
+/** @param {unknown} value @param {string} [fallback] */
 function formatSignedPercent(value, fallback = "--") {
   if (value === null || value === undefined || value === "") return fallback;
   const num = Number(value);
@@ -28,6 +39,7 @@ function formatSignedPercent(value, fallback = "--") {
   return `${sign}${num.toFixed(1)}%`;
 }
 
+/** @param {unknown} value @param {string} [fallback] */
 function formatFrequency(value, fallback = "--") {
   if (value === null || value === undefined || value === "") return fallback;
   const num = Number(value);
@@ -35,6 +47,7 @@ function formatFrequency(value, fallback = "--") {
   return `${num.toFixed(2)}x`;
 }
 
+/** @param {unknown} value @param {string} [fallback] */
 function formatRatio(value, fallback = "--") {
   if (value === null || value === undefined || value === "") return fallback;
   const num = Number(value);
@@ -42,11 +55,21 @@ function formatRatio(value, fallback = "--") {
   return `${num.toFixed(2)}x`;
 }
 
+/**
+ * @param {QueryFn} $
+ * @param {string} selector
+ * @param {string} value
+ */
 function setText($, selector, value) {
   const node = $(selector);
   if (node) node.textContent = value;
 }
 
+/**
+ * @param {QueryFn} $
+ * @param {string} selector
+ * @param {string[]} items
+ */
 function setList($, selector, items) {
   const node = $(selector);
   if (!node) return;
@@ -58,10 +81,14 @@ function setList($, selector, items) {
   });
 }
 
+/** @param {BranchPerformance} branchPerformance */
 function firstBranchRow(branchPerformance) {
   return Array.isArray(branchPerformance) && branchPerformance.length ? branchPerformance[0] : null;
 }
 
+/**
+ * @param {{ branchId: string | null, activeCustomers: number | null, totalCustomers: number, roi: Record<string, unknown> }} input
+ */
 function computeRetentionRate({ branchId, activeCustomers, totalCustomers, roi }) {
   if (branchId && Number(totalCustomers) > 0 && Number(activeCustomers) >= 0) {
     return (Number(activeCustomers) / Number(totalCustomers)) * 100;
@@ -78,7 +105,11 @@ function computeRetentionRate({ branchId, activeCustomers, totalCustomers, roi }
   return null;
 }
 
+/**
+ * @param {{ summary: Record<string, unknown>, roiReport: RoiReport, branchPerformance: BranchPerformance, branchId: string | null }} input
+ */
 function executiveMetrics({ summary, roiReport, branchPerformance, branchId }) {
+  /** @type {Record<string, unknown>} */
   const roi = roiReport?.roi || {};
   const branchRow = firstBranchRow(branchPerformance);
   const totalCustomers = Number(summary?.total_customers || 0);
@@ -123,6 +154,9 @@ function executiveMetrics({ summary, roiReport, branchPerformance, branchId }) {
   };
 }
 
+/**
+ * @param {{ branchLabel: string, metrics: ExecutiveMetrics, churnData: ChurnData, alertsCenter: AlertsCenter, branchId: string | null }} input
+ */
 export function adminExecutiveNarrative({
   branchLabel,
   metrics,
@@ -131,8 +165,9 @@ export function adminExecutiveNarrative({
   branchId,
 }) {
   const riskCount = Number(churnData?.count ?? churnData?.customers?.length ?? 0);
-  const hasAlertsReading = Array.isArray(alertsCenter?.alerts);
-  const alertCount = hasAlertsReading ? alertsCenter.alerts.length : null;
+  const alerts = Array.isArray(alertsCenter?.alerts) ? alertsCenter.alerts : null;
+  const hasAlertsReading = alerts !== null;
+  const alertCount = alerts ? alerts.length : null;
   const retentionText =
     metrics.retentionRate !== null
       ? formatPercent(metrics.retentionRate)
@@ -149,12 +184,16 @@ export function adminExecutiveNarrative({
   return `${branchLabel || "Todo el negocio"} mantiene ${formatCount(metrics.activeCustomers)} clientes activos, sumó ${formatCount(metrics.newCustomers)} nuevos en 30 días, retiene ${retentionText} ${growthText}; hoy hay ${formatCount(riskCount)} clientes en riesgo alto y ${alertsText}.`;
 }
 
+/**
+ * @param {{ metrics: ExecutiveMetrics, churnData: ChurnData, alertsCenter: AlertsCenter, branchId: string | null }} input
+ */
 export function adminSuggestedActions({ metrics, churnData, alertsCenter, branchId }) {
   const riskCount = Number(churnData?.count ?? churnData?.customers?.length ?? 0);
   const alerts = Array.isArray(alertsCenter?.alerts) ? alertsCenter.alerts : null;
   const highAlerts = alerts
     ? alerts.filter((alert) => String(alert?.severity || "").toUpperCase() === "HIGH").length
     : 0;
+  /** @type {string[]} */
   const actions = [];
   const alertsScope = branchId ? " como referencia global" : "";
   const roiScope = branchId ? " como referencia global" : "";
@@ -190,6 +229,18 @@ export function adminSuggestedActions({ metrics, churnData, alertsCenter, branch
   return actions.slice(0, 3);
 }
 
+/**
+ * @param {{
+ *   $: QueryFn,
+ *   summary: Record<string, unknown>,
+ *   roiReport: RoiReport,
+ *   churnData: ChurnData,
+ *   alertsCenter: AlertsCenter,
+ *   branchLabel: string,
+ *   branchPerformance: BranchPerformance,
+ *   branchId: string | null,
+ * }} input
+ */
 export function renderExecutiveSummary({
   $,
   summary,

@@ -162,3 +162,12 @@ export interface SuperPageContext extends SuperPageDependencies {
     onError?: (error: Error & { status?: number; code?: string }) => T | null | Promise<T | null>,
   ): Promise<T | null>;
 }
+
+/** Actor rows as the magic-link picker reads them: staff rows carry email and role, customer rows do not. */
+export interface SuperMagicActorView {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role?: string;
+}

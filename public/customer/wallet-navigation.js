@@ -1,17 +1,29 @@
 import { getCustomerEpoch } from "./session.js";
 
-// Wallet links select a browser section; authentication is always checked separately.
+/** @typedef {import("../types.js").CustomerLoadResult} CustomerLoadResult */
+/** @typedef {import("../types.js").CustomerQueryFn} CustomerQueryFn */
+
+/**
+ * Wallet links select a browser section; authentication is always checked separately.
+ * @param {string} value
+ */
 export function walletDestination(value) {
   return value === "ofertas" || value === "beneficios" ? value : "";
 }
 
+/** @param {{ $: CustomerQueryFn }} deps */
 export function createWalletNavigation({ $ }) {
+  /** @type {string | undefined} */
   let observedHash;
   let pending = false;
   let ready = false;
   let readyEpoch = "";
 
-  const visible = (element) => element && !element.closest("[hidden], .is-hidden");
+  /**
+   * @param {HTMLElement | null | undefined} element
+   * @returns {element is HTMLElement}
+   */
+  const visible = (element) => Boolean(element && !element.closest("[hidden], .is-hidden"));
 
   function navigate() {
     const hash = location.hash || "";
@@ -34,7 +46,7 @@ export function createWalletNavigation({ $ }) {
     const fallback = destination === "ofertas" ? $("#rewards")?.parentElement : $("#bizName");
     const target = visible(section) ? section : fallback;
     if (!visible(target)) return;
-    const heading = target.querySelector("h1, h2") || target;
+    const heading = /** @type {HTMLElement | null} */ (target.querySelector("h1, h2")) || target;
     heading.setAttribute("tabindex", "-1");
     // Consume before focus: window focus revalidation must not navigate again.
     pending = false;
@@ -47,6 +59,7 @@ export function createWalletNavigation({ $ }) {
     pause() {
       ready = false;
     },
+    /** @param {CustomerLoadResult | null | undefined} result */
     afterLoad(result) {
       if (result?.status === "superseded") return;
       // Saved offline content stays labeled by the existing wallet UI. Wait for

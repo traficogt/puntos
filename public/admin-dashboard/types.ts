@@ -5,7 +5,10 @@ export type QueryFn = <T extends Element = HTMLElement>(selector: string) => T |
 export type ToastFn = (message: string) => void;
 export type AlertFn = (message: string, opts?: Record<string, unknown>) => MaybePromise<unknown>;
 export type ConfirmFn = (message: string, opts?: Record<string, unknown>) => MaybePromise<boolean>;
-export type PromptFn = (message: string, opts?: Record<string, unknown>) => MaybePromise<string | null>;
+export type PromptFn = (
+  message: string,
+  opts?: Record<string, unknown>,
+) => MaybePromise<string | null>;
 
 export interface DashboardStaff {
   role: string;
@@ -105,18 +108,26 @@ export interface AnalyticsAuditController extends AnalyticsController {
 
 export interface AnalyticsOperationsController extends AnalyticsController {
   loadOpsSummary(): Promise<void>;
-  loadRoiReport(prefetched?: { roi?: Record<string, unknown> } | null): Promise<{ roi?: Record<string, unknown> } | null>;
+  loadRoiReport(
+    prefetched?: { roi?: Record<string, unknown> } | null,
+  ): Promise<{ roi?: Record<string, unknown> } | null>;
   loadJobsStatus(): Promise<void>;
   loadPaymentPending(): Promise<void>;
-  loadAlertsCenter(prefetched?: { alerts?: Array<Record<string, unknown>> } | null): Promise<{ alerts?: Array<Record<string, unknown>> } | null>;
+  loadAlertsCenter(
+    prefetched?: { alerts?: Array<Record<string, unknown>> } | null,
+  ): Promise<{ alerts?: Array<Record<string, unknown>> } | null>;
 }
 
 export interface AnalyticsDashboardDeps {
   loadOpsSummary(): Promise<void>;
-  loadRoiReport(prefetched?: { roi?: Record<string, unknown> } | null): Promise<{ roi?: Record<string, unknown> } | null>;
+  loadRoiReport(
+    prefetched?: { roi?: Record<string, unknown> } | null,
+  ): Promise<{ roi?: Record<string, unknown> } | null>;
   loadJobsStatus(): Promise<void>;
   loadPaymentPending(): Promise<void>;
-  loadAlertsCenter(prefetched?: { alerts?: Array<Record<string, unknown>> } | null): Promise<{ alerts?: Array<Record<string, unknown>> } | null>;
+  loadAlertsCenter(
+    prefetched?: { alerts?: Array<Record<string, unknown>> } | null,
+  ): Promise<{ alerts?: Array<Record<string, unknown>> } | null>;
   loadAuditTimeline(): Promise<void>;
 }
 
@@ -252,4 +263,118 @@ export interface ProgramPayload {
 export interface ExternalAwardsConfig {
   enabled?: boolean;
   has_api_key?: boolean;
+}
+
+/** Row of `/api/admin/awards/suspicious` (fields the operations panel prints). */
+export interface SuspiciousAwardRow {
+  created_at: string;
+  staff_name?: string | null;
+  staff_email?: string | null;
+  staff_user_id?: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  customer_id: string;
+  guard?: { reasons?: string[] } | null;
+  branch_name?: string | null;
+  branch_id?: string | null;
+  points: number;
+  amount_q?: number | null;
+}
+
+/** Audit event as `/api/admin/audit` lists it (fields the timeline reads). */
+export interface AuditEvent {
+  id: string;
+  action: string;
+  created_at?: string | null;
+  actor_name?: string | null;
+  actor_email?: string | null;
+  actor_type?: string | null;
+  meta?: Record<string, unknown> | null;
+}
+/** `/api/admin/audit/:id`: the event with the records it touched. */
+export interface AuditEventDetail {
+  event: AuditEvent;
+  linked?: {
+    transaction?: {
+      id: string;
+      customer_name?: string | null;
+      customer_phone?: string | null;
+      source?: string;
+      status?: string;
+      points?: number | null;
+    } | null;
+    reversal_transaction?: {
+      id: string;
+      status?: string;
+      points?: number | null;
+      reversal_reason?: string | null;
+    } | null;
+    redemption?: {
+      code?: string;
+      reward_name?: string;
+      customer_name?: string | null;
+      customer_phone?: string | null;
+      points_cost?: number | null;
+    } | null;
+    gift_card?: { code?: string; balance_q?: number | null; status?: string } | null;
+    gift_card_transaction?: {
+      tx_type?: string;
+      amount_q?: number | null;
+      balance_after_q?: number | null;
+    } | null;
+  } | null;
+}
+
+/** Background job row from `/api/admin/jobs`. */
+export interface AdminJobRow {
+  job_type: string;
+  status?: string;
+  created_at?: string | null;
+  attempts?: number;
+  error?: string | null;
+}
+/** Payment webhook awaiting a customer mapping (`/api/admin/payment-webhooks`). */
+export interface AdminPaymentEvent {
+  id: string;
+  provider?: string | null;
+  provider_event_id?: string | null;
+  created_at?: string | null;
+  amount_q?: number | string | null;
+  customer_phone?: string | null;
+}
+
+/** POS sales review (`/api/admin/pos/csv/preview`, `/api/admin/pos/loyverse/preview`). */
+export interface PosSalesPreview {
+  headers?: string[];
+  summary?: {
+    total?: number;
+    ready?: number;
+    duplicates?: number;
+    ignored?: number;
+    errors?: number;
+  };
+  rows?: Array<{
+    row?: number | null;
+    saleId?: string | null;
+    customerPhone?: string | null;
+    amountQ?: number | string | null;
+    points?: number | null;
+    status: string;
+    message?: string | null;
+  }>;
+  has_more?: boolean;
+}
+/** Outcome of a POS import or sync. */
+export interface PosImportResult {
+  awarded?: number;
+  duplicates?: number;
+  ignored?: number;
+  errors?: number;
+  has_more?: boolean;
+  issues?: Array<{
+    saleId?: string | null;
+    row?: number | null;
+    message?: string | null;
+    code?: string | null;
+  }>;
 }

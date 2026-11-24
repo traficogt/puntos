@@ -4,6 +4,7 @@ function node(tag, text) {
   if (text !== undefined) el.textContent = text;
   return el;
 }
+/** @type {Record<string, string>} */
 const labels = {
   pending: "Pendiente en caja",
   recorded: "Registrado en caja",
@@ -24,8 +25,17 @@ const labels = {
  * }} PosFulfillment
  * @typedef {{ id?: string, customer_id?: string, points_restored?: boolean }} PosRedemption
  */
+/**
+ * @param {{
+ *   container: HTMLElement | null,
+ *   api: import("./types.js").StaffApiFn,
+ *   getContext: () => import("./types.js").StaffPanelContext,
+ * }} options
+ */
 export function mountPosRecording({ container, api, getContext }) {
   if (!container) return { contextChanged() {}, showRedemption() {}, destroy() {} };
+  // Non-null binding for the hoisted clear() below; the early return already excluded null.
+  const panel = container;
   let destroyed = false,
     generation = 0,
     busy = false;
@@ -44,6 +54,7 @@ export function mountPosRecording({ container, api, getContext }) {
     return JSON.stringify([c.customerId, c.staffId, c.businessId, c.branchId ?? null]);
   };
   const online = () => navigator.onLine && getContext().online;
+  /** @param {number} token */
   const current = (token) => !destroyed && token === generation && scope === contextKey();
   const heading = node("h2", "Siguiente paso: registrar en caja"),
     confirmed = node("p"),
@@ -266,8 +277,8 @@ export function mountPosRecording({ container, api, getContext }) {
     busy = false;
     updateControls = null;
     scope = null;
-    container.replaceChildren();
-    container.hidden = true;
+    panel.replaceChildren();
+    panel.hidden = true;
   }
   function contextChanged() {
     if (destroyed) return;
@@ -285,6 +296,7 @@ export function mountPosRecording({ container, api, getContext }) {
   window.addEventListener("online", contextChanged);
   return {
     contextChanged,
+    /** @param {{ redemptionId?: string, redemptionCode?: string, customerId?: string | null } | null} [result] */
     showRedemption(result) {
       if (
         destroyed ||

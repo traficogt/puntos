@@ -18,6 +18,13 @@ export function renderStatement($, statement, { isLive = false, region = undefin
   const root = $("#customerStatement");
   if (!root) return;
   root.replaceChildren();
+  /**
+   * @template {keyof HTMLElementTagNameMap} K
+   * @param {K} tag
+   * @param {string} text
+   * @param {string} [className]
+   * @returns {HTMLElementTagNameMap[K]}
+   */
   const append = (tag, text, className = "") => {
     const element = document.createElement(tag);
     element.textContent = text;
@@ -35,7 +42,9 @@ export function renderStatement($, statement, { isLive = false, region = undefin
     );
     return;
   }
+  /** @param {number} value */
   const number = (value) => new Intl.NumberFormat(region?.locale || "es-GT").format(value);
+  /** @param {string} value */
   const date = (value) =>
     new Intl.DateTimeFormat(region?.locale || "es-GT", {
       dateStyle: "medium",

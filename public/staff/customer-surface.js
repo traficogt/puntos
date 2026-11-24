@@ -212,6 +212,10 @@ export function createCustomerSurface(ctx, { session, rules, walletPanel }) {
     return JSON.stringify([session.currentScope(), state.staff?.branch_id ?? null]);
   }
 
+  /**
+   * @param {string | null | undefined} token
+   * @param {{ silent?: boolean }} [options]
+   */
   async function selectCustomerFromToken(token, { silent = true } = {}) {
     const trimmed = String(token || "").trim();
     if (!trimmed) {

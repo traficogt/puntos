@@ -1,5 +1,6 @@
 import { setHidden } from "/lib.js";
 import { isCustomerAuthError } from "./session.js";
+/** @param {import("../types.js").CustomerQueryFn} $ */
 export function clearGrowthOffers($) {
   const list = $("#growthOffers");
   if (list) list.replaceChildren();

@@ -1,21 +1,43 @@
+/** @typedef {import("../types.js").CustomerApiError} CustomerApiError */
+/** @typedef {import("../types.js").CustomerApiFn} CustomerApiFn */
+/** @typedef {import("../types.js").CustomerIdentityScope} CustomerIdentityScope */
+/** @typedef {import("../types.js").CustomerNativeWalletStatus} CustomerNativeWalletStatus */
+/** @typedef {import("../types.js").NativeWalletControl} NativeWalletControl */
+
+/**
+ * Per-panel issuance state; `isCurrent` is swapped when a newer render adopts the panel.
+ * @typedef {{ owner: string, isCurrent: () => boolean, live: boolean, busy: boolean, ready: boolean }} NativeWalletPanel
+ */
+
+/** @type {WeakMap<NativeWalletControl, NativeWalletPanel>} */
 const panels = new WeakMap();
 const OFFLINE_MESSAGE =
   "Tu tarjeta guardada sigue disponible sin conexión. El saldo se actualiza al recuperar la conexión.";
 
+/**
+ * @param {NativeWalletControl | null} element
+ * @param {boolean} value
+ */
 function hidden(element, value) {
   if (!element) return;
   element.hidden = value;
   element.classList.toggle("is-hidden", value);
 }
 
+/** @param {unknown} error */
 function isAuthError(error) {
+  const failure = /** @type {CustomerApiError | null | undefined} */ (error);
   return (
-    error?.status === 401 ||
-    String(error?.code || "").startsWith("AUTH_") ||
-    error?.code === "CUSTOMER_NOT_FOUND"
+    failure?.status === 401 ||
+    String(failure?.code || "").startsWith("AUTH_") ||
+    failure?.code === "CUSTOMER_NOT_FOUND"
   );
 }
 
+/**
+ * @param {string} provider
+ * @param {unknown} url
+ */
 function safeDestination(provider, url) {
   if (provider === "apple") return url === "/api/customer/wallet/apple/download";
   return (
@@ -26,7 +48,18 @@ function safeDestination(provider, url) {
   );
 }
 
-/** Native issuance URLs stay in this request's memory and never enter browser storage. */
+/**
+ * Native issuance URLs stay in this request's memory and never enter browser storage.
+ * @param {{
+ *   api: CustomerApiFn,
+ *   $: (selector: string) => NativeWalletControl | null,
+ *   identity: CustomerIdentityScope,
+ *   isCurrent?: () => boolean,
+ *   navigate?: (url: string) => void,
+ *   isOnline?: () => boolean,
+ * }} deps
+ * @param {boolean} isLive
+ */
 export async function renderNativeWallet(
   {
     api,
@@ -40,16 +73,22 @@ export async function renderNativeWallet(
 ) {
   const root = $("#billeteras");
   if (!root || !isCurrent()) return;
+  // Non-null binding for the hoisted mutate() below; the early return already excluded null.
+  const panel = root;
+  // The wallet fragment ships these controls with the section; a missing one is a markup defect.
+  /** @param {string} selector */
+  const control = (selector) => /** @type {NativeWalletControl} */ ($(selector));
   const owner = `${identity.businessId}:${identity.customerId}`;
-  const apple = $("#btnAppleWallet");
-  const google = $("#btnGoogleWallet");
-  const revoke = $("#btnRevokeWallet");
-  const confirm = $("#btnConfirmRevokeWallet");
-  const cancel = $("#btnCancelRevokeWallet");
-  const confirmation = $("#nativeWalletConfirm");
-  const status = $("#nativeWalletStatus");
+  const apple = control("#btnAppleWallet");
+  const google = control("#btnGoogleWallet");
+  const revoke = control("#btnRevokeWallet");
+  const confirm = control("#btnConfirmRevokeWallet");
+  const cancel = control("#btnCancelRevokeWallet");
+  const confirmation = control("#nativeWalletConfirm");
+  const status = control("#nativeWalletStatus");
   const previous = panels.get(root);
   const controls = [apple, google, revoke, confirm, cancel];
+  /** @param {boolean} value */
   const setDisabled = (value) =>
     controls.forEach((control) => {
       if (control) control.disabled = value;
@@ -78,6 +117,7 @@ export async function renderNativeWallet(
     return;
   }
 
+  /** @type {NativeWalletPanel} */
   const state = { owner, isCurrent, live: true, busy: false, ready: false };
   panels.set(root, state);
   const current = () =>
@@ -100,11 +140,15 @@ export async function renderNativeWallet(
   }
 
   try {
-    const data = await api("/api/customer/wallet");
+    const data = /** @type {CustomerNativeWalletStatus | null} */ (
+      await api("/api/customer/wallet")
+    );
     if (!current()) return;
+    /** @type {NonNullable<CustomerNativeWalletStatus["providers"]>} */
     const available = data?.providers || {};
     const canIssue = available.apple === true || available.google === true;
-    const hasPasses = Array.isArray(data?.passes) && data.passes.length > 0;
+    const passes = data?.passes;
+    const hasPasses = Array.isArray(passes) && passes.length > 0;
     state.ready = canIssue || hasPasses;
     hidden(root, !state.ready);
     if (!state.ready) return;
@@ -126,16 +170,17 @@ export async function renderNativeWallet(
     return;
   }
 
+  /** @param {"apple" | "google" | "revoke"} provider */
   async function mutate(provider) {
     if (!canAct()) return;
     state.busy = true;
     setDisabled(true);
-    root.setAttribute("aria-busy", "true");
+    panel.setAttribute("aria-busy", "true");
     status.textContent =
       provider === "revoke" ? "Desactivando tarjetas…" : "Preparando tu tarjeta…";
     try {
       const result = await api(`/api/customer/wallet/${provider}`, { method: "POST", body: "{}" });
-      if (!current() || root.hidden) return;
+      if (!current() || panel.hidden) return;
       if (provider === "revoke") {
         if (result?.ok !== true) throw new Error("Invalid response");
         hidden(revoke, true);
@@ -153,14 +198,14 @@ export async function renderNativeWallet(
         navigate(result.url);
       }
     } catch (error) {
-      if (!current() || root.hidden) return;
+      if (!current() || panel.hidden) return;
       status.textContent = isAuthError(error)
         ? "Tu sesión venció. Vuelve a entrar desde el acceso del negocio."
         : "No pudimos completar la solicitud. Revisa tu conexión e inténtalo de nuevo.";
     } finally {
       state.busy = false;
       if (current()) {
-        root.setAttribute("aria-busy", "false");
+        panel.setAttribute("aria-busy", "false");
         setDisabled(!state.live || !isOnline());
       }
     }

@@ -15,19 +15,43 @@
  *   current?: boolean,
  *   session?: RehearsalSession | null,
  * }} RehearsalConfiguration
+ * @typedef {{
+ *   briefing: {
+ *     id: string,
+ *     version: number,
+ *     acknowledged: boolean,
+ *     payload: {
+ *       rules: { rate: number, program_type: string },
+ *       offers: { name: string, bonus_points: number }[],
+ *       unavailable_rewards: { name: string, alternatives: { name: string, available: boolean }[] }[],
+ *       cases: { count: number, escalated: number }[],
+ *     },
+ *   },
+ * }} OperationsBriefingResponse
  */
 let sequence = 0;
+/**
+ * @template {keyof HTMLElementTagNameMap} K
+ * @param {K} tag
+ * @param {string} [text]
+ * @returns {HTMLElementTagNameMap[K]}
+ */
 const node = (tag, text) => {
   const el = document.createElement(tag);
   if (text !== undefined) el.textContent = text;
   return el;
 };
+/**
+ * @param {string} text
+ * @param {(event: MouseEvent) => unknown} fn
+ */
 const actionButton = (text, fn) => {
   const el = node("button", text);
   el.type = "button";
   el.addEventListener("click", fn);
   return el;
 };
+/** @type {Record<string, string>} */
 const titles = {
   signup: "Inscripción",
   earn: "Compra ficticia",
@@ -36,6 +60,7 @@ const titles = {
   redeem: "Canje ficticio",
   refund: "Devolución ficticia",
 };
+/** @param {{ container: HTMLElement, api: import("./types.js").StaffApiFn }} options */
 export function mountServiceOperations({ container, api }) {
   const prefix = `persistent-practice-${++sequence}`,
     root = node("section"),
@@ -56,12 +81,21 @@ export function mountServiceOperations({ container, api }) {
   /** @type {RehearsalConfiguration | null} */
   let configuration = null;
   const base = "/api/staff/service-operations";
+  /**
+   * @param {string} label
+   * @param {HTMLInputElement | HTMLSelectElement} control
+   * @param {string} suffix
+   */
   function labeled(label, control, suffix) {
     control.id = `${prefix}-${suffix}`;
     const el = node("label", label);
     el.htmlFor = control.id;
     return [el, control];
   }
+  /**
+   * @param {string} action
+   * @param {Record<string, unknown>} [input]
+   */
   async function save(action, input = {}) {
     if (busy || destroyed) return;
     busy = true;
@@ -190,7 +224,10 @@ export function mountServiceOperations({ container, api }) {
   }
   async function refresh() {
     feedback.textContent = "Consultando resumen y práctica…";
-    const results = await Promise.allSettled([api(`${base}/briefing`), api(`${base}/rehearsal`)]);
+    const results =
+      /** @type {[PromiseSettledResult<OperationsBriefingResponse>, PromiseSettledResult<RehearsalConfiguration>]} */ (
+        await Promise.allSettled([api(`${base}/briefing`), api(`${base}/rehearsal`)])
+      );
     if (destroyed) return;
     const [summary, rehearsal] = results;
     brief.replaceChildren(node("h3", "Cambios de la operación"));

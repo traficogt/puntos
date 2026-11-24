@@ -1,10 +1,27 @@
-// Staff access is limited by server assignment and transactionally consumed grants.
+/** @typedef {import("./types.js").StaffDecisionInboxResponse} StaffDecisionInboxResponse */
+/** @typedef {import("./types.js").StaffOperatingControlsResponse} StaffOperatingControlsResponse */
+
+/**
+ * Staff access is limited by server assignment and transactionally consumed grants.
+ * @param {HTMLElement} container
+ * @param {import("./types.js").StaffApiFn} api
+ */
 export function mountOwnerOperations(container, api) {
+  /**
+   * @template {keyof HTMLElementTagNameMap} K
+   * @param {K} tag
+   * @param {string} [text]
+   * @returns {HTMLElementTagNameMap[K]}
+   */
   const node = (tag, text) => {
     const element = document.createElement(tag);
     if (text !== undefined) element.textContent = text;
     return element;
   };
+  /**
+   * @param {string} text
+   * @param {(event: MouseEvent) => unknown} run
+   */
   const button = (text, run) => {
     const element = node("button", text);
     element.type = "button";
@@ -15,6 +32,10 @@ export function mountOwnerOperations(container, api) {
   let pending = false;
   /** @type {{ key: string, id: string } | null} */
   let pendingRequest = null;
+  /**
+   * @param {string} path
+   * @param {{ request_id?: string, [key: string]: unknown }} body
+   */
   async function mutate(path, body) {
     if (pending) return;
     pending = true;
@@ -41,10 +62,10 @@ export function mountOwnerOperations(container, api) {
     container.replaceChildren(node("h2", "Pendientes y ritmo del negocio"), status);
     status.textContent = "Consultando autorizaciones…";
     try {
-      const [inbox, controls] = await Promise.all([
-        api("/api/staff/decisions"),
-        api("/api/staff/operating-mode"),
-      ]);
+      const [inbox, controls] =
+        /** @type {[StaffDecisionInboxResponse, StaffOperatingControlsResponse]} */ (
+          await Promise.all([api("/api/staff/decisions"), api("/api/staff/operating-mode")])
+        );
       status.textContent = "";
       if (!inbox.decisions.length) container.append(node("p", "No tienes pendientes asignados."));
       for (const item of inbox.decisions) {
@@ -54,6 +75,7 @@ export function mountOwnerOperations(container, api) {
           node("p", item.explanation),
           node("p", "Costo de la acción: desconocido."),
         );
+        /** @param {Record<string, unknown>} extra */
         const body = (extra) => ({
           decision_key: item.key,
           fingerprint: item.fingerprint,
@@ -99,7 +121,7 @@ export function mountOwnerOperations(container, api) {
         node("h3", "Ritmo del negocio"),
         node(
           "p",
-          `Estado: ${{ normal: "normal", quiet: "tranquilo", busy: "ocupado" }[controls.operating_mode.mode]}. Las acciones requieren una autorización vigente del dueño.`,
+          `Estado: ${/** @type {Record<string, string>} */ ({ normal: "normal", quiet: "tranquilo", busy: "ocupado" })[controls.operating_mode.mode]}. Las acciones requieren una autorización vigente del dueño.`,
         ),
       );
       if (controls.permissions.operating_mode)

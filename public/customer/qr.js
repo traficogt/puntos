@@ -1,3 +1,4 @@
+/** @param {{ plan?: string | null, logoUrl?: string | null, enabled?: boolean }} branding */
 export function shouldEmbedQrLogo({ plan, logoUrl, enabled }) {
   return (
     String(plan || "").toUpperCase() === "EMPRESA" &&
@@ -6,6 +7,10 @@ export function shouldEmbedQrLogo({ plan, logoUrl, enabled }) {
   );
 }
 
+/**
+ * @param {SVGSVGElement} svgElement
+ * @param {string} logoUrl
+ */
 function decorateQrSvgWithLogo(svgElement, logoUrl) {
   const NS = "http://www.w3.org/2000/svg";
   const size = 82;
@@ -32,9 +37,15 @@ function decorateQrSvgWithLogo(svgElement, logoUrl) {
   svgElement.appendChild(image);
 }
 
+/**
+ * @param {string} logoUrl
+ * @param {{ ImageCtor?: typeof Image, timeoutMs?: number }} [options]
+ * @returns {Promise<boolean>}
+ */
 export function waitForQrLogoAsset(logoUrl, { ImageCtor = Image, timeoutMs = 1500 } = {}) {
   return new Promise((resolve) => {
     let settled = false;
+    /** @param {boolean} value */
     const done = (value) => {
       if (settled) return;
       settled = true;

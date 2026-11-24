@@ -2,6 +2,7 @@
 /** @typedef {import("./types.js").SuperPlanDefinition} SuperPlanDefinition */
 /** @typedef {import("./types.js").SuperPlansResponse} SuperPlansResponse */
 
+/** @type {Record<string, string>} */
 const FEATURE_LABELS = {
   gift_cards: "Gift Cards",
   rewards: "Recompensas",
@@ -22,6 +23,7 @@ const FEATURE_LABELS = {
   campaign_rules: "Reglas de campaña",
 };
 
+/** @type {Record<string, { summary: string, highlight: string }>} */
 const PLAN_POSITIONING = {
   EMPRENDEDOR: {
     summary: "Base operativo: QR, cartera, recompensas, canjes y operación básica en un local.",
@@ -66,6 +68,7 @@ export function createPlans(ctx, { reloadBusinesses }) {
     return (state.planList || []).find((p) => p.plan === plan) || null;
   }
 
+  /** @param {string} plan */
   function planSummaryText(plan) {
     const def = getPlanDef(plan);
     if (!def) return "Sin detalle de plan.";
@@ -137,6 +140,7 @@ export function createPlans(ctx, { reloadBusinesses }) {
     btn.addEventListener("click", async () => {
       await run(
         async () => {
+          /** @type {Record<string, boolean>} */
           const features = {};
           Object.keys(checkboxes).forEach((key) => {
             features[key] = Boolean(checkboxes[key].checked);
@@ -170,6 +174,7 @@ export function createPlans(ctx, { reloadBusinesses }) {
     state.planList.forEach((p) => box.appendChild(renderPlanCard(p)));
   }
 
+  /** @param {string | null | undefined} currentPlan */
   function makePlanSelect(currentPlan) {
     const sel = document.createElement("select");
     (state.planList || []).forEach((p) => {

@@ -461,6 +461,7 @@ export function renderRfmDistribution({ $, dashboard, app }) {
     return;
   }
 
+  /** @type {Record<string, string>} */
   const segName = {
     Champions: "Campeones",
     Loyal: "Leales",
@@ -615,6 +616,7 @@ export function renderBranchPerformance({ $, dashboard, app }) {
 
 /**
  * @param {(selector: string) => HTMLElement | null} $
+ * @param {string} selector
  * @returns {HTMLInputElement | null}
  */
 function input($, selector) {

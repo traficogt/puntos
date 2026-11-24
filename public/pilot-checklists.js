@@ -44,11 +44,13 @@ export const allPilotCapabilities = Object.freeze({
   promotional_messaging: true,
   pos: true,
 });
+/** @type {Record<string, string>} */
 const capabilityChecks = {
   wallet_installation: "wallet",
   message_delivery: "promotional_messaging",
   pos_installation: "pos",
 };
+/** @type {Record<string, string>} */
 const capabilityInstructions = {
   wallet_installation:
     "Instala y actualiza la tarjeta en un dispositivo compatible. Registra lo que observaste en el dispositivo; la lista no comprueba esta instalación automáticamente.",
@@ -96,9 +98,19 @@ export function pilotChecksForVersion(version, capabilities = null) {
   });
   return selected;
 }
-// Counts stored declarations only. It does not verify a device, provider or integration.
+/**
+ * A stored checklist declaration; older rows name the check through `check_key`.
+ * @typedef {{ key?: string | null, check_key?: string | null, status?: string | null }} PilotCheckRecord
+ */
+/**
+ * Counts stored declarations only. It does not verify a device, provider or integration.
+ * @param {number} version
+ * @param {Record<string, boolean> | null} capabilities
+ * @param {PilotCheckRecord[]} records
+ */
 export function pilotChecklistCompleteness(version, capabilities, records) {
   const definitions = pilotChecksForVersion(version, capabilities);
+  /** @param {string} key */
   const passed = (key) =>
     records.some((r) => (r.key ?? r.check_key) === key && r.status === "passed");
   return {

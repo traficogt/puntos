@@ -9,6 +9,10 @@
 export function bindSecurityActions(ctx, { session }) {
   const { api, toast, state, run, element, input } = ctx;
 
+  /**
+   * @param {string | null | undefined} secret
+   * @param {string} [otpauthUri]
+   */
   function setPendingStaffMfa(secret, otpauthUri = "") {
     const pendingStaffMfaSecret = String(secret || "").trim();
     const box = element("#staffMfaSecret");

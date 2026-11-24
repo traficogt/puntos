@@ -7,7 +7,7 @@
  *   tabRegistry: Map<string, TabDefinition>,
  *   hasFeature: (feature: string) => boolean,
  *   syncDashboardViewToUrl: () => void,
- *   onTabActivated?: (tabName: string) => void
+ *   onTabActivated?: (tabName: string | undefined) => void
  * }} deps
  */
 export function createTabController({
@@ -17,11 +17,12 @@ export function createTabController({
   syncDashboardViewToUrl,
   onTabActivated = () => {},
 }) {
-  function setSectionVisibility(id, visible) {
+  function setSectionVisibility(/** @type {string} */ id, /** @type {boolean} */ visible) {
     const el = document.getElementById(id);
     if (el) el.hidden = !visible;
   }
 
+  /** @param {string | undefined} tabName @param {{ syncUrl?: boolean }} [options] */
   function activateTab(tabName, { syncUrl = true } = {}) {
     state.persistedActiveTab = tabName || "";
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll(".tab")).forEach((tab) => {
@@ -70,8 +71,9 @@ export function createTabController({
     }
   }
 
+  /** @param {string | undefined} tabName */
   async function loadTabData(tabName) {
-    const meta = tabRegistry.get(tabName);
+    const meta = tabName ? tabRegistry.get(tabName) : undefined;
     if (!meta) return;
     if (state.managerMode && meta.allowManager !== true) return;
     if (meta.feature && !hasFeature(meta.feature)) return;

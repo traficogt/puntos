@@ -14,6 +14,7 @@ const sectionNames = new Map(
     analytics: "analisis",
   }),
 );
+/** @param {string} value */
 function readSection(value) {
   return Array.from(sectionNames).find(([, spanish]) => spanish === value)?.[0] || value;
 }

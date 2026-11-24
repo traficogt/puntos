@@ -1,5 +1,8 @@
 /** @typedef {import("../types.js").AdminDashboardApp} AdminDashboardApp */
+/** @typedef {import("../types.js").PosImportResult} PosImportResult */
+/** @typedef {import("../types.js").PosSalesPreview} PosSalesPreview */
 
+/** @type {Record<string, string>} */
 const MODE_HELP = {
   loyverse: "Conecta tu cuenta de Loyverse para leer las compras pagadas en la moneda configurada.",
   csv: "Revisa y carga un archivo de ventas exportado por tu sistema, sin programar.",
@@ -28,6 +31,7 @@ const saleExample = (currency = "GTQ") =>
     null,
     2,
   );
+/** @param {unknown} value */
 const number = (value) => Math.max(0, Number(value) || 0);
 
 /** Register the owner-only connection panel after staff and plan are available.
@@ -38,8 +42,11 @@ export function registerPosIntegration(app) {
   if (!root) return;
   // Non-null binding for the hoisted function declarations below.
   const section = root;
+  /** @param {string} id */
   const el = (id) => /** @type {HTMLElement} */ (root.querySelector(`#${id}`));
+  /** @param {string} id */
   const input = (id) => /** @type {HTMLInputElement} */ (el(id));
+  /** @param {string} id */
   const button = (id) => /** @type {HTMLButtonElement} */ (el(id));
   const controls = /** @type {HTMLFieldSetElement} */ (el("posControls"));
   /** @type {any} */
@@ -49,9 +56,9 @@ export function registerPosIntegration(app) {
   let dirty = false;
   let bound = false;
   let csv = "";
-  /** @type {{ summary?: { ready?: unknown } } | null} */
+  /** @type {PosSalesPreview | null} */
   let csvPreview = null;
-  /** @type {{ summary?: { ready?: unknown } } | null} */
+  /** @type {PosSalesPreview | null} */
   let loyversePreview = null;
   let fileVersion = 0;
 
@@ -59,6 +66,10 @@ export function registerPosIntegration(app) {
     app.state.currentStaff?.role === "OWNER" && app.hasFeature("external_awards");
   const mode = () => input("posMode").value;
   const active = () => loaded && !dirty && integration?.enabled && integration.mode === mode();
+  /**
+   * @param {string} message
+   * @param {boolean} [error]
+   */
   function feedback(message, error = false) {
     el("posFeedback").textContent = message;
     el("posFeedback").classList.toggle("is-error", error);
@@ -67,6 +78,7 @@ export function registerPosIntegration(app) {
     input("posApiKey").value = "";
     el("posKeyReveal").hidden = true;
   }
+  /** @param {"Csv" | "Loyverse"} kind */
   function invalidatePreview(kind) {
     if (kind === "Csv") csvPreview = null;
     else loyversePreview = null;
@@ -76,6 +88,7 @@ export function registerPosIntegration(app) {
     el(`pos${kind}Result`).hidden = true;
   }
   function csvPayload() {
+    /** @type {Record<string, string>} */
     const columns = {};
     for (const [name, id] of Object.entries(COLUMN_FIELDS)) {
       if (input(id).value) columns[name] = input(id).value;
@@ -131,6 +144,7 @@ export function registerPosIntegration(app) {
     invalidatePreview("Loyverse");
     showMode();
   }
+  /** @param {{ integration?: unknown, business?: { slug?: string | null } | null }} out */
   function renderConnection(out) {
     integration = out.integration;
     if (!integration)
@@ -185,15 +199,21 @@ export function registerPosIntegration(app) {
     el("posReload").hidden = true;
     showMode();
   }
+  /** @param {unknown} error */
   function errorMessage(error) {
+    const failure = /** @type {(Error & { status?: number }) | null | undefined} */ (error);
     if (
-      error?.status === 404 ||
-      /HTTP 404|Cannot (GET|POST|PUT)|^No encontrado(?: \(Ref:.*\))?$/i.test(error?.message || "")
+      failure?.status === 404 ||
+      /HTTP 404|Cannot (GET|POST|PUT)|^No encontrado(?: \(Ref:.*\))?$/i.test(failure?.message || "")
     ) {
       return "La conexión de ventas aún no está disponible. Reintenta más tarde.";
     }
-    return error?.message || "No se pudo completar la operación. Vuelve a intentarlo.";
+    return failure?.message || "No se pudo completar la operación. Vuelve a intentarlo.";
   }
+  /**
+   * @param {string} message
+   * @param {() => Promise<void>} task
+   */
   async function run(message, task) {
     if (busy || !allowed()) return;
     busy = true;
@@ -215,10 +235,19 @@ export function registerPosIntegration(app) {
       feedback("Elige un método y configura tu conexión.");
     });
   }
+  /**
+   * @param {string} path
+   * @param {Record<string, unknown>} [body]
+   */
   function post(path, body = {}) {
     return app.api(`/api/admin/pos/${path}`, { method: "POST", body: JSON.stringify(body) });
   }
+  /**
+   * @param {"Csv" | "Loyverse"} kind
+   * @param {PosSalesPreview} preview
+   */
   function renderPreview(kind, preview) {
+    /** @type {NonNullable<PosSalesPreview["summary"]>} */
     const summary = preview.summary || {};
     el(`pos${kind}PreviewSummary`).textContent =
       `Ventas revisadas: ${number(summary.total)}. Listas: ${number(summary.ready)}; repetidas: ${number(summary.duplicates)}; omitidas: ${number(summary.ignored)}; con errores: ${number(summary.errors)}. La vista previa no asigna puntos.`;
@@ -227,9 +256,12 @@ export function registerPosIntegration(app) {
     for (const sale of preview.rows || []) {
       const tr = document.createElement("tr");
       const label =
-        { ready: "Lista", duplicate: "Repetida", ignored: "Omitida", error: "Error" }[
-          sale.status
-        ] || "Sin validar";
+        /** @type {Record<string, string>} */ ({
+          ready: "Lista",
+          duplicate: "Repetida",
+          ignored: "Omitida",
+          error: "Error",
+        })[sale.status] || "Sin validar";
       for (const value of [
         sale.row ?? "—",
         sale.saleId || "—",
@@ -251,6 +283,10 @@ export function registerPosIntegration(app) {
     }
     el(`pos${kind}PreviewBox`).hidden = false;
   }
+  /**
+   * @param {"Csv" | "Loyverse"} kind
+   * @param {PosImportResult} result
+   */
   function renderResult(kind, result) {
     const box = el(`pos${kind}Result`);
     box.replaceChildren();
@@ -276,6 +312,7 @@ export function registerPosIntegration(app) {
   }
   async function save() {
     await run("Guardando y verificando la conexión…", async () => {
+      /** @type {{ enabled: boolean, mode: string, automatic: boolean, loyverse?: { store_id: string, access_token?: string } }} */
       const payload = {
         enabled: input("posEnabled").checked,
         mode: mode(),
@@ -429,6 +466,10 @@ export function registerPosIntegration(app) {
     });
     if (!el("posKeyReveal").hidden) input("posApiKey").focus();
   }
+  /**
+   * @param {string} value
+   * @param {string} [fieldId]
+   */
   async function copy(value, fieldId) {
     try {
       await navigator.clipboard.writeText(value);

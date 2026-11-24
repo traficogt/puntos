@@ -106,9 +106,14 @@ export function getRewardViewModel(points, reward, now = Date.now()) {
   };
 }
 
-/** Midpoint changes only the wording, never the target or redemption rules. */
+/**
+ * Midpoint changes only the wording, never the target or redemption rules.
+ * @param {number} points
+ * @param {{ name?: string, points_cost: number }} reward
+ */
 export function rewardProgressText(points, reward) {
   const cost = Number(reward.points_cost);
+  /** @param {number} value */
   const number = (value) => new Intl.NumberFormat("es").format(value);
   if (points === 0) return `Tu próxima recompensa: “${reward.name}”.`;
   if (points >= cost) return `Tienes los puntos para “${reward.name}”.`;

@@ -14,6 +14,7 @@ const DEFAULTS = {
   winbackDays: 30,
 };
 
+/** @type {Record<string, string>} */
 const AUTOMATION_TEMPLATE_LABELS = {
   cafeteria_basico: "Cafetería básico",
   reactivacion_fuerte: "Reactivación fuerte",

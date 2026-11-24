@@ -1,3 +1,13 @@
+/** @typedef {import("./types.js").QueuedStaffAward} QueuedStaffAward */
+/** @typedef {import("./types.js").StaffAwardResponse} StaffAwardResponse */
+/** @typedef {import("./types.js").StaffAwardScope} StaffAwardScope */
+/** @typedef {import("./types.js").StaffSyncResponse} StaffSyncResponse */
+
+/**
+ * @param {StaffAwardScope | null | undefined} left
+ * @param {StaffAwardScope | null | undefined} right
+ * @returns {left is StaffAwardScope}
+ */
 function sameScope(left, right) {
   return Boolean(
     left?.businessId &&
@@ -7,6 +17,7 @@ function sameScope(left, right) {
   );
 }
 
+/** @param {QueuedStaffAward} award */
 function payloadFor(award) {
   const { txId, customerQrToken, amount_q, visits, items, meta, client_ts, offlineGrant } = award;
   return {
@@ -21,7 +32,28 @@ function payloadFor(award) {
   };
 }
 
-/** @param {{ store: any, api: Function, authenticate: Function, isOnline?: Function, canSend?: Function, onChange?: Function, withLock?: Function }} options */
+/**
+ * Offline award store (IndexedDB in the browser, an in-memory map in tests).
+ * @typedef {{
+ *   addAward: (award: Partial<QueuedStaffAward> & { txId: string }) => Promise<unknown>,
+ *   listAwards: (options: StaffAwardScope & { statuses?: string[] }) => Promise<QueuedStaffAward[]>,
+ *   updateAward: (txId: string, patch: Record<string, unknown>, scope?: StaffAwardScope) => Promise<unknown>,
+ *   deleteAward: (txId: string, scope?: StaffAwardScope) => Promise<unknown>,
+ * }} AwardQueueStore
+ */
+
+/**
+ * `api` receives exactly what the queue posts; the server owns the response shapes.
+ * @param {{
+ *   store: AwardQueueStore,
+ *   api: (path: string, options: { method: "POST", body: string }) => Promise<unknown>,
+ *   authenticate: (permission: string) => Promise<StaffAwardScope | null>,
+ *   isOnline?: () => boolean,
+ *   canSend?: () => boolean,
+ *   onChange?: () => Promise<unknown> | void,
+ *   withLock?: <T>(scope: StaffAwardScope, fn: () => Promise<T>) => Promise<T>,
+ * }} options
+ */
 export function createAwardQueue({
   store,
   api,
@@ -43,6 +75,7 @@ export function createAwardQueue({
     );
     return next;
   }
+  /** @template T @param {() => Promise<T>} task @returns {Promise<T>} */
   async function storage(task) {
     try {
       return await task();
@@ -55,7 +88,13 @@ export function createAwardQueue({
       );
     }
   }
+  /**
+   * @param {Array<Pick<QueuedStaffAward, "txId" | "retry_count">>} rows
+   * @param {StaffAwardScope} scope
+   * @param {unknown} error An Error, the server's error text, or nothing.
+   */
   async function markFailed(rows, scope, error) {
+    const failure = /** @type {{ message?: unknown } | null | undefined} */ (error);
     await storage(() =>
       Promise.all(
         rows.map((row) =>
@@ -63,7 +102,7 @@ export function createAwardQueue({
             row.txId,
             {
               status: "failed",
-              last_error: String(error?.message || error || "No se recibió confirmación."),
+              last_error: String(failure?.message || error || "No se recibió confirmación."),
               retry_count: Number(row.retry_count || 0) + 1,
             },
             scope,
@@ -73,6 +112,10 @@ export function createAwardQueue({
     );
     await onChange();
   }
+  /**
+   * @param {QueuedStaffAward} payload
+   * @param {StaffAwardScope | null} expectedScope
+   */
   function submit(payload, expectedScope) {
     return exclusive(async () => {
       if (!sameScope(expectedScope, expectedScope))
@@ -85,12 +128,15 @@ export function createAwardQueue({
         await onChange();
         if (!isOnline() || !canSend()) return { queued: true, response: null };
         await storage(() => store.updateAward(payload.txId, { status: "syncing" }, scope));
+        /** @type {StaffAwardResponse} */
         let response;
         try {
-          response = await api("/api/staff/award", {
-            method: "POST",
-            body: JSON.stringify(payloadFor(payload)),
-          });
+          response = /** @type {StaffAwardResponse} */ (
+            await api("/api/staff/award", {
+              method: "POST",
+              body: JSON.stringify(payloadFor(payload)),
+            })
+          );
           if (!response?.customerId)
             throw new Error("El servidor no confirmó la operación. Se conserva para reintentar.");
         } catch (error) {
@@ -125,12 +171,15 @@ export function createAwardQueue({
             ),
           );
           await onChange();
+          /** @type {StaffSyncResponse} */
           let result;
           try {
-            result = await api("/api/staff/sync", {
-              method: "POST",
-              body: JSON.stringify({ awards: batch.map(payloadFor) }),
-            });
+            result = /** @type {StaffSyncResponse} */ (
+              await api("/api/staff/sync", {
+                method: "POST",
+                body: JSON.stringify({ awards: batch.map(payloadFor) }),
+              })
+            );
             if (!Array.isArray(result?.results))
               throw new Error(
                 "El servidor no confirmó las operaciones. Se conservan para reintentar.",

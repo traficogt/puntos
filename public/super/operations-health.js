@@ -1,14 +1,29 @@
+/**
+ * @template {keyof HTMLElementTagNameMap} K
+ * @param {K} tag
+ * @param {string} text
+ * @param {string} [className]
+ * @returns {HTMLElementTagNameMap[K]}
+ */
 function node(tag, text, className = "") {
   const el = document.createElement(tag);
   el.textContent = text;
   if (className) el.className = className;
   return el;
 }
+/**
+ * @param {{
+ *   container: Element | null,
+ *   api: import("./types.js").SuperApiFn,
+ *   currentSession: () => number,
+ * }} options `currentSession` is the session generation; a changed value discards late responses.
+ */
 export function createPlatformHealth({ container, api, currentSession }) {
   if (!container) return { load: async () => {}, clear: () => {} };
   let offset = 0,
-    next = null,
     serial = 0;
+  /** @type {number | null} */
+  let next = null;
   const content = node("div", ""),
     status = node("p", "", "small");
   status.setAttribute("role", "status");

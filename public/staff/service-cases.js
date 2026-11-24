@@ -1,18 +1,26 @@
 /** A request body key paired with the id that keeps its retries idempotent. */
 /** @typedef {{ key: string, requestId: string }} IdempotentRequest */
+/** @typedef {import("./types.js").StaffApiFn} StaffApiFn */
+/** @typedef {import("./types.js").StaffPanelContext} StaffPanelContext */
+/** @typedef {import("./types.js").StaffServiceCase} StaffServiceCase */
+/** @typedef {import("./types.js").StaffServiceCaseDetail} StaffServiceCaseDetail */
+/** @typedef {import("./types.js").StaffServiceRedemption} StaffServiceRedemption */
 const labels = {
   original_fulfilled: "Se entregó el beneficio original",
   alternative_accepted: "El cliente aceptó una alternativa",
   closed_with_reason: "Cerrar con motivo",
   points_restored: "Restituir los puntos del canje",
 };
+/** @param {string} value */
 const requiresAttestation = (value) =>
   ["original_fulfilled", "alternative_accepted"].includes(value);
+/** @template {keyof HTMLElementTagNameMap} K @param {K} tag @param {string} [text] @returns {HTMLElementTagNameMap[K]} */
 function node(tag, text) {
   const element = document.createElement(tag);
   if (text !== undefined) element.textContent = text;
   return element;
 }
+/** @param {HTMLElement} container */
 function mountCaseForm(container) {
   const shell = node("details"),
     help = node(
@@ -64,24 +72,31 @@ function mountCaseForm(container) {
   );
   container.replaceChildren(shell);
 }
+/**
+ * @param {{ container: HTMLElement | null, api: StaffApiFn, getContext: () => StaffPanelContext }} options
+ */
 export function mountServiceCases({ container, api, getContext }) {
   if (!container) return { contextChanged() {}, showCase() {}, destroy() {} };
   mountCaseForm(container);
-  const details = container.querySelector("details"),
-    status = container.querySelector("[data-status]"),
-    form = container.querySelector("[data-report]"),
+  // mountCaseForm just built this markup, so the lookups assert presence.
+  const details = /** @type {HTMLDetailsElement} */ (container.querySelector("details")),
+    status = /** @type {HTMLElement} */ (container.querySelector("[data-status]")),
+    form = /** @type {HTMLFormElement} */ (container.querySelector("[data-report]")),
     redemption = /** @type {HTMLSelectElement} */ (container.querySelector("#serviceRedemption")),
     reason = /** @type {HTMLTextAreaElement} */ (container.querySelector("#serviceReason")),
     reportButton = /** @type {HTMLButtonElement} */ (form.querySelector("button")),
-    list = container.querySelector("[data-cases]"),
-    detail = container.querySelector("[data-detail]");
+    list = /** @type {HTMLElement} */ (container.querySelector("[data-cases]")),
+    detail = /** @type {HTMLElement} */ (container.querySelector("[data-detail]"));
   let destroyed = false,
     busy = false,
-    selection = null,
-    redemptions = [],
-    detailRow = null,
     refreshSequence = 0,
     detailSequence = 0;
+  /** @type {string | null} */
+  let selection = null;
+  /** @type {StaffServiceRedemption[]} */
+  let redemptions = [];
+  /** @type {StaffServiceCase | null} */
+  let detailRow = null;
   /** @type {IdempotentRequest | null} */
   let reportPending = null;
   /** @type {IdempotentRequest | null} */
@@ -89,6 +104,7 @@ export function mountServiceCases({ container, api, getContext }) {
   /** @type {(() => void) | null} */
   let updateResolutionControls = null;
   const online = () => navigator.onLine && getContext().online;
+  /** @param {string} text */
   function message(text) {
     status.textContent = text;
   }
@@ -185,6 +201,11 @@ export function mountServiceCases({ container, api, getContext }) {
     }
     if (!online()) message("Conéctate para registrar o resolver una incidencia.");
   }
+  /**
+   * @param {StaffServiceCase} row
+   * @param {StaffServiceCaseDetail["restoration"] | undefined} restoration
+   * @param {Omit<StaffServiceCaseDetail, "case" | "restoration">} [result]
+   */
   function renderDetail(row, restoration, result = {}) {
     detailRow = row;
     detail.replaceChildren();
@@ -259,6 +280,10 @@ export function mountServiceCases({ container, api, getContext }) {
     management.append(followLabel, followReason);
     /** @type {IdempotentRequest | null} */
     let managePending = null;
+    /**
+     * @param {string} action
+     * @param {Record<string, unknown>} [extra]
+     */
     async function manage(action, extra = {}) {
       if (busy || !online() || followReason.value.trim().length < 3) {
         message("Describe el motivo del seguimiento (mínimo tres caracteres).");
@@ -422,6 +447,7 @@ export function mountServiceCases({ container, api, getContext }) {
       }
     });
   }
+  /** @param {string} id */
   async function openCase(id) {
     if (!online()) {
       message("Conéctate para revisar el caso.");
@@ -430,7 +456,9 @@ export function mountServiceCases({ container, api, getContext }) {
     const customerId = getContext().customerId,
       sequence = ++detailSequence;
     try {
-      const result = await api(`/api/staff/service-cases/${id}`);
+      const result = /** @type {StaffServiceCaseDetail} */ (
+        await api(`/api/staff/service-cases/${id}`)
+      );
       if (destroyed || sequence !== detailSequence || customerId !== getContext().customerId)
         return;
       renderDetail(result.case, result.restoration, result);
@@ -481,18 +509,22 @@ export function mountServiceCases({ container, api, getContext }) {
   details.addEventListener("toggle", () => {
     if (details.open) refresh();
   });
-  container.querySelector("[data-refresh]").addEventListener("click", () => {
-    detailSequence++;
-    detailRow = null;
-    updateResolutionControls = null;
-    detail.replaceChildren();
-    refresh();
-  });
+  /** @type {HTMLElement} */ (container.querySelector("[data-refresh]")).addEventListener(
+    "click",
+    () => {
+      detailSequence++;
+      detailRow = null;
+      updateResolutionControls = null;
+      detail.replaceChildren();
+      refresh();
+    },
+  );
   window.addEventListener("offline", contextChanged);
   window.addEventListener("online", contextChanged);
   controls();
   return {
     contextChanged,
+    /** @param {string} id */
     async showCase(id) {
       details.open = true;
       await openCase(id);
