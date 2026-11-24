@@ -12,7 +12,7 @@ const cwd = fileURLToPath(new URL("../../", import.meta.url));
 // Requiring its final assertion marker prevents a silent early exit from passing.
 /** @type {Array<[string,string,RegExp|null]>} */
 const runners = [
-  ["navigation", "navigation-browser.spec.mjs", /11 navigation browser checks passed\./],
+  ["navigation", "navigation-browser.spec.mjs", /12 navigation browser checks passed\./],
   [
     "pending import",
     "customer-migration-pending-browser.spec.mjs",

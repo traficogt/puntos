@@ -1,1 +1,0 @@
-import{I as e,M as t,p as n,w as r}from"./api-DKRKumYR.js";var i=e(),a=r(e=>{let r=t([`Input`,`InputWrapper`,`TextInput`],null,e);return(0,i.jsx)(n,{component:`input`,...r,__staticSelector:`TextInput`})});a.classes=n.classes,a.displayName=`@mantine/core/TextInput`;export{a as t};

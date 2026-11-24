@@ -110,6 +110,8 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Actualizar primeras compras', exact: true }).isDisabled(), false);
   // Mount the actual parent: its unrelated period reload must not reset the cohort.
   await page.goto(`http://127.0.0.1:${vite.httpServer.address().port}/negocio/?overview=1`);
+  // The Overview keeps this report behind its "Ver análisis detallado" disclosure; open it as an owner would.
+  await page.getByRole('button', { name: 'Ver análisis detallado', exact: true }).click();
   await page.getByRole('heading', { name: 'De la primera compra a la segunda', exact: true }).waitFor();
   await choose('Desde el 5 oct 2026');
   await page.getByText('8 de 20 volvieron a comprar (40%).', { exact: true }).waitFor();
@@ -128,7 +130,8 @@ try {
   assert.ok(latest.includes('week_start=2026-10-05') && latest.includes('branch_id='));
   await page.evaluate(()=>{window.__firstMode='errorOverview';});
   await page.getByRole('button',{name:'Actualizar',exact:true}).click();
-  await page.getByRole('alert').filter({hasText:'No pudimos cargar esta información'}).waitFor();
+  // The overview's own failure sits outside the disclosure; the detail panels inside it report their own loads.
+  await page.getByRole('alert').filter({hasText:'No pudimos cargar esta información'}).and(page.locator(':not(.mantine-Accordion-root *)')).waitFor();
   await page.getByText('4 de 10 volvieron a comprar (40%).', { exact: true }).waitFor();
   assert.deepEqual(errors, []); assert.deepEqual(apiRequests, []);
   console.log('First purchase report: weekly/branch scopes, mature/open denominators, stale requests, empty/error/offline states, light/dark and axe passed.');

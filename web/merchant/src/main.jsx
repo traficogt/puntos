@@ -1,3 +1,4 @@
+import "./uuid-fallback.js";
 import {staffLoginHref} from "../../../public/staff-return-path.js";
 import {startDemoAnalytics,trackDemoEvent} from './demo-analytics.js';
 import ActivationSetup from './ActivationSetup.jsx';

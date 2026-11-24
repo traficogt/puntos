@@ -555,62 +555,67 @@ export default function Overview({ features, onNavigate }) {
                 )}
               </section>
             </SimpleGrid>
-            <Accordion variant="default">
-              <Accordion.Item value="detail">
-                <Accordion.Control>Ver análisis detallado</Accordion.Control>
-                <Accordion.Panel>
-                  <Stack gap="xl">
-                    <FirstPurchaseReturns branchId={branch||null} refresh={refresh}/>
-                    <RewardExposurePanel branchId={branch||null} refresh={refresh}/>
-                    <StaffActivityPanel branchId={branch||null} refresh={refresh}/>
-                    <RedemptionReturns branchId={branch||null} refresh={refresh}/>
-                  </Stack>
-                </Accordion.Panel>
-              </Accordion.Item>
-              <Accordion.Item value="definitions">
-                <Accordion.Control>
-                  Qué significan estos números
-                </Accordion.Control>
-                <Accordion.Panel>
-                  <Stack gap="sm">
-                    <Text size="sm">
-                      Ventas registradas: importes de compras válidas recibidas
-                      por PF, incluidas compras con puntos pendientes. Se
-                      excluyen las devoluciones completas, ajustes y bonos. No
-                      representan todas las ventas del negocio ni ingresos
-                      causados por el programa.
-                    </Text>
-                    <Text size="sm">
-                      Clientes que repitieron: clientes con al menos dos compras
-                      dentro del período, divididos entre los clientes con
-                      alguna compra. No es una medición de retención entre
-                      cohortes.
-                    </Text>
-                    <Text size="sm">
-                      Comparamos con{" "}
-                      {periodDate(data.period.previous_start, data.timezone)}–
-                      {periodDate(data.period.previous_end, data.timezone)},
-                      hasta la misma hora local. La última fecha es parcial en
-                      ambos períodos. Los datos pueden cambiar al sincronizar
-                      compras o procesar devoluciones.
-                    </Text>
-                    <Text size="sm">
-                      El ticket promedio divide las ventas registradas entre las
-                      compras. Los canjes usan la fecha de entrega de la
-                      recompensa. Sin costos y una comparación controlada, no
-                      calculamos rentabilidad ni retorno de inversión.
-                    </Text>
-                    {data.notes?.map((note) => (
-                      <Text size="sm" key={note}>
-                        {note}
-                      </Text>
-                    ))}
-                  </Stack>
-                </Accordion.Panel>
-              </Accordion.Item>
-            </Accordion>
           </>
       )}
+      {/* The detail reports load on their own, so they stay mounted while the
+          overview refreshes: changing the period or branch keeps the owner's
+          cohort selection and the open disclosure instead of resetting them. */}
+      <Accordion variant="default">
+        <Accordion.Item value="detail">
+          <Accordion.Control>Ver análisis detallado</Accordion.Control>
+          <Accordion.Panel>
+            <Stack gap="xl">
+              <FirstPurchaseReturns branchId={branch||null} refresh={refresh}/>
+              <RewardExposurePanel branchId={branch||null} refresh={refresh}/>
+              <StaffActivityPanel branchId={branch||null} refresh={refresh}/>
+              <RedemptionReturns branchId={branch||null} refresh={refresh}/>
+            </Stack>
+          </Accordion.Panel>
+        </Accordion.Item>
+        {data && (
+          <Accordion.Item value="definitions">
+            <Accordion.Control>
+              Qué significan estos números
+            </Accordion.Control>
+            <Accordion.Panel>
+              <Stack gap="sm">
+                <Text size="sm">
+                  Ventas registradas: importes de compras válidas recibidas
+                  por PF, incluidas compras con puntos pendientes. Se
+                  excluyen las devoluciones completas, ajustes y bonos. No
+                  representan todas las ventas del negocio ni ingresos
+                  causados por el programa.
+                </Text>
+                <Text size="sm">
+                  Clientes que repitieron: clientes con al menos dos compras
+                  dentro del período, divididos entre los clientes con
+                  alguna compra. No es una medición de retención entre
+                  cohortes.
+                </Text>
+                <Text size="sm">
+                  Comparamos con{" "}
+                  {periodDate(data.period.previous_start, data.timezone)}–
+                  {periodDate(data.period.previous_end, data.timezone)},
+                  hasta la misma hora local. La última fecha es parcial en
+                  ambos períodos. Los datos pueden cambiar al sincronizar
+                  compras o procesar devoluciones.
+                </Text>
+                <Text size="sm">
+                  El ticket promedio divide las ventas registradas entre las
+                  compras. Los canjes usan la fecha de entrega de la
+                  recompensa. Sin costos y una comparación controlada, no
+                  calculamos rentabilidad ni retorno de inversión.
+                </Text>
+                {data.notes?.map((note) => (
+                  <Text size="sm" key={note}>
+                    {note}
+                  </Text>
+                ))}
+              </Stack>
+            </Accordion.Panel>
+          </Accordion.Item>
+        )}
+      </Accordion>
     </Stack>
   );
 }
