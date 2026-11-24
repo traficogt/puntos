@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 
+/** @param {string} name @param {string} [fallback] */
 function cliArg(name, fallback = "") {
   const index = process.argv.indexOf(name);
   if (index === -1) return fallback;

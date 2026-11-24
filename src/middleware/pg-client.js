@@ -1,5 +1,7 @@
 import { pool, runWithDbContext } from "../app/database.js";
 
+/** @typedef {import("express").NextFunction} NextFunction */
+
 // Only API traffic reads the request-pinned connection (tenant and admin GUCs
 // travel with it). Static assets, HTML entry pages and marketing routes never
 // use it; the marketing plan page reads through its own transaction pool.
@@ -15,8 +17,23 @@ export function mountPgClient(app) {
 }
 
 /**
+ * The request and response surface this middleware uses; tests drive it with
+ * plain objects, so the contract is structural rather than Express's types.
+ * @typedef {{ aborted?: boolean, pgClient?: import("../types/db.js").DbPooledClient }} PgClientRequest
+ * @typedef {{
+ *   once(event: "close" | "finish", listener: () => void): unknown,
+ *   off(event: "close" | "finish", listener: () => void): unknown,
+ *   destroyed?: boolean,
+ *   writableFinished?: boolean,
+ * }} PgClientResponse
+ */
+
+/**
  * Attaches a dedicated pg client to req.pgClient for the lifetime of the request.
  * Keeps request-scoped work on one connection until completion or disconnect.
+ * @param {PgClientRequest} req
+ * @param {PgClientResponse} res
+ * @param {NextFunction} next
  */
 export function withPgClient(req, res, next) {
   let closedWhileConnecting = false;
@@ -33,8 +50,11 @@ export function withPgClient(req, res, next) {
         return;
       }
       runWithDbContext({ client, tenantId: null, platformAdmin: false }, () => {
-        req.pgClient = client;
+        // The pool hands out real pg connections; the loose pool contract only
+        // exists for test doubles (see src/types/db.ts).
+        req.pgClient = /** @type {import("../types/db.js").DbPooledClient} */ (client);
         let released = false;
+        /** @param {boolean} destroy */
         const releaseOnce = async (destroy) => {
           if (released) return;
           released = true;

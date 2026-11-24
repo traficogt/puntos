@@ -128,7 +128,7 @@ const ASSET_ATTRIBUTES = {
   link: ["href"],
 };
 
-/** @param {string} value */
+/** @param {string} value @param {string} other */
 function compare(value, other) {
   return value < other ? -1 : value > other ? 1 : 0;
 }

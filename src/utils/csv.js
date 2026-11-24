@@ -1,5 +1,6 @@
 import { stringify } from "csv-stringify/sync";
 
+/** @param {unknown} value a cell value; null/undefined stay empty */
 function sanitizeForSpreadsheet(value) {
   if (value === null || value === undefined) return value;
   const s = String(value);
@@ -12,8 +13,14 @@ function sanitizeForSpreadsheet(value) {
   return s;
 }
 
+/**
+ * Serializes rows as CSV with a header, neutralizing formula injection.
+ * @param {ReadonlyArray<Record<string, unknown>> | null | undefined} rows
+ * @param {string[]} [columns] column order; defaults to each row's own keys
+ */
 export function toCSV(rows, columns) {
   const safeRows = (rows || []).map((r) => {
+    /** @type {Record<string, unknown>} */
     const out = {};
     for (const k of Array.isArray(columns) ? columns : Object.keys(r || {})) {
       out[k] = sanitizeForSpreadsheet(r?.[k]);

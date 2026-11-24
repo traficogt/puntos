@@ -36,6 +36,7 @@ const RULES = [
   },
 ];
 
+/** @param {string} dir @param {string[]} acc collects the files found */
 function walk(dir, acc) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
@@ -50,9 +51,13 @@ function walk(dir, acc) {
   }
 }
 
+/** @typedef {{ file: string, line: number, rule: string, message: string, snippet: string }} ScanIssue */
+
+/** @param {string} file @returns {ScanIssue[]} */
 function scanFile(file) {
   if (SKIP_FILES.has(file)) return [];
   const src = fs.readFileSync(file, "utf8");
+  /** @type {ScanIssue[]} */
   const issues = [];
   const lines = src.split("\n");
   for (let i = 0; i < lines.length; i++) {
@@ -75,6 +80,7 @@ function scanFile(file) {
   return issues;
 }
 
+/** @type {string[]} */
 const files = [];
 for (const rel of TARGET_DIRS) {
   const dir = path.join(ROOT, rel);

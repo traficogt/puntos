@@ -1,12 +1,8 @@
-import { Request } from "express";
+import type { Request } from "express";
 
-export type AppRequest = Request & {
-  tenantId?: string;
-  tenant?: { id: string };
-  staff?: any;
-  customer?: any;
-  customerAuth?: any;
-  super?: any;
-  pgClient?: any;
-  rawBody?: string;
-};
+/**
+ * The Express request as PuntosFieles middleware extends it. The properties
+ * (`staff`, `customerAuth`, `superAdmin`, `pgClient`, ...) are declared on the
+ * Express request itself in ./express.d.ts; this alias names that shape.
+ */
+export type AppRequest = Request;

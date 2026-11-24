@@ -14,6 +14,7 @@ export const Permission = {
   ADMIN_SUSPICIOUS_VIEW: "admin.suspicious.view",
 };
 
+/** @type {Record<string, ReadonlySet<string>>} role -> granted permissions */
 const matrix = {
   [Role.OWNER]: new Set([
     Permission.STAFF_AWARD,
@@ -33,6 +34,10 @@ const matrix = {
   [Role.CASHIER]: new Set([Permission.STAFF_AWARD, Permission.STAFF_REDEEM, Permission.STAFF_SYNC]),
 };
 
+/**
+ * @param {string} role a Role value (unknown roles have no permissions)
+ * @param {string} permission a Permission value
+ */
 export function hasPermission(role, permission) {
   return matrix[role]?.has(permission) ?? false;
 }

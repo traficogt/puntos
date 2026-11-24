@@ -185,6 +185,10 @@ export const guideCatalogSchema = z
     });
   });
 
+/**
+ * Validates a raw catalog document (parsed JSON) against the schema.
+ * @param {unknown} value
+ */
 export function parseGuideCatalog(value) {
   return guideCatalogSchema.parse(value);
 }

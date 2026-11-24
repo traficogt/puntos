@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 
 dotenv.config({ quiet: true });
 
+/** @param {string} name @param {string} [fallback] */
 function arg(name, fallback = "") {
   const index = process.argv.indexOf(name);
   if (index === -1) return fallback;

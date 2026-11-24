@@ -3,6 +3,8 @@ import { config } from "../../config/index.js";
 
 const { Pool } = pg;
 
+/** @typedef {import("../../types/db.js").DbPool} DbPool */
+
 /**
  * Pool ceilings come from the environment; a typo must not become a NaN-sized
  * pool, so anything but a positive integer stops startup.
@@ -28,6 +30,9 @@ const applicationConnection = {
   connectionTimeoutMillis: 5_000,
 };
 
+// The pools are declared with the application's pool contract rather than the
+// pg class so the integration tests can pin query/connect doubles on them.
+/** @type {DbPool} */
 export const pool = new Pool({
   ...applicationConnection,
   max: poolSize("DB_POOL_MAX", config.DB_POOL_MAX),
@@ -35,11 +40,13 @@ export const pool = new Pool({
 
 // A request retains its client until its response finishes. Transactions need
 // independent capacity or a full request pool would wait on its own releases.
+/** @type {DbPool} */
 export const transactionPool = new Pool({
   ...applicationConnection,
   max: poolSize("DB_TX_POOL_MAX", config.DB_TX_POOL_MAX),
 });
 
+/** @type {DbPool} */
 export const migrationPool =
   config.DB_MIGRATIONS_USER || config.DB_MIGRATIONS_PASSWORD
     ? new Pool({
@@ -54,6 +61,7 @@ export const migrationPool =
       })
     : pool;
 
+/** @type {Promise<void> | undefined} */
 let closePromise;
 export function closeDatabase() {
   // The migration pool can alias the request pool; end every distinct pool

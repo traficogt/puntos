@@ -13,10 +13,38 @@ const TRUSTED_ORIGINS = new Set(
   [config.APP_ORIGIN, ...(config.CORS_ORIGINS || [])].filter(Boolean),
 );
 
+/** @typedef {import("express").NextFunction} NextFunction */
+
+/**
+ * The request fields the CSRF middleware reads. Tests drive it with plain
+ * objects, so the contract is structural rather than Express's Request.
+ * Cookie values are typed as strings: cookie-parser only yields other values
+ * for `j:`-prefixed JSON cookies, which this application never issues (such a
+ * token fails the length comparison and is rejected).
+ * @typedef {object} CsrfRequest
+ * @property {string} method
+ * @property {string} [path]
+ * @property {Record<string, string | undefined>} cookies
+ * @property {import("node:http").IncomingHttpHeaders} headers
+ * @property {unknown} [body]
+ * @property {string} [protocol]
+ * @property {(name: string) => string | string[] | undefined} get
+ * @property {string} [originalUrl]
+ * @property {string} [url]
+ * @property {string} [ip]
+ * @property {{ id?: string | null, business_id?: string | null } | null} [staff]
+ * @property {{ id?: string | null, business_id?: string | null } | null} [customerAuth]
+ * @property {unknown} [superAdmin]
+ * @property {string} [csrfToken]
+ */
+
+/** @typedef {import("../types/http.js").JsonResponder} CsrfResponse */
+
 function generateToken() {
   return crypto.randomBytes(32).toString("base64url");
 }
 
+/** @param {CsrfRequest} req */
 function actorContext(req) {
   if (req.superAdmin) {
     return { actor_type: "SUPER_ADMIN", actor_id: null };
@@ -31,6 +59,12 @@ function actorContext(req) {
   return { actor_type: "ANON", actor_id: null };
 }
 
+/**
+ * Records a rejected state-changing request as a security event (never throws).
+ * @param {CsrfRequest} req
+ * @param {string} method
+ * @param {string} reason
+ */
 function logDenied(req, method, reason) {
   const actor = actorContext(req);
   return SecurityEventRepo.log({
@@ -46,7 +80,12 @@ function logDenied(req, method, reason) {
   }).catch(() => {});
 }
 
+/**
+ * @param {Pick<import("express").Response, "cookie">} res
+ * @param {string} token
+ */
 function setCsrfCookies(res, token) {
+  /** @type {import("express").CookieOptions} */
   const cookieOptions = {
     secure: config.NODE_ENV === "production",
     sameSite: "strict",
@@ -64,13 +103,17 @@ function setCsrfCookies(res, token) {
   });
 }
 
+/** @param {CsrfRequest} req */
 function getRequestToken(req) {
   const headerToken = req.headers[CSRF_HEADER_NAME];
   if (typeof headerToken === "string" && headerToken) {
     return headerToken;
   }
 
-  const bodyToken = req.body?.[CSRF_BODY_FIELD];
+  const bodyToken =
+    req.body && typeof req.body === "object"
+      ? /** @type {Record<string, unknown>} */ (req.body)[CSRF_BODY_FIELD]
+      : undefined;
   if (typeof bodyToken === "string" && bodyToken) {
     return bodyToken;
   }
@@ -78,6 +121,7 @@ function getRequestToken(req) {
   return null;
 }
 
+/** @param {unknown} value an Origin/Referer header or a composed origin */
 function normalizeOrigin(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
@@ -88,6 +132,7 @@ function normalizeOrigin(value) {
   }
 }
 
+/** @param {CsrfRequest} req */
 function verifyRequestOrigin(req) {
   const requestOrigin = normalizeOrigin(`${req.protocol}://${req.get("host")}`);
   const origin = normalizeOrigin(req.headers.origin);
@@ -107,6 +152,12 @@ function verifyRequestOrigin(req) {
   return { ok: false, reason: "missing_origin_and_referer" };
 }
 
+/**
+ * Issues the double-submit CSRF cookies when the request has none.
+ * @param {CsrfRequest} req
+ * @param {Pick<import("express").Response, "cookie" | "locals">} res
+ * @param {NextFunction} next
+ */
 export function csrfInit(req, res, next) {
   // Native endpoints require explicit bearer credentials and never use cookies.
   if (/^\/api(?:\/v1)?\/mobile(?:\/|$)/.test(req.path || "")) return next();
@@ -119,9 +170,15 @@ export function csrfInit(req, res, next) {
   }
 
   res.locals.csrfToken = req.csrfToken;
-  next();
+  return next();
 }
 
+/**
+ * Rejects state-changing requests whose token or origin does not match.
+ * @param {CsrfRequest} req
+ * @param {CsrfResponse} res
+ * @param {NextFunction} next
+ */
 export function csrfProtect(req, res, next) {
   const method = req.method.toUpperCase();
   if (!STATEFUL_METHODS.has(method)) {
@@ -159,14 +216,21 @@ export function csrfProtect(req, res, next) {
     return res.status(403).json({ error: "Token CSRF inválido" });
   }
 
-  next();
+  return next();
 }
 csrfProtect.__openapi = { csrfRequired: true };
 
+/** @param {Pick<CsrfRequest, "csrfToken" | "cookies">} req */
 export function getCsrfToken(req) {
   return req.csrfToken || req.cookies[CSRF_COOKIE_NAME];
 }
 
+/**
+ * Adds `csrfToken` to every JSON object body the response sends.
+ * @param {Pick<CsrfRequest, "csrfToken" | "cookies">} req
+ * @param {Pick<import("express").Response, "json">} res
+ * @param {NextFunction} next
+ */
 export function addCsrfToResponse(req, res, next) {
   const originalJson = res.json.bind(res);
   res.json = function jsonWithCsrf(data) {

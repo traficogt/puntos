@@ -1,7 +1,10 @@
 import express from "express";
 import path from "node:path";
 
-/** Public documents; case data remains behind the authenticated/capability API. */
+/**
+ * Public documents; case data remains behind the authenticated/capability API.
+ * @param {string} publicDir absolute path of the static public directory
+ */
 export function createSelfServiceWeb(publicDir) {
   const router = express.Router({ strict: true });
   router.get(["/calculadora/detallada/", "/calculator/detallada.html"], (_req, res) =>

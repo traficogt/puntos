@@ -16,6 +16,7 @@ function arg(name, fallback = "") {
   return args[index + 1] ?? fallback;
 }
 
+/** @param {string} name */
 function hasFlag(name) {
   return args.includes(name);
 }

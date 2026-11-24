@@ -6,8 +6,25 @@ import { getRequestIp } from "../utils/request-ip.js";
 import { checkRedisRateLimit } from "../utils/redis-rate-limit.js";
 import { errorMessage } from "../utils/error-shape.js";
 
+/** @typedef {import("express").Request} Request */
+/** @typedef {import("express").Response} Response */
+/** @typedef {import("express").NextFunction} NextFunction */
+/**
+ * In-memory fixed-window counter per key.
+ * @typedef {Map<string, { count: number, resetTime: number }>} RateLimitStore
+ */
+/**
+ * @typedef {object} RateLimitOptions
+ * @property {string} [keyPrefix] namespace for the counter key
+ * @property {(req: Request) => boolean} [skip] requests that bypass the limit
+ * @property {string} [message] prefix of the 429 message
+ */
+
+/** @type {RateLimitStore} */
 const userLimitStore = new Map();
+/** @type {RateLimitStore} */
 const phoneLimitStore = new Map();
+/** @type {RateLimitStore} */
 const ipLimitStore = new Map();
 
 /** @param {string} url */
@@ -80,6 +97,10 @@ setInterval(
   5 * 60 * 1000,
 ).unref();
 
+/**
+ * @param {Response} res
+ * @param {{ max: number, remaining: number, resetIn: number }} limits
+ */
 function setRateLimitHeaders(res, { max, remaining, resetIn }) {
   res.set({
     "X-RateLimit-Limit": String(max),
@@ -88,6 +109,12 @@ function setRateLimitHeaders(res, { max, remaining, resetIn }) {
   });
 }
 
+/**
+ * @param {RateLimitStore} store
+ * @param {string} key
+ * @param {number} maxRequests
+ * @param {number} windowMs
+ */
 function checkLimitMemory(store, key, maxRequests, windowMs) {
   const now = Date.now();
   const record = store.get(key);
@@ -106,10 +133,16 @@ function checkLimitMemory(store, key, maxRequests, windowMs) {
   return { allowed: true, remaining: maxRequests - record.count, resetIn };
 }
 
-/** Shared check: Redis when ready, otherwise (or on a Redis failure) the memory store. */
+/**
+ * Shared check: Redis when ready, otherwise (or on a Redis failure) the memory store.
+ * @param {RateLimitStore} store
+ * @param {string} key
+ * @param {number} maxRequests
+ * @param {number} windowMs
+ */
 async function checkLimit(store, key, maxRequests, windowMs) {
   ensureRedisClient();
-  if (!redisReady) return checkLimitMemory(store, key, maxRequests, windowMs);
+  if (!redisReady || !redisClient) return checkLimitMemory(store, key, maxRequests, windowMs);
   try {
     return await checkRedisRateLimit(redisClient, key, maxRequests, windowMs);
   } catch (err) {
@@ -119,10 +152,17 @@ async function checkLimit(store, key, maxRequests, windowMs) {
   }
 }
 
+/** @param {Request} req */
 function getIp(req) {
   return getRequestIp(req) || "unknown";
 }
 
+/**
+ * @param {number} [max]
+ * @param {number} [windowMs]
+ * @param {RateLimitOptions} [opts]
+ * @returns {import("express").RequestHandler}
+ */
 export function rateLimitByIp(max = 120, windowMs = 60_000, opts = {}) {
   const keyPrefix = String(opts.keyPrefix || "ip:");
   const skip = typeof opts.skip === "function" ? opts.skip : null;
@@ -147,6 +187,11 @@ export function rateLimitByIp(max = 120, windowMs = 60_000, opts = {}) {
   };
 }
 
+/**
+ * @param {number} [max]
+ * @param {number} [windowMs]
+ * @returns {import("express").RequestHandler}
+ */
 export function rateLimitByUser(max = 100, windowMs = 60_000) {
   return async (req, res, next) => {
     try {
@@ -169,6 +214,12 @@ export function rateLimitByUser(max = 100, windowMs = 60_000) {
   };
 }
 
+/**
+ * @param {number} [max]
+ * @param {number} [windowMs]
+ * @param {Pick<RateLimitOptions, "keyPrefix">} [opts]
+ * @returns {import("express").RequestHandler}
+ */
 export function rateLimitByPhone(max = 3, windowMs = 60_000, opts = {}) {
   const keyPrefix = String(opts.keyPrefix || "phone:");
   return async (req, res, next) => {
@@ -202,6 +253,7 @@ export const strictRateLimit = rateLimitByIp(5, 15 * 60 * 1000, {
 export const moderateRateLimit = rateLimitByIp(60, 60 * 1000, { keyPrefix: "ip:moderate:" });
 export const lenientRateLimit = rateLimitByIp(120, 60 * 1000, { keyPrefix: "ip:lenient:" });
 
+/** @param {(req: Request) => boolean} skip requests exempt from the global limit */
 export function globalApiRateLimit(skip) {
   return rateLimitByIp(config.RATE_LIMIT_MAX, config.RATE_LIMIT_WINDOW_MS, {
     keyPrefix: "ip:api:",

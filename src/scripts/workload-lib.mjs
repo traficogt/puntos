@@ -8,7 +8,14 @@ export async function startResponseDropProxy(baseUrl) {
   const target = new URL(baseUrl);
   assert.equal(target.hostname, "127.0.0.1");
   assert.equal(target.protocol, "http:");
+  /**
+   * What the dropped upstream response looked like: status and JSON body, or
+   * the error that prevented one.
+   * @typedef {{ status?: number, body?: Record<string, unknown>, error?: string }} ObservedResponse
+   */
+  /** @type {(value: ObservedResponse) => void} */
   let resolveObserved;
+  /** @type {Promise<ObservedResponse>} */
   const observed = new Promise((resolve) => {
     resolveObserved = resolve;
   });
@@ -65,6 +72,7 @@ export function parseWorkloadOptions(args) {
     "Pass --run explicitly to create a disposable workload stack",
   );
   const options = { reads: 60, purchases: 6, concurrency: 4, maxP95Ms: 1000 };
+  /** @type {Record<string, [keyof typeof options, number, number]>} flag -> option, min, max */
   const limits = {
     "--reads": ["reads", 4, 240],
     "--purchases": ["purchases", 1, 20],
@@ -180,6 +188,7 @@ export function summarizeMeasurements(measurements) {
   return [...new Set(measurements.map((row) => row.label))].map((label) => {
     const rows = measurements.filter((row) => row.label === label);
     const durations = rows.map((row) => row.durationMs).sort((a, b) => a - b);
+    /** @param {number} value */
     const round = (value) => Number(value.toFixed(2));
     return {
       label,
@@ -190,7 +199,8 @@ export function summarizeMeasurements(measurements) {
       latencySamples: durations.length,
       avgMs: round(durations.reduce((a, b) => a + b, 0) / durations.length),
       p95Ms: round(durations[Math.ceil(durations.length * 0.95) - 1]),
-      maxMs: round(durations.at(-1)),
+      // Every label has at least one measurement, so the last sample exists.
+      maxMs: round(/** @type {number} */ (durations.at(-1))),
     };
   });
 }

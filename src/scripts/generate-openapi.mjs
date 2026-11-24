@@ -518,31 +518,100 @@ const schemas = {
   PublicContactIdentifierUnlinkResponse: PublicContactIdentifierUnlinkResponseSchema,
 };
 
+/** @typedef {import("../types/auth.js").OpenApiMiddlewareMeta} OpenApiMiddlewareMeta */
+/**
+ * A JSON Schema (as emitted by zod, or a `$ref`) in the parts this generator
+ * and its contract test read.
+ * @typedef {{
+ *   type?: string | string[],
+ *   required?: string[],
+ *   properties?: Record<string, JsonSchema>,
+ *   items?: JsonSchema,
+ *   additionalProperties?: boolean | JsonSchema,
+ *   enum?: unknown[],
+ *   default?: unknown,
+ *   minimum?: number,
+ *   maximum?: number,
+ *   $ref?: string,
+ *   [key: string]: unknown,
+ * }} JsonSchema
+ */
+/**
+ * An OpenAPI parameter object.
+ * @typedef {{ in: string, name: string, required?: boolean, schema?: JsonSchema, [key: string]: unknown }} OpenApiParameter
+ */
+/**
+ * An OpenAPI response object.
+ * @typedef {{ description?: string, content?: Record<string, { schema: JsonSchema }>, [key: string]: unknown }} OpenApiResponse
+ */
+/**
+ * An OpenAPI operation object with the vendor extensions this project emits.
+ * @typedef {{
+ *   summary?: string,
+ *   responses?: Record<string, OpenApiResponse>,
+ *   parameters?: OpenApiParameter[],
+ *   security?: Array<Record<string, string[]>>,
+ *   requestBody?: { required?: boolean, content: Record<string, { schema: JsonSchema }> },
+ *   "x-csrf-required"?: boolean,
+ *   "x-tenant-context"?: boolean,
+ *   "x-required-roles"?: string[],
+ *   "x-required-permissions"?: string[],
+ *   "x-plan-features"?: string[],
+ *   [key: string]: unknown,
+ * }} OpenApiOperation
+ */
+/**
+ * Schema bindings for one route: request body / query component names and
+ * response component names by status.
+ * @typedef {{ body?: string, query?: string, responses?: Record<string, string> }} RouteSchemaBinding
+ */
+/**
+ * An Express router stack entry (or the handler it wraps) as this generator
+ * walks it. Express does not type its internal layers.
+ * @typedef {object} RouterLayer
+ * @property {string} [name]
+ * @property {RouterLayer | null} [handle]
+ * @property {OpenApiMiddlewareMeta} [__openapi]
+ * @property {RouterLayer[]} [stack]
+ * @property {{ path?: string, stack?: RouterLayer[], methods?: Record<string, boolean> } | null} [route]
+ */
+
+/**
+ * @param {import("zod").ZodType} schema
+ * @returns {JsonSchema}
+ */
 function toComponentSchema(schema) {
-  return z.toJSONSchema(schema, {
-    target: "openapi-3.0",
-    io: "input",
-    reused: "inline",
-    cycles: "throw",
-    override: ({ zodSchema, jsonSchema }) => {
-      // Retain the documented stripped-object shape while defaults and
-      // transformations describe what callers send rather than parsed output.
-      if (zodSchema._zod.def.type === "object" && jsonSchema.additionalProperties === undefined) {
-        jsonSchema.additionalProperties = false;
-      }
-    },
-  });
+  // zod's JSON Schema type admits boolean sub-schemas (`true`/`false`), which the
+  // object schemas this generator emits never contain.
+  return /** @type {JsonSchema} */ (
+    z.toJSONSchema(schema, {
+      target: "openapi-3.0",
+      io: "input",
+      reused: "inline",
+      cycles: "throw",
+      override: ({ zodSchema, jsonSchema }) => {
+        // Retain the documented stripped-object shape while defaults and
+        // transformations describe what callers send rather than parsed output.
+        if (zodSchema._zod.def.type === "object" && jsonSchema.additionalProperties === undefined) {
+          jsonSchema.additionalProperties = false;
+        }
+      },
+    })
+  );
 }
 
+/** @type {Record<string, JsonSchema>} */
 const components = {};
 for (const [name, schema] of Object.entries(schemas)) {
   components[name] = toComponentSchema(schema);
 }
 
+/** @param {string} name a component schema name */
 function schemaRef(name) {
   return { $ref: `#/components/schemas/${name}` };
 }
 
+/** @type {Record<string, Record<string, RouteSchemaBinding>>} path -> method -> bindings */
 const routeSchemaBindings = {
   "/api/v1/staff/login": {
     post: { body: "StaffLoginRequest" },
@@ -2281,10 +2350,12 @@ const curatedPaths = {
   },
 };
 
+/** @param {string} routePath */
 function normalizeExpressPath(routePath) {
   return String(routePath || "").replace(/:([A-Za-z0-9_]+)/g, "{$1}");
 }
 
+/** @param {string} pathname */
 function inferSecurity(pathname) {
   if (pathname.startsWith("/api/v1/customer/") || pathname === "/api/v1/customer/me")
     return [{ customerAuth: [] }];
@@ -2302,6 +2373,7 @@ function inferSecurity(pathname) {
   return undefined;
 }
 
+/** @param {RouterLayer} layer */
 function extractMiddlewareMeta(layer) {
   const handle = layer?.handle || layer;
   const name = String(layer?.name || handle?.name || "");
@@ -2320,10 +2392,15 @@ function extractMiddlewareMeta(layer) {
   return meta;
 }
 
+/** @param {RouterLayer[]} [layers] */
 function collectRouteMiddlewareMeta(layers = []) {
+  /** @type {Set<string>} */
   const auths = new Set();
+  /** @type {Set<string>} */
   const roles = new Set();
+  /** @type {Set<string>} */
   const permissions = new Set();
+  /** @type {Set<string>} */
   const planFeatures = new Set();
   let csrfRequired = false;
   let tenantContext = false;
@@ -2348,6 +2425,7 @@ function collectRouteMiddlewareMeta(layers = []) {
   };
 }
 
+/** @param {string} method @param {string} pathname */
 function inferSuccessStatus(method, pathname) {
   const createdPostRoutes = new Set([
     "/api/v1/admin/analytics/segments",
@@ -2365,6 +2443,7 @@ function inferSuccessStatus(method, pathname) {
   return "200";
 }
 
+/** @param {string} method @param {string} pathname */
 function buildDerivedSummary(method, pathname) {
   return `Derived ${method.toUpperCase()} ${pathname}`;
 }
@@ -2375,6 +2454,7 @@ function buildDerivedSummary(method, pathname) {
  * @param {ReturnType<typeof collectRouteMiddlewareMeta> | null} [routeMeta]
  */
 function buildDerivedOperation(method, pathname, routeMeta = null) {
+  /** @type {OpenApiOperation} */
   const operation = {
     summary: buildDerivedSummary(method, pathname),
     responses: {
@@ -2413,10 +2493,17 @@ function buildDerivedOperation(method, pathname, routeMeta = null) {
   return operation;
 }
 
+/**
+ * Deep copy via JSON; null and undefined pass through.
+ * @template T
+ * @param {T} value
+ * @returns {T}
+ */
 function clone(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
 }
 
+/** @param {string | string[] | undefined} type */
 function jsonSchemaTypeToOpenApiType(type) {
   if (Array.isArray(type)) {
     return type.find((entry) => entry !== "null") || "string";
@@ -2424,6 +2511,7 @@ function jsonSchemaTypeToOpenApiType(type) {
   return type || "string";
 }
 
+/** @param {string} name a component schema name */
 function buildQueryParametersFromComponent(name) {
   const schema = components[name];
   if (!schema || jsonSchemaTypeToOpenApiType(schema.type) !== "object") return [];
@@ -2437,6 +2525,7 @@ function buildQueryParametersFromComponent(name) {
   }));
 }
 
+/** @param {string} schemaName */
 function buildJsonContent(schemaName) {
   return {
     "application/json": {
@@ -2445,6 +2534,10 @@ function buildJsonContent(schemaName) {
   };
 }
 
+/**
+ * @param {Record<string, OpenApiResponse>} [responses]
+ * @param {Record<string, string>} [schemaBindings] status -> component schema name
+ */
 function applyResponseSchemas(responses = {}, schemaBindings = {}) {
   const nextResponses = { ...responses };
 
@@ -2467,6 +2560,10 @@ function applyResponseSchemas(responses = {}, schemaBindings = {}) {
   return nextResponses;
 }
 
+/**
+ * @param {OpenApiOperation} operation
+ * @param {RouteSchemaBinding} [binding]
+ */
 function applySchemaBindingsToOperation(operation, binding = {}) {
   const next = {
     ...operation,
@@ -2496,6 +2593,12 @@ function applySchemaBindingsToOperation(operation, binding = {}) {
   return next;
 }
 
+/**
+ * @param {RouterLayer[] | undefined} stack
+ * @param {string} [prefix]
+ * @param {Map<string, Record<string, OpenApiOperation>>} [paths]
+ * @param {RouterLayer[]} [inheritedLayers]
+ */
 function collectVersionedRoutes(stack, prefix = "", paths = new Map(), inheritedLayers = []) {
   let activeInherited = [...inheritedLayers];
 
@@ -2532,6 +2635,7 @@ function collectVersionedRoutes(stack, prefix = "", paths = new Map(), inherited
 
 async function deriveRoutePaths() {
   const { apiRouteMounts } = await import("../app/routes/index.js");
+  /** @type {Map<string, Record<string, OpenApiOperation>>} */
   const paths = new Map();
   for (const { basePath, router } of apiRouteMounts) {
     if (basePath === "/api/v1") collectVersionedRoutes(router.stack, basePath, paths);
@@ -2542,6 +2646,10 @@ async function deriveRoutePaths() {
   return Object.fromEntries(derivedEntries);
 }
 
+/**
+ * @param {Record<string, Record<string, OpenApiOperation>>} derivedPaths
+ * @param {Record<string, Record<string, OpenApiOperation>>} overridePaths
+ */
 function mergePaths(derivedPaths, overridePaths) {
   const merged = { ...derivedPaths };
   for (const [pathname, operations] of Object.entries(overridePaths)) {
@@ -2598,6 +2706,7 @@ export async function buildOpenApiDoc() {
   };
 }
 
+/** @param {unknown} value */
 function yamlScalar(value) {
   if (value === null) return "null";
   if (typeof value === "number" || typeof value === "boolean") return String(value);
@@ -2609,6 +2718,11 @@ function yamlScalar(value) {
   return JSON.stringify(value);
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} [indent]
+ * @returns {string}
+ */
 function toYaml(value, indent = 0) {
   const space = " ".repeat(indent);
   if (Array.isArray(value)) {
@@ -2671,6 +2785,7 @@ function toYaml(value, indent = 0) {
   return `${space}${yamlScalar(value)}`;
 }
 
+/** @param {Awaited<ReturnType<typeof buildOpenApiDoc>> | null} [doc] */
 export async function writeOpenApiFiles(doc) {
   const resolvedDoc = doc || (await buildOpenApiDoc());
   const docsDir = path.join(process.cwd(), "docs");

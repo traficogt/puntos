@@ -49,6 +49,17 @@ const COMMON_PASSWORDS = new Set([
   "administrator",
 ]);
 
+/**
+ * Account details a password must not echo. Unknown or empty values are ignored.
+ * @typedef {{
+ *   email?: string | null,
+ *   name?: string | null,
+ *   businessName?: string | null,
+ *   phone?: string | null,
+ * }} PasswordContext
+ */
+
+/** @param {string} value */
 function normalizeText(value) {
   return String(value || "")
     .normalize("NFKC")
@@ -57,6 +68,7 @@ function normalizeText(value) {
     .replace(/[^a-z0-9]/g, "");
 }
 
+/** @param {string | null | undefined} value */
 function tokenizeContext(value) {
   return String(value || "")
     .normalize("NFKC")
@@ -66,6 +78,11 @@ function tokenizeContext(value) {
     .filter((token) => token.length >= 4);
 }
 
+/**
+ * Policy violations for a candidate password, in display order; empty when it is acceptable.
+ * @param {unknown} password the submitted value; non-strings are stringified
+ * @param {PasswordContext} [context]
+ */
 export function passwordPolicyErrors(password, context = {}) {
   const raw = String(password ?? "");
   const normalized = normalizeText(raw);
@@ -112,6 +129,11 @@ export function passwordPolicyErrors(password, context = {}) {
   return errors;
 }
 
+/**
+ * Throws a 400 HttpError with the first policy violation.
+ * @param {unknown} password
+ * @param {PasswordContext} [context]
+ */
 export function assertPasswordAllowed(password, context = {}) {
   const errors = passwordPolicyErrors(password, context);
   if (!errors.length) return;

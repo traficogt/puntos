@@ -2,6 +2,7 @@
 import { createHash } from "node:crypto";
 
 export const MAX_AGE_MS = 24 * 60 * 60 * 1000;
+/** @type {ReadonlyArray<"tests" | "pass" | "fail" | "cancelled" | "skipped" | "todo">} */
 const countKeys = ["tests", "pass", "fail", "cancelled", "skipped", "todo"];
 const emptyCounts = () => ({
   tests: 0,
@@ -12,10 +13,49 @@ const emptyCounts = () => ({
   todo: 0,
   valid: false,
 });
-const integer = (value) => Number.isSafeInteger(value) && value >= 0;
+/** @typedef {ReturnType<typeof emptyCounts>} Counts */
+
+/**
+ * One check of the readiness run (see checksFor in release-readiness.mjs).
+ * @typedef {object} ReadinessCheck
+ * @property {string} id
+ * @property {string} title
+ * @property {string} category static | functional | database | browser
+ * @property {string[]} command executable and arguments
+ * @property {string} format how stdout is interpreted: exit | tap | playwright | domains
+ * @property {Record<string, string | undefined>} [tools] tool name -> package.json path whose version is recorded
+ * @property {string[]} [expectedFiles]
+ * @property {string[]} [expectedProjects]
+ * @property {boolean} [requiresApplicationIdentity]
+ * @property {boolean} [bindTestApi]
+ * @property {Record<string, string | undefined>} [env] extra environment for the child process
+ * @property {string} [cwd] relative to the repository root
+ * @property {number} [timeoutMs]
+ * @property {number} [graceMs]
+ */
+
+/**
+ * The parts of a Playwright JSON report this tooling reads.
+ * @typedef {{ status?: string, retry?: number }} PlaywrightResult
+ * @typedef {{ projectName?: string, status?: string, expectedStatus?: string, results?: PlaywrightResult[] }} PlaywrightTest
+ * @typedef {{ file?: string, title?: string, tests?: PlaywrightTest[] }} PlaywrightSpec
+ * @typedef {{ title?: string, specs?: PlaywrightSpec[], suites?: PlaywrightSuite[] }} PlaywrightSuite
+ */
+
+/** @param {unknown} value */
+const integer = (value) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+/** @param {string | Buffer} value */
 export const digest = (value) => createHash("sha256").update(value).digest("hex");
 
+/**
+ * Whether a browser runner's output carries exactly one passing completion
+ * receipt of `kind` for `expectedChecks` checks.
+ * @param {string} output
+ * @param {string} kind
+ * @param {number} expectedChecks
+ */
 export function hasBrowserCompletion(output, kind, expectedChecks) {
+  /** @type {Array<Record<string, unknown>>} */
   const records = [];
   for (const line of output.split("\n")) {
     try {
@@ -34,6 +74,7 @@ export function hasBrowserCompletion(output, kind, expectedChecks) {
   );
 }
 
+/** @param {Counts} counts */
 function validCounts(counts) {
   return (
     countKeys.every((key) => integer(counts[key])) &&
@@ -42,6 +83,7 @@ function validCounts(counts) {
   );
 }
 
+/** @param {string} output */
 export function parseTap(output) {
   const counts = emptyCounts();
   if (
@@ -72,6 +114,11 @@ export function parseTap(output) {
   return counts;
 }
 
+/**
+ * @param {string} output Playwright JSON reporter output
+ * @param {string[]} [expectedFiles]
+ * @param {string[]} [expectedProjects]
+ */
 export function parsePlaywright(output, expectedFiles = [], expectedProjects = []) {
   const counts = emptyCounts();
   try {
@@ -89,6 +136,7 @@ export function parsePlaywright(output, expectedFiles = [], expectedProjects = [
       skipped = 0;
     const observedFiles = new Set();
     const observedProjects = new Set();
+    /** @param {PlaywrightSuite[]} suites */
     function visit(suites) {
       for (const suite of suites) {
         for (const spec of suite.specs || []) {
@@ -141,6 +189,10 @@ export function parsePlaywright(output, expectedFiles = [], expectedProjects = [
   return counts;
 }
 
+/**
+ * @param {string} output domain runner output: one JSON object per line
+ * @param {string[]} expectedFiles
+ */
 export function parseDomains(output, expectedFiles) {
   const counts = emptyCounts();
   try {
@@ -175,6 +227,34 @@ export function parseDomains(output, expectedFiles) {
   return counts;
 }
 
+/** @typedef {Awaited<ReturnType<typeof inspectSource>>} SourceState */
+/**
+ * The fields that identify a checkout for evidence comparison (a SourceState
+ * carries these plus counts).
+ * @typedef {{ commit: string, tree: string, contentSha256: string, clean: boolean }} SourceIdentity
+ */
+/**
+ * The receipt executeCheck writes next to a check's raw output.
+ * @typedef {object} Receipt
+ * @property {number} schemaVersion
+ * @property {string} checkId
+ * @property {string[]} command
+ * @property {SourceIdentity} sourceBefore
+ * @property {SourceIdentity} sourceAfter
+ * @property {string} startedAt
+ * @property {string} finishedAt
+ * @property {number} durationMs
+ * @property {number | null} exitCode
+ * @property {string | null} signal
+ * @property {boolean} timedOut
+ * @property {boolean} truncated
+ * @property {boolean} cancelled
+ * @property {Record<string, string>} toolVersions
+ * @property {{ before: string | null, after: string | null }} [application]
+ * @property {Record<string, { sha256: string, bytes: number }>} artifacts
+ */
+
+/** @param {SourceIdentity | null | undefined} a @param {SourceIdentity | null | undefined} b */
 function sameSource(a, b) {
   return (
     a?.clean === true &&
@@ -185,12 +265,22 @@ function sameSource(a, b) {
   );
 }
 
-/** @typedef {{ id: string, title: string, category: string, command: string[], status: string, reason: string,
+/** @typedef {{ id: string, title: string, category: string, command?: string[], status: string, reason: string,
  * startedAt?: string, finishedAt?: string, durationMs?: number, toolVersions?: Record<string, string>,
- * exitCode?: number|null, signal?: string|null, counts?: ReturnType<typeof emptyCounts>|null,
- * cancelled?: boolean, timedOut?: boolean, truncated?: boolean, application?: any,
+ * exitCode?: number|null, signal?: string|null, counts?: Counts|null,
+ * cancelled?: boolean, timedOut?: boolean, truncated?: boolean,
+ * application?: { before: string | null, after: string | null },
  * artifacts?: Record<string, {sha256: string, bytes: number}> }} EvidenceResult */
 /** Evaluate captured bytes, never a caller-supplied status or counts field.
+ * @param {{
+ *   check: ReadinessCheck,
+ *   receipt?: Receipt,
+ *   stdout?: Buffer,
+ *   stderr?: Buffer,
+ *   source: SourceIdentity,
+ *   revision: string,
+ *   now?: Date,
+ * }} evidence
  * @returns {EvidenceResult} */
 export function evaluateEvidence({
   check,
@@ -209,6 +299,7 @@ export function evaluateEvidence({
     status: "not_tested",
     reason: "missing_evidence",
   };
+  /** @param {string} reason */
   const reject = (reason) => ({ ...base, reason });
   if (!receipt) return base;
   if (
@@ -231,10 +322,12 @@ export function evaluateEvidence({
     return reject("stale_or_invalid_time");
   if (!/^v\d+\.\d+\.\d+$/.test(receipt.toolVersions?.node || ""))
     return reject("invalid_tool_version");
-  for (const [name, bytes] of [
+  /** @type {Array<["stdout" | "stderr", Buffer | undefined]>} */
+  const captured = [
     ["stdout", stdout],
     ["stderr", stderr],
-  ]) {
+  ];
+  for (const [name, bytes] of captured) {
     const artifact = receipt.artifacts?.[name];
     if (
       !Buffer.isBuffer(bytes) ||
@@ -243,6 +336,9 @@ export function evaluateEvidence({
     )
       return reject("artifact_mismatch");
   }
+  // Unreachable (the loop above rejected non-buffers); narrows for the type checker.
+  if (!stdout || !stderr) return reject("artifact_mismatch");
+  /** @type {Record<string, string>} */
   const toolVersions = { node: receipt.toolVersions.node };
   for (const tool of Object.keys(check.tools || {})) {
     const version = receipt.toolVersions[tool];
@@ -259,7 +355,13 @@ export function evaluateEvidence({
     timedOut: receipt.timedOut === true,
     truncated: receipt.truncated === true,
     exitCode: Number.isInteger(receipt.exitCode) ? receipt.exitCode : null,
-    signal: ["SIGTERM", "SIGINT", "SIGKILL", "SIGABRT", "SIGSEGV"].includes(receipt.signal)
+    signal: /** @type {ReadonlyArray<string | null>} */ ([
+      "SIGTERM",
+      "SIGINT",
+      "SIGKILL",
+      "SIGABRT",
+      "SIGSEGV",
+    ]).includes(receipt.signal)
       ? receipt.signal
       : null,
     artifacts: {
@@ -274,7 +376,8 @@ export function evaluateEvidence({
       : check.format === "playwright"
         ? parsePlaywright(output, check.expectedFiles, check.expectedProjects)
         : check.format === "domains"
-          ? parseDomains(output, check.expectedFiles)
+          ? // Domain checks always list their suite files (see checksFor).
+            parseDomains(output, /** @type {string[]} */ (check.expectedFiles))
           : null;
   if (
     source.commit !== revision ||
@@ -287,8 +390,8 @@ export function evaluateEvidence({
     const before = receipt.application?.before,
       after = receipt.application?.after;
     result.application = {
-      before: /^[a-f0-9]{40}$/.test(before || "") ? before : null,
-      after: /^[a-f0-9]{40}$/.test(after || "") ? after : null,
+      before: typeof before === "string" && /^[a-f0-9]{40}$/.test(before) ? before : null,
+      after: typeof after === "string" && /^[a-f0-9]{40}$/.test(after) ? after : null,
     };
     if (before !== expected || after !== expected)
       return { ...result, counts, status: "not_tested", reason: "application_revision_unverified" };
@@ -319,7 +422,13 @@ import { lstat, readFile, readlink, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { errorCode } from "../utils/error-shape.js";
 
+/**
+ * Identifies the checkout: commit, tree, a content hash over tracked and
+ * untracked files, and whether it is clean.
+ * @param {string} cwd repository root
+ */
 export async function inspectSource(cwd) {
+  /** @param {string[]} args */
   const git = (args) =>
     execFileSync("git", ["-c", "core.fsmonitor=false", ...args], {
       cwd,
@@ -351,6 +460,7 @@ export async function inspectSource(cwd) {
   const hash = createHash("sha256");
   let modifiedTrackedFiles = 0;
   for (const file of [...new Set([...committed.keys(), ...tracked, ...untracked])].sort()) {
+    /** @type {Array<string | number>} */
     let entry;
     try {
       const info = await lstat(join(cwd, file));
@@ -411,13 +521,16 @@ export function capture(
       detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
+    /** @type {Buffer[]} */
     const stdout = [],
+      /** @type {Buffer[]} */
       stderr = [];
     let size = 0,
       truncated = false,
       timedOut = false,
-      spawnFailed = false,
-      forcedKill;
+      spawnFailed = false;
+    /** @type {NodeJS.Timeout | undefined} */
+    let forcedKill;
     function stop() {
       const pid = child.pid;
       if (!pid) return;
@@ -435,6 +548,7 @@ export function capture(
           }
         }, graceMs);
     }
+    /** @param {Buffer[]} chunks @param {Buffer} chunk */
     function collect(chunks, chunk) {
       const remaining = Math.max(0, maxBytes - size);
       chunks.push(chunk.subarray(0, remaining));
@@ -526,7 +640,11 @@ async function applicationRevision(baseUrl = "http://127.0.0.1:3001") {
   }
 }
 
-/** @param {any} check @param {{cwd: string, output: string, env: NodeJS.ProcessEnv, signal?: AbortSignal}} options */
+/**
+ * Runs one check in a child process and writes its receipt and raw output.
+ * @param {ReadinessCheck} check
+ * @param {{cwd: string, output: string, env: NodeJS.ProcessEnv, signal?: AbortSignal}} options
+ */
 export async function executeCheck(check, { cwd, output, env, signal }) {
   if (!/^[a-z][a-z0-9-]*$/.test(check.id)) throw new Error("Invalid check identifier");
   const sourceBefore = await inspectSource(cwd);
@@ -574,6 +692,7 @@ export async function executeCheck(check, { cwd, output, env, signal }) {
     : null;
   const finishedAt = new Date().toISOString();
   const sourceAfter = await inspectSource(cwd);
+  /** @type {Record<string, string>} */
   const toolVersions = { node: process.version };
   for (const [tool, location] of Object.entries(check.tools || {})) {
     try {
@@ -627,7 +746,11 @@ const externalChecks = [
   ["operations-acceptance", "Deployment, restore, monitoring and owner pilot approval"],
 ];
 
+/**
+ * @param {{ source: SourceIdentity, revision: string, results: EvidenceResult[], generatedAt?: string }} params
+ */
 export function buildReport({ source, revision, results, generatedAt = new Date().toISOString() }) {
+  /** @type {EvidenceResult} */
   const sourceCheck = {
     id: "source-identity",
     title: "Exact clean release source",
@@ -655,17 +778,41 @@ export function buildReport({ source, revision, results, generatedAt = new Date(
     scope: "Website/backend code evidence; native apps and external acceptance are not certified.",
     checks: [
       ...code,
-      ...externalChecks.map(([id, title]) => ({
-        id,
-        title,
-        category: "external",
-        status: "not_tested",
-        reason: "external_acceptance_required",
-      })),
+      ...externalChecks.map(
+        ([id, title]) =>
+          /** @type {EvidenceResult} */ ({
+            id,
+            title,
+            category: "external",
+            status: "not_tested",
+            reason: "external_acceptance_required",
+          }),
+      ),
     ],
   };
 }
 
+/**
+ * An evidence row that was executed: timing, tools and artifact digests present.
+ * @typedef {EvidenceResult & {
+ *   startedAt: string,
+ *   finishedAt: string,
+ *   durationMs: number,
+ *   command: string[],
+ *   toolVersions: Record<string, string>,
+ *   artifacts: Record<string, { sha256: string, bytes: number }>,
+ * }} ExecutedEvidence
+ */
+
+/**
+ * @param {EvidenceResult} row
+ * @returns {row is ExecutedEvidence}
+ */
+function isExecuted(row) {
+  return Boolean(row.startedAt);
+}
+
+/** @param {ReturnType<typeof buildReport>} report */
 export function renderMarkdown(report) {
   const lines = [
     "# Release readiness",
@@ -690,7 +837,7 @@ export function renderMarkdown(report) {
     lines.push(`| ${check.title} | ${check.category} | ${check.status} | ${details} |`);
   }
   lines.push("", "## Execution evidence", "");
-  for (const check of report.checks.filter((row) => row.startedAt)) {
+  for (const check of report.checks.filter(isExecuted)) {
     lines.push(
       `### ${check.title}`,
       "",

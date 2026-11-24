@@ -15,6 +15,7 @@ const publicSlashAliases = new Map([
 /**
  * Mount after search visibility and before host-split/static document handlers.
  * @param {{ marketingOrigin: string, guides?: typeof guideCatalog, now?: () => number | Date }} options
+ * @returns {import("express").RequestHandler}
  */
 export function createGuides({ marketingOrigin, guides = guideCatalog, now = Date.now }) {
   const origin = new URL(marketingOrigin).origin;
@@ -37,7 +38,7 @@ export function createGuides({ marketingOrigin, guides = guideCatalog, now = Dat
     }
     const match = req.path.match(/^\/guias\/([a-z0-9]+(?:-[a-z0-9]+)*)(\/?)$/);
     const article = match ? articles.find((item) => item.slug === match[1]) : undefined;
-    if (!article) {
+    if (!match || !article) {
       res.set("X-Robots-Tag", "noindex, follow, noarchive");
       return res.status(404).type("html").send(renderGuideNotFound({ origin }));
     }

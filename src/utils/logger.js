@@ -7,6 +7,11 @@ const pkg = require(path.join(process.cwd(), "package.json"));
 
 const levelFromEnv = process.env.LOG_LEVEL || (process.env.NODE_ENV === "test" ? "silent" : "info");
 
+/**
+ * Strips the query string and the secret path segments (unsubscribe tokens,
+ * Wallet device/registration ids, magic-link tokens) from a URL for logging.
+ * @param {unknown} value the URL or path; non-strings are stringified
+ */
 export function safeLogUrl(value) {
   return String(value || "")
     .split("?")[0]
@@ -16,6 +21,10 @@ export function safeLogUrl(value) {
     .replace(/(\/magic\/(?:staff|customer)\/)[^/]+/gi, "$1[REDACTED]");
 }
 
+/**
+ * pino request serializer: the standard serialized request with its URL redacted.
+ * @param {import("pino").SerializedRequest | null | undefined} req
+ */
 export function safeRequestSerializer(req) {
   return req ? { ...req, url: safeLogUrl(req.url) } : req;
 }

@@ -6,6 +6,8 @@ import crypto from "node:crypto";
  *
  * Note: length mismatch is not compared in constant-time; for our use (auth/signature checks)
  * this is acceptable because attackers already control/know their own input length.
+ * @param {unknown} a non-strings are stringified; null/undefined compare as ""
+ * @param {unknown} b
  */
 export function timingSafeEqualString(a, b) {
   const av = String(a ?? "");

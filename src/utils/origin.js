@@ -1,6 +1,11 @@
 const ALLOWED_CLIENT_PROTOCOLS = new Set(["http:", "https:", "capacitor:", "ionic:"]);
 const SECURE_CLIENT_PROTOCOLS = new Set(["https:", "capacitor:", "ionic:"]);
 
+/**
+ * `protocol//host` of a client origin, or "" when it is not a valid origin for a
+ * web or native (capacitor/ionic) client.
+ * @param {unknown} value an Origin header or a client-supplied origin
+ */
 export function normalizeOrigin(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
@@ -16,10 +21,12 @@ export function normalizeOrigin(value) {
   }
 }
 
+/** @param {unknown} value */
 export function isValidClientOrigin(value) {
   return Boolean(normalizeOrigin(value));
 }
 
+/** @param {unknown} value */
 export function isSecureClientOrigin(value) {
   const normalized = normalizeOrigin(value);
   if (!normalized) return false;

@@ -5,13 +5,16 @@ import path from "node:path";
 
 const args = process.argv.slice(2);
 
+/** @param {string} name @param {string} [fallback] */
 function arg(name, fallback = "") {
   const index = args.indexOf(name);
   if (index === -1) return fallback;
   return args[index + 1] ?? fallback;
 }
 
+/** Every value given for a repeatable flag. @param {string} name */
 function list(name) {
+  /** @type {string[]} */
   const values = [];
   for (let i = 0; i < args.length; i += 1) {
     if (args[i] === name && i + 1 < args.length) values.push(args[i + 1]);
@@ -19,10 +22,16 @@ function list(name) {
   return values;
 }
 
+/**
+ * @param {unknown} condition
+ * @param {string} message
+ * @returns {asserts condition}
+ */
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+/** @param {string} raw a CLI value; true/false/null and numbers are converted */
 function parseValue(raw) {
   if (raw === "true") return true;
   if (raw === "false") return false;

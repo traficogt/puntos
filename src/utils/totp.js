@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
+/** @param {number} value @param {number} length */
 function leftPad(value, length) {
   return String(value).padStart(length, "0");
 }
@@ -18,6 +19,7 @@ export function generateBase32Secret(bytes = 20) {
   return out;
 }
 
+/** @param {string} secret */
 export function decodeBase32(secret) {
   const normalized = String(secret || "")
     .toUpperCase()
@@ -36,6 +38,7 @@ export function decodeBase32(secret) {
   return Buffer.from(bytes);
 }
 
+/** @param {string} secret @param {number} counter @param {number} [digits] */
 function hotp(secret, counter, digits = 6) {
   const key = decodeBase32(secret);
   const buf = Buffer.alloc(8);
@@ -50,6 +53,15 @@ function hotp(secret, counter, digits = 6) {
   return leftPad(binary % 10 ** digits, digits);
 }
 
+/**
+ * @typedef {{ stepSeconds?: number, digits?: number, nowMs?: number }} TotpOptions
+ * @typedef {TotpOptions & { window?: number }} TotpVerifyOptions
+ */
+
+/**
+ * @param {string} secret base32 secret
+ * @param {TotpOptions} [options]
+ */
 export function totp(secret, { stepSeconds = 30, digits = 6, nowMs = Date.now() } = {}) {
   const counter = Math.floor(nowMs / 1000 / stepSeconds);
   return hotp(secret, counter, digits);
@@ -57,6 +69,11 @@ export function totp(secret, { stepSeconds = 30, digits = 6, nowMs = Date.now() 
 
 // Returns the time-step counter the code matched (so the caller can enforce
 // single-use / reject replay within the validity window), or null if no match.
+/**
+ * @param {string} secret base32 secret
+ * @param {unknown} code the submitted code; anything but six digits fails
+ * @param {TotpVerifyOptions} [options]
+ */
 export function verifyTotpCounter(
   secret,
   code,
@@ -73,10 +90,16 @@ export function verifyTotpCounter(
   return null;
 }
 
+/**
+ * @param {string} secret
+ * @param {unknown} code
+ * @param {TotpVerifyOptions} [opts]
+ */
 export function verifyTotp(secret, code, opts = {}) {
   return verifyTotpCounter(secret, code, opts) !== null;
 }
 
+/** @param {{ issuer?: string | null, label?: string | null, secret: string }} params */
 export function buildOtpAuthUri({ issuer, label, secret }) {
   const safeIssuer = encodeURIComponent(String(issuer || "PuntosFieles"));
   const safeLabel = encodeURIComponent(String(label || "account"));

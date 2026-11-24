@@ -105,7 +105,7 @@ const REGEX_KEYWORDS = new Set([
   "await",
 ]);
 
-/** @param {string} value */
+/** @param {string} value @param {string} other */
 function compare(value, other) {
   return value < other ? -1 : value > other ? 1 : 0;
 }
@@ -445,6 +445,7 @@ export function manifestReferences(source) {
   const manifest = JSON.parse(source);
   /** @type {string[]} */
   const explicit = [];
+  /** @param {unknown} icons the manifest's icons/screenshots list, when it is one */
   const collect = (icons) => {
     for (const icon of Array.isArray(icons) ? icons : []) {
       if (icon && typeof icon.src === "string") explicit.push(icon.src);
@@ -787,6 +788,7 @@ export function writeServiceWorkerAssets(options = {}) {
 
 function main() {
   const args = new Set(process.argv.slice(2));
+  /** @param {string} file */
   const relative = (file) => path.relative(process.cwd(), file) || file;
   if (args.has("--help") || args.has("-h")) {
     console.log(

@@ -67,6 +67,7 @@ const brandingHexColorSchema = z
   .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a 6-digit hex value")
   .transform((value) => value.toUpperCase());
 
+/** @param {number} max */
 function optionalTrimmedStringSchema(max) {
   return z.preprocess((value) => {
     if (typeof value !== "string") return value;
@@ -75,6 +76,7 @@ function optionalTrimmedStringSchema(max) {
   }, z.string().max(max).optional());
 }
 
+/** @param {number} max */
 function optionalUrlSchema(max) {
   return z.preprocess((value) => {
     if (typeof value !== "string") return value;
@@ -307,17 +309,40 @@ export function validationErrorBody(error, message = VALIDATION_FAILED_MESSAGE) 
   return { error: message, code: VALIDATION_ERROR_CODE, details: zodIssueDetails(error) };
 }
 
+/**
+ * Builds a validator factory for one request source. The parsed value is stored
+ * on the request under `target`; a schema failure answers 400 with the issues.
+ * @param {string} name Express layer name for the returned middleware
+ * @param {"body" | "query" | "params"} source
+ * @param {"validated" | "validatedQuery" | "validatedParams"} target
+ * @param {string} message
+ */
 function validateSource(name, source, target, message) {
+  /** @param {import("zod").ZodType} schema */
   return (schema) => {
+    /**
+     * Tests drive the validators with plain `{ body }` / `{ query }` / `{ params }`
+     * objects, so the request contract is structural.
+     * @param {{
+     *   body?: unknown,
+     *   query?: unknown,
+     *   params?: unknown,
+     *   validated?: unknown,
+     *   validatedQuery?: unknown,
+     *   validatedParams?: unknown,
+     * }} req
+     * @param {import("../types/http.js").JsonResponder} res
+     * @param {import("express").NextFunction} next
+     */
     const middleware = (req, res, next) => {
       try {
         req[target] = schema.parse(req[source]);
-        next();
+        return next();
       } catch (error) {
         if (error instanceof z.ZodError) {
           return res.status(400).json(validationErrorBody(error, message));
         }
-        next(error);
+        return next(error);
       }
     };
     // Express records the function name as the layer name, which lets tests and

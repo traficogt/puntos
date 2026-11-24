@@ -54,6 +54,11 @@ const BOTH = Object.freeze([API, WORKER]);
 /** @type {readonly SchedulerRole[]} */
 const WORKER_ONLY = Object.freeze([WORKER]);
 
+/**
+ * Run `fn` with platform-wide (cross-tenant) database access.
+ * @template T
+ * @param {(client: import("../types/db.js").DbClient) => Promise<T>} fn
+ */
 const platformContext = (fn) => withDbClientContext({ platformAdmin: true, tenantId: null }, fn);
 
 /** @param {unknown} e */

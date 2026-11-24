@@ -16,6 +16,7 @@ const aliases = new Map([
   ["/privacidad.html", "/privacidad"],
   ["/terminos.html", "/terminos"],
 ]);
+/** @param {string} value */
 const xmlEscape = (value) =>
   value
     .replaceAll("&", "&amp;")
@@ -23,7 +24,10 @@ const xmlEscape = (value) =>
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
 
-/** @param {{ marketingOrigin: string, appOrigin: string, guides?: typeof guideCatalog, now?: () => number | Date }} options */
+/**
+ * @param {{ marketingOrigin: string, appOrigin: string, guides?: typeof guideCatalog, now?: () => number | Date }} options
+ * @returns {import("express").RequestHandler}
+ */
 export function createSearchVisibility({
   marketingOrigin,
   appOrigin,

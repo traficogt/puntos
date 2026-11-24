@@ -8,6 +8,7 @@ import { closeJobQueueRedis } from "./services/job-service.js";
 import { WORKER, runStartupMaintenance, startScheduler, stopScheduler } from "./scheduler.js";
 import observabilityRoutes from "./routes/observability.js";
 
+/** @type {import("node:http").Server | undefined} */
 let server;
 
 async function startWorkers() {
@@ -31,6 +32,7 @@ startWorkers().catch((e) => {
   process.exit(1);
 });
 
+/** @param {NodeJS.Signals} signal */
 function shutdown(signal) {
   logger.info({ signal }, "Worker shutting down gracefully");
   stopScheduler();

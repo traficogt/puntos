@@ -5,16 +5,19 @@ import dotenv from "dotenv";
 
 dotenv.config({ quiet: true });
 
+/** @param {string} name @param {string} [fallback] */
 function arg(name, fallback = "") {
   const index = process.argv.indexOf(name);
   if (index === -1) return fallback;
   return process.argv[index + 1] ?? fallback;
 }
 
+/** @param {string} name */
 function hasFlag(name) {
   return process.argv.includes(name);
 }
 
+/** @param {string} dirPath */
 function ensureDir(dirPath) {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   fs.mkdirSync(dirPath, { recursive: true });

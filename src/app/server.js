@@ -10,7 +10,7 @@ import { createMobilePreview } from "../middleware/mobile-preview.js";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
-import pinoHttp from "pino-http";
+import { pinoHttp } from "pino-http";
 import { isProbePath, requestComplexityLimit } from "../middleware/request-boundaries.js";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -50,18 +50,24 @@ if (config.TRUST_PROXY) {
 }
 
 // Logging
-// @ts-ignore
 const pinoMw = pinoHttp({
   ...httpLogOptions,
+  /**
+   * @param {import("node:http").IncomingMessage} req
+   * @param {import("node:http").ServerResponse} res
+   */
   genReqId(req, res) {
     const requestId = String(req.headers["x-request-id"] || randomUUID());
     res.setHeader("X-Request-Id", requestId);
     return requestId;
   },
+  /** @param {import("node:http").IncomingMessage} req */
   customProps(req) {
+    // pino-http sees the raw IncomingMessage; Express has already decorated it.
+    const request = /** @type {import("express").Request} */ (req);
     return {
-      request_id: String(req.id || req.requestId || ""),
-      tenant_id: req.tenantId ?? null,
+      request_id: String(request.id || request.requestId || ""),
+      tenant_id: request.tenantId ?? null,
     };
   },
 });
@@ -112,20 +118,18 @@ app.use(
   }),
 );
 
-app.use(
-  "/api",
-  cors((req, callback) => {
-    const origin = String(req.headers.origin || "").trim();
-    const requestOrigin = `${req.protocol}://${req.get("host")}`;
-    if (!origin || isAllowedApiOrigin(origin, config.CORS_ORIGINS, requestOrigin)) {
-      return callback(null, { origin: true, credentials: true });
-    }
-    const err = new Error("CORS origin not allowed");
-    // @ts-ignore express error typing
-    err.statusCode = 403;
-    return callback(err);
-  }),
-);
+/** @type {import("cors").CorsOptionsDelegate<import("express").Request>} */
+const corsDelegate = (req, callback) => {
+  const origin = String(req.headers.origin || "").trim();
+  const requestOrigin = `${req.protocol}://${req.get("host")}`;
+  if (!origin || isAllowedApiOrigin(origin, config.CORS_ORIGINS, requestOrigin)) {
+    return callback(null, { origin: true, credentials: true });
+  }
+  // The error handler reads statusCode (see src/middleware/common.js).
+  const err = Object.assign(new Error("CORS origin not allowed"), { statusCode: 403 });
+  return callback(err);
+};
+app.use("/api", cors(corsDelegate));
 
 app.use(cookieParser());
 // Request-pinned DB connections only for API prefixes; static assets, HTML
@@ -141,8 +145,8 @@ app.use(
   express.json({
     limit: "1mb",
     verify: (req, _res, buf) => {
-      // @ts-ignore augment
-      req.rawBody = buf.toString("utf8");
+      // The body parser sees the raw IncomingMessage; Express has already decorated it.
+      /** @type {import("express").Request} */ (req).rawBody = buf.toString("utf8");
     },
   }),
 );
@@ -241,6 +245,7 @@ app.use(apiRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
+/** @type {import("node:http").Server | undefined} */
 let server;
 
 async function start() {
@@ -267,6 +272,7 @@ start().catch((e) => {
   process.exit(1);
 });
 
+/** @param {NodeJS.Signals} signal */
 function shutdown(signal) {
   logger.info({ signal }, "Shutting down gracefully");
   stopScheduler();

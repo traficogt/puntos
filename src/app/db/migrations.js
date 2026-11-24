@@ -103,6 +103,7 @@ async function ensureMigrationTable() {
   `);
 }
 
+/** @param {string} sql */
 function migrationChecksum(sql) {
   return crypto.createHash("sha256").update(sql, "utf8").digest("hex");
 }
@@ -243,10 +244,16 @@ async function applyManagedMigrations() {
   logger.info({ appliedCount }, "Managed migrations completed");
 }
 
+/**
+ * A row of `schema_migrations`.
+ * @typedef {{ version: string, checksum: string, applied_at: Date | string, execution_ms: number }} ManagedMigrationRow
+ */
+
+/** @returns {Promise<ManagedMigrationRow[]>} */
 export async function listManagedMigrations() {
   await ensureMigrationTable();
   const rows = await migrationPool.query(
     "SELECT version, checksum, applied_at, execution_ms FROM schema_migrations ORDER BY version ASC",
   );
-  return rows.rows;
+  return /** @type {ManagedMigrationRow[]} */ (rows.rows);
 }

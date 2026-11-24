@@ -10,6 +10,7 @@ const wantRepair = args.has("--repair");
 
 const migrationsDir = path.join(process.cwd(), "src", "app", "migrations");
 
+/** @param {string} filePath */
 function checksumFile(filePath) {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const sql = fs.readFileSync(filePath, "utf-8");

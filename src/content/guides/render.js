@@ -1,7 +1,12 @@
 const arrow = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
 
 /** @typedef {(typeof import("./catalog.js").guideCatalog)["articles"][number]} GuideArticle */
+/** @typedef {NonNullable<GuideArticle["references"]>[number]} GuideReference */
+/** @typedef {NonNullable<GuideArticle["body"]>[number]} GuideBlock */
+/** @typedef {{ src: string, srcSmall?: string, alt: string, width: number, height: number }} GuideImage */
+/** @typedef {{ label: string, render: (escapedLabel: string) => string }} TextDecoration */
 
+/** @param {unknown} value stringified before escaping */
 export function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -11,6 +16,7 @@ export function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+/** @param {string} value a calendar date, YYYY-MM-DD */
 function formatDate(value) {
   return new Intl.DateTimeFormat("es-GT", {
     day: "numeric",
@@ -102,11 +108,18 @@ function shell({
 </html>`;
 }
 
+/**
+ * Escapes `value` and wraps every occurrence of a decoration label with its
+ * rendering; the earliest (then longest) label wins at each position.
+ * @param {string} value
+ * @param {readonly TextDecoration[]} [decorations]
+ */
 function decoratedText(value, decorations = []) {
   const text = String(value);
   let cursor = 0;
   let output = "";
   while (cursor < text.length) {
+    /** @type {(TextDecoration & { index: number }) | undefined} */
     let match;
     for (const decoration of decorations) {
       const index = text.indexOf(decoration.label, cursor);
@@ -125,6 +138,10 @@ function decoratedText(value, decorations = []) {
   return output;
 }
 
+/**
+ * @param {string} value
+ * @param {readonly GuideReference[]} [references]
+ */
 function citationText(value, references = []) {
   return decoratedText(
     value,
@@ -135,10 +152,15 @@ function citationText(value, references = []) {
   );
 }
 
+/**
+ * @param {GuideImage} image
+ * @param {{ eager?: boolean, sizes?: string }} [options]
+ */
 function imageMarkup(
   image,
   { eager = false, sizes = "(max-width: 680px) calc(100vw - 40px), 580px" } = {},
 ) {
+  /** @param {string} src @param {number} fallback */
   const widthFromPath = (src, fallback) =>
     Number(src.match(/-(\d+)\.(?:webp|png)$/)?.[1]) || fallback;
   const srcset = image.srcSmall
@@ -151,6 +173,7 @@ function imageMarkup(
  * @param {{ origin: string, articles: readonly GuideArticle[], previewPath?: string | null }} options
  */
 export function renderGuidesHub({ origin, articles, previewPath = null }) {
+  /** @param {string} slug */
   const articlePath = (slug) => `${previewPath || "/guias/"}${slug}`;
   articles = [...articles].sort((a, b) =>
     (b.datePublished || "").localeCompare(a.datePublished || ""),
@@ -174,7 +197,12 @@ export function renderGuidesHub({ origin, articles, previewPath = null }) {
   });
 }
 
+/**
+ * @param {readonly GuideBlock[]} body
+ * @param {readonly GuideReference[] | undefined} references
+ */
 function renderBlocks(body, references) {
+  /** @param {string} value */
   const text = (value) => citationText(value, references);
   return body
     .map((block, index) => {
@@ -195,6 +223,7 @@ function renderBlocks(body, references) {
     .join("\n");
 }
 
+/** @param {readonly GuideReference[]} [references] */
 function renderReferences(references = []) {
   if (!references.length) return "";
   return `<section class="guide-references" aria-labelledby="referencias"><h2 id="referencias">Referencias</h2><p>Para quien quiera seguir leyendo, estas son las fuentes.</p><ol>${references
@@ -221,6 +250,7 @@ function renderReferences(references = []) {
 export function renderGuideArticle({ origin, article, preview = null }) {
   const guidesPath = preview?.indexPath || "/guias/";
   const canonical = new URL(`${guidesPath}${article.slug}`, origin).href;
+  /** @type {Record<string, unknown>} schema.org Article (JSON-LD) */
   const schema = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -270,7 +300,7 @@ export function renderGuideArticle({ origin, article, preview = null }) {
         )
         .join("")}</nav>`
     : "";
-  const content = `<article class="container guide-article${article.hero ? " guide-illustrated" : ""}"><nav class="guides-breadcrumb" aria-label="Ruta de navegación"><a href="/">Inicio</a><span aria-hidden="true">/</span><a href="${escapeHtml(guidesPath)}">${preview ? "Vistas previas" : "Guías"}</a></nav><header class="guide-heading"><div><h1>${escapeHtml(article.title)}</h1><p class="guide-description">${escapeHtml(article.description)}</p>${author || published || updated || reading ? `<div class="guide-meta">${author}${published}${updated}${reading}</div>` : ""}${article.references?.length ? '<a class="guide-source-link" href="#referencias">Consultar las fuentes</a>' : ""}</div>${article.hero ? `<figure class="guide-hero">${imageMarkup(article.hero, { eager: true })}${article.hero.caption ? `<figcaption>${escapeHtml(article.hero.caption)}</figcaption>` : ""}</figure>` : ""}</header><div class="guide-body">${renderBlocks(article.body, article.references)}${productNote}${methods}${renderReferences(article.references)}${article.artCredit ? `<p class="guide-art-credit">${escapeHtml(article.artCredit)}</p>` : ""}</div><footer class="guide-end"><a class="text-link" href="${escapeHtml(guidesPath)}">${preview ? "Ver los cinco artículos" : "Ver todas las guías"} ${arrow}</a>${reviewLinks}</footer></article>`;
+  const content = `<article class="container guide-article${article.hero ? " guide-illustrated" : ""}"><nav class="guides-breadcrumb" aria-label="Ruta de navegación"><a href="/">Inicio</a><span aria-hidden="true">/</span><a href="${escapeHtml(guidesPath)}">${preview ? "Vistas previas" : "Guías"}</a></nav><header class="guide-heading"><div><h1>${escapeHtml(article.title)}</h1><p class="guide-description">${escapeHtml(article.description)}</p>${author || published || updated || reading ? `<div class="guide-meta">${author}${published}${updated}${reading}</div>` : ""}${article.references?.length ? '<a class="guide-source-link" href="#referencias">Consultar las fuentes</a>' : ""}</div>${article.hero ? `<figure class="guide-hero">${imageMarkup(article.hero, { eager: true })}${article.hero.caption ? `<figcaption>${escapeHtml(article.hero.caption)}</figcaption>` : ""}</figure>` : ""}</header><div class="guide-body">${renderBlocks(article.body ?? [], article.references)}${productNote}${methods}${renderReferences(article.references)}${article.artCredit ? `<p class="guide-art-credit">${escapeHtml(article.artCredit)}</p>` : ""}</div><footer class="guide-end"><a class="text-link" href="${escapeHtml(guidesPath)}">${preview ? "Ver los cinco artículos" : "Ver todas las guías"} ${arrow}</a>${reviewLinks}</footer></article>`;
   return shell({
     title: article.title,
     description: article.description,
@@ -284,6 +314,7 @@ export function renderGuideArticle({ origin, article, preview = null }) {
   });
 }
 
+/** @param {{ origin: string }} options */
 export function renderGuideNotFound({ origin }) {
   return shell({
     title: "Guía no disponible",

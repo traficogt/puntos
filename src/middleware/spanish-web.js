@@ -4,7 +4,10 @@ import { createMerchantWeb } from "./merchant-web.js";
 import { createMobilePreview } from "./mobile-preview.js";
 import { resolveSpanishWebRedirect } from "../utils/spanish-web-routes.js";
 
-/** Canonicalize document URLs before host routing, without redirecting writes. */
+/**
+ * Canonicalize document URLs before host routing, without redirecting writes.
+ * @returns {import("express").RequestHandler}
+ */
 export function createSpanishWebRedirects() {
   return (req, res, next) => {
     if (req.method !== "GET" && req.method !== "HEAD") return next();
@@ -13,7 +16,10 @@ export function createSpanishWebRedirects() {
   };
 }
 
-/** Spanish browser entry paths reuse the existing HTML and CSP-aware handlers. */
+/**
+ * Spanish browser entry paths reuse the existing HTML and CSP-aware handlers.
+ * @param {string} publicDir absolute path of the static public directory
+ */
 export function createSpanishWeb(publicDir) {
   const router = express.Router();
   router.use(

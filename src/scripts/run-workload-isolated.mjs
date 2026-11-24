@@ -46,7 +46,12 @@ async function main() {
     exitCode = 124;
     abort.abort();
   }, 420000);
+  /** @param {string} value */
   const redact = (value) => value.replaceAll(password, "[ephemeral-password]");
+  /**
+   * @param {string[]} args
+   * @param {{ checked?: boolean, cleanup?: boolean, timeoutMs?: number }} [options]
+   */
   async function docker(args, { checked = true, cleanup = false, timeoutMs = 120000 } = {}) {
     const result = await runCommand("docker", ["--host", "unix:///var/run/docker.sock", ...args], {
       cwd,
@@ -169,7 +174,7 @@ async function main() {
     if (!report?.correctness?.ok || !report?.recovery?.ok || !report?.performance?.ok)
       exitCode ||= 1;
   } catch (error) {
-    console.error(`[workload] ${redact(errorMessage(error))}`);
+    console.error(`[workload] ${redact(errorMessage(error) ?? String(error))}`);
     exitCode ||= 1;
   } finally {
     clearTimeout(timeout);

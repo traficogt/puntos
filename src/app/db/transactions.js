@@ -1,15 +1,35 @@
 import { transactionPool } from "./pools.js";
 import { getDbContext, runWithDbContext } from "./context.js";
 
+/** @typedef {import("../../types/db.js").DbTransactionClient} DbTransactionClient */
+
+/**
+ * Runs `fn` inside BEGIN/COMMIT on a dedicated transaction-pool connection that
+ * carries the current context's tenant and privilege flags as transaction-local
+ * settings. Any failure rolls back and rethrows.
+ *
+ * The callback's connection and the result are deliberately untyped (`any`):
+ * this function is the default of injectable `transaction` dependencies whose
+ * test doubles call `fn()` without a connection, services return its query
+ * results from hooks that must resolve to void (operating-template-service.js:322),
+ * and a unit test reads fields only its double returns. Type the parameter as
+ * `import("../../types/db.js").DbClient` once those callers adapt.
+ * @param {(client?: any) => Promise<any>} fn
+ * @returns {Promise<any>}
+ */
 export async function withTransaction(fn) {
   const parent = getDbContext() ?? {};
   const tenantId = parent.tenantId ?? null;
   const platformAdmin = parent.platformAdmin === true;
   const webhookIngest = parent.webhookIngest === true;
-  const client = await transactionPool.connect();
+  // The pool hands out real pg connections (EventEmitters); the loose pool
+  // contract exists only so tests can pin doubles (see src/types/db.ts).
+  const client = /** @type {DbTransactionClient} */ (await transactionPool.connect());
+  /** @type {unknown} */
   let connectionError;
   // A backend termination can reject the active query and then emit a socket
   // error while ROLLBACK is pending. Keep that event within this operation.
+  /** @param {Error} error */
   const onConnectionError = (error) => {
     connectionError = error;
   };

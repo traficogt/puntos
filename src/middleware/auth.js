@@ -12,6 +12,18 @@ import { SuperAdminAuthRepo } from "../app/repositories/super-admin-auth-reposit
 
 const RECENT_REAUTH_WINDOW_MS = config.RECENT_REAUTH_WINDOW_MS;
 
+/** @typedef {import("express").Request} Request */
+/** @typedef {import("express").Response} Response */
+/** @typedef {import("express").NextFunction} NextFunction */
+/** @typedef {import("../types/auth.js").AnnotatedRequestHandler} AnnotatedRequestHandler */
+
+/**
+ * Answers 401 and clears the session cookie that failed.
+ * @param {Request} req
+ * @param {Response} res
+ * @param {string} cookieName
+ * @param {string} [code]
+ */
 function rejectAuth(req, res, cookieName, code = "AUTH_REQUIRED") {
   if (cookieName) {
     res.clearCookie(cookieName, { path: "/" });
@@ -19,6 +31,14 @@ function rejectAuth(req, res, cookieName, code = "AUTH_REQUIRED") {
   return res.status(401).json({ error: "No autenticado", code });
 }
 
+/**
+ * Loads and validates the browser session named by `cookieName`; answers 401
+ * and returns null when it is missing, expired, invalidated or of another actor.
+ * @param {Request} req
+ * @param {Response} res
+ * @param {string} cookieName
+ * @param {string} actorType STAFF | CUSTOMER | SUPER
+ */
 async function loadActiveSession(req, res, cookieName, actorType) {
   const token = req.cookies?.[cookieName];
   if (!token) {
@@ -39,6 +59,7 @@ async function loadActiveSession(req, res, cookieName, actorType) {
   return touched || session;
 }
 
+/** @param {Request} req @param {Response} res @param {NextFunction} next */
 export async function requireStaff(req, res, next) {
   try {
     const session = await loadActiveSession(req, res, config.STAFF_COOKIE_NAME, "STAFF");
@@ -56,13 +77,14 @@ export async function requireStaff(req, res, next) {
       branch_id: staff.branch_id ? String(staff.branch_id) : null,
       impersonated_by: session.impersonated_by ? String(session.impersonated_by) : null,
     };
-    next();
+    return next();
   } catch {
     return rejectAuth(req, res, config.STAFF_COOKIE_NAME, "AUTH_REQUIRED");
   }
 }
 requireStaff.__openapi = { auth: "staff" };
 
+/** @param {Request} req @param {Response} res @param {NextFunction} next */
 export async function requireCustomer(req, res, next) {
   try {
     const session = await loadActiveSession(req, res, config.CUSTOMER_COOKIE_NAME, "CUSTOMER");
@@ -72,13 +94,14 @@ export async function requireCustomer(req, res, next) {
       id: String(session.actor_id),
       business_id: String(session.business_id),
     };
-    next();
+    return next();
   } catch {
     return rejectAuth(req, res, config.CUSTOMER_COOKIE_NAME, "AUTH_REQUIRED");
   }
 }
 requireCustomer.__openapi = { auth: "customer" };
 
+/** @param {Request} req @param {Response} res @param {NextFunction} next */
 export async function requireSuperAdmin(req, res, next) {
   const cookieName = config.SUPER_COOKIE_NAME;
   try {
@@ -99,6 +122,7 @@ export async function requireSuperAdmin(req, res, next) {
 }
 requireSuperAdmin.__openapi = { auth: "super" };
 
+/** @param {Request} req @param {Response} res @param {NextFunction} next */
 export async function requireOwner(req, res, next) {
   if (!req.staff) {
     return res.status(401).json({ error: "No autenticado", code: "AUTH_REQUIRED" });
@@ -106,22 +130,26 @@ export async function requireOwner(req, res, next) {
   if (req.staff.role !== "OWNER") {
     return res.status(403).json({ error: "Se requiere rol Dueño", code: "RBAC_ROLE_REQUIRED" });
   }
-  next();
+  return next();
 }
 requireOwner.__openapi = { staffRoles: ["OWNER"] };
 
+/** @param {...string} roles accepted Role values */
 export function requireStaffRoles(...roles) {
+  /** @type {AnnotatedRequestHandler} */
   const middleware = (req, res, next) => {
     if (!req.staff) return res.status(401).json({ error: "No autenticado", code: "AUTH_REQUIRED" });
     if (!roles.includes(req.staff.role))
       return res.status(403).json({ error: "Rol insuficiente", code: "RBAC_ROLE_INSUFFICIENT" });
-    next();
+    return next();
   };
   middleware.__openapi = { auth: "staff", staffRoles: roles };
   return middleware;
 }
 
+/** @param {string} permission a Permission value */
 export function requireStaffPermission(permission) {
+  /** @type {AnnotatedRequestHandler} */
   const middleware = (req, res, next) => {
     if (!req.staff) return res.status(401).json({ error: "No autenticado", code: "AUTH_REQUIRED" });
     if (!hasPermission(req.staff.role, permission)) {
@@ -129,13 +157,15 @@ export function requireStaffPermission(permission) {
         .status(403)
         .json({ error: "Permiso insuficiente", code: "RBAC_PERMISSION_DENIED" });
     }
-    next();
+    return next();
   };
   middleware.__openapi = { auth: "staff", staffPermissions: [permission] };
   return middleware;
 }
 
+/** @param {{ requireMfaIfEnabled?: boolean }} [options] */
 export function requireRecentReauth({ requireMfaIfEnabled = true } = {}) {
+  /** @type {AnnotatedRequestHandler} */
   const middleware = async (req, res, next) => {
     const session = req.authSession;
     if (!session?.id) {

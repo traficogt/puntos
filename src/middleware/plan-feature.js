@@ -2,6 +2,13 @@ import { BusinessRepo } from "../app/repositories/business-repository.js";
 import { hasPlanFeature, suggestedPlanForFeature } from "../utils/plan.js";
 import { PlanConfigService } from "../app/services/plan-config-service.js";
 
+/** @typedef {import("express").Request} Request */
+/** @typedef {import("../types/auth.js").AnnotatedRequestHandler} AnnotatedRequestHandler */
+
+/**
+ * The authenticated actor's business, loaded once per request.
+ * @param {Request} req
+ */
 async function resolveBusiness(req) {
   const businessId = req.staff?.business_id || req.customerAuth?.business_id;
   if (!businessId) return null;
@@ -15,7 +22,13 @@ async function resolveBusiness(req) {
   return business;
 }
 
+/**
+ * Answers 403 PLAN_FEATURE_LOCKED unless the business's plan (with platform
+ * overrides) enables `feature`.
+ * @param {string} feature a key of the plan feature table (src/utils/plan.js)
+ */
 export function requirePlanFeature(feature) {
+  /** @type {AnnotatedRequestHandler} */
   const middleware = async (req, res, next) => {
     const business = await resolveBusiness(req);
     if (!business)

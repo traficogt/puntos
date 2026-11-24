@@ -3,6 +3,7 @@ import path from "node:path";
 
 // Expo's browser preview uses generated style sheets and inline layout styles.
 // Scope that allowance to this preview; the existing PF web UI keeps its CSP.
+/** @param {string} publicDirectory absolute path of the static public directory */
 export function createMobilePreview(publicDirectory) {
   const router = express.Router();
   router.use((req, res, next) => {

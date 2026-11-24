@@ -18,6 +18,7 @@ const write = args.has("--write");
 const migrationsDir = path.join(process.cwd(), "src", "app", "migrations");
 const lockPath = path.join(migrationsDir, "checksums.json");
 
+/** @param {string} filePath */
 function sha256File(filePath) {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const sql = fs.readFileSync(filePath, "utf-8");
@@ -32,11 +33,17 @@ function listMigrationFiles() {
     .sort();
 }
 
+/** @param {unknown} obj */
 function stableJson(obj) {
   return JSON.stringify(obj, null, 2) + "\n";
 }
 
+/**
+ * @param {Record<string, string>} expected file -> checksum from the lock
+ * @param {Record<string, string>} actual file -> checksum on disk
+ */
 function diffLock(expected, actual) {
+  /** @type {Array<{ type: string, file: string, checksum?: string, expected?: string, actual?: string }>} */
   const out = [];
   const allKeys = new Set([...Object.keys(expected), ...Object.keys(actual)]);
   const keys = Array.from(allKeys).sort();
@@ -51,6 +58,7 @@ function diffLock(expected, actual) {
 
 async function main() {
   const files = listMigrationFiles();
+  /** @type {Record<string, string>} */
   const computed = {};
   for (const f of files) {
     const p = path.join(migrationsDir, f);

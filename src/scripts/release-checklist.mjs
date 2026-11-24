@@ -8,19 +8,27 @@ const rootDir = process.cwd();
 const migrationsDir = path.join(rootDir, "src", "app", "migrations");
 const lockPath = path.join(migrationsDir, "checksums.json");
 
+/**
+ * @param {unknown} condition
+ * @param {string} message
+ * @returns {asserts condition}
+ */
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+/** @param {string} filePath */
 function readJson(filePath) {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
+/** @param {string} text */
 function sha256(text) {
   return crypto.createHash("sha256").update(text, "utf8").digest("hex");
 }
 
+/** @param {string} filePath */
 function checkFileExists(filePath) {
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   assert(fs.existsSync(filePath), `Missing required file: ${path.relative(rootDir, filePath)}`);
@@ -102,12 +110,14 @@ function checkCriticalTests() {
 function checkMigrationLock() {
   checkFileExists(lockPath);
   const lock = readJson(lockPath);
+  /** @type {Record<string, string>} */
   const lockFiles = lock?.files && typeof lock.files === "object" ? lock.files : {};
   const migrationFiles = fs
     .readdirSync(migrationsDir)
     .filter((file) => file.endsWith(".sql"))
     .sort();
 
+  /** @type {Record<string, string>} */
   const current = {};
   for (const file of migrationFiles) {
     const filePath = path.join(migrationsDir, file);

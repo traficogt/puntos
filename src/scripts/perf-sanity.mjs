@@ -1,4 +1,9 @@
 const args = process.argv.slice(2);
+/**
+ * @template T
+ * @param {string} name
+ * @param {T} fallback
+ */
 const getArg = (name, fallback) => {
   const idx = args.indexOf(name);
   if (idx === -1) return fallback;
@@ -13,9 +18,11 @@ const maxP95Ms = Number(getArg("--max-p95-ms", process.env.PERF_MAX_P95_MS || 60
 const maxErrorRate = Number(getArg("--max-error-rate", process.env.PERF_MAX_ERROR_RATE || 0.02));
 const timeoutMs = Number(getArg("--timeout-ms", process.env.PERF_TIMEOUT_MS || 4000));
 
+/** @type {number[]} */
 const durations = [];
 let failures = 0;
 
+/** @param {number[]} values @param {number} pct */
 function percentile(values, pct) {
   if (!values.length) return 0;
   const sorted = values.slice().sort((a, b) => a - b);
@@ -23,6 +30,7 @@ function percentile(values, pct) {
   return sorted[idx];
 }
 
+/** @param {string} endpoint */
 async function hit(endpoint) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

@@ -8,28 +8,38 @@ import readline from "node:readline";
 
 const args = process.argv.slice(2);
 
+/** @param {string} name @param {string} [fallback] */
 function arg(name, fallback = "") {
   const index = args.indexOf(name);
   if (index === -1) return fallback;
   return args[index + 1] ?? fallback;
 }
 
+/** @param {string} name */
 function hasFlag(name) {
   return args.includes(name);
 }
 
+/**
+ * @param {unknown} condition
+ * @param {string} message
+ * @returns {asserts condition}
+ */
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+/** @param {string} filePath */
 function shaPathFor(filePath) {
   return `${filePath}.sha256`;
 }
 
+/** @param {string} filePath */
 function jsonPathFor(filePath) {
   return `${filePath}.json`;
 }
 
+/** @param {string} filePath */
 async function fileExists(filePath) {
   try {
     await fs.promises.access(filePath, fs.constants.F_OK);
@@ -39,6 +49,7 @@ async function fileExists(filePath) {
   }
 }
 
+/** @param {string} filePath */
 async function sha256File(filePath) {
   const hash = crypto.createHash("sha256");
   await new Promise((resolve, reject) => {
@@ -52,6 +63,7 @@ async function sha256File(filePath) {
   return hash.digest("hex");
 }
 
+/** @param {string} filePath */
 async function verifySqlDump(filePath) {
   // Operator paths come from the CLI and are never returned as file content.
   // eslint-disable-next-line security/detect-non-literal-fs-filename
@@ -73,6 +85,7 @@ async function verifySqlDump(filePath) {
   );
 }
 
+/** @param {string} filePath */
 async function readExpectedSha(filePath) {
   const sidecar = shaPathFor(filePath);
   if (!(await fileExists(sidecar))) return "";
@@ -91,6 +104,7 @@ async function readExpectedSha(filePath) {
   return String(firstLine).trim().split(/\s+/)[0] || "";
 }
 
+/** @param {string} filePath */
 async function readManifestSha(filePath) {
   const manifestPath = jsonPathFor(filePath);
   if (!(await fileExists(manifestPath))) return "";

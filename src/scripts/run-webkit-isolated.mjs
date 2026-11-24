@@ -20,9 +20,17 @@ export const expectedWebkitTests = ["desktop", "mobile"].flatMap((layout) => [
   `${layout}: phone correction and invalid OTP keep enrollment recoverable`,
 ]);
 
-/** @param {any} report @param {{listed?: boolean}} options */
+/** @typedef {import("./release-readiness-lib.mjs").PlaywrightSuite} PlaywrightSuite */
+/** @typedef {import("./release-readiness-lib.mjs").PlaywrightTest} PlaywrightTest */
+
+/**
+ * @param {{ suites?: PlaywrightSuite[], errors?: unknown[] } | null | undefined} report Playwright JSON report
+ * @param {{listed?: boolean}} [options]
+ */
 export function validateWebkitReport(report, { listed = false } = {}) {
+  /** @type {Array<PlaywrightTest & { name: string }>} */
   const tests = [];
+  /** @param {PlaywrightSuite} suite */
   function visit(suite) {
     for (const spec of suite.specs || [])
       for (const test of spec.tests || []) {
@@ -98,6 +106,7 @@ async function main() {
   let network,
     api,
     exitCode = 0;
+  /** @type {string | undefined} */
   let upstreamHost;
   // Docker internal networks do not reliably support published ports. A host
   // loopback relay reaches only this run's inspected container, with no egress
@@ -127,7 +136,9 @@ async function main() {
     });
     incoming.pipe(upstream);
   });
+  /** @param {string} value */
   const redact = (value) => value.replaceAll(password, "[redacted]");
+  /** @param {string[]} args @param {boolean} [checked] @param {boolean} [cleanup] */
   async function docker(args, checked = true, cleanup = false) {
     const result = await runCommand("docker", ["--context", "default", ...args], {
       cwd: workdir,
@@ -286,7 +297,7 @@ async function main() {
       JSON.stringify(validateWebkitReport(JSON.parse(await readFile(reportPath, "utf8")))),
     );
   } catch (error) {
-    console.error(`[webkit] ${redact(errorMessage(error))}`);
+    console.error(`[webkit] ${redact(errorMessage(error) ?? String(error))}`);
     exitCode = 1;
   } finally {
     relay.closeAllConnections();

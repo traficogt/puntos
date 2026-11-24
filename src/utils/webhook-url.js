@@ -1,6 +1,9 @@
 import dns from "node:dns/promises";
 import net from "node:net";
 
+/** @typedef {{ from: number[], to: number[] }} V4Range inclusive dotted-quad bounds */
+
+/** @type {V4Range[]} */
 const PRIVATE_V4_RANGES = [
   { from: [10, 0, 0, 0], to: [10, 255, 255, 255] },
   { from: [127, 0, 0, 0], to: [127, 255, 255, 255] },
@@ -11,12 +14,14 @@ const PRIVATE_V4_RANGES = [
   { from: [0, 0, 0, 0], to: [0, 255, 255, 255] },
 ];
 
+/** @param {string} ip */
 function v4ToNum(ip) {
   const parts = ip.split(".").map((x) => Number(x));
   if (parts.length !== 4 || parts.some((n) => Number.isNaN(n) || n < 0 || n > 255)) return null;
   return ((parts[0] << 24) >>> 0) + (parts[1] << 16) + (parts[2] << 8) + parts[3];
 }
 
+/** @param {string} ip @param {V4Range} r */
 function inRangeV4(ip, r) {
   const n = v4ToNum(ip);
   if (n === null) return false;
@@ -28,6 +33,7 @@ function inRangeV4(ip, r) {
 // Extract the embedded IPv4 from an IPv4-mapped (::ffff:a.b.c.d / ::ffff:aabb:ccdd)
 // or IPv4-compatible (::a.b.c.d) IPv6 literal so it can be range-checked as IPv4.
 // Returns a dotted-quad string, or null when there is no embedded IPv4.
+/** @param {string} lowerV6 */
 function embeddedIpv4(lowerV6) {
   // dotted form: ::ffff:1.2.3.4  or  ::1.2.3.4
   let m = lowerV6.match(/^::(?:ffff:)?(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
@@ -43,6 +49,7 @@ function embeddedIpv4(lowerV6) {
   return null;
 }
 
+/** @param {string} ip */
 function isPrivateIp(ip) {
   const kind = net.isIP(ip);
   if (kind === 4) {
@@ -74,6 +81,7 @@ function isPrivateIp(ip) {
   return true;
 }
 
+/** @param {string} host @param {readonly string[] | undefined} allowlist */
 function hostMatchesAllowlist(host, allowlist) {
   if (!allowlist || allowlist.length === 0) return true;
   const h = host.toLowerCase();
@@ -86,15 +94,24 @@ function hostMatchesAllowlist(host, allowlist) {
 }
 
 /**
+ * Resolver with the `dns.promises.lookup(hostname, { all: true })` shape; tests
+ * inject one to avoid real DNS.
+ * @typedef {(hostname: string, options: { all: true }) => Promise<Array<{ address: string }>>} WebhookLookup
+ */
+
+/**
+ * @typedef {object} WebhookTargetOptions
+ * @property {boolean} [requireHttps] default true
+ * @property {string[]} [allowlist] host suffixes that may be targeted; empty allows any public host
+ * @property {WebhookLookup} [lookup]
+ */
+
+/**
  * Validates a webhook URL and blocks SSRF to localhost/private IP ranges.
  * Resolves DNS and checks all returned addresses.
  * @param {string} urlStr
- * @param {{ requireHttps?: boolean, allowlist?: string[] }} opts
+ * @param {WebhookTargetOptions} [opts]
  * @returns {Promise<URL>}
- */
-/**
- * @param {string} urlStr
- * @param {{ requireHttps?: boolean, allowlist?: string[], lookup?: any }} opts
  */
 export async function validateWebhookUrl(urlStr, opts = {}) {
   const { url } = await resolveWebhookTarget(urlStr, opts);
@@ -106,7 +123,7 @@ export async function validateWebhookUrl(urlStr, opts = {}) {
  * to the checked address instead of re-resolving later.
  *
  * @param {string} urlStr
- * @param {{ requireHttps?: boolean, allowlist?: string[], lookup?: any }} opts
+ * @param {WebhookTargetOptions} [opts]
  * @returns {Promise<{ url: URL, resolvedAddress: string|null, resolvedFamily: number|null }>}
  */
 export async function resolveWebhookTarget(urlStr, opts = {}) {
@@ -152,8 +169,10 @@ export async function resolveWebhookTarget(urlStr, opts = {}) {
   }
 
   // Resolve A/AAAA (use normalized host for DNS)
+  /** @type {string[]} */
   let addrs = [];
   try {
+    /** @type {WebhookLookup} */
     const lookup = opts.lookup ?? dns.lookup;
     const a = await lookup(hostNormalized, { all: true });
     addrs = a.map((x) => x.address);

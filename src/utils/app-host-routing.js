@@ -1,11 +1,13 @@
 import { isSpanishWebRoutePath } from "./spanish-web-routes.js";
 
+/** @param {string | undefined} path */
 function normalizePath(path) {
   const raw = String(path || "").trim() || "/";
   if (raw.length > 1 && raw.endsWith("/")) return raw.slice(0, -1);
   return raw;
 }
 
+/** @param {string | undefined} value */
 function normalizeOriginHost(value) {
   return String(value || "")
     .trim()
@@ -13,6 +15,7 @@ function normalizeOriginHost(value) {
     .replace(/\.$/, "");
 }
 
+/** @param {string | undefined} origin */
 function hostFromOrigin(origin) {
   try {
     return normalizeOriginHost(new URL(String(origin || "")).hostname || "");
@@ -21,6 +24,10 @@ function hostFromOrigin(origin) {
   }
 }
 
+/**
+ * Lower-cases a Host header (or hostname) and drops the port and brackets.
+ * @param {string | undefined} value
+ */
 export function normalizeHostHeader(value) {
   const raw = normalizeOriginHost(value);
   if (!raw) return "";
@@ -28,6 +35,7 @@ export function normalizeHostHeader(value) {
   return withoutPort.replace(/\.$/, "");
 }
 
+/** @param {string | undefined} host */
 function isLocalHost(host) {
   const normalized = normalizeHostHeader(host);
   return (
@@ -38,6 +46,7 @@ function isLocalHost(host) {
   );
 }
 
+/** @param {string | undefined} origin */
 function isLocalOrigin(origin) {
   const host = hostFromOrigin(origin);
   return !host || isLocalHost(host);
@@ -114,6 +123,11 @@ function effectiveOriginsForRequest({
   };
 }
 
+/**
+ * Whether a document path belongs to the application host (browser shells and
+ * join/sign-in deep links) rather than the marketing site.
+ * @param {string | undefined} path
+ */
 export function isAppRoutePath(path) {
   const normalized = normalizePath(path);
   return (

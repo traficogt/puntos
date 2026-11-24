@@ -14,6 +14,7 @@ const browserRoutes = [
   ["/ingresar/", ["/ingresar.html"]],
 ];
 
+/** @type {Map<string, string>} entry path (canonical without slash, or alias) -> canonical path */
 const entryPaths = new Map();
 for (const [canonical, aliases] of browserRoutes) {
   for (const entry of [canonical.slice(0, -1), ...aliases]) entryPaths.set(entry, canonical);
@@ -50,17 +51,20 @@ const queryKeys = new Map([
   ["setup", "configurar"],
 ]);
 
+/** @param {string} pathname */
 function entryPath(pathname) {
   return entryPaths.get(pathname.replace(/\/$/, "").toLowerCase()) || "";
 }
 
 /** Only document entry paths belong to the app host; assets and APIs stay put. */
+/** @param {string | undefined} pathname */
 export function isSpanishWebRoutePath(pathname) {
   return Boolean(entryPath(String(pathname || "")));
 }
 
 // Rewrite only known query components so opaque tokens and future parameters keep
 // their original encoding, order and duplicate values.
+/** @param {string} query the raw query string without `?` */
 function canonicalAdminQuery(query) {
   const params = new URLSearchParams(query);
   return query
@@ -84,6 +88,7 @@ function canonicalAdminQuery(query) {
 }
 
 /** Return a same-origin canonical browser URL, or an empty string if unchanged. */
+/** @param {string | undefined} originalUrl */
 export function resolveSpanishWebRedirect(originalUrl) {
   const original = String(originalUrl || "");
   const queryStart = original.indexOf("?");

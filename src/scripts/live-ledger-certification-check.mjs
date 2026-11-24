@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { copyStaffSessionCookies } from "./live-session-cookies.mjs";
+/** @param {string} name @param {string} [fallback] */
 function arg(name, fallback = "") {
   const index = process.argv.indexOf(name);
   if (index === -1) return fallback;
@@ -38,6 +39,7 @@ function assert(condition, message) {
  * }} SmokeBody
  */
 
+/** @param {Map<string, string>} jar @param {Response} response */
 function applySetCookieJar(jar, response) {
   const values =
     typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
@@ -49,17 +51,26 @@ function applySetCookieJar(jar, response) {
   }
 }
 
+/** @param {Map<string, string>} jar */
 function cookieHeader(jar) {
   return Array.from(jar.entries())
     .map(([key, value]) => `${key}=${value}`)
     .join("; ");
 }
 
+/** @param {Map<string, string>} jar */
 function csrfTokenFromJar(jar) {
   return jar.get("pf_csrf_readable") || "";
 }
 
+/**
+ * @param {Map<string, string>} jar cookie jar, updated from Set-Cookie
+ * @param {string} path
+ * @param {Omit<RequestInit, "headers"> & { headers?: Record<string, string>, csrf?: boolean }} [options]
+ *   `csrf` adds the double-submit token and browser Origin/Referer headers
+ */
 async function request(jar, path, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {
     "Content-Type": "application/json",
     "X-Forwarded-For": forwardedFor,
@@ -90,10 +101,16 @@ async function request(jar, path, options = {}) {
   return { response, status: response.status, data, text };
 }
 
+/** @param {string | number | Date} value */
 function isoDate(value) {
   return new Date(value).toISOString().slice(0, 10);
 }
 
+/**
+ * @param {Map<string, string>} superJar
+ * @param {Map<string, string>} ownerJar
+ * @param {string} suffix
+ */
 async function createBusinessAndOwnerSession(superJar, ownerJar, suffix) {
   const ownerEmail = `owner-cert-${suffix}@example.com`;
   const password = "OrchardLanternMarble2026!";

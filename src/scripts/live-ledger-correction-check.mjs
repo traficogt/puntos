@@ -2,6 +2,7 @@
 import { copyStaffSessionCookies } from "./live-session-cookies.mjs";
 import crypto from "node:crypto";
 
+/** @param {string} name @param {string} [fallback] */
 function arg(name, fallback = "") {
   const index = process.argv.indexOf(name);
   if (index === -1) return fallback;
@@ -38,6 +39,7 @@ function assert(condition, message) {
  * }} SmokeBody
  */
 
+/** @param {Map<string, string>} jar @param {Response} response */
 function applySetCookieJar(jar, response) {
   const values =
     typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
@@ -49,17 +51,26 @@ function applySetCookieJar(jar, response) {
   }
 }
 
+/** @param {Map<string, string>} jar */
 function cookieHeader(jar) {
   return Array.from(jar.entries())
     .map(([key, value]) => `${key}=${value}`)
     .join("; ");
 }
 
+/** @param {Map<string, string>} jar */
 function csrfTokenFromJar(jar) {
   return jar.get("pf_csrf_readable") || "";
 }
 
+/**
+ * @param {Map<string, string>} jar cookie jar, updated from Set-Cookie
+ * @param {string} path
+ * @param {Omit<RequestInit, "headers"> & { headers?: Record<string, string>, csrf?: boolean }} [options]
+ *   `csrf` adds the double-submit token and browser Origin/Referer headers
+ */
 async function request(jar, path, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {
     "Content-Type": "application/json",
     "X-Forwarded-For": forwardedFor,
@@ -90,6 +101,11 @@ async function request(jar, path, options = {}) {
   return { response, status: response.status, data, text };
 }
 
+/**
+ * @param {Map<string, string>} superJar
+ * @param {Map<string, string>} ownerJar
+ * @param {string} suffix
+ */
 async function createBusinessAndOwnerSession(superJar, ownerJar, suffix) {
   const ownerEmail = `owner-correction-${suffix}@example.com`;
   const password = "OrchardLanternMarble2026!";
@@ -126,6 +142,12 @@ async function createBusinessAndOwnerSession(superJar, ownerJar, suffix) {
   return { businessId, businessSlug, ownerPassword: password };
 }
 
+/**
+ * @param {Map<string, string>} superJar
+ * @param {string} businessId
+ * @param {string} suffix
+ * @param {Map<string, string>} ownerJar
+ */
 async function createSecondOwner(superJar, businessId, suffix, ownerJar) {
   const email = `owner2-correction-${suffix}@example.com`;
   const password = "HarborCactusNimbus2026!";
@@ -160,6 +182,7 @@ async function createSecondOwner(superJar, businessId, suffix, ownerJar) {
   };
 }
 
+/** @param {string} businessSlug @param {number} driftPoints */
 async function createCustomerAndDrift(businessSlug, driftPoints) {
   const { withDbClientContext } = await import("../app/database.js");
   const { BusinessRepo } = await import("../app/repositories/business-repository.js");
@@ -170,32 +193,35 @@ async function createCustomerAndDrift(businessSlug, driftPoints) {
     .padStart(6, "0")}`;
   const name = "Correction Smoke Customer";
 
-  return withDbClientContext({ platformAdmin: true, tenantId: null }, async (client) => {
-    const business = await BusinessRepo.getBySlug(businessSlug);
-    assert(business?.id, `business not found for slug ${businessSlug}`);
+  return withDbClientContext(
+    { platformAdmin: true, tenantId: null },
+    /** @param {import("../types/db.js").DbClient} client */ async (client) => {
+      const business = await BusinessRepo.getBySlug(businessSlug);
+      assert(business?.id, `business not found for slug ${businessSlug}`);
 
-    const customer = await CustomerRepo.upsertByPhone({
-      id: crypto.randomUUID(),
-      business_id: business.id,
-      phone,
-      name,
-    });
+      const customer = await CustomerRepo.upsertByPhone({
+        id: crypto.randomUUID(),
+        business_id: business.id,
+        phone,
+        name,
+      });
 
-    await client.query(
-      `UPDATE customer_balances
+      await client.query(
+        `UPDATE customer_balances
        SET points = points + $2,
            updated_at = now()
        WHERE customer_id = $1`,
-      [customer.id, Number(driftPoints)],
-    );
+        [customer.id, Number(driftPoints)],
+      );
 
-    return {
-      businessId: business.id,
-      customerId: customer.id,
-      phone,
-      driftPoints: Number(driftPoints),
-    };
-  });
+      return {
+        businessId: business.id,
+        customerId: customer.id,
+        phone,
+        driftPoints: Number(driftPoints),
+      };
+    },
+  );
 }
 
 async function main() {

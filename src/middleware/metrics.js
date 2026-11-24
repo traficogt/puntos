@@ -1,5 +1,12 @@
 import { Histogram, Counter, collectDefaultMetrics, Registry } from "@prometheus-io/client";
 
+/**
+ * The request and response fields the metrics middleware reads. Tests drive it
+ * with plain objects, so the contract is structural rather than Express's types.
+ * @typedef {{ method: string, route?: { path?: unknown } | null, baseUrl?: string, originalUrl?: string, url?: string }} MetricsRequest
+ * @typedef {{ on(event: "finish", listener: () => void): unknown, statusCode: number }} MetricsResponse
+ */
+
 const registry = new Registry();
 collectDefaultMetrics({ register: registry });
 
@@ -19,6 +26,11 @@ const httpRequests = new Counter({
 registry.registerMetric(httpDuration);
 registry.registerMetric(httpRequests);
 
+/**
+ * @param {MetricsRequest} req
+ * @param {MetricsResponse} res
+ * @param {import("express").NextFunction} next
+ */
 export function metricsMiddleware(req, res, next) {
   const start = process.hrtime.bigint();
   res.on("finish", () => {
@@ -32,6 +44,7 @@ export function metricsMiddleware(req, res, next) {
   next();
 }
 
+/** @param {MetricsRequest} req */
 function normalizePath(req) {
   if (typeof req.route?.path === "string") return `${req.baseUrl || ""}${req.route.path}`;
   // Unknown paths must not create unbounded labels or retain URL credentials.

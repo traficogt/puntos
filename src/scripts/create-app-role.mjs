@@ -184,14 +184,17 @@ export const APP_FUNCTION_SIGNATURES = [
   "app.sync_staff_login_index()",
 ];
 
+/** @param {string} value */
 function quoteIdent(value) {
   return `"${String(value).replaceAll('"', '""')}"`;
 }
 
+/** @param {string} value */
 function quoteLiteral(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
+/** @param {{ appDbUser: string, dbName: string }} params */
 export function buildGrantPlan({ appDbUser, dbName }) {
   const appDbUserIdent = quoteIdent(appDbUser);
   const appDbUserLiteral = quoteLiteral(appDbUser);

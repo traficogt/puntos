@@ -4,6 +4,7 @@ import { config } from "../config/index.js";
 const ENC_V1_PREFIX = "enc:v1";
 const ENC_V2_PREFIX = "enc:v2";
 
+/** @param {string | null | undefined} rawValue */
 function deriveKey(rawValue) {
   const raw = String(rawValue || "");
   if (!raw) return null;
@@ -32,11 +33,17 @@ function getCandidateV2Keys() {
   return keys;
 }
 
+/** @param {unknown} value */
 export function isEncryptedSecret(value) {
   const v = String(value || "");
   return v.startsWith(`${ENC_V1_PREFIX}:`) || v.startsWith(`${ENC_V2_PREFIX}:`);
 }
 
+/**
+ * Encrypts a secret with the current key (AES-256-GCM, `enc:v2:` prefix).
+ * Empty input and already-encrypted v2 values are returned unchanged.
+ * @param {unknown} plainText non-strings are stringified
+ */
 export function encryptSecret(plainText) {
   const plain = String(plainText ?? "");
   if (!plain) return plain;
@@ -58,6 +65,10 @@ export function encryptSecret(plainText) {
   ].join(":");
 }
 
+/**
+ * @param {string[]} parts the `:`-split encrypted value (prefix, version, iv, tag, ciphertext)
+ * @param {Buffer} key
+ */
 function decryptWithKey(parts, key) {
   const iv = Buffer.from(parts[2], "base64url");
   const tag = Buffer.from(parts[3], "base64url");
@@ -68,6 +79,11 @@ function decryptWithKey(parts, key) {
   return plain.toString("utf8");
 }
 
+/**
+ * Decrypts an `enc:v1:`/`enc:v2:` value, trying every configured key; plain
+ * values pass through.
+ * @param {unknown} encryptedOrPlain
+ */
 export function decryptSecretMaybe(encryptedOrPlain) {
   const value = String(encryptedOrPlain ?? "");
   if (!value) return value;
@@ -96,6 +112,7 @@ export function decryptSecretMaybe(encryptedOrPlain) {
   throw new Error("Unable to decrypt secret with configured key set");
 }
 
+/** @param {unknown} encryptedOrPlain */
 export function rotateSecretToCurrent(encryptedOrPlain) {
   const plain = decryptSecretMaybe(encryptedOrPlain);
   return encryptSecret(plain);

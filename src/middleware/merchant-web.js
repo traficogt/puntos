@@ -3,7 +3,10 @@ import { readFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 
-/** Serve the merchant shell with per-response nonces for Mantine's style tags. */
+/**
+ * Serve the merchant shell with per-response nonces for Mantine's style tags.
+ * @param {string} publicDir absolute path of the static public directory
+ */
 export function createMerchantWeb(publicDir) {
   const router = Router();
   router.get(["/", "/index.html"], async (_req, res, next) => {

@@ -12,6 +12,13 @@ import {
   renderMarkdown,
 } from "./release-readiness-lib.mjs";
 
+/** @typedef {import("./release-readiness-lib.mjs").ReadinessCheck} ReadinessCheck */
+
+/**
+ * The checks a readiness run can execute, in order.
+ * @param {string} cwd repository root
+ * @returns {Promise<ReadinessCheck[]>}
+ */
 export async function checksFor(cwd) {
   const pkg = JSON.parse(await readFile(join(cwd, "package.json"), "utf8"));
   // Reuse the existing core suite selection without shell evaluation or accepting arbitrary flags.
@@ -22,7 +29,9 @@ export async function checksFor(cwd) {
     ?.trim()
     .split(/ +/);
   if (!core?.length) throw new Error("Core test selection is not recognized");
+  /** @param {...string} args */
   const node = (...args) => ["node", ...args];
+  /** @param {...string} files */
   const tap = (...files) =>
     node("--test", "--test-reporter=tap", "--test-timeout=120000", ...files);
   const browserTools = { playwright: "node_modules/playwright/package.json" };
@@ -197,6 +206,7 @@ export async function main(args = process.argv.slice(2)) {
     console.log(usage);
     return 0;
   }
+  /** @type {Record<string, string>} */
   const options = {};
   for (let i = 0; i < args.length; i += 2) {
     if (!["--revision", "--output", "--run"].includes(args[i]) || !args[i + 1] || options[args[i]])

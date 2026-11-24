@@ -1,11 +1,18 @@
+/** @typedef {"EMPRENDEDOR" | "NEGOCIO" | "EMPRESA"} PlanName */
+
+/** @type {readonly PlanName[]} ascending by price */
 const PLAN_ORDER = ["EMPRENDEDOR", "NEGOCIO", "EMPRESA"];
 
+/** @typedef {{ activeCustomers: number, rewards: number, branches: number }} PlanLimits */
+
+/** @type {Record<PlanName, PlanLimits>} */
 const PLAN_LIMITS = {
   EMPRENDEDOR: { activeCustomers: 300, rewards: 5, branches: 1 },
   NEGOCIO: { activeCustomers: 2000, rewards: 9999, branches: 3 },
   EMPRESA: { activeCustomers: 999999, rewards: 9999, branches: 9999 },
 };
 
+/** @type {Record<PlanName, { monthly: number, yearly: number, notes: string }>} */
 const PLAN_PRICING_GTQ = {
   EMPRENDEDOR: {
     monthly: 149,
@@ -24,6 +31,7 @@ const PLAN_PRICING_GTQ = {
   },
 };
 
+/** @type {Record<PlanName, { included_messages: number, overage_per_message_q: number }>} */
 const PLAN_MESSAGING_GTQ = {
   EMPRENDEDOR: { included_messages: 250, overage_per_message_q: 0.2 },
   NEGOCIO: { included_messages: 1000, overage_per_message_q: 0.16 },
@@ -96,53 +104,89 @@ export const DEFAULT_PLAN_FEATURES = {
   },
 };
 
+/** @typedef {typeof DEFAULT_PLAN_FEATURES} PlanFeatureTable plan -> feature -> enabled */
+
+/**
+ * Whether a normalized plan string names one of the plans (see normalizePlan).
+ * @param {string} value an already-normalized plan string
+ * @returns {value is PlanName}
+ */
+export function isPlanName(value) {
+  return /** @type {readonly string[]} */ (PLAN_ORDER).includes(value);
+}
+
+/** @param {unknown} plan a stored plan value; trimmed and upper-cased */
 export function normalizePlan(plan) {
   return String(plan || "")
     .trim()
     .toUpperCase();
 }
 
+/** @param {unknown} plan unknown plans fall back to EMPRENDEDOR */
 export function planLimits(plan) {
   const key = normalizePlan(plan);
-  return PLAN_LIMITS[key] ?? PLAN_LIMITS.EMPRENDEDOR;
+  return isPlanName(key) ? PLAN_LIMITS[key] : PLAN_LIMITS.EMPRENDEDOR;
 }
 
+/** @param {unknown} plan unknown plans fall back to EMPRENDEDOR */
 export function planFeatures(plan) {
   const key = normalizePlan(plan);
-  return DEFAULT_PLAN_FEATURES[key] ?? DEFAULT_PLAN_FEATURES.EMPRENDEDOR;
+  return isPlanName(key) ? DEFAULT_PLAN_FEATURES[key] : DEFAULT_PLAN_FEATURES.EMPRENDEDOR;
 }
 
+/**
+ * Deep copy of the default feature table with per-plan boolean overrides
+ * applied. Unknown plans and unknown features are ignored.
+ * @param {unknown} [overrides] `{ [plan]: { [feature]: boolean } }`, typically from plan config
+ * @returns {PlanFeatureTable}
+ */
 export function mergePlanFeatures(overrides = {}) {
+  /** @type {PlanFeatureTable} */
   const merged = JSON.parse(JSON.stringify(DEFAULT_PLAN_FEATURES));
   if (!overrides || typeof overrides !== "object") return merged;
   for (const [plan, featureMap] of Object.entries(overrides)) {
     const p = normalizePlan(plan);
-    if (!merged[p] || !featureMap || typeof featureMap !== "object") continue;
+    if (!isPlanName(p) || !featureMap || typeof featureMap !== "object") continue;
+    /** @type {Record<string, boolean>} */
+    const target = merged[p];
     for (const [feature, enabled] of Object.entries(featureMap)) {
-      if (Object.prototype.hasOwnProperty.call(merged[p], feature)) {
-        merged[p][feature] = Boolean(enabled);
+      if (Object.prototype.hasOwnProperty.call(target, feature)) {
+        target[feature] = Boolean(enabled);
       }
     }
   }
   return merged;
 }
 
+/**
+ * @param {unknown} plan
+ * @param {unknown} [overrides] see mergePlanFeatures
+ */
 export function planFeaturesWithOverrides(plan, overrides = {}) {
   const key = normalizePlan(plan);
   const merged = mergePlanFeatures(overrides);
-  return merged[key] ?? merged.EMPRENDEDOR;
+  return isPlanName(key) ? merged[key] : merged.EMPRENDEDOR;
 }
 
+/**
+ * @param {unknown} plan
+ * @param {string} feature a key of the feature table; unknown features are disabled
+ * @param {unknown} [overrides] see mergePlanFeatures
+ */
 export function hasPlanFeature(plan, feature, overrides = {}) {
-  return Boolean(planFeaturesWithOverrides(plan, overrides)[feature]);
+  /** @type {Record<string, boolean>} */
+  const features = planFeaturesWithOverrides(plan, overrides);
+  return Boolean(features[feature]);
 }
 
 // Program models that require a specific plan feature to be selected or operated.
 // Earning models (SPEND, VISIT, ITEM, DISCOUNT, STAMP, CASHBACK) are part of core
 // loyalty and available on every tier; the gift-card product is premium stored
 // value. To make another model premium, add it here (e.g. CASHBACK: "cashback").
+/** @type {Record<string, string>} program type -> plan feature it requires */
 export const PROGRAM_TYPE_FEATURE = { GIFT_CARD: "gift_cards" };
 
+/** @param {unknown} programType */
 export function programTypeFeature(programType) {
   return (
     PROGRAM_TYPE_FEATURE[
@@ -153,22 +197,36 @@ export function programTypeFeature(programType) {
   );
 }
 
+/**
+ * @param {unknown} plan
+ * @param {unknown} programType
+ * @param {unknown} [overrides] see mergePlanFeatures
+ */
 export function canUseProgramType(plan, programType, overrides = {}) {
   const feature = programTypeFeature(programType);
   return feature ? hasPlanFeature(plan, feature, overrides) : true;
 }
 
+/** @param {string} feature the cheapest plan that enables it by default; EMPRESA when none does */
 export function suggestedPlanForFeature(feature) {
   for (const p of PLAN_ORDER) {
-    if (DEFAULT_PLAN_FEATURES[p]?.[feature]) return p;
+    /** @type {Record<string, boolean>} */
+    const features = DEFAULT_PLAN_FEATURES[p];
+    if (features?.[feature]) return p;
   }
   return "EMPRESA";
 }
 
+/**
+ * Every plan with its limits, features (overrides applied) and GTQ pricing,
+ * cheapest first. `plan` is widened to `string` because callers compare it with
+ * user-supplied plan names.
+ * @param {unknown} [overrides] see mergePlanFeatures
+ */
 export function listPlans(overrides = {}) {
   const merged = mergePlanFeatures(overrides);
   return PLAN_ORDER.map((plan) => ({
-    plan,
+    plan: /** @type {string} */ (plan),
     limits: PLAN_LIMITS[plan],
     features: merged[plan],
     pricing_gtq: PLAN_PRICING_GTQ[plan],
@@ -176,8 +234,17 @@ export function listPlans(overrides = {}) {
   }));
 }
 
+/**
+ * Whether a customer counts as active: last visit (or sign-up) within 90 days.
+ * @param {string | number | Date | null | undefined} lastVisitAt
+ * @param {string | number | Date | null | undefined} createdAt
+ * @param {Date} [now]
+ */
 export function isActiveCustomer(lastVisitAt, createdAt, now = new Date()) {
   const ref = lastVisitAt ?? createdAt;
+  // No reference instant (null yields the epoch, undefined an invalid date):
+  // neither is within the window, so the answer is false either way.
+  if (ref === null || ref === undefined) return false;
   const ms = 90 * 24 * 60 * 60 * 1000;
   return now.getTime() - new Date(ref).getTime() <= ms;
 }

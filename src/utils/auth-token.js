@@ -5,6 +5,26 @@ import {
   getBrowserSession,
 } from "../app/services/auth-session-service.js";
 
+/**
+ * The request fields the cookie helpers read to decide on the Secure flag; an
+ * Express request satisfies it, and tests pass plain objects.
+ * @typedef {object} CookieRequest
+ * @property {boolean} [secure]
+ * @property {string} [protocol]
+ * @property {import("node:http").IncomingHttpHeaders} [headers]
+ * @property {(name: string) => string | string[] | undefined} [get]
+ */
+/** @typedef {import("../types/auth.js").StaffTokenPayload} StaffTokenPayload */
+/** @typedef {import("../types/auth.js").CustomerTokenPayload} CustomerTokenPayload */
+/** @typedef {import("../types/auth.js").SuperTokenPayload} SuperTokenPayload */
+/** @typedef {Partial<import("express").CookieOptions>} CookieOverrides */
+
+/**
+ * Opens a staff browser session and returns its opaque token.
+ * @param {StaffTokenPayload} payload
+ * @param {number} [_expiresInSeconds] kept for call-site compatibility; the
+ *   session lifetime comes from APP_SESSION_* in config
+ */
 export async function signStaffToken(payload, _expiresInSeconds = 30 * 24 * 60 * 60) {
   const out = await createBrowserSession({
     actorType: "STAFF",
@@ -19,6 +39,11 @@ export async function signStaffToken(payload, _expiresInSeconds = 30 * 24 * 60 *
   return out.token;
 }
 
+/**
+ * Opens a customer browser session and returns its opaque token.
+ * @param {CustomerTokenPayload} payload
+ * @param {number} [_expiresInSeconds] see signStaffToken
+ */
 export async function signCustomerToken(payload, _expiresInSeconds = 180 * 24 * 60 * 60) {
   const out = await createBrowserSession({
     actorType: "CUSTOMER",
@@ -29,6 +54,11 @@ export async function signCustomerToken(payload, _expiresInSeconds = 180 * 24 * 
   return out.token;
 }
 
+/**
+ * Opens a platform-operator browser session and returns its opaque token.
+ * @param {SuperTokenPayload} payload
+ * @param {number} [_expiresInSeconds] see signStaffToken
+ */
 export async function signSuperToken(payload, _expiresInSeconds = 7 * 24 * 60 * 60) {
   const out = await createBrowserSession({
     actorType: "SUPER",
@@ -39,6 +69,11 @@ export async function signSuperToken(payload, _expiresInSeconds = 7 * 24 * 60 * 
   return out.token;
 }
 
+/**
+ * Resolves a session token to its legacy claim shape; throws when the session
+ * is missing, expired or invalidated.
+ * @param {string} token
+ */
 export async function verifyToken(token) {
   const session = await getBrowserSession(token);
   const status = browserSessionStatus(session);
@@ -66,6 +101,7 @@ export async function verifyToken(token) {
   };
 }
 
+/** @param {string} actorType STAFF | CUSTOMER | SUPER */
 export function browserCookieMaxAge(actorType) {
   const normalized = String(actorType || "").toUpperCase();
   if (normalized === "SUPER") {
@@ -74,6 +110,7 @@ export function browserCookieMaxAge(actorType) {
   return config.APP_SESSION_ABSOLUTE_MS;
 }
 
+/** @param {CookieRequest | null | undefined} req */
 function requestIsHttps(req) {
   const forwardedProto = String(
     req?.get?.("x-forwarded-proto") || req?.headers?.["x-forwarded-proto"] || "",
@@ -87,6 +124,11 @@ function requestIsHttps(req) {
   return false;
 }
 
+/**
+ * Base options for the session cookies.
+ * @param {CookieRequest | null} [req] marks the cookie Secure when the request arrived over HTTPS
+ * @returns {{ httpOnly: true, sameSite: "strict", secure: boolean, path: "/" }}
+ */
 export function cookieOpts(req = null) {
   const prod = config.NODE_ENV === "production";
   const securePreferred =
@@ -99,24 +141,36 @@ export function cookieOpts(req = null) {
   };
 }
 
-export function cookieOptsWith(reqOrOverrides = null, maybeOverrides = {}) {
-  const req =
-    reqOrOverrides &&
-    typeof reqOrOverrides === "object" &&
-    ("headers" in reqOrOverrides || "protocol" in reqOrOverrides || "secure" in reqOrOverrides)
-      ? reqOrOverrides
-      : null;
-  const overrides = req ? maybeOverrides : reqOrOverrides || {};
-  return {
-    ...cookieOpts(req),
-    ...overrides,
-  };
+/**
+ * @param {unknown} value
+ * @returns {value is CookieRequest}
+ */
+function isRequestLike(value) {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    ("headers" in value || "protocol" in value || "secure" in value),
+  );
 }
 
+/**
+ * Cookie options with overrides. Accepts `(req, overrides)` or just `(overrides)`.
+ * @param {CookieRequest | CookieOverrides | null} [reqOrOverrides]
+ * @param {CookieOverrides} [maybeOverrides]
+ */
+export function cookieOptsWith(reqOrOverrides = null, maybeOverrides = {}) {
+  if (isRequestLike(reqOrOverrides)) {
+    return { ...cookieOpts(reqOrOverrides), ...maybeOverrides };
+  }
+  return { ...cookieOpts(null), ...(reqOrOverrides || {}) };
+}
+
+/** @param {CookieRequest | null} [req] */
 export function staffCookieOptions(req = null) {
   return cookieOptsWith(req, { maxAge: browserCookieMaxAge("STAFF") });
 }
 
+/** @param {CookieRequest | null} [req] */
 export function customerCookieOptions(req = null) {
   return cookieOptsWith(req, { maxAge: browserCookieMaxAge("CUSTOMER") });
 }

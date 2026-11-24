@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import pg from "pg";
 
+/** @param {string | undefined} inline @param {string | undefined} filePath */
 function readSecret(inline, filePath) {
   if (inline) return inline;
   if (filePath) {
@@ -59,6 +60,7 @@ const RLS_EXEMPT_TENANT_TABLES = new Set([
   "business_public", // public business projection, read by slug on unauthenticated pages
 ]);
 
+/** @param {import("pg").Client} db */
 async function assertTenantTablesHaveRls(db) {
   const { rows } = await db.query(`
     SELECT c.relname, c.relrowsecurity
@@ -101,6 +103,7 @@ const client = new pg.Client({
   password: DB_PASSWORD_RESOLVED,
 });
 
+/** @param {unknown} actual @param {unknown} expected @param {string} message */
 function assertEqual(actual, expected, message) {
   if (actual !== expected) {
     throw new Error(`${message}: expected ${expected}, got ${actual}`);

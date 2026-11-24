@@ -336,7 +336,7 @@ export function isolatedEnvironment(inherited, { port, password, database }) {
 export function summarizeTap(output) {
   const counts = { tests: 0, pass: 0, fail: 0, cancelled: 0, skipped: 0, todo: 0 };
   let fields = 0;
-  for (const key of Object.keys(counts)) {
+  for (const key of /** @type {Array<keyof typeof counts>} */ (Object.keys(counts))) {
     const match = output.match(new RegExp(`^# ${key} (\\d+)\\s*$`, "m"));
     if (match) {
       counts[key] = Number(match[1]);
@@ -374,8 +374,9 @@ export function runCommand(executable, args, { cwd, env, timeoutMs = 180000, sig
     let output = "",
       stdout = "",
       timedOut = false,
-      spawnFailed = false,
-      forcedKill;
+      spawnFailed = false;
+    /** @type {NodeJS.Timeout | undefined} */
+    let forcedKill;
     function stop() {
       const pid = child.pid;
       if (!pid) return;
@@ -449,6 +450,7 @@ async function main() {
   let containerId,
     interrupted = 0,
     exitCode = 0;
+  /** @param {NodeJS.Signals} signal */
   const interrupt = (signal) => {
     interrupted = signal === "SIGINT" ? 130 : 143;
     abort.abort();
@@ -457,8 +459,10 @@ async function main() {
     onTerm = () => interrupt("SIGTERM");
   process.on("SIGINT", onInt);
   process.on("SIGTERM", onTerm);
+  /** @param {string} value */
   const redact = (value) => value.replaceAll(password, "[redacted]");
   const results = [];
+  /** @param {string[]} command @param {boolean} [checked] @param {boolean} [cleanup] */
   async function docker(command, checked = true, cleanup = false) {
     const result = await runCommand("docker", ["--context", "default", ...command], {
       cwd: workdir,
@@ -537,6 +541,7 @@ async function main() {
       await delay(500);
     }
     if (!ready) throw new Error("Isolated PostgreSQL did not become ready");
+    /** @param {string} database */
     const envFor = (database) => isolatedEnvironment(process.env, { port, password, database });
     if (suites.some((suite) => suite.fullSchema)) {
       console.log("[domains] Applying managed migrations to the isolated template");
@@ -641,7 +646,7 @@ async function main() {
     if (results.length !== suites.length) exitCode ||= 1;
   } catch (error) {
     const details = isErrorLike(error) ? error : undefined;
-    console.error(`[domains] ${redact(errorMessage(error))}`);
+    console.error(`[domains] ${redact(errorMessage(error) ?? String(error))}`);
     exitCode ||= Number(details?.exitCode) || 1;
   } finally {
     if (containerId && /^[a-f0-9]{64}$/.test(containerId)) {

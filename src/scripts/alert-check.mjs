@@ -239,6 +239,7 @@ function checkPresence(samples, metrics, label) {
  * @returns {AlertCheck[]}
  */
 function buildApiChecks(samples) {
+  /** @type {AlertCheck[]} */
   const checks = [];
   if (hasAnySample(samples, "puntos_metrics_error")) {
     checks.push({
