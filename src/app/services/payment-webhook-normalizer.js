@@ -12,6 +12,7 @@ function pick(obj, keys, fallback) {
   return fallback;
 }
 
+/** @param {unknown} v */
 function parseAmount(v) {
   const n = Number(v ?? 0);
   return Number.isFinite(n) ? n : 0;
@@ -28,12 +29,17 @@ const SUCCESS_EVENTS = new Set([
 ]);
 const UPDATE_EVENTS = new Set(["PAYMENT.UPDATED"]);
 
+/**
+ * @param {Record<string, any>} payload
+ * @param {string[]} keys
+ */
 function eventTokens(payload, keys) {
   return keys
     .filter((key) => payload[key] !== undefined)
     .map((key) => (typeof payload[key] === "string" ? payload[key].trim().toUpperCase() : ""));
 }
 
+/** @param {Record<string, any>} payload */
 function isApprovedPayment(payload) {
   const statuses = eventTokens(payload, ["status", "payment_status"]);
   const events = eventTokens(payload, ["event", "event_name", "type"]);
@@ -49,6 +55,11 @@ function isApprovedPayment(payload) {
   return events.length > 0 && events.every((event) => SUCCESS_EVENTS.has(event));
 }
 
+/**
+ * Maps a provider's webhook body (their own JSON shape) onto PF's event fields.
+ * @param {string} provider
+ * @param {Record<string, any> | null | undefined} payload
+ */
 export function normalizePaymentWebhook(provider, payload) {
   const p = payload ?? {};
   const meta = p.metadata ?? p.meta ?? p.additionalData ?? {};

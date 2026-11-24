@@ -5,16 +5,25 @@ const timestamp = dateTimeSchema({ offset: true });
 
 // Missing timestamps remain missing: the ledger's immutable created_at is the
 // authoritative receipt time. A client clock is evidence, not a verified POS clock.
+/**
+ * @param {unknown} value untrusted timestamp (API body, CSV cell or provider field)
+ * @param {Date} [now]
+ */
 export function normalizePurchaseOccurredAt(value, now = new Date()) {
   if (value == null) return null;
   if (!timestamp.safeParse(value).success)
     throw badRequest("La fecha de compra debe ser una fecha ISO válida con zona horaria.");
-  const milliseconds = Date.parse(value);
+  const milliseconds = Date.parse(/** @type {string} */ (value));
   if (!Number.isFinite(milliseconds) || milliseconds > now.getTime())
     throw badRequest("La fecha de compra no puede ser futura.");
   return new Date(milliseconds).toISOString();
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} source
+ * @param {Date} [now]
+ */
 export function purchaseEventTime(value, source, now = new Date()) {
   const occurredAt = normalizePurchaseOccurredAt(value, now);
   if (!occurredAt) return { occurredAt: null, source: "server_recorded" };
@@ -25,6 +34,10 @@ export function purchaseEventTime(value, source, now = new Date()) {
 
 // Legacy senders may continue omitting time. Replays never enrich or rewrite an
 // existing transaction; a changed explicit timestamp on recorded evidence fails.
+/**
+ * @param {{ purchase_occurred_at?: Date | string | null }} transaction
+ * @param {string | null | undefined} occurredAt
+ */
 export function assertPurchaseTimeReplay(transaction, occurredAt) {
   if (
     occurredAt &&

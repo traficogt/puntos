@@ -13,6 +13,10 @@
 // engine is reused unchanged and the free item is an ordinary reward whose cost
 // is `purchases_required` (= stamps_required - head_start). This pure helper only
 // derives the card's display state from that balance; it writes nothing.
+/**
+ * @param {{ program_type?: string | null, program_json?: Record<string, any> | null } | null | undefined} business
+ * @param {{ points?: number | string | null }} [balance] the member's point balance (real purchases)
+ */
 export function stampCard(business, { points = 0 } = {}) {
   if (!business || business.program_type !== "STAMP") return null;
   const cfg = business.program_json ?? {};

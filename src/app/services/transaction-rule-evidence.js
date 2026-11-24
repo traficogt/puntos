@@ -4,8 +4,41 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { businessRegion } from "./regional-settings.js";
 
+/**
+ * Business fields the evaluator reads; the row itself belongs to the repositories owner.
+ * @typedef {{ program_type?: string | null, program_json?: Record<string, any> | null }} TransactionRuleEvidenceBusiness
+ *
+ * A campaign rule as the owner stores it in program_json.campaign_rules. The values
+ * are owner-authored JSON, so ruleContent() re-validates every field before use.
+ * @typedef {{
+ *   active?: boolean,
+ *   program_type?: string | null,
+ *   kind?: string,
+ *   value?: number | string | null,
+ *   max_points?: number | string | null,
+ *   condition?: TransactionRuleEvidenceCondition | null
+ * }} TransactionRuleEvidenceCampaignRule
+ *
+ * @typedef {{
+ *   weekdays?: number[] | null,
+ *   min_amount_q?: number | string | null,
+ *   min_visits?: number | string | null,
+ *   min_items?: number | string | null,
+ *   start_hour?: number | string | null,
+ *   end_hour?: number | string | null
+ * }} TransactionRuleEvidenceCondition
+ *
+ * Purchase quantities an award is computed from (amount_q may arrive as a NUMERIC string).
+ * @typedef {{ amount_q?: number | string, visits?: number, items?: number }} TransactionRuleEvidenceInput
+ */
+
+/** @param {unknown} value */
 const finite = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
 const types = ["SPEND", "VISIT", "ITEM", "STAMP"];
+/**
+ * @param {Date} date
+ * @param {string | undefined} timeZone
+ */
 function localTime(date, timeZone) {
   try {
     const parts = new Intl.DateTimeFormat("en-US", {
@@ -17,9 +50,16 @@ function localTime(date, timeZone) {
     return {
       hour: Number(parts.find((part) => part.type === "hour")?.value ?? 0),
       weekday:
-        { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[
-          parts.find((part) => part.type === "weekday")?.value
-        ] ?? date.getDay(),
+        /** @type {Record<string, number>} */ ({
+          Sun: 0,
+          Mon: 1,
+          Tue: 2,
+          Wed: 3,
+          Thu: 4,
+          Fri: 5,
+          Sat: 6,
+        })[/** @type {string} */ (parts.find((part) => part.type === "weekday")?.value)] ??
+        date.getDay(),
       timeZone,
     };
   } catch {
@@ -31,8 +71,12 @@ function localTime(date, timeZone) {
     };
   }
 }
+/**
+ * @param {TransactionRuleEvidenceCampaignRule | null | undefined} rule
+ * @param {number} index
+ */
 function ruleContent(rule, index) {
-  const c = rule?.condition || {};
+  const c = /** @type {TransactionRuleEvidenceCondition} */ (rule?.condition || {});
   return {
     index,
     present: !!rule,
@@ -64,10 +108,11 @@ function ruleContent(rule, index) {
  * a program is configured when a live award would not be refused for lack of a rule.
  * Non-points programs and stamp cards need no rate; a points program needs its own
  * explicit rate (no implicit default).
+ * @param {TransactionRuleEvidenceBusiness | null | undefined} business
  */
 export function programRuleConfigured(business) {
   const type = business?.program_type ?? "SPEND",
-    cfg = business?.program_json ?? {};
+    cfg = /** @type {Record<string, any>} */ (business?.program_json ?? {});
   if (type === "DISCOUNT" || type === "CASHBACK" || type === "GIFT_CARD" || type === "STAMP")
     return true;
   const rate =
@@ -81,6 +126,9 @@ export function programRuleConfigured(business) {
 
 /** Pure evaluator. Its safe evidence and award are produced by the same pass.
  * The supplied clock belongs to the server wrapper, never an offline capture.
+ * @param {TransactionRuleEvidenceBusiness} business
+ * @param {TransactionRuleEvidenceInput} input
+ * @param {{ now: Date, timeZone?: string, requireRule?: boolean }} options
  */
 export function evaluatePointRules(
   business,
@@ -88,7 +136,7 @@ export function evaluatePointRules(
   { now, timeZone, requireRule = false },
 ) {
   const type = business.program_type ?? "SPEND",
-    cfg = business.program_json ?? {};
+    cfg = /** @type {Record<string, any>} */ (business.program_json ?? {});
   if (type === "DISCOUNT" || type === "CASHBACK" || type === "GIFT_CARD") {
     // A discount program accrues no points; the benefit is applied as a counter
     // discount (see discount-model.js). Evidence is emitted with zero points for a
@@ -247,13 +295,14 @@ export const targetedOfferCriteriaSchema = z.object({
     source: z.enum(["online", "offline", "external", "order"]),
   }),
 });
+/** @param {unknown} value */
 function safeTargetedCriteria(value) {
   const parsed = targetedOfferCriteriaSchema.safeParse(value);
   return parsed.success ? parsed.data : "not_snapshotted";
 }
 
 /**
- * @param evidence the evaluator's evidence object (returned enriched, so its shape is preserved)
+ * @param {ReturnType<typeof evaluatePointRules>["evidence"] | null | undefined} evidence the evaluator's evidence object (returned enriched, so its shape is preserved)
  * @param {{
  *   bonus: { bonusPoints?: number, campaignId?: string | null, criteria?: unknown } | null | undefined,
  *   holdDays: number,

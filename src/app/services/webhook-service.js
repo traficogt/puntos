@@ -10,10 +10,31 @@ import { emitBillingEvent } from "./billing-service.js";
 import { withDbClientContext } from "../database.js";
 import { errorMessage, isErrorLike } from "../../utils/error-shape.js";
 
+/**
+ * Rows read through WebhookRepo (repositories owner).
+ * `events` is stored as JSON text or an array of event names ("*" matches all).
+ * @typedef {{ id: string, active: boolean, events: string | string[] | null }} WebhookEndpointRow
+ * A claimed delivery joined with its endpoint (WebhookRepo.claimPending).
+ * @typedef {{
+ *   id: string,
+ *   endpoint_id: string,
+ *   event: string,
+ *   payload: unknown,
+ *   attempts: number,
+ *   url: string,
+ *   secret: string,
+ *   business_id: string
+ * }} WebhookDeliveryJob
+ */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/**
+ * @param {WebhookEndpointRow} endpoint
+ * @param {string} event
+ */
 function shouldSend(endpoint, event) {
   try {
     const events =
@@ -25,10 +46,25 @@ function shouldSend(endpoint, event) {
   }
 }
 
+/**
+ * @param {string} secret
+ * @param {string} body
+ */
 function sign(secret, body) {
   return crypto.createHmac("sha256", secret).update(body).digest("hex");
 }
 
+/**
+ * @param {{
+ *   url: URL,
+ *   body: string,
+ *   headers: Record<string, string>,
+ *   resolvedAddress: string,
+ *   resolvedFamily: number | null,
+ *   timeoutMs: number
+ * }} request
+ * @returns {Promise<{ statusCode: number }>}
+ */
 function sendPinnedWebhook({ url, body, headers, resolvedAddress, resolvedFamily, timeoutMs }) {
   const transport = url.protocol === "https:" ? https : http;
 
@@ -57,6 +93,11 @@ function sendPinnedWebhook({ url, body, headers, resolvedAddress, resolvedFamily
   });
 }
 
+/**
+ * @param {string} businessId
+ * @param {string} event
+ * @param {unknown} payload JSON-serializable event body
+ */
 export async function enqueueWebhookEvent(businessId, event, payload) {
   const endpoints = await WebhookRepo.listEndpoints(businessId);
   for (const ep of endpoints) {
@@ -71,6 +112,7 @@ export async function enqueueWebhookEvent(businessId, event, payload) {
   }
 }
 
+/** @param {WebhookDeliveryJob} j */
 async function deliverOne(j) {
   try {
     const body = typeof j.payload === "string" ? j.payload : JSON.stringify(j.payload);
@@ -126,6 +168,12 @@ async function deliverOne(j) {
   }
 }
 
+/**
+ * @template T
+ * @param {T[]} items drained in place by the workers
+ * @param {number} limit
+ * @param {(item: T) => Promise<void>} fn
+ */
 async function mapLimit(items, limit, fn) {
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
     while (items.length) {

@@ -8,12 +8,38 @@ import { withImpersonationMeta } from "../../utils/impersonation.js";
 import { hasMaxScale, mul, pct, sub, toMinor, toNumber } from "../../utils/money.js";
 import { reportingPurchase } from "./reporting-purchase.js";
 
+/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} RewardEconomicsQueryClient */
+/** @typedef {(text: string, values?: unknown[]) => Promise<{ rows: any[] }>} RewardEconomicsQuery */
+/**
+ * Collaborators; unit tests inject `{ transaction: (fn) => fn(client), getPlanFeatureOverrides }`.
+ * @typedef {{
+ *   transaction: <T>(fn: (client: RewardEconomicsQueryClient) => Promise<T>) => Promise<T>,
+ *   getPlanFeatureOverrides: () => Promise<Record<string, any>>
+ * }} RewardEconomicsDeps
+ * Staff actor of a cost/settings write; audit rows and impersonation metadata read these.
+ * @typedef {{
+ *   businessId: string,
+ *   staffId: string,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null,
+ *   imp?: string | null
+ * }} RewardEconomicsActor
+ */
+
+/** @type {RewardEconomicsDeps} */
 const defaults = {
   transaction: withTransaction,
   getPlanFeatureOverrides: () => PlanConfigService.getPlanFeatureOverrides(),
 };
+/** @param {unknown} value */
 const numberOrNull = (value) => (value === null || value === undefined ? null : Number(value));
 
+/**
+ * @param {unknown} value submitted amount; null clears the field, undefined is not accepted here
+ * @param {number} max
+ * @param {number} precision
+ */
 function boundedNullable(value, max, precision) {
   if (value === null) return;
   if (
@@ -26,6 +52,11 @@ function boundedNullable(value, max, precision) {
     throw badRequest("Ingresa un importe válido o deja el campo vacío.");
   }
 }
+/**
+ * @param {RewardEconomicsQueryClient} client
+ * @param {string} businessId
+ * @param {Record<string, any>} overrides
+ */
 async function entitled(client, businessId, overrides) {
   // Protect the plan from concurrent edits while permitting the key-share
   // locks taken by a redemption's foreign keys (which already holds a reward).
@@ -38,6 +69,12 @@ async function entitled(client, businessId, overrides) {
     throw forbidden("Tu plan no incluye el informe de costos.");
   return rows[0];
 }
+/**
+ * @param {RewardEconomicsQueryClient} client
+ * @param {RewardEconomicsActor} actor
+ * @param {string} action
+ * @param {Record<string, unknown>} meta
+ */
 async function audit(client, actor, action, meta) {
   await client.query(
     `INSERT INTO audit_logs(id,business_id,actor_type,actor_id,action,ip,ua,meta)
@@ -54,6 +91,10 @@ async function audit(client, actor, action, meta) {
   );
 }
 
+/**
+ * @param {RewardEconomicsActor & { rewardId: string, unitCostQ: number | null, retailValueQ?: number | null }} options
+ * @param {Partial<RewardEconomicsDeps>} [injected]
+ */
 export async function updateRewardUnitCost(options, injected = {}) {
   boundedNullable(options.unitCostQ, 1000000, 2);
   if (options.retailValueQ !== undefined) boundedNullable(options.retailValueQ, 1000000, 2);
@@ -99,6 +140,10 @@ export async function updateRewardUnitCost(options, injected = {}) {
     };
   });
 }
+/**
+ * @param {RewardEconomicsActor & { grossMarginPct: number | null, costPerPointQ: number | null }} options
+ * @param {Partial<RewardEconomicsDeps>} [injected]
+ */
 export async function updateRewardEconomicsSettings(options, injected = {}) {
   boundedNullable(options.grossMarginPct, 100, 2);
   boundedNullable(options.costPerPointQ, 1000, 6);
@@ -127,7 +172,10 @@ export async function updateRewardEconomicsSettings(options, injected = {}) {
 
 /** Only called inside the NEW completion transaction, never by reads, replays,
  * settings writes or migration backfills. NULL explicitly records unknown cost.
- * INSERT-only and the redemption primary key make replay unable to rewrite it. */
+ * INSERT-only and the redemption primary key make replay unable to rewrite it.
+ * @param {RewardEconomicsQueryClient} client
+ * @param {{ businessId: string, redemptionId: string }} args
+ */
 export async function snapshotCompletedRedemption(client, { businessId, redemptionId }) {
   await client.query(
     `INSERT INTO redemption_cost_snapshots(redemption_id,business_id,reward_id,points_cost,unit_cost_q,redeemed_at)
@@ -187,6 +235,10 @@ SELECT b.start_at,b.end_at,
  (SELECT COUNT(*)::int FROM rewards WHERE business_id=$1) AS reward_count
 FROM bounds b`;
 
+/**
+ * @param {{ businessId: string, days?: number, offset?: number, now?: Date, timezone?: string }} args
+ * @param {RewardEconomicsQuery} [query]
+ */
 export async function getRewardEconomics(
   { businessId, days = 30, offset = 0, now = new Date(), timezone = undefined },
   query = dbQuery,
@@ -214,6 +266,7 @@ export async function getRewardEconomics(
       ? null
       : pct(toMinor(observed.recorded_sales_q), settings.gross_margin_pct);
   const gross = grossMinor === null ? null : toNumber(grossMinor);
+  /** @param {unknown} points point total from the report JSON (bigint text or number) */
   const pointsCost = (points) =>
     settings.cost_per_point_q === null
       ? null

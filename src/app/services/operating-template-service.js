@@ -18,6 +18,35 @@ import { createCampaignPreflight } from "./campaign-preflight-service.js";
 import { operatingMode } from "./merchant-decisions-model.js";
 import { businessRegion } from "./regional-settings.js";
 import { PlanConfigService } from "./plan-config-service.js";
+
+/**
+ * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} OperatingTemplateQueryClient
+ *
+ * Staff session as the routes resolve it (req.staff); reward-promise-service checks it
+ * against the live staff row.
+ * @typedef {{ id: string, business_id: string, branch_id?: string | null, role?: string | null, impersonated_by?: string | null, [field: string]: unknown }} OperatingTemplateStaff
+ *
+ * @typedef {{ businessId: string, staff: OperatingTemplateStaff, delegated?: boolean, input?: unknown }} OperatingTemplateOptions `input` is the request body, validated per action
+ * @typedef {{ transaction?: typeof withTransaction, getPlanFeatureOverrides?: () => Promise<Record<string, any>> }} OperatingTemplateInjected
+ *
+ * The approved offer snapshot stored in operating_offer_templates.terms.
+ * @typedef {{
+ *   maximum_commitment_points: number,
+ *   currency: string,
+ *   minor_units: number,
+ *   customer_ids: string[],
+ *   bonus_points: number,
+ *   points_budget: number,
+ *   minimum_purchase_q: number,
+ *   duration_minutes: number,
+ *   estimated_cost_per_point_q: number,
+ *   audience_snapshot: Record<string, any> | null
+ * }} OperatingTemplateTerms
+ *
+ * operating_offer_templates row.
+ * @typedef {{ id: string, terms: OperatingTemplateTerms, maximum_runs: number, used_runs: number, [column: string]: unknown }} OperatingTemplateRow
+ */
+
 const defaults = {
   transaction: withTransaction,
   getPlanFeatureOverrides: () => PlanConfigService.getPlanFeatureOverrides(),
@@ -37,15 +66,20 @@ export const TriggerOperatingTemplateInput = z
 export const RevokeOperatingTemplateInput = z
   .object({ template_id: z.guid(), version: z.number().int().min(1) })
   .strict();
+/** @param {OperatingTemplateRow} row */
 const publicTemplate = (row) => ({
   ...row,
   terms: { ...row.terms, customer_ids: undefined },
   audience_count: row.terms.customer_ids.length,
   remaining_runs: row.maximum_runs - row.used_runs,
 });
+/**
+ * @param {OperatingTemplateOptions} options
+ * @param {OperatingTemplateInjected} [injected]
+ */
 export async function listOperatingTemplates(options, injected = {}) {
   const d = { ...defaults, ...injected };
-  return d.transaction(async (client) => {
+  return d.transaction(async (/** @type {OperatingTemplateQueryClient} */ client) => {
     const member = await livePromiseMember(client, options, !options.delegated);
     const permissions = {
       operating_mode: member.role === "OWNER",
@@ -97,6 +131,10 @@ export async function listOperatingTemplates(options, injected = {}) {
     };
   });
 }
+/**
+ * @param {OperatingTemplateOptions} options
+ * @param {OperatingTemplateInjected} [injected]
+ */
 export async function approveOperatingTemplate(options, injected = {}) {
   const parsed = ApproveOperatingTemplateInput.safeParse(options.input);
   if (!parsed.success) throw badRequest("Revisa la oferta, capacidad y vencimiento.");
@@ -104,7 +142,7 @@ export async function approveOperatingTemplate(options, injected = {}) {
     d = { ...defaults, ...injected },
     overrides = await d.getPlanFeatureOverrides(),
     hash = fingerprint(input);
-  return d.transaction(async (client) => {
+  return d.transaction(async (/** @type {OperatingTemplateQueryClient} */ client) => {
     await livePromiseMember(client, options, true);
     await lockPromiseRequest(client, options.businessId, input.request_id);
     await lockEntitledBusiness(client, options.businessId, overrides);
@@ -200,22 +238,32 @@ export async function approveOperatingTemplate(options, injected = {}) {
     return { ok: true, template: publicTemplate(row), replay: false };
   });
 }
+/**
+ * @param {OperatingTemplateOptions} options
+ * @param {OperatingTemplateInjected} [injected]
+ */
 export async function revokeOperatingTemplate(options, injected = {}) {
   const parsed = RevokeOperatingTemplateInput.safeParse(options.input);
   if (!parsed.success) throw badRequest("Revisa la plantilla y su versión.");
-  return (injected.transaction ?? withTransaction)(async (client) => {
-    await livePromiseMember(client, options, true);
-    const row = (
-      await client.query(
-        "UPDATE operating_offer_templates SET revoked_at=clock_timestamp(),version=version+1 WHERE business_id=$1 AND id=$2 AND version=$3 AND revoked_at IS NULL RETURNING id",
-        [options.businessId, parsed.data.template_id, parsed.data.version],
-      )
-    ).rows[0];
-    if (!row) throw conflict("La aprobación cambió. Actualiza la lista.");
-    await promiseAudit(client, options, "operating.template.revoked", { template_id: row.id });
-    return { ok: true };
-  });
+  return (injected.transaction ?? withTransaction)(
+    async (/** @type {OperatingTemplateQueryClient} */ client) => {
+      await livePromiseMember(client, options, true);
+      const row = (
+        await client.query(
+          "UPDATE operating_offer_templates SET revoked_at=clock_timestamp(),version=version+1 WHERE business_id=$1 AND id=$2 AND version=$3 AND revoked_at IS NULL RETURNING id",
+          [options.businessId, parsed.data.template_id, parsed.data.version],
+        )
+      ).rows[0];
+      if (!row) throw conflict("La aprobación cambió. Actualiza la lista.");
+      await promiseAudit(client, options, "operating.template.revoked", { template_id: row.id });
+      return { ok: true };
+    },
+  );
 }
+/**
+ * @param {OperatingTemplateOptions} options
+ * @param {OperatingTemplateInjected} [injected]
+ */
 export async function triggerOperatingTemplate(options, injected = {}) {
   const parsed = TriggerOperatingTemplateInput.safeParse(options.input);
   if (!parsed.success) throw badRequest("Revisa la plantilla, versión y referencia.");
@@ -223,7 +271,7 @@ export async function triggerOperatingTemplate(options, injected = {}) {
     d = { ...defaults, ...injected },
     overrides = await d.getPlanFeatureOverrides(),
     hash = fingerprint([options.staff.id, input.template_id, input.version]);
-  return d.transaction(async (client) => {
+  return d.transaction(async (/** @type {OperatingTemplateQueryClient} */ client) => {
     const member = await livePromiseMember(client, options);
     await lockPromiseRequest(client, options.businessId, input.request_id);
     await lockEntitledBusiness(client, options.businessId, overrides);
@@ -270,6 +318,7 @@ export async function triggerOperatingTemplate(options, injected = {}) {
       template.capacity,
       operatingMode(business, now).capacity ?? template.capacity,
     );
+    /** @type {OperatingTemplateTerms} */
     const t = template.terms;
     if (t.currency !== businessRegion(business).currency)
       throw conflict("La moneda cambió. El dueño debe aprobar una nueva plantilla.");
@@ -316,14 +365,19 @@ export async function triggerOperatingTemplate(options, injected = {}) {
       "INSERT INTO growth_campaign_members(id,business_id,campaign_id,customer_id) SELECT gen_random_uuid(),$1,$2,c.id FROM customers c WHERE c.business_id=$1 AND c.id=ANY($3::uuid[]) AND c.deleted_at IS NULL ORDER BY c.id",
       [options.businessId, campaignId, t.customer_ids],
     );
+    // Campaign preflight and activation run inside this transaction and audit through its client.
     const nested = {
+      /** @param {(client: OperatingTemplateQueryClient) => Promise<unknown>} fn */
       transaction: (fn) => fn(client),
       getPlanFeatureOverrides: async () => overrides,
-      audit: async (event) =>
-        client.query(
+      /** @param {{ id: string, business_id: string, actor_type: string, actor_id: string | null, action: string, meta: unknown }} event */
+      audit: async (event) => {
+        // The campaign services only await this hook (AuditRepo.log resolves to void).
+        await client.query(
           "INSERT INTO audit_logs(id,business_id,actor_type,actor_id,action,meta) VALUES($1,$2,$3,$4,$5,$6)",
           [event.id, event.business_id, event.actor_type, event.actor_id, event.action, event.meta],
-        ),
+        );
+      },
     };
     const preview = await createCampaignPreflight(
       { businessId: options.businessId, campaignId },

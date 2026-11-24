@@ -5,6 +5,21 @@ export const sourceHealthReasons = {
   source_errors: "La conexión informa errores que pueden dejar compras fuera del análisis.",
   source_time_invalid: "Las fechas recibidas no permiten comprobar la vigencia de los datos.",
 };
+/**
+ * An owner-configured data source; `last_heartbeat` is the JSON the integration
+ * reported and is validated field by field below.
+ * @typedef {{
+ *   id?: string,
+ *   source?: string,
+ *   label?: string,
+ *   branch_id?: string | null,
+ *   enabled?: boolean,
+ *   expected_minutes?: number | string | null,
+ *   last_heartbeat?: Record<string, any> | null
+ * }} SourceHealthSource
+ * @param {SourceHealthSource[] | null | undefined} sources
+ * @param {Date} [now]
+ */
 export function sourceHealth(sources, now = new Date()) {
   if (!Array.isArray(sources)) return [];
   return sources

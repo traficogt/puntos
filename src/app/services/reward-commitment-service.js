@@ -2,8 +2,14 @@ import { businessRegion } from "./regional-settings.js";
 import { dbQuery } from "../database.js";
 import { badRequest } from "../../utils/http-error.js";
 
+/** @typedef {(text: string, values?: unknown[]) => Promise<{ rows: any[] }>} RewardCommitmentQuery */
+
 // Restoring points records a customer remedy. It does not prove that the
 // original fulfillment cost was recovered, so historical costs stay intact.
+/**
+ * @param {{ businessId: string, days?: number, now?: Date, timezone?: string }} args
+ * @param {RewardCommitmentQuery} [query]
+ */
 export async function getServiceRestorationCosts(
   { businessId, days = 30, now = new Date(), timezone = undefined },
   query = dbQuery,
@@ -46,7 +52,10 @@ export async function getServiceRestorationCosts(
   };
 }
 
-/** Current unfulfilled issue-time promises; never multiply point balances into this total. */
+/** Current unfulfilled issue-time promises; never multiply point balances into this total.
+ * @param {{ businessId: string, now?: Date }} args
+ * @param {RewardCommitmentQuery} [query]
+ */
 export async function getIssuedCommitments({ businessId, now = new Date() }, query = dbQuery) {
   const business = (await query("SELECT program_json FROM businesses WHERE id=$1", [businessId]))
     .rows[0];

@@ -1,7 +1,19 @@
 import { dbQuery } from "../database.js";
 
+/** @typedef {(text: string, values?: unknown[]) => Promise<{ rows: any[] }>} TransactionDetailQuery */
+/**
+ * The movement as built by transaction-explanation-service: a ledger transaction,
+ * a balance adjustment or a redemption record, with its linked redemption.
+ * @typedef {{ id: string, record: string, redemption?: { id: string } | null }} TransactionDetailMovement
+ */
+
 // Read only. Explicit column selection keeps credentials and arbitrary metadata
 // out of the support surface. All joins repeat the tenant boundary.
+/**
+ * @param {string} businessId
+ * @param {TransactionDetailMovement} movement
+ * @param {TransactionDetailQuery} [query]
+ */
 export async function transactionDetailEvidence(businessId, movement, query = dbQuery) {
   const events =
     movement.record === "transaction"
@@ -54,7 +66,7 @@ export async function transactionDetailEvidence(businessId, movement, query = db
           `SELECT id,case_id,actor_staff_id,event_type,created_at,
  jsonb_build_object('reason',details->'reason','resolution',details->'resolution','evidence_level',details->'evidence_level','promise_id',details->'promise_id','expiry_extension_id',details->'expiry_extension_id') AS details
  FROM service_case_events WHERE business_id=$1 AND case_id=ANY($2::uuid[]) ORDER BY created_at,id LIMIT 200`,
-          [businessId, cases.map((c) => c.id)],
+          [businessId, cases.map((/** @type {{ id: string }} */ c) => c.id)],
         )
       ).rows
     : [];

@@ -55,7 +55,8 @@ it("records only the evaluated program and campaign inputs, with ordered applied
   assert.equal(result.evidence.program.rate, 0.1, "snapshot is independent from later settings");
 });
 it("preserves award arithmetic, rounding, zero quantity defaults and campaign order", () => {
-  for (const [business, input, expected] of [
+  /** @type {Array<[Record<string, any>, Record<string, any>, number]>} */
+  const cases = [
     [{ program_type: "VISIT", program_json: { points_per_visit: 2.5 } }, { visits: 0 }, 2],
     [{ program_type: "ITEM", program_json: { points_per_item: 3 } }, { items: 2.9 }, 6],
     [{ program_json: { points_per_q: 0.1, round: "floor" } }, { amount_q: 29 }, 2],
@@ -71,7 +72,8 @@ it("preserves award arithmetic, rounding, zero quantity defaults and campaign or
       { amount_q: 10 },
       5,
     ],
-  ]) {
+  ];
+  for (const [business, input, expected] of cases) {
     assert.equal(evaluate(business, input).points, expected);
     assert.equal(points.computePoints(business, input), expected);
   }

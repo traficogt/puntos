@@ -7,20 +7,121 @@ import { OrderReturnRepo } from "../repositories/order-return-repository.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 import { reverseCashback } from "./cashback-service.js";
 
+/**
+ * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} OrderReturnQueryClient
+ *
+ * Business row as BusinessRepo.getById returns it (repositories owner); only what this flow reads.
+ * @typedef {{ id: string, program_type?: string | null, program_json?: Record<string, any> | null }} OrderReturnBusiness
+ *
+ * orders row from OrderRepo.findDetailedByBusinessAndExternalId (repositories owner).
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   customer_id: string,
+ *   external_order_id: string,
+ *   transaction_id: string,
+ *   points_awarded?: number | string | null,
+ *   transaction_status?: string,
+ *   [column: string]: unknown
+ * }} OrderReturnOrderRow
+ *
+ * The original transactions row, locked FOR UPDATE.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   branch_id?: string | null,
+ *   customer_id: string,
+ *   points: number | string | null,
+ *   status: string
+ * }} OrderReturnTransactionRow
+ *
+ * order_returns row (OrderReturnRepo, repositories owner).
+ * @typedef {{
+ *   id: string,
+ *   order_id: string,
+ *   customer_id: string,
+ *   outcome: string,
+ *   points_effect: number | string | null,
+ *   reversal_transaction_id?: string | null,
+ *   fingerprint?: string | null,
+ *   [column: string]: unknown
+ * }} OrderReturnRow
+ *
+ * Integration body accepted by the order-returns endpoint; validated here.
+ * @typedef {{
+ *   businessSlug?: unknown,
+ *   externalReturnId?: unknown,
+ *   externalOrderId?: unknown,
+ *   reason?: string | null,
+ *   occurred_at?: unknown,
+ *   meta?: unknown
+ * }} OrderReturnInput
+ *
+ * Row inserted through OrderReturnRepo.create.
+ * @typedef {{
+ *   business_id: string,
+ *   customer_id: string,
+ *   order_id: string,
+ *   external_return_id: string,
+ *   external_order_id: string,
+ *   reason: string | null,
+ *   occurred_at: unknown,
+ *   meta: Record<string, any>,
+ *   fingerprint: string,
+ *   reversal_transaction_id: string | null,
+ *   points_effect: number,
+ *   outcome: "PENDING_CANCELLED" | "POSTED_REVERSED" | null
+ * }} OrderReturnCreateInput
+ *
+ * Collaborators once defaults are applied; typed by what this module uses.
+ * @typedef {{
+ *   BusinessRepo: {
+ *     getPublicBySlug: (slug: string) => Promise<{ id: string } | null | undefined>,
+ *     getById: (id: string) => Promise<OrderReturnBusiness | null | undefined>
+ *   },
+ *   OrderRepo: {
+ *     findDetailedByBusinessAndExternalId: (client: OrderReturnQueryClient, businessId: string, externalOrderId: string) => Promise<OrderReturnOrderRow | null | undefined>
+ *   },
+ *   OrderReturnRepo: {
+ *     findByBusinessAndExternalId: (client: OrderReturnQueryClient, businessId: string, externalReturnId: string) => Promise<OrderReturnRow | null | undefined>,
+ *     findByOrderId: (client: OrderReturnQueryClient, businessId: string, orderId: string) => Promise<unknown>,
+ *     create: (client: OrderReturnQueryClient, input: OrderReturnCreateInput) => Promise<OrderReturnRow>
+ *   },
+ *   hashPayload: (payload: ReturnType<typeof buildFingerprintPayload>) => string,
+ *   makeId: () => string,
+ *   setCurrentTenant: (tenantId: string) => Promise<void>,
+ *   withTransaction: <T>(fn: (client: OrderReturnQueryClient) => Promise<T>) => Promise<T>
+ * }} OrderReturnResolvedDeps
+ *
+ * What callers may inject; only `withTransaction` is mandatory.
+ * @typedef {Partial<OrderReturnResolvedDeps> & { withTransaction: OrderReturnResolvedDeps["withTransaction"] }} OrderReturnDeps
+ */
+
 function defaultMakeId() {
   return crypto.randomUUID();
 }
 
+/** @param {ReturnType<typeof buildFingerprintPayload>} payload */
 function defaultHashPayload(payload) {
   return crypto.createHash("sha256").update(JSON.stringify(payload), "utf8").digest("hex");
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
 function isPlainObject(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
 
+/**
+ * Recursively canonicalizes key order in the integrator's metadata JSON so
+ * equivalent payloads hash alike; the document keeps its own shape.
+ * @param {unknown} value
+ * @returns {any}
+ */
 function normalizeValue(value) {
   if (Array.isArray(value)) return value.map((item) => normalizeValue(item));
   if (!isPlainObject(value)) return value;
@@ -30,13 +131,20 @@ function normalizeValue(value) {
     .reduce((acc, key) => {
       acc[key] = normalizeValue(value[key]);
       return acc;
-    }, {});
+    }, /** @type {Record<string, any>} */ ({}));
 }
 
+/**
+ * @param {unknown} meta
+ * @returns {Record<string, any>}
+ */
 function normalizeMeta(meta) {
   return normalizeValue(meta && typeof meta === "object" ? meta : {});
 }
 
+/**
+ * @param {{ externalReturnId: string, externalOrderId: string, reason: unknown, occurred_at: unknown, meta: unknown }} fields
+ */
 function buildFingerprintPayload({ externalReturnId, externalOrderId, reason, occurred_at, meta }) {
   return {
     externalReturnId: String(externalReturnId || ""),
@@ -47,10 +155,16 @@ function buildFingerprintPayload({ externalReturnId, externalOrderId, reason, oc
   };
 }
 
+/** @param {Record<string, any> | null | undefined} [programJson] */
 function allowNegativeRefundBalance(programJson = {}) {
   return programJson?.balance_policy?.allow_negative_balance_on_refund === true;
 }
 
+/**
+ * @param {OrderReturnQueryClient} client
+ * @param {string} businessId
+ * @param {string} externalReturnId
+ */
 async function lockOrderReturnRequest(client, businessId, externalReturnId) {
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
     String(businessId),
@@ -58,6 +172,11 @@ async function lockOrderReturnRequest(client, businessId, externalReturnId) {
   ]);
 }
 
+/**
+ * @param {OrderReturnQueryClient} client
+ * @param {string} businessId
+ * @param {string} orderId
+ */
 async function lockOrderReturnOrder(client, businessId, orderId) {
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
     String(businessId),
@@ -65,6 +184,11 @@ async function lockOrderReturnOrder(client, businessId, orderId) {
   ]);
 }
 
+/**
+ * @param {OrderReturnQueryClient} client
+ * @param {string} transactionId
+ * @returns {Promise<OrderReturnTransactionRow | null>}
+ */
 async function loadOriginalTransaction(client, transactionId) {
   const { rows } = await client.query(
     `SELECT id, business_id, branch_id, customer_id, points, status
@@ -97,6 +221,10 @@ async function markOriginalTransactionReturned(
   }
 }
 
+/**
+ * @param {OrderReturnQueryClient} client
+ * @param {{ orderId: string, businessId: string }} target
+ */
 async function updateOrderStatus(client, { orderId, businessId }) {
   const result = await client.query(
     `UPDATE orders
@@ -110,6 +238,9 @@ async function updateOrderStatus(client, { orderId, businessId }) {
   }
 }
 
+/**
+ * @param {{ transaction: OrderReturnTransactionRow, order: OrderReturnOrderRow, businessId: string }} pair
+ */
 function assertTransactionMatchesOrder({ transaction, order, businessId }) {
   if (
     String(transaction.business_id) !== String(businessId) ||
@@ -122,6 +253,7 @@ function assertTransactionMatchesOrder({ transaction, order, businessId }) {
   }
 }
 
+/** @param {OrderReturnTransactionRow} transaction */
 function resolveReturnableStatus(transaction) {
   const status = String(transaction.status || "");
   if (status === "PENDING" || status === "POSTED") return status;
@@ -129,12 +261,21 @@ function resolveReturnableStatus(transaction) {
   throw conflict(`Original transaction has unexpected status: ${status || "UNKNOWN"}`);
 }
 
+/**
+ * @param {{ rowCount?: number | null } | null | undefined} result
+ * @param {string} pathLabel
+ */
 function assertSingleBalanceMutation(result, pathLabel) {
   if (Number(result?.rowCount ?? 0) !== 1) {
     throw conflict(`Order return ${pathLabel} requires an existing customer balance row`);
   }
 }
 
+/**
+ * @param {OrderReturnResolvedDeps} deps
+ * @param {OrderReturnQueryClient} client
+ * @param {OrderReturnInput} input
+ */
 async function processOrderReturnWithClient(deps, client, input) {
   const externalReturnId = String(input.externalReturnId || "").trim();
   if (!externalReturnId) throw badRequest("externalReturnId required");
@@ -323,11 +464,16 @@ async function processOrderReturnWithClient(deps, client, input) {
   };
 }
 
+/**
+ * @param {OrderReturnDeps} deps
+ * @param {OrderReturnInput} input
+ */
 export async function processOrderReturnWithDeps(deps, input) {
   if (!deps || typeof deps.withTransaction !== "function") {
     throw badRequest("withTransaction dependency required");
   }
 
+  /** @type {OrderReturnResolvedDeps} */
   const resolvedDeps = {
     BusinessRepo: deps.BusinessRepo ?? BusinessRepo,
     OrderRepo: deps.OrderRepo ?? OrderRepo,
@@ -343,6 +489,7 @@ export async function processOrderReturnWithDeps(deps, input) {
   );
 }
 
+/** @param {OrderReturnInput} input */
 export async function processOrderReturn(input) {
   return processOrderReturnWithDeps(
     {

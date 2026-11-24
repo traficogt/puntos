@@ -11,10 +11,64 @@ const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 const ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
 const RECEIPT_NOT_FOUND = Symbol("receipt_not_found");
 
+/**
+ * @typedef {{ currency: string, minorUnits: number, country: string }} PosLoyverseRegion
+ * @typedef {{ accessToken: string, fetchImpl: Function, region: PosLoyverseRegion }} PosLoyverseAuth
+ *
+ * Loyverse Receipt (https://developer.loyverse.com/docs/#tag/Receipts): the fields this
+ * module reads, typed as the API documents them. The JSON is third-party input, so
+ * inspectReceipt() and normalizeRefundReceipt() validate every field before trusting it.
+ * @typedef {{
+ *   receipt_number: string,
+ *   receipt_type: string,
+ *   refund_for: string | null,
+ *   cancelled_at: string | null,
+ *   store_id: string,
+ *   customer_id: string | null,
+ *   total_money: number,
+ *   receipt_date?: string,
+ *   created_at?: string,
+ *   payments: PosLoyversePayment[],
+ *   line_items: PosLoyverseLineItem[]
+ * }} PosLoyverseReceipt
+ * @typedef {{ payment_type_id: string, money_amount: number }} PosLoyversePayment
+ * @typedef {{ item_id: string, variant_id: string, quantity: number }} PosLoyverseLineItem
+ * @typedef {{ id: string, phone_number: string | null, deleted_at?: string | null }} PosLoyverseCustomer
+ *
+ * @typedef {{ saleId: string, code: string, message: string, source?: string, occurredAt?: string | null }} PosLoyverseIssue
+ * @typedef {{
+ *   saleId: string,
+ *   source: string,
+ *   customerPhone: string,
+ *   amountQ: number,
+ *   currency: string,
+ *   visits: number,
+ *   items: number,
+ *   occurredAt: string | null
+ * }} PosLoyverseSale
+ * @typedef {{
+ *   refundId: string,
+ *   originalSaleId: string,
+ *   source: string,
+ *   amountQ: number,
+ *   currency: string,
+ *   scope: "full" | "partial" | "unknown",
+ *   nativeEvidence: string
+ * }} PosLoyverseRefund
+ */
+
+/**
+ * @param {unknown} value
+ * @returns {value is string}
+ */
 function validId(value) {
   return typeof value === "string" && ID_PATTERN.test(value);
 }
 
+/**
+ * @param {unknown} accessToken
+ * @param {unknown} storeId
+ */
 function validateCredentials(accessToken, storeId) {
   if (
     typeof accessToken !== "string" ||
@@ -29,7 +83,12 @@ function validateCredentials(accessToken, storeId) {
   }
 }
 
-/** @param {{ accessToken: string, fetchImpl: Function }} auth */
+/**
+ * @param {{ accessToken: string, fetchImpl: Function }} auth
+ * @param {string} path
+ * @param {Record<string, unknown>} [params]
+ * @param {boolean} [allowNotFound]
+ */
 async function requestJson(auth, path, params = {}, allowNotFound = false) {
   const url = new URL(`${API_BASE}${path}`);
   for (const [key, value] of Object.entries(params)) {
@@ -92,7 +151,7 @@ async function requestJson(auth, path, params = {}, allowNotFound = false) {
 
 /**
  * Validate the account before storing a token or trusting its currency.
- * @param {{ accessToken: string, storeId?: string|null, fetchImpl?: Function, region?: any }} args
+ * @param {{ accessToken: string, storeId?: string|null, fetchImpl?: Function, region?: PosLoyverseRegion }} args
  */
 export async function verifyLoyverseConnection({
   accessToken,
@@ -130,6 +189,7 @@ export async function verifyLoyverseConnection({
   };
 }
 
+/** @param {unknown} value */
 function timestamp(value) {
   if (!(value instanceof Date) && (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T/.test(value)))
     return null;
@@ -137,6 +197,10 @@ function timestamp(value) {
   return Number.isFinite(time) ? new Date(time).toISOString() : null;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is number}
+ */
 function validMoney(value) {
   return (
     typeof value === "number" &&
@@ -146,11 +210,25 @@ function validMoney(value) {
   );
 }
 
+/**
+ * @param {PosLoyverseReceipt | null | undefined} receipt
+ * @param {string} code
+ * @param {string} message
+ * @returns {PosLoyverseIssue}
+ */
 function receiptIssue(receipt, code, message) {
   return { saleId: validId(receipt?.receipt_number) ? receipt.receipt_number : "", code, message };
 }
 
+/**
+ * @param {PosLoyverseReceipt | null | undefined} receipt
+ * @param {string | null | undefined} storeId
+ */
 function inspectReceipt(receipt, storeId) {
+  /**
+   * @param {string} code
+   * @param {string} message
+   */
   const issue = (code, message) => receiptIssue(receipt, code, message);
   if (!receipt || typeof receipt !== "object" || !validId(receipt.receipt_number)) {
     return issue("invalid_receipt", "El recibo no tiene un número válido. Revísalo en Loyverse.");
@@ -230,6 +308,13 @@ function inspectReceipt(receipt, storeId) {
   return null;
 }
 
+/**
+ * @param {PosLoyverseReceipt} receipt a receipt inspectReceipt() accepted
+ * @param {string} merchantId
+ * @param {PosLoyverseCustomer | undefined} customer
+ * @param {PosLoyverseRegion} region
+ * @returns {{ issue: PosLoyverseIssue, sale?: undefined } | { sale: PosLoyverseSale, issue?: undefined }}
+ */
 function normalizeReceipt(receipt, merchantId, customer, region) {
   if (!customer || customer.deleted_at) {
     return {
@@ -280,6 +365,7 @@ function normalizeReceipt(receipt, merchantId, customer, region) {
   };
 }
 
+/** @param {PosLoyverseReceipt} receipt */
 function receiptTimestamp(receipt) {
   try {
     return normalizePurchaseOccurredAt(receipt.receipt_date ?? receipt.created_at);
@@ -291,7 +377,15 @@ function receiptTimestamp(receipt) {
 // Official Receipt schema: receipt_type=REFUND, refund_for points to the original
 // sale, and total_money/payments are positive returned amounts. No phone lookup.
 // https://developer.loyverse.com/docs/#tag/Receipts
+/**
+ * @param {PosLoyverseReceipt} receipt
+ * @param {string} merchantId
+ * @param {string | null | undefined} storeId
+ * @param {PosLoyverseRegion} region
+ * @returns {{ issue: PosLoyverseIssue, refund?: undefined } | { refund: PosLoyverseRefund, issue?: undefined }}
+ */
 function normalizeRefundReceipt(receipt, merchantId, storeId, region) {
+  /** @param {string} message */
   const issue = (message) => ({ issue: receiptIssue(receipt, "invalid_refund", message) });
   if (
     !validId(receipt.receipt_number) ||
@@ -347,8 +441,10 @@ function normalizeRefundReceipt(receipt, merchantId, storeId, region) {
   };
 }
 
+/** @param {PosLoyverseReceipt | null | undefined} receipt */
 function receiptQuantities(receipt) {
   if (!Array.isArray(receipt?.line_items) || !receipt.line_items.length) return null;
+  /** @type {Map<string, number>} */
   const quantities = new Map();
   for (const line of receipt.line_items) {
     if (
@@ -370,6 +466,11 @@ function receiptQuantities(receipt) {
   return quantities;
 }
 
+/**
+ * @param {PosLoyverseReceipt} receipt the refund receipt
+ * @param {PosLoyverseReceipt | null | undefined} original the sale it refunds, when Loyverse still has it
+ * @returns {"full" | "partial" | "unknown"}
+ */
 function refundScope(receipt, original) {
   if (
     original?.receipt_number !== receipt.refund_for ||
@@ -385,7 +486,7 @@ function refundScope(receipt, original) {
     returned = receiptQuantities(receipt);
   if (!sold || !returned) return "unknown";
   for (const [key, units] of returned)
-    if (!sold.has(key) || units > sold.get(key)) return "unknown";
+    if (!sold.has(key) || units > /** @type {number} */ (sold.get(key))) return "unknown";
   if (receipt.total_money > original.total_money) return "unknown";
   return sold.size === returned.size &&
     [...sold].every(([key, units]) => returned.get(key) === units) &&
@@ -397,7 +498,7 @@ function refundScope(receipt, original) {
 /**
  * Read exactly one bounded receipt page. API failures throw before callers can
  * advance the cursor; permanently ineligible receipts return actionable issues.
- * @param {{ accessToken: string, merchantId: string, storeId?: string|null, since: string|Date, until: string|Date, cursor?: string|null, fetchImpl?: Function, region?: any }} args
+ * @param {{ accessToken: string, merchantId?: string|null, storeId?: string|null, since: string|Date, until: string|Date, cursor?: string|null, fetchImpl?: Function, region?: PosLoyverseRegion }} args
  */
 export async function fetchLoyverseSales({
   accessToken,
@@ -443,9 +544,16 @@ export async function fetchLoyverseSales({
   return { ...(await normalizeReceiptPage(page.receipts, merchantId, storeId, auth)), nextCursor };
 }
 
+/**
+ * @param {PosLoyverseReceipt[]} receipts
+ * @param {string} merchantId
+ * @param {string | null | undefined} storeId
+ * @param {PosLoyverseAuth} auth
+ */
 async function normalizeReceiptPage(receipts, merchantId, storeId, auth) {
   const refunds = [],
     refundIssues = [];
+  /** @type {PosLoyverseReceipt[]} */
   const refundReceipts = [];
   const salesReceipts = [];
   for (const receipt of receipts) {
@@ -458,6 +566,7 @@ async function normalizeReceiptPage(receipts, merchantId, storeId, auth) {
       }
     } else salesReceipts.push(receipt);
   }
+  /** @type {Map<string, PosLoyverseReceipt | null>} */
   const originals = new Map();
   const originalIds = [...new Set(refunds.map((refund) => refund.originalSaleId))];
   // Bounded, read-only original receipt lookups. Provider failures retain the
@@ -487,6 +596,7 @@ async function normalizeReceiptPage(receipts, merchantId, storeId, auth) {
   const customerIds = [
     ...new Set(inspected.filter(({ issue }) => !issue).map(({ receipt }) => receipt.customer_id)),
   ];
+  /** @type {Map<string | null, PosLoyverseCustomer>} */
   const customers = new Map();
   if (customerIds.length) {
     const pageOfCustomers = await requestJson(auth, "/customers", {
@@ -537,7 +647,7 @@ async function normalizeReceiptPage(receipts, merchantId, storeId, auth) {
 /**
  * Refresh failed receipts even when only their customer data has changed.
  * Official GET /receipts/{receipt_number}; 404 is terminal, other failures retry.
- * @param {{ accessToken: string, merchantId: string, storeId?: string|null, receiptIds: string[], fetchImpl?: Function, region?: any }} args
+ * @param {{ accessToken: string, merchantId?: string|null, storeId?: string|null, receiptIds: string[], fetchImpl?: Function, region?: PosLoyverseRegion }} args
  */
 export async function fetchLoyverseSalesByReceiptIds({
   accessToken,

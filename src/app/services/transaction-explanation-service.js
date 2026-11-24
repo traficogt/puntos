@@ -29,12 +29,16 @@ export const transactionHistoryFilters = z
     end: dateTimeSchema().optional(),
   })
   .strict();
+/** @param {{ start?: string, end?: string }} value parsed history filters (both or neither) */
 export function validHistoryInterval(value) {
   return (
     (!value.start && !value.end) ||
     (Boolean(value.start && value.end) &&
-      Date.parse(value.start) < Date.parse(value.end) &&
-      Date.parse(value.end) - Date.parse(value.start) <= 93 * 86400000)
+      Date.parse(/** @type {string} */ (value.start)) <
+        Date.parse(/** @type {string} */ (value.end)) &&
+      Date.parse(/** @type {string} */ (value.end)) -
+        Date.parse(/** @type {string} */ (value.start)) <=
+        93 * 86400000)
   );
 }
 const cursorSchema = z
@@ -47,6 +51,7 @@ const cursorSchema = z
     record: z.enum(["transaction", "adjustment", "redemption"]),
   })
   .strict();
+/** @type {Record<string, string>} */
 const kinds = {
   purchase: "Compra",
   redemption: "Canje",
@@ -105,12 +110,52 @@ LEFT JOIN staff_users s ON s.id=a.staff_user_id AND s.business_id=a.business_id
 LEFT JOIN branches b ON b.id=a.branch_id AND b.business_id=a.business_id
 LEFT JOIN rewards rw ON rw.id=a.reward_id AND rw.business_id=a.business_id`;
 
+/**
+ * One row of the activity union above (ledger transaction, balance adjustment or
+ * redemption record) joined with its display names. NUMERIC columns arrive as text.
+ * @typedef {{
+ *   id: string,
+ *   record: "transaction" | "adjustment" | "redemption",
+ *   created_at: Date | string,
+ *   business_id: string,
+ *   customer_id: string,
+ *   staff_user_id: string | null,
+ *   branch_id: string | null,
+ *   kind: string,
+ *   points: number | string | null,
+ *   amount_q: number | string | null,
+ *   visits: number | string | null,
+ *   items: number | string | null,
+ *   status: string,
+ *   source: string,
+ *   available_at: Date | string | null,
+ *   expired_at: Date | string | null,
+ *   award_evidence: unknown,
+ *   redemption_id: string | null,
+ *   points_cost: number | string | null,
+ *   redemption_status: string | null,
+ *   reward_id: string | null,
+ *   original_id: string | null,
+ *   reversal_id: string | null,
+ *   delta_pending: number,
+ *   delta_lifetime: number,
+ *   cursor_at: string,
+ *   customer_name: string | null,
+ *   staff_name: string | null,
+ *   branch_name: string | null,
+ *   reward_name: string | null
+ * }} TransactionActivityRow
+ */
+
+/** @param {Date | string | number | null | undefined} value */
 function iso(value) {
   return value ? new Date(value).toISOString() : null;
 }
+/** @param {unknown} value */
 function name(value) {
   return typeof value === "string" ? value.slice(0, 200) : null;
 }
+/** @param {TransactionActivityRow} row */
 function safeAward(row) {
   const parsed = awardSchema.safeParse(row.award_evidence);
   if (!parsed.success || row.kind !== "purchase") return null;
@@ -141,12 +186,14 @@ function safeAward(row) {
     return null;
   return value;
 }
+/** @param {ReturnType<typeof safeAward>} award */
 function coverage(award) {
   return award &&
     (!award.targeted_offer.bonus_points || typeof award.targeted_offer.criteria === "object")
     ? "recorded"
     : "partial";
 }
+/** @param {TransactionActivityRow} row */
 function movement(row) {
   return {
     id: row.id,
@@ -171,7 +218,9 @@ function movement(row) {
           id: row.redemption_id,
           points_cost: Number(row.points_cost),
           reward_name: name(row.reward_name),
-          status: statuses.includes(row.redemption_status) ? row.redemption_status : "UNKNOWN",
+          status: statuses.includes(/** @type {string} */ (row.redemption_status))
+            ? row.redemption_status
+            : "UNKNOWN",
         }
       : null,
     adjustment:
@@ -186,6 +235,7 @@ function movement(row) {
     evidence: coverage(safeAward(row)),
   };
 }
+/** @param {TransactionActivityRow} row */
 function explanation(row) {
   const award = safeAward(row),
     limitations = [],
@@ -251,6 +301,7 @@ function explanation(row) {
     replay: row.kind === "purchase" ? replaySavedAward(award, Number(row.points)) : null,
   };
 }
+/** @param {string} businessId */
 function requireTenant(businessId) {
   if (!uuid.safeParse(businessId).success || String(getDbTenantId() || "") !== String(businessId))
     throw notFound("Negocio no disponible.");
@@ -323,6 +374,7 @@ export async function listTransactionHistory({
     limit,
   };
 }
+/** @param {{ businessId: string, id: string }} args */
 export async function getTransactionExplanation({ businessId, id }) {
   requireTenant(businessId);
   if (!uuid.safeParse(id).success) throw badRequest("El ID del movimiento no es válido.");
@@ -339,6 +391,7 @@ export async function getTransactionExplanation({ businessId, id }) {
   };
 }
 
+/** @param {{ businessId: string }} args */
 export async function listRejectedAttempts({ businessId }) {
   requireTenant(businessId);
   const { rows } = await dbQuery(

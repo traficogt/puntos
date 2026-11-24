@@ -4,9 +4,24 @@ import { REGIONAL_COUNTRIES, REGIONAL_CURRENCY_CODES } from "../../../public/reg
 import { hasMaxScale } from "../../utils/money.js";
 export { REGIONAL_COUNTRIES } from "../../../public/regional-catalog.js";
 const currencies = new Set(REGIONAL_CURRENCY_CODES);
+
+/**
+ * Resolved operating region of a business.
+ * @typedef {{ country: string, currency: string, timezone: string, locale: string, minorUnits: number }} RegionalSettings
+ *
+ * Any business row (or partial fixture) whose program_json may carry a `region`
+ * entry. The row itself belongs to the repositories owner; only that key is read.
+ * @typedef {{ program_json?: Record<string, any> | null } | null | undefined} RegionalBusiness
+ */
+
+/** @param {string} message */
 function bad(message) {
   return Object.assign(new Error(message), { statusCode: 400, code: "INVALID_REGION" });
 }
+/**
+ * @param {Record<string, any> | null | undefined} input untrusted settings body
+ * @returns {{ country: string, currency: string, timezone: string }}
+ */
 export function validateRegionalInput(input) {
   if (
     !input ||
@@ -22,9 +37,15 @@ export function validateRegionalInput(input) {
     throw bad("Selecciona una zona horaria IANA válida.");
   return { country, currency, timezone };
 }
+/**
+ * @param {RegionalBusiness} [business]
+ * @returns {RegionalSettings}
+ */
 export function businessRegion(business = {}) {
   const raw = business?.program_json?.region || {};
-  const country = Object.hasOwn(REGIONAL_COUNTRIES, raw.country) ? raw.country : "GT";
+  const country = /** @type {keyof typeof REGIONAL_COUNTRIES} */ (
+    Object.hasOwn(REGIONAL_COUNTRIES, raw.country) ? raw.country : "GT"
+  );
   const defaults = REGIONAL_COUNTRIES[country];
   const currency = currencies.has(raw.currency) ? raw.currency : defaults.currency;
   const timezone =
@@ -39,8 +60,15 @@ export function businessRegion(business = {}) {
     minorUnits: currency === "CLP" ? 0 : 2,
   };
 }
+/** @param {RegionalBusiness} [business] */
 export const regionCurrency = (business) => businessRegion(business).currency;
+/** @param {RegionalBusiness} [business] */
 export const regionTimezone = (business) => businessRegion(business).timezone;
+/**
+ * @param {number} amount
+ * @param {string} currency
+ * @param {RegionalBusiness} [business]
+ */
 export function assertRegionAmount(amount, currency, business) {
   const region = businessRegion(business);
   if (currency !== region.currency)
@@ -51,9 +79,18 @@ export function assertRegionAmount(amount, currency, business) {
     throw bad(`El importe admite ${region.minorUnits} decimales en ${region.currency}.`);
   return amount;
 }
+/**
+ * @param {Date | string | number} now
+ * @param {RegionalBusiness} business
+ */
 export function regionalLocalDate(now, business) {
   return DateTime.fromJSDate(new Date(now), { zone: regionTimezone(business) }).toISODate();
 }
+/**
+ * @param {Date | string | number} [now]
+ * @param {RegionalBusiness} [business]
+ * @param {{ startHour?: number, endHour?: number }} [hours]
+ */
 export function regionalWindow(
   now = new Date(),
   business = {},

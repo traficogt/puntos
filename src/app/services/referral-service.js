@@ -3,6 +3,45 @@ import { dbQuery, withTransaction } from "../database.js";
 import { notFound, badRequest, forbidden } from "../../utils/http-error.js";
 import { errorCode } from "../../utils/error-shape.js";
 
+/**
+ * Transaction client. tests/unit/referral-service.test.js annotates its fake client as
+ * `{ query: Function }`, so this stays at that shape (a typed `query` signature would
+ * reject the harness under the base typecheck).
+ * @typedef {{ query: Function }} ReferralQueryClient
+ * @typedef {{
+ *   withTransaction: <T>(fn: (client: ReferralQueryClient) => Promise<T>) => Promise<T>
+ * }} ReferralDeps
+ * referral_codes row (ReferralRepository, repositories owner).
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   referrer_customer_id: string,
+ *   code: string,
+ *   expires_at?: Date | string | null,
+ *   max_uses?: number | null,
+ *   uses_count: number,
+ *   active: boolean
+ * }} ReferralCodeRow
+ * referrals row (ReferralRepository, repositories owner).
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   referral_code_id: string,
+ *   referrer_customer_id: string,
+ *   referred_customer_id: string,
+ *   status: string
+ * }} ReferralRow
+ * Owner-editable referral settings (referral_settings columns).
+ * @typedef {{
+ *   enabled?: boolean,
+ *   referrer_reward_points?: number,
+ *   referred_reward_points?: number,
+ *   min_purchase_to_complete?: number | string | null,
+ *   reward_on_signup?: boolean
+ * }} ReferralSettingsInput
+ */
+
+/** @type {ReferralSettingsInput} */
 const DEFAULT_SETTINGS = {
   enabled: false,
   referrer_reward_points: 100,
@@ -11,6 +50,7 @@ const DEFAULT_SETTINGS = {
   reward_on_signup: false,
 };
 
+/** @param {string} customerId */
 async function getCustomerBusinessId(customerId) {
   const { rows } = await dbQuery(`SELECT business_id FROM customers WHERE id = $1`, [customerId]);
   const customer = rows[0];
@@ -22,6 +62,7 @@ async function getCustomerBusinessId(customerId) {
   return customer.business_id;
 }
 
+/** @param {string} businessId */
 async function getEnabledSettings(businessId) {
   const settings = await ReferralRepository.getSettings(businessId);
 
@@ -32,6 +73,11 @@ async function getEnabledSettings(businessId) {
   return settings;
 }
 
+/**
+ * @param {ReferralCodeRow | undefined} code
+ * @param {string} newCustomerId
+ * @param {string} businessId
+ */
 function assertReferralCodeUsable(code, newCustomerId, businessId) {
   if (!code) {
     throw notFound("Código de referido no válido", "VALIDATION_ERROR");
@@ -54,6 +100,7 @@ function assertReferralCodeUsable(code, newCustomerId, businessId) {
   }
 }
 
+/** @param {string} customerId */
 async function getPurchaseTotal(customerId) {
   const { rows } = await dbQuery(
     `SELECT COALESCE(SUM(amount_q), 0) AS total_spend
@@ -65,6 +112,7 @@ async function getPurchaseTotal(customerId) {
   return Number.parseFloat(rows[0]?.total_spend ?? 0);
 }
 
+/** @param {string} businessId */
 async function getSettingsWithDefaults(businessId) {
   const settings = await ReferralRepository.getSettings(businessId);
   if (settings) {
@@ -74,6 +122,13 @@ async function getSettingsWithDefaults(businessId) {
   return ReferralRepository.updateSettings(businessId, DEFAULT_SETTINGS);
 }
 
+/**
+ * @param {ReferralQueryClient} client
+ * @param {ReferralRow} referral
+ * @param {string} customerId
+ * @param {number} points
+ * @param {"referrer" | "referred"} type
+ */
 async function logReferralReward(client, referral, customerId, points, type) {
   await client.query(
     `INSERT INTO transactions
@@ -83,6 +138,10 @@ async function logReferralReward(client, referral, customerId, points, type) {
   );
 }
 
+/**
+ * @param {ReferralDeps} deps
+ * @param {string} referralId
+ */
 export async function completeAndRewardReferralWithDeps(deps, referralId) {
   return deps.withTransaction(async (client) => {
     const { rows: referralRows } = await client.query(
@@ -177,16 +236,24 @@ export async function completeAndRewardReferralWithDeps(deps, referralId) {
   });
 }
 
+/** @param {string} referralId */
 async function completeAndRewardReferral(referralId) {
   return completeAndRewardReferralWithDeps({ withTransaction }, referralId);
 }
 
+/** @param {string} customerId */
 async function getCustomerReferralCode(customerId) {
   const businessId = await getCustomerBusinessId(customerId);
   await getEnabledSettings(businessId);
   return ReferralRepository.getOrCreateReferralCode(customerId, businessId);
 }
 
+/**
+ * @param {ReferralDeps} deps
+ * @param {unknown} referralCode code as typed by the customer (upper-cased here)
+ * @param {string} newCustomerId
+ * @param {string} businessId
+ */
 export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerId, businessId) {
   const { referral, settings } = await deps.withTransaction(async (client) => {
     const { rows: codeRows } = await client.query(
@@ -258,10 +325,16 @@ export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerI
   return referral;
 }
 
+/**
+ * @param {unknown} referralCode
+ * @param {string} newCustomerId
+ * @param {string} businessId
+ */
 async function applyReferralCode(referralCode, newCustomerId, businessId) {
   return applyReferralCodeWithDeps({ withTransaction }, referralCode, newCustomerId, businessId);
 }
 
+/** @param {string} customerId */
 async function checkAndCompleteReferral(customerId) {
   const referral = await ReferralRepository.getReferralForCustomer(customerId);
   if (!referral || referral.status !== "pending") {
@@ -281,6 +354,7 @@ async function checkAndCompleteReferral(customerId) {
   return null;
 }
 
+/** @param {string} customerId */
 async function getCustomerReferralStats(customerId) {
   const [stats, referrals, code] = await Promise.all([
     ReferralRepository.getReferralStats(customerId),
@@ -301,12 +375,21 @@ export const ReferralService = {
   completeAndRewardReferral,
   checkAndCompleteReferral,
   getCustomerReferralStats,
+  /**
+   * @param {string} businessId
+   * @param {number} [limit]
+   */
   getLeaderboard(businessId, limit = 10) {
     return ReferralRepository.getLeaderboard(businessId, limit);
   },
+  /**
+   * @param {string} businessId
+   * @param {ReferralSettingsInput} settings
+   */
   updateSettings(businessId, settings) {
     return ReferralRepository.updateSettings(businessId, settings);
   },
+  /** @param {string} businessId */
   getSettings(businessId) {
     return getSettingsWithDefaults(businessId);
   },

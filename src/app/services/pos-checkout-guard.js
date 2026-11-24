@@ -1,4 +1,11 @@
 import { conflict } from "../../utils/http-error.js";
+
+/** @typedef {import("./pos-checkout-store.js").PosCheckoutQueryClient} PosCheckoutGuardQueryClient */
+
+/**
+ * @param {PosCheckoutGuardQueryClient} client
+ * @param {{ business: { id: string, program_json?: Record<string, any> | null } | null | undefined, customerId: string }} args
+ */
 export async function assertNoPendingCheckout(client, { business, customerId }) {
   if (business?.program_json?.pos_checkout_enabled !== true) return;
   const pending = await client.query(
@@ -13,6 +20,10 @@ export async function assertNoPendingCheckout(client, { business, customerId }) 
 
 // Call only after locking the original debit. Receipt/cancel writers share that
 // lock, so a concurrent confirmation cannot be missed or credited twice here.
+/**
+ * @param {PosCheckoutGuardQueryClient} client
+ * @param {{ businessId: string, redemptionId: string }} args
+ */
 export async function assertCheckoutCorrectionAllowed(client, { businessId, redemptionId }) {
   const business = (
     await client.query("SELECT program_json FROM businesses WHERE id=$1 FOR SHARE", [businessId])

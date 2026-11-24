@@ -35,10 +35,104 @@ import { assertNoPendingCheckout } from "./pos-checkout-guard.js";
 import { assertRewardInventory } from "./reward-inventory-service.js";
 import { errorCode, errorMessage, errorStatus, isErrorLike } from "../../utils/error-shape.js";
 
+/**
+ * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} StaffServiceQueryClient
+ * The staff session as the routes pass it (req.staff).
+ * @typedef {{ id: string, business_id: string, branch_id?: string | null, role?: string | null, impersonated_by?: string | null }} StaffServiceActor
+ * Business row from BusinessRepo.getById (repositories owner) as redemption reads it; this
+ * module only reads program_json, and an integration fixture returns just that.
+ * @typedef {{ id?: string, slug?: string, plan?: string | null, program_type?: string | null, program_json?: Record<string, any> | null }} StaffServiceBusiness
+ * Customer row from CustomerRepo.getById (repositories owner) as the lookup reads it.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   name?: string | null,
+ *   phone?: string | null,
+ *   points?: number | string | null,
+ *   pending_points?: number | string | null,
+ *   deleted_at?: Date | string | null
+ * }} StaffServiceCustomer
+ * A rewards row, plus the promise-protected fields reward-promise-service may add.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   name: string,
+ *   points_cost: number | string,
+ *   active?: boolean,
+ *   stock?: number | null,
+ *   valid_until?: Date | string | null,
+ *   protected_branch_ids?: string[] | null,
+ *   [column: string]: unknown
+ * }} StaffServiceReward
+ * The columns findExistingRedemptionByRequestId selects for a replayed requestId.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   customer_id: string,
+ *   reward_id: string,
+ *   code: string,
+ *   points_cost: number,
+ *   balance_after: number,
+ *   reward_name: string
+ * }} StaffServiceRedemptionReplayRow
+ * @typedef {{ staff: StaffServiceActor, customerId: string, rewardId: string, requestId?: string | null }} StaffServiceRedeemArgs
+ * @typedef {{
+ *   staff: StaffServiceActor,
+ *   customerId: string,
+ *   rewardId: string,
+ *   requestId: string | null,
+ *   business: StaffServiceBusiness,
+ *   limits: ReturnType<typeof redemptionGuardLimits>
+ * }} StaffServiceRedemption
+ * @typedef {{
+ *   redemptionCode: string,
+ *   rewardName: string,
+ *   newBalance: number,
+ *   redemptionId: string,
+ *   pointsCost: number,
+ *   replay?: boolean
+ * }} StaffServiceRedeemOutcome
+ * One award captured offline by the scanner and synced later.
+ * @typedef {{
+ *   txId?: string | null,
+ *   customerQrToken: string,
+ *   amount_q?: number | null,
+ *   visits?: number,
+ *   items?: number,
+ *   offlineGrant?: string | null,
+ *   meta?: Record<string, any> | null,
+ *   client_ts?: string | null
+ * }} StaffServiceOfflineAward
+ * @typedef {{
+ *   verifyQrToken: (token: string) => Promise<{ bid: string, cid: string }>,
+ *   resolveNativeWalletMembership?: typeof resolveNativeWalletMembership,
+ *   CustomerRepo: { getById: (id: string) => Promise<StaffServiceCustomer | null | undefined> }
+ * }} StaffServiceLookupDeps
+ * Redemption collaborators. Production wiring is `redeemDeps`; checkout and unit tests
+ * substitute members, so each is typed by what this module uses.
+ * @typedef {{
+ *   BusinessRepo: { getById: (id: string) => Promise<StaffServiceBusiness | null | undefined> },
+ *   RewardRepo: { listBranchIds: (rewardId: string) => Promise<string[]> },
+ *   withTransaction: <T>(fn: (client: StaffServiceQueryClient) => Promise<T>) => Promise<T>,
+ *   settlePendingPointsForCustomer: (customerId: string, businessId: string) => Promise<unknown>,
+ *   expirePointsForCustomer: (customerId: string, businessId: string) => Promise<unknown>,
+ *   enqueueWebhookEvent: (businessId: string, event: string, payload: Record<string, unknown>) => Promise<unknown>,
+ *   protectedRedemptionReward?: typeof protectedRedemptionReward,
+ *   lockProtectedRedemptionBusiness?: typeof lockProtectedRedemptionBusiness,
+ *   protectedRedemptionName?: typeof protectedRedemptionName,
+ *   completeLegacyProtectedRedemption?: typeof completeLegacyProtectedRedemption | null,
+ *   deferVisit?: boolean
+ * }} StaffServiceRedeemDeps
+ */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/**
+ * @param {StaffServiceLookupDeps} deps
+ * @param {{ staff: StaffServiceActor, customerQrToken: string }} lookup
+ */
 export async function lookupCustomerByQrTokenWithDeps(deps, { staff, customerQrToken }) {
   let decoded;
   try {
@@ -74,6 +168,12 @@ export async function lookupCustomerByQrTokenWithDeps(deps, { staff, customerQrT
   };
 }
 
+/**
+ * @param {StaffServiceQueryClient} client
+ * @param {string} businessId
+ * @param {string | null | undefined} requestId
+ * @returns {Promise<StaffServiceRedemptionReplayRow | null>}
+ */
 async function findExistingRedemptionByRequestId(client, businessId, requestId) {
   if (!requestId) return null;
   const { rows } = await client.query(
@@ -94,6 +194,11 @@ async function findExistingRedemptionByRequestId(client, businessId, requestId) 
   return rows[0] ?? null;
 }
 
+/**
+ * @param {StaffServiceQueryClient} client
+ * @param {string} businessId
+ * @param {string | null | undefined} requestId
+ */
 async function lockRedemptionRequest(client, businessId, requestId) {
   if (!requestId) return;
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
@@ -102,6 +207,7 @@ async function lockRedemptionRequest(client, businessId, requestId) {
   ]);
 }
 
+/** @param {{ email: string, password: string, mfaCode?: string | null }} credentials */
 export async function staffLogin({ email, password, mfaCode = undefined }) {
   const loginRow = await StaffRepo.getByEmail(email);
   if (!loginRow || !loginRow.active) {
@@ -169,22 +275,38 @@ export async function staffLogin({ email, password, mfaCode = undefined }) {
   };
 }
 
+/** @type {StaffServiceLookupDeps} */
 const customerLookupDeps = {
   verifyQrToken,
   resolveNativeWalletMembership,
   CustomerRepo,
 };
 
+/** @param {{ staff: StaffServiceActor, customerQrToken: string }} payload */
 export async function lookupCustomerByQrToken(payload) {
   return lookupCustomerByQrTokenWithDeps(customerLookupDeps, payload);
 }
 
+/**
+ * loyalty-ops-service (A–M owner) declares `businessId = null` without JSDoc, so the strict
+ * config infers `businessId?: null` although both functions take the tenant id. Typed at
+ * this boundary until that module documents its parameters.
+ * @typedef {(
+ *   customerId: string,
+ *   businessId?: string | null,
+ *   transaction?: <T>(fn: (client: StaffServiceQueryClient) => Promise<T>) => Promise<T>
+ * ) => Promise<unknown>} StaffServiceSettlementFn
+ */
+const settlePending = /** @type {StaffServiceSettlementFn} */ (settlePendingPointsForCustomer);
+const expirePoints = /** @type {StaffServiceSettlementFn} */ (expirePointsForCustomer);
+
+/** @type {StaffServiceRedeemDeps} */
 const redeemDeps = {
   BusinessRepo,
   RewardRepo,
   withTransaction,
-  settlePendingPointsForCustomer,
-  expirePointsForCustomer,
+  settlePendingPointsForCustomer: settlePending,
+  expirePointsForCustomer: expirePoints,
   enqueueWebhookEvent,
   protectedRedemptionReward,
   lockProtectedRedemptionBusiness,
@@ -193,6 +315,11 @@ const redeemDeps = {
 };
 
 // Checkout owns the transaction and completes the earned terms on paid receipt.
+/**
+ * @param {StaffServiceQueryClient} client
+ * @param {StaffServiceRedeemArgs} payload
+ * @param {StaffServiceRedeemDeps["completeLegacyProtectedRedemption"]} captureCompletion
+ */
 export async function redeemCheckoutWithinTransaction(client, payload, captureCompletion) {
   // Settlement can lock the balance; retain business → reward → balance order.
   await client.query("SELECT id FROM businesses WHERE id=$1 FOR SHARE", [
@@ -207,9 +334,9 @@ export async function redeemCheckoutWithinTransaction(client, payload, captureCo
       ...redeemDeps,
       withTransaction: (fn) => fn(client),
       settlePendingPointsForCustomer: (customerId, businessId) =>
-        settlePendingPointsForCustomer(customerId, businessId, (fn) => fn(client)),
+        settlePending(customerId, businessId, (fn) => fn(client)),
       expirePointsForCustomer: (customerId, businessId) =>
-        expirePointsForCustomer(customerId, businessId, (fn) => fn(client)),
+        expirePoints(customerId, businessId, (fn) => fn(client)),
       enqueueWebhookEvent: async () => {},
       deferVisit: true,
       completeLegacyProtectedRedemption: captureCompletion,
@@ -220,6 +347,11 @@ export async function redeemCheckoutWithinTransaction(client, payload, captureCo
 
 // --- redeemReward phases ----------------------------------------------------
 
+/**
+ * @param {StaffServiceRedeemDeps} deps
+ * @param {string} customerId
+ * @param {string} businessId
+ */
 async function settleBeforeRedemption(deps, customerId, businessId) {
   await deps
     .settlePendingPointsForCustomer(customerId, businessId)
@@ -231,6 +363,7 @@ async function settleBeforeRedemption(deps, customerId, businessId) {
     .catch((err) => logger.warn({ err, customerId }, "Points expiry failed before redemption"));
 }
 
+/** @param {StaffServiceBusiness} business */
 function redemptionGuardLimits(business) {
   const redemptionGuard = business.program_json?.redemption_guard ?? {};
   const maxRedemptionsPerDay = Math.max(
@@ -248,6 +381,10 @@ function redemptionGuardLimits(business) {
   return { maxRedemptionsPerDay, maxRewardRedemptionsPerDay, rewardCooldownHours };
 }
 
+/**
+ * @param {StaffServiceRedemptionReplayRow} replay
+ * @returns {StaffServiceRedeemOutcome}
+ */
 function replayRedemptionResult(replay) {
   return {
     redemptionCode: replay.code,
@@ -261,6 +398,11 @@ function replayRedemptionResult(replay) {
 
 // Returns the already-completed redemption for an acknowledged requestId, or
 // null when this request has not been seen before.
+/**
+ * @param {StaffServiceQueryClient} client
+ * @param {StaffServiceRedeemDeps} deps
+ * @param {StaffServiceRedemption} redemption
+ */
 async function replayExistingRedemption(client, deps, { staff, customerId, rewardId, requestId }) {
   const replay = await findExistingRedemptionByRequestId(client, staff.business_id, requestId);
   if (!replay) return null;
@@ -308,6 +450,11 @@ async function replayExistingRedemption(client, deps, { staff, customerId, rewar
 
 // Locks business → reward (then the pending-checkout guard) and validates the
 // reward is redeemable by this business right now.
+/**
+ * @param {StaffServiceQueryClient} client
+ * @param {StaffServiceRedeemDeps} deps
+ * @param {StaffServiceRedemption} redemption
+ */
 async function lockRedeemableReward(client, deps, { staff, business, customerId, rewardId }) {
   const lockedBusiness =
     typeof deps.lockProtectedRedemptionBusiness === "function"
@@ -317,6 +464,7 @@ async function lockRedeemableReward(client, deps, { staff, business, customerId,
   const rewardResult = await client.query(`SELECT * FROM rewards WHERE id=$1 FOR UPDATE`, [
     rewardId,
   ]);
+  /** @type {StaffServiceReward | undefined} */
   let reward = rewardResult.rows[0];
   if (
     reward &&
@@ -339,6 +487,10 @@ async function lockRedeemableReward(client, deps, { staff, business, customerId,
   return { lockedBusiness, redemptionTimezone, reward };
 }
 
+/**
+ * @param {StaffServiceRedeemDeps} deps
+ * @param {{ staff: StaffServiceActor, reward: StaffServiceReward, rewardId: string }} scope
+ */
 async function assertRewardBranchScope(deps, { staff, reward, rewardId }) {
   const scopedBranches =
     reward.protected_branch_ids ?? (await deps.RewardRepo.listBranchIds(rewardId));
@@ -349,6 +501,10 @@ async function assertRewardBranchScope(deps, { staff, reward, rewardId }) {
   }
 }
 
+/**
+ * @param {StaffServiceQueryClient} client
+ * @param {{ staff: StaffServiceActor, customerId: string, rewardId: string, business: StaffServiceBusiness }} redemption
+ */
 async function lockRedeemingCustomer(client, { staff, customerId, rewardId, business }) {
   const customerResult = await client.query(
     `SELECT id
@@ -367,6 +523,16 @@ async function lockRedeemingCustomer(client, { staff, customerId, rewardId, busi
   }
 }
 
+/**
+ * @param {StaffServiceQueryClient} client
+ * @param {{
+ *   staff: StaffServiceActor,
+ *   customerId: string,
+ *   rewardId: string,
+ *   redemptionTimezone: string,
+ *   limits: ReturnType<typeof redemptionGuardLimits>
+ * }} redemption
+ */
 async function enforceRedemptionGuards(
   client,
   { staff, customerId, rewardId, redemptionTimezone, limits },
@@ -432,6 +598,11 @@ async function enforceRedemptionGuards(
   }
 }
 
+/**
+ * @param {StaffServiceQueryClient} client
+ * @param {string} customerId
+ * @param {number} cost
+ */
 async function debitRedemptionBalance(client, customerId, cost) {
   const balanceUpdate = await client.query(
     `UPDATE customer_balances
@@ -445,6 +616,11 @@ async function debitRedemptionBalance(client, customerId, cost) {
   return balanceUpdate;
 }
 
+/**
+ * @param {StaffServiceQueryClient} client
+ * @param {StaffServiceReward} reward
+ * @param {string} rewardId
+ */
 async function decrementRewardStock(client, reward, rewardId) {
   if (reward.stock !== null && reward.stock !== undefined) {
     const stockUpdate = await client.query(
@@ -460,6 +636,18 @@ async function decrementRewardStock(client, reward, rewardId) {
 // Inserts the redemption with a fresh code, retrying on code collisions. A
 // unique violation that turns out to be a concurrent replay of this requestId
 // yields that redemption instead of a new row.
+/**
+ * @param {StaffServiceQueryClient} client
+ * @param {{
+ *   staff: StaffServiceActor,
+ *   customerId: string,
+ *   rewardId: string,
+ *   requestId: string | null,
+ *   redemptionId: string,
+ *   cost: number,
+ *   balanceAfter: number
+ * }} redemption
+ */
 async function insertRedemptionRow(
   client,
   { staff, customerId, rewardId, requestId, redemptionId, cost, balanceAfter },
@@ -510,6 +698,20 @@ async function insertRedemptionRow(
   return { code, replay: null };
 }
 
+/**
+ * @param {StaffServiceQueryClient} client
+ * @param {StaffServiceRedeemDeps} deps
+ * @param {{
+ *   staff: StaffServiceActor,
+ *   customerId: string,
+ *   rewardId: string,
+ *   requestId: string | null,
+ *   redemptionId: string,
+ *   reward: StaffServiceReward,
+ *   cost: number,
+ *   code: string
+ * }} redemption
+ */
 async function recordRedemptionLedger(
   client,
   deps,
@@ -552,6 +754,12 @@ async function recordRedemptionLedger(
 
 // The locked write path: replay check, business → reward → customer locks,
 // guards, balance debit, stock, redemption row and ledger entry.
+/**
+ * @param {StaffServiceQueryClient} client
+ * @param {StaffServiceRedeemDeps} deps
+ * @param {StaffServiceRedemption} redemption
+ * @returns {Promise<StaffServiceRedeemOutcome>}
+ */
 async function commitRedemption(client, deps, redemption) {
   const { staff, customerId, rewardId, requestId, business, limits } = redemption;
   await lockRedemptionRequest(client, staff.business_id, requestId);
@@ -617,6 +825,11 @@ async function commitRedemption(client, deps, redemption) {
 
 // Post-commit side effects for a newly created redemption (never for replays).
 // The webhook enqueue is fire-and-forget; the audit write is awaited.
+/**
+ * @param {StaffServiceRedeemDeps} deps
+ * @param {StaffServiceRedemption} redemption
+ * @param {StaffServiceRedeemOutcome} out
+ */
 async function publishRedemption(deps, { staff, customerId, rewardId, requestId }, out) {
   deps
     .enqueueWebhookEvent(staff.business_id, "reward.redeemed", {
@@ -657,6 +870,10 @@ async function publishRedemption(deps, { staff, customerId, rewardId, requestId 
   );
 }
 
+/**
+ * @param {StaffServiceRedeemDeps} deps
+ * @param {StaffServiceRedeemArgs} args
+ */
 export async function redeemRewardWithDeps(
   deps,
   { staff, customerId, rewardId, requestId = null },
@@ -686,19 +903,27 @@ export async function redeemRewardWithDeps(
   };
 }
 
+/** @param {StaffServiceRedeemArgs} args */
 export async function redeemReward(args) {
   return redeemRewardWithDeps(redeemDeps, args);
 }
 
 // Called by the browser route after the redemption transaction has rolled back.
+/**
+ * Forwards the route's validated redemption body without validating it again;
+ * the recovery unit tests call it with `{}` and injected fakes.
+ * @param {Partial<StaffServiceRedeemArgs>} args
+ * @param {{ redeem?: typeof redeemReward, record?: typeof recordFailedRedemption }} [injected]
+ */
 export async function redeemRewardWithRecovery(args, injected = {}) {
   const redeem = injected.redeem ?? redeemReward;
   const record = injected.record ?? recordFailedRedemption;
+  const redemption = /** @type {StaffServiceRedeemArgs} */ (args);
   try {
-    return await redeem(args);
+    return await redeem(redemption);
   } catch (error) {
     try {
-      const recoveryCaseId = await record({ ...args, error });
+      const recoveryCaseId = await record({ ...redemption, error });
       if (recoveryCaseId && isErrorLike(error)) error.recoveryCaseId = recoveryCaseId;
     } catch {
       /* Recording must never replace the original redemption error. */
@@ -707,6 +932,7 @@ export async function redeemRewardWithRecovery(args, injected = {}) {
   }
 }
 
+/** @param {{ staff: StaffServiceActor, awards: StaffServiceOfflineAward[] }} batch */
 export async function syncAwards({ staff, awards }) {
   const results = [];
   for (const award of awards) {
@@ -730,6 +956,7 @@ export async function syncAwards({ staff, awards }) {
   return results;
 }
 
+/** @param {{ staff: StaffServiceActor, transactionId: string, requestId: string | null | undefined, reason?: string }} args */
 export async function refundAward(args) {
   return refundAwardTransaction(args);
 }

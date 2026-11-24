@@ -1,4 +1,12 @@
-/** Remaining bonus slots in active quiet offers, whether activated directly or from an approved template. No stock reservation is inferred. */
+/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} OperatingCapacityQueryClient */
+
+/**
+ * Remaining bonus slots in active quiet offers, whether activated directly or from an approved template. No stock reservation is inferred.
+ * @param {OperatingCapacityQueryClient} client
+ * @param {string} businessId
+ * @param {string | null} [excludeCampaignId]
+ * @returns {Promise<number>}
+ */
 export async function occupiedOperatingCapacity(client, businessId, excludeCampaignId = null) {
   const result = await client.query(
     `SELECT COALESCE(SUM(slots),0)::int AS units FROM (

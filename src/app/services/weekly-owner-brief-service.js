@@ -27,7 +27,87 @@ export const WeeklyBriefSettings = z
     channel: z.enum(["email", "phone"]).optional(),
   })
   .strict();
+/** @typedef {(text: string, values?: readonly unknown[]) => Promise<{ rows: any[], rowCount?: number | null }>} WeeklyBriefQuery */
+/** @typedef {{ query: WeeklyBriefQuery }} WeeklyBriefQueryClient */
+/**
+ * Business row; program_json.weekly_owner_brief holds { settings, channel, owner_id,
+ * destination, enabled_at } as saved below.
+ * @typedef {{ id: string, name?: string | null, plan?: string | null, program_json?: Record<string, any> | null }} WeeklyBriefBusiness
+ * Owner staff row fields used for delivery.
+ * @typedef {{
+ *   id?: string,
+ *   phone?: string | null,
+ *   email?: string | null,
+ *   verified_email?: string | null,
+ *   email_verified_at?: Date | string | null,
+ *   role?: string,
+ *   active?: boolean
+ * }} WeeklyBriefOwner
+ * @typedef {import("zod").infer<typeof WeeklyBriefSettings>} WeeklyBriefSettingsInput
+ * Acting owner plus request metadata for audit rows and impersonation.
+ * @typedef {{
+ *   businessId: string,
+ *   staffId: string,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null,
+ *   imp?: string | null
+ * }} WeeklyBriefActor
+ * Audit row as AuditRepo.log receives it (repositories owner).
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   actor_type: string,
+ *   actor_id: string,
+ *   action: string,
+ *   ip: string | null,
+ *   ua: string | null,
+ *   meta: unknown
+ * }} WeeklyBriefAuditEvent
+ * Provider answer as classifyCampaignSend reads it.
+ * @typedef {{
+ *   ok?: boolean,
+ *   accepted?: boolean,
+ *   suppressed?: boolean,
+ *   simulated?: boolean,
+ *   definiteFailure?: boolean,
+ *   provider?: string | null,
+ *   providerId?: string | null,
+ *   error?: string | null
+ * }} WeeklyBriefSendResult
+ * Stored brief content (weekly_owner_briefs.snapshot), as buildBrief writes it.
+ * @typedef {{
+ *   business_name?: string | null,
+ *   generated_at?: string | null,
+ *   timezone?: string | null,
+ *   inbox_href?: string | null,
+ *   additional_count: number,
+ *   owner_progress?: { text?: string | null } | null,
+ *   findings: Array<{
+ *     title: string,
+ *     text: string,
+ *     action: string,
+ *     href: string,
+ *     period?: { start?: string | null, end?: string | null } | null
+ *   }>
+ * }} WeeklyBriefSnapshot
+ * Collaborators; integration tests inject subsets (transaction, query, audit,
+ * getPlanFeatureOverrides, runInTenant, getOwnerOutcomeEvidence).
+ * @typedef {{
+ *   getOwnerOutcomeEvidence: typeof getOwnerOutcomeEvidence,
+ *   ownerProgressBriefLine: typeof ownerProgressBriefLine,
+ *   query: WeeklyBriefQuery,
+ *   transaction: <T>(fn: (client: WeeklyBriefQueryClient) => Promise<T>) => Promise<T>,
+ *   audit: (event: WeeklyBriefAuditEvent) => Promise<void>,
+ *   getPlanFeatureOverrides: () => Promise<Record<string, any>>,
+ *   providerReady: () => boolean,
+ *   emailProviderReady: () => boolean,
+ *   sendEmail: (message: { to: string, subject: string, body: string }) => Promise<WeeklyBriefSendResult>,
+ *   runInTenant: <T>(businessId: string, fn: () => Promise<T>) => Promise<T>
+ * }} WeeklyBriefDeps
+ */
 const defaults = { enabled: false, weekday: 1, hour: 9 };
+/** @type {WeeklyBriefDeps} */
 const depsDefault = {
   getOwnerOutcomeEvidence,
   ownerProgressBriefLine,
@@ -40,30 +120,52 @@ const depsDefault = {
   sendEmail: sendOwnerBriefEmail,
   runInTenant: (id, fn) => withDbClientContext({ tenantId: id, platformAdmin: false }, fn),
 };
+/** @param {unknown} value */
 const phone = (value) =>
   /^\+?[0-9 () .-]+$/.test(String(value ?? "")) &&
   /^[0-9]{8,15}$/.test(String(value ?? "").replace(/\D/g, ""))
     ? String(value).replace(/\D/g, "")
     : null;
+/** @param {{ program_json?: Record<string, any> | null }} b */
 export const weeklyBriefChannel = (b) =>
   b.program_json?.weekly_owner_brief?.channel ??
   (b.program_json?.weekly_owner_brief?.owner_id ? "phone" : "email");
+/** @param {unknown} value */
 const email = (value) => {
   const parsed = z.string().trim().toLowerCase().email().max(254).safeParse(value);
   return parsed.success ? parsed.data : null;
 };
+/** @param {WeeklyBriefOwner | null | undefined} owner */
 const verifiedEmail = (owner) =>
   owner?.email_verified_at && email(owner.email) === owner.verified_email
     ? owner.verified_email
     : null;
+/**
+ * @param {WeeklyBriefOwner | null | undefined} owner
+ * @param {string} channel
+ */
 const destinationFor = (owner, channel) =>
   channel === "email" ? verifiedEmail(owner) : phone(owner?.phone);
+/**
+ * @param {{ plan?: string | null }} b
+ * @param {Record<string, any>} o platform plan-feature overrides
+ */
 const entitled = (b, o) =>
   hasPlanFeature(b.plan, "analytics", o) && hasPlanFeature(b.plan, "lifecycle_automation", o);
+/**
+ * @param {{ program_json?: Record<string, any> | null }} b
+ * @returns {WeeklyBriefSettingsInput}
+ */
 const settingsFor = (b) =>
   WeeklyBriefSettings.safeParse(b.program_json?.weekly_owner_brief?.settings).success
-    ? b.program_json.weekly_owner_brief.settings
+    ? /** @type {Record<string, any>} */ (b.program_json).weekly_owner_brief.settings
     : { ...defaults };
+/**
+ * @param {WeeklyBriefQueryClient} client
+ * @param {string} businessId
+ * @param {string} staffId
+ * @param {boolean} [lock]
+ */
 async function ownerAndBusiness(client, businessId, staffId, lock = false) {
   const business = (
     await client.query(`SELECT * FROM businesses WHERE id=$1 ${lock ? "FOR NO KEY UPDATE" : ""}`, [
@@ -81,6 +183,11 @@ async function ownerAndBusiness(client, businessId, staffId, lock = false) {
     throw forbidden("El resumen se configura desde una cuenta de propietario activa.");
   return { business, owner };
 }
+/**
+ * @param {Date | string | number} now
+ * @param {WeeklyBriefBusiness} business
+ * @param {{ enabled?: boolean, weekday: number, hour: number }} settings
+ */
 export function weeklyBriefPeriod(now, business, settings) {
   const local = DateTime.fromJSDate(new Date(now), { zone: businessRegion(business).timezone }),
     start = local.startOf("week"),
@@ -92,6 +199,10 @@ export function weeklyBriefPeriod(now, business, settings) {
     due: settings.enabled === true && local >= scheduled,
   };
 }
+/**
+ * @param {WeeklyBriefActor & { settings: unknown, now?: Date }} options settings is the raw body (validated here)
+ * @param {Partial<WeeklyBriefDeps>} [injected]
+ */
 export async function saveWeeklyBriefSettings(options, injected = {}) {
   const deps = { ...depsDefault, ...injected },
     parsed = WeeklyBriefSettings.safeParse(options.settings);
@@ -147,6 +258,12 @@ export async function saveWeeklyBriefSettings(options, injected = {}) {
     return { ok: true, settings: parsed.data };
   });
 }
+/**
+ * @param {WeeklyBriefQueryClient} client
+ * @param {WeeklyBriefBusiness} business
+ * @param {Date} now
+ * @param {WeeklyBriefDeps} deps
+ */
 async function buildBrief(client, business, now, deps) {
   const since = new Date(now.getTime() - 7 * 86400000),
     businessId = business.id;
@@ -164,12 +281,13 @@ async function buildBrief(client, business, now, deps) {
     )
   ).rows[0];
   const readiness = readinessForBusiness(business, now),
-    href = (fragment) => new URL(`/negocio/#${fragment}`, config.APP_ORIGIN).toString();
+    href = (/** @type {string} */ fragment) =>
+      new URL(`/negocio/#${fragment}`, config.APP_ORIGIN).toString();
   const outcomes = await deps.getOwnerOutcomeEvidence(
     { businessId, business, now, includeReturns: readiness.inactivity_allowed },
     client.query.bind(client),
   );
-  /** @type {Array<{key:string,priority:number,title:string,text:string,evidence:object,action:string,href:string,observed_at?:string,period?:object,fallback?:boolean}>} */
+  /** @type {Array<{key:string,priority:number,title:string,text:string,evidence:object,action:string,href:string,observed_at?:string|null,period?:object|null,fallback?:boolean}>} */
   const candidates = ownerOutcomeFindings(outcomes).map((item) => ({
     key: item.key,
     priority: item.priority,
@@ -259,6 +377,7 @@ async function buildBrief(client, business, now, deps) {
   const selected = selectWeeklyFindings(candidates);
   // "Tu progreso": one line with the week's milestones and the current goal. Never blocks
   // the brief; absent when the mode is off, for holdout businesses or a hidden card.
+  /** @type {Awaited<ReturnType<typeof ownerProgressBriefLine>> | null} */
   let ownerProgress = null;
   try {
     ownerProgress = await deps.ownerProgressBriefLine(client.query.bind(client), business, now);
@@ -276,6 +395,10 @@ async function buildBrief(client, business, now, deps) {
     note: "Cada hallazgo indica su propio período. Los enlaces requieren iniciar sesión como propietario. Preparar una muestra no envía mensajes.",
   };
 }
+/**
+ * @param {{ businessId: string, staffId: string, now?: Date }} args
+ * @param {Partial<WeeklyBriefDeps>} [injected]
+ */
 export async function previewWeeklyOwnerBrief(
   { businessId, staffId, now = new Date() },
   injected = {},
@@ -286,6 +409,10 @@ export async function previewWeeklyOwnerBrief(
     throw forbidden("Tu plan no incluye el resumen semanal.");
   return buildBrief({ query: deps.query }, business, now, deps);
 }
+/**
+ * @param {{ businessId: string, staffId: string, now?: Date }} args
+ * @param {Partial<WeeklyBriefDeps>} [injected]
+ */
 export async function getWeeklyBriefControls(
   { businessId, staffId, now = new Date() },
   injected = {},
@@ -336,6 +463,11 @@ export async function getWeeklyBriefControls(
     history,
   };
 }
+/**
+ * @param {string} businessId
+ * @param {Date} now
+ * @param {WeeklyBriefDeps} deps
+ */
 async function queueBrief(businessId, now, deps) {
   const overrides = await deps.getPlanFeatureOverrides();
   return deps.transaction(async (client) => {
@@ -398,6 +530,11 @@ async function queueBrief(businessId, now, deps) {
     );
   });
 }
+/**
+ * @param {string} businessId
+ * @param {Date} now
+ * @param {WeeklyBriefDeps} deps
+ */
 async function claimBrief(businessId, now, deps) {
   return deps.transaction(async (client) => {
     await client.query(
@@ -424,7 +561,9 @@ async function claimBrief(businessId, now, deps) {
     return { ...row, claim_token: token, attempts: row.attempts + 1 };
   });
 }
+/** @param {WeeklyBriefSnapshot} snapshot */
 function bodyFor(snapshot) {
+  /** @param {string | number | Date} value */
   const format = (value) =>
     new Intl.DateTimeFormat("es-GT", {
       dateStyle: "medium",
@@ -451,6 +590,11 @@ function bodyFor(snapshot) {
   const progress = snapshot.owner_progress?.text ? `${snapshot.owner_progress.text}\n\n` : "";
   return `${snapshot.business_name}: tu resumen semanal de PuntosFieles${date}\n\n${progress}${findings}${more}\n\nLos enlaces requieren iniciar sesión. Puedes pausar este resumen en Automatizaciones.`;
 }
+/**
+ * @template T
+ * @param {(client: WeeklyBriefQueryClient) => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
 async function dispatchTransaction(fn) {
   // Keep the transaction pool free for provider entitlement/billing reads.
   const client = getDbClient();
@@ -464,12 +608,18 @@ async function dispatchTransaction(fn) {
     throw error;
   }
 }
+/**
+ * @param {{ businessId?: string | null, now?: () => Date, send?: typeof sendMessage }} [options]
+ * @param {Partial<WeeklyBriefDeps>} [injected]
+ */
 export async function processWeeklyOwnerBriefsOnce(
   { businessId = null, now = () => new Date(), send = sendMessage } = {},
   injected = {},
 ) {
   const deps = { ...depsDefault, ...injected },
-    dispatch = injected.transaction ?? dispatchTransaction;
+    dispatch = /** @type {WeeklyBriefDeps["transaction"]} */ (
+      injected.transaction ?? dispatchTransaction
+    );
   const ids = businessId
     ? [businessId]
     : await withDbClientContext({ platformAdmin: true, tenantId: null }, async () =>
@@ -479,6 +629,7 @@ export async function processWeeklyOwnerBriefsOnce(
           )
         ).rows.map((row) => row.id),
       );
+  /** @type {Record<string, number>} */
   const counts = { accepted: 0, failed: 0, uncertain: 0, suppressed: 0 };
   for (const bid of ids)
     try {
@@ -487,6 +638,7 @@ export async function processWeeklyOwnerBriefsOnce(
         const item = await claimBrief(bid, now(), deps);
         if (!item) return;
         const overrides = await deps.getPlanFeatureOverrides();
+        /** @type {WeeklyBriefSendResult | undefined} */
         let result;
         try {
           result = await dispatch(async (client) => {
@@ -580,6 +732,10 @@ export async function processWeeklyOwnerBriefsOnce(
     }
   return counts;
 }
+/**
+ * @param {{ businessId: string, staffId: string, id: string }} args
+ * @param {Partial<WeeklyBriefDeps>} [injected]
+ */
 export async function retryWeeklyOwnerBrief({ businessId, staffId, id }, injected = {}) {
   const deps = { ...depsDefault, ...injected };
   const overrides = await deps.getPlanFeatureOverrides();
@@ -615,17 +771,28 @@ export async function retryWeeklyOwnerBrief({ businessId, staffId, id }, injecte
   });
 }
 
+/** @param {string} value */
 const tokenHash = (value) => createHash("sha256").update(value).digest("hex");
+/** @param {unknown} value */
 function validRequestId(value) {
   if (!z.guid().safeParse(value).success)
     throw badRequest("La solicitud necesita un identificador válido.");
 }
+/**
+ * @param {WeeklyBriefQueryClient} client
+ * @param {{ businessId: string, staffId: string }} options
+ * @param {Record<string, any>} overrides
+ */
 async function briefOwner(client, options, overrides) {
   const found = await ownerAndBusiness(client, options.businessId, options.staffId, true);
   if (!entitled(found.business, overrides))
     throw forbidden("Tu plan no incluye el resumen semanal.");
   return found;
 }
+/**
+ * @param {WeeklyBriefActor & { requestId: string, now?: Date }} options
+ * @param {Partial<WeeklyBriefDeps>} [injected]
+ */
 export async function requestOwnerBriefEmailVerification(options, injected = {}) {
   const deps = { ...depsDefault, ...injected };
   validRequestId(options.requestId);
@@ -633,6 +800,7 @@ export async function requestOwnerBriefEmailVerification(options, injected = {})
     now = options.now ?? new Date();
   const prepared = await deps.transaction(async (client) => {
     const { owner } = await briefOwner(client, options, overrides);
+    /** @type {{ id: string, status: string } | undefined} */
     const existing = (
       await client.query(
         "SELECT id,status FROM owner_brief_email_verifications WHERE business_id=$1 AND owner_id=$2 AND id=$3",
@@ -674,6 +842,7 @@ export async function requestOwnerBriefEmailVerification(options, injected = {})
   });
   if (prepared.existing)
     return { ok: true, request_id: prepared.existing.id, status: prepared.existing.status };
+  /** @type {WeeklyBriefSendResult | undefined} */
   let result;
   try {
     result = await deps.transaction(async (client) => {
@@ -705,6 +874,10 @@ export async function requestOwnerBriefEmailVerification(options, injected = {})
   });
   return { ok: true, request_id: options.requestId, status };
 }
+/**
+ * @param {WeeklyBriefActor & { requestId: string, token: string, now?: Date }} options
+ * @param {Partial<WeeklyBriefDeps>} [injected]
+ */
 export async function confirmOwnerBriefEmailVerification(options, injected = {}) {
   const deps = { ...depsDefault, ...injected };
   validRequestId(options.requestId);
@@ -771,6 +944,10 @@ export async function confirmOwnerBriefEmailVerification(options, injected = {})
     );
   return { ok: true, email_verified: true };
 }
+/**
+ * @param {WeeklyBriefActor & { requestId: string, now?: Date }} options
+ * @param {Partial<WeeklyBriefDeps>} [injected]
+ */
 export async function requestWeeklyOwnerBriefTest(options, injected = {}) {
   const deps = { ...depsDefault, ...injected };
   validRequestId(options.requestId);

@@ -4,6 +4,11 @@ import { withTransaction } from "../database.js";
 import { badRequest, conflict, notFound, tooManyRequests } from "../../utils/http-error.js";
 
 export const SUPPORT_ATTACHMENT_BYTES = 600 * 1024;
+/**
+ * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} SupportQueryClient
+ * @typedef {<T>(fn: (client: SupportQueryClient) => Promise<T>) => Promise<T>} SupportTransaction
+ */
+/** @param {number} max @param {number} [min] */
 const text = (max, min = 1) => z.string().trim().min(min).max(max);
 const token = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 export const supportDiagnosticsSchema = z
@@ -59,19 +64,21 @@ export const supportUpdateSchema = z
     visibility: z.enum(["public", "internal"]),
   })
   .strict();
+/** @param {string} value */
 export const hashSupportSecret = (value) => createHash("sha256").update(value).digest("hex");
+/** @param {unknown} value */
 const fingerprint = (value) => hashSupportSecret(JSON.stringify(value));
+/** @type {Record<string, string[]>} */
+const SUPPORT_TRANSITIONS = {
+  new: ["open", "waiting", "resolved", "closed"],
+  open: ["waiting", "resolved", "closed"],
+  waiting: ["open", "resolved", "closed"],
+  resolved: ["open", "closed"],
+  closed: ["open"],
+};
+/** @param {string} from @param {string} to */
 export const canTransitionSupport = (from, to) =>
-  from === to ||
-  (
-    {
-      new: ["open", "waiting", "resolved", "closed"],
-      open: ["waiting", "resolved", "closed"],
-      waiting: ["open", "resolved", "closed"],
-      resolved: ["open", "closed"],
-      closed: ["open"],
-    }[from] || []
-  ).includes(to);
+  from === to || (SUPPORT_TRANSITIONS[from] || []).includes(to);
 /**
  * @param {Record<string, any>} row
  * @param {Array<{ visibility?: string, kind?: string, message?: string, created_at?: unknown, [key: string]: unknown }>} [events]
@@ -91,6 +98,7 @@ export function publicSupportCase(row, events = [], attachment = null) {
     attachment: attachment ? { available: true, expiresAt: attachment.expires_at } : null,
   };
 }
+/** @param {{ data: string } | null | undefined} attachment base64 image from the validated payload */
 export async function sanitizeSupportAttachment(attachment) {
   if (!attachment) return null;
   const bytes = Buffer.from(attachment.data, "base64");
@@ -118,20 +126,41 @@ export async function sanitizeSupportAttachment(attachment) {
     );
   }
 }
+/**
+ * @template {import("zod").ZodType} S
+ * @param {S} schema
+ * @param {unknown} input
+ * @returns {import("zod").infer<S>}
+ */
 function parse(schema, input) {
   const result = schema.safeParse(input);
   if (!result.success)
     throw badRequest("Revisa los campos del reporte. No incluyas datos adicionales.");
   return result.data;
 }
+/**
+ * Runs `task` in a transaction whose row-level policies see the tracking secret.
+ * @template T
+ * @param {string | null} secret
+ * @param {(client: SupportQueryClient) => Promise<T>} task
+ * @param {SupportDeps | undefined} deps
+ * @returns {Promise<T>}
+ */
 async function scope(secret, task, deps) {
-  return (deps?.transaction || withTransaction)(async (client) => {
-    await client.query("SELECT set_config('app.support_hash',$1,true)", [
-      secret ? hashSupportSecret(secret) : "",
-    ]);
-    return task(client);
-  });
+  return /** @type {SupportTransaction} */ (deps?.transaction || withTransaction)(
+    async (client) => {
+      await client.query("SELECT set_config('app.support_hash',$1,true)", [
+        secret ? hashSupportSecret(secret) : "",
+      ]);
+      return task(client);
+    },
+  );
 }
+/**
+ * @param {SupportQueryClient} client
+ * @param {string} secret
+ * @param {boolean} [lock]
+ */
 async function caseForToken(client, secret, lock = false) {
   const row = (
     await client.query(
@@ -142,6 +171,11 @@ async function caseForToken(client, secret, lock = false) {
   if (!row) throw notFound("No encontramos el caso. Revisa tu enlace privado.");
   return row;
 }
+/**
+ * @param {SupportQueryClient} client
+ * @param {Record<string, any>} row a support_cases row
+ * @param {boolean} [admin]
+ */
 async function detail(client, row, admin = false) {
   const events = (
     await client.query(
@@ -165,7 +199,7 @@ async function detail(client, row, admin = false) {
 }
 /**
  * @typedef {{ businessId: string | null, actorType: string | null, actorId: string | null }} SupportContext
- * @typedef {{ transaction?: typeof withTransaction, [dep: string]: unknown }} SupportDeps
+ * @typedef {{ transaction?: SupportTransaction, [dep: string]: unknown }} SupportDeps
  * @param {unknown} input
  * @param {SupportDeps & {
  *   verify?: (token: string) => Promise<boolean>,
@@ -240,6 +274,7 @@ export async function createSupportCase(
     throw error;
   });
 }
+/** @param {unknown} input @param {SupportDeps} [deps] */
 export async function trackSupportCase(input, deps = {}) {
   const p = parse(supportTrackSchema, input);
   return scope(
@@ -248,6 +283,7 @@ export async function trackSupportCase(input, deps = {}) {
     deps,
   );
 }
+/** @param {unknown} input @param {SupportDeps} [deps] */
 export async function replySupportCase(input, deps = {}) {
   const p = parse(supportReplySchema, input),
     digest = fingerprint({ message: p.message });
@@ -305,7 +341,7 @@ export async function listSupportCases(
     .enum(["new", "open", "waiting", "resolved", "closed"])
     .optional()
     .parse(status);
-  return (deps.transaction || withTransaction)(
+  return /** @type {SupportTransaction} */ (deps.transaction || withTransaction)(
     async (c) =>
       (
         await c.query(
@@ -315,18 +351,25 @@ export async function listSupportCases(
       ).rows,
   );
 }
+/** @param {unknown} id @param {SupportDeps} [deps] */
 export async function getSupportCase(id, deps = {}) {
-  return (deps.transaction || withTransaction)(async (c) => {
+  return /** @type {SupportTransaction} */ (deps.transaction || withTransaction)(async (c) => {
     const row = (await c.query("SELECT * FROM support_cases WHERE id=$1", [z.uuid().parse(id)]))
       .rows[0];
     if (!row) throw notFound();
     return detail(c, row, true);
   });
 }
+/**
+ * @param {string} id
+ * @param {unknown} input
+ * @param {string | null} actorEmail
+ * @param {SupportDeps} [deps]
+ */
 export async function updateSupportCase(id, input, actorEmail, deps = {}) {
   const p = parse(supportUpdateSchema, input),
     digest = fingerprint(p);
-  return (deps.transaction || withTransaction)(async (c) => {
+  return /** @type {SupportTransaction} */ (deps.transaction || withTransaction)(async (c) => {
     const row = (
       await c.query("SELECT * FROM support_cases WHERE id=$1 FOR UPDATE", [z.uuid().parse(id)])
     ).rows[0];

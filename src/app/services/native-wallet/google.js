@@ -11,6 +11,17 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** @typedef {{ issuerId: string, serviceAccountEmail: string, privateKey: string, appOrigin: string, logoUrl?: string, organizationName?: string, privateKeyId?: string }} GoogleConfig */
 /** @typedef {{ id: string, serial_number: string, barcode: string, customer_name?: string | null, business_name: string, business_id: string, customer_id?: string, points: number, pending_points: number, revoked_at?: string | Date | null, is_voided?: boolean, wallet_engagement?: {progress?:string,earning?:string,conditions?:string,usage?:string,locations?:Array<{latitude:number,longitude:number}>}, wallet_message?: {text:string,id:string,start:string,end:string} | null, revision?: number }} PassSnapshot */
 
+/**
+ * A Google Wallet REST resource (loyaltyClass/loyaltyObject) as returned by the API:
+ * a third-party JSON document of which only the managed fields are compared.
+ * @typedef {Record<string, any> | null | undefined} GoogleResource
+ */
+
+/**
+ * @param {string} code
+ * @param {string} message
+ * @param {number} [status]
+ */
 function walletError(code, message, status = undefined) {
   return Object.assign(new Error(message), { code, ...(status === undefined ? {} : { status }) });
 }
@@ -19,19 +30,26 @@ function invalidConfig() {
   return walletError("GOOGLE_WALLET_INVALID_CONFIG", "Google Wallet configuration is invalid.");
 }
 
+/** @param {string} value */
 function publicHttpsUrl(value) {
   const url = parsePublicWalletUrl(value);
   if (!url) throw invalidConfig();
   return url;
 }
 
+/** @param {string} value */
 const localized = (value) => ({ defaultValue: { language: "es-GT", value } });
 
 // Google may return extra image/localization metadata; compare only fields we own.
+/**
+ * @param {GoogleResource | unknown} actual
+ * @param {unknown} expected
+ * @returns {boolean}
+ */
 function matchesManagedFields(actual, expected) {
   if (expected && typeof expected === "object") {
     return Object.entries(expected).every(([key, value]) =>
-      matchesManagedFields(actual?.[key], value),
+      matchesManagedFields(/** @type {GoogleResource} */ (actual)?.[key], value),
     );
   }
   return actual === expected;
@@ -68,10 +86,13 @@ export function createGoogleProvider(config, { fetchImpl = fetch, now = () => Da
     ...(config.privateKeyId ? { kid: config.privateKeyId } : {}),
   };
   let keyPromise;
+  /** @type {string | undefined} */
   let accessToken;
   let tokenExpiresAt = 0;
+  /** @type {Promise<string | undefined> | undefined} */
   let refreshPromise;
 
+  /** @param {import("jose").JWTPayload} claims */
   async function sign(claims) {
     try {
       keyPromise ??= importPKCS8(config.privateKey, "RS256");
@@ -81,10 +102,18 @@ export function createGoogleProvider(config, { fetchImpl = fetch, now = () => Da
     }
   }
 
-  /** HTTP errors deliberately retain neither response bodies nor raw error causes. */
+  /**
+   * HTTP errors deliberately retain neither response bodies nor raw error causes.
+   * `data` is Google's JSON body (a third-party payload, hence untyped) or null for
+   * an allowed error status.
+   * @param {string} url
+   * @param {RequestInit} init
+   * @param {number[]} [allowedStatuses]
+   */
   async function request(url, init, allowedStatuses = []) {
     const controller = new AbortController();
     let timer;
+    /** @type {Promise<never>} */
     const timeout = new Promise((_, reject) => {
       timer = setTimeout(() => {
         controller.abort();
@@ -292,6 +321,7 @@ export function createGoogleProvider(config, { fetchImpl = fetch, now = () => Da
           }
         : {}),
     };
+    /** @type {{ id: string, issuerName: string, programName: string, localizedProgramName: ReturnType<typeof localized>, reviewStatus: string, programLogo: { sourceUri: { uri: string }, contentDescription: ReturnType<typeof localized> }, accountNameLabel: string, accountIdLabel: string }} */
     const passClass = {
       id: classId,
       issuerName,
@@ -308,7 +338,12 @@ export function createGoogleProvider(config, { fetchImpl = fetch, now = () => Da
     };
     return { object, passClass };
   }
+  /** @typedef {ReturnType<typeof passData>} GooglePass */
 
+  /**
+   * @param {GoogleResource} actual
+   * @param {{ id: string, classId?: string }} expected
+   */
   function validateResource(actual, expected) {
     if (actual?.id !== expected.id || (expected.classId && actual?.classId !== expected.classId)) {
       throw walletError(
@@ -318,6 +353,10 @@ export function createGoogleProvider(config, { fetchImpl = fetch, now = () => Da
     }
   }
 
+  /**
+   * @param {GooglePass["passClass"]} passClass
+   * @param {boolean} [reconcileBranding]
+   */
   async function ensureClass(passClass, reconcileBranding = true) {
     const resource = `loyaltyClass/${passClass.id}`;
     let result = await api("GET", resource, undefined, [404]);
@@ -328,7 +367,7 @@ export function createGoogleProvider(config, { fetchImpl = fetch, now = () => Da
     validateResource(result.data, passClass);
     if (!reconcileBranding) return;
     const patch = Object.fromEntries(
-      ["programName", "localizedProgramName", "programLogo", "issuerName"]
+      /** @type {const} */ (["programName", "localizedProgramName", "programLogo", "issuerName"])
         .filter((field) => !matchesManagedFields(result.data[field], passClass[field]))
         .map((field) => [field, passClass[field]]),
     );
@@ -340,6 +379,10 @@ export function createGoogleProvider(config, { fetchImpl = fetch, now = () => Da
     }
   }
 
+  /**
+   * @param {GooglePass} pass
+   * @param {boolean} [classReady]
+   */
   async function syncObject(pass, classReady = false) {
     const { object, passClass } = pass;
     const resource = `loyaltyObject/${object.id}`;
@@ -361,7 +404,16 @@ export function createGoogleProvider(config, { fetchImpl = fetch, now = () => Da
     const notifying = object.messages?.[0]?.messageType === "TEXT_AND_NOTIFY";
     let updated = await api("PATCH", resource, object, notifying ? [429] : []);
     if (notifying && updated.status === 429) {
-      const quiet = { ...object, messages: [{ ...object.messages[0], messageType: "TEXT" }] };
+      // `notifying` already established that messages[0] exists.
+      const quiet = {
+        ...object,
+        messages: [
+          {
+            .../** @type {NonNullable<typeof object.messages>} */ (object.messages)[0],
+            messageType: "TEXT",
+          },
+        ],
+      };
       updated = await api("PATCH", resource, quiet);
     }
     validateResource(updated.data, object);

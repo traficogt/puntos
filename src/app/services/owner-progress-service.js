@@ -16,6 +16,89 @@ import { businessRegion } from "./regional-settings.js";
 import { reportingPurchase } from "./reporting-purchase.js";
 import { programRuleConfigured } from "./transaction-rule-evidence.js";
 
+/**
+ * Facts gathered by loadOwnerProgressFacts; the pure model reads nothing else.
+ * @typedef {Awaited<ReturnType<typeof loadOwnerProgressFacts>>} OwnerProgressFacts
+ *
+ * Platform setting as resolved by resolveOwnerProgressSettings.
+ * @typedef {{ mode: string, holdout_pct: number }} OwnerProgressSettings
+ *
+ * owner_progress_state row (one per business; every column may still be null).
+ * @typedef {{
+ *   hidden?: boolean | null,
+ *   current_goal?: string | null,
+ *   dismissed_goals?: Record<string, string> | null,
+ *   last_review_at?: Date | string | null,
+ *   last_review_decision?: string | null,
+ *   freezes_used?: number | string | null
+ * }} OwnerProgressStateRow
+ *
+ * The normalized state the model works with.
+ * @typedef {{
+ *   hidden: boolean,
+ *   current_goal: string | null,
+ *   dismissed_goals: Record<string, string>,
+ *   last_review_at: string | null,
+ *   last_review_decision: string | null,
+ *   freezes_used: number
+ * }} OwnerProgressState
+ *
+ * owner_progress_milestones row.
+ * @typedef {{ key: string, reached_at: Date | string | null, acknowledged_at: Date | string | null }} OwnerProgressMilestoneRow
+ *
+ * The businesses columns this service reads (repositories owner's table).
+ * @typedef {{ id: string, name: string, program_json: Record<string, any> | null, owner_progress_variant: string | null }} OwnerProgressBusinessRow
+ *
+ * Parameterized query bound to the caller's database context (dbQuery or a client).
+ * @typedef {(sql: string, params?: any[]) => Promise<{ rows: any[] }>} OwnerProgressQuery
+ *
+ * Evaluated launch path, momentum and state handed to milestone and goal predicates.
+ * @typedef {{
+ *   launch: ReturnType<typeof evaluateLaunch>,
+ *   momentum: ReturnType<typeof computeMomentum>,
+ *   state: OwnerProgressState,
+ *   now: Date
+ * }} OwnerProgressContext
+ *
+ * @typedef {{
+ *   key: string,
+ *   label: string,
+ *   href: string,
+ *   done: (facts: OwnerProgressFacts) => boolean,
+ *   doneAt: (facts: OwnerProgressFacts) => string | null | undefined
+ * }} OwnerProgressLaunchStep
+ * @typedef {{
+ *   key: string,
+ *   label: string,
+ *   done: (facts: OwnerProgressFacts, context: OwnerProgressContext) => boolean
+ * }} OwnerProgressMilestone
+ * @typedef {{
+ *   key: string,
+ *   label: string,
+ *   href: string,
+ *   open: (facts: OwnerProgressFacts, context: OwnerProgressContext) => boolean,
+ *   progress: (facts: OwnerProgressFacts, context: OwnerProgressContext) => { current: number, target: number } | null
+ * }} OwnerProgressGoal
+ *
+ * Injectable collaborators; unit tests supply fakes. `audit` is AuditRepo.log
+ * (repositories owner), `getSettings` reads the platform setting.
+ * @typedef {{
+ *   query?: OwnerProgressQuery,
+ *   getSettings?: () => Promise<Record<string, any> | null | undefined>,
+ *   audit?: typeof AuditRepo.log
+ * }} OwnerProgressInjected
+ *
+ * Identity and context the owner routes pass to every action.
+ * @typedef {{
+ *   businessId: string,
+ *   staffId?: string | null,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   settings?: OwnerProgressSettings,
+ *   now?: Date
+ * }} OwnerProgressActionOptions
+ */
+
 export const OWNER_PROGRESS_MODES = ["off", "checklist", "full"];
 export const OWNER_PROGRESS_DEFAULTS = { mode: "full", holdout_pct: 0 };
 const GOAL_DISMISSAL_DAYS = 30;
@@ -29,8 +112,15 @@ export const OwnerProgressSettingsSchema = z
     holdout_pct: z.number().int().min(0).max(100),
   })
   .strict();
+/**
+ * @param {Record<string, any> | null | undefined} raw stored platform-setting JSON
+ * @returns {OwnerProgressSettings}
+ */
 export function resolveOwnerProgressSettings(raw) {
-  const mode = OWNER_PROGRESS_MODES.includes(raw?.mode) ? raw.mode : OWNER_PROGRESS_DEFAULTS.mode;
+  // A mode found in the catalog implies a non-null setting object.
+  const mode = OWNER_PROGRESS_MODES.includes(raw?.mode)
+    ? /** @type {Record<string, any>} */ (raw).mode
+    : OWNER_PROGRESS_DEFAULTS.mode;
   const pct = Number(raw?.holdout_pct);
   return {
     mode,
@@ -39,15 +129,23 @@ export function resolveOwnerProgressSettings(raw) {
   };
 }
 
-/** Deterministic variant: sha256(business_id) mod 100 < holdout_pct → holdout. */
+/**
+ * Deterministic variant: sha256(business_id) mod 100 < holdout_pct → holdout.
+ * @param {string} businessId
+ * @param {number | string | null | undefined} holdoutPct
+ */
 export function assignOwnerProgressVariant(businessId, holdoutPct) {
   const digest = createHash("sha256").update(String(businessId)).digest();
   const bucket = digest.readUInt32BE(0) % 100;
   return bucket < Number(holdoutPct || 0) ? "holdout" : "treatment";
 }
 
+/** @param {string} fragment */
 const href = (fragment) => `/negocio/#${fragment}`;
-/** The launch path ("Programa en marcha"), in order. Each `done` reads only facts. */
+/**
+ * The launch path ("Programa en marcha"), in order. Each `done` reads only facts.
+ * @type {OwnerProgressLaunchStep[]}
+ */
 export const LAUNCH_STEPS = [
   {
     key: "rules",
@@ -86,7 +184,10 @@ export const LAUNCH_STEPS = [
   },
 ];
 
-/** Milestones (v1 set). `done` receives facts plus the evaluated launch and momentum. */
+/**
+ * Milestones (v1 set). `done` receives facts plus the evaluated launch and momentum.
+ * @type {OwnerProgressMilestone[]}
+ */
 export const MILESTONES = [
   { key: "programa_en_marcha", label: "Programa en marcha", done: (f, c) => c.launch.complete },
   {
@@ -136,6 +237,7 @@ export const MILESTONE_KEYS = MILESTONES.map((m) => m.key);
 /**
  * Suggested goals in priority order. `open` is true while the goal still applies.
  * The owner may pick any open goal or dismiss one (not re-suggested for 30 days).
+ * @type {OwnerProgressGoal[]}
  */
 export const GOALS = [
   {
@@ -188,16 +290,28 @@ export const GOALS = [
 ];
 export const GOAL_KEYS = GOALS.map((g) => g.key);
 
+/**
+ * @param {Date | string | null | undefined} value
+ * @param {Date} now
+ */
 function daysSince(value, now) {
   if (!value) return Number.POSITIVE_INFINITY;
   const at = new Date(value).getTime();
   return Number.isFinite(at) ? (now.getTime() - at) / 86400000 : Number.POSITIVE_INFINITY;
 }
+/**
+ * @param {Date | string | null | undefined} reviewAt
+ * @param {Date | string | null | undefined} sinceAt
+ */
 function reviewedAfter(reviewAt, sinceAt) {
   return Boolean(reviewAt && sinceAt && new Date(reviewAt) >= new Date(sinceAt));
 }
 
-/** Monday-start calendar week (ISO date) that contains `date` in the business timezone. */
+/**
+ * Monday-start calendar week (ISO date) that contains `date` in the business timezone.
+ * @param {Date | string | number} date
+ * @param {string} timezone
+ */
 export function weekStartOf(date, timezone) {
   return DateTime.fromJSDate(new Date(date), { zone: timezone }).startOf("week").toISODate();
 }
@@ -253,6 +367,7 @@ export function computeMomentum(facts, { now, timezone }) {
   };
 }
 
+/** @returns {OwnerProgressState} */
 const defaultState = () => ({
   hidden: false,
   current_goal: null,
@@ -261,6 +376,10 @@ const defaultState = () => ({
   last_review_decision: null,
   freezes_used: 0,
 });
+/**
+ * @param {OwnerProgressStateRow | null | undefined} row
+ * @returns {OwnerProgressState}
+ */
 function normalizeState(row) {
   const base = defaultState();
   if (!row) return base;
@@ -275,6 +394,7 @@ function normalizeState(row) {
   };
 }
 
+/** @param {OwnerProgressFacts} facts */
 function evaluateLaunch(facts) {
   const steps = LAUNCH_STEPS.map((step) => {
     const done = step.done(facts) === true;
@@ -291,8 +411,13 @@ function evaluateLaunch(facts) {
   return { steps, done_count, total: steps.length, complete: done_count === steps.length };
 }
 
+/**
+ * @param {OwnerProgressFacts} facts
+ * @param {OwnerProgressContext} context
+ */
 function selectGoal(facts, context) {
   const dismissed = context.state.dismissed_goals ?? {};
+  /** @param {string} key */
   const isDismissed = (key) => daysSince(dismissed[key], context.now) < GOAL_DISMISSAL_DAYS;
   const open = GOALS.filter((goal) => goal.open(facts, context));
   const chosen = open.find((goal) => goal.key === context.state.current_goal);
@@ -305,8 +430,8 @@ function selectGoal(facts, context) {
 /**
  * Pure model. Returns the API payload plus `satisfied`, the milestone keys the facts
  * currently satisfy (the caller persists first-reached times).
- * @param {object} facts counts and booleans from loadOwnerProgressFacts
- * @param {{mode: string, variant: string, now?: Date, timezone?: string, state?: object, stored?: Array<{key:string,reached_at:any,acknowledged_at:any}>}} options
+ * @param {OwnerProgressFacts} facts counts and booleans from loadOwnerProgressFacts
+ * @param {{mode: string, variant: string, now?: Date, timezone?: string, state?: OwnerProgressStateRow | null, stored?: Array<{key:string,reached_at:any,acknowledged_at:any}>}} options
  */
 export function buildOwnerProgress(facts, options) {
   const now = options.now ?? new Date(),
@@ -404,11 +529,14 @@ const factsSql = `SELECT
    UNION ALL SELECT to_char(date_trunc('week', created_at AT TIME ZONE $2),'YYYY-MM-DD') FROM lifecycle_message_outbox WHERE business_id=b.id AND status IN ('failed','uncertain')) x),'{}') AS todo_weeks
  FROM businesses b WHERE b.id=$1`;
 
+/** @param {Date | string | number | null | undefined} value */
 const iso = (value) => (value ? new Date(value).toISOString() : null);
 /**
  * Gathers the facts for one business. Runs under the caller's database context (the
  * owner's tenant for requests, runInTenant for jobs), so RLS applies to every table.
- * @param {(sql: string, params?: any[]) => Promise<{rows: any[]}>} query
+ * @param {OwnerProgressQuery} query
+ * @param {string} businessId
+ * @param {string} [timezone]
  */
 export async function loadOwnerProgressFacts(query, businessId, timezone = "America/Guatemala") {
   const { rows } = await query(factsSql, [businessId, timezone]);
@@ -444,12 +572,18 @@ export async function loadOwnerProgressFacts(query, businessId, timezone = "Amer
   };
 }
 
+/** @param {OwnerProgressInjected} [injected] */
 export async function loadOwnerProgressSettings(injected = {}) {
   const read = injected.getSettings ?? (() => PlatformSettingsRepo.getOwnerProgress());
   return resolveOwnerProgressSettings(await read());
 }
 
 const uuid = z.guid();
+/**
+ * @param {OwnerProgressQuery} query
+ * @param {string} businessId
+ * @returns {Promise<OwnerProgressBusinessRow>}
+ */
 async function businessRow(query, businessId) {
   if (!uuid.safeParse(businessId).success) throw notFound("Negocio no disponible.");
   const { rows } = await query(
@@ -464,6 +598,8 @@ async function businessRow(query, businessId) {
  * milestone, a chosen or dismissed goal, a review, or a visibility change (the latter
  * three all create the owner_progress_state row). Milestone rows alone do not count:
  * they are recorded for every variant.
+ * @param {OwnerProgressQuery} query
+ * @param {string} businessId
  */
 async function wasExposed(query, businessId) {
   const { rows } = await query(
@@ -483,6 +619,9 @@ async function wasExposed(query, businessId) {
  * 3. When `holdout_pct` > 0 and the business has no stored variant, a business already
  *    exposed to the full experience is stored as `treatment` (it has already seen it);
  *    a business never exposed gets the deterministic hash against the current share.
+ * @param {OwnerProgressQuery} query
+ * @param {OwnerProgressBusinessRow} business
+ * @param {OwnerProgressSettings} settings
  */
 async function ensureVariant(query, business, settings) {
   if (business.owner_progress_variant) return business.owner_progress_variant;
@@ -496,12 +635,22 @@ async function ensureVariant(query, business, settings) {
   );
   return rows[0]?.owner_progress_variant ?? variant;
 }
+/**
+ * @param {OwnerProgressQuery} query
+ * @param {string} businessId
+ * @returns {Promise<OwnerProgressStateRow | null>}
+ */
 async function readState(query, businessId) {
   const { rows } = await query("SELECT * FROM owner_progress_state WHERE business_id=$1", [
     businessId,
   ]);
   return rows[0] ?? null;
 }
+/**
+ * @param {OwnerProgressQuery} query
+ * @param {string} businessId
+ * @returns {Promise<OwnerProgressMilestoneRow[]>}
+ */
 async function readStored(query, businessId) {
   const { rows } = await query(
     "SELECT key,reached_at,acknowledged_at FROM owner_progress_milestones WHERE business_id=$1",
@@ -509,6 +658,12 @@ async function readStored(query, businessId) {
   );
   return rows;
 }
+/**
+ * @param {OwnerProgressQuery} query
+ * @param {string} businessId
+ * @param {string[]} keys
+ * @param {Date} now
+ */
 async function recordMilestones(query, businessId, keys, now) {
   if (!keys.length) return;
   await query(
@@ -517,6 +672,12 @@ async function recordMilestones(query, businessId, keys, now) {
     [businessId, keys, now],
   );
 }
+/**
+ * @param {OwnerProgressQuery} query
+ * @param {string} businessId
+ * @param {Record<string, unknown>} patch column values to set
+ * @param {Date} now
+ */
 async function upsertState(query, businessId, patch, now) {
   const columns = Object.keys(patch);
   const sets = columns.map((c, i) => `${c}=$${i + 3}`).join(",");
@@ -534,6 +695,7 @@ async function upsertState(query, businessId, patch, now) {
  * stores the variant when the holdout rule says so (see ensureVariant), and returns
  * the API payload.
  * @param {{businessId: string, settings?: {mode:string,holdout_pct:number}, now?: Date}} options
+ * @param {OwnerProgressInjected} [injected]
  */
 export async function getOwnerProgress(options, injected = {}) {
   const query = injected.query ?? dbQuery,
@@ -595,12 +757,19 @@ export const OwnerProgressReviewSchema = z
   .strict();
 export const OwnerProgressVisibilitySchema = z.object({ hidden: z.boolean() }).strict();
 
+/** @param {OwnerProgressActionOptions} options */
 const actorMeta = (options) => ({
   businessId: options.businessId,
   actor: options.staffId ?? null,
   ip: options.ip ?? null,
   ua: options.ua ?? null,
 });
+/**
+ * @param {OwnerProgressInjected} injected
+ * @param {OwnerProgressActionOptions} options
+ * @param {string} action
+ * @param {Record<string, unknown>} meta
+ */
 async function audit(injected, options, action, meta) {
   const log = injected.audit ?? AuditRepo.log;
   const a = actorMeta(options);
@@ -615,13 +784,21 @@ async function audit(injected, options, action, meta) {
     meta,
   }).catch(() => {});
 }
+/**
+ * @param {OwnerProgressActionOptions} options
+ * @param {OwnerProgressInjected} injected
+ */
 async function requireAvailable(options, injected) {
   const settings = options.settings ?? (await loadOwnerProgressSettings(injected));
   if (settings.mode === "off") throw notFound("Tu progreso no está disponible.", "NOT_FOUND");
   return settings;
 }
 
-/** Marks milestones acknowledged (idempotent; unknown or unreached keys are ignored). */
+/**
+ * Marks milestones acknowledged (idempotent; unknown or unreached keys are ignored).
+ * @param {OwnerProgressActionOptions & { keys?: unknown }} options `keys` is the request body field
+ * @param {OwnerProgressInjected} [injected]
+ */
 export async function acknowledgeOwnerProgressMilestones(options, injected = {}) {
   const query = injected.query ?? dbQuery,
     now = options.now ?? new Date(),
@@ -634,12 +811,16 @@ export async function acknowledgeOwnerProgressMilestones(options, injected = {})
   );
   return {
     ok: true,
-    acknowledged: rows.map((r) => r.key),
+    acknowledged: rows.map((/** @type {{ key: string }} */ r) => r.key),
     progress: await getOwnerProgress({ ...options, settings, now }, injected),
   };
 }
 
-/** Chooses a goal or dismisses one (dismissed goals are not re-suggested for 30 days). */
+/**
+ * Chooses a goal or dismisses one (dismissed goals are not re-suggested for 30 days).
+ * @param {OwnerProgressActionOptions & { key?: unknown, dismiss?: unknown }} options body fields are validated here
+ * @param {OwnerProgressInjected} [injected]
+ */
 export async function setOwnerProgressGoal(options, injected = {}) {
   const query = injected.query ?? dbQuery,
     now = options.now ?? new Date(),
@@ -668,7 +849,11 @@ export async function setOwnerProgressGoal(options, injected = {}) {
   return { ok: true, progress: await getOwnerProgress({ ...options, settings, now }, injected) };
 }
 
-/** Records an explicit program review ("Mantener"/"Ajustar") and grants primera_revision. */
+/**
+ * Records an explicit program review ("Mantener"/"Ajustar") and grants primera_revision.
+ * @param {OwnerProgressActionOptions & { decision?: unknown, note?: unknown }} options body fields are validated here
+ * @param {OwnerProgressInjected} [injected]
+ */
 export async function recordOwnerProgressReview(options, injected = {}) {
   const query = injected.query ?? dbQuery,
     now = options.now ?? new Date(),
@@ -691,7 +876,11 @@ export async function recordOwnerProgressReview(options, injected = {}) {
   return { ok: true, progress: await getOwnerProgress({ ...options, settings, now }, injected) };
 }
 
-/** Hides or shows the whole experience; the choice persists. */
+/**
+ * Hides or shows the whole experience; the choice persists.
+ * @param {OwnerProgressActionOptions & { hidden?: unknown }} options `hidden` is the request body field
+ * @param {OwnerProgressInjected} [injected]
+ */
 export async function setOwnerProgressVisibility(options, injected = {}) {
   const query = injected.query ?? dbQuery,
     now = options.now ?? new Date(),
@@ -707,7 +896,10 @@ export async function setOwnerProgressVisibility(options, injected = {}) {
  * current goal. Null when the mode is off, the business is a holdout (launch path
  * only), the owner hid the card, or there is nothing to say. Runs inside the brief's
  * tenant context; the caller supplies the business row and its client.
- * @param {(sql: string, params?: any[]) => Promise<{rows: any[]}>} query
+ * @param {OwnerProgressQuery} query
+ * @param {{ id: string }} business
+ * @param {Date} now
+ * @param {OwnerProgressInjected} [injected]
  */
 export async function ownerProgressBriefLine(query, business, now, injected = {}) {
   const settings = await loadOwnerProgressSettings(injected);
@@ -743,6 +935,7 @@ export async function ownerProgressBriefLine(query, business, now, injected = {}
   };
 }
 
+/** @param {unknown} input super API body, validated by OwnerProgressSettingsSchema */
 export function assertOwnerProgressSettings(input) {
   const parsed = OwnerProgressSettingsSchema.safeParse(input);
   if (!parsed.success) throw badRequest("Revisa el modo y el porcentaje de control.");

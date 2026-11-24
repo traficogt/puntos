@@ -12,7 +12,23 @@ import {
   promiseAudit,
 } from "./reward-promise-service.js";
 import { demandText, validateClaimTransition, supplierExport } from "./demand-funding-model.js";
-const tx = (deps, fn) => (deps.transaction ?? withTransaction)(fn);
+/**
+ * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} SupplierFundingQueryClient
+ * @typedef {<T>(fn: (client: SupplierFundingQueryClient) => Promise<T>) => Promise<T>} SupplierFundingTransaction
+ * @typedef {{ transaction?: SupplierFundingTransaction }} SupplierFundingDeps
+ * The staff session as the routes pass it (req.staff).
+ * @typedef {{ id: string, business_id?: string, branch_id?: string | null, role?: string | null, impersonated_by?: string | null }} SupplierFundingStaff
+ * @typedef {{ businessId: string, staff: SupplierFundingStaff }} SupplierFundingOptions
+ */
+/**
+ * @template T
+ * @param {SupplierFundingDeps} deps
+ * @param {(client: SupplierFundingQueryClient) => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+const tx = (deps, fn) =>
+  /** @type {SupplierFundingTransaction} */ (deps.transaction ?? withTransaction)(fn);
+/** @param {Record<string, any>} row a supplier_agreements or supplier_claims row */
 const visible = (row) => {
   const { request_id: _id, request_fingerprint: _hash, ...out } = row;
   for (const key of [
@@ -31,6 +47,12 @@ const ELIGIBLE = `r.status='REDEEMED' AND r.redeemed_at IS NOT NULL AND p.status
  AND NOT EXISTS(SELECT 1 FROM service_redemption_restorations sr WHERE sr.business_id=r.business_id AND sr.redemption_id=r.id)
  AND (SELECT count(*) FROM transactions t WHERE t.business_id=r.business_id AND t.meta->>'redemption_id'=r.id::text AND t.source='redeem')=1
  AND EXISTS(SELECT 1 FROM transactions t WHERE t.business_id=r.business_id AND t.meta->>'redemption_id'=r.id::text AND t.source='redeem' AND t.status='POSTED' AND t.points=-r.points_cost AND t.reversed_transaction_id IS NULL)`;
+/**
+ * @param {SupplierFundingQueryClient} client
+ * @param {string} businessId
+ * @param {string} id
+ * @param {boolean} [lock]
+ */
 async function agreementRow(client, businessId, id, lock = false) {
   const row = (
     await client.query(
@@ -41,6 +63,11 @@ async function agreementRow(client, businessId, id, lock = false) {
   if (!row) throw notFound("Acuerdo no encontrado.");
   return row;
 }
+/**
+ * @param {SupplierFundingQueryClient} client
+ * @param {string} businessId
+ * @param {string} agreementId
+ */
 async function reserved(client, businessId, agreementId) {
   return Number(
     (
@@ -51,6 +78,14 @@ async function reserved(client, businessId, agreementId) {
     ).rows[0].amount,
   );
 }
+/**
+ * @param {SupplierFundingQueryClient} client
+ * @param {SupplierFundingOptions} options
+ * @param {Record<string, any>} row the supplier_claims row the event belongs to
+ * @param {string} requestId
+ * @param {string} hash
+ * @param {Record<string, unknown>} details
+ */
 async function claimEvent(client, options, row, requestId, hash, details) {
   await client.query(
     "INSERT INTO supplier_claim_events(id,business_id,claim_id,staff_id,request_id,request_fingerprint,version,details) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
@@ -66,6 +101,12 @@ async function claimEvent(client, options, row, requestId, hash, details) {
     ],
   );
 }
+/**
+ * @param {SupplierFundingQueryClient} client
+ * @param {string} businessId
+ * @param {string} redemptionId
+ * @param {Record<string, any>} agreement a supplier_agreements row
+ */
 async function fulfillment(client, businessId, redemptionId, agreement) {
   // Debit before POS matches refund and manual fulfillment lock ordering. The
   // original redemption remains append-only and needs no UPDATE privilege.
@@ -98,6 +139,23 @@ async function fulfillment(client, businessId, redemptionId, agreement) {
     );
   return row;
 }
+/**
+ * Either a local-date pair (starts_on/ends_on) or an instant pair (starts_at/ends_at).
+ * @param {SupplierFundingOptions & {
+ *   requestId: unknown,
+ *   supplier_name: unknown,
+ *   title: unknown,
+ *   reward_ids: unknown,
+ *   starts_on?: string | null,
+ *   ends_on?: string | null,
+ *   starts_at?: string | number | Date | null,
+ *   ends_at?: string | number | Date | null,
+ *   currency: string,
+ *   unit_amount: number,
+ *   cap_amount: number
+ * }} options
+ * @param {SupplierFundingDeps} [deps]
+ */
 export async function createSupplierAgreement(options, deps = {}) {
   const { businessId } = options,
     requestId = requestIdentity(options.requestId),
@@ -110,10 +168,10 @@ export async function createSupplierAgreement(options, deps = {}) {
   const days = options.starts_on != null || options.ends_on != null;
   const starts = days
       ? DateTime.fromISO(String(options.starts_on), { zone: "UTC" }).toJSDate()
-      : new Date(options.starts_at),
+      : new Date(/** @type {string | number | Date} */ (options.starts_at)),
     ends = days
       ? DateTime.fromISO(String(options.ends_on), { zone: "UTC" }).toJSDate()
-      : new Date(options.ends_at);
+      : new Date(/** @type {string | number | Date} */ (options.ends_at));
   if (
     !Number.isFinite(starts.getTime()) ||
     !Number.isFinite(ends.getTime()) ||
@@ -167,7 +225,7 @@ export async function createSupplierAgreement(options, deps = {}) {
     // Exact conversion to the region's minor units (centavos; whole pesos for
     // CLP). Anything above 1e9 major units fails the bounds below anyway, so it
     // becomes NaN here instead of overflowing the safe-integer range.
-    const minor = (amount) =>
+    const minor = (/** @type {number} */ amount) =>
       amount > 1e9 ? Number.NaN : toMinor(amount, { scale: region.minorUnits });
     const unit = minor(options.unit_amount),
       cap = minor(options.cap_amount);
@@ -219,6 +277,10 @@ export async function createSupplierAgreement(options, deps = {}) {
     return { ok: true, agreement: visible(row), replay: false };
   });
 }
+/**
+ * @param {SupplierFundingOptions & { agreementId: string }} options
+ * @param {SupplierFundingDeps} [deps]
+ */
 export async function closeSupplierAgreement(options, deps = {}) {
   return tx(deps, async (client) => {
     await livePromiseMember(client, options, true);
@@ -234,6 +296,10 @@ export async function closeSupplierAgreement(options, deps = {}) {
     return { ok: true, agreement: visible(result) };
   });
 }
+/**
+ * @param {SupplierFundingOptions & { agreementId: string, offset?: number }} options
+ * @param {SupplierFundingDeps} [deps]
+ */
 export async function listEligibleSupplierRedemptions(options, deps = {}) {
   const offset = options.offset ?? 0;
   if (!Number.isInteger(offset) || offset < 0 || offset > 100000)
@@ -259,6 +325,10 @@ export async function listEligibleSupplierRedemptions(options, deps = {}) {
     };
   });
 }
+/**
+ * @param {SupplierFundingOptions & { agreementId: string, redemptionId: unknown, requestId: unknown }} options
+ * @param {SupplierFundingDeps} [deps]
+ */
 export async function createSupplierClaim(options, deps = {}) {
   const { businessId, agreementId } = options,
     redemptionId = requestIdentity(options.redemptionId),
@@ -348,6 +418,18 @@ export async function createSupplierClaim(options, deps = {}) {
     return { ok: true, claim: visible(row), replay: false };
   });
 }
+/**
+ * @param {SupplierFundingOptions & {
+ *   claimId: unknown,
+ *   requestId: unknown,
+ *   version: number,
+ *   status: string,
+ *   reference?: unknown,
+ *   paid_minor?: number | null,
+ *   paid_at?: string | null
+ * }} options the transition itself is validated by validateClaimTransition
+ * @param {SupplierFundingDeps} [deps]
+ */
 export async function transitionSupplierClaim(options, deps = {}) {
   const { businessId, version } = options,
     claimId = requestIdentity(options.claimId),
@@ -423,6 +505,10 @@ export async function transitionSupplierClaim(options, deps = {}) {
     return { ok: true, claim: visible(result), replay: false };
   });
 }
+/**
+ * @param {SupplierFundingOptions & { claimId: unknown }} options
+ * @param {SupplierFundingDeps} [deps]
+ */
 export async function getSupplierClaim(options, deps = {}) {
   return tx(deps, async (client) => {
     await livePromiseMember(client, options, true);
@@ -442,6 +528,10 @@ export async function getSupplierClaim(options, deps = {}) {
     return { ok: true, claim: visible(row), events };
   });
 }
+/**
+ * @param {SupplierFundingQueryClient} client
+ * @param {string} businessId
+ */
 export async function getFundingSummary(client, businessId) {
   const rows = (
     await client.query(
@@ -462,6 +552,10 @@ export async function getFundingSummary(client, businessId) {
     available_minor: Number(r.available_minor),
   }));
 }
+/**
+ * @param {SupplierFundingOptions & { offset?: number }} options
+ * @param {SupplierFundingDeps} [deps]
+ */
 export async function getSupplierFunding(options, deps = {}) {
   const offset = options.offset ?? 0;
   if (!Number.isInteger(offset) || offset < 0 || offset > 100000)
@@ -500,6 +594,10 @@ export async function getSupplierFunding(options, deps = {}) {
     };
   });
 }
+/**
+ * @param {SupplierFundingOptions & { agreementId: string }} options
+ * @param {SupplierFundingDeps} [deps]
+ */
 export async function exportSupplierClaims(options, deps = {}) {
   return tx(deps, async (client) => {
     await livePromiseMember(client, options, true);

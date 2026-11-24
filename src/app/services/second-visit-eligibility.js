@@ -1,7 +1,7 @@
 // Shared by offer selection, customer display and first-purchase discovery.
 // Imported balances, adjustments, refund rows and reversed receipts are excluded.
 export const genuinePurchase = (
-  alias,
+  /** @type {string} */ alias,
 ) => `${alias}.source IN ('online','offline','external','order') AND (${alias}.type='PURCHASE' OR ${alias}.type IS NULL)
  AND ${alias}.status IN ('POSTED','PENDING') AND (${alias}.amount_q>0 OR ${alias}.visits>0 OR ${alias}.items>0)
  AND ${alias}.original_transaction_id IS NULL AND ${alias}.reversed_transaction_id IS NULL`;
@@ -16,6 +16,15 @@ export const secondVisitOfferEligible = `(to_jsonb(g)->'audience_snapshot'->>'au
    AND ${genuinePurchase("later_purchase")})
 ))`;
 
+/**
+ * @param {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} client
+ * @param {{
+ *   business: { id: string, program_json?: Record<string, any> | null } | null | undefined,
+ *   campaign: { business_id?: string | null, audience_snapshot?: Record<string, any> | null } | null | undefined,
+ *   customerId: string,
+ *   now?: Date
+ * }} args
+ */
 export async function secondVisitMessageAllowed(
   client,
   { business, campaign, customerId, now = new Date() },

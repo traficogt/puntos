@@ -28,10 +28,94 @@ import { protectedEarningBusiness } from "./reward-promise-service.js";
 import { isNativeWalletCode, verifyNativeWalletAward } from "./native-wallet/membership.js";
 import { errorMessage, errorStatus } from "../../utils/error-shape.js";
 
+/**
+ * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} StaffAwardQueryClient
+ * The staff session as the routes pass it (req.staff).
+ * @typedef {{ id: string, business_id: string, branch_id?: string | null, role?: string | null, impersonated_by?: string | null }} StaffAwardActor
+ * Business row from BusinessRepo.getById (repositories owner) as the award path reads it.
+ * @typedef {{
+ *   id: string,
+ *   plan?: string | null,
+ *   program_type?: string | null,
+ *   program_json?: Record<string, any> | null,
+ *   reward_promise_cycle_id?: string | null
+ * }} StaffAwardBusiness
+ * Claims of a verified customer code: a signed QR, an offline-captured QR or a native wallet membership.
+ * @typedef {{ bid: string, cid: string, jti: string, exp?: number, iat?: number, passId?: string | null }} StaffAwardDecodedToken
+ * @typedef {{ amount_q: number, visits: number, items: number }} StaffAwardRawInput
+ * @typedef {{
+ *   staff: StaffAwardActor,
+ *   customerQrToken: string,
+ *   amount_q?: number,
+ *   visits?: number,
+ *   items?: number,
+ *   source?: string,
+ *   meta?: Record<string, any>,
+ *   txId?: string | null,
+ *   offlineGrant?: string | null
+ * }} StaffAwardInput
+ * @typedef {{
+ *   customerQrToken: string,
+ *   staff: StaffAwardActor,
+ *   txId: string | null,
+ *   source: string,
+ *   meta: Record<string, any>,
+ *   offlineGrant: string | null,
+ *   nativeWallet: boolean
+ * }} StaffAwardRequest
+ * @typedef {{
+ *   pointsAwarded: number,
+ *   newBalance: number,
+ *   newPendingBalance: number,
+ *   customerId: string,
+ *   transactionId: string,
+ *   status: string,
+ *   availableAt: Date | string | null,
+ *   replay?: boolean
+ * }} StaffAwardResult
+ * @typedef {{
+ *   businessId: string,
+ *   customerId: string,
+ *   staff: StaffAwardActor,
+ *   guardCfg: Record<string, any>,
+ *   amountQ: number,
+ *   visits: number,
+ *   items: number
+ * }} StaffAwardGuardInput
+ * Everything the locked write path works from (see prepareAward).
+ * @typedef {Awaited<ReturnType<typeof prepareAward>>} StaffAwardContext
+ * Collaborators. Production wiring is `defaultDeps`; unit tests pass fakes shaped like these
+ * members, which is why the lazily loaded services are described by the methods the hooks call
+ * rather than by the full modules.
+ * @typedef {{
+ *   verifyQrToken: (token: string) => Promise<StaffAwardDecodedToken>,
+ *   verifyQrSignature?: (token: string) => Promise<StaffAwardDecodedToken>,
+ *   verifyCapturedQr?: typeof verifyCapturedQr,
+ *   verifyNativeWalletAward?: typeof verifyNativeWalletAward,
+ *   BusinessRepo: {
+ *     getById: (id: string) => Promise<StaffAwardBusiness | null | undefined>,
+ *     activeCustomerCount?: (businessId: string) => Promise<number>
+ *   },
+ *   computePoints: typeof computePoints,
+ *   computePointsWithEvidence?: typeof computePointsWithEvidence,
+ *   claimTargetedOffer?: typeof claimTargetedOffer,
+ *   protectedEarningBusiness?: typeof protectedEarningBusiness,
+ *   getPlanFeatureOverrides?: () => Promise<Record<string, any> | undefined>,
+ *   planLimits?: (plan: string) => { activeCustomers?: number },
+ *   withTransaction: <T>(fn: (client: StaffAwardQueryClient) => Promise<T>) => Promise<T>,
+ *   enqueueWebhookEvent: (businessId: string, event: string, payload: Record<string, unknown>) => Promise<unknown>
+ * } & import("./staff-award-hooks.js").StaffAwardHooksDeps} StaffAwardDeps
+ */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/**
+ * @param {StaffAwardQueryClient} client
+ * @param {string} businessId
+ * @param {string} txId
+ */
 async function lockAwardRequest(client, businessId, txId) {
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
     String(businessId),
@@ -39,6 +123,7 @@ async function lockAwardRequest(client, businessId, txId) {
   ]);
 }
 
+/** @param {{ businessId: string, staff: StaffAwardActor, action: string, meta: Record<string, unknown> }} entry */
 function logAwardGuardAction({ businessId, staff, action, meta }) {
   return AuditRepo.log({
     id: id(),
@@ -52,19 +137,30 @@ function logAwardGuardAction({ businessId, staff, action, meta }) {
   }).catch((err) => logger.warn({ err, action }, "Audit log write failed (award guard)"));
 }
 
+/**
+ * loyalty-ops-service (A–M owner) declares `businessId = null` without JSDoc, so the strict
+ * config infers `businessId?: null` although both functions take the tenant id. Typed at
+ * this boundary until that module documents its parameters.
+ * @typedef {(customerId: string, businessId?: string | null) => Promise<unknown>} StaffAwardSettlementFn
+ */
+const settlePending = /** @type {StaffAwardSettlementFn} */ (settlePendingPointsForCustomer);
+const expirePoints = /** @type {StaffAwardSettlementFn} */ (expirePointsForCustomer);
+
+/** @param {string} customerId @param {string} businessId */
 async function settleCustomerPoints(customerId, businessId) {
   if (config.NODE_ENV === "test") return;
-  await settlePendingPointsForCustomer(customerId, businessId).catch((err) => {
+  await settlePending(customerId, businessId).catch((err) => {
     logger.warn(
       { err: err?.message, customerId, businessId },
       "settlePendingPointsForCustomer failed",
     );
   });
-  await expirePointsForCustomer(customerId, businessId).catch((err) => {
+  await expirePoints(customerId, businessId).catch((err) => {
     logger.warn({ err: err?.message, customerId, businessId }, "expirePointsForCustomer failed");
   });
 }
 
+/** @param {StaffAwardGuardInput & { points: number, currency?: string }} guard */
 async function enforceAwardGuards({
   businessId,
   customerId,
@@ -122,6 +218,7 @@ async function enforceAwardGuards({
   }
 }
 
+/** @type {StaffAwardDeps} */
 const defaultDeps = {
   verifyQrToken,
   verifyQrSignature,
@@ -143,6 +240,7 @@ const defaultDeps = {
 
 // --- awardPoints phases -----------------------------------------------------
 
+/** @param {{ amount_q?: number | null, visits?: number | null, items?: number | null }} quantities */
 function normalizeAwardQuantities({ amount_q, visits, items }) {
   const normalizedVisits = Number.isFinite(Number(visits))
     ? Math.max(0, Math.floor(Number(visits)))
@@ -163,13 +261,21 @@ function normalizeAwardQuantities({ amount_q, visits, items }) {
 // Decodes the customer code (signed QR, offline-captured QR or native wallet
 // membership). When a txId is present, a failed verification falls back to a
 // receipt-only decode so an already-committed award can still be acknowledged.
+/**
+ * @param {StaffAwardDeps} typedDeps
+ * @param {StaffAwardRequest} request
+ * @returns {Promise<{ decoded: StaffAwardDecodedToken, authorizationError: unknown }>}
+ */
 async function authorizeAwardToken(
   typedDeps,
   { customerQrToken, staff, txId, source, meta, offlineGrant, nativeWallet },
 ) {
+  /** @type {StaffAwardDecodedToken} */
   let decoded;
   /** @type {unknown} */
   let authorizationError = null;
+  // txId may be null here; verifyNativeWalletAward rejects that itself (its declared
+  // input narrows txId to string, hence the casts below).
   const membershipArgs = {
     token: customerQrToken,
     staff,
@@ -180,7 +286,9 @@ async function authorizeAwardToken(
   };
   try {
     decoded = nativeWallet
-      ? await (typedDeps.verifyNativeWalletAward ?? verifyNativeWalletAward)(membershipArgs)
+      ? await (typedDeps.verifyNativeWalletAward ?? verifyNativeWalletAward)(
+          /** @type {Parameters<typeof verifyNativeWalletAward>[0]} */ (membershipArgs),
+        )
       : source === "offline" && offlineGrant
         ? await (typedDeps.verifyCapturedQr ?? verifyCapturedQr)({
             token: customerQrToken,
@@ -199,10 +307,12 @@ async function authorizeAwardToken(
     if (!txId) throw authorizationError;
     try {
       decoded = nativeWallet
-        ? await (typedDeps.verifyNativeWalletAward ?? verifyNativeWalletAward)({
-            ...membershipArgs,
-            allowRevoked: true,
-          })
+        ? await (typedDeps.verifyNativeWalletAward ?? verifyNativeWalletAward)(
+            /** @type {Parameters<typeof verifyNativeWalletAward>[0]} */ ({
+              ...membershipArgs,
+              allowRevoked: true,
+            }),
+          )
         : await (typedDeps.verifyQrSignature ?? verifyQrSignature)(customerQrToken);
     } catch {
       throw authorizationError;
@@ -211,6 +321,17 @@ async function authorizeAwardToken(
   return { decoded, authorizationError };
 }
 
+/**
+ * @param {{
+ *   bid: string,
+ *   cid: string,
+ *   staff: StaffAwardActor,
+ *   jti: string,
+ *   normalizedAmountQ: number,
+ *   normalizedVisits: number,
+ *   normalizedItems: number
+ * }} request
+ */
 function awardRequestFingerprint({
   bid,
   cid,
@@ -238,6 +359,11 @@ function awardRequestFingerprint({
 
 // Replay lookup for an acknowledged txId. Shared by the pre-authorization probe
 // and the locked write path; a mismatching replay is a conflict.
+/**
+ * @param {StaffAwardQueryClient} client
+ * @param {ReturnType<typeof awardReplayContext>} replay
+ * @returns {Promise<StaffAwardResult | null>}
+ */
 async function findExistingAward(client, replay) {
   const { txId, bid, cid, staff, purchaseTime, nativeWallet, requestFingerprint } = replay;
   const found = await client.query(
@@ -274,6 +400,12 @@ async function findExistingAward(client, replay) {
   };
 }
 
+/**
+ * @param {StaffAwardDeps} typedDeps
+ * @param {StaffAwardBusiness} business
+ * @param {StaffAwardRawInput} rawInput
+ * @param {string} limitMessage
+ */
 function evaluateAwardPoints(typedDeps, business, rawInput, limitMessage) {
   const evaluated =
     typeof typedDeps.computePointsWithEvidence === "function"
@@ -284,7 +416,13 @@ function evaluateAwardPoints(typedDeps, business, rawInput, limitMessage) {
   return { evaluated, points };
 }
 
+/**
+ * @param {Record<string, any>} guardCfg program_json.award_guard
+ * @param {number} points
+ * @param {number} normalizedAmountQ
+ */
 function suspiciousAwardReasons(guardCfg, points, normalizedAmountQ) {
+  /** @type {string[]} */
   const suspiciousReasons = [];
   const suspiciousPointsThreshold = Number(guardCfg.suspicious_points_threshold ?? 0);
   const suspiciousAmountThreshold = Number(guardCfg.suspicious_amount_q_threshold ?? 0);
@@ -295,6 +433,7 @@ function suspiciousAwardReasons(guardCfg, points, normalizedAmountQ) {
   return suspiciousReasons;
 }
 
+/** @param {string[]} suspiciousReasons @param {number} points @param {number} normalizedAmountQ */
 function suspiciousGuardMeta(suspiciousReasons, points, normalizedAmountQ) {
   return {
     suspicious: true,
@@ -305,6 +444,15 @@ function suspiciousGuardMeta(suspiciousReasons, points, normalizedAmountQ) {
   };
 }
 
+/**
+ * @param {{
+ *   meta: Record<string, any>,
+ *   requestFingerprint: string,
+ *   suspiciousReasons: string[],
+ *   points: number,
+ *   normalizedAmountQ: number
+ * }} award
+ */
 function initialAwardMeta({
   meta,
   requestFingerprint,
@@ -323,6 +471,7 @@ function initialAwardMeta({
   );
 }
 
+/** @param {StaffAwardBusiness} business */
 function awardHoldTerms(business) {
   const holdDays = Math.max(
     0,
@@ -333,6 +482,7 @@ function awardHoldTerms(business) {
   return { holdDays, awardStatus, availableAt };
 }
 
+/** @param {StaffAwardDeps} typedDeps @param {StaffAwardBusiness} business */
 async function awardPlanFeatureOverrides(typedDeps, business) {
   return business.program_json?.targeted_offers_enabled === true &&
     typeof typedDeps.getPlanFeatureOverrides === "function"
@@ -342,9 +492,16 @@ async function awardPlanFeatureOverrides(typedDeps, business) {
 
 // Re-reads the business under the earning lock and recomputes points/guards
 // against the protected (reward-promise cycle) terms.
+/**
+ * Only called when the deps provide protectedEarningBusiness (see commitStaffAward).
+ * @param {StaffAwardQueryClient} client
+ * @param {StaffAwardContext} award
+ */
 async function protectAwardBusiness(client, award) {
   const { typedDeps, decoded, rawInput, normalizedAmountQ, guardInput, metaForInsert } = award;
-  const business = await typedDeps.protectedEarningBusiness(client, {
+  const business = await /** @type {NonNullable<StaffAwardDeps["protectedEarningBusiness"]>} */ (
+    typedDeps.protectedEarningBusiness
+  )(client, {
     business: award.business,
     customerId: decoded.cid,
   });
@@ -361,6 +518,10 @@ async function protectAwardBusiness(client, award) {
   return { business, evaluated, points };
 }
 
+/**
+ * @param {StaffAwardQueryClient} client
+ * @param {{ decoded: StaffAwardDecodedToken, staff: StaffAwardActor }} token
+ */
 async function insertQrTokenOnce(client, { decoded, staff }) {
   const { bid, cid, jti, exp } = decoded;
   const insQr = await client.query(
@@ -385,6 +546,12 @@ async function insertQrTokenOnce(client, { decoded, staff }) {
   }
 }
 
+/**
+ * @param {StaffAwardQueryClient} client
+ * @param {StaffAwardContext} award
+ * @param {StaffAwardBusiness} business
+ * @param {number} points
+ */
 async function applyTargetedOfferBonus(client, award, business, points) {
   const { typedDeps, decoded, source, transactionId, planFeatureOverrides } = award;
   const { guardCfg, guardInput, suspiciousReasons, metaForInsert, normalizedAmountQ } = award;
@@ -430,6 +597,11 @@ async function applyTargetedOfferBonus(client, award, business, points) {
   return { bonus, awardedPoints };
 }
 
+/**
+ * @param {StaffAwardQueryClient} client
+ * @param {StaffAwardContext} award
+ * @param {number} awardedPoints
+ */
 async function insertAwardTransaction(client, award, awardedPoints) {
   const { staff, decoded, source, transactionId, awardStatus, availableAt, metaForInsert } = award;
   await client.query(
@@ -455,6 +627,10 @@ async function insertAwardTransaction(client, award, awardedPoints) {
   );
 }
 
+/**
+ * @param {StaffAwardQueryClient} client
+ * @param {{ cid: string, awardedPoints: number, awardStatus: string }} credit
+ */
 async function creditAwardBalance(client, { cid, awardedPoints, awardStatus }) {
   const balUpd = await client.query(
     `UPDATE customer_balances
@@ -470,6 +646,10 @@ async function creditAwardBalance(client, { cid, awardedPoints, awardStatus }) {
   return balUpd;
 }
 
+/**
+ * @param {StaffAwardQueryClient} client
+ * @param {{ passId: string | null | undefined, bid: string, cid: string }} membership
+ */
 async function assertNativeWalletMembership(client, { passId, bid, cid }) {
   // Balance triggers lock passes too. Follow their balance-then-pass order
   // to avoid a lock upgrade deadlock between concurrent purchases. A revoked
@@ -484,6 +664,11 @@ async function assertNativeWalletMembership(client, { passId, bid, cid }) {
     throw forbidden("La membresía fue revocada o ya no está disponible.");
 }
 
+/**
+ * @param {StaffAwardQueryClient} client
+ * @param {StaffAwardContext} award
+ * @param {StaffAwardBusiness} business
+ */
 async function accrueAwardCashback(client, award, business) {
   const { decoded, staff, normalizedAmountQ, transactionId, awardStatus } = award;
   if (business.program_type === "CASHBACK" && awardStatus === "POSTED") {
@@ -505,6 +690,11 @@ async function accrueAwardCashback(client, award, business) {
 
 // The locked write path: replay check, customer/QR/membership checks, ledger
 // insert and balance credit in one transaction.
+/**
+ * @param {StaffAwardQueryClient} client
+ * @param {StaffAwardContext} award
+ * @returns {Promise<StaffAwardResult>}
+ */
 async function commitStaffAward(client, award) {
   const { typedDeps, staff, decoded, source, meta, txId, transactionId } = award;
   const { awardStatus, availableAt } = award;
@@ -560,6 +750,7 @@ async function commitStaffAward(client, award) {
 }
 
 // Post-commit side effects for a newly created award (never for replays).
+/** @param {StaffAwardContext} award @param {StaffAwardResult} result */
 async function publishAwardOutcome(award, result) {
   const { typedDeps, staff, decoded, suspiciousReasons, normalizedAmountQ } = award;
   const { bid, cid } = decoded;
@@ -614,6 +805,16 @@ async function publishAwardOutcome(award, result) {
 }
 
 // Everything findExistingAward needs to recognise (or reject) a replayed txId.
+/**
+ * @param {{
+ *   staff: StaffAwardActor,
+ *   txId: string | null,
+ *   decoded: StaffAwardDecodedToken,
+ *   purchaseTime: ReturnType<typeof purchaseEventTime>,
+ *   nativeWallet: boolean,
+ *   quantities: ReturnType<typeof normalizeAwardQuantities>
+ * }} context
+ */
 function awardReplayContext({ staff, txId, decoded, purchaseTime, nativeWallet, quantities }) {
   const { bid, cid, jti } = decoded;
   return {
@@ -630,6 +831,16 @@ function awardReplayContext({ staff, txId, decoded, purchaseTime, nativeWallet, 
 
 // Computes points, guards, suspicious flags, hold terms and the insert meta for
 // a new award and returns the context the locked write path works from.
+/**
+ * @param {StaffAwardDeps} typedDeps
+ * @param {StaffAwardBusiness} business
+ * @param {StaffAwardRequest & ReturnType<typeof normalizeAwardQuantities> & {
+ *   decoded: StaffAwardDecodedToken,
+ *   purchaseTime: ReturnType<typeof purchaseEventTime>,
+ *   replay: ReturnType<typeof awardReplayContext>,
+ *   rawInput: StaffAwardRawInput
+ * }} ctx
+ */
 async function prepareAward(typedDeps, business, ctx) {
   const { decoded, staff, meta, txId, rawInput, replay } = ctx;
   const { normalizedAmountQ, normalizedVisits, normalizedItems } = ctx;
@@ -679,18 +890,8 @@ async function prepareAward(typedDeps, business, ctx) {
 }
 
 /**
- * @param deps
- * @param {{
- *   staff: any,
- *   customerQrToken: string,
- *   amount_q?: number,
- *   visits?: number,
- *   items?: number,
- *   source?: string,
- *   meta?: Record<string, any>,
- *   txId?: string | null,
- *   offlineGrant?: string | null
- * }} input
+ * @param {StaffAwardDeps} deps
+ * @param {StaffAwardInput} input
  */
 export async function awardPointsWithDeps(
   deps,
@@ -766,6 +967,7 @@ export async function awardPointsWithDeps(
   return result;
 }
 
+/** @param {StaffAwardInput} args */
 export async function awardPoints(args) {
   return awardPointsWithDeps(defaultDeps, args);
 }

@@ -17,6 +17,53 @@ import { isApplePushToken } from "./apple-push-token.js";
  * @property {string} appOrigin
  */
 
+/**
+ * Engagement block built by ./engagement.js (reward progress, terms and relevant
+ * locations); the pass renders only the fields present.
+ * @typedef {{
+ *   reward?: { name: string, status: string, remaining_points: number } | null,
+ *   progress?: string | null,
+ *   earning?: string | null,
+ *   conditions?: string | null,
+ *   usage?: string | null,
+ *   locations?: Array<{ latitude: number | null | undefined, longitude: number | null | undefined, name?: string | null }> | null
+ * }} AppleEngagement
+ */
+
+/**
+ * Pass snapshot as produced by NativeWalletRepo.getSnapshot (repositories owner).
+ * Fields that end up on the pass are validated here, so untrusted ones are `unknown`.
+ * @typedef {{
+ *   id?: string,
+ *   serial_number?: unknown,
+ *   authentication_token?: unknown,
+ *   barcode?: unknown,
+ *   revoked_at?: string | Date | null,
+ *   is_voided?: boolean | null,
+ *   wallet_engagement?: AppleEngagement | null,
+ *   wallet_message?: { text?: string | null } | null,
+ *   points?: number | string | null,
+ *   pending_points?: number | string | null,
+ *   business_name?: string | null,
+ *   business_slug?: string | null,
+ *   customer_name?: string | null,
+ *   revision?: string | number | null,
+ *   [column: string]: unknown
+ * }} AppleSnapshot
+ */
+
+/** @typedef {Awaited<ReturnType<typeof credentialsFor>>} AppleCredentials */
+
+/**
+ * One APNs HTTP/2 session reused across pushes while its credentials match.
+ * @typedef {{
+ *   session: import("node:http2").ClientHttp2Session,
+ *   certificates: AppleCredentials,
+ *   pending: Set<(error: boolean) => void>,
+ *   closed: boolean
+ * }} AppleConnection
+ */
+
 const configurationError = () =>
   Object.assign(new Error("Apple Wallet signing is not configured correctly."), {
     code: "APPLE_WALLET_CONFIGURATION_INVALID",
@@ -30,6 +77,7 @@ const pushError = () =>
     code: "APPLE_WALLET_PUSH_FAILED",
   });
 
+/** @param {string} value */
 function httpsUrl(value) {
   const url = new URL(value);
   if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash)
@@ -91,6 +139,11 @@ async function credentialsFor(config) {
   }
 }
 
+/**
+ * @param {string} appOrigin
+ * @param {unknown} publicSlug
+ * @param {string} destination
+ */
 function actionDestination(appOrigin, publicSlug, destination) {
   // This is public business context, never a customer/pass authentication token.
   const hasSlug =
@@ -104,6 +157,10 @@ function actionDestination(appOrigin, publicSlug, destination) {
   return url.href;
 }
 
+/**
+ * @param {AppleConfig} config
+ * @param {AppleSnapshot} snapshot
+ */
 function passProperties(config, snapshot) {
   if (
     typeof snapshot.serial_number !== "string" ||
@@ -245,8 +302,10 @@ function passProperties(config, snapshot) {
  * @param {{connect?: typeof http2Connect, timeoutMs?: number}} [dependencies]
  */
 export function createAppleProvider(config, { connect = http2Connect, timeoutMs = 10000 } = {}) {
+  /** @type {AppleConnection | undefined} */
   let connection;
 
+  /** @param {AppleConnection | undefined} [active] */
   function closeConnection(active = connection) {
     if (!active || active.closed) return;
     active.closed = true;
@@ -255,6 +314,7 @@ export function createAppleProvider(config, { connect = http2Connect, timeoutMs 
     active.session.destroy();
   }
 
+  /** @param {AppleCredentials} certificates */
   function connectionFor(certificates) {
     if (
       connection &&
@@ -274,6 +334,7 @@ export function createAppleProvider(config, { connect = http2Connect, timeoutMs 
       minVersion: "TLSv1.2",
       rejectUnauthorized: true,
     });
+    /** @type {AppleConnection} */
     const active = { session, certificates, pending: new Set(), closed: false };
     connection = active;
     session.on("error", () => closeConnection(active));
@@ -287,6 +348,7 @@ export function createAppleProvider(config, { connect = http2Connect, timeoutMs 
       closeConnection();
     },
 
+    /** @param {AppleSnapshot} snapshot */
     async generatePass(snapshot) {
       const certificates = await credentialsFor(config);
       try {
@@ -314,6 +376,10 @@ export function createAppleProvider(config, { connect = http2Connect, timeoutMs 
       }
     },
 
+    /**
+     * @param {unknown} pushToken stored device token; malformed values are reported invalid
+     * @returns {Promise<{ invalidToken: boolean }>}
+     */
     async pushUpdate(pushToken) {
       // Old registrations may predate ingress validation. Remove those through
       // the same path as an APNs-invalid token instead of retrying them forever.
@@ -322,10 +388,17 @@ export function createAppleProvider(config, { connect = http2Connect, timeoutMs 
       const certificates = await credentialsFor(config);
       return new Promise((resolve, reject) => {
         let finished = false;
+        /** @type {AppleConnection | undefined} */
         let active;
+        /** @type {import("node:http2").ClientHttp2Stream | undefined} */
         let request;
+        /** @type {number | undefined} */
         let status;
         let response = "";
+        /**
+         * @param {boolean} error
+         * @param {boolean} [invalidToken]
+         */
         const finish = (error, invalidToken = false) => {
           if (finished) return;
           finished = true;
@@ -337,7 +410,9 @@ export function createAppleProvider(config, { connect = http2Connect, timeoutMs 
             reject(pushError());
           } else {
             // Keep APNs connections reusable without keeping an idle worker alive.
-            if (!active.pending.size) active.session.unref?.();
+            // A successful response implies connectionFor() assigned `active`.
+            if (!(/** @type {AppleConnection} */ (active).pending.size))
+              /** @type {AppleConnection} */ (active).session.unref?.();
             resolve({ invalidToken });
           }
         };

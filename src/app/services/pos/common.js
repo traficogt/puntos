@@ -7,6 +7,28 @@ import { isLedgerAmount, isLedgerInteger } from "../../../utils/ledger-limits.js
 import { toMinor, toNumber } from "../../../utils/money.js";
 import { normalizePurchaseOccurredAt } from "../purchase-event-time.js";
 
+/**
+ * Business fields this module reads; the row belongs to the repositories owner.
+ * @typedef {{ program_json?: Record<string, any> | null }} PosCommonBusiness
+ *
+ * A validated sale: the shape every POS adapter (API, CSV, Loyverse) hands to the importer.
+ * @typedef {{
+ *   saleId: string,
+ *   source: string,
+ *   customerPhone: string,
+ *   amountQ: number,
+ *   currency: string,
+ *   visits: number,
+ *   items: number,
+ *   occurredAt?: string
+ * }} PosCommonSale
+ */
+
+/**
+ * @param {Record<string, any> | null | undefined} input untrusted sale body, or an already normalized sale
+ * @param {PosCommonBusiness} [business]
+ * @returns {PosCommonSale}
+ */
 export function normalizePosSale(input, business = {}) {
   if (!input || typeof input !== "object") throw badRequest("La venta debe ser un objeto JSON.");
   const saleId = input.saleId;
@@ -50,6 +72,7 @@ export function normalizePosSale(input, business = {}) {
   };
 }
 
+/** @param {{ source: string, saleId: string, [field: string]: unknown }} sale any sale-like object; only source and saleId are hashed */
 export function posEventId(sale) {
   return `pos:${crypto
     .createHash("sha256")
@@ -109,6 +132,25 @@ export function verifyPosCredentials(
     throw forbidden("La conexión POS está desactivada.");
 }
 
+/**
+ * Owner-facing view of the connection: never exposes the API key or the Loyverse token.
+ * @param {PosCommonBusiness} business
+ * @returns {{
+ *   region: import("../regional-settings.js").RegionalSettings,
+ *   enabled: boolean,
+ *   mode: string,
+ *   automatic: boolean,
+ *   has_api_key: boolean,
+ *   api_key_masked: string | null,
+ *   loyverse: {
+ *     configured: boolean,
+ *     merchant_id: string | null,
+ *     merchant_name: string | null,
+ *     store_id: string | null
+ *   },
+ *   last_sync: Record<string, unknown> | null
+ * }}
+ */
 export function safePosIntegration(business) {
   const program = business.program_json ?? {};
   const cfg = program.pos_integration ?? {};

@@ -13,6 +13,32 @@ import { genuinePurchase } from "./second-visit-eligibility.js";
 import { reportingPurchase } from "./reporting-purchase.js";
 import { logger } from "../../utils/logger.js";
 
+/**
+ * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} SecondVisitQueryClient
+ * @typedef {<T>(fn: (client: SecondVisitQueryClient) => Promise<T>) => Promise<T>} SecondVisitTransaction
+ * Collaborators; production wiring is `dependencies`, tests may inject partial fakes.
+ * @typedef {{
+ *   query: SecondVisitQueryClient["query"],
+ *   transaction: SecondVisitTransaction,
+ *   audit: (entry: {
+ *     id: string,
+ *     business_id: string,
+ *     actor_type: string,
+ *     actor_id: string | null,
+ *     action: string,
+ *     ip: string | null,
+ *     ua: string | null,
+ *     meta: Record<string, unknown>
+ *   }) => Promise<void>,
+ *   getPlanFeatureOverrides: () => Promise<Record<string, any> | undefined>,
+ *   runInTenant: <T>(businessId: string, fn: () => Promise<T>) => Promise<T>
+ * }} SecondVisitDeps
+ * A businesses row (schema owner) as this automation reads it; program_json is NOT NULL.
+ * @typedef {{ id: string, plan?: string | null, program_type?: string | null, program_json: Record<string, any> }} SecondVisitBusinessRow
+ * The earning terms a recommendation needs; a full row also satisfies it.
+ * @typedef {{ id?: string, plan?: string | null, program_type?: string | null, program_json?: Record<string, any> | null }} SecondVisitBusiness
+ */
+
 export const SecondVisitSettings = z
   .object({
     enabled: z.boolean(),
@@ -32,21 +58,25 @@ const defaults = {
   monthly_points_cap: 0,
   monthly_offer_cap: 0,
 };
+/** @param {unknown} [raw] stored settings JSON; anything invalid falls back to the defaults */
 export function secondVisitSettings(raw = {}) {
   const parsed = SecondVisitSettings.safeParse(raw);
   return parsed.success ? parsed.data : { ...defaults };
 }
 // SPEND has no fixed purchase unit; preserve its existing bonus-only activation bound.
+/** @param {SecondVisitBusiness} business */
 const minimumUnitPoints = (business) =>
   business.program_type === "VISIT"
     ? Math.max(0, Number(business.program_json?.points_per_visit ?? 10))
     : business.program_type === "ITEM"
       ? Math.max(0, Number(business.program_json?.points_per_item ?? 1))
       : 0;
+/** @param {SecondVisitBusiness} b @param {Record<string, any> | undefined} overrides */
 const entitled = (b, overrides) =>
   ["lifecycle_automation", "campaign_rules", "analytics"].every((feature) =>
     hasPlanFeature(b.plan, feature, overrides),
   );
+/** @type {SecondVisitDeps} */
 const dependencies = {
   query: dbQuery,
   transaction: withTransaction,
@@ -54,6 +84,12 @@ const dependencies = {
   getPlanFeatureOverrides: () => PlanConfigService.getPlanFeatureOverrides(),
   runInTenant: (id, fn) => withDbClientContext({ tenantId: id, platformAdmin: false }, fn),
 };
+/**
+ * @param {SecondVisitQueryClient} client
+ * @param {string} businessId
+ * @param {boolean} [lock]
+ * @returns {Promise<SecondVisitBusinessRow>}
+ */
 async function businessRow(client, businessId, lock = false) {
   const row = (
     await client.query(`SELECT * FROM businesses WHERE id=$1 ${lock ? "FOR NO KEY UPDATE" : ""}`, [
@@ -63,6 +99,18 @@ async function businessRow(client, businessId, lock = false) {
   if (!row) throw notFound("No se encontró el negocio.");
   return row;
 }
+/**
+ * @param {{
+ *   businessId: string,
+ *   staffId: string | null,
+ *   settings: unknown,
+ *   now?: Date,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null
+ * }} options the acting staff session fields travel with the request
+ * @param {Partial<SecondVisitDeps>} [injected]
+ */
 export async function saveSecondVisitSettings(options, injected = {}) {
   const { transaction, audit, getPlanFeatureOverrides } = { ...dependencies, ...injected },
     parsed = SecondVisitSettings.safeParse(options.settings);
@@ -117,10 +165,19 @@ export async function saveSecondVisitSettings(options, injected = {}) {
     return { ok: true, settings: parsed.data };
   });
 }
+/**
+ * @param {SecondVisitBusiness} business
+ * @param {Array<{ id?: string, name?: string, points_cost: number | string }>} [rewards]
+ * @param {number | string | null} [costPerPoint] cost_per_point_q (NUMERIC from pg) or a number
+ */
 export function recommendSecondVisit(business, rewards = [], costPerPoint = null) {
   const type = business.program_type,
     config = business.program_json ?? {},
-    key = { SPEND: "points_per_q", VISIT: "points_per_visit", ITEM: "points_per_item" }[type];
+    key = /** @type {Record<string, string | undefined>} */ ({
+      SPEND: "points_per_q",
+      VISIT: "points_per_visit",
+      ITEM: "points_per_item",
+    })[/** @type {string} */ (type)];
   const rate = Number(key ? config[key] : NaN),
     reward = rewards
       .filter((r) => Number(r.points_cost) > 0)
@@ -176,6 +233,7 @@ export function recommendSecondVisit(business, rewards = [], costPerPoint = null
     estimated_cost: known ? toNumber(mul(toMinor(maximum), cost)) : null,
   };
 }
+/** @param {{ businessId: string, now?: Date }} args @param {Partial<SecondVisitDeps>} [injected] */
 export async function getSecondVisitControls({ businessId, now = new Date() }, injected = {}) {
   const { query, getPlanFeatureOverrides } = { ...dependencies, ...injected },
     business = await businessRow({ query }, businessId),
@@ -234,6 +292,10 @@ export async function getSecondVisitControls({ businessId, now = new Date() }, i
     note: "Primera compra registrada y contabilizada desde la activación. Los saldos importados no son visitas. El retorno incluye compras registradas pendientes; no demuestra ventas adicionales y las ventanas abiertas aún pueden cambiar.",
   };
 }
+/**
+ * @param {{ businessId: string, now?: Date, limit?: number }} args
+ * @param {Partial<SecondVisitDeps>} [injected]
+ */
 export async function runSecondVisitBusiness(
   { businessId, now = new Date(), limit = 200 },
   injected = {},
@@ -356,6 +418,10 @@ export async function runSecondVisitBusiness(
     return { offers, queued, points_reserved: offers * cfg.bonus_points };
   });
 }
+/**
+ * @param {{ businessId?: string | null, now?: Date }} [args]
+ * @param {Partial<SecondVisitDeps>} [injected]
+ */
 export async function runSecondVisitAutomationsOnce(
   { businessId = null, now = new Date() } = {},
   injected = {},

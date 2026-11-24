@@ -9,7 +9,22 @@ const REQUIRED_COLUMNS = ["saleId", "customerPhone", "amountQ"];
 const COLUMN_NAMES = [...REQUIRED_COLUMNS, "status", "items", "occurredAt"];
 
 /** @typedef {{row: number, values: string[]}} CsvRow */
+/** @typedef {{ bytes?: number, rows?: number }} PosCsvLimits */
+/**
+ * One rejected or ignored CSV record, keyed by its physical line.
+ * @typedef {{
+ *   row: number,
+ *   saleId: string,
+ *   source: string,
+ *   occurredAt?: string,
+ *   code: string,
+ *   message: string,
+ *   status: string
+ * }} PosCsvIssue
+ */
+/** @typedef {import("./common.js").PosCommonSale & { row: number }} PosCsvSale */
 
+/** @param {string} csv */
 function detectDelimiter(csv) {
   let quoted = false;
   let commas = 0;
@@ -34,7 +49,10 @@ function detectDelimiter(csv) {
   return semicolons ? ";" : ",";
 }
 
-/** @param {unknown} input */
+/**
+ * @param {unknown} input
+ * @param {PosCsvLimits} [limits]
+ */
 function parseDocument(input, limits = {}) {
   const maxBytes = Math.min(750 * 1024, limits.bytes ?? MAX_BYTES);
   const maxRows = Math.min(5000, limits.rows ?? MAX_ROWS);
@@ -45,6 +63,7 @@ function parseDocument(input, limits = {}) {
   const delimiter = detectDelimiter(csv);
   /** @type {CsvRow[]} */
   const records = [];
+  /** @type {string[]} */
   let fields = [];
   let field = "";
   let state = "bare";
@@ -125,12 +144,17 @@ function parseDocument(input, limits = {}) {
  * including header/blank lines; rows.length counts data records, not quoted newlines.
  * Structural errors reject the whole document so no trailing data can be lost.
  * @param {unknown} csv
+ * @param {PosCsvLimits} [limits]
  */
 export function parsePosCsv(csv, limits = {}) {
   const { headers, rows } = parseDocument(csv, limits);
   return { headers, rows };
 }
 
+/**
+ * @param {string[]} headers
+ * @param {unknown} columns owner-selected header per target field
+ */
 function mapColumns(headers, columns) {
   if (!columns || typeof columns !== "object" || Array.isArray(columns))
     throw badRequest("Selecciona las columnas del CSV.");
@@ -152,6 +176,12 @@ function mapColumns(headers, columns) {
   return mapping;
 }
 
+/**
+ * @param {string} value
+ * @param {string} amountUnit "major" or "minor"
+ * @param {string} delimiter
+ * @param {number} [minorUnits]
+ */
 function parseAmount(value, amountUnit, delimiter, minorUnits = 2) {
   const input = value.trim();
   const pattern =
@@ -172,6 +202,7 @@ function parseAmount(value, amountUnit, delimiter, minorUnits = 2) {
  * An omitted mapping inspects headers. A supplied mapping must be complete.
  * This pure normalizer never looks up or enrolls customers and never awards points.
  * @param {{csv: unknown, source?: unknown, columns?: unknown, amountUnit?: unknown, assumePaid?: unknown}} args
+ * @param {{ currency: string, country: string, minorUnits: number }} [region]
  */
 export function normalizePosCsv(
   { csv, source, columns, amountUnit = "major", assumePaid = false },
@@ -195,10 +226,17 @@ export function normalizePosCsv(
     const saleId = values[mapping.saleId].trim();
     counts.set(saleId, (counts.get(saleId) || 0) + 1);
   }
+  /** @type {PosCsvSale[]} */
   const sales = [];
+  /** @type {PosCsvIssue[]} */
   const issues = [];
   for (const { row, values } of rows) {
     const saleId = values[mapping.saleId].trim();
+    /**
+     * @param {string} code
+     * @param {string} message
+     * @param {string} [status]
+     */
     const issue = (code, message, status = "error") =>
       issues.push({
         row,

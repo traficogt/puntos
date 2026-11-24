@@ -134,7 +134,14 @@ for (const writer of ["staff", "external"])
         amount_q: 10,
         meta: { award_evidence: { forged: true }, client_ts: "2001-01-01T00:00:00Z" },
       };
-      const award = writer === "external" ? awardFromExternalEventWithDeps : awardPointsWithDeps;
+      // One partial fixture stands in for both writers' deps, so the call is not checked
+      // against either deps contract.
+      const award =
+        /** @type {(deps: unknown, args: unknown) => Promise<{ pointsAwarded: number, replay?: boolean }>} */ (
+          /** @type {unknown} */ (
+            writer === "external" ? awardFromExternalEventWithDeps : awardPointsWithDeps
+          )
+        );
       const result = await award(deps, args);
       assert.equal(result.pointsAwarded, 10);
       assert.equal(

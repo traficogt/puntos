@@ -9,6 +9,53 @@ import { posEventId } from "./pos/common.js";
 import { refundAwardTransactionWithClient } from "./loyalty-ops-service.js";
 import { errorMessage, errorStatus } from "../../utils/error-shape.js";
 
+/**
+ * pg client handed to a withTransaction callback (pg ships no types; this mirrors QueryResult<any>).
+ * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} PosRefundQueryClient
+ *
+ * A pos_refund_receipts row (2026-11-10-pos-refunds.sql). amount_q is NUMERIC, so pg hands back a string.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   source: string,
+ *   refund_id: string,
+ *   original_sale_id: string,
+ *   amount_q: string,
+ *   currency: string,
+ *   origin: string,
+ *   scope: string,
+ *   fingerprint: string,
+ *   native_evidence_hash: string | null,
+ *   status: string,
+ *   reason: string,
+ *   original_transaction_id: string | null,
+ *   reversal_transaction_id: string | null,
+ *   attempts: number,
+ *   created_at: Date | string,
+ *   updated_at: Date | string,
+ *   last_attempt_at: Date | string | null,
+ *   reconciled_at: Date | string | null
+ * }} PosRefundReceiptRow
+ *
+ * @typedef {Omit<PosRefundReceiptRow, "fingerprint" | "native_evidence_hash" | "business_id" | "amount_q"> & { amount_q: number, message: string }} PosRefundPublicReceipt
+ *
+ * The original `transactions` row fields reconciliation compares (the ledger row belongs to the repositories owner).
+ * @typedef {{
+ *   id: string,
+ *   customer_id: string,
+ *   amount_q: string,
+ *   type: string,
+ *   status: string,
+ *   original_transaction_id: string | null,
+ *   reversed_transaction_id: string | null,
+ *   expired_at: Date | string | null,
+ *   meta: Record<string, any> | null
+ * }} PosRefundTransactionRow
+ *
+ * Business fields this module reads (row belongs to the repositories owner).
+ * @typedef {{ id: string, program_json?: Record<string, any> | null }} PosRefundBusiness
+ */
+
 const receiptId = z
   .string()
   .trim()
@@ -34,6 +81,10 @@ const RefundSchema = z
   .strict()
   .refine((value) => value.refundId !== value.originalSaleId);
 
+/**
+ * @param {unknown} input refund body as the adapter sent it
+ * @param {{ program_json?: Record<string, any> | null }} [business]
+ */
 export function normalizePosRefund(input, business = {}) {
   const parsed = RefundSchema.safeParse(input);
   if (!parsed.success)
@@ -44,6 +95,10 @@ export function normalizePosRefund(input, business = {}) {
   return parsed.data;
 }
 
+/**
+ * @param {unknown} input
+ * @param {{ program_json?: Record<string, any> | null }} [business]
+ */
 export function posRefundFingerprint(input, business = {}) {
   const value = normalizePosRefund(input, business);
   return crypto
@@ -87,6 +142,17 @@ const messages = {
     "No se completó el ajuste. El recibo sigue guardado; vuelve a intentar. Si persiste, solicita revisión del historial.",
 };
 
+/**
+ * @overload
+ * @param {PosRefundReceiptRow} row
+ * @returns {PosRefundPublicReceipt}
+ */
+/**
+ * @overload
+ * @param {PosRefundReceiptRow | null | undefined} row
+ * @returns {PosRefundPublicReceipt | null}
+ */
+/** @param {PosRefundReceiptRow | null | undefined} row */
 function publicReceipt(row) {
   if (!row) return null;
   const {
@@ -98,17 +164,23 @@ function publicReceipt(row) {
   return {
     ...result,
     amount_q: Number(row.amount_q),
-    message: messages[row.reason] ?? messages.retryable_error,
+    message:
+      messages[/** @type {keyof typeof messages} */ (row.reason)] ?? messages.retryable_error,
   };
 }
 
 // Commit acceptance independently so failures cannot discard an upstream refund.
+/**
+ * @param {string} businessId
+ * @param {unknown} input refund body as the adapter sent it; normalizePosRefund validates it
+ * @param {{ origin?: string, nativeEvidence?: string | null }} [options]
+ */
 export async function enqueuePosRefund(
   businessId,
   input,
   { origin = "api", nativeEvidence = null } = {},
 ) {
-  return withTransaction(async (client) => {
+  return withTransaction(async (/** @type {PosRefundQueryClient} */ client) => {
     const business = (
       await client.query("SELECT program_json FROM businesses WHERE id=$1 FOR SHARE", [businessId])
     ).rows[0];
@@ -154,6 +226,7 @@ export async function enqueuePosRefund(
         origin === "loyverse" ? nativeEvidence : null,
       ],
     );
+    /** @type {PosRefundReceiptRow | undefined} */
     let row =
       inserted.rows[0] ??
       (
@@ -167,12 +240,14 @@ export async function enqueuePosRefund(
         "Este ID de devolución ya se recibió con otros datos. Conserva el recibo original y revisa el envío de la caja.",
       );
     if (origin === "loyverse" && row.status === "pending" && row.scope !== data.scope) {
-      row = (
-        await client.query(
-          "UPDATE pos_refund_receipts SET scope=$3,reason='awaiting_reconciliation',updated_at=now() WHERE business_id=$1 AND id=$2 RETURNING *",
-          [businessId, row.id, data.scope],
-        )
-      ).rows[0];
+      row = /** @type {PosRefundReceiptRow} */ (
+        (
+          await client.query(
+            "UPDATE pos_refund_receipts SET scope=$3,reason='awaiting_reconciliation',updated_at=now() WHERE business_id=$1 AND id=$2 RETURNING *",
+            [businessId, row.id, data.scope],
+          )
+        ).rows[0]
+      );
     }
     return { ok: true, refund: publicReceipt(row), replay: !inserted.rows.length };
   });
@@ -190,11 +265,12 @@ export async function reconcilePosRefund(
 ) {
   if (!z.guid().safeParse(refundId).success)
     throw badRequest("Identificador de conciliación inválido.");
-  return withTransaction(async (client) => {
+  return withTransaction(async (/** @type {PosRefundQueryClient} */ client) => {
     const queued = await client.query(
       "SELECT * FROM pos_refund_receipts WHERE business_id=$1 AND id=$2 FOR UPDATE",
       [businessId, refundId],
     );
+    /** @type {PosRefundReceiptRow | undefined} */
     const receipt = queued.rows[0];
     if (!receipt) throw notFound("Devolución no encontrada.");
     if (receipt.status === "reconciled")
@@ -223,6 +299,7 @@ export async function reconcilePosRefund(
       AND meta->>'external_event_id'=$2 FOR UPDATE`,
       [businessId, posEventId({ source: receipt.source, saleId: receipt.original_sale_id })],
     );
+    /** @type {PosRefundTransactionRow | undefined} */
     const tx = original.rows[0];
     /** @type {string | null} */
     let reason = null;
@@ -307,6 +384,10 @@ export async function reconcilePosRefund(
   });
 }
 
+/**
+ * @param {PosRefundBusiness} business
+ * @param {unknown} input refund body as the adapter sent it
+ */
 export async function ingestPosRefund(business, input) {
   if (
     business.program_json?.pos_integration?.enabled !== true ||
@@ -321,6 +402,7 @@ export async function ingestPosRefund(business, input) {
   };
 }
 
+/** @param {string} businessId */
 export async function retryPendingPosRefunds(businessId) {
   const candidates = await dbQuery(
     `SELECT id FROM pos_refund_receipts WHERE business_id=$1 AND status='pending'
@@ -335,6 +417,10 @@ export async function retryPendingPosRefunds(businessId) {
   return outcomes;
 }
 
+/**
+ * @param {string} businessId
+ * @param {{ source: string, saleId: string }} sale
+ */
 export async function reconcilePendingRefundsForSale(businessId, sale) {
   const candidates = await dbQuery(
     `SELECT id FROM pos_refund_receipts WHERE business_id=$1 AND source=$2 AND original_sale_id=$3
@@ -347,6 +433,10 @@ export async function reconcilePendingRefundsForSale(businessId, sale) {
   return outcomes;
 }
 
+/**
+ * @param {string} businessId
+ * @param {unknown} [input] owner filter (status, limit)
+ */
 export async function listPosRefunds(businessId, input = {}) {
   const parsed = z
     .object({

@@ -8,11 +8,16 @@ export const PlanConfigService = {
     return PlatformSettingsRepo.getPlanFeatures();
   },
 
+  /** @param {Record<string, unknown> | undefined} overrides plan→feature map (stored or submitted); mergePlanFeatures sanitizes it */
   async setPlanFeatureOverrides(overrides) {
     const sanitized = mergePlanFeatures(overrides);
     return PlatformSettingsRepo.setJson(PLAN_FEATURES_KEY, sanitized);
   },
 
+  /**
+   * @param {string} plan
+   * @param {Record<string, boolean>} featurePatch
+   */
   async updatePlanFeatures(plan, featurePatch) {
     const current = await this.getPlanFeatureOverrides();
     const merged = mergePlanFeatures(current);

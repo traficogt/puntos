@@ -80,7 +80,7 @@ test("targeted claim returns only the locked and evaluated terms used to reserve
   assert.equal(evidence.awarded_points, 17);
   bonus.criteria.minimum_purchase_q = 999;
   assert.equal(
-    evidence.targeted_offer.criteria.minimum_purchase_q,
+    /** @type {Record<string, any>} */ (evidence.targeted_offer.criteria).minimum_purchase_q,
     15,
     "evidence must own a detached snapshot",
   );

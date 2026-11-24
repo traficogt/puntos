@@ -1,7 +1,46 @@
 import { getRewardInventory, INVENTORY_FRESH_SECONDS } from "./reward-inventory-service.js";
 
+/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[] }> }} RewardInventoryPublicQueryClient */
+/**
+ * A branch a reward can be fulfilled at; `id: null` stands for the business itself.
+ * @typedef {{ id: string | null, name?: string | null }} RewardInventoryPublicBranch
+ * The part of getRewardInventory's answer this module reads.
+ * @typedef {{ state: string, observedAt?: string | null }} RewardInventoryPublicEvidence
+ * A reward as readRewards (reward-workspace-service) or a wallet snapshot carries it.
+ * @typedef {{ id: string, available?: boolean | null, branch_ids?: string[] | null }} RewardInventoryPublicReward
+ * @typedef {{
+ *   getInventory?: (
+ *     client: RewardInventoryPublicQueryClient,
+ *     args: { businessId: string, rewardId: string, branchId: string | null }
+ *   ) => Promise<RewardInventoryPublicEvidence>,
+ *   now?: number
+ * }} RewardInventoryPublicInjected
+ * Wallet pass snapshot fields read here (native-wallet repository rows).
+ * @typedef {{
+ *   business_id: string,
+ *   is_voided?: boolean | null,
+ *   revoked_at?: Date | string | null,
+ *   program_json?: Record<string, any> | null,
+ *   wallet_rewards?: RewardInventoryPublicReward[] | null,
+ *   wallet_branches?: RewardInventoryPublicBranch[] | null
+ * }} RewardInventoryPublicSnapshot
+ * Wallet engagement block fields read here (native-wallet engagement builder).
+ * @typedef {{
+ *   reward?: { id?: string | null } | null,
+ *   next_refresh_at?: string | null,
+ *   locations: Array<{ branch_id: string | null }>,
+ *   conditions?: string | null
+ * }} RewardInventoryPublicEngagement
+ */
+
+/** @param {string} state */
 const usable = (state) => state === "available" || state === "not_required";
 const knownStates = new Set(["not_required", "available", "unavailable", "unknown", "stale"]);
+/**
+ * @param {RewardInventoryPublicBranch} branch
+ * @param {RewardInventoryPublicEvidence} evidence
+ * @param {number} now
+ */
 function publicEvidence(branch, evidence, now) {
   const observed = Date.parse(evidence?.observedAt ?? "");
   let state = knownStates.has(evidence?.state) ? evidence.state : "unknown";
@@ -20,6 +59,7 @@ function publicEvidence(branch, evidence, now) {
         : null,
   };
 }
+/** @param {ReturnType<typeof publicEvidence>[]} branches */
 function aggregate(branches) {
   const states = branches.map((branch) => branch.state);
   const state =
@@ -29,7 +69,17 @@ function aggregate(branches) {
   return { state, required: !states.includes("not_required"), branches };
 }
 
-/** Add only public availability evidence; do not change reward or protected promise terms. */
+/** Add only public availability evidence; do not change reward or protected promise terms.
+ * @template {RewardInventoryPublicReward} R
+ * @param {RewardInventoryPublicQueryClient} client
+ * @param {{
+ *   business: { id: string, program_json?: Record<string, any> | null },
+ *   rewards: R[],
+ *   branches?: RewardInventoryPublicBranch[],
+ *   manualAvailabilityLoaded?: boolean
+ * }} args
+ * @param {RewardInventoryPublicInjected} [injected]
+ */
 export async function withPublicRewardAvailability(
   client,
   { business, rewards, branches = undefined, manualAvailabilityLoaded = false },
@@ -74,7 +124,9 @@ export async function withPublicRewardAvailability(
   for (const reward of rows) {
     const scoped = Array.isArray(reward.branch_ids) && reward.branch_ids.length > 0;
     const eligible = scoped
-      ? locations.filter((branch) => reward.branch_ids.includes(branch.id))
+      ? locations.filter((branch) =>
+          /** @type {string[]} */ (reward.branch_ids).includes(branch.id),
+        )
       : locations.length
         ? locations
         : [{ id: null, name: null }];
@@ -102,6 +154,12 @@ export async function withPublicRewardAvailability(
   return output;
 }
 
+/**
+ * @template {RewardInventoryPublicSnapshot} S
+ * @param {RewardInventoryPublicQueryClient} client
+ * @param {S} snapshot
+ * @param {RewardInventoryPublicInjected} [injected]
+ */
 export async function withWalletRewardInventory(client, snapshot, injected = {}) {
   if (
     snapshot.is_voided ||
@@ -122,7 +180,14 @@ export async function withWalletRewardInventory(client, snapshot, injected = {})
   return { ...snapshot, wallet_rewards };
 }
 
-/** Keep protected scope intact; narrow only live hints and refresh when evidence ages out. */
+/** Keep protected scope intact; narrow only live hints and refresh when evidence ages out.
+ * @template {RewardInventoryPublicEngagement} E
+ * @param {{
+ *   wallet_rewards?: Array<{ id: string, inventory?: ReturnType<typeof aggregate> | null }> | null,
+ *   snapshot_at?: string | null
+ * }} snapshot
+ * @param {E} engagement
+ */
 export function walletInventoryEngagement(snapshot, engagement) {
   const inventory = snapshot.wallet_rewards?.find(
     (reward) => reward.id === engagement.reward?.id,
@@ -132,7 +197,7 @@ export function walletInventoryEngagement(snapshot, engagement) {
     .flatMap((reward) =>
       (reward.inventory?.branches ?? [])
         .filter((branch) => branch.state === "available" && branch.freshUntil)
-        .map((branch) => Date.parse(branch.freshUntil) + 1),
+        .map((branch) => Date.parse(/** @type {string} */ (branch.freshUntil)) + 1),
     )
     .filter((at) => Number.isFinite(at) && at > now);
   if (engagement.next_refresh_at) deadlines.push(Date.parse(engagement.next_refresh_at));

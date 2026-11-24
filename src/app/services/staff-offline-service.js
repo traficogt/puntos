@@ -6,6 +6,12 @@ import { verifyQrToken } from "../../utils/qr-token.js";
 const MAX_SECONDS = 24 * 60 * 60;
 const signingKey = () => new TextEncoder().encode(config.JWT_SECRET);
 
+/** @typedef {{ id: string, business_id: string }} StaffOfflineSession */
+
+/**
+ * @param {StaffOfflineSession} staff
+ * @param {{ now?: Date }} [options]
+ */
 export async function issueOfflineGrant(staff, { now = new Date() } = {}) {
   const issued = Math.floor(now.getTime() / 1000);
   const expires = issued + MAX_SECONDS;
@@ -23,10 +29,14 @@ export async function issueOfflineGrant(staff, { now = new Date() } = {}) {
   return { ok: true, grant, expiresAt: new Date(expires * 1000).toISOString() };
 }
 
+/**
+ * A missing or malformed grant is rejected by jwtVerify and reported as forbidden.
+ * @param {{ grant: string | null | undefined, staff: StaffOfflineSession, capturedAt?: unknown, now?: Date }} capture
+ */
 export async function verifyOfflineCaptureGrant({ grant, staff, capturedAt, now = new Date() }) {
   let payload;
   try {
-    ({ payload } = await jwtVerify(grant, signingKey(), {
+    ({ payload } = await jwtVerify(/** @type {string} */ (grant), signingKey(), {
       algorithms: ["HS256"],
       issuer: "puntosfieles",
       audience: "staff-offline",
@@ -63,6 +73,9 @@ export async function verifyOfflineCaptureGrant({ grant, staff, capturedAt, now 
   return { captured, issued, expires };
 }
 
+/**
+ * @param {{ token: string, grant: string | null | undefined, staff: StaffOfflineSession, capturedAt?: unknown, now?: Date }} capture
+ */
 export async function verifyCapturedQr({ token, grant, staff, capturedAt, now = new Date() }) {
   const { captured } = await verifyOfflineCaptureGrant({ grant, staff, capturedAt, now });
   let decoded;

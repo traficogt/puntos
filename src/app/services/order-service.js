@@ -17,32 +17,168 @@ import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 
 const PROCESSABLE_STATUSES = new Set(["paid", "completed"]);
 
+/**
+ * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} OrderQueryClient
+ *
+ * Business row as BusinessRepo.getById returns it (repositories owner); only what this flow reads.
+ * @typedef {{ id: string, plan?: string | null, program_type?: string | null, program_json?: Record<string, any> | null }} OrderBusiness
+ * @typedef {{ id: string, business_id?: string }} OrderCustomer
+ *
+ * orders row (OrderRepo, repositories owner).
+ * @typedef {{
+ *   id: string,
+ *   customer_id: string,
+ *   transaction_id: string | null,
+ *   points_awarded: number | string | null,
+ *   transaction_status: string,
+ *   fingerprint: string | null,
+ *   [column: string]: unknown
+ * }} OrderRow
+ *
+ * Integration body accepted by the orders endpoint; validated field by field here.
+ * Line items and metadata are the integrator's own JSON documents.
+ * @typedef {{
+ *   businessSlug?: unknown,
+ *   externalOrderId?: unknown,
+ *   status?: unknown,
+ *   customerId?: string | null,
+ *   identifierType?: string | null,
+ *   identifierValue?: string | null,
+ *   customerPhone?: string | null,
+ *   amount_q?: number | string | null,
+ *   subtotal_q?: number | string | null,
+ *   discount_q?: number | string | null,
+ *   tax_q?: number | string | null,
+ *   currency?: string | null,
+ *   occurred_at?: unknown,
+ *   source?: string | null,
+ *   line_items_json?: unknown,
+ *   meta?: unknown
+ * }} OrderInput
+ *
+ * Canonical payload hashed into the order fingerprint.
+ * @typedef {{
+ *   customerId: string,
+ *   externalOrderId: string,
+ *   status: string,
+ *   amount_q: number,
+ *   subtotal_q: number | null,
+ *   discount_q: number | null,
+ *   tax_q: number | null,
+ *   currency: string,
+ *   occurred_at: unknown,
+ *   line_items_json: any[],
+ *   meta: Record<string, any>
+ * }} OrderFingerprintPayload
+ *
+ * Row inserted through OrderRepo.create.
+ * @typedef {{
+ *   business_id: string,
+ *   customer_id: string,
+ *   external_order_id: string,
+ *   status: string,
+ *   amount_q: number,
+ *   subtotal_q: number | null,
+ *   discount_q: number | null,
+ *   tax_q: number | null,
+ *   currency: string,
+ *   occurred_at: unknown,
+ *   source: string,
+ *   line_items_json: any[],
+ *   meta: Record<string, any>,
+ *   fingerprint: string,
+ *   transaction_id: string,
+ *   points_awarded: number,
+ *   transaction_status: string
+ * }} OrderCreateInput
+ *
+ * The targeted-offer claim this flow issues (targeted-offer-service.js owns the rules).
+ * @typedef {{
+ *   client: OrderQueryClient,
+ *   business: OrderBusiness,
+ *   customerId: string,
+ *   transactionId: string,
+ *   source: string,
+ *   amountQ: number,
+ *   basePoints: number,
+ *   planFeatureOverrides?: Record<string, any>
+ * }} OrderTargetedOfferClaim
+ *
+ * Order storage as this flow uses it. `create` is optional because replay-only
+ * unit tests omit it; the create path asserts its presence.
+ * @typedef {{
+ *   findByBusinessAndExternalId: (client: OrderQueryClient, businessId: string, externalOrderId: string) => Promise<OrderRow | null | undefined>,
+ *   create?: (client: OrderQueryClient, input: OrderCreateInput) => Promise<{ id: string, [column: string]: unknown }>
+ * }} OrderServiceRepo
+ *
+ * Collaborators once defaults are applied. Members are typed by what this module uses;
+ * BusinessRepo/CustomerRepo/ContactIdentifierRepo shapes belong to the repositories owner.
+ * @typedef {{
+ *   planFeatureOverrides: Record<string, any> | undefined,
+ *   BusinessRepo: {
+ *     getPublicBySlug: (slug: string) => Promise<{ id: string } | null | undefined>,
+ *     getById: (id: string) => Promise<OrderBusiness | null | undefined>
+ *   },
+ *   ContactIdentifierRepo: Pick<typeof ContactIdentifierRepo, "getByBusinessTypeAndValue">,
+ *   CustomerRepo: {
+ *     getByBusinessAndId?: (businessId: string, customerId: string) => Promise<OrderCustomer | null | undefined>,
+ *     getById?: (id: string) => Promise<OrderCustomer | null | undefined>,
+ *     getByBusinessAndPhone?: (businessId: string, phone: string) => Promise<OrderCustomer | null | undefined>
+ *   },
+ *   OrderRepo: OrderServiceRepo,
+ *   computePoints: (business: OrderBusiness, input: { amount_q: number }) => number,
+ *   claimTargetedOffer: ((claim: OrderTargetedOfferClaim) => Promise<{ bonusPoints: number }>) | undefined,
+ *   hashPayload: (payload: OrderFingerprintPayload) => string,
+ *   withTransaction: <T>(fn: (client: OrderQueryClient) => Promise<T>) => Promise<T>,
+ *   setCurrentTenant: (tenantId: string) => Promise<void>
+ * }} OrderResolvedDeps
+ *
+ * What callers may inject; only `withTransaction` is mandatory.
+ * @typedef {Partial<Omit<OrderResolvedDeps, "planFeatureOverrides" | "withTransaction">> & {
+ *   withTransaction: OrderResolvedDeps["withTransaction"],
+ *   getPlanFeatureOverrides?: () => Promise<Record<string, any>>
+ * }} OrderServiceDeps
+ */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/** @param {OrderFingerprintPayload} payload */
 function defaultHashPayload(payload) {
   return crypto.createHash("sha256").update(JSON.stringify(payload), "utf8").digest("hex");
 }
 
+/** @param {unknown} value */
 function normalizeStatus(value) {
   return String(value || "")
     .trim()
     .toLowerCase();
 }
 
+/** @param {unknown} value */
 function normalizeNumber(value) {
   if (value === null || value === undefined || value === "") return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
 function isPlainObject(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
 
+/**
+ * Recursively canonicalizes key order in the integrator's JSON (line items and
+ * metadata) so equivalent payloads hash alike; the document keeps its own shape.
+ * @param {unknown} value
+ * @returns {any}
+ */
 function normalizeValue(value) {
   if (Array.isArray(value)) {
     return value.map((item) => normalizeValue(item));
@@ -55,9 +191,10 @@ function normalizeValue(value) {
     .reduce((acc, key) => {
       acc[key] = normalizeValue(value[key]);
       return acc;
-    }, {});
+    }, /** @type {Record<string, any>} */ ({}));
 }
 
+/** @param {unknown} lineItemsJson */
 function normalizeLineItems(lineItemsJson) {
   const normalizedItems = Array.isArray(lineItemsJson)
     ? lineItemsJson.map((item) => normalizeValue(item))
@@ -76,10 +213,30 @@ function normalizeLineItems(lineItemsJson) {
     .map(({ item }) => item);
 }
 
+/**
+ * @param {unknown} meta
+ * @returns {Record<string, any>}
+ */
 function normalizeMeta(meta) {
   return normalizeValue(meta && typeof meta === "object" ? meta : {});
 }
 
+/**
+ * @param {{
+ *   customerId: unknown,
+ *   externalOrderId: string,
+ *   status: string,
+ *   amount_q: unknown,
+ *   subtotal_q: unknown,
+ *   discount_q: unknown,
+ *   tax_q: unknown,
+ *   currency: unknown,
+ *   occurred_at: unknown,
+ *   line_items_json: unknown,
+ *   meta: unknown
+ * }} fields
+ * @returns {OrderFingerprintPayload}
+ */
 function buildFingerprintPayload({
   customerId,
   externalOrderId,
@@ -108,14 +265,30 @@ function buildFingerprintPayload({
   };
 }
 
+/**
+ * @param {OrderResolvedDeps} deps
+ * @param {OrderQueryClient} client
+ * @param {string} businessId
+ * @param {string} externalOrderId
+ */
 async function findExistingOrder(deps, client, businessId, externalOrderId) {
   return deps.OrderRepo.findByBusinessAndExternalId(client, businessId, externalOrderId);
 }
 
+/**
+ * @param {OrderResolvedDeps} deps
+ * @param {OrderQueryClient} client
+ * @param {OrderCreateInput} input
+ */
 async function createOrder(deps, client, input) {
-  return deps.OrderRepo.create(client, input);
+  return /** @type {Required<OrderServiceRepo>} */ (deps.OrderRepo).create(client, input);
 }
 
+/**
+ * @param {OrderQueryClient} client
+ * @param {string} businessId
+ * @param {string} externalOrderId
+ */
 async function lockOrderRequest(client, businessId, externalOrderId) {
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
     String(businessId),
@@ -123,6 +296,11 @@ async function lockOrderRequest(client, businessId, externalOrderId) {
   ]);
 }
 
+/**
+ * @param {OrderResolvedDeps} deps
+ * @param {OrderQueryClient} client
+ * @param {OrderInput} input
+ */
 async function processOrderWithClient(deps, client, input) {
   const externalOrderId = String(input.externalOrderId || "").trim();
   if (!externalOrderId) throw badRequest("externalOrderId required");
@@ -325,6 +503,10 @@ async function processOrderWithClient(deps, client, input) {
   };
 }
 
+/**
+ * @param {OrderServiceDeps} deps
+ * @param {OrderInput} input
+ */
 export async function processOrderWithDeps(deps, input) {
   if (!deps || typeof deps.withTransaction !== "function") {
     throw badRequest("withTransaction dependency required");
@@ -334,6 +516,7 @@ export async function processOrderWithDeps(deps, input) {
     typeof deps.claimTargetedOffer === "function"
       ? await deps.getPlanFeatureOverrides()
       : undefined;
+  /** @type {OrderResolvedDeps} */
   const resolvedDeps = {
     planFeatureOverrides,
     BusinessRepo: deps.BusinessRepo ?? BusinessRepo,
@@ -352,6 +535,7 @@ export async function processOrderWithDeps(deps, input) {
   );
 }
 
+/** @param {OrderInput} input */
 export async function processOrder(input) {
   return processOrderWithDeps(
     {

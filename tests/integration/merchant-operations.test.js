@@ -467,11 +467,15 @@ suite("merchant operations on disposable PostgreSQL", () => {
       customerRepo: CustomerRepo,
       settings: { apple: { ready: true }, google: { ready: false } },
       providers: {
-        apple: {
-          generatePass: async () => {
-            throw new Error("fixture issuance failed");
-          },
-        },
+        // Partial provider fake: only issuance runs in this scenario.
+        apple:
+          /** @type {import("../../src/app/services/native-wallet/service.js").NativeWalletProvider} */ (
+            /** @type {unknown} */ ({
+              generatePass: async () => {
+                throw new Error("fixture issuance failed");
+              },
+            })
+          ),
       },
       globalContext: (fn) => fn(),
     });

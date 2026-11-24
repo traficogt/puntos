@@ -57,6 +57,186 @@ const PreflightSchema = z
   })
   .strict();
 
+/**
+ * Business row as BusinessRepo.getById returns it (repositories owner); the fields read here.
+ * businesses.program_json is NOT NULL DEFAULT '{}'.
+ * @typedef {{
+ *   id: string,
+ *   slug: string,
+ *   plan?: string | null,
+ *   program_type?: string | null,
+ *   program_json: Record<string, any>
+ * }} PosIntegrationBusiness
+ *
+ * Connected Loyverse account stored under program_json.pos_integration.loyverse.
+ * @typedef {{
+ *   access_token?: string | null,
+ *   merchant_id?: string | null,
+ *   merchant_name?: string | null,
+ *   store_id?: string | null
+ * }} PosIntegrationLoyverseSettings
+ *
+ * @typedef {{ since: string, until: string, cursor: string | null }} PosIntegrationSyncWindow
+ *
+ * program_json.pos_integration once the owner has saved a connection (a fresh business has none).
+ * @typedef {{
+ *   enabled: boolean,
+ *   mode: string,
+ *   automatic: boolean,
+ *   loyverse: PosIntegrationLoyverseSettings,
+ *   revision: string,
+ *   connected_at: string,
+ *   last_completed_at: string | null,
+ *   sync_window: PosIntegrationSyncWindow | null,
+ *   last_sync: Record<string, unknown> | null,
+ *   pending_receipts: string[]
+ * }} PosIntegrationConfig
+ *
+ * @typedef {import("zod").infer<typeof SettingsSchema>} PosIntegrationSettingsInput
+ *
+ * A sale entering the preview/apply pipeline: the pos/common, pos/csv or pos/loyverse
+ * shape, re-validated by normalizePosSale() so optional fields may still be missing.
+ * @typedef {{
+ *   row?: number | null,
+ *   saleId: string,
+ *   source?: string,
+ *   customerPhone: string,
+ *   amountQ: number,
+ *   currency?: string,
+ *   visits?: number,
+ *   items?: number,
+ *   occurredAt?: string | null
+ * }} PosIntegrationSale
+ *
+ * A receipt an adapter could not turn into a sale.
+ * @typedef {{
+ *   row?: number | null,
+ *   saleId: string,
+ *   source?: string,
+ *   occurredAt?: string | null,
+ *   code: string,
+ *   message: string,
+ *   status?: string
+ * }} PosIntegrationIssue
+ *
+ * One line of the owner's preview table.
+ * @typedef {{
+ *   row: number | null,
+ *   saleId: string,
+ *   customerPhone: string,
+ *   amountQ: number | null,
+ *   points: number,
+ *   status: string,
+ *   code: string,
+ *   message: string,
+ *   source?: string,
+ *   occurredAt?: string | null
+ * }} PosIntegrationPreviewRow
+ *
+ * @typedef {{ total: number, ready: number, errors: number, ignored: number, duplicates: number }} PosIntegrationSummary
+ * @typedef {{ ok: boolean, headers: string[], rows: PosIntegrationPreviewRow[], summary: PosIntegrationSummary }} PosIntegrationPreview
+ * @typedef {import("./pos-measurement-receipts.js").PosMeasurementReceipt} PosIntegrationReceipt
+ *
+ * A sale that passed preview and is ready for apply().
+ * @typedef {{
+ *   row: PosIntegrationPreviewRow,
+ *   sale: import("./pos/common.js").PosCommonSale,
+ *   meta: { pos_sale: Record<string, unknown> },
+ *   receipt: PosIntegrationReceipt | null
+ * }} PosIntegrationReadyEntry
+ *
+ * @typedef {{ row: number | null, saleId: string, code: string, message: string }} PosIntegrationResultIssue
+ * @typedef {{
+ *   awarded: number,
+ *   duplicates: number,
+ *   errors: number,
+ *   ignored: number,
+ *   issues: PosIntegrationResultIssue[]
+ * }} PosIntegrationApplyResult
+ * Loyverse sync outcome; the refund counters are absent when the automatic poll is
+ * skipped because the owner left automatic sync off.
+ * @typedef {PosIntegrationApplyResult & {
+ *   has_more: boolean,
+ *   refunds_received?: number,
+ *   refunds_reconciled?: number,
+ *   refunds_pending?: number
+ * }} PosIntegrationSyncResult
+ *
+ * ingestPosSale answers either a read-only dry run (the preview table) or the apply
+ * result; each member declares the other's keys as undefined so callers can branch.
+ * @typedef {PosIntegrationPreview & { dryRun: true, result?: undefined }} PosIntegrationDryRunResponse
+ * @typedef {{
+ *   ok: boolean,
+ *   result: PosIntegrationApplyResult,
+ *   dryRun?: undefined,
+ *   headers?: undefined,
+ *   rows?: undefined,
+ *   summary?: undefined
+ * }} PosIntegrationApplyResponse
+ *
+ * A refund as a provider page reports it. enqueueRefund validates the whole body; this
+ * module only needs the id and the native evidence.
+ * @typedef {{ refundId: string, nativeEvidence?: string | null, [field: string]: unknown }} PosIntegrationPageRefund
+ * @typedef {{
+ *   sales: PosIntegrationSale[],
+ *   issues: PosIntegrationIssue[],
+ *   refunds?: PosIntegrationPageRefund[],
+ *   nextCursor?: string | null
+ * }} PosIntegrationFetchedPage
+ * @typedef {{
+ *   accessToken: string,
+ *   merchantId?: string | null,
+ *   storeId?: string | null,
+ *   region: import("./regional-settings.js").RegionalSettings
+ * }} PosIntegrationFetchArgs
+ *
+ * The `transactions` row an earlier import of the same sale left (ledger row, repositories owner).
+ * @typedef {{
+ *   id: string,
+ *   customer_id: string,
+ *   points: number | string,
+ *   meta: Record<string, any> | null,
+ *   purchase_occurred_at: Date | string | null,
+ *   purchase_time_source: string | null
+ * }} PosIntegrationExistingTransaction
+ *
+ * Collaborators of this service: `defaultDeps` in production, fakes in unit tests. Each
+ * member is typed by what this module uses from it.
+ * @typedef {{
+ *   getBusiness: (id: string) => Promise<PosIntegrationBusiness | null | undefined>,
+ *   getCustomer: (businessId: string, phone: string) => Promise<{ id: string, business_id: string } | null | undefined>,
+ *   findTransaction: (businessId: string, eventId: string) => Promise<PosIntegrationExistingTransaction | null>,
+ *   saveSettings: (businessId: string, patch: Record<string, any>, options?: { initializeExternalKey?: boolean }) => Promise<void>,
+ *   saveSync: (businessId: string, revision: string, patch: Record<string, any>) => Promise<void>,
+ *   hasFeature: (business: PosIntegrationBusiness) => Promise<boolean>,
+ *   lock: <T>(businessId: string, fn: () => Promise<T>) => Promise<T>,
+ *   award: (input: import("./external-award-service.js").ExternalAwardInput) => Promise<{ replay?: boolean, transactionId?: string | null }>,
+ *   verifyConnection: (args: {
+ *     accessToken: string,
+ *     storeId: string | null | undefined,
+ *     region: import("./regional-settings.js").RegionalSettings
+ *   }) => Promise<{ merchantId: string, merchantName: string, storeId: string | null }>,
+ *   fetchSales: (args: PosIntegrationFetchArgs & PosIntegrationSyncWindow) => Promise<PosIntegrationFetchedPage>,
+ *   fetchRetrySales: (args: PosIntegrationFetchArgs & { receiptIds: string[] }) => Promise<PosIntegrationFetchedPage>,
+ *   enqueueRefund: (
+ *     businessId: string,
+ *     refund: Record<string, unknown>,
+ *     options: { origin: string, nativeEvidence: string | null | undefined }
+ *   ) => Promise<{ refund: { id: string } }>,
+ *   reconcileRefund: (businessId: string, refundId: string, options: { automatic: boolean }) => Promise<{ refund: { status: string } }>,
+ *   retryRefunds: (businessId: string) => Promise<unknown[]>,
+ *   reconcileSaleRefunds: (businessId: string, sale: { source: string, saleId: string }) => Promise<unknown[]>,
+ *   recordReceipts: (businessId: string, receipts: PosIntegrationReceipt[]) => Promise<void>,
+ *   now: () => Date
+ * }} PosIntegrationDeps
+ */
+
+/**
+ * @template T
+ * @param {string} businessId
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
 async function withPosLock(businessId, fn) {
   return withDbClientContext({ tenantId: businessId, platformAdmin: false }, async () => {
     const { rows } = await dbQuery(
@@ -77,6 +257,7 @@ async function withPosLock(businessId, fn) {
   });
 }
 
+/** @type {PosIntegrationDeps} */
 const defaultDeps = {
   getBusiness: (id) => BusinessRepo.getById(id),
   getCustomer: (businessId, phone) => CustomerRepo.getByBusinessAndPhone(businessId, phone),
@@ -126,6 +307,10 @@ const defaultDeps = {
   now: () => new Date(),
 };
 
+/**
+ * @param {PosIntegrationPreview} preview
+ * @returns {PosIntegrationApplyResult}
+ */
 function resultFromPreview(preview) {
   return {
     awarded: 0,
@@ -140,13 +325,23 @@ function resultFromPreview(preview) {
 
 // --- shared access -----------------------------------------------------------
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {string} id
+ */
 async function loadBusiness(deps, id) {
   const business = await deps.getBusiness(id);
   if (!business) throw notFound("Negocio no encontrado.");
   return business;
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {PosIntegrationBusiness} business
+ * @param {string} [mode]
+ */
 async function requireEnabled(deps, business, mode) {
+  /** @type {Partial<PosIntegrationConfig> | undefined} */
   const cfg = business.program_json?.pos_integration;
   if (
     !cfg?.enabled ||
@@ -157,12 +352,17 @@ async function requireEnabled(deps, business, mode) {
   if (!(await deps.hasFeature(business))) throw forbidden("Tu plan no permite conexiones POS.");
 }
 
+/** @param {PosIntegrationBusiness} business */
 const integrationResponse = (business) => ({
   ok: true,
   business: { slug: business.slug },
   integration: safePosIntegration(business),
 });
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {string} id
+ */
 async function readPosIntegration(deps, id) {
   return integrationResponse(await loadBusiness(deps, id));
 }
@@ -171,7 +371,15 @@ async function readPosIntegration(deps, id) {
 
 // Verifies submitted Loyverse credentials when they changed (or the connection
 // is being enabled) and returns the native settings to persist.
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {PosIntegrationBusiness} business
+ * @param {PosIntegrationSettingsInput} data
+ * @param {Partial<PosIntegrationConfig>} current
+ * @returns {Promise<PosIntegrationLoyverseSettings>}
+ */
 async function resolveLoyverseCredentials(deps, business, data, current) {
+  /** @type {PosIntegrationLoyverseSettings} */
   let native = { ...(current.loyverse ?? {}) };
   const accessToken = data.loyverse?.access_token ?? native.access_token;
   const storeId =
@@ -203,6 +411,13 @@ async function resolveLoyverseCredentials(deps, business, data, current) {
   return native;
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {PosIntegrationBusiness} business
+ * @param {PosIntegrationSettingsInput} data
+ * @param {Partial<PosIntegrationConfig>} current
+ * @param {PosIntegrationLoyverseSettings} native
+ */
 function nextPosIntegrationSettings(deps, business, data, current, native) {
   const reset =
     data.enabled &&
@@ -230,6 +445,10 @@ function nextPosIntegrationSettings(deps, business, data, current, native) {
   return next;
 }
 
+/**
+ * @param {PosIntegrationBusiness} business
+ * @param {PosIntegrationSettingsInput} data
+ */
 function externalAwardsPatch(business, data) {
   const existingKey = business.program_json?.external_awards?.api_key;
   const external = /** @type {{ enabled?: boolean, api_key?: string }} */ ({});
@@ -242,6 +461,11 @@ function externalAwardsPatch(business, data) {
   return { existingKey, external };
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {string} id
+ * @param {unknown} input owner settings body, validated by SettingsSchema
+ */
 async function configurePosIntegrationWithDeps(deps, id, input) {
   const parsed = SettingsSchema.safeParse(input);
   if (!parsed.success)
@@ -249,6 +473,7 @@ async function configurePosIntegrationWithDeps(deps, id, input) {
   return deps.lock(id, async () => {
     const business = await loadBusiness(deps, id);
     if (!(await deps.hasFeature(business))) throw forbidden("Tu plan no permite conexiones POS.");
+    /** @type {Partial<PosIntegrationConfig>} */
     const current = business.program_json?.pos_integration ?? {};
     const data = parsed.data;
     const native = await resolveLoyverseCredentials(deps, business, data, current);
@@ -263,6 +488,10 @@ async function configurePosIntegrationWithDeps(deps, id, input) {
   });
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {string} id
+ */
 async function rotatePosKeyWithDeps(deps, id) {
   return deps.lock(id, async () => {
     const business = await loadBusiness(deps, id);
@@ -287,6 +516,10 @@ const IGNORED_ISSUE_CODES = [
   "receipt_not_found",
 ];
 
+/**
+ * @param {PosIntegrationIssue[]} issues
+ * @returns {PosIntegrationPreviewRow[]}
+ */
 function issueRows(issues) {
   return issues.map((issue) => ({
     ...issue,
@@ -298,6 +531,10 @@ function issueRows(issues) {
   }));
 }
 
+/**
+ * @param {PosIntegrationIssue[]} issues
+ * @returns {PosIntegrationReceipt[]}
+ */
 function issueReceipts(issues) {
   const unmatchedCodes = new Set([
     "missing_customer",
@@ -316,16 +553,23 @@ function issueReceipts(issues) {
     "unsupported_receipt",
     "UNPAID_STATUS",
   ]);
-  return issues
-    .filter((issue) => issue.source && !nonPurchaseCodes.has(issue.code))
-    .map((issue) =>
-      posMeasurementReceipt(issue, unmatchedCodes.has(issue.code) ? "unmatched" : "rejected"),
-    )
-    .filter(Boolean);
+  return /** @type {PosIntegrationReceipt[]} */ (
+    issues
+      .filter((issue) => issue.source && !nonPurchaseCodes.has(issue.code))
+      .map((issue) =>
+        posMeasurementReceipt(issue, unmatchedCodes.has(issue.code) ? "unmatched" : "rejected"),
+      )
+      .filter(Boolean)
+  );
 }
 
 // Classifies one sale as ready / duplicate / error and derives its measurement
 // receipt. Only ready sales produce an entry for apply().
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {PosIntegrationBusiness} business
+ * @param {PosIntegrationSale} input
+ */
 async function evaluateSaleRow(deps, business, input) {
   const receipt = posMeasurementReceipt(input);
   const row = {
@@ -338,7 +582,7 @@ async function evaluateSaleRow(deps, business, input) {
     code: "",
     message: "Lista para sumar puntos.",
   };
-  /** @type {{ row: typeof row, sale: ReturnType<typeof normalizePosSale>, meta: { pos_sale: Record<string, unknown> }, receipt: typeof receipt } | null} */
+  /** @type {PosIntegrationReadyEntry | null} */
   let ready = null;
   try {
     const sale = normalizePosSale(input, business);
@@ -404,17 +648,34 @@ async function evaluateSaleRow(deps, business, input) {
   return { row, receipt, ready };
 }
 
+/**
+ * @param {PosIntegrationPreviewRow[]} rows
+ * @returns {PosIntegrationSummary}
+ */
 function summarizeRows(rows) {
   const summary = { total: rows.length, ready: 0, errors: 0, ignored: 0, duplicates: 0 };
   for (const row of rows)
     summary[
-      { ready: "ready", error: "errors", ignored: "ignored", duplicate: "duplicates" }[row.status]
+      /** @type {Record<string, keyof typeof summary>} */ ({
+        ready: "ready",
+        error: "errors",
+        ignored: "ignored",
+        duplicate: "duplicates",
+      })[row.status]
     ] += 1;
   return summary;
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {PosIntegrationBusiness} business
+ * @param {PosIntegrationSale[]} sales
+ * @param {PosIntegrationIssue[]} [issues]
+ * @param {string[]} [headers]
+ */
 async function prepareSales(deps, business, sales, issues = [], headers = []) {
   const rows = issueRows(issues);
+  /** @type {PosIntegrationReadyEntry[]} */
   const ready = [];
   const receipts = issueReceipts(issues);
   for (const input of sales) {
@@ -429,6 +690,12 @@ async function prepareSales(deps, business, sales, issues = [], headers = []) {
 
 // --- apply -------------------------------------------------------------------
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {PosIntegrationBusiness} business
+ * @param {PosIntegrationApplyResult} result
+ * @param {PosIntegrationReadyEntry} entry
+ */
 async function awardPreparedSale(deps, business, result, { sale, meta, row, receipt }) {
   try {
     const award = await deps.award({
@@ -465,6 +732,11 @@ async function awardPreparedSale(deps, business, result, { sale, meta, row, rece
   if (receipt) await deps.recordReceipts(business.id, [receipt]);
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {PosIntegrationBusiness} business
+ * @param {Awaited<ReturnType<typeof prepareSales>>} prepared
+ */
 async function applyPrepared(deps, business, prepared) {
   const result = resultFromPreview(prepared.preview);
   // Commit input evidence before attempting awards, so a ledger failure cannot
@@ -476,6 +748,11 @@ async function applyPrepared(deps, business, prepared) {
 
 // --- CSV / API imports -------------------------------------------------------
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {string} id
+ * @param {Parameters<typeof normalizePosCsv>[0]} input
+ */
 async function previewCsvWithDeps(deps, id, input) {
   const business = await loadBusiness(deps, id);
   const parsed = normalizePosCsv(input, businessRegion(business));
@@ -484,6 +761,11 @@ async function previewCsvWithDeps(deps, id, input) {
 
 // Owner-only read preview: deliberately independent of enabled state, API
 // credentials and apply(). It cannot activate a connection or award points.
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {string} id
+ * @param {unknown} input sample sale body, validated by PreflightSchema
+ */
 async function previewPosSaleWithDeps(deps, id, input) {
   const parsed = PreflightSchema.safeParse(input);
   if (!parsed.success)
@@ -497,6 +779,11 @@ async function previewPosSaleWithDeps(deps, id, input) {
   return { ...(await prepareSales(deps, business, [sale])).preview, dryRun: true };
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {string} id
+ * @param {Parameters<typeof normalizePosCsv>[0] | null | undefined} input
+ */
 async function importCsvWithDeps(deps, id, input) {
   return deps.lock(id, async () => {
     const business = await loadBusiness(deps, id);
@@ -515,6 +802,12 @@ async function importCsvWithDeps(deps, id, input) {
   });
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {PosIntegrationBusiness} business
+ * @param {Record<string, any> | null | undefined} input untrusted sale body from the POS adapter
+ * @returns {Promise<PosIntegrationDryRunResponse | PosIntegrationApplyResponse>}
+ */
 async function ingestPosSaleWithDeps(deps, business, input) {
   await requireEnabled(deps, business, "api");
   if (input?.dryRun !== undefined && typeof input.dryRun !== "boolean")
@@ -543,6 +836,11 @@ async function ingestPosSaleWithDeps(deps, business, input) {
 
 // --- Loyverse ----------------------------------------------------------------
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {PosIntegrationConfig} cfg
+ * @returns {PosIntegrationSyncWindow}
+ */
 function nativeSyncWindow(deps, cfg) {
   return (
     cfg.sync_window ?? {
@@ -559,6 +857,11 @@ function nativeSyncWindow(deps, cfg) {
 }
 
 // Prefer the fresh lookup, and avoid awarding the same receipt twice within a batch.
+/**
+ * @param {PosIntegrationFetchedPage} page mutated in place
+ * @param {PosIntegrationFetchedPage} retried
+ * @param {string[]} retryIds
+ */
 function mergeRetriedReceipts(page, retried, retryIds) {
   const replaced = new Set(retryIds);
   page.sales = [...page.sales.filter((sale) => !replaced.has(sale.saleId)), ...retried.sales];
@@ -569,6 +872,10 @@ function mergeRetriedReceipts(page, retried, retryIds) {
   ];
 }
 
+/**
+ * @param {PosIntegrationFetchedPage} page
+ * @param {PosIntegrationConfig} cfg
+ */
 function partitionHistoricSales(page, cfg) {
   const sales = [],
     issues = [...page.issues];
@@ -590,7 +897,12 @@ function partitionHistoricSales(page, cfg) {
   return { sales, issues };
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {PosIntegrationBusiness} business
+ */
 async function loadNativePage(deps, business) {
+  /** @type {PosIntegrationConfig | undefined} */
   const cfg = business.program_json?.pos_integration;
   if (!cfg?.loyverse?.access_token || String(cfg.loyverse.access_token).startsWith("enc:"))
     throw badRequest("Conecta tu cuenta de Loyverse primero.");
@@ -625,6 +937,10 @@ async function loadNativePage(deps, business) {
   };
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {string} id
+ */
 async function previewLoyverseWithDeps(deps, id) {
   const business = await loadBusiness(deps, id);
   await requireEnabled(deps, business, "loyverse");
@@ -636,6 +952,11 @@ async function previewLoyverseWithDeps(deps, id) {
   };
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {string} id
+ * @param {Awaited<ReturnType<typeof loadNativePage>>} page
+ */
 async function enqueueLoyverseRefunds(deps, id, page) {
   const queuedRefunds = [];
   for (const { nativeEvidence, ...refund } of page.refunds)
@@ -645,6 +966,12 @@ async function enqueueLoyverseRefunds(deps, id, page) {
   return queuedRefunds;
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {string} id
+ * @param {Awaited<ReturnType<typeof enqueueLoyverseRefunds>>} queuedRefunds
+ * @param {PosIntegrationSyncResult} result mutated with the refund counters
+ */
 async function reconcileQueuedRefunds(deps, id, queuedRefunds, result) {
   const reconciledRefunds = [];
   for (const receipt of queuedRefunds)
@@ -659,6 +986,12 @@ async function reconcileQueuedRefunds(deps, id, queuedRefunds, result) {
 }
 
 // Preserve every unresolved old ID before admitting new IDs; rotate retries fairly.
+/**
+ * @param {PosIntegrationConfig} cfg
+ * @param {Awaited<ReturnType<typeof loadNativePage>>} page
+ * @param {PosIntegrationApplyResult} result
+ * @returns {string[]}
+ */
 function pendingReceiptQueue(cfg, page, result) {
   const ignoredCodes = new Set(IGNORED_ISSUE_CODES);
   const attempted = new Set(page.attemptedIds);
@@ -677,6 +1010,14 @@ function pendingReceiptQueue(cfg, page, result) {
   ];
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {PosIntegrationConfig} cfg
+ * @param {Awaited<ReturnType<typeof loadNativePage>>} page
+ * @param {PosIntegrationSyncResult} result
+ * @param {string[]} pending
+ * @param {boolean} overflow
+ */
 function completedSyncPatch(deps, cfg, page, result, pending, overflow) {
   const lastSync = {
     at: deps.now().toISOString(),
@@ -697,6 +1038,7 @@ function completedSyncPatch(deps, cfg, page, result, pending, overflow) {
   };
 }
 
+/** @param {PosIntegrationDeps} deps */
 function failedSyncPatch(deps) {
   return {
     last_sync: {
@@ -721,6 +1063,12 @@ function failedSyncPatch(deps) {
 
 // One Loyverse page: refunds queued, sales awarded, refunds reconciled, retry
 // queue rotated and the sync cursor persisted.
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {string} id
+ * @param {PosIntegrationBusiness} business
+ * @param {PosIntegrationConfig} cfg
+ */
 async function syncLoyversePage(deps, id, business, cfg) {
   const page = await loadNativePage(deps, business);
   const queuedRefunds = await enqueueLoyverseRefunds(deps, id, page);
@@ -753,10 +1101,17 @@ async function syncLoyversePage(deps, id, business, cfg) {
   return { ok: true, result };
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {string} id
+ * @param {{ automatic?: boolean }} [options]
+ * @returns {Promise<{ ok: boolean, result: PosIntegrationSyncResult }>}
+ */
 async function syncLoyverseBusinessWithDeps(deps, id, { automatic = false } = {}) {
   return deps.lock(id, async () => {
     const business = await loadBusiness(deps, id);
     await requireEnabled(deps, business, "loyverse");
+    /** @type {PosIntegrationConfig} */
     const cfg = business.program_json.pos_integration;
     if (automatic && cfg.automatic !== true)
       return {
@@ -772,6 +1127,10 @@ async function syncLoyverseBusinessWithDeps(deps, id, { automatic = false } = {}
   });
 }
 
+/**
+ * @param {PosIntegrationDeps} deps
+ * @param {string} id
+ */
 async function retryPosRefundsWithDeps(deps, id) {
   return deps.lock(id, async () => {
     await requireEnabled(deps, await loadBusiness(deps, id));
@@ -779,18 +1138,29 @@ async function retryPosRefundsWithDeps(deps, id) {
   });
 }
 
+/** @param {Partial<PosIntegrationDeps>} [overrides] */
 export function createPosIntegrationService(overrides = {}) {
   const deps = { ...defaultDeps, ...overrides };
   return {
+    /** @param {string} id */
     getPosIntegration: (id) => readPosIntegration(deps, id),
+    /** @param {string} id @param {unknown} input */
     configurePosIntegration: (id, input) => configurePosIntegrationWithDeps(deps, id, input),
+    /** @param {string} id */
     rotatePosKey: (id) => rotatePosKeyWithDeps(deps, id),
+    /** @param {string} id @param {Parameters<typeof normalizePosCsv>[0]} input */
     previewCsv: (id, input) => previewCsvWithDeps(deps, id, input),
+    /** @param {string} id @param {unknown} input */
     previewPosSale: (id, input) => previewPosSaleWithDeps(deps, id, input),
+    /** @param {string} id @param {Parameters<typeof normalizePosCsv>[0] | null | undefined} input */
     importCsv: (id, input) => importCsvWithDeps(deps, id, input),
+    /** @param {PosIntegrationBusiness} business @param {Record<string, any> | null | undefined} input */
     ingestPosSale: (business, input) => ingestPosSaleWithDeps(deps, business, input),
+    /** @param {string} id */
     previewLoyverse: (id) => previewLoyverseWithDeps(deps, id),
+    /** @param {string} id @param {{ automatic?: boolean }} [options] */
     syncLoyverseBusiness: (id, options) => syncLoyverseBusinessWithDeps(deps, id, options),
+    /** @param {string} id */
     retryPosRefunds: (id) => retryPosRefundsWithDeps(deps, id),
   };
 }

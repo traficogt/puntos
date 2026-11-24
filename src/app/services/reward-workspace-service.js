@@ -15,7 +15,75 @@ import {
 } from "./reward-promise-service.js";
 import { saveRewardPosMapping } from "./reward-pos-mapping-service.js";
 import { catalogInventory } from "./reward-inventory-service.js";
+/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} RewardWorkspaceQueryClient */
+/**
+ * Staff session (req.staff) as livePromiseMember / promiseAudit and, through
+ * saveRewardPosMapping, redemption-pos-store.fulfillmentActor read it.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   role?: string,
+ *   branch_id?: string | null,
+ *   impersonated_by?: string | null
+ * }} RewardWorkspaceStaff
+ * @typedef {import("zod").infer<typeof rewardWorkspaceSchema>} RewardWorkspaceInput
+ * @typedef {NonNullable<RewardWorkspaceInput["mapping"]>} RewardWorkspaceMappingInput
+ * Plan feature flags (planFeaturesWithOverrides, utils owner).
+ * @typedef {Record<string, boolean>} RewardWorkspaceFeatures
+ * reward_pos_mappings row as readRewards aggregates it into `mappings` JSON: quantity is a
+ * JSON number there, with the catalog item and latest inventory snapshot joined in.
+ * @typedef {{
+ *   id: string,
+ *   source: string,
+ *   branch_id: string | null,
+ *   product_ref: string,
+ *   item_name: string | null,
+ *   item_kind: string,
+ *   quantity: number | string,
+ *   enabled: boolean,
+ *   inventory_required: boolean,
+ *   version: number,
+ *   updated_at: string | null,
+ *   catalog_item_id?: string | null,
+ *   sku?: string | null,
+ *   origin?: string | null,
+ *   catalog_kind?: string | null,
+ *   catalog_active?: boolean | null,
+ *   available_quantity?: number | string | null,
+ *   inventory_observed_at?: string | null
+ * }} RewardWorkspaceMappingRow
+ * rewards row joined with its cost, availability and mappings (readRewards).
+ * @typedef {{
+ *   id: string,
+ *   name: string,
+ *   description: string | null,
+ *   points_cost: number,
+ *   active: boolean,
+ *   stock: number | null,
+ *   valid_until: Date | string | null,
+ *   branch_ids: string[],
+ *   unit_cost_q: string | null,
+ *   cost_updated_at: Date | string | null,
+ *   available: boolean,
+ *   availability_updated_at: Date | string | null,
+ *   alternative_reward_ids: string[],
+ *   checked_at: Date | string,
+ *   mappings: RewardWorkspaceMappingRow[]
+ * }} RewardWorkspaceRewardRow
+ * Reads: run the callback in a transaction and return its result.
+ * @typedef {{
+ *   transaction?: <T>(fn: (client: RewardWorkspaceQueryClient) => Promise<T>) => Promise<T>,
+ *   getPlanFeatureOverrides?: () => Promise<Record<string, any>>
+ * }} RewardWorkspaceInjected
+ * tests/unit/reward-workspace-routes.test.js injects a `transaction` fake that ignores `fn`
+ * and resolves `{ ok: true }`, so the save path cannot type its result channel generically.
+ * @typedef {{
+ *   transaction?: (fn: (client: RewardWorkspaceQueryClient) => Promise<unknown>) => Promise<unknown>,
+ *   getPlanFeatureOverrides?: () => Promise<Record<string, any>>
+ * }} RewardWorkspaceSaveInjected
+ */
 const uuid = z.guid().transform((value) => value.toLowerCase());
+/** @param {number} max */
 const text = (max) =>
   z
     .string()
@@ -83,13 +151,16 @@ export const rewardWorkspaceSchema = z
   })
   .strict()
   .refine((value) => Boolean(value.rewardId) === Boolean(value.version));
+/** @param {unknown} input owner's workspace submission (validated by rewardWorkspaceSchema) */
 export function normalizeRewardWorkspace(input) {
   const parsed = rewardWorkspaceSchema.safeParse(input);
   if (!parsed.success)
     throw badRequest("Revisa la recompensa, costo, disponibilidad y vínculo antes de guardar.");
   return parsed.data;
 }
+/** @param {Date | string | null | undefined} value */
 const iso = (value) => (value ? new Date(value).toISOString() : null);
+/** @param {RewardWorkspaceMappingRow} row */
 function mappingVersion(row) {
   return {
     id: row.id,
@@ -105,6 +176,7 @@ function mappingVersion(row) {
     updated_at: iso(row.updated_at),
   };
 }
+/** @param {RewardWorkspaceRewardRow} row */
 function publicReward(row) {
   const mappings = row.mappings.map((mapping) => ({
     ...mappingVersion(mapping),
@@ -144,7 +216,7 @@ function publicReward(row) {
   return { ...reward, version };
 }
 /**
- * @param {{ query: (...args: any[]) => Promise<any> }} client
+ * @param {RewardWorkspaceQueryClient} client
  * @param {string} businessId
  * @param {string | null} [rewardId]
  */
@@ -164,6 +236,12 @@ async function readRewards(client, businessId, rewardId = null) {
   ).rows;
   return rows.map(publicReward);
 }
+/**
+ * @param {RewardWorkspaceQueryClient} client
+ * @param {string} businessId
+ * @param {Record<string, any>} overrides platform plan-feature overrides
+ * @param {string} [lock] row lock clause
+ */
 async function workspaceBusiness(client, businessId, overrides, lock = "FOR SHARE") {
   const business = (
     await client.query(`SELECT * FROM businesses WHERE id=$1 ${lock}`, [businessId])
@@ -175,23 +253,40 @@ async function workspaceBusiness(client, businessId, overrides, lock = "FOR SHAR
     region: businessRegion(business),
   };
 }
+/**
+ * @param {{ businessId: string, staff: RewardWorkspaceStaff }} args
+ * @param {RewardWorkspaceInjected} [injected]
+ */
 export async function getRewardWorkspace({ businessId, staff }, injected = {}) {
   const overrides = await (
     injected.getPlanFeatureOverrides ?? (() => PlanConfigService.getPlanFeatureOverrides())
   )();
-  return (injected.transaction ?? withTransaction)(async (client) => {
-    await livePromiseMember(client, { businessId, staff }, true);
-    const { features, region } = await workspaceBusiness(client, businessId, overrides);
-    if (!features.rewards) throw forbidden("Tu plan no incluye recompensas.");
-    const rewards = await readRewards(client, businessId),
-      branches = (
-        await client.query("SELECT id,name FROM branches WHERE business_id=$1 ORDER BY name,id", [
-          businessId,
-        ])
-      ).rows;
-    return { ok: true, rewards, branches, features, region };
-  });
+  return (injected.transaction ?? withTransaction)(
+    async (/** @type {RewardWorkspaceQueryClient} */ client) => {
+      await livePromiseMember(client, { businessId, staff }, true);
+      const { features, region } = await workspaceBusiness(client, businessId, overrides);
+      if (!features.rewards) throw forbidden("Tu plan no incluye recompensas.");
+      const rewards = await readRewards(client, businessId),
+        branches = (
+          await client.query("SELECT id,name FROM branches WHERE business_id=$1 ORDER BY name,id", [
+            businessId,
+          ])
+        ).rows;
+      return { ok: true, rewards, branches, features, region };
+    },
+  );
 }
+/**
+ * @param {RewardWorkspaceQueryClient} client
+ * @param {{
+ *   businessId: string,
+ *   staff: RewardWorkspaceStaff,
+ *   rewardId: string,
+ *   mapping: RewardWorkspaceMappingInput,
+ *   features: RewardWorkspaceFeatures,
+ *   branchIds: string[]
+ * }} args
+ */
 async function saveMapping(client, { businessId, staff, rewardId, mapping, features, branchIds }) {
   const existing = (
     await client.query(
@@ -273,145 +368,152 @@ async function saveMapping(client, { businessId, staff, rewardId, mapping, featu
     { transaction: (fn) => fn(client) },
   );
 }
+/**
+ * @param {{ businessId: string, staff: RewardWorkspaceStaff, input: unknown }} args
+ * @param {RewardWorkspaceSaveInjected} [injected]
+ */
 export async function saveRewardWorkspace({ businessId, staff, input }, injected = {}) {
   const value = normalizeRewardWorkspace(input),
     hash = fingerprint(value),
     overrides = await (
       injected.getPlanFeatureOverrides ?? (() => PlanConfigService.getPlanFeatureOverrides())
     )();
-  return (injected.transaction ?? withTransaction)(async (client) => {
-    await livePromiseMember(client, { businessId, staff }, true);
-    await lockPromiseRequest(client, businessId, value.requestId);
-    const previous = (
-      await client.query(
-        "SELECT fingerprint,response FROM reward_workspace_requests WHERE business_id=$1 AND request_id=$2",
-        [businessId, value.requestId],
-      )
-    ).rows[0];
-    if (previous) {
-      if (previous.fingerprint !== hash)
-        throw conflict("Esta solicitud ya corresponde a otros datos.");
-      return { ...previous.response, replay: true };
-    }
-    // This lock must precede every reward/branch edit: promise capture locks current
-    // balances while earning and redemption flows hold the shared business lock.
-    const { business, features, region } = await workspaceBusiness(
-      client,
-      businessId,
-      overrides,
-      "FOR UPDATE",
-    );
-    if (!features.rewards) throw forbidden("Tu plan no incluye recompensas.");
-    const rewardId = value.rewardId ?? randomUUID();
-    /** @type {Record<string, any> | null} */
-    let old = null;
-    if (value.rewardId) {
-      if (
-        !(
-          await client.query("SELECT id FROM rewards WHERE business_id=$1 AND id=$2 FOR UPDATE", [
-            businessId,
-            rewardId,
-          ])
-        ).rowCount
-      )
-        throw notFound("Recompensa no encontrada.");
-      old = (await readRewards(client, businessId, rewardId))[0];
-      if (!old) throw notFound("Recompensa no encontrada.");
-      if (old.version !== value.version)
-        throw conflict("La recompensa cambió. Actualiza antes de guardar.");
-    } else {
-      const count = (
-        await client.query("SELECT count(*)::integer AS count FROM rewards WHERE business_id=$1", [
-          businessId,
-        ])
-      ).rows[0].count;
-      if (count >= planLimits(business.plan).rewards)
-        throw forbidden("Tu plan alcanzó el límite de recompensas.");
-    }
-    const branches = value.reward.branch_ids;
-    if (
-      branches.length &&
-      (
+  return (injected.transaction ?? withTransaction)(
+    async (/** @type {RewardWorkspaceQueryClient} */ client) => {
+      await livePromiseMember(client, { businessId, staff }, true);
+      await lockPromiseRequest(client, businessId, value.requestId);
+      const previous = (
         await client.query(
-          "SELECT id FROM branches WHERE business_id=$1 AND id=ANY($2::uuid[]) FOR SHARE",
-          [businessId, branches],
+          "SELECT fingerprint,response FROM reward_workspace_requests WHERE business_id=$1 AND request_id=$2",
+          [businessId, value.requestId],
         )
-      ).rowCount !== branches.length
-    )
-      throw badRequest("Selecciona sucursales de este negocio.");
-    const costChanged =
-      Object.hasOwn(value, "unitCostQ") && value.unitCostQ !== (old?.unit_cost_q ?? null);
-    if (costChanged && !features.analytics)
-      throw forbidden("Tu plan no incluye cambios al costo de entrega.");
-    if (costChanged && value.unitCostQ !== null)
-      assertRegionAmount(value.unitCostQ, region.currency, business);
-    const reward = value.reward,
-      args = [
+      ).rows[0];
+      if (previous) {
+        if (previous.fingerprint !== hash)
+          throw conflict("Esta solicitud ya corresponde a otros datos.");
+        return { ...previous.response, replay: true };
+      }
+      // This lock must precede every reward/branch edit: promise capture locks current
+      // balances while earning and redemption flows hold the shared business lock.
+      const { business, features, region } = await workspaceBusiness(
+        client,
         businessId,
-        rewardId,
-        reward.name,
-        reward.description,
-        reward.points_cost,
-        old ? reward.active : false,
-        reward.stock,
-        reward.valid_until,
-      ];
-    if (old)
-      await client.query(
-        "UPDATE rewards SET name=$3,description=$4,points_cost=$5,active=$6,stock=$7,valid_until=$8 WHERE business_id=$1 AND id=$2",
-        args,
+        overrides,
+        "FOR UPDATE",
       );
-    else
-      await client.query(
-        "INSERT INTO rewards(business_id,id,name,description,points_cost,active,stock,valid_until) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
-        args,
-      );
-    if (!old || JSON.stringify(old.branch_ids) !== JSON.stringify(branches)) {
-      await client.query("DELETE FROM reward_branches WHERE reward_id=$1", [rewardId]);
-      for (const branchId of branches)
-        await client.query("INSERT INTO reward_branches(reward_id,branch_id) VALUES($1,$2)", [
+      if (!features.rewards) throw forbidden("Tu plan no incluye recompensas.");
+      const rewardId = value.rewardId ?? randomUUID();
+      /** @type {Record<string, any> | null} */
+      let old = null;
+      if (value.rewardId) {
+        if (
+          !(
+            await client.query("SELECT id FROM rewards WHERE business_id=$1 AND id=$2 FOR UPDATE", [
+              businessId,
+              rewardId,
+            ])
+          ).rowCount
+        )
+          throw notFound("Recompensa no encontrada.");
+        old = (await readRewards(client, businessId, rewardId))[0];
+        if (!old) throw notFound("Recompensa no encontrada.");
+        if (old.version !== value.version)
+          throw conflict("La recompensa cambió. Actualiza antes de guardar.");
+      } else {
+        const count = (
+          await client.query(
+            "SELECT count(*)::integer AS count FROM rewards WHERE business_id=$1",
+            [businessId],
+          )
+        ).rows[0].count;
+        if (count >= planLimits(business.plan).rewards)
+          throw forbidden("Tu plan alcanzó el límite de recompensas.");
+      }
+      const branches = value.reward.branch_ids;
+      if (
+        branches.length &&
+        (
+          await client.query(
+            "SELECT id FROM branches WHERE business_id=$1 AND id=ANY($2::uuid[]) FOR SHARE",
+            [businessId, branches],
+          )
+        ).rowCount !== branches.length
+      )
+        throw badRequest("Selecciona sucursales de este negocio.");
+      const costChanged =
+        Object.hasOwn(value, "unitCostQ") && value.unitCostQ !== (old?.unit_cost_q ?? null);
+      if (costChanged && !features.analytics)
+        throw forbidden("Tu plan no incluye cambios al costo de entrega.");
+      if (costChanged && value.unitCostQ !== null)
+        assertRegionAmount(/** @type {number} */ (value.unitCostQ), region.currency, business);
+      const reward = value.reward,
+        args = [
+          businessId,
           rewardId,
-          branchId,
+          reward.name,
+          reward.description,
+          reward.points_cost,
+          old ? reward.active : false,
+          reward.stock,
+          reward.valid_until,
+        ];
+      if (old)
+        await client.query(
+          "UPDATE rewards SET name=$3,description=$4,points_cost=$5,active=$6,stock=$7,valid_until=$8 WHERE business_id=$1 AND id=$2",
+          args,
+        );
+      else
+        await client.query(
+          "INSERT INTO rewards(business_id,id,name,description,points_cost,active,stock,valid_until) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
+          args,
+        );
+      if (!old || JSON.stringify(old.branch_ids) !== JSON.stringify(branches)) {
+        await client.query("DELETE FROM reward_branches WHERE reward_id=$1", [rewardId]);
+        for (const branchId of branches)
+          await client.query("INSERT INTO reward_branches(reward_id,branch_id) VALUES($1,$2)", [
+            rewardId,
+            branchId,
+          ]);
+      }
+      if (!old && reward.active)
+        await client.query("UPDATE rewards SET active=true WHERE business_id=$1 AND id=$2", [
+          businessId,
+          rewardId,
         ]);
-    }
-    if (!old && reward.active)
-      await client.query("UPDATE rewards SET active=true WHERE business_id=$1 AND id=$2", [
-        businessId,
-        rewardId,
-      ]);
-    if (costChanged)
-      await client.query(
-        `INSERT INTO reward_unit_costs(business_id,reward_id,unit_cost_q,updated_by_staff_id) VALUES($1,$2,$3,$4) ON CONFLICT(business_id,reward_id) DO UPDATE SET unit_cost_q=EXCLUDED.unit_cost_q,updated_by_staff_id=EXCLUDED.updated_by_staff_id,updated_at=clock_timestamp()`,
-        [businessId, rewardId, value.unitCostQ, staff.id],
-      );
-    if (value.available !== (old?.available ?? true))
-      await client.query(
-        `INSERT INTO reward_availability(business_id,reward_id,available,updated_by_staff_id) VALUES($1,$2,$3,$4) ON CONFLICT(business_id,reward_id) DO UPDATE SET available=EXCLUDED.available,updated_by_staff_id=EXCLUDED.updated_by_staff_id,updated_at=clock_timestamp()`,
-        [businessId, rewardId, value.available, staff.id],
-      );
-    if (value.mapping)
-      await saveMapping(client, {
-        businessId,
-        staff,
-        rewardId,
-        mapping: value.mapping,
-        features,
-        branchIds: branches,
+      if (costChanged)
+        await client.query(
+          `INSERT INTO reward_unit_costs(business_id,reward_id,unit_cost_q,updated_by_staff_id) VALUES($1,$2,$3,$4) ON CONFLICT(business_id,reward_id) DO UPDATE SET unit_cost_q=EXCLUDED.unit_cost_q,updated_by_staff_id=EXCLUDED.updated_by_staff_id,updated_at=clock_timestamp()`,
+          [businessId, rewardId, value.unitCostQ, staff.id],
+        );
+      if (value.available !== (old?.available ?? true))
+        await client.query(
+          `INSERT INTO reward_availability(business_id,reward_id,available,updated_by_staff_id) VALUES($1,$2,$3,$4) ON CONFLICT(business_id,reward_id) DO UPDATE SET available=EXCLUDED.available,updated_by_staff_id=EXCLUDED.updated_by_staff_id,updated_at=clock_timestamp()`,
+          [businessId, rewardId, value.available, staff.id],
+        );
+      if (value.mapping)
+        await saveMapping(client, {
+          businessId,
+          staff,
+          rewardId,
+          mapping: value.mapping,
+          features,
+          branchIds: branches,
+        });
+      const saved = (await readRewards(client, businessId, rewardId))[0];
+      await promiseAudit(client, { businessId, staff }, "reward.workspace.saved", {
+        reward_id: rewardId,
+        request_id: value.requestId,
+        version: saved.version,
+        created: !old,
+        cost_changed: costChanged,
+        mapping_changed: Boolean(value.mapping),
       });
-    const saved = (await readRewards(client, businessId, rewardId))[0];
-    await promiseAudit(client, { businessId, staff }, "reward.workspace.saved", {
-      reward_id: rewardId,
-      request_id: value.requestId,
-      version: saved.version,
-      created: !old,
-      cost_changed: costChanged,
-      mapping_changed: Boolean(value.mapping),
-    });
-    const response = { ok: true, reward: saved, replay: false };
-    await client.query(
-      "INSERT INTO reward_workspace_requests(business_id,request_id,fingerprint,response) VALUES($1,$2,$3,$4)",
-      [businessId, value.requestId, hash, JSON.stringify(response)],
-    );
-    return response;
-  });
+      const response = { ok: true, reward: saved, replay: false };
+      await client.query(
+        "INSERT INTO reward_workspace_requests(business_id,request_id,fingerprint,response) VALUES($1,$2,$3,$4)",
+        [businessId, value.requestId, hash, JSON.stringify(response)],
+      );
+      return response;
+    },
+  );
 }

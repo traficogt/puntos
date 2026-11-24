@@ -18,6 +18,10 @@ export const WALLET_BROADCAST_MONTHLY_CEIL = 4; // at most 4 broadcasts per busi
 export const CHANNEL_POLICIES = ["wallet_first_sms_fallback", "wallet_only", "sms_only"];
 export const DEFAULT_CHANNEL_POLICY = "wallet_first_sms_fallback";
 
+/**
+ * @param {unknown} value stored per-business cap (untrusted JSON)
+ * @param {number} ceiling
+ */
 function clampCap(value, ceiling) {
   const n = Number(value);
   if (!Number.isInteger(n) || n < 1) return ceiling;

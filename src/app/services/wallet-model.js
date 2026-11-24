@@ -6,6 +6,12 @@
 import { cashbackTerms } from "./cashback-model.js";
 import { pct, toMinor, toNumber } from "../../utils/money.js";
 
+/**
+ * The business row fields these helpers read (program_json is the JSONB program bag).
+ * @typedef {{ program_type?: string | null, program_json?: Record<string, any> | null }} WalletModelBusiness
+ */
+
+/** @param {WalletModelBusiness | null | undefined} business */
 export function giftCardTerms(business) {
   if (!business || business.program_type !== "GIFT_CARD") return null;
   const cfg = business.program_json ?? {};
@@ -15,6 +21,10 @@ export function giftCardTerms(business) {
 
 // Bonus Q added to a load of amount_q at the configured bonus percent. Same
 // exact centavo arithmetic as the gift-card ledger (gift-card-program-service).
+/**
+ * @param {unknown} bonus_percent configured percent (number or numeric text)
+ * @param {unknown} amount_q loaded amount (number or numeric text)
+ */
 export function loadBonus(bonus_percent, amount_q) {
   const percent = Math.min(100, Math.max(0, Number(bonus_percent) || 0));
   const amt = Number(amount_q);
@@ -24,6 +34,7 @@ export function loadBonus(bonus_percent, amount_q) {
 
 // One descriptor for whichever program keeps a member wallet, so the customer
 // card and staff terminal can show the balance for either. null for the rest.
+/** @param {WalletModelBusiness | null | undefined} business */
 export function walletProgram(business) {
   if (!business) return null;
   if (business.program_type === "CASHBACK") {

@@ -4,6 +4,10 @@ import { evaluatePointRules } from "./transaction-rule-evidence.js";
 
 // This module has no database or mutation dependency. Replay is an explanation,
 // never an award, and never reads today's program configuration.
+/**
+ * @param {unknown} raw stored award evidence (meta.award_evidence), validated by awardSchema
+ * @param {number} recordedPoints the ledger's recorded points for the transaction
+ */
 export function replaySavedAward(raw, recordedPoints) {
   const parsed = awardSchema.safeParse(raw);
   if (!parsed.success || !Number.isSafeInteger(recordedPoints))
@@ -42,7 +46,7 @@ export function replaySavedAward(raw, recordedPoints) {
     { now: new Date(e.evaluated_at), timeZone: e.time_zone },
   );
   const calculated = result.points + e.targeted_offer.bonus_points;
-  const fields = [
+  const fields = /** @type {const} */ ([
     "rule_version",
     "program",
     "base_points",
@@ -50,7 +54,8 @@ export function replaySavedAward(raw, recordedPoints) {
     "program_points",
     "local_hour",
     "local_weekday",
-  ];
+  ]);
+  /** @type {string[]} */
   const differences = fields.filter(
     (field) => !isDeepStrictEqual(result.evidence[field], e[field]),
   );

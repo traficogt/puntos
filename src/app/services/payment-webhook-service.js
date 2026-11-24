@@ -10,10 +10,38 @@ import { badRequest, forbidden, notFound } from "../../utils/http-error.js";
 import { logger } from "../../utils/logger.js";
 import { errorMessage } from "../../utils/error-shape.js";
 
+/**
+ * payment_webhook_events row (this service owns the table).
+ * @typedef {{
+ *   id: string,
+ *   provider: string,
+ *   provider_event_id: string,
+ *   event_type?: string | null,
+ *   status: string,
+ *   reason?: string | null,
+ *   error?: string | null,
+ *   business_slug: string | null,
+ *   business_id: string | null,
+ *   customer_id: string | null,
+ *   customer_phone: string | null,
+ *   amount_q: number | string | null,
+ *   currency: string | null,
+ *   payload?: Record<string, any> | null,
+ *   linked_transaction_id?: string | null,
+ *   created_at?: Date | string,
+ *   updated_at?: Date | string
+ * }} PaymentWebhookEventRow
+ *
+ * The award fields this service reads back from awardFromExternalEventTrusted.
+ * @typedef {{ transactionId?: string | null, customerId?: string | null }} PaymentWebhookAwardResult
+ * @typedef {{ award?: (input: import("./external-award-service.js").ExternalAwardInput) => Promise<PaymentWebhookAwardResult> }} PaymentWebhookDeps
+ */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/** @param {unknown} provider route parameter */
 function normalizeProvider(provider) {
   const p = String(provider || "")
     .trim()
@@ -26,6 +54,10 @@ function normalizeProvider(provider) {
   return p;
 }
 
+/**
+ * @param {string} provider
+ * @param {unknown} secretHeader
+ */
 function validateProviderSecret(provider, secretHeader) {
   const configured = config.PAYMENT_WEBHOOK_SECRETS?.[provider];
   if (!configured) return;
@@ -38,6 +70,7 @@ function validateProviderSecret(provider, secretHeader) {
   }
 }
 
+/** @param {unknown} [signatureHeader] */
 function normalizeSignature(signatureHeader = "") {
   const s = String(signatureHeader || "").trim();
   if (!s) return "";
@@ -45,6 +78,11 @@ function normalizeSignature(signatureHeader = "") {
   return s;
 }
 
+/**
+ * @param {string} provider
+ * @param {unknown} signatureHeader
+ * @param {unknown} rawBody
+ */
 function validateProviderHmac(provider, signatureHeader, rawBody) {
   const secret = config.PAYMENT_WEBHOOK_HMAC_SECRETS?.[provider];
   if (!secret) return;
@@ -63,6 +101,7 @@ function validateProviderHmac(provider, signatureHeader, rawBody) {
 
 const insecureProviderWarned = new Set();
 
+/** @param {string} provider */
 function assertProviderAuthConfigured(provider) {
   const hasSecret = Boolean(config.PAYMENT_WEBHOOK_SECRETS?.[provider]);
   const hasHmac = Boolean(config.PAYMENT_WEBHOOK_HMAC_SECRETS?.[provider]);
@@ -118,6 +157,21 @@ function webhookLogContext({
   };
 }
 
+/**
+ * @param {{
+ *   provider: string,
+ *   providerEventId: string,
+ *   eventType: string,
+ *   businessSlug: string | null | undefined,
+ *   businessId: string | null,
+ *   customerId: string | null,
+ *   customerPhone: string | null,
+ *   amount_q: number,
+ *   currency: string | null | undefined,
+ *   payload: Record<string, any> | null | undefined
+ * }} event
+ * @returns {Promise<PaymentWebhookEventRow | null>}
+ */
 async function insertOrGetEvent({
   provider,
   providerEventId,
@@ -159,6 +213,19 @@ async function insertOrGetEvent({
   return existing.rows?.[0] ?? null;
 }
 
+/**
+ * @param {string} eventId
+ * @param {{
+ *   status?: string | null,
+ *   reason?: string | null,
+ *   error?: string | null,
+ *   linkedTransactionId?: string | null,
+ *   customerId?: string | null,
+ *   customerPhone?: string | null,
+ *   businessId?: string | null,
+ *   businessSlug?: string | null
+ * }} [patch] undefined fields keep their stored value
+ */
 async function setEventStatus(eventId, patch = {}) {
   const {
     status = null,
@@ -204,6 +271,16 @@ async function setEventStatus(eventId, patch = {}) {
   );
 }
 
+/**
+ * @param {{
+ *   provider: unknown,
+ *   payload: Record<string, any> | null | undefined,
+ *   secretHeader?: string | undefined,
+ *   signatureHeader?: string | undefined,
+ *   rawBody?: string | Buffer
+ * }} request the provider name from the route, the parsed body, and its auth headers
+ * @param {PaymentWebhookDeps} [deps]
+ */
 export async function processPaymentWebhook(
   { provider, payload, secretHeader, signatureHeader = "", rawBody = "" },
   { award = awardFromExternalEventTrusted } = {},
@@ -410,6 +487,10 @@ export async function listPaymentWebhookEventsForBusiness({
   return rows;
 }
 
+/**
+ * @param {{ businessId: string, eventId: string, customerId?: string | null, customerPhone?: string | null }} resolution
+ * @param {PaymentWebhookDeps} [deps]
+ */
 export async function resolvePaymentWebhookEventForBusiness(
   { businessId, eventId, customerId, customerPhone },
   { award = awardFromExternalEventTrusted } = {},

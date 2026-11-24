@@ -11,12 +11,51 @@ import { withTransaction } from "../database.js";
 import { badRequest, conflict, forbidden, notFound } from "../../utils/http-error.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 
+/**
+ * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} ServiceRecoveryQueryClient
+ * @typedef {<T>(fn: (client: ServiceRecoveryQueryClient) => Promise<T>) => Promise<T>} ServiceRecoveryTransaction
+ * The staff session as the routes pass it (req.staff); fixtures may omit `id`.
+ * @typedef {{ id?: string, business_id: string, branch_id?: string | null, role?: string | null, impersonated_by?: string | null }} ServiceRecoverySession
+ * The acting staff_users row, verified against the session.
+ * @typedef {{ id: string, business_id: string, role: string, branch_id: string | null, active: boolean, impersonated_by?: string | null }} ServiceRecoveryActor
+ * Collaborators; production wiring is `defaults`, tests inject partial fakes.
+ * @typedef {{
+ *   transaction: ServiceRecoveryTransaction,
+ *   consumeAllowance: (
+ *     client: ServiceRecoveryQueryClient,
+ *     args: {
+ *       businessId: string,
+ *       staff: ServiceRecoveryActor,
+ *       action: string,
+ *       points: number,
+ *       requestId: string | null | undefined
+ *     },
+ *   ) => Promise<{ grantId?: string | null }>
+ * }} ServiceRecoveryDeps
+ * Ids arrive as the routes parsed them and are validated here by identity(), so
+ * the optional ones are typed as optional rather than asserted.
+ * @typedef {{
+ *   businessId: string,
+ *   staff: ServiceRecoverySession,
+ *   customerId?: string | null,
+ *   requestId?: string | null,
+ *   kind: string,
+ *   reason: unknown,
+ *   rewardId?: string | null,
+ *   redemptionId?: string | null
+ * }} ServiceRecoveryCaseOptions
+ * A value thrown by redeemReward; its status and message select the case kind.
+ * @typedef {{ statusCode?: unknown, message?: unknown } | null | undefined} ServiceRecoveryFailure
+ */
+
+/** @type {ServiceRecoveryDeps} */
 const defaults = {
   transaction: withTransaction,
   consumeAllowance: async (client, args) =>
     (await import("./staff-delegation-service.js")).consumeServiceAllowance(client, args),
 };
 const uuid = z.guid();
+/** @param {unknown} value */
 const fingerprint = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const kinds = new Set(["redemption_failed", "unavailable", "unfulfilled"]);
 const CASE_SELECT = `SELECT sc.*,
@@ -30,16 +69,24 @@ const resolutions = new Set([
   "closed_with_reason",
   "points_restored",
 ]);
+/** @param {unknown} value */
 function identity(value) {
   if (!uuid.safeParse(value).success) throw badRequest("Identificador inválido.");
   return value;
 }
+/** @param {unknown} value */
 function reasonText(value) {
   const result = typeof value === "string" ? value.trim() : "";
   if (result.length < 3 || result.length > 500)
     throw badRequest("Describe el motivo en 3 a 500 caracteres.");
   return result;
 }
+/**
+ * @param {ServiceRecoveryQueryClient} client
+ * @param {string} businessId
+ * @param {ServiceRecoverySession} staff
+ * @returns {Promise<ServiceRecoveryActor>}
+ */
 async function actor(client, businessId, staff) {
   identity(businessId);
   identity(staff?.id);
@@ -47,6 +94,7 @@ async function actor(client, businessId, staff) {
     "SELECT id,business_id,role,branch_id,active FROM staff_users WHERE business_id=$1 AND id=$2",
     [businessId, staff.id],
   );
+  /** @type {ServiceRecoveryActor | undefined} */
   const row = rows[0];
   if (
     !row?.active ||
@@ -57,19 +105,45 @@ async function actor(client, businessId, staff) {
     throw forbidden("La sesión no tiene acceso a este negocio.");
   return { ...row, ...(staff.impersonated_by ? { impersonated_by: staff.impersonated_by } : {}) };
 }
+/**
+ * @param {{ role?: string | null, branch_id?: string | null }} staff
+ * @param {{ branch_id?: string | null }} row a case or redemption row
+ */
 const canSee = (staff, row) =>
   staff.role === "OWNER" || (staff.branch_id ?? null) === (row.branch_id ?? null);
+/**
+ * @overload
+ * @param {Record<string, any>} row
+ * @returns {Record<string, any>}
+ */
+/**
+ * @overload
+ * @param {Record<string, any> | null | undefined} row
+ * @returns {Record<string, any> | null}
+ */
+/** @param {Record<string, any> | null | undefined} row a service_cases row */
 function visible(row) {
   if (!row) return null;
   const { request_fingerprint: _fingerprint, request_id: _requestId, ...out } = row;
   return out;
 }
+/**
+ * @param {ServiceRecoveryQueryClient} client
+ * @param {string} businessId
+ * @param {string | null | undefined} requestId already validated by identity()
+ */
 async function lockRequest(client, businessId, requestId) {
   await client.query("SELECT pg_advisory_xact_lock(hashtext($1),hashtext($2))", [
     businessId,
     `service:${requestId}`,
   ]);
 }
+/**
+ * @param {ServiceRecoveryQueryClient} client
+ * @param {ServiceRecoveryActor} staff
+ * @param {string} action
+ * @param {Record<string, unknown>} meta
+ */
 async function audit(client, staff, action, meta) {
   await client.query(
     `INSERT INTO audit_logs(id,business_id,actor_type,actor_id,action,meta) VALUES($1,$2,'STAFF',$3,$4,$5)`,
@@ -82,6 +156,17 @@ async function audit(client, staff, action, meta) {
     ],
   );
 }
+/**
+ * @param {ServiceRecoveryQueryClient} client
+ * @param {{
+ *   staff: ServiceRecoveryActor,
+ *   row: Record<string, any>,
+ *   requestId: string | null | undefined,
+ *   hash: string,
+ *   type: string,
+ *   details: Record<string, unknown>
+ * }} event `row` is the service_cases row the event belongs to
+ */
 async function appendEvent(client, { staff, row, requestId, hash, type, details }) {
   await client.query(
     `INSERT INTO service_case_events(id,business_id,case_id,actor_staff_id,request_id,request_fingerprint,event_type,version,details) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
@@ -98,6 +183,14 @@ async function appendEvent(client, { staff, row, requestId, hash, type, details 
     ],
   );
 }
+/**
+ * @param {ServiceRecoveryQueryClient} client
+ * @param {string} businessId
+ * @param {ServiceRecoveryActor} staff
+ * @param {string} caseId
+ * @param {boolean} [lock]
+ * @returns {Promise<Record<string, any>>} the service_cases row with display names
+ */
 async function selectedCase(client, businessId, staff, caseId, lock = false) {
   const { rows } = await client.query(
     `${CASE_SELECT} WHERE business_id=$1 AND id=$2${lock ? " FOR UPDATE" : ""}`,
@@ -106,6 +199,10 @@ async function selectedCase(client, businessId, staff, caseId, lock = false) {
   if (!rows[0] || !canSee(staff, rows[0])) throw notFound("Caso no encontrado.");
   return rows[0];
 }
+/**
+ * @param {ServiceRecoveryCaseOptions} options
+ * @param {Partial<ServiceRecoveryDeps>} [injected]
+ */
 export async function createServiceCase(options, injected = {}) {
   const d = { ...defaults, ...injected };
   const { businessId, customerId, requestId } = options;
@@ -235,12 +332,12 @@ export async function createServiceCase(options, injected = {}) {
 /**
  * @param {{
  *   businessId: string,
- *   staff: any,
+ *   staff: ServiceRecoverySession,
  *   status?: string,
  *   offset?: number,
  *   customerId?: string | null
  * }} filter
- * @param {Record<string, unknown>} [injected]
+ * @param {Partial<ServiceRecoveryDeps>} [injected]
  */
 export async function listServiceCases(
   { businessId, staff: session, status = "open", offset = 0, customerId = null },
@@ -275,6 +372,10 @@ export async function listServiceCases(
     };
   });
 }
+/**
+ * @param {{ businessId: string, staff: ServiceRecoverySession, caseId: string }} lookup
+ * @param {Partial<ServiceRecoveryDeps>} [injected]
+ */
 export async function getServiceCase({ businessId, staff: session, caseId }, injected = {}) {
   return { ...defaults, ...injected }.transaction(async (client) => {
     const staff = await actor(client, businessId, session),
@@ -288,16 +389,20 @@ export async function getServiceCase({ businessId, staff: session, caseId }, inj
       [businessId, row.redemption_id],
     );
     const customerActive =
-      (
-        await client.query(
-          "SELECT id FROM customers WHERE business_id=$1 AND id=$2 AND deleted_at IS NULL",
-          [businessId, row.customer_id],
-        )
-      ).rowCount > 0;
+      /** @type {number} */ (
+        (
+          await client.query(
+            "SELECT id FROM customers WHERE business_id=$1 AND id=$2 AND deleted_at IS NULL",
+            [businessId, row.customer_id],
+          )
+        ).rowCount
+      ) > 0;
     const entitlements = customerActive
       ? await listCustomerEntitlements(
           { businessId, customerId: row.customer_id },
-          { transaction: (fn) => fn(client) },
+          /** @type {{ transaction: ServiceRecoveryTransaction }} */ ({
+            transaction: (fn) => fn(client),
+          }),
         )
       : { promises: [] };
     const team = (
@@ -318,6 +423,21 @@ export async function getServiceCase({ businessId, staff: session, caseId }, inj
     };
   });
 }
+/**
+ * @param {{
+ *   businessId: string,
+ *   staff: ServiceRecoverySession,
+ *   caseId: string,
+ *   requestId?: string | null,
+ *   resolution: string,
+ *   version: number,
+ *   reason: unknown,
+ *   attested?: boolean,
+ *   promiseId?: string | null,
+ *   fulfillmentRewardId?: string | null
+ * }} options
+ * @param {Partial<ServiceRecoveryDeps>} [injected]
+ */
 export async function resolveServiceCase(options, injected = {}) {
   const d = { ...defaults, ...injected },
     { businessId, caseId, requestId, resolution, version } = options;
@@ -410,7 +530,9 @@ export async function resolveServiceCase(options, injected = {}) {
           customerAccepted: resolution === "alternative_accepted",
           requestId,
         },
-        { transaction: (fn) => fn(client) },
+        /** @type {{ transaction: ServiceRecoveryTransaction }} */ ({
+          transaction: (fn) => fn(client),
+        }),
       );
     }
 
@@ -567,9 +689,10 @@ const DAILY_LIMIT_PATTERN =
 const COOLDOWN_PATTERN =
   /^(Esta recompensa tiene un tiempo de espera entre canjes\.|Reward cooldown active\.)/;
 
+/** @param {ServiceRecoveryFailure} error */
 export function redemptionFailureKind(error) {
   const message = String(error?.message ?? "");
-  if (![400, 403, 404, 409].includes(error?.statusCode)) return null;
+  if (![400, 403, 404, 409].includes(/** @type {number} */ (error?.statusCode))) return null;
   if (UNAVAILABLE_MESSAGES.has(message)) return "unavailable";
   if (
     INSUFFICIENT_POINTS_MESSAGES.has(message) ||
@@ -579,6 +702,7 @@ export function redemptionFailureKind(error) {
     return "redemption_failed";
   return null;
 }
+/** @param {ServiceRecoveryFailure} error */
 function redemptionFailureReason(error) {
   const message = String(error?.message ?? "");
   if (UNAVAILABLE_MESSAGES.has(message)) return UNAVAILABLE_MESSAGES.get(message);
@@ -588,12 +712,28 @@ function redemptionFailureReason(error) {
     ? "El intervalo entre canjes impedía completar este intento."
     : "El límite de canjes impedía completar este intento.";
 }
-/** Only call after redeemReward rejected and its transaction has rolled back. */
+/**
+ * Only call after redeemReward rejected and its transaction has rolled back.
+ * @param {{
+ *   staff: ServiceRecoverySession,
+ *   customerId: string,
+ *   rewardId: string,
+ *   requestId?: string | null,
+ *   error: unknown
+ * }} attempt the rejected redemption and the value redeemReward threw
+ * @param {Partial<ServiceRecoveryDeps> & {
+ *   createCase?: (
+ *     options: ServiceRecoveryCaseOptions,
+ *     injected: Partial<ServiceRecoveryDeps>,
+ *   ) => Promise<{ case: { id: string } }>
+ * }} [injected]
+ */
 export async function recordFailedRedemption(
   { staff, customerId, rewardId, requestId, error },
   injected = {},
 ) {
-  if (!redemptionFailureKind(error) || !uuid.safeParse(requestId).success) return null;
+  const failure = /** @type {ServiceRecoveryFailure} */ (error);
+  if (!redemptionFailureKind(failure) || !uuid.safeParse(requestId).success) return null;
   try {
     const result = await (injected.createCase ?? createServiceCase)(
       {
@@ -603,7 +743,7 @@ export async function recordFailedRedemption(
         rewardId,
         requestId,
         kind: "redemption_failed",
-        reason: redemptionFailureReason(error),
+        reason: redemptionFailureReason(failure),
       },
       injected,
     );
@@ -613,6 +753,10 @@ export async function recordFailedRedemption(
   }
 }
 
+/**
+ * @param {{ businessId: string, staff: ServiceRecoverySession, customerId: string }} lookup
+ * @param {Partial<ServiceRecoveryDeps>} [injected]
+ */
 export async function listServiceRedemptions(
   { businessId, staff: session, customerId },
   injected = {},
@@ -633,6 +777,21 @@ export async function listServiceRedemptions(
   });
 }
 
+/**
+ * @param {{
+ *   businessId: string,
+ *   staff: ServiceRecoverySession,
+ *   caseId: string,
+ *   requestId?: string | null,
+ *   version: number,
+ *   action: string,
+ *   reason: unknown,
+ *   assignedStaffId?: string | null,
+ *   promiseId?: string | null,
+ *   extendedUntil?: string | number | Date | null
+ * }} options
+ * @param {Partial<ServiceRecoveryDeps>} [injected]
+ */
 export async function manageServiceCase(options, injected = {}) {
   const { businessId, caseId, requestId, version, action } = options;
   identity(caseId);
@@ -712,12 +871,15 @@ export async function manageServiceCase(options, injected = {}) {
           {
             businessId,
             staff,
-            promiseId: options.promiseId,
-            extendedUntil: options.extendedUntil,
+            // identity() validated promiseId above; extendRewardPromise validates the date.
+            promiseId: /** @type {string} */ (options.promiseId),
+            extendedUntil: /** @type {string | number | Date} */ (options.extendedUntil),
             reason,
             requestId,
           },
-          { transaction: (fn) => fn(client) },
+          /** @type {{ transaction: ServiceRecoveryTransaction }} */ ({
+            transaction: (fn) => fn(client),
+          }),
         )
       ).extension;
     }
@@ -747,6 +909,10 @@ export async function manageServiceCase(options, injected = {}) {
     return { ok: true, case: visible(changed), extension, replay: false };
   });
 }
+/**
+ * @param {{ businessId: string, staff: ServiceRecoverySession }} lookup
+ * @param {Partial<ServiceRecoveryDeps>} [injected]
+ */
 export async function getServiceInsights({ businessId, staff: session }, injected = {}) {
   return { ...defaults, ...injected }.transaction(async (client) => {
     const staff = await actor(client, businessId, session);

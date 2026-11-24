@@ -3,6 +3,7 @@
  * does not undo a sale; refunds and reversal links do. Do not use this for
  * awarding, eligibility, marketing selection or current point balances.
  * The alias must be a code-supplied, unqualified SQL identifier.
+ * @param {unknown} alias
  */
 export function reportingPurchase(alias) {
   if (typeof alias !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(alias)) {

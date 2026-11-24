@@ -1,13 +1,62 @@
-/** Stable evidence excludes consultation instants, with window bounds carried separately as period metadata. */
+/**
+ * Evidence as getOwnerOutcomeEvidence (./owner-outcome-service.js) returns it; the
+ * redemption follow-up block comes from redemption-return-service and is read defensively.
+ * @typedef {{
+ *   as_of: string,
+ *   period?: { days: number, start: unknown, end: unknown } | null,
+ *   region?: { locale?: string | null, currency?: string | null },
+ *   costs: { active: number, missing: number },
+ *   hospitality: { total: number, fulfilled?: number, expired_unused: number, reserved_unused?: number },
+ *   returns?: OwnerOutcomeReturns | null
+ * }} OwnerOutcomeEvidence
+ *
+ * @typedef {{ customers: number, returned_customers?: number, [field: string]: unknown }} OwnerOutcomeCompletedCohort
+ * @typedef {{
+ *   completed?: OwnerOutcomeCompletedCohort | null,
+ *   ongoing: { customers: number, [field: string]: unknown },
+ *   cohort: { start: unknown, end: unknown }
+ * }} OwnerOutcomeReturns
+ * The follow-up block once the condition below established a completed cohort.
+ * @typedef {OwnerOutcomeReturns & { completed: OwnerOutcomeCompletedCohort }} OwnerOutcomeMeasuredReturns
+ *
+ * @typedef {{
+ *   key: string,
+ *   priority: number,
+ *   title: string,
+ *   explanation: string,
+ *   evidence: Record<string, unknown>,
+ *   action: { label: string, href: string },
+ *   observed_at: string,
+ *   period: { days: number, start: unknown, end: unknown } | null
+ * }} OwnerOutcomeFinding
+ */
+
+/**
+ * Stable evidence excludes consultation instants, with window bounds carried separately as period metadata.
+ * @param {OwnerOutcomeEvidence | null | undefined} outcomes
+ * @returns {OwnerOutcomeFinding[]}
+ */
 export function ownerOutcomeFindings(outcomes) {
   if (!outcomes) return [];
-  const { costs, hospitality, returns, region = {}, as_of, period } = outcomes;
-  const number = (value) => new Intl.NumberFormat(region.locale || "es-GT").format(value);
+  const {
+    costs,
+    hospitality,
+    returns,
+    region = /** @type {NonNullable<OwnerOutcomeEvidence["region"]>} */ ({}),
+    as_of,
+    period,
+  } = outcomes;
+  // Counts the evidence omitted format as NaN, exactly as before this file was typed.
+  /** @param {number | undefined} value */
+  const number = (value) =>
+    new Intl.NumberFormat(region.locale || "es-GT").format(/** @type {number} */ (value));
+  /** @param {number | undefined} value */
   const money = (value) =>
     new Intl.NumberFormat(region.locale || "es-GT", {
       style: "currency",
       currency: region.currency || "GTQ",
-    }).format(value);
+    }).format(/** @type {number} */ (value));
+  /** @type {OwnerOutcomeFinding[]} */
   const items = [];
   /**
    * @param {string} key
@@ -48,24 +97,33 @@ export function ownerOutcomeFindings(outcomes) {
       { label: "Revisar cortesías", href: "#cortesias" },
       period,
     );
-  if (returns?.completed?.customers > 0)
+  // An absent follow-up block compares as false, exactly as the untyped code did.
+  if (/** @type {number} */ (returns?.completed?.customers) > 0)
     add(
       "redemption-follow-up",
       40,
       "Revisa las visitas después de canjear",
-      `${number(returns.completed.returned_customers)} de ${number(returns.completed.customers)} clientes con 30 días completos volvieron a comprar en otra fecha local. ${number(returns.ongoing.customers)} siguen en seguimiento y quedan fuera de ese denominador. Se analizan canjes de los últimos 90 días. Son compras registradas en PF; no demuestran que la recompensa causó el regreso.`,
+      `${number(/** @type {OwnerOutcomeMeasuredReturns} */ (returns).completed.returned_customers)} de ${number(/** @type {OwnerOutcomeMeasuredReturns} */ (returns).completed.customers)} clientes con 30 días completos volvieron a comprar en otra fecha local. ${number(/** @type {OwnerOutcomeMeasuredReturns} */ (returns).ongoing.customers)} siguen en seguimiento y quedan fuera de ese denominador. Se analizan canjes de los últimos 90 días. Son compras registradas en PF; no demuestran que la recompensa causó el regreso.`,
       {
-        completed: returns.completed,
-        ongoing: returns.ongoing,
+        completed: /** @type {OwnerOutcomeMeasuredReturns} */ (returns).completed,
+        ongoing: /** @type {OwnerOutcomeMeasuredReturns} */ (returns).ongoing,
         scope: "all_branches",
         follow_up_days: 30,
       },
       { label: "Ver seguimiento después del canje", href: "?ver=visitas-tras-canje#resumen" },
-      { days: 90, start: returns.cohort.start, end: returns.cohort.end },
+      {
+        days: 90,
+        start: /** @type {OwnerOutcomeMeasuredReturns} */ (returns).cohort.start,
+        end: /** @type {OwnerOutcomeMeasuredReturns} */ (returns).cohort.end,
+      },
     );
   return items;
 }
 
+/**
+ * @template {{ key: string, priority: number, fallback?: boolean }} T
+ * @param {T[]} candidates
+ */
 export function selectWeeklyFindings(candidates) {
   const sorted = [...candidates].sort(
     (a, b) => a.priority - b.priority || a.key.localeCompare(b.key),

@@ -1,3 +1,4 @@
+/** @param {unknown} input */
 export function slugify(input) {
   return String(input)
     .trim()

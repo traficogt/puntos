@@ -8,6 +8,11 @@ import { createNativeWalletService } from "./service.js";
 import { logger } from "../../../utils/logger.js";
 
 export const walletSettings = loadNativeWalletConfig();
+/**
+ * @template T
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
 export const walletGlobalContext = (fn) =>
   withDbClientContext({ platformAdmin: true, tenantId: null }, fn);
 /**
@@ -20,12 +25,13 @@ function providerConfig(settings) {
   if (!settings.config) throw new Error("Provider configuration missing");
   return settings.config;
 }
+/** @type {Record<string, import("./service.js").NativeWalletProvider>} */
 const providers = {};
 const providerFactories = {
   apple: () => createAppleProvider(providerConfig(walletSettings.apple)),
   google: () => createGoogleProvider(providerConfig(walletSettings.google)),
 };
-for (const name of ["apple", "google"]) {
+for (const name of /** @type {const} */ (["apple", "google"])) {
   if (walletSettings[name].ready) {
     try {
       providers[name] = providerFactories[name]();
@@ -47,25 +53,27 @@ export const nativeWalletService = createNativeWalletService({
   providers,
   globalContext: walletGlobalContext,
   withPassLock: (id, fn) =>
-    withTransaction(async (client) => {
-      // Class updates are shared by a business, so serialize Google operations
-      // at that level before reading either class or object data.
-      const row = await client.query(
-        "SELECT business_id, provider FROM native_wallet_passes WHERE id=$1",
-        [id],
-      );
-      if (row.rows[0]?.provider === "google")
-        await client.query(
-          "SELECT pg_advisory_xact_lock(hashtext('native-wallet-business'),hashtext($1))",
-          [row.rows[0].business_id],
+    withTransaction(
+      async (/** @type {import("./service.js").NativeWalletQueryClient} */ client) => {
+        // Class updates are shared by a business, so serialize Google operations
+        // at that level before reading either class or object data.
+        const row = await client.query(
+          "SELECT business_id, provider FROM native_wallet_passes WHERE id=$1",
+          [id],
         );
-      // Every provider write takes this lock before reading its authoritative snapshot.
-      await client.query(
-        "SELECT pg_advisory_xact_lock(hashtext('native-wallet-provider'),hashtext($1))",
-        [id],
-      );
-      return fn();
-    }),
+        if (row.rows[0]?.provider === "google")
+          await client.query(
+            "SELECT pg_advisory_xact_lock(hashtext('native-wallet-business'),hashtext($1))",
+            [row.rows[0].business_id],
+          );
+        // Every provider write takes this lock before reading its authoritative snapshot.
+        await client.query(
+          "SELECT pg_advisory_xact_lock(hashtext('native-wallet-provider'),hashtext($1))",
+          [id],
+        );
+        return fn();
+      },
+    ),
 });
 let running = false;
 export async function processNativeWalletUpdates() {

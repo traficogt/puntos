@@ -1,7 +1,33 @@
 import { dbQuery } from "../database.js";
 import { normalizePurchaseOccurredAt } from "./purchase-event-time.js";
 
+/**
+ * Evidence that a POS adapter sent a receipt; deliberately free of customer data.
+ * @typedef {{
+ *   source: string,
+ *   saleId: string,
+ *   occurredAt: string | null,
+ *   status: string,
+ *   transactionId: string | null
+ * }} PosMeasurementReceipt
+ *
+ * What recordPosMeasurementReceipts() accepts: jsonb_to_recordset reads a missing
+ * occurredAt or transactionId as NULL, so adapters may omit them.
+ * @typedef {{
+ *   source: string,
+ *   saleId: string,
+ *   status: string,
+ *   occurredAt?: string | null,
+ *   transactionId?: string | null
+ * }} PosMeasurementReceiptInput
+ */
+
 // Deliberately excludes phone, customer ID, amounts and original request bodies.
+/**
+ * @param {{ saleId?: string, source?: string, occurredAt?: string | null }} input a sale, an import issue or a raw API body
+ * @param {string} [status]
+ * @returns {PosMeasurementReceipt | null}
+ */
 export function posMeasurementReceipt(input, status = "unmatched") {
   const saleId = typeof input?.saleId === "string" ? input.saleId.trim() : "";
   const source = typeof (input?.source ?? "api") === "string" ? (input.source ?? "api").trim() : "";
@@ -23,6 +49,11 @@ export function posMeasurementReceipt(input, status = "unmatched") {
   return { source, saleId, occurredAt, status, transactionId: null };
 }
 
+/**
+ * @param {string} businessId
+ * @param {PosMeasurementReceiptInput[]} receipts
+ * @param {typeof dbQuery} [query]
+ */
 export async function recordPosMeasurementReceipts(businessId, receipts, query = dbQuery) {
   if (!receipts.length) return;
   const unique = [

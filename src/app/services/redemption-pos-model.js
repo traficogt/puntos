@@ -80,25 +80,36 @@ const manual = z
   })
   .strict()
   .refine((v) => v.action !== "recorded" || Boolean(v.receiptRef));
+/**
+ * @template {import("zod").ZodType} S
+ * @param {S} schema
+ * @param {unknown} input untrusted request body
+ * @param {string} message
+ * @returns {import("zod").infer<S>}
+ */
 function parse(schema, input, message) {
   const out = schema.safeParse(input);
   if (!out.success) throw badRequest(message);
   return out.data;
 }
+/** @param {unknown} input */
 export const normalizeRewardPosMapping = (input) =>
   parse(
     mapping,
     input,
     "Revisa el origen, producto o servicio, sucursal, cantidad y versión del vínculo.",
   );
+/** @param {unknown} input */
 export const normalizePosFulfillmentEvent = (input) =>
   parse(
     event,
     input,
     "Revisa la identidad del canje, recibo, artículo, cantidad, moneda y evento original.",
   );
+/** @param {unknown} input */
 export const normalizeManualFulfillment = (input) =>
   parse(manual, input, "Confirma el registro real y agrega una referencia y un motivo válidos.");
+/** @param {unknown} input */
 export const normalizePosLookup = (input) =>
   parse(
     z
@@ -114,7 +125,9 @@ export const normalizePosLookup = (input) =>
     input,
     "Indica el origen y el código de canje PF.",
   );
+/** @param {unknown} input */
 export const normalizeMappingLookup = (input) =>
   parse(z.object({ source: posSourceSchema }).strict(), input, "Indica el origen de esta caja.");
+/** @param {unknown} value any JSON-serializable value */
 export const fulfillmentFingerprint = (value) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");

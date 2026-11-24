@@ -4,9 +4,11 @@ import { isIP } from "node:net";
 
 // Shared by local readiness checks and provider construction. This validates URL
 // shape only; operators still verify public DNS, TLS and asset reachability.
+/** @param {string | undefined} value environment value; a missing one parses as null */
 export function parsePublicWalletUrl(value) {
   try {
-    const u = new URL(value);
+    // An undefined value makes the constructor throw, which the catch turns into null.
+    const u = new URL(/** @type {string} */ (value));
     const host = u.hostname
       .replace(/^\[|\]$/g, "")
       .replace(/\.$/, "")

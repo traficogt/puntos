@@ -37,26 +37,34 @@ export const IMPORT_FILE_ROWS = 5000;
 /** PLAN_LIMITS.activeCustomers at or above this value means "no plan limit". */
 const UNLIMITED_ACTIVE_CUSTOMERS = 999999;
 
-/** "2,000" (the thousands separator used in owner-facing copy). */
+/**
+ * "2,000" (the thousands separator used in owner-facing copy).
+ * @param {number | string} value
+ */
 export function formatCount(value) {
   return Number(value).toLocaleString("en-US");
 }
 
+/** @param {string | null | undefined} plan */
 export function planDisplayName(plan) {
   const key = normalizePlan(plan);
-  return PLAN_DISPLAY_NAMES[key] ?? key;
+  return /** @type {Record<string, string>} */ (PLAN_DISPLAY_NAMES)[key] ?? key;
 }
 
 /**
  * Plan limit for one campaign audience: the plan's active-customer soft cap
  * (Conecta 300, Impulsa 2,000) or null when the plan has no limit (Expande).
+ * @param {string | null | undefined} plan
  */
 export function planAudienceLimit(plan) {
   const cap = Number(planLimits(plan).activeCustomers);
   return Number.isFinite(cap) && cap < UNLIMITED_ACTIVE_CUSTOMERS ? cap : null;
 }
 
-/** The largest audience one campaign on this plan may request. */
+/**
+ * The largest audience one campaign on this plan may request.
+ * @param {string | null | undefined} plan
+ */
 export function audienceCeiling(plan) {
   const cap = planAudienceLimit(plan);
   return cap === null ? AUDIENCE_TECHNICAL_CEILING : Math.min(cap, AUDIENCE_TECHNICAL_CEILING);
@@ -74,7 +82,11 @@ export function scaleLimitsTable() {
   }));
 }
 
-/** Throws a 400 with owner-facing Spanish when the audience exceeds the plan or ceiling. */
+/**
+ * Throws a 400 with owner-facing Spanish when the audience exceeds the plan or ceiling.
+ * @param {string | null | undefined} plan
+ * @param {number | string} audienceLimit the requested maximum, as validated by the route
+ */
 export function assertAudienceWithinPlan(plan, audienceLimit) {
   const requested = Number(audienceLimit);
   if (requested > AUDIENCE_TECHNICAL_CEILING)
@@ -94,6 +106,9 @@ export function assertAudienceWithinPlan(plan, audienceLimit) {
  * The next import chunk for a job cursor: rows [start, end) of `total`, its 1-based
  * label index and the total number of chunks. Pure, so restarts recompute the same
  * chunk from the persisted `processed` cursor.
+ * @param {number | null | undefined} processed
+ * @param {number | null | undefined} total
+ * @param {number} [size]
  */
 export function importChunk(processed, total, size = IMPORT_CHUNK_ROWS) {
   const start = Math.max(0, Math.min(Number(processed) || 0, Number(total) || 0));

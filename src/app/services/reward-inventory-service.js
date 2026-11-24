@@ -1,5 +1,18 @@
 import { conflict } from "../../utils/http-error.js";
 export const INVENTORY_FRESH_SECONDS = 300;
+/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} RewardInventoryQueryClient */
+/**
+ * Catalog item, mapping quantity and latest inventory snapshot for one reward/branch.
+ * @param {{
+ *   itemKind?: string | null,
+ *   origin?: string | null,
+ *   active?: boolean | null,
+ *   quantity?: number | string | null,
+ *   observedAt?: Date | string | null,
+ *   now?: number,
+ *   requiredQuantity?: number
+ * }} input
+ */
 export function catalogInventory({
   itemKind,
   origin,
@@ -26,6 +39,10 @@ export function catalogInventory({
       origin === "connector" && observed !== null ? new Date(observed).toISOString() : null,
   };
 }
+/**
+ * @param {RewardInventoryQueryClient} client
+ * @param {{ businessId: string, rewardId: string, branchId?: string | null }} args
+ */
 export async function getRewardInventory(client, { businessId, rewardId, branchId = null }) {
   const rows = (
     await client.query(
@@ -66,6 +83,10 @@ export async function getRewardInventory(client, { businessId, rewardId, branchI
     productRef: row.product_ref,
   };
 }
+/**
+ * @param {RewardInventoryQueryClient} client
+ * @param {Parameters<typeof getRewardInventory>[1]} input
+ */
 export async function assertRewardInventory(client, input) {
   const inventory = await getRewardInventory(client, input);
   if (!["not_required", "available"].includes(inventory.state))
@@ -79,6 +100,10 @@ export async function assertRewardInventory(client, input) {
 
 // The existing Wallet pass trigger allocates revisions and queues asynchronous
 // refresh work. Keep this in the same transaction as inventory evidence.
+/**
+ * @param {RewardInventoryQueryClient} client
+ * @param {string} businessId
+ */
 export async function markRewardInventoryWallets(client, businessId) {
   await client.query(
     "UPDATE native_wallet_passes SET revision=revision+1 WHERE business_id=$1 AND revoked_at IS NULL",

@@ -112,7 +112,11 @@ test(
           Object.fromEntries(
             Object.entries(service).map(([name, fn]) => [
               name,
-              (options) => fn(options, { transaction }),
+              // Every export is wrapped alike, so the call cannot be checked per signature.
+              (options) =>
+                /** @type {(...args: unknown[]) => Promise<unknown>} */ (
+                  /** @type {unknown} */ (fn)
+                )(options, { transaction }),
             ]),
           ),
         ),

@@ -17,7 +17,16 @@ const OUTCOMES_SQL = `WITH costs AS (
 )
 SELECT c.active,c.missing,h.total,h.fulfilled,h.expired_unused,h.reserved_unused FROM costs c CROSS JOIN hospitality h`;
 
-/** Read-only evidence. No new grants, campaigns, messages or reward issuances. */
+/**
+ * Read-only evidence. No new grants, campaigns, messages or reward issuances.
+ * @param {{
+ *   businessId: string,
+ *   business: { id?: string, program_json?: Record<string, any> | null } | null | undefined,
+ *   now?: Date,
+ *   includeReturns?: boolean
+ * }} args `business` is the tenant's row as the route loaded it
+ * @param {typeof dbQuery} [query]
+ */
 export async function getOwnerOutcomeEvidence(
   { businessId, business, now = new Date(), includeReturns = true },
   query = dbQuery,

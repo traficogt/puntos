@@ -59,6 +59,19 @@ SELECT b.start_at, b.end_at, s.value AS summary,
   (SELECT COUNT(*)::int FROM filtered) AS total
 FROM bounds b CROSS JOIN summary s`;
 
+/** @typedef {(text: string, values?: unknown[]) => Promise<{ rows: any[] }>} ReferralGrowthQuery */
+/**
+ * @param {{
+ *   businessId: string,
+ *   days?: number,
+ *   phase?: string,
+ *   limit?: number,
+ *   offset?: number,
+ *   timezone?: string,
+ *   now?: Date
+ * }} args
+ * @param {ReferralGrowthQuery} [query]
+ */
 export async function getReferralGrowth(
   {
     businessId,

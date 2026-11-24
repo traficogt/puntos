@@ -5,10 +5,45 @@ import { withTransaction } from "../database.js";
 import { conflict, notFound } from "../../utils/http-error.js";
 import { livePromiseMember, promiseAudit, requestIdentity } from "./reward-promise-service.js";
 import { programBasics } from "./merchant-launch-service.js";
+/**
+ * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} ServiceCompletionQueryClient
+ * @typedef {<T>(fn: (client: ServiceCompletionQueryClient) => Promise<T>) => Promise<T>} ServiceCompletionTransaction
+ * @typedef {{ transaction?: ServiceCompletionTransaction }} ServiceCompletionDeps
+ * The staff session as the routes pass it (req.staff).
+ * @typedef {{ id: string, business_id?: string, branch_id?: string | null, role?: string | null, impersonated_by?: string | null }} ServiceCompletionStaff
+ * A rewards row as readPracticeConfiguration selects it, shaped for the rehearsal model.
+ * @typedef {import("../../../public/staff/rehearsal-model.js").RehearsalReward & {
+ *   description: string | null,
+ *   branch_ids: string[],
+ *   alternative_reward_ids: string[]
+ * }} ServiceCompletionRewardRow
+ * @typedef {{ points_per_q?: number, points_per_visit?: number, points_per_item?: number, round?: string }} ServiceCompletionEarningTerms
+ * @typedef {{
+ *   program_type: string,
+ *   program_json?: Record<string, any> | null,
+ *   rewards: ServiceCompletionRewardRow[],
+ *   branch_id: string | null,
+ *   observed_at?: string
+ * }} ServiceCompletionPracticeSource
+ * Staff-visible practice configuration: earning terms only, plus the rewards a rehearsal can use.
+ * @typedef {Omit<ServiceCompletionPracticeSource, "program_json"> & { program_json: ServiceCompletionEarningTerms }} ServiceCompletionPracticeConfig
+ */
+/** @param {unknown} value */
 const hash = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
-const transaction = (deps, fn) => (deps.transaction ?? withTransaction)(fn);
+/**
+ * @template T
+ * @param {ServiceCompletionDeps} deps
+ * @param {(client: ServiceCompletionQueryClient) => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+const transaction = (deps, fn) =>
+  /** @type {ServiceCompletionTransaction} */ (deps.transaction ?? withTransaction)(fn);
 // A rehearsal needs earning terms only. program_json also holds integration
 // credentials and owner settings; never copy those into staff-visible state.
+/**
+ * @param {ServiceCompletionPracticeSource} config
+ * @returns {ServiceCompletionPracticeConfig}
+ */
 function practiceConfiguration(config) {
   const program = config.program_json ?? {};
   return {
@@ -20,6 +55,17 @@ function practiceConfiguration(config) {
     ),
   };
 }
+/**
+ * @overload
+ * @param {Record<string, any>} session
+ * @returns {Record<string, any>}
+ */
+/**
+ * @overload
+ * @param {Record<string, any> | null | undefined} session
+ * @returns {Record<string, any> | null | undefined}
+ */
+/** @param {Record<string, any> | null | undefined} session a staff_rehearsals row */
 function publicRehearsal(session) {
   if (!session) return session;
   return {
@@ -27,11 +73,18 @@ function publicRehearsal(session) {
     state: { ...session.state, config: practiceConfiguration(session.state.config) },
   };
 }
+/**
+ * @param {ServiceCompletionQueryClient} client
+ * @param {string} businessId
+ * @param {string | null} [branchId]
+ */
 export async function readPracticeConfiguration(client, businessId, branchId = null) {
+  /** @type {{ program_type: string, program_json: Record<string, any> | null } | undefined} */
   const business = (
     await client.query("SELECT program_type,program_json FROM businesses WHERE id=$1", [businessId])
   ).rows[0];
   if (!business) throw notFound("Negocio no encontrado.");
+  /** @type {ServiceCompletionRewardRow[]} */
   const rewards = (
     await client.query(
       `SELECT r.id,r.name,r.description,r.points_cost,r.active,r.stock,r.valid_until,COALESCE(a.available,true) available,
@@ -42,6 +95,10 @@ export async function readPracticeConfiguration(client, businessId, branchId = n
   ).rows;
   return practiceConfiguration({ ...business, rewards, branch_id: branchId });
 }
+/**
+ * @param {{ businessId: string, staff: ServiceCompletionStaff }} args
+ * @param {ServiceCompletionDeps} [deps]
+ */
 export async function getAutomaticBriefing({ businessId, staff }, deps = {}) {
   return transaction(deps, async (client) => {
     const member = await livePromiseMember(client, { businessId, staff });
@@ -124,15 +181,21 @@ export async function getAutomaticBriefing({ businessId, staff }, deps = {}) {
       ).rows[0];
     }
     const acknowledged =
-      (
-        await client.query(
-          "SELECT 1 FROM staff_auto_briefing_acknowledgements WHERE business_id=$1 AND briefing_id=$2 AND staff_id=$3",
-          [businessId, briefing.id, staff.id],
-        )
-      ).rowCount > 0;
+      /** @type {number} */ (
+        (
+          await client.query(
+            "SELECT 1 FROM staff_auto_briefing_acknowledgements WHERE business_id=$1 AND briefing_id=$2 AND staff_id=$3",
+            [businessId, briefing.id, staff.id],
+          )
+        ).rowCount
+      ) > 0;
     return { ok: true, briefing: { ...briefing, acknowledged } };
   });
 }
+/**
+ * @param {{ businessId: string, staff: ServiceCompletionStaff, briefingId: string, version: number }} args
+ * @param {ServiceCompletionDeps} [deps]
+ */
 export async function acknowledgeAutomaticBriefing(
   { businessId, staff, briefingId, version },
   deps = {},
@@ -161,6 +224,10 @@ export async function acknowledgeAutomaticBriefing(
     return { ok: true };
   });
 }
+/**
+ * @param {{ businessId: string, staff: ServiceCompletionStaff }} args
+ * @param {ServiceCompletionDeps} [deps]
+ */
 export async function getRehearsal({ businessId, staff }, deps = {}) {
   return transaction(deps, async (client) => {
     const member = await livePromiseMember(client, { businessId, staff });
@@ -214,6 +281,10 @@ export async function getRehearsal({ businessId, staff }, deps = {}) {
     };
   });
 }
+/**
+ * @param {{ businessId: string, staff: ServiceCompletionStaff, requestId: string }} args
+ * @param {ServiceCompletionDeps} [deps]
+ */
 export async function startRehearsal({ businessId, staff, requestId }, deps = {}) {
   requestIdentity(requestId);
   return transaction(deps, async (client) => {
@@ -246,6 +317,16 @@ export async function startRehearsal({ businessId, staff, requestId }, deps = {}
     return { ok: true, session, replay: false };
   });
 }
+/**
+ * @param {{
+ *   businessId: string,
+ *   staff: ServiceCompletionStaff,
+ *   rehearsalId: string,
+ *   version: number,
+ *   requestId: string
+ * } & import("../../../public/staff/rehearsal-model.js").RehearsalInput} step
+ * @param {ServiceCompletionDeps} [deps]
+ */
 export async function advanceRehearsal(
   { businessId, staff, rehearsalId, version, requestId, ...input },
   deps = {},

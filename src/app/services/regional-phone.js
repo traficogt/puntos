@@ -2,7 +2,10 @@ import { normalizePhone } from "../../utils/phone.js";
 import { badRequest } from "../../utils/http-error.js";
 import { businessRegion } from "./regional-settings.js";
 /** Browser enrollment has a verified business context; other countries need
- * an explicit international prefix so a national number is never re-labelled. */
+ * an explicit international prefix so a national number is never re-labelled.
+ * @param {unknown} input raw phone text from an enrollment form
+ * @param {Parameters<typeof businessRegion>[0]} business
+ */
 export function normalizeEnrollmentPhone(input, business) {
   const value = String(input ?? "").trim(),
     country = businessRegion(business).country;

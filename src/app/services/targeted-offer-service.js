@@ -5,7 +5,18 @@ import { hasPlanFeature } from "../../utils/plan.js";
 import { isLedgerInteger } from "../../utils/ledger-limits.js";
 import { badRequest, forbidden } from "../../utils/http-error.js";
 
+/** @typedef {(text: string, values?: unknown[]) => Promise<{ rows: any[] }>} TargetedOfferQuery */
+/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} TargetedOfferQueryClient */
+/**
+ * Business row fields read here (id, plan and the JSONB program bag).
+ * @typedef {{ id: string, plan?: string | null, program_json?: Record<string, any> | null }} TargetedOfferBusiness
+ */
+
 const noBonus = () => ({ bonusPoints: 0, campaignId: null });
+/**
+ * @param {{ plan?: string | null }} business
+ * @param {Record<string, any> | undefined} overrides platform plan-feature overrides
+ */
 const entitled = (business, overrides) =>
   hasPlanFeature(business.plan, "campaign_rules", overrides) &&
   hasPlanFeature(business.plan, "analytics", overrides);
@@ -16,8 +27,8 @@ const entitled = (business, overrides) =>
  */
 /**
  * @param {{
- *   client: { query: (...args: any[]) => Promise<any> },
- *   business: any,
+ *   client: TargetedOfferQueryClient,
+ *   business: TargetedOfferBusiness,
  *   customerId: string,
  *   transactionId: string,
  *   source: string,
@@ -165,6 +176,13 @@ export async function claimTargetedOffer(
   }
 }
 
+/**
+ * @param {{ businessId: string, customerId: string }} args
+ * @param {{
+ *   query?: TargetedOfferQuery,
+ *   getPlanFeatureOverrides?: () => Promise<Record<string, any>>
+ * }} [injected]
+ */
 export async function getCustomerGrowthOffers(
   { businessId, customerId },
   {

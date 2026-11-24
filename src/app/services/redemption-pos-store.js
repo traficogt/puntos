@@ -1,7 +1,97 @@
 import { randomUUID } from "node:crypto";
 import { forbidden, notFound, conflict } from "../../utils/http-error.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
+
+/**
+ * pg client inside a transaction (pg ships no types; this mirrors QueryResult<any>).
+ * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} RedemptionPosQueryClient
+ *
+ * The staff session as the routes attach it (the staff row belongs to the repositories
+ * owner). fulfillmentActor() re-reads and verifies the account, so the session fields are
+ * only hints here and may be absent.
+ * @typedef {{
+ *   id?: string | null,
+ *   business_id?: string | null,
+ *   branch_id?: string | null,
+ *   role?: string | null,
+ *   impersonated_by?: string | null
+ * }} RedemptionPosStaff
+ *
+ * staff_users fields fulfillmentActor() verifies.
+ * @typedef {{ id: string, business_id: string, role: string, branch_id: string | null, active: boolean }} RedemptionPosStaffRow
+ * @typedef {RedemptionPosStaffRow & { impersonated_by?: string }} RedemptionPosActor
+ *
+ * A redemptions row joined with its reward name, the business currency and the
+ * restoration flag (the ledger rows belong to the repositories owner).
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   customer_id: string,
+ *   reward_id: string,
+ *   branch_id: string | null,
+ *   code: string,
+ *   points_cost: number,
+ *   status: string,
+ *   reward_name: string,
+ *   currency: string,
+ *   points_restored: boolean
+ * }} RedemptionPosRedemptionRow
+ * @typedef {RedemptionPosRedemptionRow & { debit_corrected: boolean }} RedemptionPosRedemption
+ *
+ * A reward_pos_mappings row (2026-11-11-z-pos-fulfillment.sql); quantity is NUMERIC, so pg
+ * returns a string until publicMapping() converts it.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   reward_id: string,
+ *   branch_id: string | null,
+ *   source: string,
+ *   product_ref: string,
+ *   item_name: string,
+ *   item_kind: string,
+ *   quantity: string | number,
+ *   enabled: boolean,
+ *   inventory_required: boolean,
+ *   version: number,
+ *   created_at: Date | string,
+ *   updated_at: Date | string
+ * }} RedemptionPosMappingRow
+ * @typedef {Omit<RedemptionPosMappingRow, "quantity"> & { quantity: number }} RedemptionPosMapping
+ *
+ * A redemption_pos_records row; returned_quantity is NUMERIC (string from pg).
+ * @typedef {{
+ *   redemption_id: string,
+ *   business_id: string,
+ *   branch_id: string | null,
+ *   reward_id: string,
+ *   reward_name: string,
+ *   currency: string,
+ *   status: string,
+ *   method: string | null,
+ *   version: number,
+ *   source: string | null,
+ *   order_id: string | null,
+ *   line_id: string | null,
+ *   original_event_id: string | null,
+ *   mapping_snapshot: RedemptionPosMapping | null,
+ *   stock_status: string,
+ *   returned_quantity: string | number,
+ *   receipt_ref: string | null,
+ *   recorded_at: Date | string | null,
+ *   created_at: Date | string,
+ *   updated_at: Date | string
+ * }} RedemptionPosRecord
+ */
+
+/**
+ * @param {RedemptionPosQueryClient} client
+ * @param {string} businessId
+ * @param {RedemptionPosStaff | null | undefined} staff
+ * @param {boolean} [ownerOnly]
+ * @returns {Promise<RedemptionPosActor>}
+ */
 export async function fulfillmentActor(client, businessId, staff, ownerOnly = false) {
+  /** @type {RedemptionPosStaffRow | undefined} */
   const row = (
     await client.query(
       "SELECT id,business_id,role,branch_id,active FROM staff_users WHERE business_id=$1 AND id=$2",
@@ -18,14 +108,31 @@ export async function fulfillmentActor(client, businessId, staff, ownerOnly = fa
     throw forbidden("La sesión no puede administrar estos registros.");
   return { ...row, ...(staff.impersonated_by ? { impersonated_by: staff.impersonated_by } : {}) };
 }
+/**
+ * @param {{ role: string, branch_id?: string | null }} staff
+ * @param {{ branch_id?: string | null }} row
+ */
 export const canSeeFulfillment = (staff, row) =>
   staff.role === "OWNER" || (staff.branch_id ?? null) === (row.branch_id ?? null);
+/**
+ * @param {RedemptionPosQueryClient} client
+ * @param {string} businessId
+ * @param {string} source
+ * @param {string} eventId
+ */
 export async function lockFulfillmentRequest(client, businessId, source, eventId) {
   await client.query("SELECT pg_advisory_xact_lock(hashtext($1),hashtext($2))", [
     businessId,
     `fulfillment:${source}:${eventId}`,
   ]);
 }
+/**
+ * @param {RedemptionPosQueryClient} client
+ * @param {string} businessId
+ * @param {string} redemptionId
+ * @param {{ lock?: boolean, requireUnrestored?: boolean }} [options]
+ * @returns {Promise<RedemptionPosRedemption>}
+ */
 export async function redemptionEvidence(
   client,
   businessId,
@@ -38,6 +145,7 @@ export async function redemptionEvidence(
     `SELECT id,reversed_transaction_id,status FROM transactions WHERE business_id=$1 AND source='redeem' AND meta->>'redemption_id'=$2${lock ? " FOR UPDATE" : ""}`,
     [businessId, redemptionId],
   );
+  /** @type {RedemptionPosRedemptionRow | undefined} */
   const row = (
     await client.query(
       `SELECT r.*,w.name AS reward_name,COALESCE(b.program_json#>>'{region,currency}','GTQ') AS currency,
@@ -61,6 +169,11 @@ export async function redemptionEvidence(
     debit_corrected: debits.rows.some((d) => d.reversed_transaction_id || d.status !== "POSTED"),
   };
 }
+/**
+ * @param {RedemptionPosQueryClient} client
+ * @param {Pick<RedemptionPosRedemptionRow, "id" | "business_id" | "branch_id" | "reward_id" | "reward_name" | "currency">} redemption
+ * @returns {Promise<RedemptionPosRecord>}
+ */
 export async function ensureFulfillmentRecord(client, redemption) {
   await client.query(
     `INSERT INTO redemption_pos_records(redemption_id,business_id,branch_id,reward_id,reward_name,currency)
@@ -81,6 +194,12 @@ export async function ensureFulfillmentRecord(client, redemption) {
     )
   ).rows[0];
 }
+/**
+ * @param {RedemptionPosQueryClient} client
+ * @param {{ id: string | null, business_id: string, impersonated_by?: string | null }} staff
+ * @param {string} action
+ * @param {Record<string, unknown>} meta
+ */
 export async function fulfillmentAudit(client, staff, action, meta) {
   await client.query(
     "INSERT INTO audit_logs(id,business_id,actor_type,actor_id,action,meta) VALUES($1,$2,$3,$4,$5,$6)",
@@ -94,7 +213,12 @@ export async function fulfillmentAudit(client, staff, action, meta) {
     ],
   );
 }
+/**
+ * @param {RedemptionPosMappingRow} row
+ * @returns {RedemptionPosMapping}
+ */
 export const publicMapping = (row) => ({ ...row, quantity: Number(row.quantity) });
+/** @param {RedemptionPosRecord | null | undefined} row */
 export function publicFulfillment(row) {
   if (!row) return null;
   return {

@@ -2,6 +2,29 @@ import { dbQuery, getDbPlatformAdmin } from "../database.js";
 import { forbidden } from "../../utils/http-error.js";
 import { readinessForBusiness } from "./merchant-data-readiness.js";
 
+/**
+ * One business of the health page: the businesses columns plus the aggregates below.
+ * @typedef {{
+ *   id: string,
+ *   name: string,
+ *   slug: string,
+ *   program_json: Record<string, any> | null,
+ *   owner_progress_variant: string | null,
+ *   branch_names: Record<string, string> | null,
+ *   members: number,
+ *   last_purchase_at: Date | string | null,
+ *   recorded_redemptions: number,
+ *   open_cases: number,
+ *   failed_attempts_7d: number,
+ *   message_attention: number,
+ *   wallet_attention: number
+ * }} PlatformHealthBusinessRow
+ */
+
+/**
+ * @param {{ limit?: number, offset?: number }} page
+ * @param {{ query?: typeof dbQuery, isPlatformAdmin?: () => boolean, now?: () => Date }} [injected]
+ */
 export async function getPlatformOperationsHealth({ limit = 25, offset = 0 }, injected = {}) {
   const d = {
     query: dbQuery,
@@ -30,8 +53,9 @@ export async function getPlatformOperationsHealth({ limit = 25, offset = 0 }, in
     generated_at: now.toISOString(),
     limit,
     offset,
-    businesses: rows.map((b) => {
+    businesses: rows.map((/** @type {PlatformHealthBusinessRow} */ b) => {
       const readiness = readinessForBusiness(b, now),
+        /** @type {Array<{ kind: string, summary: string, action: string }>} */
         issues = [];
       readiness.sources = readiness.sources.map((source) => ({
         ...source,

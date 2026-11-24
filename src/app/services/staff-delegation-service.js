@@ -4,20 +4,53 @@ import { withTransaction } from "../database.js";
 import { badRequest, conflict, forbidden, notFound } from "../../utils/http-error.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 
+/**
+ * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} StaffDelegationQueryClient
+ * @typedef {<T>(fn: (client: StaffDelegationQueryClient) => Promise<T>) => Promise<T>} StaffDelegationTransaction
+ * @typedef {{ transaction: StaffDelegationTransaction }} StaffDelegationDeps
+ * The staff session as the routes pass it (req.staff), or a verified staff_users row.
+ * @typedef {{ id: string, business_id: string, branch_id?: string | null, role?: string | null, impersonated_by?: string | null }} StaffDelegationSession
+ * @typedef {{ id: string, business_id: string, branch_id: string | null, role: string, active: boolean }} StaffDelegationMemberRow
+ * A staff_service_grants row; the cost columns are NUMERIC (strings from pg).
+ * @typedef {{
+ *   id: string,
+ *   total_points: number,
+ *   used_points: number,
+ *   max_actions: number,
+ *   used_actions: number,
+ *   total_cost: string | number,
+ *   used_cost: string | number,
+ *   [column: string]: unknown
+ * }} StaffDelegationGrantRow
+ * A staff_service_usage row.
+ * @typedef {{ id: string, grant_id: string | null, remaining_points: number | null, owner_bypass: boolean, [column: string]: unknown }} StaffDelegationUsageRow
+ */
+
+/** @type {StaffDelegationDeps} */
 const defaults = { transaction: withTransaction };
 const roles = new Set(["OWNER", "MANAGER", "CASHIER"]);
+/** @param {unknown} value @returns {value is string} */
 const uuid = (value) =>
   typeof value === "string" &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+/** @param {string | number | Date | null | undefined} value an owner-supplied date; anything unparsable is rejected */
 const date = (value) => {
-  const parsed = new Date(value);
+  const parsed = new Date(/** @type {string | number | Date} */ (value));
   if (!value || !Number.isFinite(parsed.getTime())) throw badRequest("Revisa las fechas.");
   return parsed;
 };
+/** @param {number} value @param {number} [max] */
 function points(value, max = 100000) {
   if (!Number.isSafeInteger(value) || value < 1 || value > max)
     throw badRequest("Ingresa un límite de puntos entero y positivo.");
 }
+/**
+ * @param {StaffDelegationQueryClient} client
+ * @param {string} businessId
+ * @param {StaffDelegationSession | null | undefined} staff
+ * @param {{ owner?: boolean }} [options]
+ * @returns {Promise<StaffDelegationMemberRow>}
+ */
 async function liveMember(client, businessId, staff, { owner = false } = {}) {
   if (!uuid(businessId) || !uuid(staff?.id) || staff.business_id !== businessId)
     throw forbidden("Tu sesión no pertenece a este negocio.");
@@ -25,6 +58,7 @@ async function liveMember(client, businessId, staff, { owner = false } = {}) {
     "SELECT id,business_id,branch_id,role,active FROM staff_users WHERE business_id=$1 AND id=$2 FOR SHARE",
     [businessId, staff.id],
   );
+  /** @type {StaffDelegationMemberRow | undefined} */
   const member = rows[0];
   if (!member?.active || !roles.has(member.role) || (owner && member.role !== "OWNER"))
     throw forbidden("Tu cuenta no tiene autorización vigente.");
@@ -42,6 +76,11 @@ async function liveMember(client, businessId, staff, { owner = false } = {}) {
 }
 // Branches have no update/delete API; stored scopes also have tenant foreign keys.
 // SELECT-only branch access is intentional: row locks would require UPDATE grants.
+/**
+ * @param {StaffDelegationQueryClient} client
+ * @param {string} businessId
+ * @param {string | null | undefined} branchId
+ */
 async function branchExists(client, businessId, branchId) {
   if (branchId === null || branchId === undefined) return;
   if (!uuid(branchId)) throw badRequest("Selecciona una sucursal válida.");
@@ -55,6 +94,13 @@ async function branchExists(client, businessId, branchId) {
   )
     throw badRequest("La sucursal no pertenece a este negocio.");
 }
+/**
+ * @param {StaffDelegationQueryClient} client
+ * @param {string} businessId
+ * @param {StaffDelegationSession} staff
+ * @param {string} action
+ * @param {Record<string, unknown>} meta
+ */
 async function audit(client, businessId, staff, action, meta) {
   await client.query(
     "INSERT INTO audit_logs(id,business_id,actor_type,actor_id,action,meta) VALUES($1,$2,'STAFF',$3,$4,$5::jsonb)",
@@ -67,6 +113,7 @@ async function audit(client, businessId, staff, action, meta) {
     ],
   );
 }
+/** @param {StaffDelegationGrantRow} row */
 function serializedGrant(row) {
   return {
     ...row,
@@ -75,6 +122,7 @@ function serializedGrant(row) {
     remaining_cost: Number(row.total_cost) - Number(row.used_cost),
   };
 }
+/** @param {StaffDelegationUsageRow} row @param {boolean} replay */
 function usageResult(row, replay) {
   return {
     grantId: row.grant_id,
@@ -92,6 +140,7 @@ export const delegatedActions = [
   "operating_mode",
   "offer_template",
 ];
+/** @param {unknown} value an owner-entered cost in major units */
 function cost(value) {
   if (
     typeof value !== "number" ||
@@ -103,7 +152,21 @@ function cost(value) {
     throw badRequest("Ingresa un costo válido con hasta seis decimales.");
   return Math.round(value * 1000000);
 }
-/** Must run in the same transaction as the authorized operation. */
+/**
+ * Must run in the same transaction as the authorized operation.
+ * @param {StaffDelegationQueryClient} client
+ * @param {{
+ *   merchantId: string,
+ *   staffId: string,
+ *   action: string,
+ *   locationId?: string | null,
+ *   points?: number,
+ *   costAmount?: number,
+ *   referenceType?: string,
+ *   referenceId: unknown,
+ *   staff?: StaffDelegationSession | null
+ * }} request referenceId is the caller's request id, validated here as a UUID
+ */
 export async function consumeStaffAuthority(
   client,
   {
@@ -264,6 +327,10 @@ export async function consumeStaffAuthority(
   });
   return usageResult(usage, false);
 }
+/**
+ * @param {StaffDelegationQueryClient} client
+ * @param {{ businessId: string, staff: StaffDelegationSession, action: string, points: number, requestId: unknown }} allowance
+ */
 export async function consumeServiceAllowance(
   client,
   { businessId, staff, action, points: amount, requestId },
@@ -283,14 +350,14 @@ export async function consumeServiceAllowance(
 /**
  * @param {{
  *   businessId: string,
- *   staff: any,
+ *   staff: StaffDelegationSession,
  *   staffId: string,
  *   branchId?: string | null,
  *   action?: string,
  *   perActionPoints: number,
  *   totalPoints: number,
- *   startsAt: unknown,
- *   endsAt: unknown,
+ *   startsAt: string | number | Date | null | undefined,
+ *   endsAt: string | number | Date | null | undefined,
  *   requestId: string,
  *   maxActions?: number,
  *   frequencyLimit?: number,
@@ -473,6 +540,10 @@ export async function createServiceGrant(
     return { ok: true, grant: serializedGrant(grant), replay: false };
   });
 }
+/**
+ * @param {{ businessId: string, staff: StaffDelegationSession, grantId: string }} revocation
+ * @param {StaffDelegationDeps} [deps]
+ */
 export async function revokeServiceGrant({ businessId, staff, grantId }, deps = defaults) {
   if (!uuid(grantId)) throw badRequest("Autorización no válida.");
   return deps.transaction(async (client) => {
@@ -494,6 +565,10 @@ export async function revokeServiceGrant({ businessId, staff, grantId }, deps = 
     return { ok: true, grant_id: grantId };
   });
 }
+/**
+ * @param {{ businessId: string, staff: StaffDelegationSession, offset?: number }} page
+ * @param {StaffDelegationDeps} [deps]
+ */
 export async function listServiceGrants({ businessId, staff, offset = 0 }, deps = defaults) {
   if (!Number.isSafeInteger(offset) || offset < 0 || offset > 100000)
     throw badRequest("Página no válida.");
@@ -529,6 +604,10 @@ export async function listServiceGrants({ businessId, staff, offset = 0 }, deps 
     };
   });
 }
+/**
+ * @param {{ businessId: string, staff: StaffDelegationSession }} session
+ * @param {StaffDelegationDeps} [deps]
+ */
 export async function getOwnServiceAuthority({ businessId, staff }, deps = defaults) {
   return deps.transaction(async (client) => {
     const member = await liveMember(client, businessId, staff);
@@ -540,6 +619,7 @@ export async function getOwnServiceAuthority({ businessId, staff }, deps = defau
     return { ok: true, owner: member.role === "OWNER", grants: grants.rows.map(serializedGrant) };
   });
 }
+/** @param {unknown} value @param {number} max */
 function noticeText(value, max) {
   if (
     typeof value !== "string" ||
@@ -554,13 +634,13 @@ function noticeText(value, max) {
 /**
  * @param {{
  *   businessId: string,
- *   staff: any,
+ *   staff: StaffDelegationSession,
  *   noticeId?: string | null,
  *   expectedVersion?: number,
  *   title: string,
  *   body: string,
  *   branchId?: string | null,
- *   expiresAt: unknown
+ *   expiresAt: string | number | Date | null | undefined
  * }} notice
  * @param {typeof defaults} [deps]
  */
@@ -641,6 +721,10 @@ export async function publishShiftNotice(
     return { ok: true, notice };
   });
 }
+/**
+ * @param {{ businessId: string, staff: StaffDelegationSession }} session
+ * @param {StaffDelegationDeps} [deps]
+ */
 export async function listShiftNotices({ businessId, staff }, deps = defaults) {
   return deps.transaction(async (client) => {
     await liveMember(client, businessId, staff, { owner: true });
@@ -652,6 +736,10 @@ export async function listShiftNotices({ businessId, staff }, deps = defaults) {
     return { ok: true, notices: notices.rows };
   });
 }
+/**
+ * @param {{ businessId: string, staff: StaffDelegationSession }} session
+ * @param {StaffDelegationDeps} [deps]
+ */
 export async function getShiftBriefing({ businessId, staff }, deps = defaults) {
   return deps.transaction(async (client) => {
     const member = await liveMember(client, businessId, staff);
@@ -663,6 +751,10 @@ export async function getShiftBriefing({ businessId, staff }, deps = defaults) {
     return { ok: true, notices: notices.rows };
   });
 }
+/**
+ * @param {{ businessId: string, staff: StaffDelegationSession, noticeId: string, version: number }} acknowledgement
+ * @param {StaffDelegationDeps} [deps]
+ */
 export async function acknowledgeShiftNotice(
   { businessId, staff, noticeId, version },
   deps = defaults,

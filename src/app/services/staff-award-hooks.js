@@ -21,6 +21,50 @@ async function sourceTransactionIsActive(sourceTransactionId, deps = null) {
   return Boolean(tx && tx.status === "POSTED" && !tx.reversed_transaction_id);
 }
 
+/**
+ * The lazily loaded services an award fans out to. Members are typed by what the
+ * hooks call (method style, so a module whose parameters are narrower literal
+ * unions still satisfies them). The loaders are optional because several unit
+ * tests award without them: a missing loader throws inside the try/catch below
+ * and is logged, exactly like a failing hook.
+ * @typedef {{
+ *   isSourceTransactionActive?: (id: string) => Promise<unknown> | unknown,
+ *   loadTierService?: () => Promise<{
+ *     TierService: { checkTierProgression(customerId: string): Promise<unknown> }
+ *   }>,
+ *   loadGamificationService?: () => Promise<{
+ *     GamificationService: {
+ *       checkAndAwardAchievements(
+ *         customerId: string,
+ *         eventType: string,
+ *         context: { sourceTransactionId: string | null | undefined },
+ *       ): Promise<unknown>,
+ *       updateChallengeProgress(
+ *         customerId: string,
+ *         kind: string,
+ *         amount: number,
+ *         context: { sourceTransactionId: string | null | undefined },
+ *       ): Promise<unknown>
+ *     }
+ *   }>,
+ *   loadReferralService?: () => Promise<{
+ *     ReferralService: { checkAndCompleteReferral(customerId: string): Promise<unknown> }
+ *   }>
+ * }} StaffAwardHooksDeps
+ */
+
+/**
+ * @param {{
+ *   deps: StaffAwardHooksDeps,
+ *   customerId: string,
+ *   businessId: string,
+ *   sourceTransactionId: string | null | undefined,
+ *   pointsAwarded: number,
+ *   amountQ: number,
+ *   visits: number,
+ *   items: number
+ * }} award
+ */
 export async function runPostAwardHooks({
   deps,
   customerId,
@@ -33,7 +77,10 @@ export async function runPostAwardHooks({
 }) {
   try {
     if (!(await sourceTransactionIsActive(sourceTransactionId, deps))) return;
-    const { TierService } = await deps.loadTierService();
+    const { TierService } =
+      await /** @type {NonNullable<StaffAwardHooksDeps["loadTierService"]>} */ (
+        deps.loadTierService
+      )();
     await TierService.checkTierProgression(customerId);
   } catch (err) {
     logger.warn(
@@ -44,7 +91,10 @@ export async function runPostAwardHooks({
 
   try {
     if (!(await sourceTransactionIsActive(sourceTransactionId, deps))) return;
-    const { GamificationService } = await deps.loadGamificationService();
+    const { GamificationService } =
+      await /** @type {NonNullable<StaffAwardHooksDeps["loadGamificationService"]>} */ (
+        deps.loadGamificationService
+      )();
     const newAchievements = await GamificationService.checkAndAwardAchievements(
       customerId,
       "purchase",
@@ -67,7 +117,10 @@ export async function runPostAwardHooks({
 
   try {
     if (!(await sourceTransactionIsActive(sourceTransactionId, deps))) return;
-    const { GamificationService } = await deps.loadGamificationService();
+    const { GamificationService } =
+      await /** @type {NonNullable<StaffAwardHooksDeps["loadGamificationService"]>} */ (
+        deps.loadGamificationService
+      )();
     if (pointsAwarded && pointsAwarded > 0) {
       await GamificationService.updateChallengeProgress(customerId, "points", pointsAwarded, {
         sourceTransactionId,
@@ -97,7 +150,10 @@ export async function runPostAwardHooks({
 
   try {
     if (!(await sourceTransactionIsActive(sourceTransactionId, deps))) return;
-    const { ReferralService } = await deps.loadReferralService();
+    const { ReferralService } =
+      await /** @type {NonNullable<StaffAwardHooksDeps["loadReferralService"]>} */ (
+        deps.loadReferralService
+      )();
     await ReferralService.checkAndCompleteReferral(customerId);
   } catch (err) {
     logger.warn(

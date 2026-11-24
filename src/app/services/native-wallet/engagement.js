@@ -1,12 +1,68 @@
 import { businessRegion } from "../regional-settings.js";
+
+/**
+ * A branch row with its Wallet relevance settings (branches table, repositories owner).
+ * @typedef {{
+ *   id: string,
+ *   name?: string | null,
+ *   wallet_location_enabled?: boolean | null,
+ *   wallet_latitude?: number | null,
+ *   wallet_longitude?: number | null
+ * }} WalletEngagementBranch
+ */
+
+/**
+ * A reward (or protected promise entry) as the wallet snapshot lists it; numeric
+ * columns may arrive as NUMERIC strings and are coerced here.
+ * @typedef {{
+ *   id: string,
+ *   name?: string | null,
+ *   reward_name?: string | null,
+ *   points_cost: number | string | null,
+ *   active?: boolean | null,
+ *   available?: boolean | null,
+ *   promise_id?: string | null,
+ *   stock?: number | string | null,
+ *   valid_until?: string | Date | null,
+ *   branch_ids?: string[] | null,
+ *   daily_count?: number | string | null,
+ *   last_redeemed_at?: string | Date | null
+ * }} WalletEngagementReward
+ */
+
+/**
+ * The snapshot fields this builder reads (NativeWalletRepo.getSnapshot, repositories owner).
+ * @typedef {{
+ *   is_voided?: boolean | null,
+ *   revoked_at?: string | Date | null,
+ *   snapshot_at?: string | Date | null,
+ *   points?: number | string | null,
+ *   pending_points?: number | string | null,
+ *   program_type?: string | null,
+ *   program_json?: Record<string, any> | null,
+ *   wallet_branches?: WalletEngagementBranch[] | null,
+ *   wallet_rewards?: WalletEngagementReward[] | null,
+ *   wallet_daily_redemptions?: number | string | null,
+ *   wallet_next_day?: string | Date | null,
+ *   wallet_cycle?: { earning_terms?: Record<string, any> | null, program_type?: string | null } | null,
+ *   [column: string]: unknown
+ * }} WalletEngagementSnapshot
+ */
+
+/** @param {unknown} value */
 const text = (value) =>
   String(value ?? "")
     .trim()
     .slice(0, 160);
+/** @param {unknown} value */
 const positive = (value) => Math.max(0, Math.floor(Number(value) || 0));
+/** @param {number} value */
 const number = (value) => new Intl.NumberFormat("es", { maximumFractionDigits: 20 }).format(value);
 
-/** Select one points-based choice; pending points and hospitality never inflate progress. */
+/**
+ * Select one points-based choice; pending points and hospitality never inflate progress.
+ * @param {WalletEngagementSnapshot} snapshot
+ */
 export function buildWalletEngagement(snapshot) {
   const empty = {
     reward: null,
@@ -26,9 +82,12 @@ export function buildWalletEngagement(snapshot) {
   const daily = positive(guard.max_redemptions_per_day),
     perReward = positive(guard.max_reward_redemptions_per_day),
     cooldown = positive(guard.reward_cooldown_hours);
+  /** @type {number[]} */
   const deadlines = [];
+  /** @param {string | Date | number | null | undefined} value */
   const later = (value) => {
-    const at = new Date(value).getTime();
+    // An absent deadline parses as an invalid date and is skipped below.
+    const at = new Date(/** @type {string | Date | number} */ (value)).getTime();
     if (Number.isFinite(at) && at > now) deadlines.push(at);
   };
   const dailyBlocked = daily > 0 && positive(snapshot.wallet_daily_redemptions) >= daily;

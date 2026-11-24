@@ -2,6 +2,49 @@ import { TierRepository } from "../repositories/tier-repository.js";
 import { dbQuery, withTransaction } from "../database.js";
 import { notFound, badRequest, forbidden } from "../../utils/http-error.js";
 
+/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} TierQueryClient */
+/**
+ * loyalty_tiers row as TierRepository returns it (repositories owner).
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   name: string,
+ *   tier_level: number,
+ *   min_points: number,
+ *   points_multiplier: number | string | null,
+ *   perks: string[] | null,
+ *   color: string | null,
+ *   active: boolean
+ * }} TierRow
+ * Owner-submitted tier fields (TierRepository.create / update).
+ * @typedef {{
+ *   name: string,
+ *   tier_level: number,
+ *   min_points: number,
+ *   points_multiplier?: number,
+ *   perks?: string[],
+ *   color?: string,
+ *   active?: boolean
+ * }} TierInput
+ * Retention sweep inputs: the active tiers and one customer's rolling activity row.
+ * @typedef {{ id: string, tier_level: number, min_points: number | string }} TierRetentionTier
+ * @typedef {{
+ *   customer_id: string,
+ *   rolling_points: number | string,
+ *   current_tier_id: string | null,
+ *   current_tier_level: number | null,
+ *   achieved_at: Date | string | null,
+ *   historical_max_level: number | null
+ * }} TierRetentionCustomer
+ * program_json.tier_retention as stored: untrusted JSON, coerced before use.
+ * @typedef {{
+ *   mode?: unknown,
+ *   rolling_days?: unknown,
+ *   grace_days?: unknown,
+ *   reentry_extra_points?: unknown
+ * }} TierRetentionPolicy
+ */
+
 const DEFAULT_TIERS = [
   {
     name: "Bronze",
@@ -29,6 +72,7 @@ const DEFAULT_TIERS = [
   },
 ];
 
+/** @param {string} customerId */
 async function findDefaultTier(customerId) {
   const { rows } = await dbQuery(
     `SELECT lt.*
@@ -42,6 +86,11 @@ async function findDefaultTier(customerId) {
   return rows[0];
 }
 
+/**
+ * @param {string} tierId
+ * @param {string} businessId
+ * @param {"update" | "delete"} action
+ */
 async function getOwnedTier(tierId, businessId, action) {
   const tier = await TierRepository.getById(tierId);
 
@@ -60,13 +109,18 @@ async function getOwnedTier(tierId, businessId, action) {
   return tier;
 }
 
+/**
+ * @param {string} businessId
+ * @param {number} tierLevel
+ */
 async function ensureUniqueTierLevel(businessId, tierLevel) {
   const existingTiers = await TierRepository.listByBusiness(businessId);
-  if (existingTiers.some((tier) => tier.tier_level === tierLevel)) {
+  if (existingTiers.some((/** @type {TierRow} */ tier) => tier.tier_level === tierLevel)) {
     throw badRequest(`Ya existe un nivel ${tierLevel}`);
   }
 }
 
+/** @param {string} tierId */
 async function countCustomersInTier(tierId) {
   const { rows } = await dbQuery(
     `SELECT COUNT(*) AS count FROM customer_tiers WHERE tier_id = $1`,
@@ -76,6 +130,11 @@ async function countCustomersInTier(tierId) {
   return Number.parseInt(rows[0]?.count ?? 0, 10);
 }
 
+/**
+ * @param {TierRetentionTier[]} tiers active tiers in ascending level order
+ * @param {TierRetentionCustomer} customer
+ * @param {number} reentryExtraPoints
+ */
 function pickRetentionTier(tiers, customer, reentryExtraPoints) {
   const points = Number(customer.rolling_points || 0);
   const currentLevel = Number(customer.current_tier_level || 0);
@@ -98,6 +157,10 @@ function pickRetentionTier(tiers, customer, reentryExtraPoints) {
   return eligible.at(-1) || tiers[0];
 }
 
+/**
+ * @param {string} businessId
+ * @param {string} [_programType]
+ */
 async function createDefaultTiers(businessId, _programType = "SPEND") {
   const tiers = [];
 
@@ -113,6 +176,7 @@ async function createDefaultTiers(businessId, _programType = "SPEND") {
   return tiers;
 }
 
+/** @param {string} customerId */
 async function getCustomerTierInfo(customerId) {
   const tierInfo = await TierRepository.getCustomerTierWithProgress(customerId);
   if (tierInfo) {
@@ -133,8 +197,9 @@ async function getCustomerTierInfo(customerId) {
   };
 }
 
+/** @param {string} customerId */
 async function checkTierProgression(customerId) {
-  return withTransaction(async (client) => {
+  return withTransaction(async (/** @type {TierQueryClient} */ client) => {
     const { rows: customerRows } = await client.query(
       `SELECT cb.points, c.business_id, ct.tier_id, lt.tier_level
        FROM customers c
@@ -184,6 +249,10 @@ async function checkTierProgression(customerId) {
   });
 }
 
+/**
+ * @param {string} customerId
+ * @param {number} basePoints
+ */
 async function calculatePointsWithMultiplier(customerId, basePoints) {
   const tier = await TierRepository.getCustomerTier(customerId);
   if (!tier?.points_multiplier) {
@@ -193,6 +262,10 @@ async function calculatePointsWithMultiplier(customerId, basePoints) {
   return Math.floor(basePoints * tier.points_multiplier);
 }
 
+/**
+ * @param {string} businessId
+ * @param {TierInput} tierData
+ */
 async function createTier(businessId, tierData) {
   await ensureUniqueTierLevel(businessId, tierData.tier_level);
   return TierRepository.create({
@@ -201,11 +274,20 @@ async function createTier(businessId, tierData) {
   });
 }
 
+/**
+ * @param {string} tierId
+ * @param {string} businessId
+ * @param {Partial<TierInput>} updates
+ */
 async function updateTier(tierId, businessId, updates) {
   await getOwnedTier(tierId, businessId, "update");
   return TierRepository.update(tierId, updates);
 }
 
+/**
+ * @param {string} tierId
+ * @param {string} businessId
+ */
 async function deleteTier(tierId, businessId) {
   await getOwnedTier(tierId, businessId, "delete");
 
@@ -218,6 +300,10 @@ async function deleteTier(tierId, businessId) {
   await TierRepository.delete(tierId);
 }
 
+/**
+ * @param {string} businessId
+ * @param {TierRetentionPolicy} [policy]
+ */
 async function runTierRetentionSweep(businessId, policy = {}) {
   const mode = String(policy.mode || "lifetime");
   if (mode !== "rolling_days") {
@@ -228,7 +314,7 @@ async function runTierRetentionSweep(businessId, policy = {}) {
   const graceDays = Math.max(0, Number(policy.grace_days || 0));
   const reentryExtraPoints = Math.max(0, Number(policy.reentry_extra_points || 0));
 
-  return withTransaction(async (client) => {
+  return withTransaction(async (/** @type {TierQueryClient} */ client) => {
     const { rows: tiers } = await client.query(
       `SELECT id, tier_level, min_points
        FROM loyalty_tiers
@@ -339,6 +425,7 @@ export const TierService = {
   getCustomerTierInfo,
   checkTierProgression,
   calculatePointsWithMultiplier,
+  /** @param {string} businessId */
   getBusinessTiersWithStats(businessId) {
     return TierRepository.getTierStats(businessId);
   },
