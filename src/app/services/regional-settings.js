@@ -84,7 +84,10 @@ export function assertRegionAmount(amount, currency, business) {
  * @param {RegionalBusiness} business
  */
 export function regionalLocalDate(now, business) {
-  return DateTime.fromJSDate(new Date(now), { zone: regionTimezone(business) }).toISODate();
+  const date = DateTime.fromJSDate(new Date(now), { zone: regionTimezone(business) }).toISODate();
+  // An invalid instant or zone previously surfaced later as a TypeError on .slice().
+  if (!date) throw new Error("Fecha local no válida para la región del negocio.");
+  return date;
 }
 /**
  * @param {Date | string | number} [now]

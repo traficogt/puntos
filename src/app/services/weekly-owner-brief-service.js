@@ -489,7 +489,7 @@ async function queueBrief(businessId, now, deps) {
     if (
       !period.due ||
       !stored.enabled_at ||
-      Date.parse(period.scheduled_at) < Date.parse(stored.enabled_at)
+      Date.parse(period.scheduled_at ?? "") < Date.parse(stored.enabled_at)
     )
       return;
     if (

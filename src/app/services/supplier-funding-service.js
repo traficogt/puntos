@@ -214,12 +214,14 @@ export async function createSupplierAgreement(options, deps = {}) {
         ])
       ).rows[0],
       region = businessRegion(business);
-    const startAt = days
-        ? DateTime.fromISO(options.starts_on, { zone: region.timezone }).startOf("day").toJSDate()
-        : starts,
-      endAt = days
-        ? DateTime.fromISO(options.ends_on, { zone: region.timezone }).startOf("day").toJSDate()
-        : ends;
+    const startAt =
+        days && options.starts_on
+          ? DateTime.fromISO(options.starts_on, { zone: region.timezone }).startOf("day").toJSDate()
+          : starts,
+      endAt =
+        days && options.ends_on
+          ? DateTime.fromISO(options.ends_on, { zone: region.timezone }).startOf("day").toJSDate()
+          : ends;
     assertRegionAmount(options.unit_amount, options.currency, business);
     assertRegionAmount(options.cap_amount, options.currency, business);
     // Exact conversion to the region's minor units (centavos; whole pesos for

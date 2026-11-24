@@ -332,21 +332,25 @@ export function computeMomentum(facts, { now, timezone }) {
   const empty = { weeks: 0, current_week_active: false, freezes_available: 1, frozen_weeks: 0 };
   if (!awards.size) return empty;
   const current = weekStartOf(now, timezone);
+  if (!current) return empty;
   const first = [...awards].sort()[0];
   const currentActive = awards.has(current);
   // The current week is in progress: it counts when active and is skipped otherwise.
   const end = currentActive
     ? current
     : DateTime.fromISO(current, { zone: timezone }).minus({ weeks: 1 }).toISODate();
+  if (!end) return empty;
   let weeks = 0,
     span = 0,
     frozen = 0;
   for (
     let cursor = DateTime.fromISO(first, { zone: timezone });
-    cursor.toISODate() <= end;
+    ;
     cursor = cursor.plus({ weeks: 1 })
   ) {
     const key = cursor.toISODate();
+    // An invalid cursor never reaches a real date; stop instead of looping forever.
+    if (!key || key > end) break;
     if (awards.has(key) || !todo.has(key)) {
       weeks++;
       span++;
