@@ -1,10 +1,57 @@
 import crypto from "node:crypto";
 
+/** @typedef {import("./base.js").DbClient} DbClient */
+
+/**
+ * Row of `order_returns`.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   customer_id: string,
+ *   order_id: string,
+ *   external_return_id: string,
+ *   external_order_id: string,
+ *   reason: string | null,
+ *   occurred_at: Date | null,
+ *   meta: Record<string, unknown>,
+ *   fingerprint: string,
+ *   reversal_transaction_id: string | null,
+ *   points_effect: number,
+ *   outcome: string,
+ *   created_at: Date,
+ *   updated_at: Date
+ * }} OrderReturnRow
+ */
+
+/**
+ * @typedef {{
+ *   id?: string,
+ *   business_id: string,
+ *   customer_id: string,
+ *   order_id: string,
+ *   external_return_id: string,
+ *   external_order_id: string,
+ *   reason?: string | null,
+ *   occurred_at?: Date | string | null,
+ *   meta?: Record<string, unknown>,
+ *   fingerprint: string,
+ *   reversal_transaction_id?: string | null,
+ *   points_effect: number,
+ *   outcome: string
+ * }} OrderReturnCreateInput
+ */
+
 function makeId() {
   return crypto.randomUUID();
 }
 
 export const OrderReturnRepo = {
+  /**
+   * Resolves to `OrderReturnRow | null`.
+   * @param {DbClient} client
+   * @param {string} businessId
+   * @param {string} externalReturnId
+   */
   async findByBusinessAndExternalId(client, businessId, externalReturnId) {
     const { rows } = await client.query(
       `SELECT *
@@ -18,6 +65,12 @@ export const OrderReturnRepo = {
     return rows[0] ?? null;
   },
 
+  /**
+   * Resolves to `OrderReturnRow | null`.
+   * @param {DbClient} client
+   * @param {string} businessId
+   * @param {string} orderId
+   */
   async findByOrderId(client, businessId, orderId) {
     const { rows } = await client.query(
       `SELECT *
@@ -31,6 +84,11 @@ export const OrderReturnRepo = {
     return rows[0] ?? null;
   },
 
+  /**
+   * Resolves to `OrderReturnRow`.
+   * @param {DbClient} client
+   * @param {OrderReturnCreateInput} input
+   */
   async create(client, input) {
     const id = input.id ?? makeId();
     const { rows } = await client.query(

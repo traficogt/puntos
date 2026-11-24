@@ -16,6 +16,14 @@ import {
 } from "../services/gift-card-service.js";
 import { tenantContext } from "../../middleware/tenant.js";
 
+/** @typedef {import("./_request-types.js").Response} Response */
+/** @typedef {import("./_request-types.js").TenantRequest} TenantRequest */
+/** @typedef {Promise<Response | void>} HandlerResult early `return res...` or fall-through */
+/**
+ * @template Q
+ * @typedef {import("./_request-types.js").WithValidatedQuery<Q>} WithValidatedQuery
+ */
+
 const router = Router();
 
 export const CreateGiftCardSchema = z.object({
@@ -30,17 +38,22 @@ export const GiftCardListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 
+/** @typedef {z.infer<typeof GiftCardListQuerySchema>} GiftCardListQuery */
+
 router.get(
   "/admin/gift-cards",
   requireStaff,
   tenantContext,
   requirePlanFeature("gift_cards"),
   validateQuery(GiftCardListQuerySchema),
-  asyncRoute(async (req, res) => {
-    const { limit } = req.validatedQuery;
-    const cards = await listGiftCards({ staff: req.staff, limit });
-    res.json({ ok: true, gift_cards: cards });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedQuery<GiftCardListQuery>} req @param {Response} res */
+    async (req, res) => {
+      const { limit } = req.validatedQuery;
+      const cards = await listGiftCards({ staff: req.staff, limit });
+      res.json({ ok: true, gift_cards: cards });
+    },
+  ),
 );
 
 router.post(
@@ -49,12 +62,15 @@ router.post(
   requireStaff,
   tenantContext,
   requirePlanFeature("gift_cards"),
-  asyncRoute(async (req, res) => {
-    const v = validate(CreateGiftCardSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
-    const card = await createGiftCard({ staff: req.staff, ...v.data });
-    res.status(201).json({ ok: true, gift_card: card });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const v = validate(CreateGiftCardSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
+      const card = await createGiftCard({ staff: req.staff, ...v.data });
+      res.status(201).json({ ok: true, gift_card: card });
+    },
+  ),
 );
 
 export const RedeemGiftCardSchema = z.object({
@@ -70,12 +86,15 @@ router.post(
   requireStaff,
   tenantContext,
   requirePlanFeature("gift_cards"),
-  asyncRoute(async (req, res) => {
-    const v = validate(RedeemGiftCardSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
-    const card = await redeemGiftCard({ staff: req.staff, ...v.data });
-    res.json({ ok: true, gift_card: card });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const v = validate(RedeemGiftCardSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
+      const card = await redeemGiftCard({ staff: req.staff, ...v.data });
+      res.json({ ok: true, gift_card: card });
+    },
+  ),
 );
 
 router.get(
@@ -83,13 +102,16 @@ router.get(
   requireStaff,
   tenantContext,
   requirePlanFeature("gift_cards"),
-  asyncRoute(async (req, res) => {
-    const details = await giftCardDetails({
-      staff: req.staff,
-      code_or_token: String(req.params.codeOrToken || ""),
-    });
-    res.json({ ok: true, ...details });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const details = await giftCardDetails({
+        staff: req.staff,
+        code_or_token: String(req.params.codeOrToken || ""),
+      });
+      res.json({ ok: true, ...details });
+    },
+  ),
 );
 
 router.get(
@@ -97,13 +119,16 @@ router.get(
   requireStaff,
   tenantContext,
   requirePlanFeature("gift_cards"),
-  asyncRoute(async (req, res) => {
-    const details = await giftCardLedgerDetails({
-      staff: req.staff,
-      code_or_token: String(req.params.codeOrToken || ""),
-    });
-    res.json({ ok: true, ...details });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const details = await giftCardLedgerDetails({
+        staff: req.staff,
+        code_or_token: String(req.params.codeOrToken || ""),
+      });
+      res.json({ ok: true, ...details });
+    },
+  ),
 );
 
 export default router;

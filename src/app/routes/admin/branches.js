@@ -16,6 +16,9 @@ import {
   WalletLocationSchema,
 } from "../../services/native-wallet/locations.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+
 export const adminBranchRoutes = Router();
 
 export const BranchSchema = z.object({
@@ -30,10 +33,13 @@ adminBranchRoutes.get(
   requireOwner,
   tenantContext,
   requirePlanFeature("multi_branch"),
-  asyncRoute(async (req, res) => {
-    const branches = await BranchRepo.listByBusiness(req.tenantId);
-    return res.json({ ok: true, branches });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const branches = await BranchRepo.listByBusiness(req.tenantId);
+      return res.json({ ok: true, branches });
+    },
+  ),
 );
 
 adminBranchRoutes.post(
@@ -43,26 +49,29 @@ adminBranchRoutes.post(
   tenantContext,
   csrfProtect,
   requirePlanFeature("multi_branch"),
-  asyncRoute(async (req, res) => {
-    const v = validate(BranchSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const v = validate(BranchSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
 
-    const business = await BusinessRepo.getById(req.tenantId);
-    const limits = planLimits(business.plan);
-    const count = await BusinessRepo.countBranches(req.tenantId);
-    if (count >= limits.branches)
-      return res.status(403).json({ error: "Tu plan no permite más sucursales" });
+      const business = await BusinessRepo.getById(req.tenantId);
+      const limits = planLimits(business.plan);
+      const count = await BusinessRepo.countBranches(req.tenantId);
+      if (count >= limits.branches)
+        return res.status(403).json({ error: "Tu plan no permite más sucursales" });
 
-    const branch = await BranchRepo.create({
-      id: makeId(),
-      business_id: req.tenantId,
-      name: v.data.name,
-      address: v.data.address ?? null,
-      code: v.data.code ?? `${business.slug}-${crypto.randomBytes(3).toString("hex")}`,
-    });
+      const branch = await BranchRepo.create({
+        id: makeId(),
+        business_id: req.tenantId,
+        name: v.data.name,
+        address: v.data.address ?? null,
+        code: v.data.code ?? `${business.slug}-${crypto.randomBytes(3).toString("hex")}`,
+      });
 
-    return res.json({ ok: true, branch });
-  }),
+      return res.json({ ok: true, branch });
+    },
+  ),
 );
 
 // Configuring an existing branch is also available to a single-branch owner.
@@ -71,8 +80,9 @@ adminBranchRoutes.get(
   requireStaff,
   requireOwner,
   tenantContext,
-  asyncRoute(async (req, res) =>
-    res.json(await WalletLocationService.list({ businessId: req.tenantId })),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => res.json(await WalletLocationService.list({ businessId: req.tenantId })),
   ),
 );
 adminBranchRoutes.put(
@@ -81,20 +91,23 @@ adminBranchRoutes.put(
   requireOwner,
   tenantContext,
   csrfProtect,
-  asyncRoute(async (req, res) => {
-    const id = z.guid().safeParse(req.params.id);
-    const location = WalletLocationSchema.safeParse(req.body);
-    if (!id.success || !location.success)
-      return res
-        .status(400)
-        .json({ error: "Revisa la sucursal y ambas coordenadas de la ubicación." });
-    return res.json(
-      await WalletLocationService.save({
-        businessId: req.tenantId,
-        branchId: id.data,
-        staff: req.staff,
-        location: location.data,
-      }),
-    );
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const id = z.guid().safeParse(req.params.id);
+      const location = WalletLocationSchema.safeParse(req.body);
+      if (!id.success || !location.success)
+        return res
+          .status(400)
+          .json({ error: "Revisa la sucursal y ambas coordenadas de la ubicación." });
+      return res.json(
+        await WalletLocationService.save({
+          businessId: req.tenantId,
+          branchId: id.data,
+          staff: req.staff,
+          location: location.data,
+        }),
+      );
+    },
+  ),
 );

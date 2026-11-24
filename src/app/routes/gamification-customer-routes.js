@@ -6,6 +6,10 @@ import { tenantContext } from "../../middleware/tenant.js";
 import { GamificationService } from "../services/gamification-service.js";
 import { loadGamificationRepository, normalizeLeaderboardType } from "./gamification-support.js";
 
+/** @typedef {import("./_request-types.js").Response} Response */
+/** @typedef {import("./_request-types.js").TenantRequest} TenantRequest */
+/** @typedef {Promise<Response | void>} HandlerResult early `return res...` or fall-through */
+
 export const gamificationCustomerRoutes = Router();
 
 gamificationCustomerRoutes.get(
@@ -13,12 +17,15 @@ gamificationCustomerRoutes.get(
   requireCustomer,
   tenantContext,
   requirePlanFeature("gamification"),
-  asyncRoute(async (req, res) => {
-    const achievements = await GamificationService.getCustomerAchievementsWithProgress(
-      req.customerAuth.id,
-    );
-    res.json({ ok: true, ...achievements });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const achievements = await GamificationService.getCustomerAchievementsWithProgress(
+        req.customerAuth.id,
+      );
+      res.json({ ok: true, ...achievements });
+    },
+  ),
 );
 
 gamificationCustomerRoutes.get(
@@ -26,13 +33,16 @@ gamificationCustomerRoutes.get(
   requireCustomer,
   tenantContext,
   requirePlanFeature("gamification"),
-  asyncRoute(async (req, res) => {
-    const challenges = await GamificationService.getCustomerChallenges(
-      req.customerAuth.id,
-      req.customerAuth.business_id,
-    );
-    res.json({ ok: true, challenges });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const challenges = await GamificationService.getCustomerChallenges(
+        req.customerAuth.id,
+        req.customerAuth.business_id,
+      );
+      res.json({ ok: true, challenges });
+    },
+  ),
 );
 
 gamificationCustomerRoutes.get(
@@ -40,11 +50,14 @@ gamificationCustomerRoutes.get(
   requireCustomer,
   tenantContext,
   requirePlanFeature("gamification"),
-  asyncRoute(async (req, res) => {
-    const GamificationRepository = await loadGamificationRepository();
-    const streak = await GamificationRepository.getCustomerStreak(req.customerAuth.id);
-    res.json({ ok: true, streak: streak || { current_streak: 0, longest_streak: 0 } });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const GamificationRepository = await loadGamificationRepository();
+      const streak = await GamificationRepository.getCustomerStreak(req.customerAuth.id);
+      res.json({ ok: true, streak: streak || { current_streak: 0, longest_streak: 0 } });
+    },
+  ),
 );
 
 gamificationCustomerRoutes.get(
@@ -52,16 +65,19 @@ gamificationCustomerRoutes.get(
   requireCustomer,
   tenantContext,
   requirePlanFeature("gamification"),
-  asyncRoute(async (req, res) => {
-    const leaderboardType = normalizeLeaderboardType(req.params.type);
-    if (!leaderboardType) {
-      return res.status(400).json({ error: "Tipo de tabla de posiciones no válido" });
-    }
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const leaderboardType = normalizeLeaderboardType(req.params.type);
+      if (!leaderboardType) {
+        return res.status(400).json({ error: "Tipo de tabla de posiciones no válido" });
+      }
 
-    const position = await GamificationService.getCustomerPosition(
-      req.customerAuth.id,
-      leaderboardType,
-    );
-    res.json({ ok: true, position });
-  }),
+      const position = await GamificationService.getCustomerPosition(
+        req.customerAuth.id,
+        leaderboardType,
+      );
+      res.json({ ok: true, position });
+    },
+  ),
 );

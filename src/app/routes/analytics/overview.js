@@ -7,6 +7,9 @@ import { requirePlanFeature } from "../../../middleware/plan-feature.js";
 import { asyncRoute } from "../../../middleware/common.js";
 import { getMerchantOverview } from "../../services/merchant-overview-service.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+
 export const analyticsOverviewRoutes = Router();
 
 const OverviewQuery = z
@@ -27,19 +30,22 @@ analyticsOverviewRoutes.get(
   tenantContext,
   requirePlanFeature("basic_reporting"),
   requireOwner,
-  asyncRoute(async (req, res) => {
-    const parsed = OverviewQuery.safeParse(req.query);
-    if (!parsed.success) {
-      return res.status(400).json({
-        error: "Selecciona 7, 30 o 90 días y una sucursal válida.",
-        code: "VALIDATION_ERROR",
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const parsed = OverviewQuery.safeParse(req.query);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Selecciona 7, 30 o 90 días y una sucursal válida.",
+          code: "VALIDATION_ERROR",
+        });
+      }
+      const result = await getMerchantOverview({
+        businessId: req.tenantId,
+        days: parsed.data.days,
+        branchId: parsed.data.branch_id ?? null,
       });
-    }
-    const result = await getMerchantOverview({
-      businessId: req.tenantId,
-      days: parsed.data.days,
-      branchId: parsed.data.branch_id ?? null,
-    });
-    return res.json(result);
-  }),
+      return res.json(result);
+    },
+  ),
 );

@@ -2,13 +2,18 @@ import { Router } from "express";
 import { asyncRoute } from "../../../middleware/common.js";
 import { dbQuery } from "../../database.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+
 export const analyticsRfmRoutes = Router();
 
 analyticsRfmRoutes.get(
   "/admin/analytics/rfm",
-  asyncRoute(async (req, res) => {
-    const { rows } = await dbQuery(
-      `SELECT
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const { rows } = await dbQuery(
+        `SELECT
          rfm_score,
          COUNT(*) AS customer_count,
          AVG(total_spend) AS avg_spend,
@@ -19,9 +24,10 @@ analyticsRfmRoutes.get(
          AND c.deleted_at IS NULL
        GROUP BY rfm_score
        ORDER BY rfm_score DESC`,
-      [req.tenantId],
-    );
+        [req.tenantId],
+      );
 
-    return res.json({ ok: true, distribution: rows });
-  }),
+      return res.json({ ok: true, distribution: rows });
+    },
+  ),
 );

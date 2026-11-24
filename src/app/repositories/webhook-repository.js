@@ -1,7 +1,56 @@
 import { one, many, exec } from "./base.js";
 import { encryptSecret, rotateSecretToCurrent } from "../../utils/secret-crypto.js";
 
+/**
+ * Row of `webhook_endpoints`. `secret` is stored encrypted (`enc:v2:` prefix).
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   url: string,
+ *   secret: string,
+ *   events: string[],
+ *   active: boolean,
+ *   created_at: Date
+ * }} WebhookEndpointRow
+ */
+
+/**
+ * Row of `webhook_deliveries`.
+ * @typedef {{
+ *   id: string,
+ *   endpoint_id: string,
+ *   event: string,
+ *   payload: Record<string, unknown>,
+ *   status: string,
+ *   attempts: number,
+ *   last_error: string | null,
+ *   created_at: Date,
+ *   sent_at: Date | null
+ * }} WebhookDeliveryRow
+ */
+
+/**
+ * A delivery claimed for sending, joined with its endpoint ({@link WebhookRepo.claimPending}).
+ * @typedef {Pick<WebhookDeliveryRow, "id" | "endpoint_id" | "event" | "payload" | "attempts">
+ *   & Pick<WebhookEndpointRow, "url" | "secret" | "business_id">} WebhookDeliveryClaimRow
+ */
+
+/**
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   url: string,
+ *   secret: string,
+ *   events?: string[] | null,
+ *   active?: boolean | null
+ * }} WebhookEndpointCreateInput
+ */
+
 export const WebhookRepo = {
+  /**
+   * Resolves to `WebhookEndpointRow | null`.
+   * @param {WebhookEndpointCreateInput} endpoint
+   */
   async createEndpoint({ id, business_id, url, secret, events, active }) {
     const storedSecret = encryptSecret(secret);
     await exec(
@@ -13,6 +62,7 @@ export const WebhookRepo = {
   },
 
   async encryptPlaintextSecrets() {
+    /** @type {Pick<WebhookEndpointRow, "id" | "secret">[]} */
     const rows = await many(
       `SELECT id, secret
        FROM webhook_endpoints
@@ -31,6 +81,7 @@ export const WebhookRepo = {
   },
 
   async rotateSecretsToCurrentKey() {
+    /** @type {Pick<WebhookEndpointRow, "id" | "secret">[]} */
     const rows = await many(
       `SELECT id, secret
        FROM webhook_endpoints
@@ -46,16 +97,25 @@ export const WebhookRepo = {
     return rotated;
   },
 
+  /**
+   * Resolves to `WebhookEndpointRow[]`.
+   * @param {string} businessId
+   */
   async listEndpoints(businessId) {
     return many(`SELECT * FROM webhook_endpoints WHERE business_id=$1 ORDER BY created_at DESC`, [
       businessId,
     ]);
   },
 
+  /**
+   * Resolves to `WebhookEndpointRow | null`.
+   * @param {string} id
+   */
   async getEndpoint(id) {
     return one(`SELECT * FROM webhook_endpoints WHERE id=$1`, [id]);
   },
 
+  /** @param {{ id: string, endpoint_id: string, event: string, payload: unknown }} delivery */
   async enqueueDelivery({ id, endpoint_id, event, payload }) {
     await exec(
       `INSERT INTO webhook_deliveries (id, endpoint_id, event, payload) VALUES ($1,$2,$3,$4)`,
@@ -63,6 +123,11 @@ export const WebhookRepo = {
     );
   },
 
+  /**
+   * Resolves to `WebhookDeliveryClaimRow[]`.
+   * @param {number} [limit]
+   * @param {number} [maxAttempts]
+   */
   async claimPending(limit = 20, maxAttempts = 3) {
     return many(
       `WITH c AS (
@@ -85,10 +150,16 @@ export const WebhookRepo = {
     );
   },
 
+  /** @param {string} id */
   async markSent(id) {
     await exec(`UPDATE webhook_deliveries SET status='SENT', sent_at=now() WHERE id=$1`, [id]);
   },
 
+  /**
+   * @param {string} id
+   * @param {string | null} error
+   * @param {number} [maxAttempts]
+   */
   async recordFailure(id, error, maxAttempts = 3) {
     await exec(
       `UPDATE webhook_deliveries

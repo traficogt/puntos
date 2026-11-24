@@ -1,5 +1,55 @@
 import { dbQuery } from "../../database.js";
 
+/**
+ * Row of `customer_segments`.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   name: string,
+ *   description: string | null,
+ *   segment_type: string | null,
+ *   criteria: Record<string, unknown>,
+ *   auto_update: boolean,
+ *   color: string | null,
+ *   created_at: Date,
+ *   updated_at: Date
+ * }} CustomerSegmentRow
+ */
+
+/**
+ * Segment with its member count ({@link segmentRepository.listSegments}); COUNT is bigint → string.
+ * @typedef {CustomerSegmentRow & { customer_count: string }} CustomerSegmentWithCountRow
+ */
+
+/**
+ * Row of `customer_segment_assignments`.
+ * @typedef {{
+ *   id: string,
+ *   customer_id: string,
+ *   segment_id: string,
+ *   assigned_at: Date,
+ *   auto_assigned: boolean
+ * }} CustomerSegmentAssignmentRow
+ */
+
+/**
+ * Customer joined with its assignment ({@link segmentRepository.getSegmentCustomers}).
+ * @typedef {import("../customer-repository.js").CustomerRow
+ *   & Pick<CustomerSegmentAssignmentRow, "assigned_at" | "auto_assigned">} SegmentCustomerRow
+ */
+
+/**
+ * @typedef {{
+ *   business_id: string,
+ *   name: string,
+ *   description?: string | null,
+ *   segment_type: string,
+ *   criteria: Record<string, unknown>,
+ *   auto_update?: boolean,
+ *   color?: string | null
+ * }} SegmentCreateInput
+ */
+
 const DEFAULT_RFM_SEGMENTS = [
   {
     name: "Champions",
@@ -32,9 +82,13 @@ const DEFAULT_RFM_SEGMENTS = [
 ];
 
 export const segmentRepository = {
+  /**
+   * Resolves to `CustomerSegmentRow`.
+   * @param {SegmentCreateInput} segmentData
+   */
   async createSegment(segmentData) {
     const { rows } = await dbQuery(
-      `INSERT INTO customer_segments 
+      `INSERT INTO customer_segments
        (business_id, name, description, segment_type, criteria, auto_update, color)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
@@ -51,9 +105,13 @@ export const segmentRepository = {
     return rows[0];
   },
 
+  /**
+   * Resolves to `CustomerSegmentWithCountRow[]`.
+   * @param {string} businessId
+   */
   async listSegments(businessId) {
     const { rows } = await dbQuery(
-      `SELECT 
+      `SELECT
          cs.*,
          COUNT(csa.customer_id) as customer_count
        FROM customer_segments cs
@@ -66,9 +124,15 @@ export const segmentRepository = {
     return rows;
   },
 
+  /**
+   * Resolves to `CustomerSegmentAssignmentRow | undefined` (undefined when already assigned).
+   * @param {string} customerId
+   * @param {string} segmentId
+   * @param {boolean} [autoAssigned]
+   */
   async assignCustomerToSegment(customerId, segmentId, autoAssigned = false) {
     const { rows } = await dbQuery(
-      `INSERT INTO customer_segment_assignments 
+      `INSERT INTO customer_segment_assignments
        (customer_id, segment_id, auto_assigned)
        VALUES ($1, $2, $3)
        ON CONFLICT (customer_id, segment_id) DO NOTHING
@@ -78,17 +142,28 @@ export const segmentRepository = {
     return rows[0];
   },
 
+  /**
+   * @param {string} customerId
+   * @param {string} segmentId
+   */
   async removeCustomerFromSegment(customerId, segmentId) {
     await dbQuery(
-      `DELETE FROM customer_segment_assignments 
+      `DELETE FROM customer_segment_assignments
        WHERE customer_id = $1 AND segment_id = $2`,
       [customerId, segmentId],
     );
   },
 
+  /**
+   * Resolves to `SegmentCustomerRow[]`.
+   * @param {string} businessId
+   * @param {string} segmentId
+   * @param {number} [limit]
+   * @param {number} [offset]
+   */
   async getSegmentCustomers(businessId, segmentId, limit = 100, offset = 0) {
     const { rows } = await dbQuery(
-      `SELECT 
+      `SELECT
          c.*,
          csa.assigned_at,
          csa.auto_assigned
@@ -105,7 +180,12 @@ export const segmentRepository = {
     return rows;
   },
 
+  /**
+   * Resolves to `CustomerSegmentRow[]`.
+   * @param {string} businessId
+   */
   async createDefaultRFMSegments(businessId) {
+    /** @type {CustomerSegmentRow[]} */
     const created = [];
     for (const segmentData of DEFAULT_RFM_SEGMENTS) {
       const segment = await this.createSegment({

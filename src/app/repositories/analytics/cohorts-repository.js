@@ -1,5 +1,33 @@
 import { dbQuery } from "../../database.js";
 
+/**
+ * Row of `customer_cohorts`.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   cohort_name: string,
+ *   cohort_date: Date,
+ *   cohort_type: string,
+ *   customer_count: number,
+ *   created_at: Date
+ * }} CustomerCohortRow
+ */
+
+/**
+ * One retention cell returned by {@link cohortRepository.getCohortRetention}.
+ * `active_customers` (bigint) and the NUMERIC `retention_rate`/`revenue` arrive as strings.
+ * @typedef {{
+ *   cohort_name: string,
+ *   cohort_date: Date,
+ *   cohort_size: number,
+ *   month_number: number,
+ *   active_customers: string,
+ *   retention_rate: string,
+ *   revenue: string
+ * }} CohortRetentionRow
+ */
+
+/** @param {string} [cohortType] */
 export function cohortSqlConfigForType(cohortType = "monthly") {
   const normalized = String(cohortType || "monthly").toLowerCase();
   switch (normalized) {
@@ -26,16 +54,20 @@ export function cohortSqlConfigForType(cohortType = "monthly") {
 }
 
 export const cohortRepository = {
+  /**
+   * @param {string} businessId
+   * @param {string} [cohortType]
+   */
   async createCohorts(businessId, cohortType = "monthly") {
     const cfg = cohortSqlConfigForType(cohortType);
     const { rows: cohortData } = await dbQuery(
-      `SELECT 
+      `SELECT
          DATE_TRUNC('${cfg.truncUnit}', cl.first_purchase_at) as cohort_date,
          ${cfg.cohortLabelSql} as cohort_name,
          COUNT(DISTINCT c.id) as customer_count
        FROM customers c
        JOIN customer_ltv cl ON cl.customer_id = c.id
-       WHERE c.business_id = $1 
+       WHERE c.business_id = $1
          AND c.deleted_at IS NULL
          AND cl.first_purchase_at IS NOT NULL
        GROUP BY DATE_TRUNC('${cfg.truncUnit}', cl.first_purchase_at)`,
@@ -44,11 +76,11 @@ export const cohortRepository = {
 
     for (const cohort of cohortData) {
       const { rows } = await dbQuery(
-        `INSERT INTO customer_cohorts 
+        `INSERT INTO customer_cohorts
          (business_id, cohort_name, cohort_date, cohort_type, customer_count)
          VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (business_id, cohort_date, cohort_type)
-         DO UPDATE SET 
+         DO UPDATE SET
            customer_count = $5,
            created_at = now()
          RETURNING *`,
@@ -70,10 +102,15 @@ export const cohortRepository = {
     }
   },
 
+  /**
+   * Resolves to `CohortRetentionRow[]`.
+   * @param {string} businessId
+   * @param {number} [months]
+   */
   async getCohortRetention(businessId, months = 12) {
     const { rows } = await dbQuery(
       `WITH cohort_months AS (
-         SELECT 
+         SELECT
            cc.cohort_date,
            cc.cohort_name,
            cc.customer_count as cohort_size,
@@ -83,7 +120,7 @@ export const cohortRepository = {
            AND cc.cohort_date >= now() - interval '12 months'
        ),
        retention AS (
-         SELECT 
+         SELECT
            cm.cohort_name,
            cm.cohort_date,
            cm.cohort_size,
@@ -92,23 +129,23 @@ export const cohortRepository = {
            SUM(t.amount_q) as revenue
          FROM cohort_months cm
          LEFT JOIN customer_cohort_assignments cca ON cca.cohort_id IN (
-           SELECT id FROM customer_cohorts 
-           WHERE business_id = $1 
+           SELECT id FROM customer_cohorts
+           WHERE business_id = $1
              AND cohort_date = cm.cohort_date
          )
          LEFT JOIN transactions t ON t.customer_id = cca.customer_id
            AND DATE_TRUNC('month', t.created_at) = cm.cohort_date + (cm.month_number || ' months')::interval
          GROUP BY cm.cohort_name, cm.cohort_date, cm.cohort_size, cm.month_number
        )
-       SELECT 
+       SELECT
          cohort_name,
          cohort_date,
          cohort_size,
          month_number,
          active_customers,
-         CASE 
+         CASE
            WHEN cohort_size > 0 THEN ROUND((active_customers::DECIMAL / cohort_size * 100), 2)
-           ELSE 0 
+           ELSE 0
          END as retention_rate,
          COALESCE(revenue, 0) as revenue
        FROM retention

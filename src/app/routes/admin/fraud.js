@@ -9,7 +9,25 @@ import { Permission } from "../../../utils/permissions.js";
 import { BranchRepo } from "../../repositories/branch-repository.js";
 import { dbQuery } from "../../database.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+/**
+ * @template Q
+ * @typedef {import("../_request-types.js").WithValidatedQuery<Q>} WithValidatedQuery
+ */
+
 export const adminFraudRoutes = Router();
+
+const suspiciousQuerySchema = branchFilterQuerySchema.extend({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+const alertsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+/** @typedef {z.infer<typeof suspiciousQuerySchema>} SuspiciousQuery */
+/** @typedef {z.infer<typeof alertsQuerySchema>} AlertsQuery */
 
 adminFraudRoutes.get(
   "/admin/awards/suspicious",
@@ -17,28 +35,27 @@ adminFraudRoutes.get(
   tenantContext,
   requirePlanFeature("fraud_monitoring"),
   requireStaffPermission(Permission.ADMIN_SUSPICIOUS_VIEW),
-  validateQuery(
-    branchFilterQuerySchema.extend({
-      limit: z.coerce.number().int().min(1).max(200).default(50),
-    }),
-  ),
-  asyncRoute(async (req, res) => {
-    const { limit } = req.validatedQuery;
-    const branchId = req.validatedQuery.branch_id ? String(req.validatedQuery.branch_id) : null;
-    if (branchId) {
-      const branch = await BranchRepo.getById(branchId);
-      if (!branch || branch.business_id !== req.tenantId) {
-        return res.status(400).json({ error: "branch_id no válido" });
+  validateQuery(suspiciousQuerySchema),
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedQuery<SuspiciousQuery>} req @param {Response} res */
+    async (req, res) => {
+      const { limit } = req.validatedQuery;
+      const branchId = req.validatedQuery.branch_id ? String(req.validatedQuery.branch_id) : null;
+      if (branchId) {
+        const branch = await BranchRepo.getById(branchId);
+        if (!branch || branch.business_id !== req.tenantId) {
+          return res.status(400).json({ error: "branch_id no válido" });
+        }
       }
-    }
-    const params = [req.tenantId, limit];
-    let branchClause = "";
-    if (branchId) {
-      params.push(branchId);
-      branchClause = " AND t.branch_id = $3";
-    }
-    const { rows } = await dbQuery(
-      `SELECT
+      /** @type {unknown[]} */
+      const params = [req.tenantId, limit];
+      let branchClause = "";
+      if (branchId) {
+        params.push(branchId);
+        branchClause = " AND t.branch_id = $3";
+      }
+      const { rows } = await dbQuery(
+        `SELECT
          t.id,
          t.created_at,
          t.branch_id,
@@ -63,10 +80,11 @@ adminFraudRoutes.get(
          ${branchClause}
        ORDER BY t.created_at DESC
        LIMIT $2`,
-      params,
-    );
-    return res.json({ ok: true, awards: rows });
-  }),
+        params,
+      );
+      return res.json({ ok: true, awards: rows });
+    },
+  ),
 );
 
 adminFraudRoutes.get(
@@ -74,19 +92,17 @@ adminFraudRoutes.get(
   requireStaff,
   requireOwner,
   tenantContext,
-  validateQuery(
-    z.object({
-      limit: z.coerce.number().int().min(1).max(200).default(50),
-    }),
-  ),
-  asyncRoute(async (req, res) => {
-    const { limit } = req.validatedQuery;
-    const perType = Math.max(5, Math.min(50, Math.ceil(limit / 4)));
-    const businessId = req.tenantId;
+  validateQuery(alertsQuerySchema),
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedQuery<AlertsQuery>} req @param {Response} res */
+    async (req, res) => {
+      const { limit } = req.validatedQuery;
+      const perType = Math.max(5, Math.min(50, Math.ceil(limit / 4)));
+      const businessId = req.tenantId;
 
-    const [suspiciousRes, jobsRes, webhookRes, paymentRes] = await Promise.all([
-      dbQuery(
-        `SELECT
+      const [suspiciousRes, jobsRes, webhookRes, paymentRes] = await Promise.all([
+        dbQuery(
+          `SELECT
            id,
            created_at,
            'HIGH'::text AS severity,
@@ -97,10 +113,10 @@ adminFraudRoutes.get(
            AND COALESCE((meta->'guard'->>'suspicious')::boolean, false) = true
          ORDER BY created_at DESC
          LIMIT $2`,
-        [businessId, perType],
-      ),
-      dbQuery(
-        `SELECT
+          [businessId, perType],
+        ),
+        dbQuery(
+          `SELECT
            id,
            created_at,
            'MEDIUM'::text AS severity,
@@ -111,10 +127,10 @@ adminFraudRoutes.get(
            AND status = 'FAILED'
          ORDER BY created_at DESC
          LIMIT $2`,
-        [businessId, perType],
-      ),
-      dbQuery(
-        `SELECT
+          [businessId, perType],
+        ),
+        dbQuery(
+          `SELECT
            d.id,
            d.created_at,
            'MEDIUM'::text AS severity,
@@ -126,10 +142,10 @@ adminFraudRoutes.get(
            AND d.status = 'FAILED'
          ORDER BY d.created_at DESC
          LIMIT $2`,
-        [businessId, perType],
-      ),
-      dbQuery(
-        `SELECT
+          [businessId, perType],
+        ),
+        dbQuery(
+          `SELECT
            id,
            created_at,
            CASE WHEN status = 'FAILED' THEN 'MEDIUM'::text ELSE 'LOW'::text END AS severity,
@@ -140,14 +156,20 @@ adminFraudRoutes.get(
            AND status IN ('FAILED', 'PENDING_MAPPING')
          ORDER BY created_at DESC
          LIMIT $2`,
-        [businessId, perType],
-      ),
-    ]);
+          [businessId, perType],
+        ),
+      ]);
 
-    const alerts = [...suspiciousRes.rows, ...jobsRes.rows, ...webhookRes.rows, ...paymentRes.rows]
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, limit);
+      const alerts = [
+        ...suspiciousRes.rows,
+        ...jobsRes.rows,
+        ...webhookRes.rows,
+        ...paymentRes.rows,
+      ]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, limit);
 
-    return res.json({ ok: true, alerts });
-  }),
+      return res.json({ ok: true, alerts });
+    },
+  ),
 );

@@ -10,6 +10,9 @@ import { processOrder } from "../services/order-service.js";
 import { validate } from "../../utils/validation.js";
 import { timingSafeEqualString } from "../../utils/timing-safe.js";
 
+/** @typedef {import("./_request-types.js").Request} Request */
+/** @typedef {import("./_request-types.js").Response} Response */
+
 export const orderRoutes = Router();
 
 const OrderLineItemSchema = z.object({
@@ -59,6 +62,7 @@ export const OrderCreateSchema = z
     },
   );
 
+/** @param {string} signature */
 function normalizeSignature(signature) {
   const raw = String(signature || "").trim();
   if (!raw) return "";
@@ -66,6 +70,11 @@ function normalizeSignature(signature) {
   return raw;
 }
 
+/**
+ * @param {string | undefined} rawBody
+ * @param {string} businessSlug
+ * @param {string} signature
+ */
 function verifySignature(rawBody, businessSlug, signature) {
   const secret = businessSlug ? config.PAYMENT_WEBHOOK_HMAC_SECRETS?.[businessSlug] : null;
   if (!secret || !rawBody) return false;
@@ -79,18 +88,21 @@ function verifySignature(rawBody, businessSlug, signature) {
 orderRoutes.post(
   "/public/orders",
   moderateRateLimit,
-  asyncRoute(async (req, res) => {
-    const parsed = validate(OrderCreateSchema, req.body);
-    if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  asyncRoute(
+    /** @param {Request} req @param {Response} res @returns {Promise<void | Response>} */
+    async (req, res) => {
+      const parsed = validate(OrderCreateSchema, req.body);
+      if (!parsed.ok) return res.status(400).json({ error: parsed.error });
 
-    parsed.data.line_items_json = Array.isArray(parsed.data.items) ? parsed.data.items : [];
+      parsed.data.line_items_json = Array.isArray(parsed.data.items) ? parsed.data.items : [];
 
-    const signature = String(req.headers["x-signature"] || "");
-    if (!verifySignature(req.rawBody, parsed.data.businessSlug, signature)) {
-      return res.status(401).json({ error: "Invalid signature" });
-    }
+      const signature = String(req.headers["x-signature"] || "");
+      if (!verifySignature(req.rawBody, parsed.data.businessSlug, signature)) {
+        return res.status(401).json({ error: "Invalid signature" });
+      }
 
-    const out = await processOrder(parsed.data);
-    res.json(out);
-  }),
+      const out = await processOrder(parsed.data);
+      res.json(out);
+    },
+  ),
 );

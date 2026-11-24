@@ -9,9 +9,96 @@ import { buildWalletEngagement } from "../services/native-wallet/engagement.js";
 import { one, many } from "./base.js";
 import { encryptSecret, decryptSecretMaybe } from "../../utils/secret-crypto.js";
 
+/**
+ * Row of `native_wallet_passes`. BIGINT revisions arrive as strings; the two
+ * token columns are stored encrypted and decrypted by {@link credentials}.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   customer_id: string,
+ *   provider: "apple" | "google",
+ *   serial_number: string,
+ *   membership_token: string,
+ *   membership_hash: string,
+ *   authentication_token: string,
+ *   revoked_at: Date | null,
+ *   revision: string,
+ *   synced_revision: string,
+ *   attempts: number,
+ *   next_attempt_at: Date,
+ *   locked_until: Date | null,
+ *   lock_token: string | null,
+ *   content_refresh_at: Date | null,
+ *   pending_message: string | null,
+ *   pending_message_expires_at: Date | null,
+ *   created_at: Date,
+ *   updated_at: Date
+ * }} NativeWalletPassRow
+ */
+
+/**
+ * Credential-free projection (`publicColumns`) that route handlers may serialise.
+ * @typedef {Pick<NativeWalletPassRow,
+ *   | "id" | "business_id" | "customer_id" | "provider" | "serial_number" | "revoked_at"
+ *   | "revision" | "synced_revision" | "attempts" | "next_attempt_at" | "locked_until"
+ *   | "lock_token" | "created_at" | "updated_at">} NativeWalletPassPublicRow
+ */
+
+/**
+ * A pass with its tokens decrypted and the barcode payload derived.
+ * @typedef {NativeWalletPassRow & { barcode: string }} NativeWalletPassCredentials
+ */
+
+/**
+ * Columns added by `walletSnapshotSql` on top of the pass row.
+ * @typedef {NativeWalletPassRow & {
+ *   customer_name: string | null,
+ *   customer_deleted_at: Date | null,
+ *   points: number,
+ *   pending_points: number,
+ *   lifetime_points: number,
+ *   tier: string | null,
+ *   business_name: string,
+ *   business_slug: string | null,
+ *   program_type: string | null,
+ *   program_json: Record<string, unknown> | null,
+ *   customer_branding_json: Record<string, unknown> | null,
+ *   is_voided: boolean,
+ *   snapshot_at: Date,
+ *   timezone: string,
+ *   wallet_cycle: Record<string, unknown> | null,
+ *   wallet_next_day: Date,
+ *   wallet_daily_redemptions: number,
+ *   wallet_branches: Array<Record<string, unknown>>,
+ *   wallet_rewards: Array<Record<string, unknown>>
+ * }} NativeWalletSnapshotRow
+ */
+
+/**
+ * Row of `native_wallet_registrations` (Apple device registrations).
+ * @typedef {{
+ *   pass_id: string,
+ *   business_id: string,
+ *   device_id: string,
+ *   push_token: string,
+ *   created_at: Date,
+ *   updated_at: Date
+ * }} NativeWalletRegistrationRow
+ */
+
+/**
+ * Transient lifecycle message carried by a pass ({@link walletMessage}).
+ * @typedef {{ text: string, id: string, start: string, end: string }} WalletMessage
+ */
+
 const publicColumns = `id, business_id, customer_id, provider, serial_number, revoked_at,
   revision, synced_revision, attempts, next_attempt_at, locked_until, lock_token, created_at, updated_at`;
 
+/**
+ * @template {NativeWalletPassRow} T
+ * @param {T | null} row
+ * @returns {(T & { barcode: string }) | null}
+ */
 function credentials(row) {
   if (!row) return null;
   const membershipToken = decryptSecretMaybe(row.membership_token);
@@ -23,6 +110,7 @@ function credentials(row) {
   };
 }
 
+/** @param {string} token */
 function membershipHash(token) {
   return crypto.createHash("sha256").update(String(token), "utf8").digest("hex");
 }
@@ -30,6 +118,10 @@ function membershipHash(token) {
 // A transient lifecycle-automation message rides on the pass until it expires. Apple
 // renders it as a changeMessage field (lock-screen alert); Google as a messages[] entry.
 // Exported for unit tests; returns null when there is no live message.
+/**
+ * @param {Pick<NativeWalletPassRow, "pending_message" | "pending_message_expires_at"> | null | undefined} row
+ * @returns {WalletMessage | null}
+ */
 export function walletMessage(row) {
   const text = row?.pending_message;
   const expires = row?.pending_message_expires_at;
@@ -47,6 +139,17 @@ export function walletMessage(row) {
 // Credential-bearing methods are internal only. Route handlers must explicitly
 // construct public responses instead of serializing a pass or snapshot.
 export const NativeWalletRepo = {
+  /**
+   * Resolves to `NativeWalletPassCredentials | null`.
+   * @param {{
+   *   id: string,
+   *   businessId: string,
+   *   customerId: string,
+   *   provider: string,
+   *   membershipToken: string,
+   *   authenticationToken: string
+   * }} pass
+   */
   async ensurePass({ id, businessId, customerId, provider, membershipToken, authenticationToken }) {
     const row = await one(
       `INSERT INTO native_wallet_passes
@@ -68,6 +171,11 @@ export const NativeWalletRepo = {
     return credentials(row);
   },
 
+  /**
+   * Resolves to `NativeWalletPassPublicRow[]`.
+   * @param {string} businessId
+   * @param {string} customerId
+   */
   async getCustomerPasses(businessId, customerId) {
     return many(
       `SELECT ${publicColumns} FROM native_wallet_passes
@@ -76,8 +184,11 @@ export const NativeWalletRepo = {
     );
   },
 
+  /** @param {string} id */
   async getSnapshot(id) {
-    const stored = credentials(await one(walletSnapshotSql, [id]));
+    /** @type {NativeWalletSnapshotRow | null} */
+    const snapshotRow = await one(walletSnapshotSql, [id]);
+    const stored = credentials(snapshotRow);
     if (!stored) return null;
     const snapshot = await withWalletRewardInventory(getDbClient(), stored);
     const wallet_engagement = walletInventoryEngagement(snapshot, buildWalletEngagement(snapshot));
@@ -89,24 +200,36 @@ export const NativeWalletRepo = {
     };
   },
 
+  /**
+   * Resolves to `NativeWalletPassCredentials | null`.
+   * @param {string} serial
+   * @param {string | null} [provider]
+   */
   async getBySerial(serial, provider = null) {
-    return credentials(
-      await one(
-        `SELECT * FROM native_wallet_passes
+    const row = await one(
+      `SELECT * FROM native_wallet_passes
       WHERE serial_number=$1 AND ($2::text IS NULL OR provider=$2)`,
-        [serial, provider],
-      ),
+      [serial, provider],
     );
+    return credentials(row);
   },
 
+  /**
+   * Resolves to `NativeWalletPassCredentials | null`.
+   * @param {string} token
+   */
   async findByMembershipToken(token) {
-    return credentials(
-      await one("SELECT * FROM native_wallet_passes WHERE membership_hash=$1", [
-        membershipHash(token),
-      ]),
-    );
+    const row = await one("SELECT * FROM native_wallet_passes WHERE membership_hash=$1", [
+      membershipHash(token),
+    ]);
+    return credentials(row);
   },
 
+  /**
+   * Resolves to `NativeWalletPassPublicRow[]`.
+   * @param {string} businessId
+   * @param {string} customerId
+   */
   async revokeCustomerPasses(businessId, customerId) {
     return many(
       `UPDATE native_wallet_passes SET revoked_at=now()
@@ -118,6 +241,10 @@ export const NativeWalletRepo = {
   // Queue a transient wallet-push message on the customer's active passes and mark them
   // due so the wallet worker (processDue) delivers the push. Returns the queued passes;
   // an empty array means the customer has no active pass (caller falls back to SMS/email).
+  /**
+   * Resolves to `Pick<NativeWalletPassRow, "id" | "provider">[]`.
+   * @param {{ businessId: string, customerId: string, message: string, expiresAt: Date | string }} input
+   */
   async queueWalletMessage({ businessId, customerId, message, expiresAt }) {
     return many(
       `UPDATE native_wallet_passes
@@ -129,6 +256,10 @@ export const NativeWalletRepo = {
     );
   },
 
+  /**
+   * Resolves to `(NativeWalletRegistrationRow & { created: boolean }) | null`.
+   * @param {{ passId: string, deviceId: string, pushToken: string }} registration
+   */
   async registerDevice({ passId, deviceId, pushToken }) {
     return one(
       `INSERT INTO native_wallet_registrations (pass_id, business_id, device_id, push_token)
@@ -139,6 +270,11 @@ export const NativeWalletRepo = {
     );
   },
 
+  /**
+   * Resolves to `Pick<NativeWalletRegistrationRow, "pass_id" | "device_id"> | null`.
+   * @param {string} passId
+   * @param {string} deviceId
+   */
   async unregisterDevice(passId, deviceId) {
     return one(
       "DELETE FROM native_wallet_registrations WHERE pass_id=$1 AND device_id=$2 RETURNING pass_id, device_id",
@@ -146,6 +282,12 @@ export const NativeWalletRepo = {
     );
   },
 
+  /**
+   * @param {string} deviceId
+   * @param {string} [provider]
+   * @param {string | number | null} [since] the device's last known revision
+   * @returns {Promise<{ serial_numbers: string[], last_updated: string } | null>}
+   */
   async getDeviceUpdates(deviceId, provider = "apple", since = null) {
     // A sequence is allocated before COMMIT. Lock the registered rows before
     // filtering so an earlier, still-running change cannot be skipped when a
@@ -163,12 +305,20 @@ export const NativeWalletRepo = {
     );
   },
 
+  /**
+   * Resolves to `NativeWalletRegistrationRow[]`.
+   * @param {string} passId
+   */
   async listRegistrations(passId) {
     return many("SELECT * FROM native_wallet_registrations WHERE pass_id=$1 ORDER BY device_id", [
       passId,
     ]);
   },
 
+  /**
+   * Resolves to `Pick<NativeWalletRegistrationRow, "pass_id" | "device_id">[]`.
+   * @param {string} token
+   */
   async deletePushToken(token) {
     return many(
       "DELETE FROM native_wallet_registrations WHERE push_token=$1 RETURNING pass_id, device_id",
@@ -176,6 +326,12 @@ export const NativeWalletRepo = {
     );
   },
 
+  /**
+   * Resolves to `Pick<NativeWalletPassRow, "id" | "provider" | "revision" | "locked_until" | "lock_token">[]`.
+   * @param {number} [limit]
+   * @param {string[]} [providers]
+   * @param {number} [leaseSeconds]
+   */
   async claimDue(limit = 20, providers = ["apple", "google"], leaseSeconds = 300) {
     return many(
       `WITH due AS (
@@ -193,6 +349,13 @@ export const NativeWalletRepo = {
     );
   },
 
+  /**
+   * Resolves to `NativeWalletPassPublicRow | null`.
+   * @param {string} id
+   * @param {string | number} revision
+   * @param {string | null} [lockToken]
+   * @param {Date | string | null} [nextRefreshAt]
+   */
   async markSynced(id, revision, lockToken = null, nextRefreshAt = null) {
     return one(
       `UPDATE native_wallet_passes SET synced_revision=GREATEST(synced_revision, LEAST(revision, $2::bigint)),
@@ -203,6 +366,11 @@ export const NativeWalletRepo = {
     );
   },
 
+  /**
+   * Resolves to `NativeWalletPassPublicRow | null`.
+   * @param {string} id
+   * @param {string | null} [lockToken]
+   */
   async markFailed(id, lockToken = null) {
     // Provider calls can keep the transaction open longer than the backoff.
     // Schedule from this failure statement, not the transaction's start time.

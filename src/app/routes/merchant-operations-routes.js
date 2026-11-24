@@ -6,12 +6,27 @@ import { asyncRoute } from "../../middleware/common.js";
 import { getOperationsHealth } from "../services/merchant-operations-service.js";
 import { errorStatus } from "../../utils/error-shape.js";
 
+/** @typedef {import("./_request-types.js").Request} Request */
+/** @typedef {import("./_request-types.js").Response} Response */
+/** @typedef {import("./_request-types.js").NextFunction} NextFunction */
+/** @typedef {import("./_request-types.js").TenantRequest} TenantRequest */
+
 const Empty = z.object({}).strict();
+/**
+ * @param {Request} _req
+ * @param {Response} res
+ * @param {NextFunction} next
+ */
 function noStore(_req, res, next) {
   res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
   next();
 }
 
+/**
+ * Service override for tests, typed by what the router hands it; the result is
+ * forwarded to `res.json` untouched, so test stubs may answer with reduced shapes.
+ * @param {{ getOperationsHealth?: (input: { businessId: string }) => Promise<unknown> }} [deps]
+ */
 export function createMerchantOperationsRoutes(deps = {}) {
   const router = Router();
   router.get(
@@ -20,32 +35,35 @@ export function createMerchantOperationsRoutes(deps = {}) {
     requireStaff,
     requireOwner,
     tenantContext,
-    asyncRoute(async (req, res) => {
-      if (
-        !Empty.safeParse(req.query).success ||
-        Number(req.get("Content-Length") || 0) > 0 ||
-        req.get("Transfer-Encoding") ||
-        !Empty.safeParse(req.body ?? {}).success
-      ) {
-        return res.status(400).json({
-          error: "Esta consulta no acepta parámetros ni cuerpo.",
-          code: "VALIDATION_ERROR",
-        });
-      }
-      try {
-        return res.json(
-          await (deps.getOperationsHealth ?? getOperationsHealth)({ businessId: req.tenantId }),
-        );
-      } catch (error) {
-        const status = errorStatus(error);
-        if (status && status < 500) throw error;
-        // The dashboard must fail visibly without returning database/provider details.
-        return res.status(503).json({
-          error: "No se pudo cargar el estado operativo. Vuelve a intentar.",
-          code: "OPERATIONS_UNAVAILABLE",
-        });
-      }
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        if (
+          !Empty.safeParse(req.query).success ||
+          Number(req.get("Content-Length") || 0) > 0 ||
+          req.get("Transfer-Encoding") ||
+          !Empty.safeParse(req.body ?? {}).success
+        ) {
+          return res.status(400).json({
+            error: "Esta consulta no acepta parámetros ni cuerpo.",
+            code: "VALIDATION_ERROR",
+          });
+        }
+        try {
+          return res.json(
+            await (deps.getOperationsHealth ?? getOperationsHealth)({ businessId: req.tenantId }),
+          );
+        } catch (error) {
+          const status = errorStatus(error);
+          if (status && status < 500) throw error;
+          // The dashboard must fail visibly without returning database/provider details.
+          return res.status(503).json({
+            error: "No se pudo cargar el estado operativo. Vuelve a intentar.",
+            code: "OPERATIONS_UNAVAILABLE",
+          });
+        }
+      },
+    ),
   );
   return router;
 }

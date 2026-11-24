@@ -2,6 +2,9 @@ import { z } from "zod";
 import { BusinessRepo } from "../../repositories/business-repository.js";
 import { maskSecret } from "./_util.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../../repositories/business-repository.js").BusinessProgramJson} BusinessProgramJson */
+
 export const ProgramSchema = z.object({
   program_type: z.enum(["SPEND", "VISIT", "ITEM", "DISCOUNT", "STAMP", "CASHBACK", "GIFT_CARD"]),
   program_json: z.record(z.string(), z.any()),
@@ -97,6 +100,11 @@ export const ExternalAwardsSchema = z.object({
   api_key: z.string().min(8).max(120).optional(),
 });
 
+/**
+ * Loads the tenant's business or answers 404 and returns null.
+ * @param {Response} res
+ * @param {string} tenantId
+ */
 export async function getBusinessOr404(res, tenantId) {
   const business = await BusinessRepo.getById(tenantId);
   if (!business) {
@@ -106,6 +114,7 @@ export async function getBusinessOr404(res, tenantId) {
   return business;
 }
 
+/** @param {BusinessProgramJson} [programJson] */
 export function formatExternalAwards(programJson = {}) {
   const externalAwards = programJson.external_awards ?? { enabled: false, api_key: "" };
   return {

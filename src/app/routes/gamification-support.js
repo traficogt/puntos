@@ -57,6 +57,11 @@ export const LeaderboardQuerySchema = z.object({
   ),
 });
 
+/**
+ * Accepts a route param or query value (Express 5 may hand an array) and
+ * returns the leaderboard type, or null when it is not a known one.
+ * @param {string | string[] | null | undefined} rawType
+ */
 export function normalizeLeaderboardType(rawType) {
   const leaderboardType = Array.isArray(rawType) ? rawType[0] : String(rawType || "");
   return ["points", "streak"].includes(leaderboardType) ? leaderboardType : null;

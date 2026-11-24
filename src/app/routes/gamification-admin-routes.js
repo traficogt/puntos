@@ -17,6 +17,22 @@ import {
   normalizeLeaderboardType,
 } from "./gamification-support.js";
 
+/** @typedef {import("./_request-types.js").Response} Response */
+/** @typedef {import("./_request-types.js").TenantRequest} TenantRequest */
+/** @typedef {Promise<Response | void>} HandlerResult early `return res...` or fall-through */
+/**
+ * @template P
+ * @typedef {import("./_request-types.js").WithValidatedParams<P>} WithValidatedParams
+ */
+/**
+ * @template Q
+ * @typedef {import("./_request-types.js").WithValidatedQuery<Q>} WithValidatedQuery
+ */
+/** @typedef {import("zod").infer<typeof uuidParamsSchema>} UuidParams */
+/** @typedef {import("zod").infer<typeof LeaderboardQuerySchema>} LeaderboardQuery */
+/** @typedef {import("../repositories/gamification-repository.js").AchievementPatch} AchievementPatch */
+/** @typedef {import("../repositories/gamification-repository.js").ChallengePatch} ChallengePatch */
+
 export const gamificationAdminRoutes = Router();
 
 gamificationAdminRoutes.get(
@@ -24,11 +40,14 @@ gamificationAdminRoutes.get(
   requireStaff,
   tenantContext,
   requirePlanFeature("gamification"),
-  asyncRoute(async (req, res) => {
-    const GamificationRepository = await loadGamificationRepository();
-    const achievements = await GamificationRepository.listAchievements(req.tenantId);
-    res.json({ ok: true, achievements });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const GamificationRepository = await loadGamificationRepository();
+      const achievements = await GamificationRepository.listAchievements(req.tenantId);
+      res.json({ ok: true, achievements });
+    },
+  ),
 );
 
 gamificationAdminRoutes.post(
@@ -38,26 +57,29 @@ gamificationAdminRoutes.post(
   requireOwner,
   tenantContext,
   requirePlanFeature("gamification"),
-  asyncRoute(async (req, res) => {
-    const v = validate(AchievementCreateSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const v = validate(AchievementCreateSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
 
-    const GamificationRepository = await loadGamificationRepository();
-    const achievement = await GamificationRepository.createAchievement({
-      business_id: req.tenantId,
-      name: v.data.name,
-      description: v.data.description,
-      icon_url: v.data.icon_url,
-      badge_image_url: v.data.badge_image_url,
-      requirement_type: v.data.requirement_type,
-      requirement_value: v.data.requirement_value,
-      requirement_config: v.data.requirement_config,
-      points_reward: v.data.points_reward,
-      tier_boost: v.data.tier_boost,
-      active: v.data.active !== false,
-    });
-    res.status(201).json({ ok: true, achievement });
-  }),
+      const GamificationRepository = await loadGamificationRepository();
+      const achievement = await GamificationRepository.createAchievement({
+        business_id: req.tenantId,
+        name: v.data.name,
+        description: v.data.description,
+        icon_url: v.data.icon_url,
+        badge_image_url: v.data.badge_image_url,
+        requirement_type: v.data.requirement_type,
+        requirement_value: v.data.requirement_value,
+        requirement_config: v.data.requirement_config,
+        points_reward: v.data.points_reward,
+        tier_boost: v.data.tier_boost,
+        active: v.data.active !== false,
+      });
+      res.status(201).json({ ok: true, achievement });
+    },
+  ),
 );
 
 gamificationAdminRoutes.put(
@@ -68,31 +90,37 @@ gamificationAdminRoutes.put(
   tenantContext,
   requirePlanFeature("gamification"),
   validateParams(uuidParamsSchema),
-  asyncRoute(async (req, res) => {
-    const v = validate(AchievementUpdateSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedParams<UuidParams>} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const v = validate(AchievementUpdateSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
 
-    const updates = {};
-    for (const key of [
-      "name",
-      "description",
-      "icon_url",
-      "badge_image_url",
-      "requirement_value",
-      "points_reward",
-      "active",
-    ]) {
-      if (v.data[key] !== undefined) updates[key] = v.data[key];
-    }
+      // Whitelisted columns copied from the validated body; the keys below are a
+      // subset of AchievementPatch, which the cast at the call asserts.
+      /** @type {Record<string, unknown>} */
+      const updates = {};
+      for (const key of [
+        "name",
+        "description",
+        "icon_url",
+        "badge_image_url",
+        "requirement_value",
+        "points_reward",
+        "active",
+      ]) {
+        if (v.data[key] !== undefined) updates[key] = v.data[key];
+      }
 
-    const repo = await loadGamificationRepository();
-    const achievement = await repo.updateAchievementScoped(
-      req.validatedParams.id,
-      req.tenantId,
-      updates,
-    );
-    res.json({ ok: true, achievement });
-  }),
+      const repo = await loadGamificationRepository();
+      const achievement = await repo.updateAchievementScoped(
+        req.validatedParams.id,
+        req.tenantId,
+        /** @type {AchievementPatch} */ (updates),
+      );
+      res.json({ ok: true, achievement });
+    },
+  ),
 );
 
 gamificationAdminRoutes.delete(
@@ -103,12 +131,15 @@ gamificationAdminRoutes.delete(
   tenantContext,
   requirePlanFeature("gamification"),
   validateParams(uuidParamsSchema),
-  asyncRoute(async (req, res) => {
-    const repo = await loadGamificationRepository();
-    const deleted = await repo.deleteAchievementScoped(req.validatedParams.id, req.tenantId);
-    if (!deleted) return res.status(404).json({ error: "No encontrado" });
-    res.json({ ok: true });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedParams<UuidParams>} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const repo = await loadGamificationRepository();
+      const deleted = await repo.deleteAchievementScoped(req.validatedParams.id, req.tenantId);
+      if (!deleted) return res.status(404).json({ error: "No encontrado" });
+      res.json({ ok: true });
+    },
+  ),
 );
 
 gamificationAdminRoutes.get(
@@ -116,11 +147,14 @@ gamificationAdminRoutes.get(
   requireStaff,
   tenantContext,
   requirePlanFeature("gamification"),
-  asyncRoute(async (req, res) => {
-    const GamificationRepository = await loadGamificationRepository();
-    const challenges = await GamificationRepository.listActiveChallenges(req.tenantId);
-    res.json({ ok: true, challenges });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const GamificationRepository = await loadGamificationRepository();
+      const challenges = await GamificationRepository.listActiveChallenges(req.tenantId);
+      res.json({ ok: true, challenges });
+    },
+  ),
 );
 
 gamificationAdminRoutes.post(
@@ -130,26 +164,29 @@ gamificationAdminRoutes.post(
   requireOwner,
   tenantContext,
   requirePlanFeature("gamification"),
-  asyncRoute(async (req, res) => {
-    const v = validate(ChallengeCreateSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const v = validate(ChallengeCreateSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
 
-    const challenge = await GamificationService.createChallenge(req.tenantId, {
-      business_id: req.tenantId,
-      name: v.data.name,
-      description: v.data.description,
-      challenge_type: v.data.challenge_type,
-      requirement_type: v.data.requirement_type,
-      requirement_value: v.data.requirement_value,
-      reward_points: v.data.reward_points,
-      start_date: v.data.start_date,
-      end_date: v.data.end_date,
-      recurrence: v.data.recurrence,
-      max_completions: v.data.max_completions,
-      active: v.data.active !== false,
-    });
-    res.status(201).json({ ok: true, challenge });
-  }),
+      const challenge = await GamificationService.createChallenge(req.tenantId, {
+        business_id: req.tenantId,
+        name: v.data.name,
+        description: v.data.description,
+        challenge_type: v.data.challenge_type,
+        requirement_type: v.data.requirement_type,
+        requirement_value: v.data.requirement_value,
+        reward_points: v.data.reward_points,
+        start_date: v.data.start_date,
+        end_date: v.data.end_date,
+        recurrence: v.data.recurrence,
+        max_completions: v.data.max_completions,
+        active: v.data.active !== false,
+      });
+      res.status(201).json({ ok: true, challenge });
+    },
+  ),
 );
 
 gamificationAdminRoutes.put(
@@ -160,24 +197,30 @@ gamificationAdminRoutes.put(
   tenantContext,
   requirePlanFeature("gamification"),
   validateParams(uuidParamsSchema),
-  asyncRoute(async (req, res) => {
-    const v = validate(ChallengeUpdateSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedParams<UuidParams>} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const v = validate(ChallengeUpdateSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
 
-    const updates = {};
-    for (const key of ["name", "description", "reward_points", "end_date", "active"]) {
-      if (v.data[key] !== undefined) updates[key] = v.data[key];
-    }
+      // Whitelisted columns copied from the validated body; the keys below are a
+      // subset of ChallengePatch, which the cast at the call asserts.
+      /** @type {Record<string, unknown>} */
+      const updates = {};
+      for (const key of ["name", "description", "reward_points", "end_date", "active"]) {
+        if (v.data[key] !== undefined) updates[key] = v.data[key];
+      }
 
-    const repo = await loadGamificationRepository();
-    const challenge = await repo.updateChallengeScoped(
-      req.validatedParams.id,
-      req.tenantId,
-      updates,
-    );
-    if (!challenge) return res.status(404).json({ error: "No encontrado" });
-    res.json({ ok: true, challenge });
-  }),
+      const repo = await loadGamificationRepository();
+      const challenge = await repo.updateChallengeScoped(
+        req.validatedParams.id,
+        req.tenantId,
+        /** @type {ChallengePatch} */ (updates),
+      );
+      if (!challenge) return res.status(404).json({ error: "No encontrado" });
+      res.json({ ok: true, challenge });
+    },
+  ),
 );
 
 gamificationAdminRoutes.delete(
@@ -188,12 +231,15 @@ gamificationAdminRoutes.delete(
   tenantContext,
   requirePlanFeature("gamification"),
   validateParams(uuidParamsSchema),
-  asyncRoute(async (req, res) => {
-    const repo = await loadGamificationRepository();
-    const deleted = await repo.deleteChallengeScoped(req.validatedParams.id, req.tenantId);
-    if (!deleted) return res.status(404).json({ error: "No encontrado" });
-    res.json({ ok: true });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedParams<UuidParams>} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const repo = await loadGamificationRepository();
+      const deleted = await repo.deleteChallengeScoped(req.validatedParams.id, req.tenantId);
+      if (!deleted) return res.status(404).json({ error: "No encontrado" });
+      res.json({ ok: true });
+    },
+  ),
 );
 
 gamificationAdminRoutes.get(
@@ -202,18 +248,21 @@ gamificationAdminRoutes.get(
   tenantContext,
   requirePlanFeature("gamification"),
   validateQuery(LeaderboardQuerySchema),
-  asyncRoute(async (req, res) => {
-    const leaderboardType = normalizeLeaderboardType(req.params.type);
-    if (!leaderboardType) {
-      return res.status(400).json({ error: "Tipo de tabla de posiciones no válido" });
-    }
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedQuery<LeaderboardQuery>} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const leaderboardType = normalizeLeaderboardType(req.params.type);
+      if (!leaderboardType) {
+        return res.status(400).json({ error: "Tipo de tabla de posiciones no válido" });
+      }
 
-    const { timeframe, limit } = req.validatedQuery;
-    const leaderboard =
-      leaderboardType === "points"
-        ? await GamificationService.getPointsLeaderboard(req.tenantId, limit, timeframe)
-        : await GamificationService.getStreakLeaderboard(req.tenantId, limit);
+      const { timeframe, limit } = req.validatedQuery;
+      const leaderboard =
+        leaderboardType === "points"
+          ? await GamificationService.getPointsLeaderboard(req.tenantId, limit, timeframe)
+          : await GamificationService.getStreakLeaderboard(req.tenantId, limit);
 
-    res.json({ ok: true, leaderboard });
-  }),
+      res.json({ ok: true, leaderboard });
+    },
+  ),
 );

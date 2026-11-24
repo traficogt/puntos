@@ -17,6 +17,23 @@ import { getRequestIp } from "../../utils/request-ip.js";
 import { safeLogUrl } from "../../utils/logger.js";
 import { isErrorLike } from "../../utils/error-shape.js";
 
+/** @typedef {import("./_request-types.js").Request} Request */
+/** @typedef {import("./_request-types.js").Response} Response */
+/** @typedef {import("./_request-types.js").TenantRequest} TenantRequest */
+/**
+ * Handlers that answer early with `return res.status(...)...` and otherwise fall
+ * through to `res.json(...)` (noImplicitReturns needs the `void` member).
+ * @typedef {Promise<Response | void>} HandlerResult
+ */
+/**
+ * @template Q
+ * @typedef {import("./_request-types.js").WithValidatedQuery<Q>} WithValidatedQuery
+ */
+/**
+ * @template P
+ * @typedef {import("./_request-types.js").WithValidatedParams<P>} WithValidatedParams
+ */
+
 export const paymentWebhookRoutes = Router();
 
 export const PaymentWebhookListQuerySchema = z.object({
@@ -32,43 +49,50 @@ export const PaymentWebhookListQuerySchema = z.object({
 // strictly after the signature has been verified inside processPaymentWebhook.
 const WebhookProviderParamsSchema = z.object({ provider: z.string().trim().min(1) });
 
+/** @typedef {z.infer<typeof PaymentWebhookListQuerySchema>} PaymentWebhookListQuery */
+/** @typedef {z.infer<typeof WebhookProviderParamsSchema>} WebhookProviderParams */
+/** @typedef {z.infer<typeof uuidParamsSchema>} UuidParams */
+
 paymentWebhookRoutes.post(
   "/public/payments/webhook/:provider",
   moderateRateLimit,
   validateParams(WebhookProviderParamsSchema),
-  asyncRoute(async (req, res) => {
-    const provider = req.validatedParams.provider.toLowerCase();
-    const secretHeader = String(req.headers["x-webhook-secret"] || "");
-    const signatureHeader = String(
-      req.headers["x-signature"] || req.headers["x-provider-signature"] || "",
-    );
-    let out;
-    try {
-      out = await processPaymentWebhook({
-        provider,
-        payload: req.body ?? {},
-        secretHeader,
-        signatureHeader,
-        rawBody: req.rawBody || "",
-      });
-    } catch (err) {
-      const details = isErrorLike(err) ? err : undefined;
-      const status = Number(details?.statusCode || details?.status || 500);
-      if (status === 403) {
-        await SecurityEventRepo.log({
-          event_type: "webhook_auth_failed",
-          severity: "HIGH",
-          route: safeLogUrl(req.originalUrl || req.url),
-          method: "POST",
-          ip: getRequestIp(req),
-          actor_type: "ANON",
-          meta: { provider, reason: String(details?.message || "forbidden") },
-        }).catch(() => {});
+  asyncRoute(
+    /** @param {Request & WithValidatedParams<WebhookProviderParams>} req @param {Response} res */
+    async (req, res) => {
+      const provider = req.validatedParams.provider.toLowerCase();
+      const secretHeader = String(req.headers["x-webhook-secret"] || "");
+      const signatureHeader = String(
+        req.headers["x-signature"] || req.headers["x-provider-signature"] || "",
+      );
+      let out;
+      try {
+        out = await processPaymentWebhook({
+          provider,
+          payload: req.body ?? {},
+          secretHeader,
+          signatureHeader,
+          rawBody: req.rawBody || "",
+        });
+      } catch (err) {
+        const details = isErrorLike(err) ? err : undefined;
+        const status = Number(details?.statusCode || details?.status || 500);
+        if (status === 403) {
+          await SecurityEventRepo.log({
+            event_type: "webhook_auth_failed",
+            severity: "HIGH",
+            route: safeLogUrl(req.originalUrl || req.url),
+            method: "POST",
+            ip: getRequestIp(req),
+            actor_type: "ANON",
+            meta: { provider, reason: String(details?.message || "forbidden") },
+          }).catch(() => {});
+        }
+        throw err;
       }
-      throw err;
-    }
-    res.status(202).json(out);
-  }),
+      res.status(202).json(out);
+    },
+  ),
 );
 
 paymentWebhookRoutes.get(
@@ -77,16 +101,19 @@ paymentWebhookRoutes.get(
   tenantContext,
   requireStaffRoles("OWNER", "MANAGER"),
   validateQuery(PaymentWebhookListQuerySchema),
-  asyncRoute(async (req, res) => {
-    const status = req.validatedQuery.status ? String(req.validatedQuery.status) : null;
-    const { limit } = req.validatedQuery;
-    const rows = await listPaymentWebhookEventsForBusiness({
-      businessId: req.tenantId,
-      status,
-      limit,
-    });
-    res.json({ ok: true, events: rows });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedQuery<PaymentWebhookListQuery>} req @param {Response} res */
+    async (req, res) => {
+      const status = req.validatedQuery.status ? String(req.validatedQuery.status) : null;
+      const { limit } = req.validatedQuery;
+      const rows = await listPaymentWebhookEventsForBusiness({
+        businessId: req.tenantId,
+        status,
+        limit,
+      });
+      res.json({ ok: true, events: rows });
+    },
+  ),
 );
 
 export const ResolveSchema = z
@@ -105,16 +132,19 @@ paymentWebhookRoutes.post(
   tenantContext,
   requireStaffRoles("OWNER", "MANAGER"),
   validateParams(uuidParamsSchema),
-  asyncRoute(async (req, res) => {
-    const v = validate(ResolveSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedParams<UuidParams>} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const v = validate(ResolveSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
 
-    const out = await resolvePaymentWebhookEventForBusiness({
-      businessId: req.tenantId,
-      eventId: req.validatedParams.id,
-      customerId: v.data.customerId,
-      customerPhone: v.data.customerPhone,
-    });
-    res.json(out);
-  }),
+      const out = await resolvePaymentWebhookEventForBusiness({
+        businessId: req.tenantId,
+        eventId: req.validatedParams.id,
+        customerId: v.data.customerId,
+        customerPhone: v.data.customerPhone,
+      });
+      res.json(out);
+    },
+  ),
 );

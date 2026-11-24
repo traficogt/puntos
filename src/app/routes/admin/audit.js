@@ -8,6 +8,17 @@ import { tenantContext } from "../../../middleware/tenant.js";
 import { toCSV } from "../../../utils/csv.js";
 import { dbQuery } from "../../database.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+/**
+ * @template Q
+ * @typedef {import("../_request-types.js").WithValidatedQuery<Q>} WithValidatedQuery
+ */
+/**
+ * @template P
+ * @typedef {import("../_request-types.js").WithValidatedParams<P>} WithValidatedParams
+ */
+
 export const adminAuditRoutes = Router();
 
 const auditQuerySchema = z.object({
@@ -26,7 +37,43 @@ const auditQuerySchema = z.object({
   ),
 });
 
+/** @typedef {z.infer<typeof auditQuerySchema>} AuditQuery */
+/** @typedef {z.infer<typeof uuidParamsSchema>} UuidParams */
+
+/**
+ * Owner-facing audit event as selected by {@link listAuditEvents} (platform
+ * actions are relabelled and their meta blanked in SQL).
+ * @typedef {{
+ *   id: string,
+ *   created_at: Date,
+ *   actor_type: string,
+ *   actor_id: string | null,
+ *   action: string,
+ *   meta: Record<string, unknown>,
+ *   actor_name: string | null,
+ *   actor_email: string | null
+ * }} AuditEventListRow
+ */
+
+/**
+ * Records linked from an audit event's meta, keyed by kind; each is a row of the
+ * named table (joined with customer/staff names) or null when it no longer exists.
+ * @typedef {{
+ *   transaction?: unknown,
+ *   reversal_transaction?: unknown,
+ *   redemption?: unknown,
+ *   gift_card?: unknown,
+ *   gift_card_transaction?: unknown
+ * }} AuditLinkedRecords
+ */
+
+/**
+ * @param {string} businessId
+ * @param {Pick<AuditQuery, "limit" | "from" | "to"> & { impersonatedOnly: AuditQuery["impersonated_only"] }} filters
+ * @returns {Promise<AuditEventListRow[]>}
+ */
 async function listAuditEvents(businessId, { limit, impersonatedOnly, from, to }) {
+  /** @type {unknown[]} */
   const params = [businessId];
   let dateClause = "";
   if (from) {
@@ -85,6 +132,10 @@ async function listAuditEvents(businessId, { limit, impersonatedOnly, from, to }
   return rows;
 }
 
+/**
+ * @param {string} businessId
+ * @param {string} eventId
+ */
 async function getAuditEventDetail(businessId, eventId) {
   const { rows } = await dbQuery(
     `SELECT
@@ -106,7 +157,7 @@ async function getAuditEventDetail(businessId, eventId) {
   if (!event) return null;
 
   const meta = event.meta && typeof event.meta === "object" ? event.meta : {};
-  const detail = { event, linked: {} };
+  const detail = { event, linked: /** @type {AuditLinkedRecords} */ ({}) };
 
   if (meta.transaction_id) {
     const tx = await dbQuery(
@@ -194,11 +245,14 @@ adminAuditRoutes.get(
       limit: z.coerce.number().int().min(1).max(200).default(50),
     }),
   ),
-  asyncRoute(async (req, res) => {
-    const { limit, impersonated_only: impersonatedOnly, from, to } = req.validatedQuery;
-    const rows = await listAuditEvents(req.tenantId, { limit, impersonatedOnly, from, to });
-    return res.json({ ok: true, events: rows });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedQuery<AuditQuery>} req @param {Response} res */
+    async (req, res) => {
+      const { limit, impersonated_only: impersonatedOnly, from, to } = req.validatedQuery;
+      const rows = await listAuditEvents(req.tenantId, { limit, impersonatedOnly, from, to });
+      return res.json({ ok: true, events: rows });
+    },
+  ),
 );
 
 adminAuditRoutes.get(
@@ -207,11 +261,14 @@ adminAuditRoutes.get(
   requireOwner,
   tenantContext,
   validateParams(uuidParamsSchema),
-  asyncRoute(async (req, res) => {
-    const detail = await getAuditEventDetail(req.tenantId, req.validatedParams.id);
-    if (!detail) return res.status(404).json({ error: "Evento de auditoría no encontrado" });
-    return res.json({ ok: true, ...detail });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedParams<UuidParams>} req @param {Response} res */
+    async (req, res) => {
+      const detail = await getAuditEventDetail(req.tenantId, req.validatedParams.id);
+      if (!detail) return res.status(404).json({ error: "Evento de auditoría no encontrado" });
+      return res.json({ ok: true, ...detail });
+    },
+  ),
 );
 
 adminAuditRoutes.get(
@@ -220,29 +277,32 @@ adminAuditRoutes.get(
   requireOwner,
   tenantContext,
   validateQuery(auditQuerySchema),
-  asyncRoute(async (req, res) => {
-    const { limit, impersonated_only: impersonatedOnly, from, to } = req.validatedQuery;
-    const rows = await listAuditEvents(req.tenantId, { limit, impersonatedOnly, from, to });
-    const csvRows = rows.map((row) => ({
-      created_at: row.created_at,
-      actor_type: row.actor_type,
-      actor_name: row.actor_name || "",
-      actor_email: row.actor_email || "",
-      action: row.action,
-      impersonated_by_super_admin_email: row.meta?.impersonated_by_super_admin_email || "",
-      meta: row.meta && Object.keys(row.meta).length ? JSON.stringify(row.meta) : "",
-    }));
-    const csv = toCSV(csvRows, [
-      "created_at",
-      "actor_type",
-      "actor_name",
-      "actor_email",
-      "action",
-      "impersonated_by_super_admin_email",
-      "meta",
-    ]);
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", 'attachment; filename="audit-log.csv"');
-    return res.send(csv);
-  }),
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedQuery<AuditQuery>} req @param {Response} res */
+    async (req, res) => {
+      const { limit, impersonated_only: impersonatedOnly, from, to } = req.validatedQuery;
+      const rows = await listAuditEvents(req.tenantId, { limit, impersonatedOnly, from, to });
+      const csvRows = rows.map((row) => ({
+        created_at: row.created_at,
+        actor_type: row.actor_type,
+        actor_name: row.actor_name || "",
+        actor_email: row.actor_email || "",
+        action: row.action,
+        impersonated_by_super_admin_email: row.meta?.impersonated_by_super_admin_email || "",
+        meta: row.meta && Object.keys(row.meta).length ? JSON.stringify(row.meta) : "",
+      }));
+      const csv = toCSV(csvRows, [
+        "created_at",
+        "actor_type",
+        "actor_name",
+        "actor_email",
+        "action",
+        "impersonated_by_super_admin_email",
+        "meta",
+      ]);
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", 'attachment; filename="audit-log.csv"');
+      return res.send(csv);
+    },
+  ),
 );

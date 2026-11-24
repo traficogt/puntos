@@ -5,6 +5,7 @@ export function makeId() {
   return crypto.randomUUID();
 }
 
+/** @param {unknown} secret */
 export function maskSecret(secret) {
   const s = String(secret ?? "");
   if (!s) return "";

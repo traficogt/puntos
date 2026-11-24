@@ -28,6 +28,14 @@ import { verifyPosCredentials } from "../services/pos/common.js";
 import { ingestPosSale } from "../services/pos-integration-service.js";
 import { ingestPosRefund } from "../services/pos-refund-service.js";
 
+/** @typedef {import("./_request-types.js").Request} Request */
+/** @typedef {import("./_request-types.js").Response} Response */
+/**
+ * @template P
+ * @typedef {import("./_request-types.js").ParamsRequest<P>} ParamsRequest
+ */
+/** @typedef {import("../repositories/business-repository.js").BusinessRow} BusinessRow */
+
 // Structural shape of each POS payload: required keys and primitive types only.
 // Each service still applies its own strict schema (formats, ranges, unknown
 // keys), so these never reject a payload the service would accept; they only
@@ -120,11 +128,45 @@ const posBodyShapes = {
   }),
 };
 
+/** @typedef {keyof typeof posBodyShapes} PosKind */
+/**
+ * A POS ingestion service: receives the tenant business and the shape-checked
+ * payload; the redemption-event ingest also gets connection-enforcement options.
+ * @typedef {(
+ *   business: BusinessRow,
+ *   input: Record<string, unknown>,
+ *   options?: { enforceConnection: boolean, getPlanFeatureOverrides: () => Promise<unknown> }
+ * ) => Promise<unknown>} PosIngest
+ */
+/**
+ * Collaborators the router resolves per request. Unit tests inject fakes for
+ * the repository lookups and the ingestion services.
+ * @typedef {{
+ *   BusinessRepo: Pick<typeof BusinessRepo, "getPublicBySlug" | "getById">,
+ *   PlanConfigService: { getPlanFeatureOverrides: () => Promise<unknown> },
+ *   setTenantForRequest: (req: Request, businessId: string) => Promise<void>,
+ *   syncMerchantCatalog: PosIngest,
+ *   recordInventorySnapshot: PosIngest,
+ *   getPosCheckoutOptions: PosIngest,
+ *   authorizePosCheckout: PosIngest,
+ *   getPosCheckoutStatus: PosIngest,
+ *   cancelPosCheckout: PosIngest,
+ *   ingestPosSale: PosIngest,
+ *   ingestPosRefund: PosIngest,
+ *   lookupPosRedemption: PosIngest,
+ *   recordPosFulfillmentEvent: PosIngest,
+ *   getPosRewardMappings: PosIngest,
+ *   recordDataHeartbeat: PosIngest
+ * }} PosRouteDeps
+ */
+
+/** @param {Partial<PosRouteDeps>} [deps] */
 export function createPosRoutes(deps = {}) {
   const router = Router();
   const businessRepo = deps.BusinessRepo ?? BusinessRepo;
   const plans = deps.PlanConfigService ?? PlanConfigService;
   const setTenant = deps.setTenantForRequest ?? setTenantForRequest;
+  /** @type {Partial<Record<PosKind, PosIngest>>} */
   const handlers = {
     "catalog/sync": deps.syncMerchantCatalog ?? syncMerchantCatalog,
     "inventory/snapshot": deps.recordInventorySnapshot ?? recordInventorySnapshot,
@@ -140,70 +182,74 @@ export function createPosRoutes(deps = {}) {
   };
 
   handlers["health/heartbeat"] = deps.recordDataHeartbeat ?? recordDataHeartbeat;
-  for (const [kind, ingest] of Object.entries(handlers))
+  // Every key above is filled, so the entries carry a handler for each kind.
+  for (const [kind, ingest] of /** @type {[PosKind, PosIngest][]} */ (Object.entries(handlers)))
     router.post(
       `/public/pos/:slug/${kind}`,
       moderateRateLimit,
-      asyncRoute(async (req, res) => {
-        const publicBusiness = await businessRepo.getPublicBySlug(req.params.slug);
-        if (!publicBusiness) throw notFound("Negocio no encontrado");
+      asyncRoute(
+        /** @param {ParamsRequest<{ slug: string }>} req @param {Response} res */
+        async (req, res) => {
+          const publicBusiness = await businessRepo.getPublicBySlug(req.params.slug);
+          if (!publicBusiness) throw notFound("Negocio no encontrado");
 
-        await setTenant(req, publicBusiness.id);
-        const business = await businessRepo.getById(publicBusiness.id);
-        if (!business) throw notFound("Negocio no encontrado");
+          await setTenant(req, publicBusiness.id);
+          const business = await businessRepo.getById(publicBusiness.id);
+          if (!business) throw notFound("Negocio no encontrado");
 
-        if (!["sales", "refunds"].includes(kind) && req.headers["x-signature"] === undefined)
-          throw unauthorized("La confirmación de canjes requiere una firma x-signature.");
-        const recovering = [
-          "checkout/status",
-          "checkout/cancel",
-          "checkout/authorize",
-          "redemptions/events",
-        ].includes(kind);
-        await verifyPosCredentials(business, {
-          allowDisabled: recovering,
-          authorization: req.headers.authorization,
-          signature: req.headers["x-signature"],
-          rawBody: req.rawBody,
-        });
-
-        const overrides = await plans.getPlanFeatureOverrides().catch(() => ({}));
-        if (!recovering && !hasPlanFeature(business.plan, "external_awards", overrides)) {
-          return res.status(403).json({
-            error: "La funcionalidad 'external_awards' no está disponible en tu plan actual",
-            code: "PLAN_FEATURE_LOCKED",
-            feature: "external_awards",
-            plan: business.plan,
-            suggested_plan: suggestedPlanForFeature("external_awards"),
+          if (!["sales", "refunds"].includes(kind) && req.headers["x-signature"] === undefined)
+            throw unauthorized("La confirmación de canjes requiere una firma x-signature.");
+          const recovering = [
+            "checkout/status",
+            "checkout/cancel",
+            "checkout/authorize",
+            "redemptions/events",
+          ].includes(kind);
+          await verifyPosCredentials(business, {
+            allowDisabled: recovering,
+            authorization: req.headers.authorization,
+            signature: req.headers["x-signature"],
+            rawBody: req.rawBody,
           });
-        }
 
-        if (
-          !recovering &&
-          (kind.startsWith("redemptions/") ||
-            ["checkout/options", "checkout/authorize"].includes(kind)) &&
-          !hasPlanFeature(business.plan, "redemptions", overrides)
-        )
-          return res.status(403).json({
-            error: "Tu plan no incluye canjes.",
-            code: "PLAN_FEATURE_LOCKED",
-            feature: "redemptions",
-          });
-        if (!["sales", "refunds"].includes(kind))
-          res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
-        // Shape check runs only after credentials and plan gates, so unauthenticated
-        // callers learn nothing about the payload contract.
-        const shape = posBodyShapes[kind].safeParse(req.body);
-        if (!shape.success) return res.status(400).json(validationErrorBody(shape.error));
-        if (kind === "redemptions/events")
-          return res.json(
-            await ingest(business, shape.data, {
-              enforceConnection: true,
-              getPlanFeatureOverrides: async () => overrides,
-            }),
-          );
-        return res.json(await ingest(business, shape.data));
-      }),
+          const overrides = await plans.getPlanFeatureOverrides().catch(() => ({}));
+          if (!recovering && !hasPlanFeature(business.plan, "external_awards", overrides)) {
+            return res.status(403).json({
+              error: "La funcionalidad 'external_awards' no está disponible en tu plan actual",
+              code: "PLAN_FEATURE_LOCKED",
+              feature: "external_awards",
+              plan: business.plan,
+              suggested_plan: suggestedPlanForFeature("external_awards"),
+            });
+          }
+
+          if (
+            !recovering &&
+            (kind.startsWith("redemptions/") ||
+              ["checkout/options", "checkout/authorize"].includes(kind)) &&
+            !hasPlanFeature(business.plan, "redemptions", overrides)
+          )
+            return res.status(403).json({
+              error: "Tu plan no incluye canjes.",
+              code: "PLAN_FEATURE_LOCKED",
+              feature: "redemptions",
+            });
+          if (!["sales", "refunds"].includes(kind))
+            res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
+          // Shape check runs only after credentials and plan gates, so unauthenticated
+          // callers learn nothing about the payload contract.
+          const shape = posBodyShapes[kind].safeParse(req.body);
+          if (!shape.success) return res.status(400).json(validationErrorBody(shape.error));
+          if (kind === "redemptions/events")
+            return res.json(
+              await ingest(business, shape.data, {
+                enforceConnection: true,
+                getPlanFeatureOverrides: async () => overrides,
+              }),
+            );
+          return res.json(await ingest(business, shape.data));
+        },
+      ),
     );
 
   return router;

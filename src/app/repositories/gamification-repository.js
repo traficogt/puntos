@@ -1,11 +1,197 @@
 import { dbQuery } from "../database.js";
 
+/**
+ * Row of `achievements`.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   name: string,
+ *   description: string | null,
+ *   icon_url: string | null,
+ *   badge_image_url: string | null,
+ *   requirement_type: string,
+ *   requirement_value: number | null,
+ *   requirement_config: Record<string, unknown> | null,
+ *   points_reward: number,
+ *   tier_boost: number,
+ *   active: boolean,
+ *   created_at: Date,
+ *   updated_at: Date
+ * }} AchievementRow
+ */
+
+/**
+ * Row of `customer_achievements` (provenance columns from the gamification-provenance migration).
+ * @typedef {{
+ *   id: string,
+ *   customer_id: string,
+ *   achievement_id: string,
+ *   earned_at: Date,
+ *   progress: number,
+ *   source_transaction_id: string | null,
+ *   reward_transaction_id: string | null
+ * }} CustomerAchievementRow
+ */
+
+/**
+ * Earned achievement joined with its definition ({@link GamificationRepository.getCustomerAchievements}).
+ * @typedef {CustomerAchievementRow & Pick<AchievementRow,
+ *   "name" | "description" | "icon_url" | "badge_image_url" | "requirement_type" | "points_reward">} CustomerAchievementDetailRow
+ */
+
+/**
+ * Row of `challenges`.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   name: string,
+ *   description: string | null,
+ *   challenge_type: string,
+ *   requirement_type: string,
+ *   requirement_value: number,
+ *   reward_points: number,
+ *   start_date: Date,
+ *   end_date: Date | null,
+ *   recurrence: string | null,
+ *   max_completions: number | null,
+ *   active: boolean,
+ *   created_at: Date,
+ *   updated_at: Date
+ * }} ChallengeRow
+ */
+
+/**
+ * Row of `customer_challenges`.
+ * @typedef {{
+ *   id: string,
+ *   customer_id: string,
+ *   challenge_id: string,
+ *   progress: number,
+ *   completed: boolean,
+ *   completed_at: Date | null,
+ *   times_completed: number,
+ *   last_reset_at: Date | null,
+ *   last_source_transaction_id: string | null,
+ *   last_reward_transaction_id: string | null,
+ *   completion_history: unknown[],
+ *   created_at: Date,
+ *   updated_at: Date
+ * }} CustomerChallengeRow
+ */
+
+/**
+ * Active challenge with the customer's (possibly absent) progress
+ * ({@link GamificationRepository.getCustomerActiveChallenges}).
+ * @typedef {ChallengeRow & {
+ *   progress: number | null,
+ *   completed: boolean | null,
+ *   times_completed: number | null,
+ *   completed_at: Date | null
+ * }} CustomerActiveChallengeRow
+ */
+
+/**
+ * Row of `visit_streaks`.
+ * @typedef {{
+ *   customer_id: string,
+ *   current_streak: number,
+ *   longest_streak: number,
+ *   last_visit_date: Date | null,
+ *   streak_started_at: Date | null,
+ *   updated_at: Date
+ * }} VisitStreakRow
+ */
+
+/**
+ * @typedef {{
+ *   business_id: string,
+ *   name: string,
+ *   description?: string | null,
+ *   icon_url?: string | null,
+ *   badge_image_url?: string | null,
+ *   requirement_type: string,
+ *   requirement_value?: number | null,
+ *   requirement_config?: Record<string, unknown> | null,
+ *   points_reward?: number | null,
+ *   tier_boost?: number | null,
+ *   active?: boolean
+ * }} AchievementCreateInput
+ */
+
+/**
+ * Column assignments accepted by {@link GamificationRepository.updateAchievementScoped}.
+ * @typedef {Partial<Pick<AchievementRow,
+ *   | "name" | "description" | "icon_url" | "badge_image_url" | "requirement_type"
+ *   | "requirement_value" | "requirement_config" | "points_reward" | "tier_boost" | "active">>} AchievementPatch
+ */
+
+/**
+ * @typedef {{
+ *   business_id: string,
+ *   name: string,
+ *   description?: string | null,
+ *   challenge_type: string,
+ *   requirement_type: string,
+ *   requirement_value: number,
+ *   reward_points: number,
+ *   start_date: Date | string,
+ *   end_date?: Date | string | null,
+ *   recurrence?: string | null,
+ *   max_completions?: number | null,
+ *   active?: boolean
+ * }} ChallengeCreateInput
+ */
+
+/**
+ * Column assignments accepted by the challenge update methods.
+ * @typedef {Partial<Pick<ChallengeRow,
+ *   | "name" | "description" | "challenge_type" | "requirement_type" | "requirement_value"
+ *   | "reward_points" | "recurrence" | "max_completions" | "active">>
+ *   & { start_date?: Date | string, end_date?: Date | string | null }} ChallengePatch
+ */
+
+/**
+ * Ledger provenance recorded with an award.
+ * @typedef {{ sourceTransactionId?: string | null, rewardTransactionId?: string | null }} GamificationProvenance
+ */
+
+/**
+ * Details recorded when a customer completes a challenge.
+ * @typedef {GamificationProvenance & {
+ *   completedAt?: Date | string | null,
+ *   historyEntry?: Record<string, unknown> | null
+ * }} ChallengeCompletion
+ */
+
+/**
+ * @typedef {{
+ *   current_streak: number,
+ *   longest_streak: number,
+ *   last_visit_date: Date | string | null,
+ *   streak_started_at: Date | string | null
+ * }} StreakInput
+ */
+
+/**
+ * Points leaderboard entry; SUM/COUNT aggregates arrive as strings (bigint).
+ * @typedef {{ id: string, name: string | null, total_points: string, transaction_count: string }} PointsLeaderboardRow
+ */
+
+/**
+ * @typedef {{ id: string, name: string | null } & Pick<VisitStreakRow,
+ *   "current_streak" | "longest_streak" | "last_visit_date">} StreakLeaderboardRow
+ */
+
 export const GamificationRepository = {
+  /**
+   * Resolves to `AchievementRow`.
+   * @param {AchievementCreateInput} achievementData
+   */
   async createAchievement(achievementData) {
     const { rows } = await dbQuery(
-      `INSERT INTO achievements 
+      `INSERT INTO achievements
        (business_id, name, description, icon_url, badge_image_url,
-        requirement_type, requirement_value, requirement_config, 
+        requirement_type, requirement_value, requirement_config,
         points_reward, tier_boost, active)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
@@ -26,23 +212,39 @@ export const GamificationRepository = {
     return rows[0];
   },
 
+  /**
+   * Resolves to `AchievementRow[]`.
+   * @param {string} businessId
+   */
   async listAchievements(businessId) {
     const { rows } = await dbQuery(
-      `SELECT * FROM achievements 
-       WHERE business_id = $1 
+      `SELECT * FROM achievements
+       WHERE business_id = $1
        ORDER BY requirement_value ASC NULLS FIRST`,
       [businessId],
     );
     return rows;
   },
 
+  /**
+   * Resolves to `AchievementRow | undefined`.
+   * @param {string} achievementId
+   */
   async getAchievement(achievementId) {
     const { rows } = await dbQuery(`SELECT * FROM achievements WHERE id = $1`, [achievementId]);
     return rows[0];
   },
 
+  /**
+   * Resolves to `AchievementRow | undefined`.
+   * @param {string} achievementId
+   * @param {string} businessId
+   * @param {AchievementPatch} updates
+   */
   async updateAchievementScoped(achievementId, businessId, updates) {
+    /** @type {string[]} */
     const fields = [];
+    /** @type {unknown[]} */
     const values = [];
     let paramCount = 1;
 
@@ -62,7 +264,7 @@ export const GamificationRepository = {
     values.push(businessId);
 
     const { rows } = await dbQuery(
-      `UPDATE achievements 
+      `UPDATE achievements
        SET ${fields.join(", ")}
        WHERE id = $${paramCount} AND business_id = $${paramCount + 1}
        RETURNING *`,
@@ -71,10 +273,16 @@ export const GamificationRepository = {
     return rows[0];
   },
 
+  /** @param {string} achievementId */
   async deleteAchievement(achievementId) {
     await dbQuery(`DELETE FROM achievements WHERE id = $1`, [achievementId]);
   },
 
+  /**
+   * @param {string} achievementId
+   * @param {string} businessId
+   * @returns {Promise<number>} deleted row count
+   */
   async deleteAchievementScoped(achievementId, businessId) {
     const r = await dbQuery(`DELETE FROM achievements WHERE id = $1 AND business_id = $2`, [
       achievementId,
@@ -83,6 +291,14 @@ export const GamificationRepository = {
     return r.rowCount || 0;
   },
 
+  /**
+   * Resolves to `CustomerAchievementRow | undefined` (undefined when already earned).
+   * @param {string} customerId
+   * @param {string} achievementId
+   * @param {number} [progress]
+   * @param {GamificationProvenance} [provenance]
+   * @param {typeof dbQuery} [query]
+   */
   async awardAchievement(
     customerId,
     achievementId,
@@ -106,9 +322,13 @@ export const GamificationRepository = {
     return rows[0];
   },
 
+  /**
+   * Resolves to `CustomerAchievementDetailRow[]`.
+   * @param {string} customerId
+   */
   async getCustomerAchievements(customerId) {
     const { rows } = await dbQuery(
-      `SELECT 
+      `SELECT
          ca.*,
          a.name,
          a.description,
@@ -125,18 +345,28 @@ export const GamificationRepository = {
     return rows;
   },
 
+  /**
+   * Resolves to `CustomerAchievementRow | undefined`.
+   * @param {string} customerId
+   * @param {string} achievementId
+   * @param {typeof dbQuery} [query]
+   */
   async checkAchievementEarned(customerId, achievementId, query = dbQuery) {
     const { rows } = await query(
-      `SELECT * FROM customer_achievements 
+      `SELECT * FROM customer_achievements
        WHERE customer_id = $1 AND achievement_id = $2`,
       [customerId, achievementId],
     );
     return rows[0];
   },
 
+  /**
+   * Resolves to `ChallengeRow`.
+   * @param {ChallengeCreateInput} challengeData
+   */
   async createChallenge(challengeData) {
     const { rows } = await dbQuery(
-      `INSERT INTO challenges 
+      `INSERT INTO challenges
        (business_id, name, description, challenge_type, requirement_type,
         requirement_value, reward_points, start_date, end_date, recurrence,
         max_completions, active)
@@ -160,10 +390,14 @@ export const GamificationRepository = {
     return rows[0];
   },
 
+  /**
+   * Resolves to `ChallengeRow[]`.
+   * @param {string} businessId
+   */
   async listActiveChallenges(businessId) {
     const { rows } = await dbQuery(
-      `SELECT * FROM challenges 
-       WHERE business_id = $1 
+      `SELECT * FROM challenges
+       WHERE business_id = $1
          AND active = true
          AND start_date <= now()
          AND (end_date IS NULL OR end_date >= now())
@@ -173,13 +407,24 @@ export const GamificationRepository = {
     return rows;
   },
 
+  /**
+   * Resolves to `ChallengeRow | undefined`.
+   * @param {string} challengeId
+   */
   async getChallenge(challengeId) {
     const { rows } = await dbQuery(`SELECT * FROM challenges WHERE id = $1`, [challengeId]);
     return rows[0];
   },
 
+  /**
+   * Resolves to `ChallengeRow | undefined`.
+   * @param {string} challengeId
+   * @param {ChallengePatch} updates
+   */
   async updateChallenge(challengeId, updates) {
+    /** @type {string[]} */
     const fields = [];
+    /** @type {unknown[]} */
     const values = [];
     let paramCount = 1;
 
@@ -193,7 +438,7 @@ export const GamificationRepository = {
     values.push(challengeId);
 
     const { rows } = await dbQuery(
-      `UPDATE challenges 
+      `UPDATE challenges
        SET ${fields.join(", ")}
        WHERE id = $${paramCount}
        RETURNING *`,
@@ -202,12 +447,21 @@ export const GamificationRepository = {
     return rows[0];
   },
 
+  /** @param {string} challengeId */
   async deleteChallenge(challengeId) {
     await dbQuery(`DELETE FROM challenges WHERE id = $1`, [challengeId]);
   },
 
+  /**
+   * Resolves to `ChallengeRow | undefined`.
+   * @param {string} challengeId
+   * @param {string} businessId
+   * @param {ChallengePatch} updates
+   */
   async updateChallengeScoped(challengeId, businessId, updates) {
+    /** @type {string[]} */
     const fields = [];
+    /** @type {unknown[]} */
     const values = [];
     let paramCount = 1;
 
@@ -230,6 +484,11 @@ export const GamificationRepository = {
     return rows[0];
   },
 
+  /**
+   * @param {string} challengeId
+   * @param {string} businessId
+   * @returns {Promise<number>} deleted row count
+   */
   async deleteChallengeScoped(challengeId, businessId) {
     const r = await dbQuery(`DELETE FROM challenges WHERE id = $1 AND business_id = $2`, [
       challengeId,
@@ -238,21 +497,34 @@ export const GamificationRepository = {
     return r.rowCount || 0;
   },
 
+  /**
+   * Resolves to `CustomerChallengeRow | undefined`.
+   * @param {string} customerId
+   * @param {string} challengeId
+   * @param {typeof dbQuery} [query]
+   */
   async getCustomerChallengeProgress(customerId, challengeId, query = dbQuery) {
     const { rows } = await query(
-      `SELECT * FROM customer_challenges 
+      `SELECT * FROM customer_challenges
        WHERE customer_id = $1 AND challenge_id = $2`,
       [customerId, challengeId],
     );
     return rows[0];
   },
 
+  /**
+   * Resolves to `CustomerChallengeRow`.
+   * @param {string} customerId
+   * @param {string} challengeId
+   * @param {number} progress
+   * @param {typeof dbQuery} [query]
+   */
   async updateChallengeProgress(customerId, challengeId, progress, query = dbQuery) {
     const { rows } = await query(
       `INSERT INTO customer_challenges (customer_id, challenge_id, progress, updated_at)
        VALUES ($1, $2, $3, now())
        ON CONFLICT (customer_id, challenge_id)
-       DO UPDATE SET 
+       DO UPDATE SET
          progress = $3,
          updated_at = now()
        RETURNING *`,
@@ -261,6 +533,12 @@ export const GamificationRepository = {
     return rows[0];
   },
 
+  /**
+   * Resolves to `CustomerChallengeRow | undefined`.
+   * @param {string} customerId
+   * @param {string} challengeId
+   * @param {typeof dbQuery} [query]
+   */
   async resetRecurringChallengeProgress(customerId, challengeId, query = dbQuery) {
     const { rows } = await query(
       `UPDATE customer_challenges
@@ -276,11 +554,18 @@ export const GamificationRepository = {
     return rows[0];
   },
 
+  /**
+   * Resolves to `CustomerChallengeRow | undefined`.
+   * @param {string} customerId
+   * @param {string} challengeId
+   * @param {ChallengeCompletion} [completion]
+   * @param {typeof dbQuery} [query]
+   */
   async completeChallengeForCustomer(customerId, challengeId, completion = {}, query = dbQuery) {
     const historyEntry = completion?.historyEntry ? JSON.stringify(completion.historyEntry) : null;
     const { rows } = await query(
       `UPDATE customer_challenges
-       SET 
+       SET
          completed = true,
          completed_at = COALESCE($3::timestamptz, now()),
          times_completed = times_completed + 1,
@@ -305,16 +590,21 @@ export const GamificationRepository = {
     return rows[0];
   },
 
+  /**
+   * Resolves to `CustomerActiveChallengeRow[]`.
+   * @param {string} customerId
+   * @param {string} businessId
+   */
   async getCustomerActiveChallenges(customerId, businessId) {
     const { rows } = await dbQuery(
-      `SELECT 
+      `SELECT
          c.*,
          cc.progress,
          cc.completed,
          cc.times_completed,
          cc.completed_at
        FROM challenges c
-       LEFT JOIN customer_challenges cc ON 
+       LEFT JOIN customer_challenges cc ON
          cc.challenge_id = c.id AND cc.customer_id = $1
        WHERE c.business_id = $2
          AND c.active = true
@@ -329,6 +619,10 @@ export const GamificationRepository = {
 
   // Streaks
 
+  /**
+   * Resolves to `VisitStreakRow | undefined`.
+   * @param {string} customerId
+   */
   async getCustomerStreak(customerId) {
     const { rows } = await dbQuery(`SELECT * FROM visit_streaks WHERE customer_id = $1`, [
       customerId,
@@ -336,10 +630,15 @@ export const GamificationRepository = {
     return rows[0];
   },
 
+  /**
+   * Resolves to `VisitStreakRow`.
+   * @param {string} customerId
+   * @param {StreakInput} streakData
+   */
   async updateStreak(customerId, streakData) {
     const { rows } = await dbQuery(
-      `INSERT INTO visit_streaks 
-       (customer_id, current_streak, longest_streak, last_visit_date, 
+      `INSERT INTO visit_streaks
+       (customer_id, current_streak, longest_streak, last_visit_date,
         streak_started_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, now())
        ON CONFLICT (customer_id)
@@ -363,6 +662,12 @@ export const GamificationRepository = {
 
   // Leaderboards
 
+  /**
+   * Resolves to `PointsLeaderboardRow[]`.
+   * @param {string} businessId
+   * @param {number} [limit]
+   * @param {"all_time" | "week" | "month" | string} [timeframe]
+   */
   async getPointsLeaderboard(businessId, limit = 10, timeframe = "all_time") {
     let dateFilter = "";
     if (timeframe === "week") {
@@ -372,7 +677,7 @@ export const GamificationRepository = {
     }
 
     const { rows } = await dbQuery(
-      `SELECT 
+      `SELECT
          c.id,
          c.name,
          COALESCE(SUM(t.points), 0) as total_points,
@@ -389,9 +694,14 @@ export const GamificationRepository = {
     return rows;
   },
 
+  /**
+   * Resolves to `StreakLeaderboardRow[]`.
+   * @param {string} businessId
+   * @param {number} [limit]
+   */
   async getStreakLeaderboard(businessId, limit = 10) {
     const { rows } = await dbQuery(
-      `SELECT 
+      `SELECT
          c.id,
          c.name,
          vs.current_streak,

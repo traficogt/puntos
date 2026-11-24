@@ -6,6 +6,9 @@ import { tenantContext } from "../../middleware/tenant.js";
 import { requirePlanFeature } from "../../middleware/plan-feature.js";
 import { getReferralGrowth } from "../services/referral-growth-service.js";
 
+/** @typedef {import("./_request-types.js").Response} Response */
+/** @typedef {import("./_request-types.js").TenantRequest} TenantRequest */
+
 const Query = z
   .object({
     days: z.enum(["30", "90"]).default("30").transform(Number),
@@ -25,6 +28,7 @@ const Query = z
   })
   .strict();
 
+/** @param {{ getGrowth?: typeof getReferralGrowth }} [deps] */
 export function createReferralGrowthRoutes({ getGrowth = getReferralGrowth } = {}) {
   const router = Router();
   router.get(
@@ -33,15 +37,18 @@ export function createReferralGrowthRoutes({ getGrowth = getReferralGrowth } = {
     requireOwner,
     tenantContext,
     requirePlanFeature("referrals"),
-    asyncRoute(async (req, res) => {
-      const parsed = Query.safeParse(req.query);
-      if (!parsed.success)
-        return res.status(400).json({
-          error: "Selecciona un período, un filtro y una página válidos.",
-          code: "VALIDATION_ERROR",
-        });
-      return res.json(await getGrowth({ businessId: req.tenantId, ...parsed.data }));
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const parsed = Query.safeParse(req.query);
+        if (!parsed.success)
+          return res.status(400).json({
+            error: "Selecciona un período, un filtro y una página válidos.",
+            code: "VALIDATION_ERROR",
+          });
+        return res.json(await getGrowth({ businessId: req.tenantId, ...parsed.data }));
+      },
+    ),
   );
   return router;
 }

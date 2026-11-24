@@ -15,6 +15,29 @@ import {
 
 export { createCachedMetricSection, DEFAULT_METRICS_CACHE_TTL_MS };
 
+/**
+ * Job-queue health as reported by `redisHealth` (services/job-service.js).
+ * @typedef {{
+ *   driver?: string,
+ *   queueDepth?: number,
+ *   healthy?: boolean,
+ *   redis?: string,
+ *   lastError?: string | null
+ * }} QueueHealth
+ */
+
+/**
+ * @typedef {{
+ *   getPromMetrics?: (() => Promise<unknown> | unknown) | null,
+ *   getQueueHealth?: (() => Promise<QueueHealth | null | undefined>) | null,
+ *   includeQueueHealth?: boolean,
+ *   includeBillingMetrics?: boolean,
+ *   includeBackgroundJobMetrics?: boolean,
+ *   includeQueueMetrics?: boolean,
+ *   metricsCacheTtlMs?: number
+ * }} ObservabilityRouterOptions
+ */
+
 async function checkDatabaseStatus() {
   return checkDatabaseStatusShared();
 }
@@ -23,22 +46,27 @@ async function checkDatabaseStatus() {
 // and intentionally global). Without this, every RLS-protected table counts as 0.
 const METRICS_DB_CONTEXT = { platformAdmin: true, tenantId: null };
 
+/** @param {string[]} metrics */
 async function appendSharedMetrics(metrics) {
   return withDbClientContext(METRICS_DB_CONTEXT, () => appendSharedMetricsShared(metrics));
 }
 
+/** @param {string[]} metrics */
 function appendProcessMetrics(metrics) {
   return appendProcessMetricsShared(metrics);
 }
 
+/** @param {string[]} metrics */
 async function appendBillingMetrics(metrics) {
   return withDbClientContext(METRICS_DB_CONTEXT, () => appendBillingMetricsShared(metrics));
 }
 
+/** @param {string[]} metrics */
 async function appendBackgroundJobMetrics(metrics) {
   return withDbClientContext(METRICS_DB_CONTEXT, () => appendBackgroundJobMetricsShared(metrics));
 }
 
+/** @param {ObservabilityRouterOptions} [options] */
 export function createObservabilityRouter(options = {}) {
   const {
     getPromMetrics = null,
@@ -53,6 +81,7 @@ export function createObservabilityRouter(options = {}) {
   const router = express.Router();
   const getSharedMetricLines = createCachedMetricSection(
     async () => {
+      /** @type {string[]} */
       const lines = [];
       await appendSharedMetrics(lines);
       return lines;
@@ -61,6 +90,7 @@ export function createObservabilityRouter(options = {}) {
   );
   const getBillingMetricLines = createCachedMetricSection(
     async () => {
+      /** @type {string[]} */
       const lines = [];
       await appendBillingMetrics(lines);
       return lines;
@@ -69,6 +99,7 @@ export function createObservabilityRouter(options = {}) {
   );
   const getBackgroundJobMetricLines = createCachedMetricSection(
     async () => {
+      /** @type {string[]} */
       const lines = [];
       await appendBackgroundJobMetrics(lines);
       return lines;
@@ -106,7 +137,7 @@ export function createObservabilityRouter(options = {}) {
         new Promise((_, reject) => setTimeout(() => reject(new Error("Database timeout")), 2000)),
       ]);
       checks.database = "ok";
-      /** @type {{ healthy?: boolean, driver?: string, queueDepth?: number } | null} */
+      /** @type {QueueHealth | null | undefined} */
       let queueHealth = null;
       if (includeQueueHealth && typeof getQueueHealth === "function") {
         queueHealth = await getQueueHealth();

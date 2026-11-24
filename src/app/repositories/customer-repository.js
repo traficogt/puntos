@@ -1,12 +1,71 @@
 import { one, many, exec } from "./base.js";
 import { conflict } from "../../utils/http-error.js";
 
+/**
+ * Row of `customers`.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   phone: string,
+ *   name: string | null,
+ *   birthday: Date | null,
+ *   created_at: Date,
+ *   last_visit_at: Date | null,
+ *   deleted_at: Date | null,
+ *   imported_at: Date | null
+ * }} CustomerRow
+ */
+
+/**
+ * Row of `customer_balances`.
+ * @typedef {{
+ *   customer_id: string,
+ *   points: number,
+ *   pending_points: number,
+ *   lifetime_points: number,
+ *   tier: string | null,
+ *   updated_at: Date
+ * }} CustomerBalanceRow
+ */
+
+/**
+ * Customer joined with its balance counters (the shape most lookups return).
+ * @typedef {CustomerRow
+ *   & Pick<CustomerBalanceRow, "points" | "pending_points" | "lifetime_points" | "tier">} CustomerWithBalanceRow
+ */
+
+/**
+ * Result of {@link CustomerRepo.upsertByPhone}: a fresh customer carries its
+ * balance counters, while an existing (conflicting) row is returned from
+ * `customers` alone, so the counters may be absent.
+ * @typedef {CustomerRow
+ *   & Partial<Pick<CustomerBalanceRow, "points" | "pending_points" | "lifetime_points" | "tier">>} CustomerUpsertRow
+ */
+
+/**
+ * Directory projection returned by {@link CustomerRepo.listByBusiness}.
+ * @typedef {Pick<CustomerRow, "id" | "phone" | "name" | "created_at" | "last_visit_at">
+ *   & Pick<CustomerBalanceRow, "points" | "pending_points" | "lifetime_points">} CustomerListRow
+ */
+
+/**
+ * @typedef {{ id: string, business_id: string, phone: string, name?: string | null }} CustomerCreateInput
+ */
+
 export const CustomerRepo = {
   // ✅ Alias expected by customer-service.js
+  /**
+   * Resolves to `CustomerUpsertRow | null`.
+   * @param {CustomerCreateInput} customer
+   */
   async create({ id, business_id, phone, name }) {
     return CustomerRepo.upsertByPhone({ id, business_id, phone, name });
   },
 
+  /**
+   * Resolves to `CustomerUpsertRow | null`.
+   * @param {CustomerCreateInput} customer
+   */
   async upsertByPhone({ id, business_id, phone, name }) {
     const created = await one(
       `INSERT INTO customers (id, business_id, phone, name) VALUES ($1,$2,$3,$4)
@@ -35,6 +94,10 @@ export const CustomerRepo = {
     return CustomerRepo.getById(id);
   },
 
+  /**
+   * Resolves to `CustomerWithBalanceRow | null`.
+   * @param {string} id
+   */
   async getById(id) {
     return one(
       `SELECT c.*, b.points, b.lifetime_points, b.tier
@@ -46,6 +109,11 @@ export const CustomerRepo = {
     );
   },
 
+  /**
+   * Resolves to `CustomerWithBalanceRow | null`.
+   * @param {string} businessId
+   * @param {string} customerId
+   */
   async getByBusinessAndId(businessId, customerId) {
     return one(
       `SELECT c.*, b.points, b.lifetime_points, b.tier
@@ -57,6 +125,11 @@ export const CustomerRepo = {
     );
   },
 
+  /**
+   * Resolves to `CustomerWithBalanceRow | null`.
+   * @param {string} businessId
+   * @param {string} phone
+   */
   async getByBusinessAndPhone(businessId, phone) {
     return one(
       `SELECT c.*, b.points, b.lifetime_points, b.tier
@@ -68,15 +141,25 @@ export const CustomerRepo = {
     );
   },
 
+  /**
+   * Resolves to `CustomerWithBalanceRow | null`.
+   * @param {string} customerId
+   * @param {string | null} name
+   */
   async updateName(customerId, name) {
     await exec(`UPDATE customers SET name=$2 WHERE id=$1`, [customerId, name]);
     return CustomerRepo.getById(customerId);
   },
 
+  /** @param {string} customerId */
   async touchVisit(customerId) {
     await exec(`UPDATE customers SET last_visit_at=now() WHERE id=$1`, [customerId]);
   },
 
+  /**
+   * @param {string} customerId
+   * @param {number} delta
+   */
   async addPoints(customerId, delta) {
     await exec(
       `UPDATE customer_balances
@@ -88,6 +171,10 @@ export const CustomerRepo = {
     );
   },
 
+  /**
+   * @param {string} customerId
+   * @param {number} points
+   */
   async setPoints(customerId, points) {
     await exec(`UPDATE customer_balances SET points=$2, updated_at=now() WHERE customer_id=$1`, [
       customerId,
@@ -95,10 +182,16 @@ export const CustomerRepo = {
     ]);
   },
 
+  /** @param {string} customerId */
   async softDelete(customerId) {
     await exec(`UPDATE customers SET deleted_at=now() WHERE id=$1`, [customerId]);
   },
 
+  /**
+   * Resolves to `CustomerListRow[]`.
+   * @param {string} businessId
+   * @param {number} [limit]
+   */
   async listByBusiness(businessId, limit = 200) {
     return many(
       `SELECT c.id, c.phone, c.name, c.created_at, c.last_visit_at,

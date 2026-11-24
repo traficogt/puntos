@@ -2,15 +2,20 @@ import { Router } from "express";
 import { asyncRoute } from "../../../middleware/common.js";
 import { dbQuery } from "../../database.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+
 export const analyticsLedgerRoutes = Router();
 
 analyticsLedgerRoutes.get(
   "/admin/analytics/ledger-reconciliation",
-  asyncRoute(async (req, res) => {
-    const businessId = req.tenantId;
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const businessId = req.tenantId;
 
-    const { rows: latestRunRows } = await dbQuery(
-      `SELECT
+      const { rows: latestRunRows } = await dbQuery(
+        `SELECT
          id,
          started_at,
          completed_at,
@@ -27,12 +32,12 @@ analyticsLedgerRoutes.get(
          )
        ORDER BY completed_at DESC
        LIMIT 1`,
-      [businessId],
-    );
-    const latestRun = latestRunRows[0] ?? null;
+        [businessId],
+      );
+      const latestRun = latestRunRows[0] ?? null;
 
-    const { rows: runRows } = await dbQuery(
-      `SELECT
+      const { rows: runRows } = await dbQuery(
+        `SELECT
          id,
          started_at,
          completed_at,
@@ -49,13 +54,13 @@ analyticsLedgerRoutes.get(
          )
        ORDER BY completed_at DESC
        LIMIT 10`,
-      [businessId],
-    );
+        [businessId],
+      );
 
-    let findingRows = [];
-    if (latestRun?.id) {
-      const findings = await dbQuery(
-        `SELECT
+      let findingRows = [];
+      if (latestRun?.id) {
+        const findings = await dbQuery(
+          `SELECT
            customer_id,
            business_id,
            stored_points,
@@ -73,16 +78,17 @@ analyticsLedgerRoutes.get(
          WHERE run_id = $1
          ORDER BY ABS(delta_points) DESC, ABS(delta_lifetime_points) DESC, created_at DESC
          LIMIT 25`,
-        [latestRun.id],
-      );
-      findingRows = findings.rows;
-    }
+          [latestRun.id],
+        );
+        findingRows = findings.rows;
+      }
 
-    return res.json({
-      ok: true,
-      latest_run: latestRun,
-      recent_runs: runRows,
-      latest_findings: findingRows,
-    });
-  }),
+      return res.json({
+        ok: true,
+        latest_run: latestRun,
+        recent_runs: runRows,
+        latest_findings: findingRows,
+      });
+    },
+  ),
 );

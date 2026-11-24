@@ -16,6 +16,14 @@ import { invalidateBrowserSessionsForActor } from "../../services/auth-session-s
 import { hashPassword } from "../../../utils/password-hash.js";
 import { assertPasswordAllowed } from "../../../utils/password-policy.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+/**
+ * @template P
+ * @typedef {import("../_request-types.js").WithValidatedParams<P>} WithValidatedParams
+ */
+/** @typedef {z.infer<typeof uuidParamsSchema>} UuidParams */
+
 export const adminStaffRoutes = Router();
 
 export const StaffCreateSchema = z.object({
@@ -43,10 +51,13 @@ adminStaffRoutes.get(
   requireRecentReauth(),
   tenantContext,
   requirePlanFeature("staff_management"),
-  asyncRoute(async (req, res) => {
-    const rows = await StaffRepo.listByBusiness(req.tenantId);
-    return res.json({ ok: true, staff: rows });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const rows = await StaffRepo.listByBusiness(req.tenantId);
+      return res.json({ ok: true, staff: rows });
+    },
+  ),
 );
 
 adminStaffRoutes.post(
@@ -57,59 +68,62 @@ adminStaffRoutes.post(
   tenantContext,
   csrfProtect,
   requirePlanFeature("staff_management"),
-  asyncRoute(async (req, res) => {
-    const v = validate(StaffCreateSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const v = validate(StaffCreateSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
 
-    const branchId = v.data.branch_id ?? req.staff.branch_id ?? null;
-    if (branchId) {
-      const branch = await BranchRepo.getById(branchId);
-      if (!branch || branch.business_id !== req.tenantId) {
-        return res.status(400).json({ error: "La sucursal no pertenece a tu negocio." });
+      const branchId = v.data.branch_id ?? req.staff.branch_id ?? null;
+      if (branchId) {
+        const branch = await BranchRepo.getById(branchId);
+        if (!branch || branch.business_id !== req.tenantId) {
+          return res.status(400).json({ error: "La sucursal no pertenece a tu negocio." });
+        }
       }
-    }
 
-    const existing = await StaffRepo.getByEmail(v.data.email);
-    if (existing) return res.status(409).json({ error: "Este correo ya está en uso" });
+      const existing = await StaffRepo.getByEmail(v.data.email);
+      if (existing) return res.status(409).json({ error: "Este correo ya está en uso" });
 
-    assertPasswordAllowed(v.data.password, {
-      email: v.data.email,
-      name: v.data.name,
-      phone: v.data.phone,
-    });
-    const password_hash = await hashPassword(v.data.password);
+      assertPasswordAllowed(v.data.password, {
+        email: v.data.email,
+        name: v.data.name,
+        phone: v.data.phone,
+      });
+      const password_hash = await hashPassword(v.data.password);
 
-    const staff = await StaffRepo.create({
-      id: makeId(),
-      business_id: req.tenantId,
-      branch_id: branchId,
-      name: v.data.name,
-      email: v.data.email,
-      phone: v.data.phone ?? null,
-      role: v.data.role ?? "CASHIER",
-      password_hash,
-    });
+      const staff = await StaffRepo.create({
+        id: makeId(),
+        business_id: req.tenantId,
+        branch_id: branchId,
+        name: v.data.name,
+        email: v.data.email,
+        phone: v.data.phone ?? null,
+        role: v.data.role ?? "CASHIER",
+        password_hash,
+      });
 
-    if (v.data.can_manage_gift_cards !== undefined) {
-      await dbQuery("UPDATE staff_users SET can_manage_gift_cards = $2 WHERE id = $1", [
-        staff.id,
-        Boolean(v.data.can_manage_gift_cards),
-      ]);
-    }
-    const finalStaff = await StaffRepo.getById(staff.id);
+      if (v.data.can_manage_gift_cards !== undefined) {
+        await dbQuery("UPDATE staff_users SET can_manage_gift_cards = $2 WHERE id = $1", [
+          staff.id,
+          Boolean(v.data.can_manage_gift_cards),
+        ]);
+      }
+      const finalStaff = await StaffRepo.getById(staff.id);
 
-    return res.json({
-      ok: true,
-      staff: {
-        id: finalStaff.id,
-        name: finalStaff.name,
-        email: finalStaff.email,
-        role: finalStaff.role,
-        branch_id: finalStaff.branch_id,
-        can_manage_gift_cards: finalStaff.can_manage_gift_cards,
-      },
-    });
-  }),
+      return res.json({
+        ok: true,
+        staff: {
+          id: finalStaff.id,
+          name: finalStaff.name,
+          email: finalStaff.email,
+          role: finalStaff.role,
+          branch_id: finalStaff.branch_id,
+          can_manage_gift_cards: finalStaff.can_manage_gift_cards,
+        },
+      });
+    },
+  ),
 );
 
 adminStaffRoutes.patch(
@@ -120,94 +134,97 @@ adminStaffRoutes.patch(
   csrfProtect,
   requirePlanFeature("staff_management"),
   validateParams(uuidParamsSchema),
-  asyncRoute(async (req, res) => {
-    const v = validate(StaffUpdateSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedParams<UuidParams>} req @param {Response} res */
+    async (req, res) => {
+      const v = validate(StaffUpdateSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
 
-    const target = await StaffRepo.getById(req.validatedParams.id);
-    if (!target || target.business_id !== req.tenantId) {
-      return res.status(404).json({ error: "Staff no encontrado" });
-    }
-
-    if (target.role === "OWNER")
-      return res.status(400).json({ error: "No se puede editar OWNER desde este panel" });
-
-    const fields = [];
-    const params = [];
-    let idx = 1;
-    if (v.data.active !== undefined) {
-      fields.push(`active = $${idx++}`);
-      params.push(v.data.active);
-    }
-    if (v.data.role !== undefined) {
-      fields.push(`role = $${idx++}`);
-      params.push(v.data.role);
-    }
-    if (v.data.branch_id !== undefined) {
-      if (v.data.branch_id) {
-        const br = await BranchRepo.getById(v.data.branch_id);
-        if (!br || br.business_id !== req.tenantId) {
-          return res.status(400).json({ error: "branch_id inválido" });
-        }
+      const target = await StaffRepo.getById(req.validatedParams.id);
+      if (!target || target.business_id !== req.tenantId) {
+        return res.status(404).json({ error: "Staff no encontrado" });
       }
-      fields.push(`branch_id = $${idx++}`);
-      params.push(v.data.branch_id);
-    }
-    if (v.data.password !== undefined) {
-      assertPasswordAllowed(v.data.password, {
-        email: target.email,
-        name: target.name,
-        phone: target.phone,
-      });
-      const password_hash = await hashPassword(v.data.password);
-      fields.push(`password_hash = $${idx++}`);
-      params.push(password_hash);
-    }
-    if (v.data.can_manage_gift_cards !== undefined) {
-      fields.push(`can_manage_gift_cards = $${idx++}`);
-      params.push(Boolean(v.data.can_manage_gift_cards));
-    }
-    if (!fields.length) return res.status(400).json({ error: "Sin cambios" });
 
-    params.push(req.validatedParams.id, req.tenantId);
-    await dbQuery(
-      `UPDATE staff_users
+      if (target.role === "OWNER")
+        return res.status(400).json({ error: "No se puede editar OWNER desde este panel" });
+
+      const fields = [];
+      const params = [];
+      let idx = 1;
+      if (v.data.active !== undefined) {
+        fields.push(`active = $${idx++}`);
+        params.push(v.data.active);
+      }
+      if (v.data.role !== undefined) {
+        fields.push(`role = $${idx++}`);
+        params.push(v.data.role);
+      }
+      if (v.data.branch_id !== undefined) {
+        if (v.data.branch_id) {
+          const br = await BranchRepo.getById(v.data.branch_id);
+          if (!br || br.business_id !== req.tenantId) {
+            return res.status(400).json({ error: "branch_id inválido" });
+          }
+        }
+        fields.push(`branch_id = $${idx++}`);
+        params.push(v.data.branch_id);
+      }
+      if (v.data.password !== undefined) {
+        assertPasswordAllowed(v.data.password, {
+          email: target.email,
+          name: target.name,
+          phone: target.phone,
+        });
+        const password_hash = await hashPassword(v.data.password);
+        fields.push(`password_hash = $${idx++}`);
+        params.push(password_hash);
+      }
+      if (v.data.can_manage_gift_cards !== undefined) {
+        fields.push(`can_manage_gift_cards = $${idx++}`);
+        params.push(Boolean(v.data.can_manage_gift_cards));
+      }
+      if (!fields.length) return res.status(400).json({ error: "Sin cambios" });
+
+      params.push(req.validatedParams.id, req.tenantId);
+      await dbQuery(
+        `UPDATE staff_users
        SET ${fields.join(", ")}
        WHERE id = $${idx++} AND business_id = $${idx}`,
-      params,
-    );
-
-    if (
-      v.data.active !== undefined ||
-      v.data.password !== undefined ||
-      v.data.role !== undefined ||
-      v.data.branch_id !== undefined ||
-      v.data.can_manage_gift_cards !== undefined
-    ) {
-      await invalidateBrowserSessionsForActor({
-        actorType: "STAFF",
-        actorId: target.id,
-        reason: "staff_security_change",
-      }).catch((err) =>
-        logger.warn(
-          { err, staffId: target.id },
-          "Browser session invalidation failed after staff security change",
-        ),
+        params,
       );
-    }
 
-    const updated = await StaffRepo.getById(req.validatedParams.id);
-    return res.json({
-      ok: true,
-      staff: {
-        id: updated.id,
-        name: updated.name,
-        email: updated.email,
-        role: updated.role,
-        branch_id: updated.branch_id,
-        active: updated.active,
-        can_manage_gift_cards: updated.can_manage_gift_cards,
-      },
-    });
-  }),
+      if (
+        v.data.active !== undefined ||
+        v.data.password !== undefined ||
+        v.data.role !== undefined ||
+        v.data.branch_id !== undefined ||
+        v.data.can_manage_gift_cards !== undefined
+      ) {
+        await invalidateBrowserSessionsForActor({
+          actorType: "STAFF",
+          actorId: target.id,
+          reason: "staff_security_change",
+        }).catch((err) =>
+          logger.warn(
+            { err, staffId: target.id },
+            "Browser session invalidation failed after staff security change",
+          ),
+        );
+      }
+
+      const updated = await StaffRepo.getById(req.validatedParams.id);
+      return res.json({
+        ok: true,
+        staff: {
+          id: updated.id,
+          name: updated.name,
+          email: updated.email,
+          role: updated.role,
+          branch_id: updated.branch_id,
+          active: updated.active,
+          can_manage_gift_cards: updated.can_manage_gift_cards,
+        },
+      });
+    },
+  ),
 );

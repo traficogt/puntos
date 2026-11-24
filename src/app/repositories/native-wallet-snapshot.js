@@ -24,6 +24,7 @@ const walletSeedSql = `
  WHERE p.id=$1`;
 
 // The seed is source-owned SQL. Share reward/guard selection without requiring a pass.
+/** @param {string} seedSql */
 export const rewardSnapshotSql = (seedSql) => `WITH snapshot AS (${seedSql}
 ), current_cycle AS (
  SELECT c.* FROM reward_promise_cycles c JOIN snapshot s ON s.business_id=c.business_id AND s.customer_id=c.customer_id

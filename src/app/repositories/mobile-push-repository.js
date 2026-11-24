@@ -5,13 +5,72 @@ import { encryptSecret, decryptSecretMaybe, isEncryptedSecret } from "../../util
 import { HttpError } from "../../utils/http-error.js";
 import { errorCode } from "../../utils/error-shape.js";
 
+/**
+ * Row of `mobile_push_devices`. BIGINT counters arrive as strings; the token is
+ * stored encrypted and only decrypted inside {@link MobilePushRepo.getSnapshot}.
+ * @typedef {{
+ *   installation_id: string,
+ *   secret_hash: string,
+ *   token_ciphertext: string,
+ *   token_hash: string,
+ *   topic: string,
+ *   environment: string,
+ *   business_id: string,
+ *   customer_id: string,
+ *   session_id: string,
+ *   enabled: boolean,
+ *   consent_expires_at: Date,
+ *   generation: string,
+ *   revision: string,
+ *   synced_revision: string,
+ *   points: number,
+ *   pending_points: number,
+ *   baseline_points: number,
+ *   baseline_pending: number,
+ *   attempts: number,
+ *   next_attempt_at: Date,
+ *   locked_until: Date | null,
+ *   lock_token: string | null,
+ *   last_test_at: Date | null,
+ *   created_at: Date,
+ *   updated_at: Date
+ * }} MobilePushDeviceRow
+ */
+
+/**
+ * A claimed device: the worker must present the same generation and lock token
+ * for every follow-up mutation ({@link MobilePushRepo.claimDue}).
+ * @typedef {Pick<MobilePushDeviceRow, "installation_id" | "generation" | "revision" | "lock_token">} MobilePushClaim
+ */
+
+/**
+ * @typedef {{
+ *   businessId: string,
+ *   customerId: string,
+ *   sessionId: string,
+ *   installationId: string,
+ *   installationSecret: string,
+ *   token: string,
+ *   topic: string
+ * }} MobilePushRegisterInput
+ */
+
+/** @param {string} value */
 const hash = (value) => createHash("sha256").update(String(value)).digest("hex");
 const validConsent = `d.enabled AND d.consent_expires_at>now()
   AND EXISTS (SELECT 1 FROM customers c JOIN businesses b ON b.id=c.business_id
     WHERE c.id=d.customer_id AND c.business_id=d.business_id AND c.deleted_at IS NULL)
   AND app.mobile_push_session_valid(d.session_id,d.customer_id,d.business_id,false)`;
 const sameClaim = `d.installation_id=$1 AND d.generation=$2 AND d.lock_token=$3 AND d.locked_until>now()`;
+/** @param {MobilePushClaim} claim */
 const claimParams = (claim) => [claim.installation_id, claim.generation, claim.lock_token];
+/**
+ * True only when `row` exists and `secret` hashes to its stored secret, so a
+ * positive result also narrows `row` to a present device.
+ * @param {MobilePushDeviceRow | null | undefined} row
+ * @param {string} secret
+ * @returns {row is MobilePushDeviceRow}
+ */
 function owns(row, secret) {
   const supplied = Buffer.from(hash(secret), "hex");
   const expected = Buffer.from(row?.secret_hash || "0".repeat(64), "hex");
@@ -22,10 +81,19 @@ const unavailable = () => new HttpError(409, "No se pudo registrar este disposit
 // These rows contain credentials and are never serialized by the API. Global
 // access is restricted to this service; each mutation validates its binding.
 export const MobilePushRepo = {
+  /**
+   * Resolves to `MobilePushDeviceRow | null`.
+   * @param {string} id installation id
+   */
   async getDevice(id) {
     return one("SELECT * FROM mobile_push_devices WHERE installation_id=$1", [id]);
   },
 
+  /**
+   * @param {MobilePushRegisterInput} input
+   * @param {typeof withTransaction} [transaction]
+   * @returns {Promise<{ enabled: true, expiresAt: string }>}
+   */
   async register(input, transaction = withTransaction) {
     try {
       return await transaction(async () => {
@@ -64,6 +132,7 @@ export const MobilePushRepo = {
           "SELECT pg_advisory_xact_lock(hashtext('mobile-push-installation'),hashtext($1))",
           [installationId],
         );
+        /** @type {MobilePushDeviceRow | null} */
         const existing = await one(
           "SELECT * FROM mobile_push_devices WHERE installation_id=$1 FOR UPDATE",
           [installationId],
@@ -128,6 +197,10 @@ export const MobilePushRepo = {
     }
   },
 
+  /**
+   * @param {string} id installation id
+   * @param {string} secret installation secret
+   */
   async revoke(id, secret) {
     const row = await this.getDevice(id);
     if (owns(row, secret))
@@ -139,6 +212,10 @@ export const MobilePushRepo = {
     return { ok: true };
   },
 
+  /**
+   * Resolves to `MobilePushClaim[]`.
+   * @param {number} [limit]
+   */
   async claimDue(limit = 20) {
     // Recheck after row locking too: a concurrent valid re-registration must
     // never be disabled by cleanup's older snapshot. No source locks are taken.
@@ -161,6 +238,10 @@ export const MobilePushRepo = {
     );
   },
 
+  /**
+   * Resolves to `(MobilePushDeviceRow & { plan: string, token: string }) | null`.
+   * @param {MobilePushClaim} claim
+   */
   async getSnapshot(claim) {
     const row = await one(
       `SELECT d.*,b.plan FROM mobile_push_devices d JOIN businesses b ON b.id=d.business_id
@@ -170,6 +251,10 @@ export const MobilePushRepo = {
     return row ? { ...row, token: decryptSecretMaybe(row.token_ciphertext) } : null;
   },
 
+  /**
+   * @param {MobilePushClaim} claim
+   * @param {{ revision: string | number, points: number, pending_points: number }} snapshot
+   */
   async acknowledge(claim, snapshot) {
     return one(
       `UPDATE mobile_push_devices d SET synced_revision=GREATEST(d.synced_revision,$4::bigint),
@@ -180,6 +265,10 @@ export const MobilePushRepo = {
     );
   },
 
+  /**
+   * @param {MobilePushClaim} claim
+   * @param {{ invalidToken?: boolean, retryable?: boolean }} [outcome]
+   */
   async fail(claim, { invalidToken = false, retryable = true } = {}) {
     return one(
       `UPDATE mobile_push_devices d SET enabled=CASE WHEN $4 THEN false ELSE d.enabled END,
@@ -191,6 +280,10 @@ export const MobilePushRepo = {
     );
   },
 
+  /**
+   * Resolves to `MobilePushClaim | null`.
+   * @param {{ installationId: string, installationSecret: string, customerId: string, businessId: string }} input
+   */
   async claimTest(input) {
     const row = await this.getDevice(input.installationId);
     if (!owns(row, input.installationSecret)) return null;
@@ -204,6 +297,7 @@ export const MobilePushRepo = {
     );
   },
 
+  /** @param {MobilePushClaim} claim */
   async releaseTest(claim) {
     return one(
       `UPDATE mobile_push_devices d SET locked_until=NULL,lock_token=NULL WHERE ${sameClaim} RETURNING installation_id`,

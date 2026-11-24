@@ -49,6 +49,42 @@ import { getRequestIp } from "../../utils/request-ip.js";
 import { withDbClientContext } from "../database.js";
 import { errorCode, errorMessage } from "../../utils/error-shape.js";
 
+/** @typedef {import("./_request-types.js").Request} Request */
+/** @typedef {import("./_request-types.js").Response} Response */
+/**
+ * @template P
+ * @typedef {import("./_request-types.js").ParamsRequest<P>} ParamsRequest
+ */
+/** @typedef {import("./_request-types.js").WithAuthSession} WithAuthSession */
+/** @typedef {Promise<Response | void>} HandlerResult early `return res...` or fall-through */
+
+/**
+ * Contracts implemented by utils/auth-token.js and the account-security services.
+ * Their `= null` parameter defaults make TypeScript infer `null`-only parameters
+ * (and widen `sameSite: "strict"` to `string`), so the imports are re-typed here
+ * until those modules carry the JSDoc themselves. Same functions at runtime.
+ * @typedef {(req?: import("express").Request | null) => import("express").CookieOptions} CookieOptsFn
+ * @typedef {(input: { email: string, ip?: string | null, ua?: string | null }) => Promise<unknown>} RequestPasswordResetFn
+ * @typedef {(input: { token: string, newPassword: string, ip?: string | null, ua?: string | null }) => Promise<unknown>} CompletePasswordResetFn
+ * @typedef {(input: { token: string, ip?: string | null, ua?: string | null }) => Promise<unknown>} ConfirmEmailChangeFn
+ */
+const cookieOptionsFor = /** @type {CookieOptsFn} */ (/** @type {unknown} */ (cookieOpts));
+const staffCookieOptionsFor = /** @type {CookieOptsFn} */ (
+  /** @type {unknown} */ (staffCookieOptions)
+);
+const customerCookieOptionsFor = /** @type {CookieOptsFn} */ (
+  /** @type {unknown} */ (customerCookieOptions)
+);
+const requestPasswordReset = /** @type {RequestPasswordResetFn} */ (
+  /** @type {unknown} */ (requestStaffPasswordReset)
+);
+const completePasswordReset = /** @type {CompletePasswordResetFn} */ (
+  /** @type {unknown} */ (completeStaffPasswordReset)
+);
+const confirmEmailChange = /** @type {ConfirmEmailChangeFn} */ (
+  /** @type {unknown} */ (confirmStaffEmailChange)
+);
+
 export const publicRoutes = Router();
 
 const StaffPasswordResetRequestSchema = z.object({
@@ -89,11 +125,13 @@ export const ExternalAwardSchema = z
 
 // --- shared helpers ------------------------------------------------------------
 
+/** @param {Request} req @param {Response} res */
 function rejectMissingCustomer(req, res) {
   res.clearCookie(config.CUSTOMER_COOKIE_NAME, { path: "/" });
   return res.status(404).json({ error: "Cliente no encontrado", code: "CUSTOMER_NOT_FOUND" });
 }
 
+/** @param {unknown} customerBrandingJson */
 function sanitizeCustomerBrandingForPublic(customerBrandingJson) {
   const parsed = businessCustomerBrandingSchema.safeParse(
     customerBrandingJson && typeof customerBrandingJson === "object" ? customerBrandingJson : {},
@@ -102,6 +140,7 @@ function sanitizeCustomerBrandingForPublic(customerBrandingJson) {
   return businessCustomerBrandingSchema.parse({});
 }
 
+/** @param {string | string[] | undefined} rawToken the `:token` route param */
 async function lookupMagicLinkRecord(rawToken) {
   const token = String(rawToken || "").trim();
   if (!token) return null;
@@ -109,6 +148,12 @@ async function lookupMagicLinkRecord(rawToken) {
   return withMagicLinkDbContext(() => InternalMagicLinkRepo.lookupByTokenHash(tokenHash));
 }
 
+/**
+ * Runs a magic-link lookup/consume under the platform-admin DB context (tests run inline).
+ * @template T
+ * @param {() => Promise<T>} task
+ * @returns {Promise<T>}
+ */
 async function withMagicLinkDbContext(task) {
   try {
     if (config.NODE_ENV === "test") {
@@ -127,6 +172,11 @@ async function withMagicLinkDbContext(task) {
 
 // Validates the body, resolves the public business from :slug and binds the
 // request to its tenant. Sends the error response and returns null on failure.
+/**
+ * @param {ParamsRequest<{ slug: string }>} req
+ * @param {Response} res
+ * @param {import("zod").ZodType} schema body schema
+ */
 async function resolvePublicBusinessRequest(req, res, schema) {
   const v = validate(schema, req.body);
   if (!v.ok) {
@@ -142,9 +192,14 @@ async function resolvePublicBusinessRequest(req, res, schema) {
   return { data: v.data, business };
 }
 
+/**
+ * @param {Request} req
+ * @param {Response} res
+ * @param {{ customer: import("../repositories/customer-repository.js").CustomerWithBalanceRow, token: string }} session
+ */
 function issueCustomerSession(req, res, { customer, token }) {
   res.cookie(config.CUSTOMER_COOKIE_NAME, token, {
-    ...cookieOpts(req),
+    ...cookieOptionsFor(req),
     maxAge: browserCookieMaxAge("CUSTOMER"),
   });
   res.json({
@@ -160,6 +215,11 @@ function issueCustomerSession(req, res, { customer, token }) {
 
 // Consumes an internal magic link for the expected actor type. Sends the error
 // response and returns null when the link is unknown or for another actor.
+/**
+ * @param {ParamsRequest<{ token: string }>} req
+ * @param {Response} res
+ * @param {"staff" | "customer"} actorType
+ */
 async function consumePublicMagicLink(req, res, actorType) {
   const record = await lookupMagicLinkRecord(req.params.token);
   if (!record || record.actor_type !== actorType) {
@@ -176,6 +236,7 @@ async function consumePublicMagicLink(req, res, actorType) {
 
 // Loads the cookie-authenticated customer and checks it still belongs to the
 // session's business. Clears the cookie and responds 404 otherwise.
+/** @param {Request} req @param {Response} res */
 async function loadAuthenticatedCustomer(req, res) {
   const { id: customerId, business_id } = req.customerAuth;
   const customer = await CustomerRepo.getById(customerId);
@@ -186,6 +247,7 @@ async function loadAuthenticatedCustomer(req, res) {
   return { customerId, business_id };
 }
 
+/** @param {Request} req @param {Response} res */
 function verifyExternalAwardSignature(req, res) {
   const rawBody = req.rawBody;
   if (!rawBody) {
@@ -211,6 +273,7 @@ function verifyExternalAwardSignature(req, res) {
 
 // --- handlers ------------------------------------------------------------------
 
+/** @param {ParamsRequest<{ slug: string }>} req @param {Response} res @returns {HandlerResult} */
 async function readPublicBusiness(req, res) {
   const business = await BusinessRepo.getPublicBySlug(req.params.slug);
   if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
@@ -226,6 +289,7 @@ async function readPublicBusiness(req, res) {
   });
 }
 
+/** @param {ParamsRequest<{ slug: string }>} req @param {Response} res */
 async function handleJoinRequestCode(req, res) {
   const resolved = await resolvePublicBusinessRequest(req, res, requestJoinCodeSchema);
   if (!resolved) return;
@@ -239,6 +303,7 @@ async function handleJoinRequestCode(req, res) {
   res.json(out);
 }
 
+/** @param {ParamsRequest<{ slug: string }>} req @param {Response} res */
 async function handleLoginRequestCode(req, res) {
   const resolved = await resolvePublicBusinessRequest(req, res, requestJoinCodeSchema);
   if (!resolved) return;
@@ -253,10 +318,11 @@ async function handleLoginRequestCode(req, res) {
   res.json(out);
 }
 
+/** @param {Request} req @param {Response} res @returns {HandlerResult} */
 async function handleStaffPasswordResetRequest(req, res) {
   const v = validate(StaffPasswordResetRequestSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
-  await requestStaffPasswordReset({
+  await requestPasswordReset({
     email: v.data.email,
     ip: req.ip || null,
     ua: req.headers["user-agent"] || null,
@@ -264,10 +330,11 @@ async function handleStaffPasswordResetRequest(req, res) {
   res.json({ ok: true });
 }
 
+/** @param {Request} req @param {Response} res @returns {HandlerResult} */
 async function handleStaffPasswordResetConfirm(req, res) {
   const v = validate(StaffPasswordResetConfirmSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
-  await completeStaffPasswordReset({
+  await completePasswordReset({
     token: v.data.token,
     newPassword: v.data.newPassword,
     ip: req.ip || null,
@@ -276,10 +343,11 @@ async function handleStaffPasswordResetConfirm(req, res) {
   res.json({ ok: true });
 }
 
+/** @param {Request} req @param {Response} res @returns {HandlerResult} */
 async function handleStaffEmailChangeConfirm(req, res) {
   const v = validate(StaffTokenConfirmSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
-  const out = await confirmStaffEmailChange({
+  const out = await confirmEmailChange({
     token: v.data.token,
     ip: req.ip || null,
     ua: req.headers["user-agent"] || null,
@@ -287,10 +355,11 @@ async function handleStaffEmailChangeConfirm(req, res) {
   res.json(out);
 }
 
+/** @param {ParamsRequest<{ token: string }>} req @param {Response} res */
 async function handleStaffMagicLink(req, res) {
   const out = await consumePublicMagicLink(req, res, "staff");
   if (!out) return;
-  res.cookie(config.STAFF_COOKIE_NAME, out.token, staffCookieOptions(req));
+  res.cookie(config.STAFF_COOKIE_NAME, out.token, staffCookieOptionsFor(req));
   const destinations = new Map([
     ["/admin-dashboard", "/administracion/"],
     ["/staff", "/equipo/escaner/"],
@@ -298,14 +367,16 @@ async function handleStaffMagicLink(req, res) {
   res.redirect(destinations.get(out.redirectTo) || out.redirectTo);
 }
 
+/** @param {ParamsRequest<{ token: string }>} req @param {Response} res */
 async function handleCustomerMagicLink(req, res) {
   const out = await consumePublicMagicLink(req, res, "customer");
   if (!out) return;
-  res.cookie(config.CUSTOMER_COOKIE_NAME, out.token, customerCookieOptions(req));
+  res.cookie(config.CUSTOMER_COOKIE_NAME, out.token, customerCookieOptionsFor(req));
   const destinations = new Map([["/c", "/mi-tarjeta/?sesion=nueva"]]);
   res.redirect(destinations.get(out.redirectTo) || out.redirectTo);
 }
 
+/** @param {ParamsRequest<{ slug: string }>} req @param {Response} res */
 async function handleJoinVerify(req, res) {
   const resolved = await resolvePublicBusinessRequest(req, res, verifyJoinCodeSchema);
   if (!resolved) return;
@@ -322,6 +393,7 @@ async function handleJoinVerify(req, res) {
   issueCustomerSession(req, res, session);
 }
 
+/** @param {ParamsRequest<{ slug: string }>} req @param {Response} res */
 async function handleLoginVerify(req, res) {
   const resolved = await resolvePublicBusinessRequest(req, res, verifyJoinCodeSchema);
   if (!resolved) return;
@@ -337,6 +409,7 @@ async function handleLoginVerify(req, res) {
   issueCustomerSession(req, res, session);
 }
 
+/** @param {Request & WithAuthSession} req @param {Response} res */
 async function handleCustomerLogout(req, res) {
   if (req.authSession?.id) {
     await invalidateBrowserSessionById(req.authSession.id, "logout");
@@ -345,6 +418,7 @@ async function handleCustomerLogout(req, res) {
   res.json({ ok: true });
 }
 
+/** @param {Request} req @param {Response} res */
 async function handleCustomerQr(req, res) {
   const auth = await loadAuthenticatedCustomer(req, res);
   if (!auth) return;
@@ -352,6 +426,7 @@ async function handleCustomerQr(req, res) {
   res.json(out);
 }
 
+/** @param {Request} req @param {Response} res @returns {HandlerResult} */
 async function handleExternalAward(req, res) {
   if (!verifyExternalAwardSignature(req, res)) return;
   const v = validate(ExternalAwardSchema, req.body);
@@ -374,6 +449,7 @@ async function handleExternalAward(req, res) {
   res.json(out);
 }
 
+/** @param {Request} req @param {Response} res @returns {HandlerResult} */
 async function handleBusinessRegister(req, res) {
   const v = validate(businessRegisterSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
@@ -411,6 +487,7 @@ async function handleBusinessRegister(req, res) {
   });
 }
 
+/** @param {Request} req @param {Response} res @returns {HandlerResult} */
 async function handleContact(req, res) {
   const v = validate(ContactSchema, req.body);
   if (!v.ok) return res.status(400).json({ error: v.error });
@@ -428,6 +505,7 @@ async function handleContact(req, res) {
 }
 
 // Convenient endpoint for customer UI: returns an SVG QR for the short-lived token
+/** @param {Request} req @param {Response} res */
 async function handleCustomerQrSvg(req, res) {
   const auth = await loadAuthenticatedCustomer(req, res);
   if (!auth) return;

@@ -1,6 +1,24 @@
 import { one, exec } from "./base.js";
 
+/**
+ * Row of `verify_codes`.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   phone: string,
+ *   code_hash: string,
+ *   expires_at: Date,
+ *   failed_attempts: number,
+ *   blocked_until: Date | null,
+ *   last_failed_at: Date | null,
+ *   created_at: Date
+ * }} VerifyCodeRow
+ */
+
 export const VerifyCodeRepo = {
+  /**
+   * @param {{ id: string, business_id: string, phone: string, code_hash: string, expires_at: Date | string }} code
+   */
   async create({ id, business_id, phone, code_hash, expires_at }) {
     // Keep request history for rate limits while invalidating superseded codes.
     await exec(
@@ -13,6 +31,11 @@ export const VerifyCodeRepo = {
     );
   },
 
+  /**
+   * Resolves to `VerifyCodeRow | null`.
+   * @param {string} businessId
+   * @param {string} phone
+   */
   async latestValid(businessId, phone) {
     return one(
       `SELECT * FROM verify_codes
@@ -26,6 +49,12 @@ export const VerifyCodeRepo = {
     );
   },
 
+  /**
+   * @param {string} businessId
+   * @param {string} phone
+   * @param {string} interval a PostgreSQL interval literal such as `'10 minutes'`
+   * @returns {Promise<number>}
+   */
   async countRecent(businessId, phone, interval) {
     const r = await one(
       `SELECT COUNT(*)::int AS c
@@ -36,10 +65,12 @@ export const VerifyCodeRepo = {
     return r?.c ?? 0;
   },
 
+  /** @param {string} id */
   async deleteById(id) {
     await exec(`DELETE FROM verify_codes WHERE id=$1`, [id]);
   },
 
+  /** @param {string} id */
   async invalidateById(id) {
     await exec(
       `UPDATE verify_codes SET expires_at=LEAST(expires_at, clock_timestamp()) WHERE id=$1`,
@@ -47,6 +78,10 @@ export const VerifyCodeRepo = {
     );
   },
 
+  /**
+   * @param {string} id
+   * @returns {Promise<{ id: string } | null>}
+   */
   async consume(id) {
     return one(
       `UPDATE verify_codes SET expires_at=clock_timestamp()
@@ -56,6 +91,7 @@ export const VerifyCodeRepo = {
     );
   },
 
+  /** @param {string} id */
   async markFailedAttempt(id) {
     await exec(
       `UPDATE verify_codes

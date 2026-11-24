@@ -10,6 +10,9 @@ import { processOrderReturn as processOrderReturnService } from "../services/ord
 import { validate } from "../../utils/validation.js";
 import { timingSafeEqualString } from "../../utils/timing-safe.js";
 
+/** @typedef {import("./_request-types.js").Request} Request */
+/** @typedef {import("./_request-types.js").Response} Response */
+
 export const OrderReturnCreateSchema = z.object({
   businessSlug: z.string().min(2).max(120),
   externalReturnId: z.string().min(1).max(160),
@@ -19,6 +22,7 @@ export const OrderReturnCreateSchema = z.object({
   meta: z.record(z.string(), z.any()).optional(),
 });
 
+/** @param {string} signature */
 function normalizeSignature(signature) {
   const raw = String(signature || "").trim();
   if (!raw) return "";
@@ -26,6 +30,11 @@ function normalizeSignature(signature) {
   return raw;
 }
 
+/**
+ * @param {string | undefined} rawBody
+ * @param {string} businessSlug
+ * @param {string} signature
+ */
 function verifySignature(rawBody, businessSlug, signature) {
   const secret = businessSlug ? config.PAYMENT_WEBHOOK_HMAC_SECRETS?.[businessSlug] : null;
   if (!secret || !rawBody) return false;
@@ -36,6 +45,7 @@ function verifySignature(rawBody, businessSlug, signature) {
   return timingSafeEqualString(normalizeSignature(signature), expected);
 }
 
+/** @param {{ processOrderReturn?: typeof processOrderReturnService }} [deps] */
 export function createOrderReturnRoutes(deps = {}) {
   const router = Router();
   const processOrderReturn = deps.processOrderReturn ?? processOrderReturnService;
@@ -43,18 +53,21 @@ export function createOrderReturnRoutes(deps = {}) {
   router.post(
     "/public/order-returns",
     moderateRateLimit,
-    asyncRoute(async (req, res) => {
-      const parsed = validate(OrderReturnCreateSchema, req.body);
-      if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+    asyncRoute(
+      /** @param {Request} req @param {Response} res */
+      async (req, res) => {
+        const parsed = validate(OrderReturnCreateSchema, req.body);
+        if (!parsed.ok) return res.status(400).json({ error: parsed.error });
 
-      const signature = String(req.headers["x-signature"] || "");
-      if (!verifySignature(req.rawBody, parsed.data.businessSlug, signature)) {
-        return res.status(401).json({ error: "Invalid signature" });
-      }
+        const signature = String(req.headers["x-signature"] || "");
+        if (!verifySignature(req.rawBody, parsed.data.businessSlug, signature)) {
+          return res.status(401).json({ error: "Invalid signature" });
+        }
 
-      const out = await processOrderReturn(parsed.data);
-      return res.json(out);
-    }),
+        const out = await processOrderReturn(parsed.data);
+        return res.json(out);
+      },
+    ),
   );
 
   return router;

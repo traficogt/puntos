@@ -3,29 +3,62 @@ import { asyncRoute } from "../../../middleware/common.js";
 import { uuidParamsSchema, validateParams } from "../../../utils/schemas.js";
 import { dbQuery } from "../../database.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+/**
+ * @template P
+ * @typedef {import("../_request-types.js").WithValidatedParams<P>} WithValidatedParams
+ */
+/** @typedef {import("zod").infer<typeof uuidParamsSchema>} UuidParams */
+
+/**
+ * Recent redemption of a reward with its linked ledger totals.
+ * @typedef {{
+ *   id: string,
+ *   created_at: Date,
+ *   status: string,
+ *   code: string,
+ *   points_cost: number,
+ *   customer_name: string | null,
+ *   customer_phone: string,
+ *   linked_points_total: number,
+ *   linked_transaction_count: number
+ * }} RewardRedemptionRow
+ */
+
+/**
+ * Ledger entries linked to a redemption through `meta.redemption_id`.
+ * @typedef {Pick<import("../../repositories/transaction-repository.js").TransactionRow,
+ *   | "id" | "created_at" | "source" | "status" | "amount_q" | "points"
+ *   | "original_transaction_id" | "reversed_transaction_id" | "reversal_reason" | "meta">} LinkedTransactionRow
+ */
+
 export const analyticsRedemptionRoutes = Router();
 
 analyticsRedemptionRoutes.get(
   "/admin/analytics/rewards/:id/redemptions",
   validateParams(uuidParamsSchema),
-  asyncRoute(async (req, res) => {
-    const rewardId = req.validatedParams.id;
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedParams<UuidParams>} req @param {Response} res */
+    async (req, res) => {
+      const rewardId = req.validatedParams.id;
 
-    const { rows: rewardRows } = await dbQuery(
-      `SELECT id, business_id, name, description, points_cost, active, stock
+      const { rows: rewardRows } = await dbQuery(
+        `SELECT id, business_id, name, description, points_cost, active, stock
        FROM rewards
        WHERE id = $1
          AND business_id = $2`,
-      [rewardId, req.tenantId],
-    );
+        [rewardId, req.tenantId],
+      );
 
-    const reward = rewardRows[0];
-    if (!reward) {
-      return res.status(404).json({ error: "Recompensa no encontrada" });
-    }
+      const reward = rewardRows[0];
+      if (!reward) {
+        return res.status(404).json({ error: "Recompensa no encontrada" });
+      }
 
-    const { rows: recentRedemptions } = await dbQuery(
-      `SELECT
+      /** @type {{ rows: RewardRedemptionRow[] }} */
+      const { rows: recentRedemptions } = await dbQuery(
+        `SELECT
          r.id,
          r.created_at,
          r.status,
@@ -53,36 +86,39 @@ analyticsRedemptionRoutes.get(
          AND r.business_id = $2
        ORDER BY r.created_at DESC
        LIMIT 20`,
-      [rewardId, req.tenantId],
-    );
+        [rewardId, req.tenantId],
+      );
 
-    const totalRedemptions = recentRedemptions.length;
-    const mismatchCount = recentRedemptions.filter(
-      (row) =>
-        Number(row.linked_points_total || 0) !== -Number(row.points_cost || 0) ||
-        Number(row.linked_transaction_count || 0) !== 1,
-    ).length;
+      const totalRedemptions = recentRedemptions.length;
+      const mismatchCount = recentRedemptions.filter(
+        (row) =>
+          Number(row.linked_points_total || 0) !== -Number(row.points_cost || 0) ||
+          Number(row.linked_transaction_count || 0) !== 1,
+      ).length;
 
-    return res.json({
-      ok: true,
-      reward,
-      summary: {
-        recent_redemption_count: totalRedemptions,
-        mismatch_count: mismatchCount,
-      },
-      recent_redemptions: recentRedemptions,
-    });
-  }),
+      return res.json({
+        ok: true,
+        reward,
+        summary: {
+          recent_redemption_count: totalRedemptions,
+          mismatch_count: mismatchCount,
+        },
+        recent_redemptions: recentRedemptions,
+      });
+    },
+  ),
 );
 
 analyticsRedemptionRoutes.get(
   "/admin/analytics/redemptions/:id",
   validateParams(uuidParamsSchema),
-  asyncRoute(async (req, res) => {
-    const redemptionId = req.validatedParams.id;
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedParams<UuidParams>} req @param {Response} res */
+    async (req, res) => {
+      const redemptionId = req.validatedParams.id;
 
-    const { rows } = await dbQuery(
-      `SELECT
+      const { rows } = await dbQuery(
+        `SELECT
          r.id,
          r.created_at,
          r.status,
@@ -103,16 +139,17 @@ analyticsRedemptionRoutes.get(
        LEFT JOIN staff_users su ON su.id = r.staff_user_id
        WHERE r.id = $1
          AND r.business_id = $2`,
-      [redemptionId, req.tenantId],
-    );
+        [redemptionId, req.tenantId],
+      );
 
-    const redemption = rows[0];
-    if (!redemption) {
-      return res.status(404).json({ error: "Canje no encontrado" });
-    }
+      const redemption = rows[0];
+      if (!redemption) {
+        return res.status(404).json({ error: "Canje no encontrado" });
+      }
 
-    const { rows: transactionRows } = await dbQuery(
-      `SELECT
+      /** @type {{ rows: LinkedTransactionRow[] }} */
+      const { rows: transactionRows } = await dbQuery(
+        `SELECT
          id,
          created_at,
          source,
@@ -128,23 +165,27 @@ analyticsRedemptionRoutes.get(
          AND customer_id = $2
          AND meta->>'redemption_id' = $3
        ORDER BY created_at ASC`,
-      [req.tenantId, redemption.customer_id, redemption.id],
-    );
+        [req.tenantId, redemption.customer_id, redemption.id],
+      );
 
-    const linkedPointsTotal = transactionRows.reduce((sum, tx) => sum + Number(tx.points || 0), 0);
-    const expectedPointsTotal = -Number(redemption.points_cost || 0);
+      const linkedPointsTotal = transactionRows.reduce(
+        (sum, tx) => sum + Number(tx.points || 0),
+        0,
+      );
+      const expectedPointsTotal = -Number(redemption.points_cost || 0);
 
-    return res.json({
-      ok: true,
-      redemption,
-      ledger: {
-        expected_points_total: expectedPointsTotal,
-        linked_points_total: linkedPointsTotal,
-        delta_points: linkedPointsTotal - expectedPointsTotal,
-        linked_transaction_count: transactionRows.length,
-        consistent: linkedPointsTotal === expectedPointsTotal && transactionRows.length === 1,
-      },
-      transactions: transactionRows,
-    });
-  }),
+      return res.json({
+        ok: true,
+        redemption,
+        ledger: {
+          expected_points_total: expectedPointsTotal,
+          linked_points_total: linkedPointsTotal,
+          delta_points: linkedPointsTotal - expectedPointsTotal,
+          linked_transaction_count: transactionRows.length,
+          consistent: linkedPointsTotal === expectedPointsTotal && transactionRows.length === 1,
+        },
+        transactions: transactionRows,
+      });
+    },
+  ),
 );

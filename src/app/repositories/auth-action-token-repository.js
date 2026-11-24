@@ -1,5 +1,24 @@
 import { dbQuery } from "../database.js";
 
+/**
+ * Row of `auth_action_tokens`.
+ * @typedef {{
+ *   id: string,
+ *   request_id: string | null,
+ *   actor_type: "STAFF" | "SUPER",
+ *   actor_id: string | null,
+ *   actor_email: string | null,
+ *   business_id: string | null,
+ *   purpose: string,
+ *   token_hash: string,
+ *   payload: Record<string, unknown>,
+ *   expires_at: Date,
+ *   used_at: Date | null,
+ *   consumed_meta: Record<string, unknown> | null,
+ *   created_at: Date
+ * }} AuthActionTokenRow
+ */
+
 export const AuthActionTokenRepo = {
   /**
    * @param {{
@@ -51,6 +70,11 @@ export const AuthActionTokenRepo = {
     return { id };
   },
 
+  /**
+   * Resolves to `AuthActionTokenRow | null`.
+   * @param {string} tokenHash
+   * @param {typeof dbQuery} [query]
+   */
   async lookupActiveByTokenHash(tokenHash, query = dbQuery) {
     const { rows } = await query(
       `SELECT *
@@ -64,6 +88,12 @@ export const AuthActionTokenRepo = {
     return rows[0] ?? null;
   },
 
+  /**
+   * Resolves to `AuthActionTokenRow | null`.
+   * @param {string} id
+   * @param {Record<string, unknown>} [consumedMeta]
+   * @param {typeof dbQuery} [query]
+   */
   async markUsed(id, consumedMeta = {}, query = dbQuery) {
     const { rows } = await query(
       `UPDATE auth_action_tokens
@@ -77,6 +107,11 @@ export const AuthActionTokenRepo = {
     return rows[0] ?? null;
   },
 
+  /**
+   * Resolves to `AuthActionTokenRow[]`.
+   * @param {string} requestId
+   * @param {typeof dbQuery} [query]
+   */
   async listByRequestId(requestId, query = dbQuery) {
     const { rows } = await query(
       `SELECT *
@@ -88,6 +123,15 @@ export const AuthActionTokenRepo = {
     return rows;
   },
 
+  /**
+   * @param {{
+   *   actorType: string,
+   *   actorId?: string | null,
+   *   actorEmail?: string | null,
+   *   purpose?: string | null
+   * }} actor
+   * @param {typeof dbQuery} [query]
+   */
   async invalidateByActor(
     { actorType, actorId = null, actorEmail = null, purpose = null },
     query = dbQuery,

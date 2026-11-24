@@ -6,6 +6,7 @@ const router = Router();
 const docsDir = path.join(process.cwd(), "docs");
 const preferred = ["openapi.json", "openapi.yaml"];
 
+/** @param {import("./_request-types.js").Response} res */
 function sendSpec(res) {
   for (const filename of preferred) {
     const candidate = path.join(docsDir, filename);

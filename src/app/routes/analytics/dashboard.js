@@ -3,23 +3,28 @@ import { asyncRoute } from "../../../middleware/common.js";
 import { resolveBranchFilter } from "./_util.js";
 import { dbQuery } from "../../database.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+
 export const analyticsDashboardRoutes = Router();
 
 analyticsDashboardRoutes.get(
   "/admin/analytics/dashboard",
-  asyncRoute(async (req, res) => {
-    const branchId = await resolveBranchFilter(req, res);
-    if (branchId === "__invalid__") return;
-    const businessId = req.tenantId;
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res @returns {Promise<void | Response>} */
+    async (req, res) => {
+      const branchId = await resolveBranchFilter(req, res);
+      if (branchId === "__invalid__") return;
+      const businessId = req.tenantId;
 
-    let summary;
-    let rfmDistribution;
-    let activity;
-    let branchPerformance;
+      let summary;
+      let rfmDistribution;
+      let activity;
+      let branchPerformance;
 
-    if (!branchId) {
-      const { rows } = await dbQuery(
-        `SELECT
+      if (!branchId) {
+        const { rows } = await dbQuery(
+          `SELECT
            COUNT(DISTINCT c.id) AS total_customers,
            COUNT(DISTINCT c.id) FILTER (WHERE c.imported_at IS NULL AND c.created_at > now() - interval '30 days') AS new_customers_30d,
            COALESCE(SUM(cb.points), 0) AS total_points_issued,
@@ -32,12 +37,12 @@ analyticsDashboardRoutes.get(
          LEFT JOIN customer_ltv cl ON cl.customer_id = c.id
          WHERE c.business_id = $1
            AND c.deleted_at IS NULL`,
-        [businessId],
-      );
-      summary = rows;
+          [businessId],
+        );
+        summary = rows;
 
-      const { rows: rRows } = await dbQuery(
-        `SELECT
+        const { rows: rRows } = await dbQuery(
+          `SELECT
            CASE
              WHEN rfm_score >= 12 THEN 'Champions'
              WHEN rfm_score >= 9 THEN 'Loyal'
@@ -50,12 +55,12 @@ analyticsDashboardRoutes.get(
          WHERE c.business_id = $1
            AND c.deleted_at IS NULL
          GROUP BY segment`,
-        [businessId],
-      );
-      rfmDistribution = rRows;
+          [businessId],
+        );
+        rfmDistribution = rRows;
 
-      const { rows: aRows } = await dbQuery(
-        `SELECT
+        const { rows: aRows } = await dbQuery(
+          `SELECT
            DATE(t.created_at) AS date,
            COUNT(DISTINCT t.customer_id) AS active_customers,
            COUNT(*) AS transactions,
@@ -67,12 +72,12 @@ analyticsDashboardRoutes.get(
            AND t.created_at > now() - interval '30 days'
          GROUP BY DATE(t.created_at)
          ORDER BY DATE(t.created_at) DESC`,
-        [businessId],
-      );
-      activity = aRows;
+          [businessId],
+        );
+        activity = aRows;
 
-      const { rows: pRows } = await dbQuery(
-        `SELECT
+        const { rows: pRows } = await dbQuery(
+          `SELECT
            b.id AS branch_id,
            b.name AS branch_name,
            b.code AS branch_code,
@@ -103,12 +108,12 @@ analyticsDashboardRoutes.get(
          ) rd ON true
          WHERE b.business_id = $1
          ORDER BY revenue_30d DESC, tx_30d DESC, b.name ASC`,
-        [businessId],
-      );
-      branchPerformance = pRows;
-    } else {
-      const { rows } = await dbQuery(
-        `WITH branch_customers AS (
+          [businessId],
+        );
+        branchPerformance = pRows;
+      } else {
+        const { rows } = await dbQuery(
+          `WITH branch_customers AS (
            SELECT DISTINCT customer_id
            FROM transactions
            WHERE business_id = $1
@@ -139,12 +144,12 @@ analyticsDashboardRoutes.get(
            (SELECT COALESCE(AVG(cl.purchase_frequency), 0)
             FROM customer_ltv cl
             JOIN branch_customers bc ON bc.customer_id = cl.customer_id) AS avg_purchase_frequency`,
-        [businessId, branchId],
-      );
-      summary = rows;
+          [businessId, branchId],
+        );
+        summary = rows;
 
-      const { rows: rRows } = await dbQuery(
-        `WITH branch_customers AS (
+        const { rows: rRows } = await dbQuery(
+          `WITH branch_customers AS (
            SELECT DISTINCT customer_id
            FROM transactions
            WHERE business_id = $1
@@ -162,12 +167,12 @@ analyticsDashboardRoutes.get(
          FROM customer_ltv cl
          JOIN branch_customers bc ON bc.customer_id = cl.customer_id
          GROUP BY segment`,
-        [businessId, branchId],
-      );
-      rfmDistribution = rRows;
+          [businessId, branchId],
+        );
+        rfmDistribution = rRows;
 
-      const { rows: aRows } = await dbQuery(
-        `SELECT
+        const { rows: aRows } = await dbQuery(
+          `SELECT
            DATE(t.created_at) AS date,
            COUNT(DISTINCT t.customer_id) AS active_customers,
            COUNT(*) AS transactions,
@@ -179,12 +184,12 @@ analyticsDashboardRoutes.get(
            AND t.created_at > now() - interval '30 days'
          GROUP BY DATE(t.created_at)
          ORDER BY DATE(t.created_at) DESC`,
-        [businessId, branchId],
-      );
-      activity = aRows;
+          [businessId, branchId],
+        );
+        activity = aRows;
 
-      const { rows: pRows } = await dbQuery(
-        `SELECT
+        const { rows: pRows } = await dbQuery(
+          `SELECT
            b.id AS branch_id,
            b.name AS branch_name,
            b.code AS branch_code,
@@ -215,18 +220,19 @@ analyticsDashboardRoutes.get(
          ) rd ON true
          WHERE b.business_id = $1
            AND b.id = $2`,
-        [businessId, branchId],
-      );
-      branchPerformance = pRows;
-    }
+          [businessId, branchId],
+        );
+        branchPerformance = pRows;
+      }
 
-    return res.json({
-      ok: true,
-      summary: summary[0],
-      rfm_distribution: rfmDistribution,
-      recent_activity: activity,
-      branch_performance: branchPerformance,
-      branch_id: branchId,
-    });
-  }),
+      return res.json({
+        ok: true,
+        summary: summary[0],
+        rfm_distribution: rfmDistribution,
+        recent_activity: activity,
+        branch_performance: branchPerformance,
+        branch_id: branchId,
+      });
+    },
+  ),
 );

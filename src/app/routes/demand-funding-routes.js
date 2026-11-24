@@ -6,6 +6,21 @@ import { csrfProtect } from "../../middleware/csrf.js";
 import { asyncRoute } from "../../middleware/common.js";
 import * as service from "../services/demand-funding-service.js";
 import { DEMAND_CATEGORIES, DEMAND_STATUSES } from "../services/demand-funding-model.js";
+
+/** @typedef {import("./_request-types.js").Request} Request */
+/** @typedef {import("./_request-types.js").Response} Response */
+/** @typedef {import("./_request-types.js").NextFunction} NextFunction */
+/** @typedef {import("./_request-types.js").TenantRequest} TenantRequest */
+/** @typedef {{ businessId: string, staff: TenantRequest["staff"] }} DemandActor */
+/**
+ * Actor plus the notebook source; customer requests also carry the customer identity.
+ * @typedef {DemandActor & {
+ *   source: string,
+ *   customerId?: string,
+ *   customerAuth?: TenantRequest["customerAuth"]
+ * }} DemandIdentity
+ */
+
 const uuid = z.guid().transform((v) => v.toLowerCase()),
   empty = z.object({}).strict();
 const offset = z
@@ -64,21 +79,77 @@ const transition = z
     paid_at: z.iso.date().optional(),
   })
   .strict();
+
+/** @typedef {z.infer<typeof entry>} DemandEntryBody */
+/** @typedef {z.infer<typeof triage>} DemandTriageBody */
+/** @typedef {z.infer<typeof agreement>} SupplierAgreementBody */
+/** @typedef {z.infer<typeof transition>} SupplierClaimTransitionBody */
+/**
+ * Output of the inline `z.object({ offset })` list queries (declared through the
+ * schema so its optionality follows zod's inference under either tsconfig).
+ * @typedef {z.infer<z.ZodObject<{ offset: typeof offset }>>} OffsetQuery
+ */
+
+/**
+ * Services the router calls, by the input it hands them. Unit tests inject
+ * fakes, so results are forwarded opaquely (`res.json`).
+ * @typedef {{
+ *   getDemandEntry: (input: DemandIdentity) => Promise<unknown>,
+ *   createDemandRequest: (input: Omit<DemandIdentity, "customerId"> & {
+ *     requestId: string,
+ *     category: DemandEntryBody["category"],
+ *     topic: string,
+ *     note: string,
+ *     rewardId: string | null | undefined,
+ *     productContext: string | null | undefined,
+ *     customerId?: string | null
+ *   }) => Promise<unknown>,
+ *   listDemandTopics: (input: DemandActor & {
+ *     status: "all" | DemandTriageBody["status"]
+ *   } & OffsetQuery) => Promise<unknown>,
+ *   getDemandTopic: (input: DemandActor & { topicId: string }) => Promise<unknown>,
+ *   triageDemandTopic: (input: DemandActor & { topicId: string, requestId: string } & DemandTriageBody) => Promise<unknown>,
+ *   getSupplierFunding: (input: DemandActor & OffsetQuery) => Promise<unknown>,
+ *   createSupplierAgreement: (input: DemandActor & { requestId: string } & SupplierAgreementBody) => Promise<unknown>,
+ *   closeSupplierAgreement: (input: DemandActor & { agreementId: string }) => Promise<unknown>,
+ *   listEligibleSupplierRedemptions: (input: DemandActor & {
+ *     agreementId: string
+ *   } & OffsetQuery) => Promise<unknown>,
+ *   exportSupplierClaims: (input: DemandActor & { agreementId: string }) => Promise<unknown>,
+ *   createSupplierClaim: (input: DemandActor & {
+ *     agreementId: string,
+ *     requestId: string,
+ *     redemptionId: string
+ *   }) => Promise<unknown>,
+ *   getSupplierClaim: (input: DemandActor & { claimId: string }) => Promise<unknown>,
+ *   transitionSupplierClaim: (input: DemandActor & {
+ *     claimId: string,
+ *     requestId: string
+ *   } & SupplierClaimTransitionBody) => Promise<unknown>
+ * }} DemandFundingDeps
+ */
+
+/** @param {Response} res */
 const invalid = (res) =>
   res
     .status(400)
     .json({ error: "Revisa los datos del pedido o la reclamación.", code: "VALIDATION_ERROR" });
+/** @param {TenantRequest} req @returns {DemandActor} */
 const actor = (req) => ({ businessId: req.tenantId, staff: req.staff });
+/** @param {Request} _req @param {Response} res @param {NextFunction} next */
 const noStore = (_req, res, next) => {
   res.set("Cache-Control", "no-store");
   next();
 };
+/** @param {Partial<DemandFundingDeps>} [deps] */
 export function createDemandFundingRoutes(deps = {}) {
+  /** @type {DemandFundingDeps} */
   const s = { ...service, ...deps },
     router = Router();
   for (const source of ["staff", "customer"]) {
     const base = `/${source}/demand-notebook`;
     router.use(base, noStore, source === "staff" ? requireStaff : requireCustomer, tenantContext);
+    /** @param {TenantRequest} req @returns {DemandIdentity} */
     const identity = (req) => ({
       ...actor(req),
       source,
@@ -88,168 +159,220 @@ export function createDemandFundingRoutes(deps = {}) {
     });
     router.get(
       base,
-      asyncRoute(async (req, res) => {
-        if (!empty.safeParse(req.query).success) return invalid(res);
-        return res.json(await s.getDemandEntry(identity(req)));
-      }),
+      asyncRoute(
+        /** @param {TenantRequest} req @param {Response} res */
+        async (req, res) => {
+          if (!empty.safeParse(req.query).success) return invalid(res);
+          return res.json(await s.getDemandEntry(identity(req)));
+        },
+      ),
     );
     router.post(
       base,
       csrfProtect,
-      asyncRoute(async (req, res) => {
-        const parsed = (
-          source === "staff" ? entry.extend({ customer_id: uuid.nullable().optional() }) : entry
-        ).safeParse(req.body);
-        if (!parsed.success || !empty.safeParse(req.query).success) return invalid(res);
-        const v = parsed.data;
-        return res.json(
-          await s.createDemandRequest({
-            ...identity(req),
-            requestId: v.request_id,
-            category: v.category,
-            topic: v.topic,
-            note: v.note,
-            rewardId: v.reward_id,
-            productContext: v.product_context,
-            ...(source === "staff"
-              ? { customerId: ("customer_id" in v ? v.customer_id : null) ?? null }
-              : {}),
-          }),
-        );
-      }),
+      asyncRoute(
+        /** @param {TenantRequest} req @param {Response} res */
+        async (req, res) => {
+          const parsed = (
+            source === "staff" ? entry.extend({ customer_id: uuid.nullable().optional() }) : entry
+          ).safeParse(req.body);
+          if (!parsed.success || !empty.safeParse(req.query).success) return invalid(res);
+          /** @type {DemandEntryBody & { customer_id?: string | null }} */
+          const v = parsed.data;
+          return res.json(
+            await s.createDemandRequest({
+              ...identity(req),
+              requestId: v.request_id,
+              category: v.category,
+              topic: v.topic,
+              note: v.note,
+              rewardId: v.reward_id,
+              productContext: v.product_context,
+              ...(source === "staff"
+                ? { customerId: ("customer_id" in v ? v.customer_id : null) ?? null }
+                : {}),
+            }),
+          );
+        },
+      ),
     );
   }
   router.use("/admin/demand-notebook", noStore, requireStaff, tenantContext, requireOwner);
   router.get(
     "/admin/demand-notebook",
-    asyncRoute(async (req, res) => {
-      const parsed = z
-        .object({ status: z.enum(["all", ...DEMAND_STATUSES]).default("all"), offset })
-        .strict()
-        .safeParse(req.query);
-      if (!parsed.success) return invalid(res);
-      return res.json(await s.listDemandTopics({ ...actor(req), ...parsed.data }));
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const parsed = z
+          .object({ status: z.enum(["all", ...DEMAND_STATUSES]).default("all"), offset })
+          .strict()
+          .safeParse(req.query);
+        if (!parsed.success) return invalid(res);
+        return res.json(await s.listDemandTopics({ ...actor(req), ...parsed.data }));
+      },
+    ),
   );
   router.get(
     "/admin/demand-notebook/:id",
-    asyncRoute(async (req, res) => {
-      const id = uuid.safeParse(req.params.id);
-      if (!id.success || !empty.safeParse(req.query).success) return invalid(res);
-      return res.json(await s.getDemandTopic({ ...actor(req), topicId: id.data }));
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const id = uuid.safeParse(req.params.id);
+        if (!id.success || !empty.safeParse(req.query).success) return invalid(res);
+        return res.json(await s.getDemandTopic({ ...actor(req), topicId: id.data }));
+      },
+    ),
   );
   router.post(
     "/admin/demand-notebook/:id/triage",
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const id = uuid.safeParse(req.params.id),
-        p = triage.safeParse(req.body);
-      if (!id.success || !p.success || !empty.safeParse(req.query).success) return invalid(res);
-      return res.json(
-        await s.triageDemandTopic({
-          ...actor(req),
-          topicId: id.data,
-          ...p.data,
-          requestId: p.data.request_id,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const id = uuid.safeParse(req.params.id),
+          p = triage.safeParse(req.body);
+        if (!id.success || !p.success || !empty.safeParse(req.query).success) return invalid(res);
+        return res.json(
+          await s.triageDemandTopic({
+            ...actor(req),
+            topicId: id.data,
+            ...p.data,
+            requestId: p.data.request_id,
+          }),
+        );
+      },
+    ),
   );
   router.use("/admin/supplier-funding", noStore, requireStaff, tenantContext, requireOwner);
   router.get(
     "/admin/supplier-funding",
-    asyncRoute(async (req, res) => {
-      const p = z.object({ offset }).strict().safeParse(req.query);
-      if (!p.success) return invalid(res);
-      return res.json(await s.getSupplierFunding({ ...actor(req), ...p.data }));
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const p = z.object({ offset }).strict().safeParse(req.query);
+        if (!p.success) return invalid(res);
+        return res.json(await s.getSupplierFunding({ ...actor(req), ...p.data }));
+      },
+    ),
   );
   router.post(
     "/admin/supplier-funding/agreements",
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const p = agreement.safeParse(req.body);
-      if (!p.success || !empty.safeParse(req.query).success) return invalid(res);
-      return res.json(
-        await s.createSupplierAgreement({ ...actor(req), ...p.data, requestId: p.data.request_id }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const p = agreement.safeParse(req.body);
+        if (!p.success || !empty.safeParse(req.query).success) return invalid(res);
+        return res.json(
+          await s.createSupplierAgreement({
+            ...actor(req),
+            ...p.data,
+            requestId: p.data.request_id,
+          }),
+        );
+      },
+    ),
   );
   router.post(
     "/admin/supplier-funding/agreements/:id/close",
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const id = uuid.safeParse(req.params.id);
-      if (!id.success || !empty.safeParse(req.body).success || !empty.safeParse(req.query).success)
-        return invalid(res);
-      return res.json(await s.closeSupplierAgreement({ ...actor(req), agreementId: id.data }));
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const id = uuid.safeParse(req.params.id);
+        if (
+          !id.success ||
+          !empty.safeParse(req.body).success ||
+          !empty.safeParse(req.query).success
+        )
+          return invalid(res);
+        return res.json(await s.closeSupplierAgreement({ ...actor(req), agreementId: id.data }));
+      },
+    ),
   );
   router.get(
     "/admin/supplier-funding/agreements/:id/eligible",
-    asyncRoute(async (req, res) => {
-      const id = uuid.safeParse(req.params.id),
-        p = z.object({ offset }).strict().safeParse(req.query);
-      if (!id.success || !p.success) return invalid(res);
-      return res.json(
-        await s.listEligibleSupplierRedemptions({ ...actor(req), agreementId: id.data, ...p.data }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const id = uuid.safeParse(req.params.id),
+          p = z.object({ offset }).strict().safeParse(req.query);
+        if (!id.success || !p.success) return invalid(res);
+        return res.json(
+          await s.listEligibleSupplierRedemptions({
+            ...actor(req),
+            agreementId: id.data,
+            ...p.data,
+          }),
+        );
+      },
+    ),
   );
   router.get(
     "/admin/supplier-funding/agreements/:id/export",
-    asyncRoute(async (req, res) => {
-      const id = uuid.safeParse(req.params.id);
-      if (!id.success || !empty.safeParse(req.query).success) return invalid(res);
-      return res.json({
-        ok: true,
-        csv: await s.exportSupplierClaims({ ...actor(req), agreementId: id.data }),
-        filename: `reclamaciones-${id.data}.csv`,
-      });
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const id = uuid.safeParse(req.params.id);
+        if (!id.success || !empty.safeParse(req.query).success) return invalid(res);
+        return res.json({
+          ok: true,
+          csv: await s.exportSupplierClaims({ ...actor(req), agreementId: id.data }),
+          filename: `reclamaciones-${id.data}.csv`,
+        });
+      },
+    ),
   );
   router.post(
     "/admin/supplier-funding/agreements/:id/claims",
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const id = uuid.safeParse(req.params.id),
-        p = claim.safeParse(req.body);
-      if (!id.success || !p.success || !empty.safeParse(req.query).success) return invalid(res);
-      return res.json(
-        await s.createSupplierClaim({
-          ...actor(req),
-          agreementId: id.data,
-          requestId: p.data.request_id,
-          redemptionId: p.data.redemption_id,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const id = uuid.safeParse(req.params.id),
+          p = claim.safeParse(req.body);
+        if (!id.success || !p.success || !empty.safeParse(req.query).success) return invalid(res);
+        return res.json(
+          await s.createSupplierClaim({
+            ...actor(req),
+            agreementId: id.data,
+            requestId: p.data.request_id,
+            redemptionId: p.data.redemption_id,
+          }),
+        );
+      },
+    ),
   );
   router.get(
     "/admin/supplier-funding/claims/:id",
-    asyncRoute(async (req, res) => {
-      const id = uuid.safeParse(req.params.id);
-      if (!id.success || !empty.safeParse(req.query).success) return invalid(res);
-      return res.json(await s.getSupplierClaim({ ...actor(req), claimId: id.data }));
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const id = uuid.safeParse(req.params.id);
+        if (!id.success || !empty.safeParse(req.query).success) return invalid(res);
+        return res.json(await s.getSupplierClaim({ ...actor(req), claimId: id.data }));
+      },
+    ),
   );
   router.post(
     "/admin/supplier-funding/claims/:id/transition",
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const id = uuid.safeParse(req.params.id),
-        p = transition.safeParse(req.body);
-      if (!id.success || !p.success || !empty.safeParse(req.query).success) return invalid(res);
-      return res.json(
-        await s.transitionSupplierClaim({
-          ...actor(req),
-          claimId: id.data,
-          ...p.data,
-          requestId: p.data.request_id,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const id = uuid.safeParse(req.params.id),
+          p = transition.safeParse(req.body);
+        if (!id.success || !p.success || !empty.safeParse(req.query).success) return invalid(res);
+        return res.json(
+          await s.transitionSupplierClaim({
+            ...actor(req),
+            claimId: id.data,
+            ...p.data,
+            requestId: p.data.request_id,
+          }),
+        );
+      },
+    ),
   );
   return router;
 }

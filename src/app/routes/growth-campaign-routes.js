@@ -39,9 +39,19 @@ import {
 import { getCustomerGrowthOffers } from "../services/targeted-offer-service.js";
 import { AUDIENCE_TECHNICAL_CEILING, SYNC_AUDIENCE_LIMIT } from "../services/scale-limits.js";
 
+/** @typedef {import("./_request-types.js").Request} Request */
+/** @typedef {import("./_request-types.js").Response} Response */
+/** @typedef {import("./_request-types.js").NextFunction} NextFunction */
+/** @typedef {import("./_request-types.js").TenantRequest} TenantRequest */
+
 const uuid = z.guid().transform((value) => value.toLowerCase());
 const Empty = z.object({}).strict();
 const Params = z.object({ id: uuid }).strict();
+/**
+ * @param {number} minimum
+ * @param {number} maximum
+ * @param {number} fallback
+ */
 const integerQuery = (minimum, maximum, fallback) =>
   z
     .string()
@@ -122,6 +132,67 @@ const PreparationBody = z
   })
   .strict()
   .refine((data) => data.points_budget == null || data.points_budget >= data.bonus_points);
+
+/** @typedef {z.infer<typeof MeasurementPlanInput>} MeasurementPlan */
+/** @typedef {z.infer<typeof CreateBody>} CampaignCreateBody */
+/**
+ * Bodies that carry the shared `ExpansionTerms` (quiet offer or background preparation).
+ * @typedef {z.infer<typeof QuietBody> | z.infer<typeof PreparationBody>} ExpansionData
+ */
+/**
+ * What the campaign services receive to create or prepare a campaign.
+ * @typedef {GrowthActor & {
+ *   requestId: string,
+ *   name: string,
+ *   bonusPoints: number,
+ *   pointsBudget: number | null,
+ *   minimumPurchaseQ: number,
+ *   estimatedCostPerPointQ: number | null,
+ *   recoveryRunId?: string,
+ *   audienceSegmentId?: string,
+ *   audienceSegmentVersion?: number,
+ *   audienceLimit?: number,
+ *   durationDays: CampaignCreateBody["duration_days"] | null,
+ *   holdoutPercent: number,
+ *   measurementPlan?: MeasurementPlan | null,
+ *   offerKind?: "quiet",
+ *   durationMinutes?: number
+ * }} GrowthCampaignOptions
+ */
+/** @typedef {(input: GrowthActor & { campaignId: string, preflightId?: string }) => Promise<unknown>} CampaignAction */
+/**
+ * Services the router calls, by the input it hands them. Unit tests inject
+ * fakes, so results are forwarded opaquely (`res.json`).
+ * @typedef {{
+ *   createGrowthCampaign: (input: GrowthCampaignOptions) => Promise<unknown>,
+ *   createCampaignPreparation: (input: Omit<GrowthCampaignOptions, "recoveryRunId">) => Promise<unknown>,
+ *   listGrowthCampaigns: (input: { businessId: string, limit: number, offset: number }) => Promise<unknown>,
+ *   getGrowthCampaign: (input: { businessId: string, campaignId: string }) => Promise<unknown>,
+ *   activateGrowthCampaign: CampaignAction,
+ *   pauseGrowthCampaign: CampaignAction,
+ *   createCampaignPreflight: CampaignAction,
+ *   retryCampaignPreparation: CampaignAction,
+ *   cancelCampaignPreparation: CampaignAction,
+ *   previewCampaignCollisions: (input: GrowthActor & {
+ *     campaignId: string,
+ *     input: z.infer<typeof CollisionSampleInput>
+ *   }) => Promise<unknown>,
+ *   saveMeasurementCosts: (input: GrowthActor & {
+ *     campaignId: string,
+ *     requestId: string,
+ *     costs: z.infer<typeof MeasurementCostInput>
+ *   }) => Promise<unknown>,
+ *   saveMeasurementReport: (input: GrowthActor & { campaignId: string, requestId: string }) => Promise<unknown>,
+ *   listMeasurementReports: (input: { businessId: string, campaignId: string }) => Promise<unknown>
+ * }} GrowthCampaignDeps
+ */
+/**
+ * @typedef {{
+ *   getCustomerGrowthOffers: (input: { businessId: string, customerId: string }) => Promise<unknown>
+ * }} CustomerGrowthOffersDeps
+ */
+
+/** @param {ExpansionData} data */
 function expansionOptions(data) {
   return {
     requestId: data.request_id,
@@ -136,16 +207,19 @@ function expansionOptions(data) {
   };
 }
 
+/** @param {Response} res */
 function invalid(res) {
   return res.status(400).json({
     error: "Revisa los datos y los límites de esta solicitud.",
     code: "VALIDATION_ERROR",
   });
 }
+/** @param {Request} _req @param {Response} res @param {NextFunction} next */
 function noStore(_req, res, next) {
   res.set("Cache-Control", "no-store");
   next();
 }
+/** @param {TenantRequest} req */
 function actor(req) {
   return {
     businessId: req.tenantId,
@@ -155,8 +229,11 @@ function actor(req) {
     ...(req.staff.impersonated_by ? { impersonated_by: req.staff.impersonated_by } : {}),
   };
 }
+/** @typedef {ReturnType<typeof actor>} GrowthActor */
 
+/** @param {Partial<GrowthCampaignDeps>} [deps] */
 export function createGrowthCampaignRouter(deps = {}) {
+  /** @type {GrowthCampaignDeps} */
   const services = {
     createGrowthCampaign,
     saveMeasurementCosts,
@@ -187,186 +264,215 @@ export function createGrowthCampaignRouter(deps = {}) {
   router.post(
     `${base}/measurement-plan`,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const body = z
-        .object({
-          measurement_plan: MeasurementPlanInput,
-          duration_days: z.union([z.literal(7), z.literal(14), z.literal(30)]),
-          holdout_percent: z.union([z.literal(10), z.literal(20), z.literal(30), z.literal(50)]),
-          available_members: z.number().int().min(0).max(5000).nullable(),
-        })
-        .strict()
-        .safeParse(req.body);
-      if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
-      const d = body.data,
-        plan = normalizeMeasurementPlan(d.measurement_plan, {
-          durationDays: d.duration_days,
-          holdoutPercent: d.holdout_percent,
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const body = z
+          .object({
+            measurement_plan: MeasurementPlanInput,
+            duration_days: z.union([z.literal(7), z.literal(14), z.literal(30)]),
+            holdout_percent: z.union([z.literal(10), z.literal(20), z.literal(30), z.literal(50)]),
+            available_members: z.number().int().min(0).max(5000).nullable(),
+          })
+          .strict()
+          .safeParse(req.body);
+        if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
+        const d = body.data,
+          plan = normalizeMeasurementPlan(d.measurement_plan, {
+            durationDays: d.duration_days,
+            holdoutPercent: d.holdout_percent,
+          });
+        return res.json({
+          planning: planCampaignExperiment({
+            plan,
+            holdoutPercent: d.holdout_percent,
+            availableMembers: d.available_members,
+          }),
         });
-      return res.json({
-        planning: planCampaignExperiment({
-          plan,
-          holdoutPercent: d.holdout_percent,
-          availableMembers: d.available_members,
-        }),
-      });
-    }),
+      },
+    ),
   );
   router.post(
     `${base}/:id/measurement-costs`,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const params = Params.safeParse(req.params),
-        input = MeasurementCostInput.extend({ request_id: uuid }).safeParse(req.body);
-      if (!params.success || !input.success || !Empty.safeParse(req.query).success)
-        return invalid(res);
-      const { request_id, ...costs } = input.data;
-      return res.status(201).json(
-        await services.saveMeasurementCosts({
-          ...actor(req),
-          campaignId: params.data.id,
-          requestId: request_id,
-          costs,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const params = Params.safeParse(req.params),
+          input = MeasurementCostInput.extend({ request_id: uuid }).safeParse(req.body);
+        if (!params.success || !input.success || !Empty.safeParse(req.query).success)
+          return invalid(res);
+        const { request_id, ...costs } = input.data;
+        return res.status(201).json(
+          await services.saveMeasurementCosts({
+            ...actor(req),
+            campaignId: params.data.id,
+            requestId: request_id,
+            costs,
+          }),
+        );
+      },
+    ),
   );
   router.post(
     `${base}/:id/measurement-reports`,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const params = Params.safeParse(req.params),
-        input = z.object({ request_id: uuid }).strict().safeParse(req.body);
-      if (!params.success || !input.success || !Empty.safeParse(req.query).success)
-        return invalid(res);
-      return res.status(201).json(
-        await services.saveMeasurementReport({
-          ...actor(req),
-          campaignId: params.data.id,
-          requestId: input.data.request_id,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const params = Params.safeParse(req.params),
+          input = z.object({ request_id: uuid }).strict().safeParse(req.body);
+        if (!params.success || !input.success || !Empty.safeParse(req.query).success)
+          return invalid(res);
+        return res.status(201).json(
+          await services.saveMeasurementReport({
+            ...actor(req),
+            campaignId: params.data.id,
+            requestId: input.data.request_id,
+          }),
+        );
+      },
+    ),
   );
   router.get(
     `${base}/:id/measurement-reports`,
-    asyncRoute(async (req, res) => {
-      const params = Params.safeParse(req.params);
-      if (!params.success || !Empty.safeParse(req.query).success) return invalid(res);
-      return res.json(
-        await services.listMeasurementReports({
-          businessId: req.tenantId,
-          campaignId: params.data.id,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const params = Params.safeParse(req.params);
+        if (!params.success || !Empty.safeParse(req.query).success) return invalid(res);
+        return res.json(
+          await services.listMeasurementReports({
+            businessId: req.tenantId,
+            campaignId: params.data.id,
+          }),
+        );
+      },
+    ),
   );
   router.get(
     base,
-    asyncRoute(async (req, res) => {
-      const parsed = ListQuery.safeParse(req.query);
-      if (!parsed.success) return invalid(res);
-      return res.json(
-        await services.listGrowthCampaigns({
-          businessId: req.tenantId,
-          limit: parsed.data.limit,
-          offset: parsed.data.offset,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const parsed = ListQuery.safeParse(req.query);
+        if (!parsed.success) return invalid(res);
+        return res.json(
+          await services.listGrowthCampaigns({
+            businessId: req.tenantId,
+            limit: parsed.data.limit,
+            offset: parsed.data.offset,
+          }),
+        );
+      },
+    ),
   );
   router.post(
     base,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const body = CreateBody.safeParse(req.body);
-      if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
-      const data = body.data;
-      normalizeMeasurementPlan(data.measurement_plan ?? null, {
-        durationDays: data.duration_days,
-        holdoutPercent: data.holdout_percent,
-      });
-      const options = {
-        ...actor(req),
-        requestId: data.request_id,
-        recoveryRunId: data.recovery_run_id,
-        audienceSegmentId: data.audience_segment_id,
-        audienceSegmentVersion: data.audience_segment_version,
-        audienceLimit: data.audience_limit,
-        name: data.name,
-        bonusPoints: data.bonus_points,
-        pointsBudget: data.points_budget,
-        minimumPurchaseQ: data.minimum_purchase_q,
-        durationDays: data.duration_days,
-        holdoutPercent: data.holdout_percent,
-        estimatedCostPerPointQ: data.estimated_cost_per_point_q,
-        measurementPlan: data.measurement_plan,
-      };
-      // Saved audiences above the synchronous bound are prepared by the job queue in
-      // chunks (202 Accepted); the plan limit is enforced inside the service either way.
-      if (data.audience_segment_id && (data.audience_limit ?? 0) > SYNC_AUDIENCE_LIMIT) {
-        const { recoveryRunId: _run, ...prepared } = options;
-        return res.status(202).json(await services.createCampaignPreparation(prepared));
-      }
-      return res.status(201).json(await services.createGrowthCampaign(options));
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const body = CreateBody.safeParse(req.body);
+        if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
+        const data = body.data;
+        normalizeMeasurementPlan(data.measurement_plan ?? null, {
+          durationDays: data.duration_days,
+          holdoutPercent: data.holdout_percent,
+        });
+        /** @type {GrowthCampaignOptions} */
+        const options = {
+          ...actor(req),
+          requestId: data.request_id,
+          recoveryRunId: data.recovery_run_id,
+          audienceSegmentId: data.audience_segment_id,
+          audienceSegmentVersion: data.audience_segment_version,
+          audienceLimit: data.audience_limit,
+          name: data.name,
+          bonusPoints: data.bonus_points,
+          pointsBudget: data.points_budget,
+          minimumPurchaseQ: data.minimum_purchase_q,
+          durationDays: data.duration_days,
+          holdoutPercent: data.holdout_percent,
+          estimatedCostPerPointQ: data.estimated_cost_per_point_q,
+          measurementPlan: data.measurement_plan,
+        };
+        // Saved audiences above the synchronous bound are prepared by the job queue in
+        // chunks (202 Accepted); the plan limit is enforced inside the service either way.
+        if (data.audience_segment_id && (data.audience_limit ?? 0) > SYNC_AUDIENCE_LIMIT) {
+          const { recoveryRunId: _run, ...prepared } = options;
+          return res.status(202).json(await services.createCampaignPreparation(prepared));
+        }
+        return res.status(201).json(await services.createGrowthCampaign(options));
+      },
+    ),
   );
   router.post(
     `${base}/quiet`,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const body = QuietBody.safeParse(req.body);
-      if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
-      const options = {
-        ...actor(req),
-        ...expansionOptions(body.data),
-        offerKind: "quiet",
-        durationMinutes: body.data.duration_minutes,
-        durationDays: null,
-        holdoutPercent: 0,
-      };
-      if (body.data.audience_limit > SYNC_AUDIENCE_LIMIT)
-        return res.status(202).json(await services.createCampaignPreparation(options));
-      return res.status(201).json(await services.createGrowthCampaign(options));
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const body = QuietBody.safeParse(req.body);
+        if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
+        /** @type {GrowthCampaignOptions} */
+        const options = {
+          ...actor(req),
+          ...expansionOptions(body.data),
+          offerKind: "quiet",
+          durationMinutes: body.data.duration_minutes,
+          durationDays: null,
+          holdoutPercent: 0,
+        };
+        if (body.data.audience_limit > SYNC_AUDIENCE_LIMIT)
+          return res.status(202).json(await services.createCampaignPreparation(options));
+        return res.status(201).json(await services.createGrowthCampaign(options));
+      },
+    ),
   );
   router.post(
     `${base}/prepare`,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const body = PreparationBody.safeParse(req.body);
-      if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
-      normalizeMeasurementPlan(body.data.measurement_plan ?? null, {
-        durationDays: body.data.duration_days,
-        holdoutPercent: body.data.holdout_percent,
-      });
-      return res.status(202).json(
-        await services.createCampaignPreparation({
-          ...actor(req),
-          ...expansionOptions(body.data),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const body = PreparationBody.safeParse(req.body);
+        if (!body.success || !Empty.safeParse(req.query).success) return invalid(res);
+        normalizeMeasurementPlan(body.data.measurement_plan ?? null, {
           durationDays: body.data.duration_days,
           holdoutPercent: body.data.holdout_percent,
-          measurementPlan: body.data.measurement_plan,
-        }),
-      );
-    }),
+        });
+        return res.status(202).json(
+          await services.createCampaignPreparation({
+            ...actor(req),
+            ...expansionOptions(body.data),
+            durationDays: body.data.duration_days,
+            holdoutPercent: body.data.holdout_percent,
+            measurementPlan: body.data.measurement_plan,
+          }),
+        );
+      },
+    ),
   );
   router.post(
     `${base}/:id/collision-preview`,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const params = Params.safeParse(req.params),
-        input = CollisionSampleInput.safeParse(req.body);
-      if (!params.success || !input.success || !Empty.safeParse(req.query).success)
-        return invalid(res);
-      return res.json(
-        await services.previewCampaignCollisions({
-          ...actor(req),
-          campaignId: params.data.id,
-          input: input.data,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const params = Params.safeParse(req.params),
+          input = CollisionSampleInput.safeParse(req.body);
+        if (!params.success || !input.success || !Empty.safeParse(req.query).success)
+          return invalid(res);
+        return res.json(
+          await services.previewCampaignCollisions({
+            ...actor(req),
+            campaignId: params.data.id,
+            input: input.data,
+          }),
+        );
+      },
+    ),
   );
   for (const [suffix, execute] of Object.entries({
     preflight: services.createCampaignPreflight,
@@ -376,30 +482,36 @@ export function createGrowthCampaignRouter(deps = {}) {
     router.post(
       `${base}/:id/${suffix}`,
       csrfProtect,
-      asyncRoute(async (req, res) => {
-        const params = Params.safeParse(req.params);
-        if (
-          !params.success ||
-          !Empty.safeParse(req.query).success ||
-          !Empty.safeParse(req.body ?? {}).success
-        )
-          return invalid(res);
-        return res.json(await execute({ ...actor(req), campaignId: params.data.id }));
-      }),
+      asyncRoute(
+        /** @param {TenantRequest} req @param {Response} res */
+        async (req, res) => {
+          const params = Params.safeParse(req.params);
+          if (
+            !params.success ||
+            !Empty.safeParse(req.query).success ||
+            !Empty.safeParse(req.body ?? {}).success
+          )
+            return invalid(res);
+          return res.json(await execute({ ...actor(req), campaignId: params.data.id }));
+        },
+      ),
     );
   }
   router.get(
     `${base}/:id`,
-    asyncRoute(async (req, res) => {
-      const params = Params.safeParse(req.params);
-      if (!params.success || !Empty.safeParse(req.query).success) return invalid(res);
-      return res.json(
-        await services.getGrowthCampaign({
-          businessId: req.tenantId,
-          campaignId: params.data.id,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const params = Params.safeParse(req.params);
+        if (!params.success || !Empty.safeParse(req.query).success) return invalid(res);
+        return res.json(
+          await services.getGrowthCampaign({
+            businessId: req.tenantId,
+            campaignId: params.data.id,
+          }),
+        );
+      },
+    ),
   );
   for (const [action, execute] of Object.entries({
     activate: services.activateGrowthCampaign,
@@ -408,30 +520,35 @@ export function createGrowthCampaignRouter(deps = {}) {
     router.post(
       `${base}/:id/${action}`,
       csrfProtect,
-      asyncRoute(async (req, res) => {
-        const params = Params.safeParse(req.params);
-        if (
-          !params.success ||
-          !Empty.safeParse(req.query).success ||
-          !(action === "activate" ? ActivateBody : Empty).safeParse(req.body ?? {}).success
-        )
-          return invalid(res);
-        return res.json(
-          await execute({
-            ...actor(req),
-            campaignId: params.data.id,
-            ...(action === "activate" && req.body?.preflight_id
-              ? { preflightId: ActivateBody.parse(req.body).preflight_id }
-              : {}),
-          }),
-        );
-      }),
+      asyncRoute(
+        /** @param {TenantRequest} req @param {Response} res */
+        async (req, res) => {
+          const params = Params.safeParse(req.params);
+          if (
+            !params.success ||
+            !Empty.safeParse(req.query).success ||
+            !(action === "activate" ? ActivateBody : Empty).safeParse(req.body ?? {}).success
+          )
+            return invalid(res);
+          return res.json(
+            await execute({
+              ...actor(req),
+              campaignId: params.data.id,
+              ...(action === "activate" && req.body?.preflight_id
+                ? { preflightId: ActivateBody.parse(req.body).preflight_id }
+                : {}),
+            }),
+          );
+        },
+      ),
     );
   }
   return router;
 }
 
+/** @param {Partial<CustomerGrowthOffersDeps>} [deps] */
 export function createCustomerGrowthOffersRouter(deps = {}) {
+  /** @type {CustomerGrowthOffersDeps} */
   const services = { getCustomerGrowthOffers, ...deps };
   const router = Router();
   router.get(
@@ -439,15 +556,18 @@ export function createCustomerGrowthOffersRouter(deps = {}) {
     noStore,
     requireCustomer,
     tenantContext,
-    asyncRoute(async (req, res) => {
-      if (!Empty.safeParse(req.query).success) return invalid(res);
-      return res.json(
-        await services.getCustomerGrowthOffers({
-          businessId: req.tenantId,
-          customerId: req.customerAuth.id,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        if (!Empty.safeParse(req.query).success) return invalid(res);
+        return res.json(
+          await services.getCustomerGrowthOffers({
+            businessId: req.tenantId,
+            customerId: req.customerAuth.id,
+          }),
+        );
+      },
+    ),
   );
   return router;
 }

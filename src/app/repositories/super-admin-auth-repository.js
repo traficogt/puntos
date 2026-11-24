@@ -1,6 +1,29 @@
 import { dbQuery } from "../database.js";
 import { config } from "../../config/index.js";
 
+/**
+ * Effective super-admin credentials: the `super_admin_auth_settings` singleton
+ * row merged over the environment defaults.
+ * @typedef {{
+ *   email: string | null,
+ *   password_hash: string | null,
+ *   mfa_enabled: boolean,
+ *   mfa_secret_enc: string | null,
+ *   mfa_pending_secret_enc: string | null,
+ *   mfa_pending_created_at: Date | null,
+ *   mfa_confirmed_at: Date | null
+ * }} SuperAdminAuthRow
+ */
+
+/**
+ * Column assignments accepted by {@link SuperAdminAuthRepo.update}; callers pass
+ * timestamps as ISO strings, which PostgreSQL casts on write.
+ * @typedef {Partial<Pick<SuperAdminAuthRow,
+ *   "email" | "password_hash" | "mfa_enabled" | "mfa_secret_enc" | "mfa_pending_secret_enc">>
+ *   & { mfa_pending_created_at?: Date | string | null, mfa_confirmed_at?: Date | string | null }} SuperAdminAuthPatch
+ */
+
+/** @returns {SuperAdminAuthRow} */
 function baseRecord() {
   return {
     email: String(config.SUPER_ADMIN_EMAIL || "").toLowerCase() || null,
@@ -14,6 +37,10 @@ function baseRecord() {
 }
 
 export const SuperAdminAuthRepo = {
+  /**
+   * Resolves to `SuperAdminAuthRow`.
+   * @param {typeof dbQuery} [query]
+   */
   async getEffective(query = dbQuery) {
     const { rows } = await query(
       `SELECT email, password_hash, mfa_enabled, mfa_secret_enc, mfa_pending_secret_enc, mfa_pending_created_at, mfa_confirmed_at
@@ -30,8 +57,15 @@ export const SuperAdminAuthRepo = {
     };
   },
 
+  /**
+   * Resolves to `SuperAdminAuthRow`.
+   * @param {SuperAdminAuthPatch} fields column assignments for the singleton row
+   * @param {typeof dbQuery} [query]
+   */
   async update(fields, query = dbQuery) {
+    /** @type {string[]} */
     const assignments = [];
+    /** @type {unknown[]} */
     const params = [];
     let idx = 1;
     for (const [key, value] of Object.entries(fields || {})) {

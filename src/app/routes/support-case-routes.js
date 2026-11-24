@@ -20,12 +20,38 @@ import {
   supportTrackSchema,
 } from "../services/support-case-service.js";
 
+/** @typedef {import("./_request-types.js").Request} Request */
+/** @typedef {import("./_request-types.js").Response} Response */
+/** @typedef {import("./_request-types.js").NextFunction} NextFunction */
+/**
+ * @template P
+ * @typedef {import("./_request-types.js").ParamsRequest<P>} ParamsRequest
+ */
+/**
+ * Account context attached to a public support case when the visitor opted in
+ * (`includeAccount`) and holds a valid staff or customer browser session.
+ * @typedef {{ businessId: string, actorType: "STAFF" | "CUSTOMER", actorId: string }} SupportContext
+ */
+/**
+ * Collaborators of the router. `serviceDeps` is forwarded to every
+ * support-case service call (tests inject a database handle through it).
+ * @typedef {{
+ *   verifyChallenge?: (token: string, remoteIp: string) => Promise<boolean>,
+ *   resolveContext?: (req: Request) => Promise<SupportContext | null>,
+ *   serviceDeps?: Record<string, unknown>
+ * }} SupportCaseRouteDeps
+ */
+
+/**
+ * @param {Request} req
+ * @returns {Promise<SupportContext | null>}
+ */
 export async function verifiedSupportContext(req) {
   if (req.body?.includeAccount !== true) return null;
-  for (const [cookie, actorType] of [
+  for (const [cookie, actorType] of /** @type {Array<[string, "STAFF" | "CUSTOMER"]>} */ ([
     [config.STAFF_COOKIE_NAME, "STAFF"],
     [config.CUSTOMER_COOKIE_NAME, "CUSTOMER"],
-  ]) {
+  ])) {
     if (!req.cookies?.[cookie]) continue;
     const session = await getBrowserSession(req.cookies[cookie]);
     if (
@@ -54,6 +80,7 @@ export async function verifiedSupportContext(req) {
   }
   return null;
 }
+/** @param {SupportCaseRouteDeps} [deps] */
 export function createSupportCaseRoutes({
   verifyChallenge = verifyTurnstile,
   resolveContext = verifiedSupportContext,
@@ -63,118 +90,155 @@ export function createSupportCaseRoutes({
   const createLimit = rateLimitByIp(8, 60 * 60 * 1000, { keyPrefix: "support:create:" });
   const readLimit = rateLimitByIp(60, 60 * 1000, { keyPrefix: "support:read:" });
   const replyLimit = rateLimitByIp(20, 60 * 60 * 1000, { keyPrefix: "support:reply:" });
-  routes.use(["/public/support", "/super/support"], (_req, res, next) => {
-    res.set({
-      "Cache-Control": "no-store",
-      "Referrer-Policy": "no-referrer",
-      "X-Robots-Tag": "noindex",
-    });
-    next();
-  });
-  routes.get("/public/support/config", (_req, res) =>
-    res.json({
-      challengeRequired: Boolean(config.CONTACT_TURNSTILE_SECRET),
-      siteKey: config.CONTACT_TURNSTILE_SITE_KEY,
-      attachmentMaxBytes: 614400,
-    }),
+  routes.use(
+    ["/public/support", "/super/support"],
+    /** @param {Request} _req @param {Response} res @param {NextFunction} next */
+    (_req, res, next) => {
+      res.set({
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer",
+        "X-Robots-Tag": "noindex",
+      });
+      next();
+    },
+  );
+  routes.get(
+    "/public/support/config",
+    /** @param {Request} _req @param {Response} res */
+    (_req, res) =>
+      res.json({
+        challengeRequired: Boolean(config.CONTACT_TURNSTILE_SECRET),
+        siteKey: config.CONTACT_TURNSTILE_SITE_KEY,
+        attachmentMaxBytes: 614400,
+      }),
   );
   routes.post(
     "/public/support/cases",
     createLimit,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const context = await resolveContext(req);
-      const out = await createSupportCase(req.body, {
-        ...serviceDeps,
-        context,
-        verify: (token) => verifyChallenge(token, getRequestIp(req)).catch(() => false),
-      });
-      res.status(out.replayed ? 200 : 201).json(out);
-    }),
+    asyncRoute(
+      /** @param {Request} req @param {Response} res @returns {Promise<void | Response>} */
+      async (req, res) => {
+        const context = await resolveContext(req);
+        const out = await createSupportCase(req.body, {
+          ...serviceDeps,
+          context,
+          /** @param {string} token */
+          verify: (token) => verifyChallenge(token, getRequestIp(req)).catch(() => false),
+        });
+        res.status(out.replayed ? 200 : 201).json(out);
+      },
+    ),
   );
   routes.post(
     "/public/support/track",
     readLimit,
     csrfProtect,
-    asyncRoute(async (req, res) => res.json(await trackSupportCase(req.body, serviceDeps))),
+    asyncRoute(
+      /** @param {Request} req @param {Response} res */
+      async (req, res) => res.json(await trackSupportCase(req.body, serviceDeps)),
+    ),
   );
   routes.post(
     "/public/support/reply",
     replyLimit,
     csrfProtect,
-    asyncRoute(async (req, res) => res.json(await replySupportCase(req.body, serviceDeps))),
+    asyncRoute(
+      /** @param {Request} req @param {Response} res */
+      async (req, res) => res.json(await replySupportCase(req.body, serviceDeps)),
+    ),
   );
   routes.post(
     "/public/support/attachment",
     readLimit,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const parsed = supportTrackSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Enlace privado inválido." });
-      const row = await getSupportAttachment(parsed.data, serviceDeps);
-      res
-        .type(row.content_type)
-        .set("Content-Disposition", 'inline; filename="captura.webp"')
-        .send(row.data);
-    }),
+    asyncRoute(
+      /** @param {Request} req @param {Response} res @returns {Promise<void | Response>} */
+      async (req, res) => {
+        const parsed = supportTrackSchema.safeParse(req.body);
+        if (!parsed.success) return res.status(400).json({ error: "Enlace privado inválido." });
+        const row = await getSupportAttachment(parsed.data, serviceDeps);
+        res
+          .type(row.content_type)
+          .set("Content-Disposition", 'inline; filename="captura.webp"')
+          .send(row.data);
+      },
+    ),
   );
   routes.use("/super/support", requireSuperAdmin, csrfProtect);
   routes.get(
     "/super/support/cases",
-    asyncRoute(async (req, res) => {
-      const query = z
-        .object({
-          status: z.enum(["new", "open", "waiting", "resolved", "closed"]).optional(),
-          offset: z.coerce.number().int().min(0).max(100000).optional(),
-        })
-        .strict()
-        .safeParse(req.query);
-      if (!query.success) return res.status(400).json({ error: "Filtro inválido." });
-      res.json({ cases: await listSupportCases(query.data, serviceDeps) });
-    }),
+    asyncRoute(
+      /** @param {Request} req @param {Response} res @returns {Promise<void | Response>} */
+      async (req, res) => {
+        const query = z
+          .object({
+            status: z.enum(["new", "open", "waiting", "resolved", "closed"]).optional(),
+            offset: z.coerce.number().int().min(0).max(100000).optional(),
+          })
+          .strict()
+          .safeParse(req.query);
+        if (!query.success) return res.status(400).json({ error: "Filtro inválido." });
+        res.json({ cases: await listSupportCases(query.data, serviceDeps) });
+      },
+    ),
   );
   routes.post(
     "/super/support/search",
-    asyncRoute(async (req, res) => {
-      const query = z
-        .object({
-          status: z.enum(["new", "open", "waiting", "resolved", "closed"]).optional(),
-          search: z.string().max(160).optional(),
-          offset: z.number().int().min(0).max(100000).optional(),
-        })
-        .strict()
-        .safeParse(req.body);
-      if (!query.success) return res.status(400).json({ error: "Filtro inválido." });
-      res.json({ cases: await listSupportCases(query.data, serviceDeps) });
-    }),
+    asyncRoute(
+      /** @param {Request} req @param {Response} res @returns {Promise<void | Response>} */
+      async (req, res) => {
+        const query = z
+          .object({
+            status: z.enum(["new", "open", "waiting", "resolved", "closed"]).optional(),
+            search: z.string().max(160).optional(),
+            offset: z.number().int().min(0).max(100000).optional(),
+          })
+          .strict()
+          .safeParse(req.body);
+        if (!query.success) return res.status(400).json({ error: "Filtro inválido." });
+        res.json({ cases: await listSupportCases(query.data, serviceDeps) });
+      },
+    ),
   );
   routes.get(
     "/super/support/cases/:id",
-    asyncRoute(async (req, res) => {
-      if (!z.uuid().safeParse(req.params.id).success)
-        return res.status(400).json({ error: "Caso inválido." });
-      res.json(await getSupportCase(req.params.id, serviceDeps));
-    }),
+    asyncRoute(
+      /** @param {ParamsRequest<{ id: string }>} req @param {Response} res @returns {Promise<void | Response>} */
+      async (req, res) => {
+        if (!z.uuid().safeParse(req.params.id).success)
+          return res.status(400).json({ error: "Caso inválido." });
+        res.json(await getSupportCase(req.params.id, serviceDeps));
+      },
+    ),
   );
   routes.patch(
     "/super/support/cases/:id",
-    asyncRoute(async (req, res) => {
-      if (!z.uuid().safeParse(req.params.id).success)
-        return res.status(400).json({ error: "Caso inválido." });
-      res.json(await updateSupportCase(req.params.id, req.body, req.superAdmin.email, serviceDeps));
-    }),
+    asyncRoute(
+      /** @param {ParamsRequest<{ id: string }>} req @param {Response} res @returns {Promise<void | Response>} */
+      async (req, res) => {
+        if (!z.uuid().safeParse(req.params.id).success)
+          return res.status(400).json({ error: "Caso inválido." });
+        res.json(
+          await updateSupportCase(req.params.id, req.body, req.superAdmin.email, serviceDeps),
+        );
+      },
+    ),
   );
   routes.get(
     "/super/support/cases/:id/attachment",
-    asyncRoute(async (req, res) => {
-      if (!z.uuid().safeParse(req.params.id).success)
-        return res.status(400).json({ error: "Caso inválido." });
-      const row = await getSupportAttachment({ caseId: req.params.id }, serviceDeps);
-      res
-        .type(row.content_type)
-        .set("Content-Disposition", 'inline; filename="captura.webp"')
-        .send(row.data);
-    }),
+    asyncRoute(
+      /** @param {ParamsRequest<{ id: string }>} req @param {Response} res @returns {Promise<void | Response>} */
+      async (req, res) => {
+        if (!z.uuid().safeParse(req.params.id).success)
+          return res.status(400).json({ error: "Caso inválido." });
+        const row = await getSupportAttachment({ caseId: req.params.id }, serviceDeps);
+        res
+          .type(row.content_type)
+          .set("Content-Disposition", 'inline; filename="captura.webp"')
+          .send(row.data);
+      },
+    ),
   );
   return routes;
 }

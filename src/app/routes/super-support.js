@@ -89,11 +89,16 @@ export function getSupportedPlans() {
   return listPlans().map((plan) => plan.plan);
 }
 
+/** @typedef {z.infer<typeof CreateBusinessSchema>} CreateBusinessPayload */
+/** @typedef {z.infer<typeof CreateBusinessUserSchema>} CreateBusinessUserPayload */
+
+/** @param {string | null | undefined} planInput */
 export function resolveDesiredPlan(planInput) {
   const normalizedPlan = planInput ? normalizePlan(planInput) : null;
   return normalizedPlan && getSupportedPlans().includes(normalizedPlan) ? normalizedPlan : null;
 }
 
+/** @param {string} planInput */
 export function requireSupportedPlan(planInput) {
   const normalizedPlan = normalizePlan(planInput);
   const supportedPlans = getSupportedPlans();
@@ -103,6 +108,7 @@ export function requireSupportedPlan(planInput) {
   return normalizedPlan;
 }
 
+/** @param {CreateBusinessPayload} payload */
 export async function createSuperBusiness(payload) {
   const desiredPlan = resolveDesiredPlan(payload.plan);
   return createBusinessWithOwner({
@@ -118,6 +124,10 @@ export async function createSuperBusiness(payload) {
   });
 }
 
+/**
+ * @param {string} businessId
+ * @param {CreateBusinessUserPayload} payload
+ */
 export async function createSuperBusinessUser(businessId, payload) {
   const business = await BusinessRepo.getById(businessId);
   if (!business) throw notFound("Negocio no encontrado");
@@ -171,6 +181,16 @@ export async function createSuperBusinessUser(businessId, payload) {
   return StaffRepo.getById(user.id);
 }
 
+/**
+ * Records a super-admin action against a business in `audit_logs` (fire-and-forget).
+ * @param {{
+ *   action: string,
+ *   businessId: string,
+ *   req: import("./_request-types.js").Request,
+ *   superAdminEmail: string | null,
+ *   meta?: Record<string, unknown>
+ * }} entry
+ */
 export async function logSuperAudit({ action, businessId, req, superAdminEmail, meta = {} }) {
   await AuditRepo.log({
     id: crypto.randomUUID(),

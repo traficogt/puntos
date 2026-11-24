@@ -6,31 +6,42 @@ import { AnalyticsRepository } from "../../repositories/analytics-repository.js"
 import { resolveBranchFilter } from "./_util.js";
 import { dbQuery } from "../../database.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+/**
+ * @template Q
+ * @typedef {import("../_request-types.js").WithValidatedQuery<Q>} WithValidatedQuery
+ */
+
 export const analyticsChurnRoutes = Router();
+
+const churnQuerySchema = branchFilterQuerySchema.extend({
+  threshold: z.coerce.number().min(0).max(1).default(0.7),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+/** @typedef {z.infer<typeof churnQuerySchema>} ChurnQuery */
 
 analyticsChurnRoutes.get(
   "/admin/analytics/churn-risk",
-  validateQuery(
-    branchFilterQuerySchema.extend({
-      threshold: z.coerce.number().min(0).max(1).default(0.7),
-      limit: z.coerce.number().int().min(1).max(200).default(50),
-    }),
-  ),
-  asyncRoute(async (req, res) => {
-    const branchId = await resolveBranchFilter(req, res);
-    if (branchId === "__invalid__") return;
-    const { threshold, limit } = req.validatedQuery;
+  validateQuery(churnQuerySchema),
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedQuery<ChurnQuery>} req @param {Response} res @returns {Promise<void | Response>} */
+    async (req, res) => {
+      const branchId = await resolveBranchFilter(req, res);
+      if (branchId === "__invalid__") return;
+      const { threshold, limit } = req.validatedQuery;
 
-    let customers;
-    if (!branchId) {
-      customers = await AnalyticsRepository.getHighChurnRiskCustomers(
-        req.tenantId,
-        threshold,
-        limit,
-      );
-    } else {
-      const { rows } = await dbQuery(
-        `WITH branch_customers AS (
+      let customers;
+      if (!branchId) {
+        customers = await AnalyticsRepository.getHighChurnRiskCustomers(
+          req.tenantId,
+          threshold,
+          limit,
+        );
+      } else {
+        const { rows } = await dbQuery(
+          `WITH branch_customers AS (
            SELECT DISTINCT customer_id
            FROM transactions
            WHERE business_id = $1
@@ -53,17 +64,18 @@ analyticsChurnRoutes.get(
            AND cl.churn_risk_score >= $3
          ORDER BY cl.churn_risk_score DESC, cl.total_spend DESC
          LIMIT $4`,
-        [req.tenantId, branchId, threshold, limit],
-      );
-      customers = rows;
-    }
+          [req.tenantId, branchId, threshold, limit],
+        );
+        customers = rows;
+      }
 
-    return res.json({
-      ok: true,
-      customers,
-      threshold,
-      branch_id: branchId,
-      count: customers.length,
-    });
-  }),
+      return res.json({
+        ok: true,
+        customers,
+        threshold,
+        branch_id: branchId,
+        count: customers.length,
+      });
+    },
+  ),
 );

@@ -6,6 +6,69 @@ import {
   sanitizeProgramForClient,
 } from "../../utils/program-secrets.js";
 
+/**
+ * `businesses.program_json`: the loyalty program rules. Only the keys this
+ * module touches are named; the rest is owned by the program services.
+ * @typedef {{
+ *   external_awards?: ({ api_key?: string | null } & Record<string, unknown>) | null,
+ *   pos_integration?: ({
+ *     loyverse?: ({ access_token?: string | null } & Record<string, unknown>) | null
+ *   } & Record<string, unknown>) | null,
+ *   lifecycle?: Record<string, unknown> | null,
+ *   weekly_owner_brief?: Record<string, unknown> | null,
+ *   campaign_rules?: Record<string, unknown> | null,
+ *   [key: string]: unknown
+ * }} BusinessProgramJson
+ */
+
+/**
+ * Row of `businesses`.
+ * @typedef {{
+ *   id: string,
+ *   name: string,
+ *   slug: string,
+ *   email: string,
+ *   phone: string | null,
+ *   password_hash: string,
+ *   category: string | null,
+ *   plan: string,
+ *   program_type: string,
+ *   program_json: BusinessProgramJson,
+ *   customer_branding_json: Record<string, unknown>,
+ *   owner_progress_variant: string | null,
+ *   created_at: Date,
+ *   updated_at: Date
+ * }} BusinessRow
+ */
+
+/**
+ * Public projection from the `business_public` view ({@link BusinessRepo.getPublicBySlug}).
+ * @typedef {Pick<BusinessRow,
+ *   "id" | "slug" | "name" | "category" | "program_type" | "program_json" | "customer_branding_json">} BusinessPublicRow
+ */
+
+/**
+ * @typedef {{
+ *   id: string,
+ *   name: string,
+ *   slug: string,
+ *   email: string,
+ *   phone?: string | null,
+ *   password_hash: string,
+ *   category?: string | null,
+ *   plan: string,
+ *   program_type: string,
+ *   program_json: BusinessProgramJson
+ * }} BusinessCreateInput
+ */
+
+/**
+ * Decrypts the program secrets of a business row read from the database,
+ * preserving the caller's row shape (see {@link BusinessRow}).
+ * @template {{ program_json: unknown } | null} T
+ * @param {T} record
+ * @returns {T}
+ */
 function normalizeBusinessRecord(record) {
   if (!record) return record;
   return {
@@ -15,6 +78,10 @@ function normalizeBusinessRecord(record) {
 }
 
 export const BusinessRepo = {
+  /**
+   * Resolves to `BusinessRow | null`.
+   * @param {BusinessCreateInput} business
+   */
   async create({
     id,
     name,
@@ -49,19 +116,35 @@ export const BusinessRepo = {
     );
   },
 
+  /**
+   * Resolves to `BusinessRow | null`.
+   * @param {string | null} id a null id (messaging-service passes an optional business) resolves to null
+   */
   async getById(id) {
     return normalizeBusinessRecord(await one(`SELECT * FROM businesses WHERE id=$1`, [id]));
   },
 
+  /**
+   * Resolves to `BusinessRow | null`.
+   * @param {string} email
+   */
   async getByEmail(email) {
     return normalizeBusinessRecord(await one(`SELECT * FROM businesses WHERE email=$1`, [email]));
   },
 
+  /**
+   * Resolves to `BusinessRow | null`.
+   * @param {string} slug
+   */
   async getBySlug(slug) {
     return normalizeBusinessRecord(await one(`SELECT * FROM businesses WHERE slug=$1`, [slug]));
   },
 
   // Public, non-sensitive lookup for join flows (no password_hash/email).
+  /**
+   * Resolves to `BusinessPublicRow | null`.
+   * @param {string} slug
+   */
   async getPublicBySlug(slug) {
     const business = await one(
       `SELECT business_id AS id, slug, name, category, program_type, program_json, customer_branding_json
@@ -74,6 +157,10 @@ export const BusinessRepo = {
       : null;
   },
 
+  /**
+   * @param {string} businessId
+   * @returns {Promise<number>}
+   */
   async countRewards(businessId) {
     const r = await one(`SELECT COUNT(*)::int AS c FROM rewards WHERE business_id=$1`, [
       businessId,
@@ -81,6 +168,10 @@ export const BusinessRepo = {
     return r?.c ?? 0;
   },
 
+  /**
+   * @param {string} businessId
+   * @returns {Promise<number>}
+   */
   async countBranches(businessId) {
     const r = await one(`SELECT COUNT(*)::int AS c FROM branches WHERE business_id=$1`, [
       businessId,
@@ -88,6 +179,10 @@ export const BusinessRepo = {
     return r?.c ?? 0;
   },
 
+  /**
+   * @param {string} businessId
+   * @returns {Promise<number>}
+   */
   async activeCustomerCount(businessId) {
     const r = await one(
       `SELECT COUNT(*)::int AS c
@@ -103,11 +198,21 @@ export const BusinessRepo = {
     return r?.c ?? 0;
   },
 
+  /** @returns {Promise<string[]>} */
   async listAllIds() {
     const r = await one(`SELECT ARRAY_AGG(id) AS ids FROM businesses`, []);
     return r?.ids ?? [];
   },
 
+  /**
+   * Resolves to `BusinessRow | null`.
+   * @param {string} businessId
+   * @param {{
+   *   program_type: string,
+   *   program_json?: BusinessProgramJson | null,
+   *   preserveIntegrations?: boolean
+   * }} update
+   */
   async updateProgram(businessId, { program_type, program_json, preserveIntegrations = true }) {
     const submittedProgram = { ...(program_json ?? {}) };
     // POS state belongs to the connection service, never to ordinary program saves.
@@ -158,6 +263,11 @@ export const BusinessRepo = {
     return this.getById(businessId);
   },
 
+  /**
+   * Resolves to `BusinessRow | null`.
+   * @param {string} businessId
+   * @param {Record<string, unknown>} patch merged into `program_json.lifecycle`
+   */
   async updateLifecycle(businessId, patch) {
     // Templates change only their declared lifecycle fields. A previous full
     // program read must not replace concurrent guided controls or other rules.
@@ -172,6 +282,11 @@ export const BusinessRepo = {
     );
   },
 
+  /**
+   * Resolves to `BusinessRow | null`.
+   * @param {string} businessId
+   * @param {unknown} rules stored as `program_json.campaign_rules`
+   */
   async updateCampaignRules(businessId, rules) {
     return normalizeBusinessRecord(
       await one(
@@ -182,6 +297,11 @@ export const BusinessRepo = {
     );
   },
 
+  /**
+   * Resolves to `BusinessRow | null`.
+   * @param {string} businessId
+   * @param {Record<string, unknown>} patch merged into `program_json.external_awards`
+   */
   async updateExternalAwards(businessId, patch) {
     const stored = encryptProgramSecrets({ external_awards: patch }).external_awards;
     await exec(
@@ -194,11 +314,21 @@ export const BusinessRepo = {
     return this.getById(businessId);
   },
 
+  /**
+   * Resolves to `BusinessRow | null`.
+   * @param {string} businessId
+   * @param {string} plan
+   */
   async updatePlan(businessId, plan) {
     await exec(`UPDATE businesses SET plan=$2 WHERE id=$1`, [businessId, plan]);
     return this.getById(businessId);
   },
 
+  /**
+   * Resolves to `BusinessRow | null`.
+   * @param {string} businessId
+   * @param {Record<string, unknown>} branding
+   */
   async updateCustomerBranding(businessId, branding) {
     await exec(
       `UPDATE businesses
@@ -209,6 +339,10 @@ export const BusinessRepo = {
     return this.getById(businessId);
   },
 
+  /**
+   * @param {string} businessId
+   * @returns {Promise<Record<string, unknown> | null>}
+   */
   async getCustomerBrandingById(businessId) {
     const row = await one(
       `SELECT customer_branding_json
@@ -220,6 +354,7 @@ export const BusinessRepo = {
   },
 
   async rotateExternalAwardApiKeysToCurrent() {
+    /** @type {{ items: Array<{ id: string, program_json: BusinessProgramJson }> } | null} */
     const rows = await one(
       `SELECT COALESCE(json_agg(json_build_object('id', id, 'program_json', program_json)), '[]'::json) AS items
        FROM businesses`,

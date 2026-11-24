@@ -12,6 +12,15 @@ import {
   getIssuedCommitments,
 } from "../services/reward-commitment-service.js";
 
+/** @typedef {import("./_request-types.js").Request} Request */
+/** @typedef {import("./_request-types.js").Response} Response */
+/** @typedef {import("./_request-types.js").NextFunction} NextFunction */
+/** @typedef {import("./_request-types.js").TenantRequest} TenantRequest */
+
+/**
+ * @param {number} max
+ * @param {number} places
+ */
 const decimal = (max, places) =>
   z
     .number()
@@ -39,6 +48,10 @@ const query = z
   .strict();
 const uuid = z.guid().transform((value) => value.toLowerCase());
 const empty = z.object({}).strict();
+
+/** @typedef {z.infer<typeof query>} RewardEconomicsQuery */
+
+/** @param {TenantRequest} req */
 const actor = (req) => ({
   businessId: req.tenantId,
   staffId: req.staff.id,
@@ -46,18 +59,42 @@ const actor = (req) => ({
   ua: req.get("user-agent") || null,
   ...(req.staff.impersonated_by ? { impersonated_by: req.staff.impersonated_by } : {}),
 });
+/** @typedef {ReturnType<typeof actor>} RewardEconomicsActor */
+/** @param {Response} res */
 const invalid = (res) =>
   res.status(400).json({
     error: "Revisa los importes y los datos de esta solicitud.",
     code: "VALIDATION_ERROR",
   });
 
+/**
+ * Services the router calls, by the input it hands them. Unit tests inject
+ * fakes, so results are forwarded opaquely (`res.json`).
+ * @typedef {{
+ *   getRewardEconomics: (input: { businessId: string } & RewardEconomicsQuery) => Promise<unknown>,
+ *   getIssuedCommitments: (input: { businessId: string }) => Promise<unknown>,
+ *   getServiceRestorationCosts: (input: { businessId: string } & z.infer<z.ZodObject<{ days: typeof query.shape.days }>>) => Promise<unknown>,
+ *   updateRewardEconomicsSettings: (input: RewardEconomicsActor & {
+ *     grossMarginPct: number | null,
+ *     costPerPointQ: number | null
+ *   }) => Promise<unknown>,
+ *   updateRewardUnitCost: (input: RewardEconomicsActor & {
+ *     rewardId: string,
+ *     unitCostQ: number | null,
+ *     retailValueQ: number | null | undefined
+ *   }) => Promise<unknown>
+ * }} RewardEconomicsDeps
+ */
+
+/** @param {Partial<RewardEconomicsDeps>} [deps] */
 export function createRewardEconomicsRoutes(deps = {}) {
+  /** @type {RewardEconomicsDeps} */
   const s = { ...services, getServiceRestorationCosts, getIssuedCommitments, ...deps },
     router = Router(),
     base = "/admin/reward-economics";
   router.use(
     base,
+    /** @param {Request} _req @param {Response} res @param {NextFunction} next */
     (_req, res, next) => {
       res.set("Cache-Control", "no-store");
       next();
@@ -69,61 +106,76 @@ export function createRewardEconomicsRoutes(deps = {}) {
   );
   router.get(
     base,
-    asyncRoute(async (req, res) => {
-      const parsed = query.safeParse(req.query);
-      if (!parsed.success) return invalid(res);
-      return res.json(await s.getRewardEconomics({ businessId: req.tenantId, ...parsed.data }));
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const parsed = query.safeParse(req.query);
+        if (!parsed.success) return invalid(res);
+        return res.json(await s.getRewardEconomics({ businessId: req.tenantId, ...parsed.data }));
+      },
+    ),
   );
   router.get(
     `${base}/commitments`,
-    asyncRoute(async (req, res) => {
-      if (!empty.safeParse(req.query).success) return invalid(res);
-      return res.json(await s.getIssuedCommitments({ businessId: req.tenantId }));
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        if (!empty.safeParse(req.query).success) return invalid(res);
+        return res.json(await s.getIssuedCommitments({ businessId: req.tenantId }));
+      },
+    ),
   );
   router.get(
     `${base}/service-restorations`,
-    asyncRoute(async (req, res) => {
-      const parsed = z.object({ days: query.shape.days }).strict().safeParse(req.query);
-      if (!parsed.success) return invalid(res);
-      return res.json(
-        await s.getServiceRestorationCosts({ businessId: req.tenantId, ...parsed.data }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const parsed = z.object({ days: query.shape.days }).strict().safeParse(req.query);
+        if (!parsed.success) return invalid(res);
+        return res.json(
+          await s.getServiceRestorationCosts({ businessId: req.tenantId, ...parsed.data }),
+        );
+      },
+    ),
   );
   router.put(
     `${base}/settings`,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const parsed = settingsBody.safeParse(req.body);
-      if (!parsed.success || !empty.safeParse(req.query).success) return invalid(res);
-      return res.json(
-        await s.updateRewardEconomicsSettings({
-          ...actor(req),
-          grossMarginPct: parsed.data.gross_margin_pct,
-          costPerPointQ: parsed.data.cost_per_point_q,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const parsed = settingsBody.safeParse(req.body);
+        if (!parsed.success || !empty.safeParse(req.query).success) return invalid(res);
+        return res.json(
+          await s.updateRewardEconomicsSettings({
+            ...actor(req),
+            grossMarginPct: parsed.data.gross_margin_pct,
+            costPerPointQ: parsed.data.cost_per_point_q,
+          }),
+        );
+      },
+    ),
   );
   router.put(
     `${base}/rewards/:rewardId`,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const parsed = costBody.safeParse(req.body),
-        reward = uuid.safeParse(req.params.rewardId);
-      if (!parsed.success || !reward.success || !empty.safeParse(req.query).success)
-        return invalid(res);
-      return res.json(
-        await s.updateRewardUnitCost({
-          ...actor(req),
-          rewardId: reward.data,
-          unitCostQ: parsed.data.unit_cost_q,
-          retailValueQ: parsed.data.retail_value_q,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const parsed = costBody.safeParse(req.body),
+          reward = uuid.safeParse(req.params.rewardId);
+        if (!parsed.success || !reward.success || !empty.safeParse(req.query).success)
+          return invalid(res);
+        return res.json(
+          await s.updateRewardUnitCost({
+            ...actor(req),
+            rewardId: reward.data,
+            unitCostQ: parsed.data.unit_cost_q,
+            retailValueQ: parsed.data.retail_value_q,
+          }),
+        );
+      },
+    ),
   );
   return router;
 }

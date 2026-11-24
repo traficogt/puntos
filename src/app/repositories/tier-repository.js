@@ -1,10 +1,94 @@
 import { dbQuery } from "../database.js";
 
+/**
+ * Row of `loyalty_tiers`. DECIMAL columns arrive as strings; `perks` is a jsonb array.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   name: string,
+ *   tier_level: number,
+ *   min_points: number,
+ *   min_spend: string | null,
+ *   min_visits: number | null,
+ *   points_multiplier: string | null,
+ *   perks: unknown[],
+ *   color: string | null,
+ *   icon_url: string | null,
+ *   active: boolean,
+ *   created_at: Date,
+ *   updated_at: Date
+ * }} TierRow
+ */
+
+/**
+ * Row of `customer_tiers`.
+ * @typedef {{
+ *   customer_id: string,
+ *   tier_id: string | null,
+ *   achieved_at: Date,
+ *   updated_at: Date
+ * }} CustomerTierRow
+ */
+
+/**
+ * Row of `tier_history`.
+ * @typedef {{
+ *   id: string,
+ *   customer_id: string,
+ *   from_tier_id: string | null,
+ *   to_tier_id: string,
+ *   changed_at: Date,
+ *   reason: string | null
+ * }} TierHistoryRow
+ */
+
+/**
+ * @typedef {{
+ *   business_id: string,
+ *   name: string,
+ *   tier_level: number,
+ *   min_points?: number | null,
+ *   min_spend?: number | string | null,
+ *   min_visits?: number | null,
+ *   points_multiplier?: number | string | null,
+ *   perks?: unknown[] | null,
+ *   color?: string | null,
+ *   icon_url?: string | null,
+ *   active?: boolean
+ * }} TierCreateInput
+ */
+
+/**
+ * Column assignments accepted by {@link TierRepository.update}.
+ * @typedef {Partial<Pick<TierRow, "name" | "tier_level" | "min_points" | "min_visits" | "color" | "icon_url" | "active">>
+ *   & { min_spend?: number | string | null, points_multiplier?: number | string | null, perks?: unknown[] | null }} TierPatch
+ */
+
+/**
+ * A customer's tier with progress toward the next one ({@link TierRepository.getCustomerTierWithProgress}).
+ * @typedef {TierRow & {
+ *   achieved_at: Date,
+ *   current_points: number,
+ *   next_tier_name: string | null,
+ *   next_tier_points: number | null,
+ *   points_to_next_tier: number | null
+ * }} CustomerTierProgressRow
+ */
+
+/**
+ * Tier rule plus membership statistics ({@link TierRepository.getTierStats}); aggregates arrive as strings.
+ * @typedef {TierRow & { customer_count: string, avg_points: string | null, total_points: string | null }} TierStatsRow
+ */
+
 export const TierRepository = {
+  /**
+   * Resolves to `TierRow`.
+   * @param {TierCreateInput} tierData
+   */
   async create(tierData) {
     const { rows } = await dbQuery(
-      `INSERT INTO loyalty_tiers 
-       (business_id, name, tier_level, min_points, min_spend, min_visits, 
+      `INSERT INTO loyalty_tiers
+       (business_id, name, tier_level, min_points, min_spend, min_visits,
         points_multiplier, perks, color, icon_url, active)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
@@ -25,6 +109,10 @@ export const TierRepository = {
     return rows[0];
   },
 
+  /**
+   * Resolves to `TierRow[]`.
+   * @param {string} businessId
+   */
   async listByBusiness(businessId) {
     const { rows } = await dbQuery(
       `SELECT * FROM loyalty_tiers
@@ -35,13 +123,24 @@ export const TierRepository = {
     return rows;
   },
 
+  /**
+   * Resolves to `TierRow | undefined`.
+   * @param {string} tierId
+   */
   async getById(tierId) {
     const { rows } = await dbQuery(`SELECT * FROM loyalty_tiers WHERE id = $1`, [tierId]);
     return rows[0];
   },
 
+  /**
+   * Resolves to `TierRow | undefined`.
+   * @param {string} tierId
+   * @param {TierPatch} updates
+   */
   async update(tierId, updates) {
+    /** @type {string[]} */
     const fields = [];
+    /** @type {unknown[]} */
     const values = [];
     let paramCount = 1;
 
@@ -60,7 +159,7 @@ export const TierRepository = {
     values.push(tierId);
 
     const { rows } = await dbQuery(
-      `UPDATE loyalty_tiers 
+      `UPDATE loyalty_tiers
        SET ${fields.join(", ")}
        WHERE id = $${paramCount}
        RETURNING *`,
@@ -69,10 +168,15 @@ export const TierRepository = {
     return rows[0];
   },
 
+  /** @param {string} tierId */
   async delete(tierId) {
     await dbQuery(`DELETE FROM loyalty_tiers WHERE id = $1`, [tierId]);
   },
 
+  /**
+   * Resolves to `(TierRow & { achieved_at: Date }) | undefined`.
+   * @param {string} customerId
+   */
   async getCustomerTier(customerId) {
     const { rows } = await dbQuery(
       `SELECT lt.*, ct.achieved_at
@@ -84,10 +188,14 @@ export const TierRepository = {
     return rows[0];
   },
 
+  /**
+   * Resolves to `CustomerTierProgressRow | undefined`.
+   * @param {string} customerId
+   */
   async getCustomerTierWithProgress(customerId) {
     const { rows } = await dbQuery(
-      `SELECT 
-         lt.*, 
+      `SELECT
+         lt.*,
          ct.achieved_at,
          cb.points as current_points,
          next_tier.name as next_tier_name,
@@ -96,7 +204,7 @@ export const TierRepository = {
        FROM customer_tiers ct
        JOIN loyalty_tiers lt ON ct.tier_id = lt.id
        JOIN customer_balances cb ON cb.customer_id = ct.customer_id
-       LEFT JOIN loyalty_tiers next_tier ON 
+       LEFT JOIN loyalty_tiers next_tier ON
          next_tier.business_id = lt.business_id AND
          next_tier.tier_level = lt.tier_level + 1 AND
          next_tier.active = true
@@ -106,12 +214,17 @@ export const TierRepository = {
     return rows[0];
   },
 
+  /**
+   * Resolves to `CustomerTierRow`.
+   * @param {string} customerId
+   * @param {string} tierId
+   */
   async assignCustomerToTier(customerId, tierId) {
     const { rows } = await dbQuery(
       `INSERT INTO customer_tiers (customer_id, tier_id)
        VALUES ($1, $2)
        ON CONFLICT (customer_id)
-       DO UPDATE SET 
+       DO UPDATE SET
          tier_id = $2,
          updated_at = now()
        RETURNING *`,
@@ -120,9 +233,13 @@ export const TierRepository = {
     return rows[0];
   },
 
+  /**
+   * Resolves to `Array<TierHistoryRow & { from_tier_name: string | null, to_tier_name: string }>`.
+   * @param {string} customerId
+   */
   async getTierHistory(customerId) {
     const { rows } = await dbQuery(
-      `SELECT 
+      `SELECT
          th.*,
          from_tier.name as from_tier_name,
          to_tier.name as to_tier_name
@@ -141,6 +258,8 @@ export const TierRepository = {
    * color, icon_url, ...) plus membership statistics. Owner editors prefill from this list,
    * so the rule columns ride along with the stats; nothing was removed from the shape.
    * Grouping by the primary key lets the other loyalty_tiers columns be selected directly.
+   * Resolves to `TierStatsRow[]`.
+   * @param {string} businessId
    */
   async getTierStats(businessId) {
     const { rows } = await dbQuery(

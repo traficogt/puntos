@@ -1,11 +1,40 @@
 import { many, one } from "./base.js";
 import { conflict, notFound } from "../../utils/http-error.js";
 
+/**
+ * Directory projection of a customer: `customers` columns plus the coalesced
+ * `customer_balances` counters.
+ * @typedef {{
+ *   id: string,
+ *   name: string | null,
+ *   phone: string,
+ *   created_at: Date,
+ *   last_visit_at: Date | null,
+ *   points: number,
+ *   pending_points: number,
+ *   lifetime_points: number
+ * }} CustomerDirectoryRow
+ */
+
+/**
+ * @typedef {{
+ *   customers: CustomerDirectoryRow[],
+ *   total: number,
+ *   page: number,
+ *   limit: number,
+ *   total_pages: number
+ * }} CustomerDirectoryPage
+ */
+
 const fields = `c.id, c.name, c.phone, c.created_at, c.last_visit_at,
   COALESCE(b.points, 0) AS points, COALESCE(b.pending_points, 0) AS pending_points,
   COALESCE(b.lifetime_points, 0) AS lifetime_points`;
 
 export const CustomerDirectoryRepo = {
+  /**
+   * Resolves to `CustomerDirectoryPage`.
+   * @param {{ businessId: string, q?: string, page?: number, limit?: number }} params
+   */
   async list({ businessId, q = "", page = 1, limit = 25 }) {
     // Escape literal search input before binding it; '%' and '_' are not wildcards.
     const pattern = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
@@ -24,6 +53,10 @@ export const CustomerDirectoryRepo = {
     const total = Number(count?.total || 0);
     return { customers, total, page, limit, total_pages: Math.max(1, Math.ceil(total / limit)) };
   },
+  /**
+   * Resolves to `CustomerDirectoryRow | null`.
+   * @param {{ businessId: string, customerId: string }} params
+   */
   async get({ businessId, customerId }) {
     return one(
       `SELECT ${fields} FROM customers c
@@ -32,6 +65,11 @@ export const CustomerDirectoryRepo = {
       [businessId, customerId],
     );
   },
+  /**
+   * Optimistic rename: the update only applies while the stored name still equals `previousName`.
+   * Resolves to `CustomerDirectoryRow`.
+   * @param {{ businessId: string, customerId: string, name: string | null, previousName: string | null }} params
+   */
   async updateName({ businessId, customerId, name, previousName }) {
     const updated = await one(
       `UPDATE customers SET name = $3

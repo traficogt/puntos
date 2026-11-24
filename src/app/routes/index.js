@@ -75,12 +75,18 @@ const rewardEconomicsRoutes = createRewardEconomicsRoutes();
 
 // Explicit mount metadata keeps OpenAPI discovery independent of Express's
 // private path matcher representation.
+/** @type {Array<{ basePath: string, router: import("express").Router }>} */
 export const apiRouteMounts = [];
+/**
+ * @param {string} basePath
+ * @param {import("express").Router} router
+ */
 function mountApiRoute(basePath, router) {
   apiRouteMounts.push({ basePath, router });
   apiRoutes.use(basePath, router);
 }
 
+/** @param {string} basePath */
 const mountRoutes = (basePath) => {
   mountApiRoute(basePath, supportCaseRoutes);
   mountApiRoute(basePath, dataHealthRoutes);

@@ -9,6 +9,15 @@ import { validate } from "../../utils/validation.js";
 import { uuidParamsSchema, validateParams } from "../../utils/schemas.js";
 import { tenantContext } from "../../middleware/tenant.js";
 
+/** @typedef {import("./_request-types.js").Response} Response */
+/** @typedef {import("./_request-types.js").TenantRequest} TenantRequest */
+/** @typedef {Promise<Response | void>} HandlerResult early `return res...` or fall-through */
+/**
+ * @template P
+ * @typedef {import("./_request-types.js").WithValidatedParams<P>} WithValidatedParams
+ */
+/** @typedef {z.infer<typeof uuidParamsSchema>} UuidParams */
+
 const router = Router();
 
 export const TierCreateSchema = z.object({
@@ -31,10 +40,13 @@ router.get(
   requireOwner,
   tenantContext,
   requirePlanFeature("tiers"),
-  asyncRoute(async (req, res) => {
-    const tiers = await TierService.getBusinessTiersWithStats(req.tenantId);
-    res.json({ ok: true, tiers });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const tiers = await TierService.getBusinessTiersWithStats(req.tenantId);
+      res.json({ ok: true, tiers });
+    },
+  ),
 );
 
 router.post(
@@ -44,24 +56,27 @@ router.post(
   requireOwner,
   tenantContext,
   requirePlanFeature("tiers"),
-  asyncRoute(async (req, res) => {
-    const v = validate(TierCreateSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
-    const tierData = {
-      name: v.data.name,
-      tier_level: v.data.tier_level,
-      min_points: v.data.min_points,
-      min_spend: v.data.min_spend,
-      min_visits: v.data.min_visits,
-      points_multiplier: v.data.points_multiplier,
-      perks: v.data.perks,
-      color: v.data.color,
-      icon_url: v.data.icon_url,
-    };
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const v = validate(TierCreateSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
+      const tierData = {
+        name: v.data.name,
+        tier_level: v.data.tier_level,
+        min_points: v.data.min_points,
+        min_spend: v.data.min_spend,
+        min_visits: v.data.min_visits,
+        points_multiplier: v.data.points_multiplier,
+        perks: v.data.perks,
+        color: v.data.color,
+        icon_url: v.data.icon_url,
+      };
 
-    const tier = await TierService.createTier(req.tenantId, tierData);
-    res.status(201).json({ ok: true, tier });
-  }),
+      const tier = await TierService.createTier(req.tenantId, tierData);
+      res.status(201).json({ ok: true, tier });
+    },
+  ),
 );
 
 router.put(
@@ -72,27 +87,33 @@ router.put(
   tenantContext,
   requirePlanFeature("tiers"),
   validateParams(uuidParamsSchema),
-  asyncRoute(async (req, res) => {
-    const v = validate(TierUpdateSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
-    const updates = {};
-    for (const key of [
-      "name",
-      "min_points",
-      "min_spend",
-      "min_visits",
-      "points_multiplier",
-      "perks",
-      "color",
-      "icon_url",
-      "active",
-    ]) {
-      if (v.data[key] !== undefined) updates[key] = v.data[key];
-    }
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedParams<UuidParams>} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const v = validate(TierUpdateSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
+      // Note: "active" is not part of TierUpdateSchema, so zod strips it and that
+      // key never reaches `updates` (pre-existing; reported, not changed here).
+      /** @type {Record<string, unknown>} */
+      const updates = {};
+      for (const key of [
+        "name",
+        "min_points",
+        "min_spend",
+        "min_visits",
+        "points_multiplier",
+        "perks",
+        "color",
+        "icon_url",
+        "active",
+      ]) {
+        if (v.data[key] !== undefined) updates[key] = v.data[key];
+      }
 
-    const tier = await TierService.updateTier(req.validatedParams.id, req.tenantId, updates);
-    res.json({ ok: true, tier });
-  }),
+      const tier = await TierService.updateTier(req.validatedParams.id, req.tenantId, updates);
+      res.json({ ok: true, tier });
+    },
+  ),
 );
 
 router.delete(
@@ -103,10 +124,13 @@ router.delete(
   tenantContext,
   requirePlanFeature("tiers"),
   validateParams(uuidParamsSchema),
-  asyncRoute(async (req, res) => {
-    await TierService.deleteTier(req.validatedParams.id, req.tenantId);
-    res.json({ ok: true });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedParams<UuidParams>} req @param {Response} res */
+    async (req, res) => {
+      await TierService.deleteTier(req.validatedParams.id, req.tenantId);
+      res.json({ ok: true });
+    },
+  ),
 );
 
 router.get(
@@ -114,11 +138,14 @@ router.get(
   requireCustomer,
   tenantContext,
   requirePlanFeature("tiers"),
-  asyncRoute(async (req, res) => {
-    const customerId = req.customerAuth.id;
-    const tierInfo = await TierService.getCustomerTierInfo(customerId);
-    res.json({ ok: true, tier: tierInfo });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const customerId = req.customerAuth.id;
+      const tierInfo = await TierService.getCustomerTierInfo(customerId);
+      res.json({ ok: true, tier: tierInfo });
+    },
+  ),
 );
 
 export default router;

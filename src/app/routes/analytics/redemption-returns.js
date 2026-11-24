@@ -4,6 +4,9 @@ import { requireOwner } from "../../../middleware/auth.js";
 import { asyncRoute } from "../../../middleware/common.js";
 import { getRedemptionReturns } from "../../services/redemption-return-service.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+
 export const analyticsRedemptionReturnRoutes = Router();
 const ReturnQuery = z
   .object({
@@ -19,20 +22,23 @@ const ReturnQuery = z
 analyticsRedemptionReturnRoutes.get(
   "/admin/analytics/redemption-returns",
   requireOwner,
-  asyncRoute(async (req, res) => {
-    const parsed = ReturnQuery.safeParse(req.query);
-    if (!parsed.success) {
-      return res.status(400).json({
-        error: "Selecciona 7, 30 o 90 días y una sucursal válida.",
-        code: "VALIDATION_ERROR",
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const parsed = ReturnQuery.safeParse(req.query);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Selecciona 7, 30 o 90 días y una sucursal válida.",
+          code: "VALIDATION_ERROR",
+        });
+      }
+      const result = await getRedemptionReturns({
+        businessId: req.tenantId,
+        branchId: parsed.data.branch_id ?? null,
+        days: parsed.data.days,
       });
-    }
-    const result = await getRedemptionReturns({
-      businessId: req.tenantId,
-      branchId: parsed.data.branch_id ?? null,
-      days: parsed.data.days,
-    });
-    res.set("Cache-Control", "private, no-store");
-    return res.json(result);
-  }),
+      res.set("Cache-Control", "private, no-store");
+      return res.json(result);
+    },
+  ),
 );

@@ -13,6 +13,9 @@ import { StaffRepo } from "../../repositories/staff-repository.js";
 import { sendContactEmail } from "../../services/contact-service.js";
 import { makeId } from "./_util.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+
 const ConciergeRequestSchema = z
   .object({
     phone: z.string().trim().min(7).max(25),
@@ -38,47 +41,50 @@ export function createConciergeRoutes({ sendEmail = sendContactEmail } = {}) {
     tenantContext,
     moderateRateLimit,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const v = validate(ConciergeRequestSchema, req.body);
-      if (!v.ok) return res.status(400).json({ error: v.error });
-      const business = await BusinessRepo.getById(req.tenantId);
-      if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
-      // The session only carries id/role; the owner e-mail lives on the staff row.
-      const staffRow = await StaffRepo.getById(req.staff.id).catch(() => null);
-      const ownerEmail = String(staffRow?.email || "").trim();
-      const contact = ownerEmail ? `${v.data.phone} · ${ownerEmail}` : v.data.phone;
-      const message = [
-        `Tipo de negocio: ${v.data.business_type}`,
-        `Horario preferido: ${v.data.preferred_time || "sin preferencia"}`,
-        `Plan actual: ${business.plan || "desconocido"} · slug: ${business.slug || "-"} · id: ${business.id}`,
-        "",
-        v.data.note || "(sin nota)",
-      ].join("\n");
-      await sendEmail(
-        {
-          name: ownerEmail || business.name,
-          business: business.name,
-          contact,
-          message,
-          subject: `Configuración acompañada — ${business.name}`,
-        },
-        { host: req.get("host") },
-      );
-      await AuditRepo.log({
-        id: makeId(),
-        business_id: req.tenantId,
-        actor_type: "STAFF",
-        actor_id: req.staff.id,
-        action: "concierge.request",
-        ip: null,
-        ua: null,
-        meta: withImpersonationMeta(
-          { business_type: v.data.business_type, preferred_time: v.data.preferred_time },
-          req.staff,
-        ),
-      }).catch(() => {});
-      return res.json({ ok: true });
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        const v = validate(ConciergeRequestSchema, req.body);
+        if (!v.ok) return res.status(400).json({ error: v.error });
+        const business = await BusinessRepo.getById(req.tenantId);
+        if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
+        // The session only carries id/role; the owner e-mail lives on the staff row.
+        const staffRow = await StaffRepo.getById(req.staff.id).catch(() => null);
+        const ownerEmail = String(staffRow?.email || "").trim();
+        const contact = ownerEmail ? `${v.data.phone} · ${ownerEmail}` : v.data.phone;
+        const message = [
+          `Tipo de negocio: ${v.data.business_type}`,
+          `Horario preferido: ${v.data.preferred_time || "sin preferencia"}`,
+          `Plan actual: ${business.plan || "desconocido"} · slug: ${business.slug || "-"} · id: ${business.id}`,
+          "",
+          v.data.note || "(sin nota)",
+        ].join("\n");
+        await sendEmail(
+          {
+            name: ownerEmail || business.name,
+            business: business.name,
+            contact,
+            message,
+            subject: `Configuración acompañada — ${business.name}`,
+          },
+          { host: req.get("host") },
+        );
+        await AuditRepo.log({
+          id: makeId(),
+          business_id: req.tenantId,
+          actor_type: "STAFF",
+          actor_id: req.staff.id,
+          action: "concierge.request",
+          ip: null,
+          ua: null,
+          meta: withImpersonationMeta(
+            { business_type: v.data.business_type, preferred_time: v.data.preferred_time },
+            req.staff,
+          ),
+        }).catch(() => {});
+        return res.json({ ok: true });
+      },
+    ),
   );
   return router;
 }

@@ -1,24 +1,43 @@
 import crypto from "node:crypto";
 import { exec, many } from "./base.js";
 
+/**
+ * Row of `security_events`.
+ * @typedef {{
+ *   id: string,
+ *   event_type: string,
+ *   severity: string,
+ *   business_id: string | null,
+ *   route: string | null,
+ *   method: string | null,
+ *   ip: string | null,
+ *   actor_type: string | null,
+ *   actor_id: string | null,
+ *   meta: Record<string, unknown>,
+ *   created_at: Date
+ * }} SecurityEventRow
+ */
+
+/**
+ * @typedef {{
+ *   event_type: string,
+ *   severity?: string,
+ *   business_id?: string | null,
+ *   route?: string | null,
+ *   method?: string | null,
+ *   ip?: string | null,
+ *   actor_type?: string | null,
+ *   actor_id?: string | null,
+ *   meta?: Record<string, unknown>
+ * }} SecurityEventInput
+ */
+
 function id() {
   return crypto.randomUUID();
 }
 
 export const SecurityEventRepo = {
-  /**
-   * @param {{
-   *   event_type: string,
-   *   severity?: string,
-   *   business_id?: string | null,
-   *   route?: string | null,
-   *   method?: string | null,
-   *   ip?: string | null,
-   *   actor_type?: string | null,
-   *   actor_id?: string | null,
-   *   meta?: Record<string, unknown>
-   * }} event
-   */
+  /** @param {SecurityEventInput} event */
   async log({
     event_type,
     severity = "MEDIUM",
@@ -50,6 +69,10 @@ export const SecurityEventRepo = {
     );
   },
 
+  /**
+   * Writes through the privileged `app.security_event_log` function (no tenant context required).
+   * @param {SecurityEventInput} event
+   */
   async logPrivileged({
     event_type,
     severity = "MEDIUM",
@@ -76,6 +99,10 @@ export const SecurityEventRepo = {
     ]);
   },
 
+  /**
+   * @param {{ hours?: number }} [window]
+   * @returns {Promise<Array<{ event_type: string, count: number }>>}
+   */
   async countByEventType({ hours = 24 } = {}) {
     return many(
       `SELECT event_type, COUNT(*)::int AS count
@@ -87,6 +114,10 @@ export const SecurityEventRepo = {
     );
   },
 
+  /**
+   * Resolves to `SecurityEventRow[]`.
+   * @param {{ hours?: number, limit?: number }} [window]
+   */
   async listRecent({ hours = 24, limit = 30 } = {}) {
     return many(
       `SELECT id, event_type, severity, business_id, route, method, ip, actor_type, actor_id, meta, created_at

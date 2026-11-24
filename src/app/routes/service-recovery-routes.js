@@ -6,6 +6,13 @@ import { tenantContext } from "../../middleware/tenant.js";
 import { csrfProtect } from "../../middleware/csrf.js";
 import { asyncRoute } from "../../middleware/common.js";
 import * as services from "../services/service-recovery-service.js";
+
+/** @typedef {import("./_request-types.js").Request} Request */
+/** @typedef {import("./_request-types.js").Response} Response */
+/** @typedef {import("./_request-types.js").NextFunction} NextFunction */
+/** @typedef {import("./_request-types.js").TenantRequest} TenantRequest */
+/** @typedef {{ businessId: string, staff: TenantRequest["staff"] }} ServiceRecoveryActor */
+
 const uuid = z.guid().transform((value) => value.toLowerCase());
 const empty = z.object({}).strict();
 const query = z
@@ -46,16 +53,52 @@ const resolve = z
     fulfillmentRewardId: uuid.optional(),
   })
   .strict();
+
+/** @typedef {z.infer<typeof query>} ServiceCaseQuery */
+/** @typedef {z.infer<typeof report>} ServiceCaseReportBody */
+/** @typedef {z.infer<typeof resolve>} ServiceCaseResolveBody */
+/**
+ * Body of `POST :caseId/manage`, mirroring the schema declared inline in the
+ * handler so optionality follows zod's inference under either tsconfig.
+ * @typedef {z.infer<z.ZodObject<{
+ *   requestId: typeof uuid,
+ *   version: z.ZodNumber,
+ *   action: z.ZodEnum<{ assign: "assign", escalate: "escalate", extend_expiry: "extend_expiry" }>,
+ *   reason: z.ZodString,
+ *   assignedStaffId: z.ZodOptional<z.ZodNullable<typeof uuid>>,
+ *   promiseId: z.ZodOptional<typeof uuid>,
+ *   extendedUntil: z.ZodOptional<ReturnType<typeof dateTimeSchema>>
+ * }>>} ServiceCaseManageBody
+ */
+
+/**
+ * Services the router calls, by the input it hands them. Unit tests inject
+ * fakes, so results are forwarded opaquely (`res.json`).
+ * @typedef {{
+ *   listServiceCases: (input: ServiceRecoveryActor & ServiceCaseQuery) => Promise<unknown>,
+ *   createServiceCase: (input: ServiceRecoveryActor & ServiceCaseReportBody) => Promise<unknown>,
+ *   getServiceInsights: (input: ServiceRecoveryActor) => Promise<unknown>,
+ *   getServiceCase: (input: ServiceRecoveryActor & { caseId: string }) => Promise<unknown>,
+ *   resolveServiceCase: (input: ServiceRecoveryActor & ServiceCaseResolveBody & { caseId: string }) => Promise<unknown>,
+ *   manageServiceCase: (input: ServiceRecoveryActor & { caseId: string } & ServiceCaseManageBody) => Promise<unknown>,
+ *   listServiceRedemptions: (input: ServiceRecoveryActor & { customerId: string }) => Promise<unknown>
+ * }} ServiceRecoveryDeps
+ */
+
+/** @param {Response} res */
 const invalid = (res) =>
   res
     .status(400)
     .json({ error: "Revisa el caso y los datos de la solicitud.", code: "VALIDATION_ERROR" });
+/** @param {Partial<ServiceRecoveryDeps>} [deps] */
 export function createServiceRecoveryRoutes(deps = {}) {
   const router = Router(),
+    /** @type {ServiceRecoveryDeps} */
     s = { ...services, ...deps };
   for (const prefix of ["admin", "staff"]) {
     const base = `/${prefix}/service-cases`,
       auth = [
+        /** @param {Request} _req @param {Response} res @param {NextFunction} next */
         (_req, res, next) => {
           res.set("Cache-Control", "no-store");
           next();
@@ -65,86 +108,108 @@ export function createServiceRecoveryRoutes(deps = {}) {
         ...(prefix === "admin" ? [requireOwner] : []),
       ];
     router.use(base, ...auth);
+    /** @param {TenantRequest} req @returns {ServiceRecoveryActor} */
     const actor = (req) => ({ businessId: req.tenantId, staff: req.staff });
     router.get(
       base,
-      asyncRoute(async (req, res) => {
-        const parsed = query.safeParse(req.query);
-        if (!parsed.success) return invalid(res);
-        return res.json(await s.listServiceCases({ ...actor(req), ...parsed.data }));
-      }),
+      asyncRoute(
+        /** @param {TenantRequest} req @param {Response} res */
+        async (req, res) => {
+          const parsed = query.safeParse(req.query);
+          if (!parsed.success) return invalid(res);
+          return res.json(await s.listServiceCases({ ...actor(req), ...parsed.data }));
+        },
+      ),
     );
     router.post(
       base,
       csrfProtect,
-      asyncRoute(async (req, res) => {
-        const parsed = report.safeParse(req.body);
-        if (!parsed.success || !empty.safeParse(req.query).success) return invalid(res);
-        return res.json(await s.createServiceCase({ ...actor(req), ...parsed.data }));
-      }),
+      asyncRoute(
+        /** @param {TenantRequest} req @param {Response} res */
+        async (req, res) => {
+          const parsed = report.safeParse(req.body);
+          if (!parsed.success || !empty.safeParse(req.query).success) return invalid(res);
+          return res.json(await s.createServiceCase({ ...actor(req), ...parsed.data }));
+        },
+      ),
     );
     router.get(
       `${base}/insights`,
-      asyncRoute(async (req, res) => {
-        if (!empty.safeParse(req.query).success) return invalid(res);
-        return res.json(await s.getServiceInsights(actor(req)));
-      }),
+      asyncRoute(
+        /** @param {TenantRequest} req @param {Response} res */
+        async (req, res) => {
+          if (!empty.safeParse(req.query).success) return invalid(res);
+          return res.json(await s.getServiceInsights(actor(req)));
+        },
+      ),
     );
     router.get(
       `${base}/:caseId`,
-      asyncRoute(async (req, res) => {
-        const parsed = uuid.safeParse(req.params.caseId);
-        if (!parsed.success || !empty.safeParse(req.query).success) return invalid(res);
-        return res.json(await s.getServiceCase({ ...actor(req), caseId: parsed.data }));
-      }),
+      asyncRoute(
+        /** @param {TenantRequest} req @param {Response} res */
+        async (req, res) => {
+          const parsed = uuid.safeParse(req.params.caseId);
+          if (!parsed.success || !empty.safeParse(req.query).success) return invalid(res);
+          return res.json(await s.getServiceCase({ ...actor(req), caseId: parsed.data }));
+        },
+      ),
     );
     router.post(
       `${base}/:caseId/resolve`,
       csrfProtect,
-      asyncRoute(async (req, res) => {
-        const parsed = resolve.safeParse(req.body),
-          caseId = uuid.safeParse(req.params.caseId);
-        if (!parsed.success || !caseId.success || !empty.safeParse(req.query).success)
-          return invalid(res);
-        return res.json(
-          await s.resolveServiceCase({ ...actor(req), ...parsed.data, caseId: caseId.data }),
-        );
-      }),
+      asyncRoute(
+        /** @param {TenantRequest} req @param {Response} res */
+        async (req, res) => {
+          const parsed = resolve.safeParse(req.body),
+            caseId = uuid.safeParse(req.params.caseId);
+          if (!parsed.success || !caseId.success || !empty.safeParse(req.query).success)
+            return invalid(res);
+          return res.json(
+            await s.resolveServiceCase({ ...actor(req), ...parsed.data, caseId: caseId.data }),
+          );
+        },
+      ),
     );
     router.post(
       `${base}/:caseId/manage`,
       csrfProtect,
-      asyncRoute(async (req, res) => {
-        const body = z
-            .object({
-              requestId: uuid,
-              version: z.number().int().min(1).max(2147483646),
-              action: z.enum(["assign", "escalate", "extend_expiry"]),
-              reason: z.string().trim().min(3).max(500),
-              assignedStaffId: uuid.nullable().optional(),
-              promiseId: uuid.optional(),
-              extendedUntil: dateTimeSchema({ offset: true }).optional(),
-            })
-            .strict()
-            .safeParse(req.body),
-          id = uuid.safeParse(req.params.caseId);
-        if (!body.success || !id.success || !empty.safeParse(req.query).success)
-          return invalid(res);
-        return res.json(
-          await s.manageServiceCase({ ...actor(req), caseId: id.data, ...body.data }),
-        );
-      }),
+      asyncRoute(
+        /** @param {TenantRequest} req @param {Response} res */
+        async (req, res) => {
+          const body = z
+              .object({
+                requestId: uuid,
+                version: z.number().int().min(1).max(2147483646),
+                action: z.enum(["assign", "escalate", "extend_expiry"]),
+                reason: z.string().trim().min(3).max(500),
+                assignedStaffId: uuid.nullable().optional(),
+                promiseId: uuid.optional(),
+                extendedUntil: dateTimeSchema({ offset: true }).optional(),
+              })
+              .strict()
+              .safeParse(req.body),
+            id = uuid.safeParse(req.params.caseId);
+          if (!body.success || !id.success || !empty.safeParse(req.query).success)
+            return invalid(res);
+          return res.json(
+            await s.manageServiceCase({ ...actor(req), caseId: id.data, ...body.data }),
+          );
+        },
+      ),
     );
     router.get(
       `/${prefix}/service-redemptions`,
       ...auth,
-      asyncRoute(async (req, res) => {
-        const parsed = z.object({ customerId: uuid }).strict().safeParse(req.query);
-        if (!parsed.success) return invalid(res);
-        return res.json(
-          await s.listServiceRedemptions({ ...actor(req), customerId: parsed.data.customerId }),
-        );
-      }),
+      asyncRoute(
+        /** @param {TenantRequest} req @param {Response} res */
+        async (req, res) => {
+          const parsed = z.object({ customerId: uuid }).strict().safeParse(req.query);
+          if (!parsed.success) return invalid(res);
+          return res.json(
+            await s.listServiceRedemptions({ ...actor(req), customerId: parsed.data.customerId }),
+          );
+        },
+      ),
     );
   }
   return router;

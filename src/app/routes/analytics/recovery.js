@@ -11,9 +11,18 @@ import {
   updateRecoveryMember,
 } from "../../services/customer-recovery-service.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+
 export const analyticsRecoveryRoutes = Router();
 const base = "/admin/analytics/recovery";
 const uuid = z.guid().transform((value) => value.toLowerCase());
+/**
+ * Non-negative integer query parameter with bounds and a default.
+ * @param {number} minimum
+ * @param {number} maximum
+ * @param {number} fallback
+ */
 const integerQuery = (minimum, maximum, fallback) =>
   z
     .string()
@@ -54,6 +63,7 @@ const MemberBody = z
   .strict()
   .refine((value) => value.status !== "contacted" || value.contact_confirmed === true);
 
+/** @param {Response} res */
 function invalid(res) {
   return res
     .status(400)
@@ -65,86 +75,101 @@ analyticsRecoveryRoutes.use(base, requireOwner);
 
 analyticsRecoveryRoutes.get(
   `${base}/audience`,
-  asyncRoute(async (req, res) => {
-    const parsed = AudienceQuery.safeParse(req.query);
-    if (!parsed.success) return invalid(res);
-    return res.json(
-      await getRecoveryAudience({
-        businessId: req.tenantId,
-        inactiveDays: parsed.data.inactive_days,
-        limit: parsed.data.limit,
-        offset: parsed.data.offset,
-      }),
-    );
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const parsed = AudienceQuery.safeParse(req.query);
+      if (!parsed.success) return invalid(res);
+      return res.json(
+        await getRecoveryAudience({
+          businessId: req.tenantId,
+          inactiveDays: parsed.data.inactive_days,
+          limit: parsed.data.limit,
+          offset: parsed.data.offset,
+        }),
+      );
+    },
+  ),
 );
 
 analyticsRecoveryRoutes.get(
   `${base}/runs`,
-  asyncRoute(async (req, res) => {
-    if (!EmptyQuery.safeParse(req.query).success) return invalid(res);
-    return res.json(await listRecoveryRuns({ businessId: req.tenantId }));
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      if (!EmptyQuery.safeParse(req.query).success) return invalid(res);
+      return res.json(await listRecoveryRuns({ businessId: req.tenantId }));
+    },
+  ),
 );
 
 analyticsRecoveryRoutes.post(
   `${base}/runs`,
   csrfProtect,
-  asyncRoute(async (req, res) => {
-    const parsed = CreateBody.safeParse(req.body);
-    if (!parsed.success || !EmptyQuery.safeParse(req.query).success) return invalid(res);
-    return res.status(201).json(
-      await createRecoveryRun({
-        businessId: req.tenantId,
-        staffId: req.staff.id,
-        requestId: parsed.data.request_id,
-        name: parsed.data.name,
-        notes: parsed.data.notes,
-        inactiveDays: parsed.data.inactive_days,
-        limit: parsed.data.limit,
-        ip: req.ip,
-        ua: req.get("user-agent") || null,
-      }),
-    );
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const parsed = CreateBody.safeParse(req.body);
+      if (!parsed.success || !EmptyQuery.safeParse(req.query).success) return invalid(res);
+      return res.status(201).json(
+        await createRecoveryRun({
+          businessId: req.tenantId,
+          staffId: req.staff.id,
+          requestId: parsed.data.request_id,
+          name: parsed.data.name,
+          notes: parsed.data.notes,
+          inactiveDays: parsed.data.inactive_days,
+          limit: parsed.data.limit,
+          ip: req.ip,
+          ua: req.get("user-agent") || null,
+        }),
+      );
+    },
+  ),
 );
 
 analyticsRecoveryRoutes.get(
   `${base}/runs/:id`,
-  asyncRoute(async (req, res) => {
-    const params = RunParams.safeParse(req.params);
-    const query = DetailQuery.safeParse(req.query);
-    if (!params.success || !query.success) return invalid(res);
-    return res.json(
-      await getRecoveryRun({
-        businessId: req.tenantId,
-        runId: params.data.id,
-        limit: query.data.limit,
-        offset: query.data.offset,
-      }),
-    );
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const params = RunParams.safeParse(req.params);
+      const query = DetailQuery.safeParse(req.query);
+      if (!params.success || !query.success) return invalid(res);
+      return res.json(
+        await getRecoveryRun({
+          businessId: req.tenantId,
+          runId: params.data.id,
+          limit: query.data.limit,
+          offset: query.data.offset,
+        }),
+      );
+    },
+  ),
 );
 
 analyticsRecoveryRoutes.patch(
   `${base}/runs/:id/members/:customerId`,
   csrfProtect,
-  asyncRoute(async (req, res) => {
-    const params = MemberParams.safeParse(req.params);
-    const body = MemberBody.safeParse(req.body);
-    if (!params.success || !body.success || !EmptyQuery.safeParse(req.query).success)
-      return invalid(res);
-    return res.json(
-      await updateRecoveryMember({
-        businessId: req.tenantId,
-        staffId: req.staff.id,
-        runId: params.data.id,
-        customerId: params.data.customerId,
-        status: body.data.status,
-        contactConfirmed: body.data.contact_confirmed,
-        ip: req.ip,
-        ua: req.get("user-agent") || null,
-      }),
-    );
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const params = MemberParams.safeParse(req.params);
+      const body = MemberBody.safeParse(req.body);
+      if (!params.success || !body.success || !EmptyQuery.safeParse(req.query).success)
+        return invalid(res);
+      return res.json(
+        await updateRecoveryMember({
+          businessId: req.tenantId,
+          staffId: req.staff.id,
+          runId: params.data.id,
+          customerId: params.data.customerId,
+          status: body.data.status,
+          contactConfirmed: body.data.contact_confirmed,
+          ip: req.ip,
+          ua: req.get("user-agent") || null,
+        }),
+      );
+    },
+  ),
 );

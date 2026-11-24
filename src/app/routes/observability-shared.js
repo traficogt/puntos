@@ -16,6 +16,7 @@ function buildTimestamp() {
   return config.BUILD_TIMESTAMP;
 }
 
+/** @param {import("./_request-types.js").Request} req */
 export function hasValidMetricsToken(req) {
   const configured = String(config.METRICS_TOKEN || "").trim();
   if (!configured) return false;
@@ -26,6 +27,12 @@ export function hasValidMetricsToken(req) {
   return timingSafeEqualString(bearer, configured) || timingSafeEqualString(header, configured);
 }
 
+/**
+ * Standard "unavailable" probe payload: the caller's fields plus the error marker.
+ * @template {object} T
+ * @param {T} baseBody
+ * @returns {T & { error: string, timestamp: string }}
+ */
 export function buildProbeErrorBody(baseBody) {
   return {
     ...baseBody,
@@ -34,13 +41,19 @@ export function buildProbeErrorBody(baseBody) {
   };
 }
 
+/**
+ * Caches one metrics section (Prometheus text lines) for `ttlMs`, sharing a
+ * single in-flight load between concurrent scrapes.
+ * @param {() => Promise<string[]> | string[]} load
+ * @param {{ ttlMs?: number, now?: () => number }} [options]
+ */
 export function createCachedMetricSection(
   load,
   { ttlMs = DEFAULT_METRICS_CACHE_TTL_MS, now = Date.now } = {},
 ) {
-  /** @type {{ ts: number, lines: any[] } | null} */
+  /** @type {{ ts: number, lines: string[] } | null} */
   let cache = null;
-  /** @type {Promise<any[]> | null} */
+  /** @type {Promise<string[]> | null} */
   let inFlight = null;
 
   return async function getCachedMetricSection() {
@@ -88,6 +101,7 @@ export async function checkDatabaseStatus() {
   return { checks, healthy };
 }
 
+/** @param {string[]} metrics Prometheus text lines, appended in place */
 export async function appendSharedMetrics(metrics) {
   const dbStats = await dbQuery(`
     SELECT
@@ -127,6 +141,7 @@ export async function appendSharedMetrics(metrics) {
     WHERE created_at > now() - interval '24 hours'
     GROUP BY status
   `);
+  /** @type {Record<string, number>} */
   const webhookCounts = { PENDING: 0, SENT: 0, FAILED: 0 };
   for (const row of webhookStats.rows) {
     webhookCounts[row.status] = parseInt(row.count, 10);
@@ -145,6 +160,7 @@ export async function appendSharedMetrics(metrics) {
     WHERE created_at > now() - interval '24 hours'
     GROUP BY status
   `);
+  /** @type {Record<string, number>} */
   const paymentWebhookCounts = {
     APPLIED: 0,
     FAILED: 0,
@@ -305,6 +321,7 @@ export async function appendSharedMetrics(metrics) {
   );
 }
 
+/** @param {string[]} metrics Prometheus text lines, appended in place */
 export function appendProcessMetrics(metrics) {
   const info = serviceInfo();
   const memUsage = process.memoryUsage();
@@ -323,6 +340,7 @@ export function appendProcessMetrics(metrics) {
   );
 }
 
+/** @param {string[]} metrics Prometheus text lines, appended in place */
 export async function appendBillingMetrics(metrics) {
   const billingAgg = await dbQuery(`
     SELECT event_type, count(*) AS count
@@ -331,6 +349,7 @@ export async function appendBillingMetrics(metrics) {
       AND event_type IN ('message.sent','message.failed','webhook.sent','webhook.failed')
     GROUP BY event_type
   `);
+  /** @type {Record<string, number>} */
   const billingMap = {
     "message.sent": 0,
     "message.failed": 0,
@@ -347,12 +366,14 @@ export async function appendBillingMetrics(metrics) {
   }
 }
 
+/** @param {string[]} metrics Prometheus text lines, appended in place */
 export async function appendBackgroundJobMetrics(metrics) {
   const jobCounts = await dbQuery(`
     SELECT status, count(*) AS count
     FROM background_jobs
     GROUP BY status
   `);
+  /** @type {Record<string, number>} */
   const jobCountMap = { QUEUED: 0, RUNNING: 0, DONE: 0, FAILED: 0 };
   for (const row of jobCounts.rows) {
     jobCountMap[row.status] = Number(row.count);

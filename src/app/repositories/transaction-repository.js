@@ -1,7 +1,73 @@
 import { one, many, exec } from "./base.js";
 import { publicCustomerTransaction } from "../services/customer-history-provenance.js";
 
+/**
+ * Row of `transactions`. `amount_q` is NUMERIC and arrives as a string.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   branch_id: string | null,
+ *   customer_id: string,
+ *   staff_user_id: string | null,
+ *   type: string | null,
+ *   amount_q: string,
+ *   points: number,
+ *   status: string,
+ *   available_at: Date | null,
+ *   expired_at: Date | null,
+ *   original_transaction_id: string | null,
+ *   reversed_transaction_id: string | null,
+ *   request_id: string | null,
+ *   reversal_reason: string | null,
+ *   source: string,
+ *   meta: Record<string, unknown>,
+ *   visits: number,
+ *   items: number,
+ *   purchase_occurred_at: Date | null,
+ *   purchase_time_source: string | null,
+ *   created_at: Date
+ * }} TransactionRow
+ */
+
+/**
+ * Customer-facing projection returned by {@link TxnRepo.listByCustomer}.
+ * @typedef {Pick<TransactionRow,
+ *   | "id" | "business_id" | "branch_id" | "customer_id" | "staff_user_id" | "amount_q"
+ *   | "source" | "meta" | "created_at">
+ *   & { points_delta: number, reward_name: string | null }} CustomerTransactionRow
+ */
+
+/**
+ * Provenance-aware history projection fed to `publicCustomerTransaction`.
+ * @typedef {Pick<TransactionRow,
+ *   | "id" | "business_id" | "branch_id" | "customer_id" | "amount_q" | "source" | "type"
+ *   | "status" | "reversed_transaction_id" | "visits" | "items" | "meta" | "created_at">
+ *   & { points_delta: number, reward_name: string | null, has_original_transaction: boolean }} TransactionHistoryRow
+ */
+
+/**
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   branch_id?: string | null,
+ *   customer_id: string,
+ *   staff_user_id?: string | null,
+ *   amount_q: number | string,
+ *   points: number,
+ *   source: string,
+ *   meta?: Record<string, unknown> | null
+ * }} TransactionCreateInput
+ */
+
+/**
+ * @typedef {{ tx_count: number, amount_sum: string, points_sum: number }} TransactionSummary
+ */
+
 export const TxnRepo = {
+  /**
+   * Resolves to `TransactionRow | null`.
+   * @param {TransactionCreateInput} transaction
+   */
   async create({
     id,
     business_id,
@@ -31,10 +97,19 @@ export const TxnRepo = {
     return this.getById(id);
   },
 
+  /**
+   * Resolves to `TransactionRow | null`.
+   * @param {string} id
+   */
   async getById(id) {
     return one(`SELECT * FROM transactions WHERE id=$1`, [id]);
   },
 
+  /**
+   * Resolves to `CustomerTransactionRow[]`.
+   * @param {string} customerId
+   * @param {number} [limit]
+   */
   async listByCustomer(customerId, limit = 50) {
     return many(
       `SELECT
@@ -63,7 +138,13 @@ export const TxnRepo = {
     );
   },
 
+  /**
+   * @param {string} businessId
+   * @param {string} customerId
+   * @param {number} [limit]
+   */
   async listCustomerHistory(businessId, customerId, limit = 50) {
+    /** @type {TransactionHistoryRow[]} */
     const rows = await many(
       `SELECT t.id,t.business_id,t.branch_id,t.customer_id,
       t.amount_q,t.points AS points_delta,t.source,t.type,t.status,t.reversed_transaction_id,
@@ -78,7 +159,12 @@ export const TxnRepo = {
     return rows.map(publicCustomerTransaction);
   },
 
-  /** @param {string} businessId @param {number} [days] @param {string | null} [branchId] */
+  /**
+   * Resolves to `TransactionSummary`.
+   * @param {string} businessId
+   * @param {number} [days]
+   * @param {string | null} [branchId]
+   */
   async summaryByBusiness(businessId, days = 30, branchId = null) {
     const params = [businessId, String(days)];
     let branchClause = "";

@@ -13,6 +13,10 @@ import {
   sourceInputSchema,
 } from "../../services/acquisition-service.js";
 
+/** @typedef {import("../_request-types.js").Request} Request */
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").NextFunction} NextFunction */
+
 /** @param {{staffAuth?: import("express").RequestHandler, getBusiness?: (id: string) => Promise<any>, getPlanFeatureOverrides?: () => Promise<any>, service?: Pick<typeof AcquisitionService,"listSources"|"report"|"createSource">, appOrigin?: string}} [deps] */
 export function createAdminAcquisitionRoutes({
   staffAuth = requireStaff,
@@ -23,6 +27,7 @@ export function createAdminAcquisitionRoutes({
 } = {}) {
   const router = Router();
   const guards = [
+    /** @param {Request} _req @param {Response} res @param {NextFunction} next */
     (_req, res, next) => {
       res.set("Cache-Control", "private, no-store");
       next();
@@ -31,6 +36,12 @@ export function createAdminAcquisitionRoutes({
     requireOwner,
     tenantContext,
   ];
+  /**
+   * Loads the session's business and enforces the analytics plan gate; writes
+   * the error response and returns null when the request may not proceed.
+   * @param {Request} req
+   * @param {Response} res
+   */
   async function context(req, res) {
     if (!req.tenantId) {
       res.status(401).json({ error: "Contexto de negocio requerido" });
@@ -63,38 +74,47 @@ export function createAdminAcquisitionRoutes({
   router.get(
     "/admin/acquisition",
     ...guards,
-    asyncRoute(async (req, res) => {
-      const business = await context(req, res);
-      if (business) res.json(await service.report(business, appOrigin));
-    }),
+    asyncRoute(
+      /** @param {Request} req @param {Response} res */
+      async (req, res) => {
+        const business = await context(req, res);
+        if (business) res.json(await service.report(business, appOrigin));
+      },
+    ),
   );
   router.get(
     "/admin/acquisition/sources",
     ...guards,
-    asyncRoute(async (req, res) => {
-      const business = await context(req, res);
-      if (business) res.json(await service.listSources(business, appOrigin));
-    }),
+    asyncRoute(
+      /** @param {Request} req @param {Response} res */
+      async (req, res) => {
+        const business = await context(req, res);
+        if (business) res.json(await service.listSources(business, appOrigin));
+      },
+    ),
   );
   router.post(
     "/admin/acquisition/sources",
     ...guards,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const business = await context(req, res);
-      if (!business) return;
-      const parsed = sourceInputSchema.safeParse(req.body);
-      if (!req.is("application/json") || !parsed.success)
-        return res.status(400).json({ error: "Revisa el nombre y la sucursal del origen." });
-      const source = await service.createSource(business, parsed.data);
-      return res.status(201).json({
-        ok: true,
-        source: {
-          ...source,
-          registration_url: acquisitionSourceUrl(business, appOrigin, source),
-        },
-      });
-    }),
+    asyncRoute(
+      /** @param {Request} req @param {Response} res @returns {Promise<void | Response>} */
+      async (req, res) => {
+        const business = await context(req, res);
+        if (!business) return;
+        const parsed = sourceInputSchema.safeParse(req.body);
+        if (!req.is("application/json") || !parsed.success)
+          return res.status(400).json({ error: "Revisa el nombre y la sucursal del origen." });
+        const source = await service.createSource(business, parsed.data);
+        return res.status(201).json({
+          ok: true,
+          source: {
+            ...source,
+            registration_url: acquisitionSourceUrl(business, appOrigin, source),
+          },
+        });
+      },
+    ),
   );
   return router;
 }

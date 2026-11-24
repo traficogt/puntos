@@ -12,6 +12,10 @@ import { validateWebhookUrl } from "../../../utils/webhook-url.js";
 import { makeId, maskSecret } from "./_util.js";
 import { errorMessage } from "../../../utils/error-shape.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+/** @typedef {import("../../repositories/webhook-repository.js").WebhookEndpointRow} WebhookEndpointRow */
+
 export const adminWebhookRoutes = Router();
 
 export const WebhookSchema = z.object({
@@ -26,16 +30,20 @@ adminWebhookRoutes.get(
   requireOwner,
   tenantContext,
   requirePlanFeature("webhooks"),
-  asyncRoute(async (req, res) => {
-    const endpoints = await WebhookRepo.listEndpoints(req.tenantId);
-    const safeEndpoints = endpoints.map((ep) => ({
-      ...ep,
-      secret: undefined,
-      secret_masked: maskSecret(ep.secret),
-      has_secret: Boolean(ep.secret),
-    }));
-    return res.json({ ok: true, endpoints: safeEndpoints });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      /** @type {WebhookEndpointRow[]} */
+      const endpoints = await WebhookRepo.listEndpoints(req.tenantId);
+      const safeEndpoints = endpoints.map((ep) => ({
+        ...ep,
+        secret: undefined,
+        secret_masked: maskSecret(ep.secret),
+        has_secret: Boolean(ep.secret),
+      }));
+      return res.json({ ok: true, endpoints: safeEndpoints });
+    },
+  ),
 );
 
 adminWebhookRoutes.post(
@@ -45,36 +53,39 @@ adminWebhookRoutes.post(
   tenantContext,
   csrfProtect,
   requirePlanFeature("webhooks"),
-  asyncRoute(async (req, res) => {
-    const v = validate(WebhookSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const v = validate(WebhookSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
 
-    try {
-      await validateWebhookUrl(v.data.url, {
-        requireHttps: config.WEBHOOK_REQUIRE_HTTPS,
-        allowlist: config.WEBHOOK_ALLOWLIST,
+      try {
+        await validateWebhookUrl(v.data.url, {
+          requireHttps: config.WEBHOOK_REQUIRE_HTTPS,
+          allowlist: config.WEBHOOK_ALLOWLIST,
+        });
+      } catch (e) {
+        return res.status(400).json({ error: errorMessage(e) ?? "Invalid webhook URL" });
+      }
+
+      const ep = await WebhookRepo.createEndpoint({
+        id: makeId(),
+        business_id: req.tenantId,
+        url: v.data.url,
+        secret: v.data.secret,
+        events: v.data.events,
+        active: true,
       });
-    } catch (e) {
-      return res.status(400).json({ error: errorMessage(e) ?? "Invalid webhook URL" });
-    }
 
-    const ep = await WebhookRepo.createEndpoint({
-      id: makeId(),
-      business_id: req.tenantId,
-      url: v.data.url,
-      secret: v.data.secret,
-      events: v.data.events,
-      active: true,
-    });
-
-    return res.json({
-      ok: true,
-      endpoint: {
-        ...ep,
-        secret: undefined,
-        secret_masked: maskSecret(ep.secret),
-        has_secret: Boolean(ep.secret),
-      },
-    });
-  }),
+      return res.json({
+        ok: true,
+        endpoint: {
+          ...ep,
+          secret: undefined,
+          secret_masked: maskSecret(ep.secret),
+          has_secret: Boolean(ep.secret),
+        },
+      });
+    },
+  ),
 );

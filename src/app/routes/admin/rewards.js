@@ -19,6 +19,14 @@ import {
 import { makeId } from "./_util.js";
 import { errorMessage } from "../../../utils/error-shape.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+/**
+ * @template P
+ * @typedef {import("../_request-types.js").WithValidatedParams<P>} WithValidatedParams
+ */
+/** @typedef {import("zod").infer<typeof uuidParamsSchema>} UuidParams */
+
 export const adminRewardsRoutes = Router();
 
 /** @param {{ businessId: string, branchIds?: string[] }} params */
@@ -41,10 +49,13 @@ adminRewardsRoutes.get(
   requireOwner,
   tenantContext,
   requirePlanFeature("rewards"),
-  asyncRoute(async (req, res) => {
-    const rewards = await RewardRepo.listByBusiness(req.tenantId);
-    return res.json({ ok: true, rewards });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const rewards = await RewardRepo.listByBusiness(req.tenantId);
+      return res.json({ ok: true, rewards });
+    },
+  ),
 );
 
 adminRewardsRoutes.post(
@@ -55,41 +66,44 @@ adminRewardsRoutes.post(
   csrfProtect,
   rateLimitByUser(100, 60_000),
   requirePlanFeature("rewards"),
-  asyncRoute(async (req, res) => {
-    const v = validate(rewardCreateSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const v = validate(rewardCreateSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
 
-    let scopedBranchIds = [];
-    try {
-      scopedBranchIds = await validateRewardBranchScope({
-        businessId: req.tenantId,
-        branchIds: v.data.branch_ids ?? [],
+      let scopedBranchIds = [];
+      try {
+        scopedBranchIds = await validateRewardBranchScope({
+          businessId: req.tenantId,
+          branchIds: v.data.branch_ids ?? [],
+        });
+      } catch (e) {
+        return res
+          .status(400)
+          .json({ error: errorMessage(e) || "Sucursales inválidas para la recompensa" });
+      }
+
+      const business = await BusinessRepo.getById(req.tenantId);
+      const limits = planLimits(business.plan);
+      const count = await BusinessRepo.countRewards(req.tenantId);
+      if (count >= limits.rewards)
+        return res.status(403).json({ error: "Tu plan no permite más recompensas" });
+
+      const reward = await RewardRepo.create({
+        id: makeId(),
+        business_id: req.tenantId,
+        name: v.data.name,
+        description: v.data.description ?? null,
+        points_cost: v.data.points_cost,
+        active: v.data.active ?? true,
+        stock: v.data.stock ?? null,
+        valid_until: v.data.valid_until ? new Date(v.data.valid_until) : null,
+        branch_ids: scopedBranchIds,
       });
-    } catch (e) {
-      return res
-        .status(400)
-        .json({ error: errorMessage(e) || "Sucursales inválidas para la recompensa" });
-    }
-
-    const business = await BusinessRepo.getById(req.tenantId);
-    const limits = planLimits(business.plan);
-    const count = await BusinessRepo.countRewards(req.tenantId);
-    if (count >= limits.rewards)
-      return res.status(403).json({ error: "Tu plan no permite más recompensas" });
-
-    const reward = await RewardRepo.create({
-      id: makeId(),
-      business_id: req.tenantId,
-      name: v.data.name,
-      description: v.data.description ?? null,
-      points_cost: v.data.points_cost,
-      active: v.data.active ?? true,
-      stock: v.data.stock ?? null,
-      valid_until: v.data.valid_until ? new Date(v.data.valid_until) : null,
-      branch_ids: scopedBranchIds,
-    });
-    return res.json({ ok: true, reward });
-  }),
+      return res.json({ ok: true, reward });
+    },
+  ),
 );
 
 adminRewardsRoutes.patch(
@@ -101,35 +115,38 @@ adminRewardsRoutes.patch(
   rateLimitByUser(100, 60_000),
   requirePlanFeature("rewards"),
   validateParams(uuidParamsSchema),
-  asyncRoute(async (req, res) => {
-    const v = validate(rewardUpdateSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedParams<UuidParams>} req @param {Response} res */
+    async (req, res) => {
+      const v = validate(rewardUpdateSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
 
-    const patch = { ...v.data };
+      const patch = { ...v.data };
 
-    let scopedBranchIds;
-    if (Object.prototype.hasOwnProperty.call(patch, "branch_ids")) {
-      try {
-        scopedBranchIds = await validateRewardBranchScope({
-          businessId: req.tenantId,
-          branchIds: patch.branch_ids ?? [],
-        });
-      } catch (e) {
-        return res
-          .status(400)
-          .json({ error: errorMessage(e) || "Sucursales inválidas para la recompensa" });
+      let scopedBranchIds;
+      if (Object.prototype.hasOwnProperty.call(patch, "branch_ids")) {
+        try {
+          scopedBranchIds = await validateRewardBranchScope({
+            businessId: req.tenantId,
+            branchIds: patch.branch_ids ?? [],
+          });
+        } catch (e) {
+          return res
+            .status(400)
+            .json({ error: errorMessage(e) || "Sucursales inválidas para la recompensa" });
+        }
+        delete patch.branch_ids;
       }
-      delete patch.branch_ids;
-    }
 
-    const reward = await RewardRepo.getById(req.validatedParams.id);
-    if (!reward || reward.business_id !== req.tenantId)
-      return res.status(404).json({ error: "No encontrado" });
+      const reward = await RewardRepo.getById(req.validatedParams.id);
+      if (!reward || reward.business_id !== req.tenantId)
+        return res.status(404).json({ error: "No encontrado" });
 
-    if (scopedBranchIds !== undefined) {
-      await RewardRepo.setBranches(req.validatedParams.id, scopedBranchIds);
-    }
-    const updated = await RewardRepo.update(req.validatedParams.id, patch);
-    return res.json({ ok: true, reward: updated });
-  }),
+      if (scopedBranchIds !== undefined) {
+        await RewardRepo.setBranches(req.validatedParams.id, scopedBranchIds);
+      }
+      const updated = await RewardRepo.update(req.validatedParams.id, patch);
+      return res.json({ ok: true, reward: updated });
+    },
+  ),
 );

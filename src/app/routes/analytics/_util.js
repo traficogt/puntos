@@ -1,5 +1,12 @@
 import { BranchRepo } from "../../repositories/branch-repository.js";
 
+/**
+ * Reads the optional `branch_id` filter (validated query first, raw query as a
+ * fallback) and checks that the branch belongs to the tenant. Returns the id,
+ * `null` when absent, or `"__invalid__"` after writing the 400 response.
+ * @param {import("../_request-types.js").Request & { validatedQuery?: { branch_id?: unknown } }} req
+ * @param {import("../_request-types.js").Response} res
+ */
 export async function resolveBranchFilter(req, res) {
   const branchId = req.validatedQuery?.branch_id
     ? String(req.validatedQuery.branch_id)

@@ -16,16 +16,31 @@ import {
   queueCampaignMessages,
 } from "../services/campaign-message-service.js";
 
+/** @typedef {import("./_request-types.js").Request} Request */
+/** @typedef {import("./_request-types.js").Response} Response */
+/** @typedef {import("./_request-types.js").NextFunction} NextFunction */
+/**
+ * @template [P=import("./_request-types.js").ParamsDictionary]
+ * @typedef {import("./_request-types.js").TenantRequest<P>} TenantRequest
+ */
+/**
+ * @template P
+ * @typedef {import("./_request-types.js").ParamsRequest<P>} ParamsRequest
+ */
+/** @typedef {import("./_request-types.js").WithAuthSession} WithAuthSession */
+
 const Preference = z.object({ marketing_opt_in: z.boolean() }).strict();
 const Confirm = z.object({ confirm: z.literal(true) }).strict();
 const Queue = Confirm.extend({ request_id: z.guid() }).strict();
 const Empty = z.object({}).strict();
 const Id = z.guid();
+/** @param {Response} res */
 function invalid(res) {
   return res
     .status(400)
     .json({ error: "Revisa los datos de la solicitud.", code: "VALIDATION_ERROR" });
 }
+/** @param {Request} _req @param {Response} res @param {NextFunction} next */
 function noStore(_req, res, next) {
   res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
   next();
@@ -42,54 +57,68 @@ export function createGrowthMessagingRoutes({
   router.get(
     "/customer/marketing-preferences",
     ...customer,
-    asyncRoute(async (req, res) => {
-      if (!Empty.safeParse(req.query).success) return invalid(res);
-      return res.json(
-        await getPreference({
-          businessId: req.customerAuth.business_id,
-          customerId: req.customerAuth.id,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res */
+      async (req, res) => {
+        if (!Empty.safeParse(req.query).success) return invalid(res);
+        return res.json(
+          await getPreference({
+            businessId: req.customerAuth.business_id,
+            customerId: req.customerAuth.id,
+          }),
+        );
+      },
+    ),
   );
   router.put(
     "/customer/marketing-preferences",
     ...customer,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const parsed = Preference.safeParse(req.body);
-      if (!parsed.success || !Empty.safeParse(req.query).success) return invalid(res);
-      if (req.authSession?.impersonated_by)
-        return res.status(403).json({ error: "Confirma esta preferencia desde tu propia sesión." });
-      return res.json(
-        await setPreference({
-          businessId: req.customerAuth.business_id,
-          customerId: req.customerAuth.id,
-          marketing_opt_in: parsed.data.marketing_opt_in,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest & WithAuthSession} req @param {Response} res */
+      async (req, res) => {
+        const parsed = Preference.safeParse(req.body);
+        if (!parsed.success || !Empty.safeParse(req.query).success) return invalid(res);
+        if (req.authSession?.impersonated_by)
+          return res
+            .status(403)
+            .json({ error: "Confirma esta preferencia desde tu propia sesión." });
+        return res.json(
+          await setPreference({
+            businessId: req.customerAuth.business_id,
+            customerId: req.customerAuth.id,
+            marketing_opt_in: parsed.data.marketing_opt_in,
+          }),
+        );
+      },
+    ),
   );
   const publicLimit = rateLimitByIp(30, 60000, { keyPrefix: "marketing-unsubscribe:" });
   router.get(
     "/public/marketing-unsubscribe/:token",
     noStore,
     publicLimit,
-    asyncRoute(async (req, res) => {
-      if (!Empty.safeParse(req.query).success) return invalid(res);
-      return res.json(await tokenPreference({ token: req.params.token }));
-    }),
+    asyncRoute(
+      /** @param {ParamsRequest<{ token: string }>} req @param {Response} res */
+      async (req, res) => {
+        if (!Empty.safeParse(req.query).success) return invalid(res);
+        return res.json(await tokenPreference({ token: req.params.token }));
+      },
+    ),
   );
   router.post(
     "/public/marketing-unsubscribe/:token",
     noStore,
     publicLimit,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      if (!Confirm.safeParse(req.body).success || !Empty.safeParse(req.query).success)
-        return invalid(res);
-      return res.json(await tokenPreference({ token: req.params.token, confirm: true }));
-    }),
+    asyncRoute(
+      /** @param {ParamsRequest<{ token: string }>} req @param {Response} res */
+      async (req, res) => {
+        if (!Confirm.safeParse(req.body).success || !Empty.safeParse(req.query).success)
+          return invalid(res);
+        return res.json(await tokenPreference({ token: req.params.token, confirm: true }));
+      },
+    ),
   );
   const owner = [
     noStore,
@@ -104,32 +133,38 @@ export function createGrowthMessagingRoutes({
   router.get(
     "/admin/growth-campaigns/:id/messages",
     ...owner,
-    asyncRoute(async (req, res) => {
-      if (!Id.safeParse(req.params.id).success || !Empty.safeParse(req.query).success)
-        return invalid(res);
-      return res.json(await getMessages({ businessId: req.tenantId, campaignId: req.params.id }));
-    }),
+    asyncRoute(
+      /** @param {TenantRequest<{ id: string }>} req @param {Response} res */
+      async (req, res) => {
+        if (!Id.safeParse(req.params.id).success || !Empty.safeParse(req.query).success)
+          return invalid(res);
+        return res.json(await getMessages({ businessId: req.tenantId, campaignId: req.params.id }));
+      },
+    ),
   );
   router.post(
     "/admin/growth-campaigns/:id/messages/queue",
     ...owner,
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const parsed = Queue.safeParse(req.body);
-      if (
-        !Id.safeParse(req.params.id).success ||
-        !parsed.success ||
-        !Empty.safeParse(req.query).success
-      )
-        return invalid(res);
-      return res.json(
-        await queueMessages({
-          businessId: req.tenantId,
-          campaignId: req.params.id,
-          request_id: parsed.data.request_id,
-        }),
-      );
-    }),
+    asyncRoute(
+      /** @param {TenantRequest<{ id: string }>} req @param {Response} res */
+      async (req, res) => {
+        const parsed = Queue.safeParse(req.body);
+        if (
+          !Id.safeParse(req.params.id).success ||
+          !parsed.success ||
+          !Empty.safeParse(req.query).success
+        )
+          return invalid(res);
+        return res.json(
+          await queueMessages({
+            businessId: req.tenantId,
+            campaignId: req.params.id,
+            request_id: parsed.data.request_id,
+          }),
+        );
+      },
+    ),
   );
   return router;
 }

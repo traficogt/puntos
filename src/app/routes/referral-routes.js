@@ -9,6 +9,15 @@ import { validate } from "../../utils/validation.js";
 import { validateQuery } from "../../utils/schemas.js";
 import { tenantContext } from "../../middleware/tenant.js";
 
+/** @typedef {import("./_request-types.js").Request} Request */
+/** @typedef {import("./_request-types.js").Response} Response */
+/** @typedef {import("./_request-types.js").TenantRequest} TenantRequest */
+/** @typedef {Promise<Response | void>} HandlerResult early `return res...` or fall-through */
+/**
+ * @template Q
+ * @typedef {import("./_request-types.js").WithValidatedQuery<Q>} WithValidatedQuery
+ */
+
 const router = Router();
 
 const ReferralSettingsSchema = z.object({
@@ -20,15 +29,24 @@ const ReferralSettingsSchema = z.object({
   custom_message: z.string().max(500).optional().nullable(),
 });
 
+const ReferralLeaderboardQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+});
+
+/** @typedef {z.infer<typeof ReferralLeaderboardQuerySchema>} ReferralLeaderboardQuery */
+
 router.get(
   "/customer/referral-code",
   requireCustomer,
   requirePlanFeature("referrals"),
-  asyncRoute(async (req, res) => {
-    const customerId = req.customerAuth.id;
-    const code = await ReferralService.getCustomerReferralCode(customerId);
-    res.json({ ok: true, referral_code: code });
-  }),
+  asyncRoute(
+    /** @param {Request} req @param {Response} res */
+    async (req, res) => {
+      const customerId = req.customerAuth.id;
+      const code = await ReferralService.getCustomerReferralCode(customerId);
+      res.json({ ok: true, referral_code: code });
+    },
+  ),
 );
 
 router.get(
@@ -36,11 +54,14 @@ router.get(
   requireCustomer,
   tenantContext,
   requirePlanFeature("referrals"),
-  asyncRoute(async (req, res) => {
-    const customerId = req.customerAuth.id;
-    const stats = await ReferralService.getCustomerReferralStats(customerId);
-    res.json({ ok: true, ...stats });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const customerId = req.customerAuth.id;
+      const stats = await ReferralService.getCustomerReferralStats(customerId);
+      res.json({ ok: true, ...stats });
+    },
+  ),
 );
 
 router.get(
@@ -49,10 +70,13 @@ router.get(
   requireOwner,
   tenantContext,
   requirePlanFeature("referrals"),
-  asyncRoute(async (req, res) => {
-    const settings = await ReferralService.getSettings(req.tenantId);
-    res.json({ ok: true, settings });
-  }),
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res */
+    async (req, res) => {
+      const settings = await ReferralService.getSettings(req.tenantId);
+      res.json({ ok: true, settings });
+    },
+  ),
 );
 
 router.put(
@@ -62,22 +86,25 @@ router.put(
   requireOwner,
   tenantContext,
   requirePlanFeature("referrals"),
-  asyncRoute(async (req, res) => {
-    const v = validate(ReferralSettingsSchema, req.body);
-    if (!v.ok) return res.status(400).json({ error: v.error });
-    const settingsData = {
-      enabled: v.data.enabled,
-      referrer_reward_points: v.data.referrer_reward_points,
-      referred_reward_points: v.data.referred_reward_points,
-      min_purchase_to_complete: v.data.min_purchase_to_complete,
-      reward_on_signup: v.data.reward_on_signup,
-      custom_message: v.data.custom_message,
-    };
+  asyncRoute(
+    /** @param {TenantRequest} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const v = validate(ReferralSettingsSchema, req.body);
+      if (!v.ok) return res.status(400).json({ error: v.error });
+      const settingsData = {
+        enabled: v.data.enabled,
+        referrer_reward_points: v.data.referrer_reward_points,
+        referred_reward_points: v.data.referred_reward_points,
+        min_purchase_to_complete: v.data.min_purchase_to_complete,
+        reward_on_signup: v.data.reward_on_signup,
+        custom_message: v.data.custom_message,
+      };
 
-    const settings = await ReferralService.updateSettings(req.tenantId, settingsData);
+      const settings = await ReferralService.updateSettings(req.tenantId, settingsData);
 
-    res.json({ ok: true, settings });
-  }),
+      res.json({ ok: true, settings });
+    },
+  ),
 );
 
 router.get(
@@ -85,16 +112,15 @@ router.get(
   requireStaff,
   tenantContext,
   requirePlanFeature("referrals"),
-  validateQuery(
-    z.object({
-      limit: z.coerce.number().int().min(1).max(100).default(10),
-    }),
+  validateQuery(ReferralLeaderboardQuerySchema),
+  asyncRoute(
+    /** @param {TenantRequest & WithValidatedQuery<ReferralLeaderboardQuery>} req @param {Response} res */
+    async (req, res) => {
+      const { limit } = req.validatedQuery;
+      const leaderboard = await ReferralService.getLeaderboard(req.tenantId, limit);
+      res.json({ ok: true, leaderboard });
+    },
   ),
-  asyncRoute(async (req, res) => {
-    const { limit } = req.validatedQuery;
-    const leaderboard = await ReferralService.getLeaderboard(req.tenantId, limit);
-    res.json({ ok: true, leaderboard });
-  }),
 );
 
 export default router;

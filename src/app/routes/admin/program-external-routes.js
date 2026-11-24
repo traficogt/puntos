@@ -7,6 +7,10 @@ import { validate } from "../../../utils/validation.js";
 import { BusinessRepo } from "../../repositories/business-repository.js";
 import { ExternalAwardsSchema, formatExternalAwards, getBusinessOr404 } from "./program-support.js";
 
+/** @typedef {import("../_request-types.js").Response} Response */
+/** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
+
+/** @param {import("express").Router} router */
 export function registerProgramExternalRoutes(router) {
   router.get(
     "/admin/external-awards",
@@ -14,11 +18,17 @@ export function registerProgramExternalRoutes(router) {
     requireOwner,
     tenantContext,
     requirePlanFeature("external_awards"),
-    asyncRoute(async (req, res) => {
-      const business = await getBusinessOr404(res, req.tenantId);
-      if (!business) return;
-      return res.json({ ok: true, external_awards: formatExternalAwards(business.program_json) });
-    }),
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res @returns {Promise<void | Response>} */
+      async (req, res) => {
+        const business = await getBusinessOr404(res, req.tenantId);
+        if (!business) return;
+        return res.json({
+          ok: true,
+          external_awards: formatExternalAwards(business.program_json),
+        });
+      },
+    ),
   );
 
   router.put(
@@ -28,26 +38,32 @@ export function registerProgramExternalRoutes(router) {
     tenantContext,
     requirePlanFeature("external_awards"),
     csrfProtect,
-    asyncRoute(async (req, res) => {
-      const v = validate(ExternalAwardsSchema, req.body);
-      if (!v.ok) return res.status(400).json({ error: v.error });
-      const business = await getBusinessOr404(res, req.tenantId);
-      if (!business) return;
+    asyncRoute(
+      /** @param {TenantRequest} req @param {Response} res @returns {Promise<void | Response>} */
+      async (req, res) => {
+        const v = validate(ExternalAwardsSchema, req.body);
+        if (!v.ok) return res.status(400).json({ error: v.error });
+        const business = await getBusinessOr404(res, req.tenantId);
+        if (!business) return;
 
-      const current = business.program_json?.external_awards ?? {};
-      const nextApiKey =
-        v.data.api_key !== undefined ? String(v.data.api_key) : String(current.api_key || "");
-      if (v.data.enabled && !nextApiKey) {
-        return res
-          .status(400)
-          .json({ error: "api_key es requerida cuando la integración está habilitada" });
-      }
+        const current = business.program_json?.external_awards ?? {};
+        const nextApiKey =
+          v.data.api_key !== undefined ? String(v.data.api_key) : String(current.api_key || "");
+        if (v.data.enabled && !nextApiKey) {
+          return res
+            .status(400)
+            .json({ error: "api_key es requerida cuando la integración está habilitada" });
+        }
 
-      const updated = await BusinessRepo.updateExternalAwards(req.tenantId, {
-        enabled: v.data.enabled,
-        ...(v.data.api_key === undefined ? {} : { api_key: nextApiKey }),
-      });
-      return res.json({ ok: true, external_awards: formatExternalAwards(updated.program_json) });
-    }),
+        const updated = await BusinessRepo.updateExternalAwards(req.tenantId, {
+          enabled: v.data.enabled,
+          ...(v.data.api_key === undefined ? {} : { api_key: nextApiKey }),
+        });
+        return res.json({
+          ok: true,
+          external_awards: formatExternalAwards(updated.program_json),
+        });
+      },
+    ),
   );
 }
