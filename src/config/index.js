@@ -297,10 +297,11 @@ export const config = {
   SMTP_SECURE: envValue("SMTP_SECURE", "auto"),
   SMTP_FROM: envValue("SMTP_FROM", "PuntosFieles <no-reply@puntos.gt>"),
 
-  // Contact form email
-  CONTACT_SMTP_HOST: envValue("CONTACT_SMTP_HOST", "10.10.1.20"),
+  // Contact form email. No relay or inbox defaults live in code: unset means
+  // "log only", so a test or development process can never mail the real inbox.
+  CONTACT_SMTP_HOST: envValue("CONTACT_SMTP_HOST", ""),
   CONTACT_SMTP_PORT: Number(process.env.CONTACT_SMTP_PORT ?? 26),
-  CONTACT_TO: envValue("CONTACT_TO", "gandhiponce@gmail.com"),
+  CONTACT_TO: envValue("CONTACT_TO", ""),
   CONTACT_FROM: envValue("CONTACT_FROM", "hola@puntosfieles.com"),
   CONTACT_TURNSTILE_SECRET: envValue("CONTACT_TURNSTILE_SECRET", ""),
   // Public widget site key served to the support form. No production value lives

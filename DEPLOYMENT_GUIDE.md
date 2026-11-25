@@ -65,6 +65,12 @@ With Docker Compose, point the containers at the database host with `APP_DB_HOST
 
 Use `TRUST_PROXY=1` only when all inbound traffic comes through a trusted reverse proxy hop.
 
+### Contact form email
+
+`CONTACT_SMTP_HOST`, `CONTACT_SMTP_PORT` (default 26), `CONTACT_TO` and `CONTACT_FROM` must be set
+explicitly in production. With `CONTACT_SMTP_HOST` or `CONTACT_TO` unset, the demo-request and
+concierge mailers only log, so no non-production process can email the real inbox.
+
 ### Contact form challenge (Turnstile)
 
 ```env

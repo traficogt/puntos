@@ -83,6 +83,10 @@ test("entry-tier owner sees the basic-report link and the done-for-you exit in t
     name: "Prefiero que PuntosFieles lo configure por mí",
   });
   await expect(exitButton).toBeVisible();
+  // The real route emails the PF contact inbox; the test only needs an accepted response.
+  await page.route("**/api/admin/concierge-request", (route) =>
+    route.fulfill({ json: { ok: true } }),
+  );
   await exitButton.click();
   await page.getByLabel(/Teléfono o WhatsApp/).fill("+502 5555 0000");
   const request = page.waitForResponse(
