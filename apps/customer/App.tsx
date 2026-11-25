@@ -209,6 +209,7 @@ export default function App() {
                 name="qr"
                 options={{ title: "Mi QR", presentation: "modal" }}
               />
+              <Stack.Screen name="saldo" options={{ title: "Mi saldo" }} />
             </Stack.Protected>
             <Stack.Protected guard={!state.session && !state.demo}>
               <Stack.Screen name="index" options={{ headerShown: false }} />

@@ -300,6 +300,54 @@ export async function getCashbackBalance(client, customerId) {
   };
 }
 
+// Read a member's most recent wallet movements (newest first) for the customer
+// card: cashback accruals and spends, gift-card loads, member gifts and
+// reversals. Only the member's own rows and the fields the card shows are
+// returned; counterparties' ids in `meta` never leave the server. Uses any
+// client/pool handle. `*_q` fields are two-decimal numbers.
+/**
+ * @param {TxClient} client
+ * @param {string} customerId
+ * @param {number} [limit]
+ * @returns {Promise<Array<{
+ *   id: string,
+ *   tx_type: string,
+ *   amount_q: number,
+ *   balance_after_q: number,
+ *   created_at: string,
+ *   base_q: number | null,
+ *   bonus_q: number | null,
+ *   note: string | null,
+ * }>>}
+ */
+export async function listStoredValueHistory(client, customerId, limit = 50) {
+  const max = Math.min(200, Math.max(1, Math.trunc(Number(limit) || 50)));
+  const result = await client.query(
+    `SELECT id, tx_type, amount_q, balance_after_q, created_at, meta
+       FROM cashback_transactions
+      WHERE customer_id = $1
+      ORDER BY created_at DESC, id DESC
+      LIMIT $2`,
+    [customerId, max],
+  );
+  return result.rows.map((row) => {
+    const meta = row.meta && typeof row.meta === "object" ? row.meta : {};
+    /** @param {unknown} value */
+    const money = (value) => (value == null ? null : toNumber(toMinor(value)));
+    const load = row.tx_type === "LOAD";
+    return {
+      id: String(row.id),
+      tx_type: String(row.tx_type),
+      amount_q: toNumber(toMinor(row.amount_q)),
+      balance_after_q: toNumber(toMinor(row.balance_after_q)),
+      created_at: new Date(row.created_at).toISOString(),
+      base_q: load ? money(meta.base_q) : null,
+      bonus_q: load ? money(meta.bonus_q) : null,
+      note: typeof meta.note === "string" && meta.note ? meta.note.slice(0, 200) : null,
+    };
+  });
+}
+
 // ----- Gift-card / prepaid wallet operations (same ledger as cashback) -----
 // A GIFT_CARD business funds the wallet by staff LOADs (with an optional bonus)
 // and member-to-member gifts, instead of by cashback accrual. Spending reuses

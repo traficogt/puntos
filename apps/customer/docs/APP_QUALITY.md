@@ -14,6 +14,10 @@ Existing customers enter their phone directly. Only successful phone verificatio
 
 Customer sessions remain business-scoped. Native credentials use SecureStore; cached balances exclude credentials and customer contact information. Cached information is labeled and does not authorize QR generation or reward redemption. Missing snapshots show loading/retry states, rather than claiming there are no rewards or transactions.
 
+## Program-aware card (0.1.1 draft, 2026-11-25)
+
+The card, Activity, QR and Account screens read the program type from the `/api/mobile/customer` payload: cashback and gift-card programs show a Q balance, the earn rate or load bonus, the stored-value ledger and (gift card) the member-to-member gift flow on the new "Mi saldo" screen; discount, cashback and gift-card copy never says "puntos", stamp copy says "sellos". Tiers and the referral code render read only when the payload carries them. Balance rows and the gift form carry accessibility labels; the gift flow has a confirmation step, keeps one idempotency key per attempt and disables itself offline. The offline cache keeps Q balances like points and excludes the referral code and gift notes. Change log and the release checklist: [RELEASE_NOTES_0.1.1.md](RELEASE_NOTES_0.1.1.md). Native device checks for this change are still pending.
+
 ## Verified for this change
 
 - App lint, TypeScript, 60 unit tests.

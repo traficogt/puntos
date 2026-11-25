@@ -243,6 +243,8 @@ export class SessionController {
       const syncedAt = Date.now();
       this.set({ snapshot, syncedAt, fresh: !this.state.offline });
       // Keep contact details and credentials out of ordinary device storage.
+      // Balances (points, Q) are cached like before; the shareable referral code
+      // and free-text gift notes written by other members are not.
       const cached = {
         ...snapshot,
         customer: {
@@ -253,6 +255,12 @@ export class SessionController {
         },
         transactions: snapshot.transactions.slice(0, 25),
         redemptions: [],
+        referral_code: null,
+        wallet_history: Array.isArray(snapshot.wallet_history)
+          ? snapshot.wallet_history
+              .slice(0, 25)
+              .map((row) => ({ ...row, note: null }))
+          : [],
       };
       await this.write(() =>
         gen === this.generation

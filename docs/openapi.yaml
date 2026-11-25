@@ -5508,6 +5508,13 @@ paths:
         200:
           description: Success
       parameters: undefined
+  /api/v1/mobile/customer/giftcard/transfer:
+    post:
+      summary: "Derived POST /api/v1/mobile/customer/giftcard/transfer"
+      responses:
+        200:
+          description: Success
+      parameters: undefined
   /api/v1/mobile/customer/logout:
     post:
       summary: "Derived POST /api/v1/mobile/customer/logout"

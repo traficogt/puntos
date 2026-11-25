@@ -2,11 +2,14 @@ import { apiOrigin } from "./model.ts";
 export class ApiError extends Error {
   status: number;
   code: string;
-  constructor(status: number, message: string, code = "") {
+  /** The server's own `error` text (Spanish), kept apart from the safe `message`. */
+  detail: string;
+  constructor(status: number, message: string, code = "", detail = "") {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.detail = detail;
   }
 }
 export class ApiClient {
@@ -67,7 +70,12 @@ export class ApiClient {
         if (res.status === 503)
           message =
             "El servicio no está disponible por ahora. Intenta más tarde.";
-        throw new ApiError(res.status, message, String(data?.code || ""));
+        throw new ApiError(
+          res.status,
+          message,
+          String(data?.code || ""),
+          typeof data?.error === "string" ? data.error.trim().slice(0, 200) : "",
+        );
       }
       return data as T;
     } catch (e) {

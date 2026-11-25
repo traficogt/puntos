@@ -5,6 +5,7 @@ import {
   spendCashback,
   reverseCashback,
   getCashbackBalance,
+  listStoredValueHistory,
 } from "../../src/app/services/cashback-service.js";
 import { cashbackTerms } from "../../src/app/services/cashback-model.js";
 
@@ -358,4 +359,66 @@ test("reverseCashback: claws back the exact accrued amount as a negative two-dec
   assert.equal(rev.amount_q, "-5.00");
   assert.equal(rev.balance_after_q, "-4.99");
   assert.equal(c.account.lifetime_earned_q, 0);
+});
+
+test("listStoredValueHistory: returns the member's newest movements with card-safe fields only", async () => {
+  const calls = [];
+  const client = {
+    async query(sql, params) {
+      calls.push({ sql: String(sql).replace(/\s+/g, " ").trim(), params });
+      return {
+        rowCount: 2,
+        rows: [
+          {
+            id: "ledger-2",
+            tx_type: "TRANSFER_OUT",
+            amount_q: "-20.00",
+            balance_after_q: "125.50",
+            created_at: new Date("2026-11-24T15:00:00.000Z"),
+            meta: { note: "Feliz cumple", to_customer_id: "someone-else" },
+          },
+          {
+            id: "ledger-1",
+            tx_type: "LOAD",
+            amount_q: "110.00",
+            balance_after_q: "145.50",
+            created_at: "2026-11-20T15:00:00.000Z",
+            meta: { base_q: 100, bonus_q: "10.00", bonus_percent: 10, note: "" },
+          },
+        ],
+      };
+    },
+  };
+  const rows = await listStoredValueHistory(client, "c1", 1000);
+  assert.equal(calls.length, 1);
+  assert.match(
+    calls[0].sql,
+    /FROM cashback_transactions WHERE customer_id = \$1 ORDER BY created_at DESC/,
+  );
+  assert.deepEqual(calls[0].params, ["c1", 200]);
+  assert.deepEqual(rows, [
+    {
+      id: "ledger-2",
+      tx_type: "TRANSFER_OUT",
+      amount_q: -20,
+      balance_after_q: 125.5,
+      created_at: "2026-11-24T15:00:00.000Z",
+      base_q: null,
+      bonus_q: null,
+      note: "Feliz cumple",
+    },
+    {
+      id: "ledger-1",
+      tx_type: "LOAD",
+      amount_q: 110,
+      balance_after_q: 145.5,
+      created_at: "2026-11-20T15:00:00.000Z",
+      base_q: 100,
+      bonus_q: 10,
+      note: null,
+    },
+  ]);
+  assert.equal(JSON.stringify(rows).includes("someone-else"), false);
+  await listStoredValueHistory(client, "c1");
+  assert.deepEqual(calls[1].params, ["c1", 50]);
 });

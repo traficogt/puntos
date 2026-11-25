@@ -26,6 +26,15 @@ import { TxnRepo } from "../repositories/transaction-repository.js";
 import { getCustomerRewardProgress } from "../services/customer-reward-progress.js";
 import { memberDiscount } from "../services/discount-model.js";
 import { stampCard } from "../services/stamp-model.js";
+import { cashbackTerms } from "../services/cashback-model.js";
+import { walletProgram } from "../services/wallet-model.js";
+import { getCashbackBalance, listStoredValueHistory } from "../services/cashback-service.js";
+import {
+  GiftCardTransferSchema,
+  transferGiftCardForCustomer,
+} from "../services/gift-card-program-service.js";
+import { TierService } from "../services/tier-service.js";
+import { ReferralService } from "../services/referral-service.js";
 import { RedemptionRepo } from "../repositories/redemption-repository.js";
 import { requestJoinCode, verifyJoinCode, issueCustomerQr } from "../services/customer-service.js";
 import {
@@ -89,6 +98,11 @@ const defaults = {
   settlePendingPointsForCustomer,
   expirePointsForCustomer,
   withTransaction,
+  getCashbackBalance,
+  listStoredValueHistory,
+  transferGiftCard: transferGiftCardForCustomer,
+  getCustomerTierInfo: TierService.getCustomerTierInfo,
+  getCustomerReferralStats: ReferralService.getCustomerReferralStats,
   walletService: nativeWalletService,
   pushService: mobilePushService,
   accessService: mobileAccessService,
@@ -109,6 +123,7 @@ const defaults = {
   requestPhoneLimit: rateLimitByPhone(3, 10 * 60 * 1000),
   verifyPhoneLimit: rateLimitByPhone(10, 10 * 60 * 1000),
   walletIssueLimit: rateLimitByIp(20, 60000, { keyPrefix: "ip:wallet-issue:" }),
+  giftTransferLimit: rateLimitByIp(10, 60000, { keyPrefix: "ip:mobile-gift-transfer:" }),
 };
 
 const accessPhoneSchema = z
@@ -163,6 +178,48 @@ function customerBranding(value) {
     value && typeof value === "object" ? value : {},
   );
   return result.success ? result.data : businessCustomerBrandingSchema.parse({});
+}
+
+/**
+ * The customer's tier as the browser card reads it (`/api/customer/tier`), with
+ * pg NUMERIC/COUNT strings turned into numbers. Internal ids and audit columns
+ * stay on the server.
+ * @param {Record<string, unknown> | null | undefined} tier
+ */
+function customerTier(tier) {
+  if (!tier || typeof tier !== "object") return null;
+  /** @param {unknown} value */
+  const num = (value) => (value == null || value === "" ? null : Number(value));
+  return {
+    tier_level: num(tier.tier_level),
+    name: tier.name == null ? null : String(tier.name),
+    points_multiplier: num(tier.points_multiplier),
+    current_points: num(tier.current_points),
+    next_tier_name: tier.next_tier_name == null ? null : String(tier.next_tier_name),
+    next_tier_points: num(tier.next_tier_points),
+    points_to_next_tier: num(tier.points_to_next_tier),
+    perks: Array.isArray(tier.perks) ? tier.perks.map((perk) => String(perk)) : [],
+    color: typeof tier.color === "string" && /^#[0-9a-f]{6}$/i.test(tier.color) ? tier.color : null,
+  };
+}
+
+/**
+ * Referral code and counters as the browser card reads them
+ * (`/api/customer/referral-code`, `/api/customer/referrals`). The per-referral
+ * rows, which name other customers, stay on the server.
+ * @param {Record<string, unknown> | null | undefined} stats
+ */
+function customerReferral(stats) {
+  if (!stats || typeof stats !== "object") return { referral_code: null, referral_stats: null };
+  const code = typeof stats.referral_code === "string" && stats.referral_code;
+  return {
+    referral_code: code ? { code } : null,
+    referral_stats: {
+      total_referrals: Number(stats.total_referrals) || 0,
+      completed_referrals: Number(stats.completed_referrals) || 0,
+      total_points_earned: Number(stats.total_points_earned) || 0,
+    },
+  };
 }
 
 /** @param {Response} res @param {string} [code] */
@@ -481,6 +538,25 @@ export function createMobileRoutes(overrides = {}) {
         const transactions = await deps.TxnRepo.listByCustomer(auth.id, 50);
         const redemptions = await deps.RedemptionRepo.listByCustomer(auth.id, 50);
         const wallet = await deps.walletService.status(auth);
+        // Stored-value programs (CASHBACK, GIFT_CARD) carry a Q balance and a
+        // ledger beside the points fields; other programs read nothing here.
+        const cbTerms = cashbackTerms(business, { amount_q: 0 });
+        const programWallet = walletProgram(business);
+        const walletBalance = programWallet
+          ? await deps.getCashbackBalance(deps.getDbClient(), auth.id)
+          : null;
+        const walletHistory = programWallet
+          ? await deps.listStoredValueHistory(deps.getDbClient(), auth.id, 50)
+          : [];
+        const tier = features.tiers
+          ? await deps.getCustomerTierInfo(auth.id).catch((err) => {
+              logger.warn({ err: err?.message, customerId: auth.id }, "customer tier unavailable");
+              return null;
+            })
+          : null;
+        const referral = features.referrals
+          ? await deps.getCustomerReferralStats(auth.id).catch(() => null)
+          : null;
         /** @param {{ business_id: unknown }} record */
         const inBusiness = (record) => String(record.business_id) === auth.business_id;
         /** @param {{ business_id: unknown, customer_id: unknown }} record */
@@ -525,7 +601,46 @@ export function createMobileRoutes(overrides = {}) {
                 complete: stampTerms.complete,
               }
             : null,
+          // Same shapes as /api/customer/me `cashback` and `wallet`; the latter is
+          // named program_wallet here because `wallet` above is the native-pass
+          // status installed clients already read.
+          cashback:
+            walletBalance && cbTerms
+              ? {
+                  balance_q: Math.max(0, Number(walletBalance.balance_q)),
+                  percent: cbTerms.percent,
+                }
+              : null,
+          program_wallet:
+            programWallet && walletBalance
+              ? {
+                  kind: programWallet.kind,
+                  balance_q: Math.max(0, Number(walletBalance.balance_q)),
+                  percent: programWallet.kind === "CASHBACK" ? programWallet.percent : null,
+                  bonus_percent:
+                    programWallet.kind === "GIFT_CARD" ? programWallet.bonus_percent : null,
+                }
+              : null,
+          wallet_history: walletHistory,
+          tier: customerTier(tier),
+          ...customerReferral(referral),
         });
+      },
+    ),
+  );
+
+  // Member-to-member gift of gift-card balance: the same validation, service and
+  // idempotency key as the browser card's /api/customer/giftcard/transfer.
+  router.post(
+    "/mobile/customer/giftcard/transfer",
+    deps.giftTransferLimit,
+    asyncRoute(
+      /** @param {MobileCustomerRequest} req @param {Response} res @returns {HandlerResult} */
+      async (req, res) => {
+        const result = validate(GiftCardTransferSchema, req.body);
+        if (!result.ok) return res.status(400).json({ error: result.error });
+        const out = await deps.transferGiftCard({ auth: req.customerAuth, ...result.data });
+        res.json({ ok: true, ...out });
       },
     ),
   );

@@ -7,7 +7,7 @@ import { useApp } from "../context";
 import { Copy, Notice } from "../components";
 import { NativeButton, NativeScreen, SnapshotPending } from "../native-components";
 import { fonts } from "../theme";
-import { rewardState } from "../model";
+import { programCopy, programKind, rewardState } from "../model";
 
 export function Rewards() {
   const { state, colors } = useApp();
@@ -17,9 +17,10 @@ export function Rewards() {
   const rewards =
     data?.business.features?.rewards === false ? [] : data?.rewards || [];
   if (!data) return <NativeScreen refresh><SnapshotPending /></NativeScreen>;
+  const copy = programCopy(programKind(data));
   return (
     <NativeScreen refresh>
-      {data && (
+      {copy.rewardsHeading && (
         <View
           style={{
             flexDirection: "row",
@@ -30,7 +31,9 @@ export function Rewards() {
             paddingBottom: 16,
           }}
         >
-          <Copy style={{ color: colors.muted, fontSize: 15 }}>Tus puntos</Copy>
+          <Copy style={{ color: colors.muted, fontSize: 15 }}>
+            {copy.rewardsHeading}
+          </Copy>
           <Copy
             style={{
               fontFamily: fonts.bold,
@@ -90,6 +93,7 @@ export function Rewards() {
               data!.customer.points,
               state.offline || !state.fresh,
               now,
+              copy.unit,
             );
             return (
               <View
@@ -139,7 +143,7 @@ export function Rewards() {
                         lineHeight: 21,
                       }}
                     >
-                      {reward.points_cost.toLocaleString("es-GT")} puntos
+                      {reward.points_cost.toLocaleString("es-GT")} {copy.unit}
                     </Copy>
                     {reward.description && (
                       <Copy

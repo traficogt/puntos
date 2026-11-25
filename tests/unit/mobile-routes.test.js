@@ -4,14 +4,18 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import { createMobileRoutes } from "../../src/app/routes/mobile-routes.js";
 import { errorHandler } from "../../src/middleware/common.js";
-import { rateLimitByPhone, strictRateLimit } from "../../src/middleware/rate-limit.js";
+import {
+  rateLimitByIp,
+  rateLimitByPhone,
+  strictRateLimit,
+} from "../../src/middleware/rate-limit.js";
 import {
   createBrowserSession,
   getBrowserSession,
   touchBrowserSessionIfNeeded,
 } from "../../src/app/services/auth-session-service.js";
 import { getDbTenantId, runWithDbContext, setDbTenantId } from "../../src/app/db/context.js";
-import { unauthorized } from "../../src/utils/http-error.js";
+import { badRequest, unauthorized } from "../../src/utils/http-error.js";
 
 const noop = (_req, _res, next) => next();
 const customerId = "11111111-1111-4111-8111-111111111111";
@@ -53,6 +57,16 @@ async function fixture(t, overrides = {}) {
     deleted: [],
     rewardReads: 0,
     progressReads: 0,
+    balanceReads: 0,
+    historyReads: 0,
+    tierReads: 0,
+    referralReads: 0,
+    transfers: [],
+    balance: { balance_q: "125.50", lifetime_earned_q: 200, lifetime_spent_q: 74.5 },
+    history: [],
+    tier: null,
+    referral: null,
+    transferResult: null,
     transactions: [
       {
         id: "txn-1",
@@ -210,11 +224,47 @@ async function fixture(t, overrides = {}) {
       },
     },
     withTransaction: async (fn) => fn(),
+    getCashbackBalance: async (db, id) => {
+      assertTenant();
+      assert.equal(db, client);
+      assert.equal(id, customerId);
+      state.balanceReads++;
+      return state.balance;
+    },
+    listStoredValueHistory: async (db, id, limit) => {
+      assertTenant();
+      assert.equal(db, client);
+      assert.equal(id, customerId);
+      assert.equal(limit, 50);
+      state.historyReads++;
+      return state.history;
+    },
+    transferGiftCard: async (input) => {
+      assertTenant();
+      state.transfers.push(input);
+      if (state.transferResult instanceof Error) throw state.transferResult;
+      return state.transferResult;
+    },
+    getCustomerTierInfo: async (id) => {
+      assertTenant();
+      assert.equal(id, customerId);
+      state.tierReads++;
+      if (state.tier instanceof Error) throw state.tier;
+      return state.tier;
+    },
+    getCustomerReferralStats: async (id) => {
+      assertTenant();
+      assert.equal(id, customerId);
+      state.referralReads++;
+      if (state.referral instanceof Error) throw state.referral;
+      return state.referral;
+    },
     requestCodeLimit: noop,
     verifyCodeLimit: noop,
     requestPhoneLimit: noop,
     verifyPhoneLimit: noop,
     walletIssueLimit: noop,
+    giftTransferLimit: noop,
     ...overrides,
   };
   const app = express();
@@ -842,4 +892,233 @@ test("legacy reward expiry keeps the installed-client UTC millisecond timestamp 
     Date.parse(data.rewards[0].valid_until),
     Date.parse(data.reward_progress.choices[0].valid_until),
   );
+});
+
+test("summary exposes no stored-value fields for points programs and reads nothing for them", async (t) => {
+  const f = await fixture(t);
+  f.state.overrides = { NEGOCIO: { tiers: false, referrals: false } };
+  const res = await f.request("/customer", { headers: f.auth });
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.cashback, null);
+  assert.equal(data.program_wallet, null);
+  assert.deepEqual(data.wallet_history, []);
+  assert.equal(data.tier, null);
+  assert.equal(data.referral_code, null);
+  assert.equal(data.referral_stats, null);
+  assert.deepEqual(data.wallet, wallet, "native pass status keeps its key");
+  assert.equal(f.state.balanceReads, 0);
+  assert.equal(f.state.historyReads, 0);
+  assert.equal(f.state.tierReads, 0);
+  assert.equal(f.state.referralReads, 0);
+});
+
+test("summary carries the gift-card wallet, its ledger, tier and referral data in the browser card's shapes", async (t) => {
+  const f = await fixture(t);
+  f.state.business = {
+    ...f.state.business,
+    program_type: "GIFT_CARD",
+    program_json: { ...f.state.business.program_json, load_bonus_percent: 10 },
+  };
+  f.state.history = [
+    {
+      id: "ledger-2",
+      tx_type: "TRANSFER_OUT",
+      amount_q: -20,
+      balance_after_q: 125.5,
+      created_at: "2026-11-24T15:00:00.000Z",
+      base_q: null,
+      bonus_q: null,
+      note: "Feliz cumple",
+    },
+    {
+      id: "ledger-1",
+      tx_type: "LOAD",
+      amount_q: 110,
+      balance_after_q: 145.5,
+      created_at: "2026-11-20T15:00:00.000Z",
+      base_q: 100,
+      bonus_q: 10,
+      note: null,
+    },
+  ];
+  f.state.tier = {
+    id: "tier-row",
+    business_id: businessId,
+    tier_level: 2,
+    name: "Plata",
+    min_points: 500,
+    points_multiplier: "1.50",
+    perks: ["Café de cumpleaños"],
+    color: "#C0C0C0",
+    icon_url: null,
+    achieved_at: "2026-10-01T00:00:00.000Z",
+    current_points: 620,
+    next_tier_name: "Oro",
+    next_tier_points: 1000,
+    points_to_next_tier: 380,
+  };
+  f.state.referral = {
+    total_referrals: "3",
+    completed_referrals: "2",
+    rewarded_referrals: "1",
+    total_points_earned: "150",
+    referral_code: "ABC123",
+    referrals: [{ referred_customer_id: "someone-else", status: "completed" }],
+  };
+  const res = await f.request("/customer", { headers: f.auth });
+  assert.equal(res.status, 200);
+  assertPrivate(res);
+  const data = await res.json();
+  assert.equal(data.cashback, null);
+  assert.deepEqual(data.program_wallet, {
+    kind: "GIFT_CARD",
+    balance_q: 125.5,
+    percent: null,
+    bonus_percent: 10,
+  });
+  assert.deepEqual(data.wallet_history, f.state.history);
+  assert.deepEqual(data.tier, {
+    tier_level: 2,
+    name: "Plata",
+    points_multiplier: 1.5,
+    current_points: 620,
+    next_tier_name: "Oro",
+    next_tier_points: 1000,
+    points_to_next_tier: 380,
+    perks: ["Café de cumpleaños"],
+    color: "#C0C0C0",
+  });
+  assert.deepEqual(data.referral_code, { code: "ABC123" });
+  assert.deepEqual(data.referral_stats, {
+    total_referrals: 3,
+    completed_referrals: 2,
+    total_points_earned: 150,
+  });
+  assert.equal(JSON.stringify(data).includes("someone-else"), false);
+  assert.equal(f.state.balanceReads, 1);
+  assert.equal(f.state.historyReads, 1);
+});
+
+test("summary reports cashback balance and rate, and tolerates tier or referral lookups failing", async (t) => {
+  const f = await fixture(t);
+  f.state.business = {
+    ...f.state.business,
+    program_type: "CASHBACK",
+    program_json: { ...f.state.business.program_json, cashback_percent: 5 },
+  };
+  f.state.balance = { balance_q: "-3.25", lifetime_earned_q: 10, lifetime_spent_q: 13.25 };
+  f.state.tier = new Error("tiers table unavailable");
+  f.state.referral = new Error("referrals disabled");
+  const res = await f.request("/customer", { headers: f.auth });
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.deepEqual(data.cashback, { balance_q: 0, percent: 5 });
+  assert.deepEqual(data.program_wallet, {
+    kind: "CASHBACK",
+    balance_q: 0,
+    percent: 5,
+    bonus_percent: null,
+  });
+  assert.equal(data.tier, null);
+  assert.equal(data.referral_code, null);
+  assert.equal(data.referral_stats, null);
+  assert.equal(data.customer.points, 42, "points fields stay for installed clients");
+});
+
+test("gift transfer validates the shared body, uses bearer identity and surfaces the service's Spanish error", async (t) => {
+  const f = await fixture(t);
+  const requestId = "44444444-4444-4444-8444-444444444444";
+  f.state.transferResult = {
+    recipient: { id: "recipient-id", name: "Luis" },
+    transferred_q: 20,
+    balance_after_q: 105.5,
+    replay: false,
+  };
+  const body = { recipient_phone: "5555-9876", amount_q: 20, requestId };
+  const anonymous = await f.request("/customer/giftcard/transfer", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  assert.equal(anonymous.status, 401);
+  assertPrivate(anonymous);
+  for (const invalid of [
+    { ...body, requestId: undefined },
+    { ...body, requestId: "not-a-guid" },
+    { ...body, amount_q: 0 },
+    { ...body, amount_q: "20" },
+    { ...body, recipient_phone: "12" },
+    { ...body, note: "x".repeat(201) },
+  ]) {
+    const res = await f.request("/customer/giftcard/transfer", {
+      method: "POST",
+      headers: f.auth,
+      body: JSON.stringify(invalid),
+    });
+    assert.equal(res.status, 400);
+    assertPrivate(res);
+  }
+  assert.deepEqual(f.state.transfers, []);
+  const res = await f.request("/customer/giftcard/transfer", {
+    method: "POST",
+    headers: f.auth,
+    body: JSON.stringify({ ...body, customer_id: "someone-else", note: "Feliz cumple" }),
+  });
+  assert.equal(res.status, 200);
+  assertPrivate(res);
+  assert.deepEqual(await res.json(), { ok: true, ...f.state.transferResult });
+  assert.deepEqual(f.state.transfers, [
+    {
+      auth: { id: customerId, business_id: businessId },
+      recipient_phone: "5555-9876",
+      amount_q: 20,
+      requestId,
+      note: "Feliz cumple",
+    },
+  ]);
+  f.state.transferResult = badRequest("Saldo insuficiente para regalar.");
+  const rejected = await f.request("/customer/giftcard/transfer", {
+    method: "POST",
+    headers: f.auth,
+    body: JSON.stringify(body),
+  });
+  assert.equal(rejected.status, 400);
+  assertPrivate(rejected);
+  assert.equal((await rejected.json()).error, "Saldo insuficiente para regalar.");
+});
+
+test("gift transfer is rate limited per client address", async (t) => {
+  const f = await fixture(t, {
+    giftTransferLimit: rateLimitByIp(2, 60000, { keyPrefix: "ip:test-gift-transfer:" }),
+  });
+  f.state.transferResult = {
+    recipient: { id: "r", name: null },
+    transferred_q: 1,
+    balance_after_q: 1,
+    replay: true,
+  };
+  const body = JSON.stringify({
+    recipient_phone: "55559876",
+    amount_q: 1,
+    requestId: "55555555-5555-4555-8555-555555555555",
+  });
+  for (let n = 0; n < 2; n++)
+    assert.equal(
+      (
+        await f.request("/customer/giftcard/transfer", {
+          method: "POST",
+          headers: f.auth,
+          body,
+        })
+      ).status,
+      200,
+    );
+  const blocked = await f.request("/customer/giftcard/transfer", {
+    method: "POST",
+    headers: f.auth,
+    body,
+  });
+  assert.equal(blocked.status, 429);
+  assertPrivate(blocked);
+  assert.equal(f.state.transfers.length, 2);
 });

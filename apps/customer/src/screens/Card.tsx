@@ -5,6 +5,7 @@ import {
   Linking,
   Platform,
   Pressable,
+  Share,
   View,
   useWindowDimensions,
 } from "react-native";
@@ -22,7 +23,17 @@ import {
   SettingsRow,
 } from "../native-components";
 import { fonts } from "../theme";
-import { rewardState, safeGoogleUrl, validQr } from "../model";
+import {
+  formatQ,
+  programCopy,
+  programKind,
+  programWallet,
+  referralShareMessage,
+  rewardState,
+  safeGoogleUrl,
+  tierSummary,
+  validQr,
+} from "../model";
 
 export function Card() {
   const { state, colors, controller } = useApp();
@@ -36,7 +47,7 @@ export function Card() {
     return (
       <NativeScreen>
         <Notice error={!!state.error}>
-          {state.error || "Estamos cargando tus puntos y recompensas."}
+          {state.error || "Estamos cargando tu tarjeta y tus recompensas."}
         </Notice>
         <NativeButton
           label="Volver a cargar"
@@ -47,11 +58,24 @@ export function Card() {
     );
 
   const { customer, business } = data;
+  const kind = programKind(data);
+  const copy = programCopy(kind);
+  const programBalance = programWallet(data);
   const discountPct =
     business.member_discount && Number(business.member_discount.percent_off) > 0
       ? Number(business.member_discount.percent_off)
       : null;
   const stamp = data.stamp_card ?? null;
+  const mode = state.demo
+    ? "demo"
+    : state.offline || !state.fresh
+      ? "cached"
+      : "live";
+  const rateLine = copy.rateLine(programBalance);
+  const tier = tierSummary(data.tier, copy.unit);
+  const referralCode = data.referral_code?.code?.trim() || "";
+  const referralStats = data.referral_stats ?? null;
+  const pendingNotice = copy.pendingNotice(Number(customer.pending_points) || 0);
   const title =
     business.customer_branding?.customer_program_name || business.name;
   const brandLogo =
@@ -76,7 +100,13 @@ export function Card() {
     ? Math.min(1, Math.max(0, customer.points / Math.max(1, next.points_cost)))
     : 0;
   const availability = next
-    ? rewardState(next, customer.points, state.offline || !state.fresh, now)
+    ? rewardState(
+        next,
+        customer.points,
+        state.offline || !state.fresh,
+        now,
+        copy.unit,
+      )
     : null;
   const hasAppleWallet =
     data.wallet.providers.apple &&
@@ -113,6 +143,18 @@ export function Card() {
     } finally {
       setWalletBusy(false);
     }
+  }
+  async function shareReferral() {
+    if (!referralCode) return;
+    try {
+      await Share.share({
+        message: referralShareMessage({
+          code: referralCode,
+          business: business.name,
+          slug: business.slug,
+        }),
+      });
+    } catch {}
   }
 
   return (
@@ -203,28 +245,42 @@ export function Card() {
         ) : (
           <>
             <Copy
+              accessibilityLabel={
+                programBalance
+                  ? `${formatQ(programBalance.balance_q)} ${copy.balanceLabel(mode)}`
+                  : undefined
+              }
               style={{
                 fontFamily: fonts.bold,
-                fontSize: 52,
-                lineHeight: 62,
+                fontSize: programBalance ? 44 : 52,
+                lineHeight: programBalance ? 54 : 62,
                 color: colors.onCard,
                 marginTop: 24,
                 fontVariant: ["tabular-nums"],
               }}
             >
-              {discountPct != null
-                ? `${discountPct}%`
-                : Number(customer.points).toLocaleString("es-GT")}
+              {programBalance
+                ? formatQ(programBalance.balance_q)
+                : discountPct != null
+                  ? `${discountPct}%`
+                  : Number(customer.points).toLocaleString("es-GT")}
             </Copy>
             <Copy style={{ color: colors.onCard, fontSize: 15, lineHeight: 23 }}>
-              {discountPct != null
-                ? "de descuento en cada compra"
-                : state.demo
-                ? "puntos de ejemplo"
-                : state.offline || !state.fresh
-                ? "puntos guardados"
-                : "puntos disponibles"}
+              {copy.balanceLabel(mode)}
             </Copy>
+            {rateLine && (
+              <Copy
+                style={{
+                  color: colors.onCard,
+                  fontSize: 14,
+                  lineHeight: 21,
+                  marginTop: 8,
+                  opacity: 0.85,
+                }}
+              >
+                {rateLine}
+              </Copy>
+            )}
           </>
         )}
         <View
@@ -248,10 +304,29 @@ export function Card() {
           onPress={() => nav.push("/qr")}
         />
       </View>
-      {Number(customer.pending_points) > 0 && (
-        <Notice>
-          {customer.pending_points} puntos pendientes de confirmación.
-        </Notice>
+      {pendingNotice && <Notice>{pendingNotice}</Notice>}
+      {programBalance && (
+        <View style={{ marginTop: 12 }}>
+          <SettingsGroup>
+            <SettingsRow
+              label={
+                programBalance.kind === "GIFT_CARD"
+                  ? "Saldo de tu tarjeta"
+                  : "Saldo de cashback"
+              }
+              detail={
+                programBalance.kind === "GIFT_CARD" &&
+                programBalance.balance_q > 0 &&
+                !state.demo
+                  ? "Movimientos y regalar saldo"
+                  : "Ver movimientos"
+              }
+              icon="wallet-outline"
+              last
+              onPress={() => nav.push("/saldo")}
+            />
+          </SettingsGroup>
+        </View>
       )}
       {next && availability && (
         <>
@@ -291,7 +366,7 @@ export function Card() {
                     marginTop: 3,
                   }}
                 >
-                  {next.points_cost.toLocaleString("es-GT")} puntos
+                  {next.points_cost.toLocaleString("es-GT")} {copy.unit}
                 </Copy>
               </View>
               <Ionicons name="chevron-forward" size={21} color={colors.muted} />
@@ -332,6 +407,151 @@ export function Card() {
               {availability.label}
             </Copy>
           </Pressable>
+        </>
+      )}
+      {tier && (
+        <>
+          <SectionTitle>Tu nivel</SectionTitle>
+          <View
+            accessible
+            accessibilityLabel={`Nivel ${tier.name}. ${tier.progressLabel}`}
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: 12,
+              padding: 16,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <Ionicons name="ribbon-outline" size={24} color={colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Copy
+                  style={{ fontFamily: fonts.bold, fontSize: 17, lineHeight: 24 }}
+                >
+                  {tier.name}
+                </Copy>
+                {tier.multiplierLabel && (
+                  <Copy
+                    style={{ color: colors.muted, fontSize: 13, lineHeight: 20 }}
+                  >
+                    {tier.multiplierLabel}
+                  </Copy>
+                )}
+              </View>
+            </View>
+            {tier.progress != null && (
+              <View
+                accessibilityRole="progressbar"
+                accessibilityValue={{ min: 0, max: 100, now: Math.round(tier.progress * 100) }}
+                style={{
+                  height: 6,
+                  backgroundColor: colors.line,
+                  borderRadius: 3,
+                  marginTop: 14,
+                }}
+              >
+                <View
+                  style={{
+                    height: 6,
+                    width: `${tier.progress * 100}%`,
+                    backgroundColor: colors.primary,
+                    borderRadius: 3,
+                  }}
+                />
+              </View>
+            )}
+            <Copy
+              style={{
+                color: colors.muted,
+                fontSize: 14,
+                lineHeight: 21,
+                marginTop: 10,
+              }}
+            >
+              {tier.progressLabel}
+            </Copy>
+            {tier.perks.map((perk) => (
+              <Copy
+                key={perk}
+                style={{ fontSize: 14, lineHeight: 21, marginTop: 4 }}
+              >
+                · {perk}
+              </Copy>
+            ))}
+          </View>
+        </>
+      )}
+      {(referralCode || referralStats) && (
+        <>
+          <SectionTitle>Invita a tus amigos</SectionTitle>
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: 12,
+              padding: 16,
+            }}
+          >
+            {referralCode ? (
+              <>
+                <Copy style={{ color: colors.muted, fontSize: 13, lineHeight: 20 }}>
+                  Tu código de referido
+                </Copy>
+                <Copy
+                  selectable
+                  accessibilityLabel={`Código de referido ${referralCode.split("").join(" ")}`}
+                  style={{
+                    fontFamily: fonts.bold,
+                    fontSize: 26,
+                    lineHeight: 34,
+                    letterSpacing: 3,
+                    marginTop: 4,
+                  }}
+                >
+                  {referralCode}
+                </Copy>
+                <Copy
+                  style={{
+                    color: colors.muted,
+                    fontSize: 14,
+                    lineHeight: 21,
+                    marginTop: 8,
+                  }}
+                >
+                  Quien se registre en {business.name} con tu código te ayuda a
+                  ganar un bono cuando complete su primera compra.
+                </Copy>
+                <View style={{ marginTop: 12 }}>
+                  <NativeButton
+                    label="Compartir mi código"
+                    icon="share-social-outline"
+                    secondary
+                    onPress={() => void shareReferral()}
+                  />
+                </View>
+              </>
+            ) : (
+              <Copy style={{ color: colors.muted, fontSize: 14, lineHeight: 21 }}>
+                Tu código de referido estará disponible cuando el negocio active
+                el programa.
+              </Copy>
+            )}
+            {referralStats && (
+              <Copy
+                style={{
+                  color: colors.muted,
+                  fontSize: 13,
+                  lineHeight: 20,
+                  marginTop: 12,
+                }}
+              >
+                {Number(referralStats.total_referrals) || 0} invitados ·{" "}
+                {Number(referralStats.completed_referrals) || 0} completados ·{" "}
+                {(Number(referralStats.total_points_earned) || 0).toLocaleString(
+                  "es-GT",
+                )}{" "}
+                puntos ganados
+              </Copy>
+            )}
+          </View>
         </>
       )}
       {(hasAppleWallet || hasGoogleWallet) && (
@@ -414,6 +634,7 @@ export function QrScreen() {
   const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const copy = programCopy(programKind(state.snapshot));
   const load = useCallback(async () => {
     setBusy(true);
     setError("");
@@ -550,8 +771,7 @@ export function QrScreen() {
         </View>
       )}
       <Copy style={{ textAlign: "center", fontSize: 15, lineHeight: 23 }}>
-        El equipo del negocio lo escanea para sumar puntos o canjear una
-        recompensa.
+        {copy.qrPurpose}
       </Copy>
       {!state.demo && (
         <View style={{ marginTop: 24 }}>

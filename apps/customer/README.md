@@ -19,7 +19,7 @@ npm run start
 
 The default API origin is `https://app.puntosfieles.com`. `EXPO_PUBLIC_API_ORIGIN` can select another HTTPS origin at build time. This variable is public; never place server credentials, Wallet signing keys, or messaging API keys in the mobile project.
 
-The server must expose the `/api/mobile` routes: global `/access/request-code`, `/access/verify`, `/access/select`, business lookup, login/join request-code and verification, authenticated customer snapshot, QR, logout, account deletion, and Wallet operations. Browser sessions and native bearer sessions are separate; both identify the same existing PF customer. WhatsApp delivery remains dependent on reconnecting the sending phone.
+The server must expose the `/api/mobile` routes: global `/access/request-code`, `/access/verify`, `/access/select`, business lookup, login/join request-code and verification, authenticated customer snapshot (including the optional `cashback`, `program_wallet`, `wallet_history`, `tier` and referral fields), gift-card transfer, QR, logout, account deletion, and Wallet operations. Browser sessions and native bearer sessions are separate; both identify the same existing PF customer. WhatsApp delivery remains dependent on reconnecting the sending phone.
 
 ## Preview and checks
 

@@ -8,8 +8,10 @@ import { stampCard } from "../services/stamp-model.js";
 import { cashbackTerms } from "../services/cashback-model.js";
 import { getCashbackBalance } from "../services/cashback-service.js";
 import { walletProgram } from "../services/wallet-model.js";
-import { transferGiftCardForCustomer } from "../services/gift-card-program-service.js";
-import { z } from "zod";
+import {
+  GiftCardTransferSchema,
+  transferGiftCardForCustomer,
+} from "../services/gift-card-program-service.js";
 import { validate } from "../../utils/validation.js";
 import { Router } from "express";
 import { asyncRoute } from "../../middleware/common.js";
@@ -157,13 +159,6 @@ customerRoutes.get(
     },
   ),
 );
-
-const GiftCardTransferSchema = z.object({
-  recipient_phone: z.string().min(4).max(40),
-  amount_q: z.number().positive().max(1000000),
-  requestId: z.guid(),
-  note: z.string().max(200).optional(),
-});
 
 customerRoutes.post(
   "/customer/giftcard/transfer",

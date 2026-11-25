@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { z } from "zod";
 import { withTransaction } from "../database.js";
 import { BusinessRepo } from "../repositories/business-repository.js";
 import { CustomerRepo } from "../repositories/customer-repository.js";
@@ -79,6 +80,17 @@ export async function loadGiftCardForStaff({
     replay: result.replay ?? false,
   };
 }
+
+// Request body of a member-to-member gift, shared by the browser card
+// (POST /api/customer/giftcard/transfer) and the native app
+// (POST /api/mobile/customer/giftcard/transfer). `requestId` is the idempotency
+// key: a retried request with the same id returns the first result (`replay`).
+export const GiftCardTransferSchema = z.object({
+  recipient_phone: z.string().min(4).max(40),
+  amount_q: z.number().positive().max(1000000),
+  requestId: z.guid(),
+  note: z.string().max(200).optional(),
+});
 
 // A logged-in member gifts part of their gift-card balance to another member of
 // the same business, found by the recipient's phone. Runs in a tenant-scoped

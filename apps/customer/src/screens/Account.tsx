@@ -12,9 +12,11 @@ import {
 } from "../native-components";
 import { fonts } from "../theme";
 import { NotificationSettings } from "../NotificationSettings";
+import { programCopy, programKind } from "../model";
 
 export function Account() {
   const { state, colors, controller, appearance, setAppearance } = useApp();
+  const copy = programCopy(programKind(state.snapshot));
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -79,7 +81,7 @@ export function Account() {
           marginTop: 8,
         }}
       >
-        Tus puntos y recompensas corresponden a este negocio.
+        {copy.scopeNotice}
       </Copy>
 
       <SectionTitle>Apariencia</SectionTitle>
