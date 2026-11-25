@@ -57,7 +57,7 @@ test('keystore bytes require canonical base64 and an explicit supported store ty
 
 test('materialized keystores are private, preserve bytes, and cannot overwrite an existing path', () => {
   const { prepareSigning } = require(helperPath.pathname);
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-android-test-'));
+  const temporary = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'pf-android-test-'));
   const filename = path.join(temporary, 'upload.keystore');
   try {
     const result = prepareSigning(signing, filename);
@@ -193,7 +193,7 @@ test('merged release manifest is parsed with Expo and enforces identity before c
   const { validateMergedReleaseManifest } = require(helperPath.pathname);
   assert.equal(typeof validateMergedReleaseManifest, 'function');
   const { AndroidConfig } = require('expo/config-plugins');
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-merged-manifest-'));
+  const temporary = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'pf-merged-manifest-'));
   const filename = path.join(temporary, 'AndroidManifest.xml');
   try {
     fs.writeFileSync(filename, mergedManifestXml);
@@ -233,7 +233,7 @@ test('merged manifest rejects transitive install referrer and SDK-qualified perm
 test('merged manifest discovery accepts only the requested release merge task and fails on ambiguity', () => {
   const { findMergedReleaseManifest } = require(helperPath.pathname);
   assert.equal(typeof findMergedReleaseManifest, 'function');
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-merged-discovery-'));
+  const temporary = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'pf-merged-discovery-'));
   const candidate = path.join(temporary, 'merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml');
   const other = path.join(temporary, 'merged_manifests/release/processReleaseMainManifest/AndroidManifest.xml');
   const debug = path.join(temporary, 'merged_manifest/debug/processDebugMainManifest/AndroidManifest.xml');

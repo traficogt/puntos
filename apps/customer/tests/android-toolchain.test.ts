@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,existsSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,existsSync,realpathSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import test from 'node:test';
 const entrypoint=new URL('../tools/android/entrypoint.sh',import.meta.url).pathname;
 function fixture() {
- const dir=mkdtempSync(path.join(tmpdir(),'pf-toolchain-test-'));
+ const dir=mkdtempSync(path.join(realpathSync(tmpdir()),'pf-toolchain-test-'));
  const bin=path.join(dir,'bin'),work=path.join(dir,'work'),tools=path.join(dir,'tools'),sdk=path.join(dir,'sdk'),log=path.join(dir,'calls');
  for(const folder of [bin,work,tools,path.join(work,'scripts'),path.join(tools,'bin')])mkdirSync(folder,{recursive:true});
  const script=(file:string,body:string)=>writeFileSync(file,'#!/bin/bash\nset -euo pipefail\n'+body,{mode:0o700});

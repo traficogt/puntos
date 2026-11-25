@@ -29,7 +29,7 @@ test('manual build requires an explicit canonical Play version and accepts only 
 
 type Call = { command: string; args: string[] };
 function fixture() {
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-local-test-'));
+  const temporary = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'pf-local-test-'));
   const appRoot = path.join(temporary, 'app');
   const stateDirectory = path.join(temporary, 'state');
   const credentials = path.join(temporary, 'credentials');

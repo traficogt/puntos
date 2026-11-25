@@ -12,7 +12,7 @@ const fingerprintPaths = fingerprintRequire('./build/utils/Path.js');
 test('fingerprint preserves nested gitignore discovery and native workflow classification', async () => {
   const { glob } = fingerprintRequire('glob');
   const { resolveProjectWorkflowAsync } = fingerprintRequire('./build/ProjectWorkflow.js');
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-workflow-'));
+  const temporary = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'pf-workflow-'));
   try {
     fs.mkdirSync(path.join(temporary, 'ios/Fixture.xcodeproj'), { recursive: true });
     fs.mkdirSync(path.join(temporary, 'node_modules/ignored'), { recursive: true });
@@ -60,7 +60,7 @@ test('TypeScript ESLint project matching keeps ordinary glob and dotfile behavio
 
 test('fingerprints are deterministic, ignore generated files, and detect native source edits', async () => {
   const { createFingerprintAsync } = fingerprintRequire('./build/index.js');
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-fingerprint-'));
+  const temporary = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'pf-fingerprint-'));
   try {
     fs.mkdirSync(path.join(temporary, 'native/generated'), { recursive: true });
     fs.writeFileSync(path.join(temporary, 'package.json'), '{"name":"fingerprint-fixture","version":"1.0.0"}');
