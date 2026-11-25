@@ -7,7 +7,7 @@ import { chromium } from "playwright";
 import { createSelfServiceWeb } from "../../src/middleware/self-service-web.js";
 
 test(
-  "simple calculator starts with two numbers and reveals return only on request",
+  "simple calculator starts with the four core numbers and computes payback in the same step",
   { timeout: 60000 },
   async (t) => {
     const root = fileURLToPath(new URL("../../public", import.meta.url));
@@ -49,72 +49,146 @@ test(
     page.on("request", (request) => {
       if (request.method() !== "GET") writes.push(request.url());
     });
+    const text = (selector) => page.locator(selector).innerText();
+    const visible = (selector) => page.locator(selector).isVisible();
+    const calculate = () => page.locator("#calculate-budget").click();
     await page.goto(`http://127.0.0.1:${address.port}/calculadora`);
     assert.equal(await page.locator("#simple-calculator").count(), 1);
-    assert.equal(await page.locator("input:visible").count(), 2);
+    // Four inputs at load: the two budget numbers and the two payback numbers. The
+    // optional costs stay behind the closed "Más opciones" details.
+    assert.equal(await page.locator("input:visible").count(), 4);
+    for (const id of ["rewardCost", "rewardCount", "keptPerSale", "rewardEvery"])
+      assert.equal(await visible(`#${id}`), true, id);
+    assert.equal(await visible("#monthlyCosts"), false);
+    assert.equal(await visible("#additionalSales"), false);
+    assert.match(await text(".payback-ask"), /mismo paso/);
     assert.ok((await page.locator(".skip-link").boundingBox()).y < 0);
-    assert.equal(await page.locator("#budget-result").isVisible(), false);
-    await page.locator("#calculate-budget").click();
+    assert.equal(await visible("#budget-result"), false);
+    // Validation: an empty submit flags the budget fields; the summary link focuses the first.
+    await calculate();
+    assert.equal(await visible("#budget-result"), false);
     assert.equal(await page.locator("#rewardCost").getAttribute("aria-invalid"), "true");
+    assert.equal(await page.locator("#rewardCount").getAttribute("aria-invalid"), "true");
+    assert.equal(await page.locator("#keptPerSale").getAttribute("aria-invalid"), null);
     await page.locator("#budget-errors a").first().click();
     assert.equal(await page.evaluate(() => document.activeElement.id), "rewardCost");
+    // Budget alone: 20 × GTQ 10 = GTQ 200, with the payback prompt in place of the block.
     await page.fill("#rewardCost", "10");
     await page.fill("#rewardCount", "20");
-    await page.locator("#calculate-budget").click();
-    assert.match(await page.locator("#budget-total").innerText(), /GTQ\s*200/);
-    assert.match(await page.locator("#budget-exclusions").innerText(), /no incluye/i);
+    await calculate();
+    assert.equal(await page.evaluate(() => document.activeElement.id), "budget-heading");
+    assert.match(await text("#budget-total"), /GTQ\s*200/);
+    assert.match(await text("#budget-verdict"), /20 premios te costarán GTQ\s*200/);
+    assert.match(await text("#budget-calculation"), /20 premios × GTQ\s*10/);
+    assert.match(await text("#budget-exclusions"), /no incluye/i);
+    assert.equal(await visible("#payback-block"), false);
+    assert.equal(await visible("#payback-missing"), true);
+    // Optional monthly costs join the same total and leave with it.
     await page.locator("#extra-costs summary").click();
     await page.fill("#monthlyCosts", "99");
-    await page.locator("#calculate-budget").click();
-    assert.match(await page.locator("#budget-total").innerText(), /GTQ\s*299/);
+    assert.equal(await visible("#budget-result"), false);
+    await calculate();
+    assert.match(await text("#budget-total"), /GTQ\s*299/);
+    assert.match(await text("#budget-calculation"), /\+ GTQ\s*99/);
+    assert.match(await text("#budget-exclusions"), /Incluye todos estos premios/);
     await page.fill("#monthlyCosts", "");
     await page.locator("#extra-costs summary").click();
-    await page.locator("#calculate-budget").click();
-    assert.equal(await page.locator("#return-result").isVisible(), false);
-    await page.locator("#return-options summary").click();
+    await calculate();
+    assert.match(await text("#budget-total"), /GTQ\s*200/);
+    assert.equal(await visible("#payback-missing"), true);
+    // Payback is computed in the same step and validates both of its inputs together.
     await page.fill("#keptPerSale", "25");
+    await calculate();
+    assert.equal(await visible("#budget-result"), false);
+    assert.equal(await page.locator("#rewardEvery").getAttribute("aria-invalid"), "true");
+    await page.locator("#budget-errors a").first().click();
+    assert.equal(await page.evaluate(() => document.activeElement.id), "rewardEvery");
     await page.fill("#rewardEvery", "10");
-    await page.locator("#calculate-return").click();
-    assert.match(await page.locator("#extra-sales-needed").innerText(), /9 compras/);
-    assert.equal(await page.locator("#sales-scenario").isVisible(), false);
+    await calculate();
+    // Model: (25 × 10 − 10) / 10 = GTQ 24 net per extra purchase after a GTQ 1 reserve;
+    // ceil(200 / 24) = 9 purchases, i.e. fewer than one a day over the month.
+    assert.equal(await visible("#payback-block"), true);
+    assert.equal(await visible("#payback-missing"), false);
+    assert.match(await text("#extra-sales-needed"), /^9 compras extra para cubrir/);
+    assert.match(await text("#budget-verdict"), /~9 ventas extra \(menos de 1 venta más al día\)/);
+    assert.match(await text("#per-day-note"), /menos de 1 venta más al día/);
+    assert.match(
+      await text("#per-sale-flow"),
+      /GTQ\s*25\.00 ganas → GTQ\s*1\.00 al premio → GTQ\s*24\.00 neto/,
+    );
+    assert.equal(await visible("#sales-scenario"), false);
+    // A sales hypothesis is optional: 10 × 24 − 200 leaves GTQ 40.
+    await page.locator("#extra-costs summary").click();
     await page.fill("#additionalSales", "10");
-    assert.equal(await page.locator("#return-result").isVisible(), false);
-    await page.locator("#calculate-return").click();
-    assert.match(await page.locator("#sales-scenario").innerText(), /GTQ\s*40/);
-    await page.locator("#return-options summary").click();
+    assert.equal(await visible("#budget-result"), false);
+    await calculate();
+    assert.match(await text("#sales-scenario"), /^Con 10 compras extra, quedarían GTQ\s*40/);
     await page.emulateMedia({ media: "print" });
-    assert.match(await page.locator("#print-assumptions").innerText(), /9 compras/);
-    assert.match(await page.locator("#print-assumptions").innerText(), /GTQ\s*40/);
+    assert.equal(await visible("#budget-form"), false);
+    assert.equal(await visible("#payback-block"), false);
+    assert.equal(await visible("#print-assumptions"), true);
+    const printed = await text("#print-assumptions");
+    assert.match(printed, /Moneda: GTQ/);
+    assert.match(printed, /20 premios a GTQ\s*10\.00 cada uno/);
+    assert.match(printed, /Otros gastos no incluidos/);
+    assert.match(
+      printed,
+      /Cada compra deja GTQ\s*25\.00 antes de premios\. Un premio por cada 10 compras/,
+    );
+    assert.match(printed, /Reserva por compra adicional: 1 GTQ/);
+    assert.match(printed, /Hipótesis: 10 compras adicionales/);
+    assert.match(printed, /9 compras extra para cubrir el presupuesto/);
+    assert.match(printed, /Quedaría GTQ\s*40\.00/);
     await page.emulateMedia({ media: "screen" });
-    await page.locator("#return-options summary").click();
+    assert.equal(await visible("#print-assumptions"), false);
+    assert.equal(await visible("#budget-form"), true);
+    // Non-positive case: GTQ 1 kept per sale only covers the GTQ 1 reserve, so no
+    // number of purchases pays the budget back; the hypothesis shows the shortfall.
     await page.fill("#keptPerSale", "1");
-    await page.locator("#calculate-return").click();
-    assert.match(await page.locator("#extra-sales-needed").innerText(), /no alcanza/i);
-    await page.fill("#additionalSales", "4");
+    await calculate();
+    assert.match(await text("#extra-sales-needed"), /no alcanza/i);
+    assert.doesNotMatch(await text("#budget-verdict"), /Se paga solo/);
+    assert.equal(await visible("#per-day-note"), false);
+    assert.match(await text("#sales-scenario"), /^Con 10 compras extra, faltarían GTQ\s*200\.00/);
+    await page.fill("#additionalSales", "");
+    await calculate();
+    assert.match(await text("#extra-sales-needed"), /no alcanza/i);
+    assert.equal(await visible("#sales-scenario"), false);
     await page.emulateMedia({ media: "print" });
-    assert.equal(await page.locator("#return-result").isVisible(), false);
-    assert.match(await page.locator("#print-assumptions").innerText(), /20 premios/);
-    assert.doesNotMatch(await page.locator("#print-assumptions").innerText(), /Hipótesis/);
+    const printedWithoutScenario = await text("#print-assumptions");
+    assert.match(printedWithoutScenario, /20 premios a GTQ\s*10\.00/);
+    assert.match(printedWithoutScenario, /No hay un número calculable de compras/);
+    assert.match(printedWithoutScenario, /Sin hipótesis de compras adicionales/);
+    assert.doesNotMatch(printedWithoutScenario, /Hipótesis:/);
+    assert.doesNotMatch(printedWithoutScenario, /Quedaría|Faltaría/);
     await page.emulateMedia({ media: "screen" });
+    await page.locator("#extra-costs summary").click();
+    // Editing any field withdraws the result (and its print facts) until recalculated.
     await page.fill("#rewardCost", "");
-    assert.equal(await page.locator("#budget-result").isVisible(), false);
-    assert.equal(await page.locator("#return-options").isVisible(), false);
+    assert.equal(await visible("#budget-result"), false);
+    assert.equal(await text("#print-assumptions"), "");
     await page.fill("#rewardCost", "0");
-    await page.locator("#calculate-budget").click();
-    assert.match(await page.locator("#budget-total").innerText(), /GTQ\s*0/);
+    await calculate();
+    assert.match(await text("#budget-total"), /GTQ\s*0/);
+    assert.match(await text("#extra-sales-needed"), /no requiere compras extra/);
     await page.selectOption("#currency", "CLP");
     await page.fill("#rewardCost", "1.5");
-    await page.locator("#calculate-budget").click();
-    assert.match(await page.locator("#budget-errors").innerText(), /entero/);
+    await calculate();
+    assert.match(await text("#budget-errors"), /entero/);
     await page.locator("#reset-simple").click();
-    assert.equal(await page.locator("input:visible").count(), 2);
+    assert.equal(await page.locator("input:visible").count(), 4);
     assert.equal(await page.locator("#rewardCost").inputValue(), "");
+    assert.equal(await page.locator("#keptPerSale").inputValue(), "");
+    assert.equal(await page.locator("#currency").inputValue(), "GTQ");
+    assert.equal(await visible("#budget-result"), false);
     await page.locator("#examples summary").click();
     await page.addScriptTag({ url: `http://127.0.0.1:${address.port}/__calculator-axe.js` });
     for (const example of ["retail", "salon", "carwash", "cafe"]) {
       await page.locator(`[data-example="${example}"]`).click();
-      assert.match(await page.locator("#example-context").innerText(), /ficticio/i);
-      assert.equal(await page.locator("#budget-result").isVisible(), true);
+      assert.match(await text("#example-context"), /ficticio/i);
+      assert.equal(await visible("#budget-result"), true);
+      assert.equal(await visible("#payback-block"), true, example);
+      assert.equal(await visible("#sales-scenario"), true, example);
     }
     await page.locator("#examples summary").click();
     const screenshotDir = fileURLToPath(
@@ -141,8 +215,10 @@ test(
       await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
       await page.screenshot({ path: `${screenshotDir}${width}.png`, fullPage: true });
     }
-    await page.locator("#return-options summary").click();
-    await page.locator("#calculate-return").click();
+    // Narrowest width with every input open and the payback block rendered.
+    await page.locator("#extra-costs summary").click();
+    assert.equal(await page.locator("input:visible").count(), 6);
+    assert.equal(await visible("#payback-block"), true);
     assert.deepEqual(
       await page.evaluate(async () =>
         (await /** @type {any} */ (window).axe.run()).violations.map((v) => ({
@@ -157,7 +233,7 @@ test(
       false,
     );
     await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
-    await page.screenshot({ path: `${screenshotDir}320-return.png`, fullPage: true });
+    await page.screenshot({ path: `${screenshotDir}320-payback.png`, fullPage: true });
     assert.deepEqual(errors, []);
     assert.deepEqual(writes, []);
     assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0);
