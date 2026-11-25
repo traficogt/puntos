@@ -19,12 +19,63 @@ import {
   formatCount,
 } from "./scale-limits.js";
 
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/**
+ * Owner request to create a campaign whose audience is prepared in the
+ * background (validated by the route before it gets here).
+ * @typedef {{
+ *   businessId: string,
+ *   staffId?: string | null,
+ *   requestId: string,
+ *   audienceSegmentId?: string | null,
+ *   audienceSegmentVersion?: number,
+ *   audienceLimit?: number,
+ *   name: string,
+ *   bonusPoints: number,
+ *   minimumPurchaseQ?: number,
+ *   durationDays?: number | null,
+ *   holdoutPercent?: number,
+ *   pointsBudget?: number | null,
+ *   estimatedCostPerPointQ?: number | null,
+ *   offerKind?: string,
+ *   durationMinutes?: number | null,
+ *   recoveryRunId?: string | null,
+ *   measurementPlan?: unknown,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null,
+ * }} CampaignPreparationRequest
+ */
+/**
+ * @typedef {{
+ *   businessId: string,
+ *   campaignId: string,
+ *   staffId?: string | null,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null,
+ * }} CampaignPreparationTarget
+ */
+/**
+ * @typedef {{
+ *   transaction?: typeof withTransaction,
+ *   audit?: typeof AuditRepo.log,
+ *   getPlanFeatureOverrides?: () => ReturnType<typeof PlanConfigService.getPlanFeatureOverrides>,
+ * }} CampaignPreparationDeps
+ */
+/** @typedef {{ ok: true, campaignId: string, status: string, prepared: number, total: number }} CampaignPreparationProgress */
+
 const JOB_TYPE = "growth.campaign.prepare";
 const transactionDefaults = {
   transaction: withTransaction,
   audit: AuditRepo.log,
   getPlanFeatureOverrides: () => PlanConfigService.getPlanFeatureOverrides(),
 };
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string} campaignId
+ */
 async function enqueue(client, businessId, campaignId) {
   const jobId = randomUUID();
   await client.query(
@@ -33,6 +84,10 @@ async function enqueue(client, businessId, campaignId) {
   );
   return jobId;
 }
+/**
+ * @param {CampaignPreparationRequest} options
+ * @param {CampaignPreparationDeps} [dependencies]
+ */
 export async function createCampaignPreparation(options, dependencies = {}) {
   const { transaction, audit, getPlanFeatureOverrides } = {
     ...transactionDefaults,
@@ -72,8 +127,10 @@ export async function createCampaignPreparation(options, dependencies = {}) {
     options.recoveryRunId ||
     !["experiment", "quiet"].includes(offerKind) ||
     !audienceSegmentId ||
+    typeof audienceSegmentVersion !== "number" ||
     !Number.isInteger(audienceSegmentVersion) ||
     audienceSegmentVersion < 1 ||
+    typeof audienceLimit !== "number" ||
     !Number.isInteger(audienceLimit) ||
     audienceLimit < (offerKind === "quiet" ? 1 : 10) ||
     audienceLimit > AUDIENCE_TECHNICAL_CEILING
@@ -107,7 +164,7 @@ export async function createCampaignPreparation(options, dependencies = {}) {
     )
     .digest("hex");
   const overrides = await getPlanFeatureOverrides();
-  return transaction(async (client) => {
+  return transaction(async (/** @type {TxClient} */ client) => {
     const business = await lockEntitledBusiness(client, businessId, overrides);
     const previous = (
       await client.query(
@@ -176,6 +233,14 @@ export async function createCampaignPreparation(options, dependencies = {}) {
 /** Crash-safe payload contract for background_jobs. Each chunk commits its own
  * progress. Concurrent/restarted handlers serialize on the campaign row and
  * never re-evaluate a captured audience. No customer notification is performed. */
+/**
+ * @param {{ businessId: string, campaignId: string }} payload
+ * @param {{
+ *   transaction?: typeof withTransaction,
+ *   runInTenant?: <T>(id: string, fn: () => Promise<T>) => Promise<T>,
+ *   afterChunk?: (progress: CampaignPreparationProgress) => Promise<void>,
+ * }} [dependencies]
+ */
 export async function runCampaignPreparationJob(
   { businessId, campaignId },
   {
@@ -188,7 +253,8 @@ export async function runCampaignPreparationJob(
   return runInTenant(businessId, async () => {
     try {
       for (;;) {
-        const progress = await transaction(async (client) => {
+        /** @type {CampaignPreparationProgress} */
+        const progress = await transaction(async (/** @type {TxClient} */ client) => {
           const campaign = (
             await client.query(
               "SELECT * FROM growth_campaigns WHERE business_id=$1 AND id=$2 FOR UPDATE",
@@ -250,7 +316,12 @@ export async function runCampaignPreparationJob(
               `INSERT INTO growth_campaign_members(id,business_id,campaign_id,customer_id)
             SELECT member_id,$1,$2,customer_id FROM unnest($3::uuid[],$4::uuid[]) AS selected(member_id,customer_id)
             ON CONFLICT(business_id,campaign_id,customer_id) DO NOTHING`,
-              [businessId, campaignId, active.map(() => randomUUID()), active.map((c) => c.id)],
+              [
+                businessId,
+                campaignId,
+                active.map(() => randomUUID()),
+                active.map((/** @type {{ id: string }} */ c) => c.id),
+              ],
             );
           const prepared = campaign.prepared_count + chunk.length;
           // Publish readiness on the next transaction so cancellation can win
@@ -267,7 +338,7 @@ export async function runCampaignPreparationJob(
         await afterChunk(progress);
       }
     } catch (error) {
-      await transaction(async (client) => {
+      await transaction(async (/** @type {TxClient} */ client) => {
         // Lock order matches the worker and owner controls.
         await client.query(
           "UPDATE growth_campaigns SET preparation_status='failed' WHERE business_id=$1 AND id=$2 AND preparation_status IN ('queued','preparing','failed')",
@@ -282,6 +353,11 @@ export async function runCampaignPreparationJob(
     }
   });
 }
+/**
+ * @param {CampaignPreparationTarget} options
+ * @param {"cancel" | "retry"} action
+ * @param {CampaignPreparationDeps} dependencies
+ */
 async function changePreparation(options, action, dependencies) {
   const { transaction, audit, getPlanFeatureOverrides } = {
     ...transactionDefaults,
@@ -289,7 +365,7 @@ async function changePreparation(options, action, dependencies) {
   };
   const overrides = await getPlanFeatureOverrides(),
     { businessId, campaignId } = options;
-  return transaction(async (client) => {
+  return transaction(async (/** @type {TxClient} */ client) => {
     await lockEntitledBusiness(client, businessId, overrides);
     const campaign = (
       await client.query(
@@ -348,7 +424,9 @@ async function changePreparation(options, action, dependencies) {
     return { campaign: publicGrowthCampaign(updated) };
   });
 }
+/** @param {CampaignPreparationTarget} options @param {CampaignPreparationDeps} [deps] */
 export const cancelCampaignPreparation = (options, deps = {}) =>
   changePreparation(options, "cancel", deps);
+/** @param {CampaignPreparationTarget} options @param {CampaignPreparationDeps} [deps] */
 export const retryCampaignPreparation = (options, deps = {}) =>
   changePreparation(options, "retry", deps);

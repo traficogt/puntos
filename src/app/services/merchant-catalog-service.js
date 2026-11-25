@@ -22,10 +22,42 @@ import {
   writeCatalogItem,
 } from "./merchant-catalog-store.js";
 import { catalogInventory } from "./reward-inventory-service.js";
+
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("./merchant-catalog-store.js").CatalogItemRow} CatalogItemRow */
+/** @typedef {{ id: string, [key: string]: unknown }} CatalogStaff */
+/** @typedef {{ transaction?: typeof withTransaction }} CatalogDeps */
+/** @typedef {{ businessId: string, staff: CatalogStaff, input: unknown }} CatalogStaffRequest */
+/** Listing row: a catalog item joined with its branch inventory snapshot. */
+/**
+ * @typedef {CatalogItemRow & {
+ *   available_quantity: string | number | null,
+ *   inventory_observed_at: string | Date | null,
+ *   checked_at: string | Date,
+ * }} CatalogListingRow
+ */
+/**
+ * reward-inventory-service.js declares `quantity = null` and `observedAt = null`, which
+ * TypeScript reads as "only null"; the function takes the live values below.
+ * @typedef {(input: {
+ *   itemKind: string,
+ *   origin: string,
+ *   active: boolean,
+ *   quantity: string | number | null,
+ *   observedAt: string | Date | null,
+ *   now: number,
+ * }) => ReturnType<typeof catalogInventory>} CatalogInventory
+ */
+const inventoryFor = /** @type {CatalogInventory} */ (/** @type {unknown} */ (catalogInventory));
+
+/**
+ * @param {CatalogStaffRequest} request
+ * @param {CatalogDeps} [injected]
+ */
 export async function saveManualCatalogItem({ businessId, staff, input }, injected = {}) {
   const value = normalizeManualCatalogItem(input),
     source = MANUAL_CATALOG_SOURCE;
-  return (injected.transaction ?? withTransaction)(async (client) => {
+  return (injected.transaction ?? withTransaction)(async (/** @type {TxClient} */ client) => {
     const actor = await fulfillmentActor(client, businessId, staff, true);
     const request = {
       businessId,
@@ -52,10 +84,14 @@ export async function saveManualCatalogItem({ businessId, staff, input }, inject
     return result;
   });
 }
+/**
+ * @param {CatalogStaffRequest} request
+ * @param {CatalogDeps} [injected]
+ */
 export async function previewCatalogCsv({ businessId, staff, input }, injected = {}) {
   const { csv } = normalizeCatalogCsvBody(input),
     items = normalizeCatalogCsv(csv);
-  return (injected.transaction ?? withTransaction)(async (client) => {
+  return (injected.transaction ?? withTransaction)(async (/** @type {TxClient} */ client) => {
     await fulfillmentActor(client, businessId, staff, true);
     const old = (
       await client.query(
@@ -63,7 +99,12 @@ export async function previewCatalogCsv({ businessId, staff, input }, injected =
         [businessId, CSV_CATALOG_SOURCE, items.map((item) => item.productRef)],
       )
     ).rows;
-    const revisions = new Map(old.map((item) => [item.product_ref, item.revision]));
+    const revisions = new Map(
+      old.map((/** @type {{ product_ref: string, revision: number }} */ item) => [
+        item.product_ref,
+        item.revision,
+      ]),
+    );
     return {
       ok: true,
       items: items.map((item) => ({
@@ -76,11 +117,15 @@ export async function previewCatalogCsv({ businessId, staff, input }, injected =
     };
   });
 }
+/**
+ * @param {CatalogStaffRequest} request
+ * @param {CatalogDeps} [injected]
+ */
 export async function importCatalogCsv({ businessId, staff, input }, injected = {}) {
   const value = normalizeCatalogImport(input),
     items = normalizeCatalogCsv(value.csv),
     source = CSV_CATALOG_SOURCE;
-  return (injected.transaction ?? withTransaction)(async (client) => {
+  return (injected.transaction ?? withTransaction)(async (/** @type {TxClient} */ client) => {
     const actor = await fulfillmentActor(client, businessId, staff, true);
     const request = {
       businessId,
@@ -104,11 +149,16 @@ export async function importCatalogCsv({ businessId, staff, input }, injected = 
     return result;
   });
 }
+/**
+ * @param {{ id: string }} business
+ * @param {unknown} input
+ * @param {CatalogDeps} [injected]
+ */
 export async function syncMerchantCatalog(business, input, injected = {}) {
   const value = normalizeCatalogSync(input),
     businessId = business.id,
     { source, requestId, observedAt } = value;
-  return (injected.transaction ?? withTransaction)(async (client) => {
+  return (injected.transaction ?? withTransaction)(async (/** @type {TxClient} */ client) => {
     const request = { businessId, source, requestId, operation: "catalog", input: value };
     const { fingerprint, replay } = await catalogRequest(client, request);
     if (replay) return replay;
@@ -130,11 +180,16 @@ export async function syncMerchantCatalog(business, input, injected = {}) {
     return result;
   });
 }
+/**
+ * @param {{ id: string }} business
+ * @param {unknown} input
+ * @param {CatalogDeps} [injected]
+ */
 export async function recordInventorySnapshot(business, input, injected = {}) {
   const value = normalizeInventorySnapshot(input),
     businessId = business.id,
     { source, requestId, branchId, observedAt } = value;
-  return (injected.transaction ?? withTransaction)(async (client) => {
+  return (injected.transaction ?? withTransaction)(async (/** @type {TxClient} */ client) => {
     const request = { businessId, source, requestId, operation: "inventory", input: value };
     const { fingerprint, replay } = await catalogRequest(client, request);
     if (replay) return replay;
@@ -187,7 +242,7 @@ export async function recordInventorySnapshot(business, input, injected = {}) {
 /**
  * @param {{
  *   businessId: string,
- *   staff: any,
+ *   staff: CatalogStaff,
  *   query?: string,
  *   source?: string,
  *   branchId?: string,
@@ -218,7 +273,7 @@ export async function listMerchantCatalog(
   if (!normalized.success)
     throw badRequest("Revisa la búsqueda, sucursal y paginación del catálogo.");
   ({ query, source, branchId, offset, limit } = normalized.data);
-  return (injected.transaction ?? withTransaction)(async (client) => {
+  return (injected.transaction ?? withTransaction)(async (/** @type {TxClient} */ client) => {
     await fulfillmentActor(client, businessId, staff, true);
     await catalogBranch(client, businessId, branchId);
     const rows = (
@@ -235,17 +290,21 @@ export async function listMerchantCatalog(
         `SELECT s.source,s.origin,s.observed_at,count(c.id)::integer AS item_count FROM merchant_catalog_sources s LEFT JOIN merchant_catalog_items c ON c.business_id=s.business_id AND c.source=s.source WHERE s.business_id=$1 AND s.scope='catalog' GROUP BY s.id ORDER BY s.source`,
         [businessId],
       )
-    ).rows.map((row) => ({
-      source: row.source,
-      origin: row.origin,
-      itemCount: row.item_count,
-      observedAt: row.observed_at ? new Date(row.observed_at).toISOString() : null,
-    }));
+    ).rows.map(
+      (
+        /** @type {{ source: string, origin: string, item_count: number, observed_at: string | Date | null }} */ row,
+      ) => ({
+        source: row.source,
+        origin: row.origin,
+        itemCount: row.item_count,
+        observedAt: row.observed_at ? new Date(row.observed_at).toISOString() : null,
+      }),
+    );
     return {
       ok: true,
-      items: rows.slice(0, limit).map((row) => ({
+      items: rows.slice(0, limit).map((/** @type {CatalogListingRow} */ row) => ({
         ...publicCatalogItem(row),
-        inventory: catalogInventory({
+        inventory: inventoryFor({
           itemKind: row.item_kind,
           origin: row.origin,
           active: row.active,

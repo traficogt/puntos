@@ -11,6 +11,15 @@ import { PlanConfigService } from "./plan-config-service.js";
 import { marketingProviderReady } from "./messaging-service.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
 
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {"birthday" | "winback"} AutomationRule */
+/** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
+/**
+ * businesses row as this module selects it.
+ * @typedef {{ id: string, name: string, plan: string, program_json: MerchantProgramJson | null }} AutomationBusinessRow
+ */
+
+/** @type {AutomationRule[]} */
 export const AUTOMATION_RULES = ["birthday", "winback"];
 export const AutomationSettings = z
   .object({
@@ -37,26 +46,49 @@ export const AutomationSettings = z
       ),
     { message: "El presupuesto debe cubrir al menos un incentivo activo." },
   );
+/**
+ * @param {unknown} value
+ * @param {number} min
+ * @param {number} max
+ * @param {number} fallback
+ */
 const bounded = (value, min, max, fallback) =>
-  Number.isInteger(value) && value >= min && value <= max ? value : fallback;
+  typeof value === "number" && Number.isInteger(value) && value >= min && value <= max
+    ? value
+    : fallback;
+/**
+ * @param {unknown} [raw] program_json.lifecycle as stored (untrusted JSON)
+ * @param {Partial<AutomationBusinessRow>} [business]
+ */
 export function automationSettings(raw = {}, business = {}) {
-  raw = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  const source = /** @type {Record<string, unknown>} */ (
+    raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}
+  );
   return {
-    birthday_enabled: raw.birthday_enabled === true,
-    birthday_points: bounded(raw.birthday_points, 0, 10000, 0),
-    birthday_monthly_points_cap: bounded(raw.birthday_monthly_points_cap, 0, 2000000, 0),
-    winback_enabled: raw.winback_enabled === true,
-    winback_days: bounded(raw.winback_days, 7, 365, 30),
-    winback_points: bounded(raw.winback_points, 0, 10000, 0),
-    winback_monthly_points_cap: bounded(raw.winback_monthly_points_cap, 0, 2000000, 0),
-    minimum_contact_days: bounded(raw.minimum_contact_days, 7, 90, 7),
-    scheduler_hour_local: bounded(raw.scheduler_hour_local, 9, 17, 9),
+    birthday_enabled: source.birthday_enabled === true,
+    birthday_points: bounded(source.birthday_points, 0, 10000, 0),
+    birthday_monthly_points_cap: bounded(source.birthday_monthly_points_cap, 0, 2000000, 0),
+    winback_enabled: source.winback_enabled === true,
+    winback_days: bounded(source.winback_days, 7, 365, 30),
+    winback_points: bounded(source.winback_points, 0, 10000, 0),
+    winback_monthly_points_cap: bounded(source.winback_monthly_points_cap, 0, 2000000, 0),
+    minimum_contact_days: bounded(source.minimum_contact_days, 7, 90, 7),
+    scheduler_hour_local: bounded(source.scheduler_hour_local, 9, 17, 9),
     scheduler_tz: regionTimezone(business),
   };
 }
+/** @param {Date} now @param {Partial<AutomationBusinessRow>} [business] */
 export const automationLocalDate = (now, business = {}) => regionalLocalDate(now, business);
+/** @param {Date} now @param {Partial<AutomationBusinessRow>} [business] */
 export const automationMonth = (now, business = {}) =>
-  `${automationLocalDate(now, business).slice(0, 7)}-01`;
+  // A valid instant in a valid zone always has a local date (luxon types it as nullable).
+  `${/** @type {string} */ (automationLocalDate(now, business)).slice(0, 7)}-01`;
+/**
+ * @param {string} businessId
+ * @param {TxClient} [client]
+ * @param {boolean} [lock]
+ * @returns {Promise<AutomationBusinessRow>}
+ */
 async function businessRow(businessId, client = { query: dbQuery }, lock = false) {
   const { rows } = await client.query(
     `SELECT id,name,plan,program_json FROM businesses WHERE id=$1 ${lock ? "FOR NO KEY UPDATE" : ""}`,
@@ -73,6 +105,7 @@ const notProcessedSql = `NOT EXISTS(SELECT 1 FROM lifecycle_events e WHERE e.bus
   AND (e.event_date=$3::date OR ($2='winback' AND
     (e.meta->>'inactivity_anchor'=${inactivityAnchorSql} OR
       (NOT (e.meta ? 'inactivity_anchor') AND e.event_date>=(c.last_visit_at AT TIME ZONE $5)::date)))))`;
+/** @param {{ businessId: string, now?: Date }} input */
 export async function getAutomationControls({ businessId, now = new Date() }) {
   const business = await businessRow(businessId);
   const settings = automationSettings(business.program_json?.lifecycle, business);
@@ -82,6 +115,7 @@ export async function getAutomationControls({ businessId, now = new Date() }) {
     await PlanConfigService.getPlanFeatureOverrides(),
   );
   if (!entitled) throw forbidden("Tu plan no incluye automatizaciones.");
+  /** @type {Partial<Record<AutomationRule, Record<string, unknown>>>} */
   const rules = {};
   for (const rule of AUTOMATION_RULES) {
     const { rows } = await dbQuery(
@@ -155,6 +189,15 @@ export async function getAutomationControls({ businessId, now = new Date() }) {
       "Aceptado por el proveedor no significa entregado ni leído. Los puntos se abonan al preparar el incentivo, aunque el mensaje no se entregue.",
   };
 }
+/**
+ * @param {{
+ *   businessId: string,
+ *   settings: unknown,
+ *   staffId?: string | null,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ * }} input
+ */
 export async function saveAutomationSettings({
   businessId,
   settings,
@@ -165,7 +208,7 @@ export async function saveAutomationSettings({
   const parsed = AutomationSettings.safeParse(settings);
   if (!parsed.success) throw badRequest("Revisa los límites y el presupuesto de cada incentivo.");
   const overrides = await PlanConfigService.getPlanFeatureOverrides();
-  await withTransaction(async (client) => {
+  await withTransaction(async (/** @type {TxClient} */ client) => {
     const business = await businessRow(businessId, client, true);
     if (!hasPlanFeature(business.plan, "lifecycle_automation", overrides))
       throw forbidden("Tu plan no incluye automatizaciones.");
@@ -194,10 +237,11 @@ export async function saveAutomationSettings({
   });
   return { ok: true, settings: parsed.data };
 }
+/** @param {{ businessId: string, rule: AutomationRule, now?: Date, limit?: number }} input */
 export async function runAutomationRule({ businessId, rule, now = new Date(), limit = 200 }) {
   if (!AUTOMATION_RULES.includes(rule)) throw badRequest("Automatización no válida.");
   const overrides = await PlanConfigService.getPlanFeatureOverrides();
-  return withTransaction(async (client) => {
+  return withTransaction(async (/** @type {TxClient} */ client) => {
     // Business first: serializes configuration and the two monthly budget reservations.
     const business = await businessRow(businessId, client, true);
     const cfg = automationSettings(business.program_json?.lifecycle, business);
@@ -310,6 +354,7 @@ export async function runAutomationRule({ businessId, rule, now = new Date(), li
     return { queued, awarded: points > 0 ? queued : 0, points: queued * points, sent: 0 };
   });
 }
+/** @param {{ businessId?: string | null, now?: Date }} [input] */
 export async function runGuidedAutomationsOnce({ businessId = null, now = new Date() } = {}) {
   const ids = businessId
     ? [businessId]
@@ -317,7 +362,7 @@ export async function runGuidedAutomationsOnce({ businessId = null, now = new Da
         const { rows } = await dbQuery(
           `SELECT id FROM businesses WHERE program_json->'lifecycle'->>'birthday_enabled'='true' OR program_json->'lifecycle'->>'winback_enabled'='true'`,
         );
-        return rows.map((row) => row.id);
+        return rows.map((/** @type {{ id: string }} */ row) => row.id);
       });
   const results = [];
   for (const bid of ids) {

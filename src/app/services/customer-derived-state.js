@@ -1,5 +1,8 @@
 import { fromMinor, mul, toMinor, toNumber } from "../../utils/money.js";
 
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+
+/** @param {string | Date | null | undefined} value */
 function dateKey(value) {
   if (!value) return null;
   const date = new Date(value);
@@ -7,6 +10,11 @@ function dateKey(value) {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * @param {number | string | null | undefined} totalTransactions
+ * @param {string | Date | null | undefined} firstPurchaseAt
+ * @param {string | Date | null | undefined} lastPurchaseAt
+ */
 export function computePurchaseFrequencyPerMonth(
   totalTransactions,
   firstPurchaseAt,
@@ -24,6 +32,7 @@ export function computePurchaseFrequencyPerMonth(
   return Number((txCount / monthsActive).toFixed(2));
 }
 
+/** @param {Array<string | Date | null | undefined> | null | undefined} visitDates */
 export function calculateVisitStreakMetrics(visitDates) {
   const normalized = [...new Set((visitDates || []).map(dateKey).filter(Boolean))].sort();
   if (!normalized.length) {
@@ -69,6 +78,10 @@ export function calculateVisitStreakMetrics(visitDates) {
   };
 }
 
+/**
+ * @param {number | null | undefined} daysSinceLastPurchase
+ * @param {number} purchaseFrequency
+ */
 function churnRiskScore(daysSinceLastPurchase, purchaseFrequency) {
   const daysFactor = Math.min(1, Number(daysSinceLastPurchase ?? 9999) / 90) * 0.6;
   const frequencyFactor = purchaseFrequency < 0.5 ? 0.4 : purchaseFrequency < 1 ? 0.2 : 0;
@@ -78,12 +91,20 @@ function churnRiskScore(daysSinceLastPurchase, purchaseFrequency) {
 // Two years of purchases at the observed monthly frequency, as a Q amount.
 // The frequency has two decimals, so 24 × frequency is an exact decimal and the
 // average ticket (a NUMERIC(10,2) string) is multiplied by it with one rounding.
+/**
+ * @param {string | number | null | undefined} avgTransactionValue NUMERIC(10,2) string from pg
+ * @param {number} purchaseFrequency
+ */
 function predictedLtv(avgTransactionValue, purchaseFrequency) {
   if (!(purchaseFrequency > 0)) return 0;
   const purchasesInTwoYears = fromMinor(mul(toMinor(purchaseFrequency), 24));
   return toNumber(mul(toMinor(avgTransactionValue || 0), purchasesInTwoYears));
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} customerId
+ */
 export async function refreshCustomerDerivedState(client, customerId) {
   const { rows } = await client.query(
     `SELECT
@@ -164,7 +185,9 @@ export async function refreshCustomerDerivedState(client, customerId) {
     [customerId],
   );
 
-  const streak = calculateVisitStreakMetrics(visitRows.map((row) => row.visit_date));
+  const streak = calculateVisitStreakMetrics(
+    visitRows.map((/** @type {{ visit_date: string | Date }} */ row) => row.visit_date),
+  );
   if (streak.currentStreak <= 0) {
     await client.query(`DELETE FROM visit_streaks WHERE customer_id = $1`, [customerId]);
     return;

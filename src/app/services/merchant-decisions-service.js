@@ -11,6 +11,43 @@ import { badRequest, conflict, forbidden, notFound } from "../../utils/http-erro
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 import { getOwnerOutcomeEvidence } from "./owner-outcome-service.js";
 import { ownerOutcomeFindings } from "./owner-outcome-model.js";
+
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {{ id: string, [key: string]: unknown }} DecisionStaff */
+/**
+ * @typedef {{
+ *   businessId: string,
+ *   staffId?: string | null,
+ *   decisionKey?: string,
+ *   input?: unknown,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null,
+ * }} DecisionBaseOptions
+ */
+/** Owner request; `staff` is present when the route attached a session. */
+/** @typedef {DecisionBaseOptions & { delegated?: false, staff?: DecisionStaff | null }} DecisionOwnerOptions */
+/** Delegate request: always acts as a specific staff member. */
+/** @typedef {DecisionBaseOptions & { delegated: true, staff: DecisionStaff }} DecisionDelegateOptions */
+/** @typedef {DecisionOwnerOptions | DecisionDelegateOptions} DecisionOptions */
+/** Any request that carries a staff session (owner or delegate). */
+/** @typedef {DecisionBaseOptions & { delegated?: boolean, staff: DecisionStaff }} DecisionStaffOptions */
+/**
+ * staff-delegation-service.js declares `staff: session = null`, which TypeScript reads as
+ * "only null"; the function takes the acting staff session shown here.
+ * @typedef {(client: TxClient, input: {
+ *   merchantId: string,
+ *   staffId: string,
+ *   action: string,
+ *   staff: DecisionStaff,
+ *   locationId: string | null,
+ *   points: number,
+ *   costAmount: number,
+ *   referenceType: string,
+ *   referenceId: string,
+ * }) => Promise<unknown>} ConsumeStaffAuthority
+ */
+
 const dfl = {
   query: dbQuery,
   transaction: withTransaction,
@@ -68,6 +105,10 @@ SELECT (SELECT count(*)::int FROM pairs) AS overlapping_pairs,
  COALESCE((SELECT jsonb_agg(jsonb_build_object('first_name',a.name,'second_name',b.name,'shared_customers',p.shared_customers) ORDER BY p.shared_customers DESC,p.first_id,p.second_id) FROM pairs p JOIN active a ON a.id=p.first_id JOIN active b ON b.id=p.second_id),'[]'::jsonb) AS pairs,
  (SELECT count(*)::int FROM active) AS reviewed_campaigns,
  (SELECT count(*)::int FROM growth_campaigns WHERE business_id=$1 AND status='active' AND starts_at<=$2 AND expires_at>$2) AS total_active_campaigns`;
+/**
+ * @param {{ businessId: string }} target
+ * @param {Partial<typeof dfl>} [injected]
+ */
 export async function getDecisionInbox({ businessId }, injected = {}) {
   const d = { ...dfl, ...injected },
     now = d.now();
@@ -145,6 +186,12 @@ export async function getDecisionInbox({ businessId }, injected = {}) {
       : null,
   };
 }
+/**
+ * @param {TxClient} client
+ * @param {DecisionOptions} options
+ * @param {string} action
+ * @param {Record<string, unknown>} details
+ */
 async function audit(client, options, action, details) {
   await client.query(
     "INSERT INTO audit_logs(id,business_id,actor_type,actor_id,action,ip,ua,meta) VALUES($1,$2,'STAFF',$3,$4,$5,$6,$7)",
@@ -159,19 +206,32 @@ async function audit(client, options, action, details) {
     ],
   );
 }
+/**
+ * @param {DecisionStaffOptions} options
+ * @param {Partial<typeof dfl>} [injected]
+ */
 export async function getDelegatedDecisionInbox(options, injected = {}) {
   const d = { ...dfl, ...injected };
-  await d.transaction((client) => livePromiseMember(client, options));
+  await d.transaction((/** @type {TxClient} */ client) => livePromiseMember(client, options));
   const inbox = await getDecisionInbox({ businessId: options.businessId }, d);
   const decisions = inbox.decisions
     .filter((item) => item.assigned_staff_id === options.staff.id)
     .map((item) => ({ ...item, action: { label: "Registrar seguimiento", href: "#pendientes" } }));
   return { ok: true, decisions, generated_at: inbox.generated_at };
 }
+/**
+ * @param {DecisionOptions} options
+ * @param {Partial<typeof dfl>} [injected]
+ */
 export async function getDecisionHistory(options, injected = {}) {
   const d = { ...dfl, ...injected };
-  return d.transaction(async (client) => {
-    if (options.staff) await livePromiseMember(client, options, !options.delegated);
+  return d.transaction(async (/** @type {TxClient} */ client) => {
+    if (options.staff)
+      await livePromiseMember(
+        client,
+        /** @type {DecisionStaffOptions} */ (options),
+        !options.delegated,
+      );
     if (
       options.delegated &&
       !(
@@ -191,14 +251,23 @@ export async function getDecisionHistory(options, injected = {}) {
     return { ok: true, events };
   });
 }
+/**
+ * @param {DecisionOptions} options
+ * @param {Partial<typeof dfl>} [injected]
+ */
 export async function reviewDecision(options, injected = {}) {
   const parsed = ReviewDecisionInput.safeParse(options.input);
   if (!parsed.success)
     throw badRequest("Revisa el estado, el motivo y el plazo de este pendiente.");
   const d = { ...dfl, ...injected },
     input = parsed.data;
-  return d.transaction(async (client) => {
-    if (options.staff) await livePromiseMember(client, options, !options.delegated);
+  return d.transaction(async (/** @type {TxClient} */ client) => {
+    if (options.staff)
+      await livePromiseMember(
+        client,
+        /** @type {DecisionStaffOptions} */ (options),
+        !options.delegated,
+      );
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1),hashtext($2))", [
       options.businessId,
       `decision:${input.decision_key}`,
@@ -285,20 +354,29 @@ export async function reviewDecision(options, injected = {}) {
     return { ok: true, version };
   });
 }
+/**
+ * @param {DecisionOptions} options
+ * @param {Partial<typeof dfl>} [injected]
+ */
 export async function setOperatingMode(options, injected = {}) {
   const parsed = OperatingModeInput.safeParse(options.input);
   if (!parsed.success) throw badRequest("Elige una pausa de 30 minutos a 4 horas.");
   const d = { ...dfl, ...injected },
     input = parsed.data,
     now = d.now();
-  return d.transaction(async (client) => {
+  return d.transaction(async (/** @type {TxClient} */ client) => {
     const business = (
       await client.query("SELECT id,program_json FROM businesses WHERE id=$1 FOR NO KEY UPDATE", [
         options.businessId,
       ])
     ).rows[0];
     if (!business) throw notFound("Negocio no encontrado.");
-    if (options.staff) await livePromiseMember(client, options, !options.delegated);
+    if (options.staff)
+      await livePromiseMember(
+        client,
+        /** @type {DecisionStaffOptions} */ (options),
+        !options.delegated,
+      );
     const requestId = input.request_id ?? randomUUID(),
       hash = fingerprint([options.staffId, input]);
     const previous = (
@@ -319,7 +397,10 @@ export async function setOperatingMode(options, injected = {}) {
     if (options.delegated) {
       if (!input.request_id) throw badRequest("La acción necesita una referencia.");
       const { consumeStaffAuthority } = await import("./staff-delegation-service.js");
-      await consumeStaffAuthority(client, {
+      const consume = /** @type {ConsumeStaffAuthority} */ (
+        /** @type {unknown} */ (consumeStaffAuthority)
+      );
+      await consume(client, {
         merchantId: options.businessId,
         staffId: options.staff.id,
         action: "operating_mode",

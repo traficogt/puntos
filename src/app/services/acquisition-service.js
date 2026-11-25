@@ -6,6 +6,23 @@ import { reportingPurchase } from "./reporting-purchase.js";
 
 import { sourceCodePattern, acquisitionSourceUrl } from "./acquisition-link.js";
 export { sourceCodePattern, acquisitionSourceUrl };
+
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("./acquisition-link.js").AcquisitionBusiness} AcquisitionBusiness */
+/** @typedef {import("./acquisition-link.js").AcquisitionSourceRow} AcquisitionSourceRow */
+/**
+ * Per-source aggregate row of the report query (counts are ::int, sums NUMERIC strings).
+ * @typedef {{
+ *   id: string,
+ *   visits: number | string,
+ *   registrations: number,
+ *   active_customers: number,
+ *   first_purchasers: number,
+ *   repeat_purchasers: number,
+ *   recorded_sales_q: string,
+ * }} AcquisitionMetricsRow
+ */
+
 const visitTokenPattern = /^[A-Za-z0-9_-]{43}$/;
 export const sourceInputSchema = z
   .object({
@@ -34,7 +51,17 @@ export function createAcquisitionService({
   transaction = withTransaction,
   context = withDbClientContext,
 } = {}) {
+  // Return type follows `context` (withDbClientContext) so unit tests can keep
+  // injecting partial service fakes through the route factory.
+  /**
+   * @param {string} businessId
+   * @param {() => Promise<unknown>} fn
+   */
   const scoped = (businessId, fn) => context({ tenantId: businessId, platformAdmin: false }, fn);
+  /**
+   * @param {string} businessId
+   * @param {string} sourceId
+   */
   async function getSource(businessId, sourceId) {
     return scoped(
       businessId,
@@ -47,8 +74,13 @@ export function createAcquisitionService({
         ).rows[0] ?? null,
     );
   }
+  /**
+   * @param {AcquisitionBusiness} business
+   * @param {string} appOrigin
+   */
   async function listSources(business, appOrigin) {
     return scoped(business.id, async () => {
+      /** @type {AcquisitionSourceRow[]} */
       const sources = (
         await query(
           `SELECT s.id,s.business_id,s.name,s.code,s.branch_id,s.created_at,b.name AS branch_name
@@ -74,13 +106,17 @@ export function createAcquisitionService({
       };
     });
   }
+  /**
+   * @param {AcquisitionBusiness} business
+   * @param {unknown} input
+   */
   async function createSource(business, input) {
     const parsed = sourceInputSchema.safeParse(input);
     if (!parsed.success)
       throw badRequest("Revisa el nombre, la sucursal y el identificador de la solicitud.");
     const data = parsed.data;
     return scoped(business.id, () =>
-      transaction(async (client) => {
+      transaction(async (/** @type {TxClient} */ client) => {
         await client.query(
           "SELECT pg_advisory_xact_lock(hashtext($1),hashtext('acquisition-sources'))",
           [business.id],
@@ -134,10 +170,14 @@ export function createAcquisitionService({
       }),
     );
   }
+  /**
+   * @param {AcquisitionBusiness} business
+   * @param {string | null | undefined} code
+   */
   async function visit(business, code) {
     if (!sourceCodePattern.test(code ?? "")) return { ok: true, visit_token: null };
     return scoped(business.id, () =>
-      transaction(async (client) => {
+      transaction(async (/** @type {TxClient} */ client) => {
         const source = (
           await client.query(
             "SELECT id FROM acquisition_sources WHERE business_id=$1 AND code=$2",
@@ -179,6 +219,10 @@ export function createAcquisitionService({
     );
   }
   // Call only inside the same transaction that verified the phone and created the customer.
+  /**
+   * @param {TxClient} client
+   * @param {{ businessId: string, customerId: string, visitToken: unknown, isNewCustomer: boolean }} input
+   */
   async function attributeVerified(client, { businessId, customerId, visitToken, isNewCustomer }) {
     if (typeof visitToken !== "string" || !visitTokenPattern.test(visitToken)) return false;
     const visit = (
@@ -196,9 +240,14 @@ export function createAcquisitionService({
     );
     return out.rowCount === 1;
   }
+  /**
+   * @param {AcquisitionBusiness} business
+   * @param {string} appOrigin
+   */
   async function report(business, appOrigin) {
     return scoped(business.id, async () => {
       const result = await listSources(business, appOrigin);
+      /** @type {AcquisitionMetricsRow[]} */
       const metrics = (
         await query(
           `SELECT s.id,s.visits,
@@ -225,7 +274,12 @@ export function createAcquisitionService({
       return {
         ...result,
         definitions: acquisitionDefinitions,
-        sources: result.sources.map((s) => ({ ...s, ...byId.get(s.id) })),
+        sources: result.sources.map(
+          (/** @type {AcquisitionSourceRow & { registration_url: string }} */ s) => ({
+            ...s,
+            ...byId.get(s.id),
+          }),
+        ),
       };
     });
   }

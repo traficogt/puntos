@@ -5,11 +5,19 @@ import { dbQuery, withTransaction } from "../database.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 import { businessRegion, REGIONAL_COUNTRIES, validateRegionalInput } from "./regional-settings.js";
 import { errorMessage } from "../../utils/error-shape.js";
+
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {{ program_json?: import("./merchant-data-readiness.js").MerchantProgramJson | null }} RegionBusiness */
+/** @param {RegionBusiness} business */
 const version = (business) =>
   createHash("sha256")
     .update(JSON.stringify(businessRegion(business)))
     .digest("hex");
 const dfl = { query: dbQuery, transaction: withTransaction };
+/**
+ * @param {{ businessId: string }} target
+ * @param {Partial<typeof dfl>} [injected]
+ */
 export async function getMerchantRegion({ businessId }, injected = {}) {
   const d = { ...dfl, ...injected };
   const business = (await d.query("SELECT program_json FROM businesses WHERE id=$1", [businessId]))
@@ -35,6 +43,15 @@ export async function getMerchantRegion({ businessId }, injected = {}) {
     currencies: REGIONAL_CURRENCIES,
   };
 }
+/**
+ * @param {{
+ *   businessId: string,
+ *   staffId: string | null,
+ *   input: Record<string, unknown> | null | undefined,
+ *   impersonated_by?: string | null,
+ * }} request
+ * @param {Partial<typeof dfl>} [injected]
+ */
 export async function updateMerchantRegion(
   { businessId, staffId, input, impersonated_by = null },
   injected = {},
@@ -44,7 +61,7 @@ export async function updateMerchantRegion(
     Object.keys(input).some(
       (key) => !["country", "currency", "timezone", "version", "confirmed_currency"].includes(key),
     ) ||
-    !/^[a-f0-9]{64}$/.test(input.version)
+    !/^[a-f0-9]{64}$/.test(String(input.version))
   )
     throw badRequest("Revisa la configuración regional.");
   if (input.confirmed_currency !== undefined && input.confirmed_currency !== input.currency)
@@ -57,7 +74,7 @@ export async function updateMerchantRegion(
     throw badRequest(errorMessage(error));
   }
   const d = { ...dfl, ...injected };
-  await d.transaction(async (client) => {
+  await d.transaction(async (/** @type {TxClient} */ client) => {
     const business = (
       await client.query("SELECT program_json FROM businesses WHERE id=$1 FOR NO KEY UPDATE", [
         businessId,

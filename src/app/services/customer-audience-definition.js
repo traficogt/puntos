@@ -26,6 +26,7 @@ const BooleanRule = z
   })
   .strict();
 const rule = z.union([NumericRule, BooleanRule]);
+/** @param {number} minimum */
 const group = (minimum) =>
   z.object({ match: z.enum(["all", "any"]), rules: z.array(rule).min(minimum).max(8) }).strict();
 export const AudienceDefinitionSchema = z
@@ -36,6 +37,7 @@ export const AudienceDefinitionSchema = z
   })
   .strict();
 
+/** @param {unknown} value */
 export function parseAudienceDefinition(value) {
   const result = AudienceDefinitionSchema.safeParse(value);
   if (!result.success)

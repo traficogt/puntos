@@ -26,6 +26,10 @@ function id() {
   return crypto.randomUUID();
 }
 
+/**
+ * @param {string | null | undefined} to
+ * @param {{ phone?: string | null, email?: string | null } | null | undefined} destinations
+ */
 function inferDestinations(to, destinations) {
   const target = String(to || "").trim();
   const inferredEmail = target.includes("@") ? target : "";
@@ -99,7 +103,12 @@ export async function sendMessage({
   const marketing = ["campaign", "lifecycle", "churn"].includes(String(channel).toLowerCase());
   if (marketing) {
     if (!customerId) return { ok: false, suppressed: true, error: "MARKETING_CONSENT_REQUIRED" };
-    const preference = await getMarketingPreference({ businessId, customerId }).catch(() => null);
+    // Marketing is tenant-scoped: without a business there is no preference and no plan
+    // below, so the send is suppressed.
+    const tenantId = /** @type {string} */ (businessId);
+    const preference = await getMarketingPreference({ businessId: tenantId, customerId }).catch(
+      () => null,
+    );
     const business = await BusinessRepo.getById(businessId);
     const overrides = await PlanConfigService.getPlanFeatureOverrides();
     if (
@@ -111,7 +120,8 @@ export async function sendMessage({
     }
     if (String(channel).toLowerCase() !== "campaign") {
       const optOutUrl =
-        unsubscribeUrl || (await issueMarketingUnsubscribeUrl({ businessId, customerId }));
+        unsubscribeUrl ||
+        (await issueMarketingUnsubscribeUrl({ businessId: tenantId, customerId }));
       const line = `Dejar de recibir promociones: ${optOutUrl}`;
       body = `${body}\n\n${line}`;
       if (email) email = { ...email, lines: [...(email.lines || []), line] };
@@ -219,10 +229,12 @@ export async function sendMessage({
   }
 }
 
+/** @param {{ businessName: string, code: string }} input */
 export function verificationBody({ businessName, code }) {
   return `PuntosFieles • ${businessName}\n\nTu código es: ${code}\nVence en 10 minutos.`;
 }
 
+/** @param {{ businessName: string }} input */
 export function churnBody({ businessName }) {
   return `¡Te extrañamos en ${businessName}! Tu programa de puntos sigue disponible. Consulta tus beneficios antes de tu próxima visita.`;
 }

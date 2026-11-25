@@ -10,6 +10,23 @@ import {
 } from "./customer-migration-csv.js";
 
 const defaults = { query: dbQuery, transaction: withTransaction };
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/**
+ * customer_migration_batches row (counts come back as strings from bigint sums).
+ * @typedef {{
+ *   id: string,
+ *   request_id: string,
+ *   label: string,
+ *   existing_policy: string,
+ *   row_count: number | string,
+ *   imported_count: number | string,
+ *   skipped_count: number | string,
+ *   opening_points: number | string,
+ *   created_at: string | Date,
+ *   source_evidence?: unknown,
+ *   payload_hash?: string,
+ * }} MigrationBatchRow
+ */
 const uuid = z.guid();
 const mapping = z
   .object({ phone: z.string(), name: z.string().optional(), points: z.string().optional() })
@@ -54,6 +71,7 @@ function requireIdentity(businessId, staffId = undefined) {
   )
     throw badRequest("Contexto de negocio inválido.");
 }
+/** @param {MigrationBatchRow} row */
 function publicBatch(row) {
   return {
     id: row.id,
@@ -68,13 +86,18 @@ function publicBatch(row) {
     source_evidence: row.source_evidence ?? null,
   };
 }
+/**
+ * @param {typeof dbQuery} query
+ * @param {string} businessId
+ * @param {string[]} phones
+ */
 async function existingPhones(query, businessId, phones) {
   // Deleted cards also reserve their tenant-scoped identity. Import never revives one.
   const { rows } = await query(
     "SELECT phone FROM customers WHERE business_id=$1 AND phone=ANY($2::text[])",
     [businessId, phones],
   );
-  return rows.map((row) => row.phone);
+  return rows.map((/** @type {{ phone: string }} */ row) => row.phone);
 }
 
 /**
@@ -86,7 +109,7 @@ async function existingPhones(query, businessId, phones) {
  *   existingPolicy?: string,
  *   source?: MigrationSource | null
  * }} input
- * @param {Record<string, unknown>} [injected]
+ * @param {Partial<typeof defaults>} [injected]
  */
 export async function previewCustomerMigration(
   { businessId, csv, columns, existingPolicy = "skip", source = undefined },
@@ -121,6 +144,10 @@ export async function previewCustomerMigration(
   );
 }
 
+/**
+ * @param {{ businessId: string }} input
+ * @param {Partial<typeof defaults>} [injected]
+ */
 export async function listCustomerMigrations({ businessId }, injected = {}) {
   requireIdentity(businessId);
   const d = { ...defaults, ...injected };
@@ -146,7 +173,7 @@ export async function listCustomerMigrations({ businessId }, injected = {}) {
  *   ua?: string | null,
  *   impersonated_by?: string | null
  * }} input
- * @param {Record<string, unknown>} [injected]
+ * @param {Partial<typeof defaults>} [injected]
  */
 export async function commitCustomerMigration(
   {
@@ -194,7 +221,7 @@ export async function commitCustomerMigration(
     )
     .digest("hex");
   const d = { ...defaults, ...injected };
-  return d.transaction(async (client) => {
+  return d.transaction(async (/** @type {TxClient} */ client) => {
     if (source) {
       const owner = (
         await client.query(

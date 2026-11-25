@@ -4,7 +4,40 @@ import { PlanConfigService } from "./plan-config-service.js";
 import { hasPlanFeature } from "../../utils/plan.js";
 import { notFound } from "../../utils/http-error.js";
 
+/** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
+/** @typedef {import("./merchant-data-readiness.js").MerchantPosIntegration} MerchantPosIntegration */
+/** @typedef {{ id: string, plan?: string | null, program_json?: MerchantProgramJson | null, [key: string]: unknown }} OperationsBusiness */
+/**
+ * pos_refund_receipts aggregate per reason.
+ * @typedef {{ reason: string, pending: number, reconciled: number, last_observed_at: string | Date | null }} RefundReceiptRow
+ */
+/** @typedef {{ code: string, label: string, count?: number }} OperationsReason */
+/**
+ * Diagnostics section; the messaging section also lists its sources.
+ * @typedef {ReturnType<typeof section> & {
+ *   sources?: Array<{ id: string, title: string, href: string, metrics: ReturnType<typeof metric>[], [key: string]: unknown }>,
+ * }} OperationsSection
+ */
+/**
+ * Boolean readiness of the delivery providers; tests inject partial objects.
+ * @typedef {{
+ *   owner_brief_email?: boolean | null,
+ *   messaging?: boolean | null,
+ *   apple_wallet?: boolean | null,
+ *   google_wallet?: boolean | null,
+ * } | null | undefined} ProviderReadiness
+ */
+/**
+ * @typedef {{
+ *   query?: typeof dbQuery,
+ *   getBusiness?: (id: string) => Promise<OperationsBusiness | null>,
+ *   getFeatureOverrides?: () => Promise<Record<string, unknown>>,
+ *   getProviderReadiness?: (options: { includeMessaging: boolean, includeOwnerBrief: boolean }) => Promise<ProviderReadiness>,
+ * }} MerchantOperationsDeps
+ */
+
 const HOUR = 60 * 60 * 1000;
+/** @type {Record<string, string>} */
 const TITLES = {
   pos: "Conexión de caja",
   messaging: "Mensajes de campañas y automatizaciones",
@@ -13,6 +46,7 @@ const TITLES = {
   economics: "Costos de recompensas",
   owner_brief: "Resumen semanal del propietario",
 };
+/** @type {Record<string, { label: string, href: string }>} */
 const ACTIONS = {
   owner_brief: { label: "Revisar resumen semanal", href: "#automatizaciones" },
   pos: { label: "Revisar conexión de caja", href: "#conectar-caja" },
@@ -22,14 +56,21 @@ const ACTIONS = {
   economics: { label: "Revisar costos", href: "#costos" },
 };
 
+/** @param {unknown} value */
 function timestamp(value) {
   if (!(value instanceof Date) && typeof value !== "string") return null;
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
+/** @param {unknown} value */
 function count(value) {
   return Number.isSafeInteger(Number(value)) && Number(value) >= 0 ? Number(value) : 0;
 }
+/**
+ * @param {string} key
+ * @param {string} label
+ * @param {unknown} value
+ */
 function metric(key, label, value) {
   return { key, label, value };
 }
@@ -37,9 +78,9 @@ function metric(key, label, value) {
  * @param {string} id
  * @param {string} state
  * @param {string} summary
- * @param {string | Date | null} [lastObservedAt]
+ * @param {unknown} [lastObservedAt]
  * @param {ReturnType<typeof metric>[]} [metrics]
- * @param {object[]} [reasons]
+ * @param {OperationsReason[]} [reasons]
  */
 function section(id, state, summary, lastObservedAt = null, metrics = [], reasons = []) {
   return {
@@ -53,16 +94,19 @@ function section(id, state, summary, lastObservedAt = null, metrics = [], reason
     action: ACTIONS[id],
   };
 }
+/** @param {string} id */
 function locked(id) {
   return {
     ...section(id, "not_in_plan", "Esta función no está incluida en tu plan actual."),
     action: { label: "Revisar mi plan", href: "/administracion/?seccion=plan" },
   };
 }
+/** @param {boolean | null | undefined} ready */
 function readinessState(ready) {
   return ready === true ? "configured" : ready === false ? "not_configured" : "unknown";
 }
 
+/** @param {{ includeMessaging: boolean, includeOwnerBrief: boolean }} scope */
 async function providerReadiness({ includeMessaging, includeOwnerBrief }) {
   // Reuse the providers' local readiness checks. Wallet settings are loaded once
   // by its existing runtime; diagnostics neither load credentials themselves nor
@@ -85,6 +129,7 @@ async function providerReadiness({ includeMessaging, includeOwnerBrief }) {
   };
 }
 
+/** @type {Record<string, string>} */
 const REFUND_REASONS = {
   awaiting_reconciliation: "Falta comprobar la venta original y sus puntos.",
   original_not_found: "Venta original no encontrada: revisa el ID y origen de la venta.",
@@ -99,17 +144,35 @@ const REFUND_REASONS = {
   retryable_error: "El recibo sigue guardado; revisa el historial antes de reintentar.",
   other: "Devolución pendiente con motivo por revisar en la caja.",
 };
+/** @param {...unknown} values */
 function latest(...values) {
   return values.map(timestamp).filter(Boolean).sort().at(-1) ?? null;
 }
+/**
+ * @param {string} code
+ * @param {string} label
+ * @param {unknown} [value]
+ * @returns {OperationsReason}
+ */
 function reason(code, label, value) {
   return { code, label, ...(value === undefined ? {} : { count: count(value) }) };
 }
+/**
+ * @param {OperationsBusiness} business
+ * @param {Date} now
+ * @param {RefundReceiptRow[]} [refunds]
+ */
 function posHealth(business, now, refunds = []) {
+  /** @type {MerchantProgramJson} */
   const program = business.program_json ?? {};
+  /** @type {MerchantPosIntegration} */
   const pos = program.pos_integration ?? {};
+  /** @type {NonNullable<MerchantPosIntegration["last_sync"]>} */
   const sync = pos.last_sync ?? {};
-  const mode = ["api", "csv", "loyverse"].includes(pos.mode) ? pos.mode : "api";
+  const mode = /** @type {unknown[]} */ (["api", "csv", "loyverse"]).includes(pos.mode)
+    ? /** @type {string} */ (pos.mode)
+    : "api";
+  /** @param {unknown} value */
   const hasSecret = (value) =>
     typeof value === "string" && value.length > 0 && !value.startsWith("enc:");
   const configured =
@@ -142,7 +205,7 @@ function posHealth(business, now, refunds = []) {
     pendingRefunds > 0 ||
     pending > 0 ||
     errors > 0 ||
-    ["error", "attention"].includes(sync.status) ||
+    /** @type {unknown[]} */ (["error", "attention"]).includes(sync.status) ||
     sync.has_more === true ||
     stale;
   const state = attention ? "needs_attention" : configured ? "configured" : "not_configured";
@@ -155,7 +218,7 @@ function posHealth(business, now, refunds = []) {
   else if (
     pending ||
     errors ||
-    ["error", "attention"].includes(sync.status) ||
+    /** @type {unknown[]} */ (["error", "attention"]).includes(sync.status) ||
     sync.has_more === true
   )
     summary += " Hay errores, ventas o una ventana de importación pendientes de revisar.";
@@ -165,7 +228,7 @@ function posHealth(business, now, refunds = []) {
   const reasons = [];
   if (pending) reasons.push(reason("pending_receipts", "Ventas pendientes de revisar.", pending));
   if (errors) reasons.push(reason("sync_errors", "Errores en la última importación.", errors));
-  if (["error", "attention"].includes(sync.status) && !errors)
+  if (/** @type {unknown[]} */ (["error", "attention"]).includes(sync.status) && !errors)
     reasons.push(reason("sync_attention", "La última importación requiere revisión."));
   if (sync.has_more === true)
     reasons.push(reason("incomplete_import", "La ventana de importación aún no se ha completado."));
@@ -206,12 +269,15 @@ const MESSAGE_LABELS = {
   stale_processing: "En proceso con plazo de confirmación vencido",
   expired: "Mensajes vencidos pendientes de cierre",
 };
+/** @param {Record<string, unknown> | null | undefined} row */
 const messageCounts = (row) =>
   Object.fromEntries(
     ["total", ...Object.keys(MESSAGE_LABELS)].map((key) => [key, count(row?.[key])]),
   );
+/** @param {Record<string, number>} counts */
 const messageMetrics = (counts) =>
   Object.entries(MESSAGE_LABELS).map(([key, label]) => metric(key, label, counts[key]));
+/** @param {Record<string, number>} counts */
 function messageReasons(counts) {
   return [
     ["failed", "Mensajes fallidos: revisa el proveedor y los intentos registrados."],
@@ -229,11 +295,16 @@ function messageReasons(counts) {
     .filter(([key]) => counts[key] > 0)
     .map(([key, label]) => reason(key, label, counts[key]));
 }
+/**
+ * @param {Array<{ source: string, [key: string]: unknown }>} [rows]
+ * @param {boolean | null | undefined} [ready]
+ */
 function messageHealth(rows = [], ready = null) {
   const sources = [
     { id: "growth", title: "Campañas", href: "#ofertas" },
     { id: "lifecycle", title: "Automatizaciones", href: "#automatizaciones" },
   ].map((source) => {
+    /** @type {Record<string, unknown>} */
     const row = rows.find((value) => value.source === source.id) ?? {};
     const counts = messageCounts(row);
     return {
@@ -272,6 +343,11 @@ function messageHealth(rows = [], ready = null) {
   };
 }
 
+/**
+ * @param {string} provider
+ * @param {Record<string, unknown>} [row]
+ * @param {boolean | null | undefined} [ready]
+ */
 function walletHealth(provider, row = {}, ready = null) {
   const registered = count(row.registered),
     pending = count(row.pending),
@@ -313,6 +389,7 @@ function walletHealth(provider, row = {}, ready = null) {
   );
 }
 
+/** @param {Record<string, unknown>} [row] */
 function economicsHealth(row = {}) {
   const active = count(row.active_rewards),
     missing = count(row.missing_reward_costs);
@@ -381,8 +458,18 @@ function economicsHealth(row = {}) {
     reasons,
   );
 }
+/** @param {OperationsSection[]} sections */
 function nextActions(sections) {
+  /** @type {Array<{ id: string, section_id: string, priority: number, label: string, href: string, reason: string }>} */
   const actions = [];
+  /**
+   * @param {OperationsSection} section
+   * @param {string} id
+   * @param {number} priority
+   * @param {string} label
+   * @param {string} href
+   * @param {string} reason
+   */
   const add = (section, id, priority, label, href, reason) =>
     actions.push({ id, section_id: section.id, priority, label, href, reason });
   for (const section of sections) {
@@ -472,7 +559,9 @@ function nextActions(sections) {
   }
   return actions.sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id));
 }
+/** @param {OperationsSection[]} sections */
 function sectionSummary(sections) {
+  /** @type {Record<string, string>} */
   const states = {
     needs_attention: "attention_count",
     not_configured: "setup_count",
@@ -489,17 +578,20 @@ function sectionSummary(sections) {
 // Every result is a bounded aggregate of this tenant's persisted evidence.
 // Missing tables/permissions are errors, never empty queues. Reads do not repair
 // messages/refunds, contact providers, or backfill immutable historical costs.
+/** @param {MerchantOperationsDeps} [deps] */
 export function createMerchantOperationsService(deps = {}) {
   const query = deps.query ?? dbQuery;
-  const getBusiness = deps.getBusiness ?? ((id) => BusinessRepo.getById(id));
+  const getBusiness = deps.getBusiness ?? ((/** @type {string} */ id) => BusinessRepo.getById(id));
   const getFeatureOverrides =
     deps.getFeatureOverrides ?? (() => PlanConfigService.getPlanFeatureOverrides());
   const getProviderReadiness = deps.getProviderReadiness ?? providerReadiness;
+  /** @param {{ businessId: string, now?: Date }} target */
   async function getOperationsHealth({ businessId, now = new Date() }) {
     const business = await getBusiness(businessId);
     if (!business || String(business.id) !== String(businessId))
       throw notFound("Negocio no encontrado.");
     const overrides = await getFeatureOverrides();
+    /** @param {string} feature */
     const allowed = (feature) => hasPlanFeature(business.plan, feature, overrides);
     const includeMessaging = ["campaign_rules", "lifecycle_automation", "analytics"].every(allowed);
     const includeOwnerBrief = ["analytics", "lifecycle_automation"].every(allowed);
@@ -581,8 +673,9 @@ export function createMerchantOperationsService(deps = {}) {
     }
     let ownerBrief = locked("owner_brief");
     if (includeOwnerBrief) {
-      const stored = business.program_json?.weekly_owner_brief ?? {},
-        channel = stored.channel ?? (stored.owner_id ? "phone" : "email");
+      /** @type {NonNullable<MerchantProgramJson["weekly_owner_brief"]>} */
+      const stored = business.program_json?.weekly_owner_brief ?? {};
+      const channel = stored.channel ?? (stored.owner_id ? "phone" : "email");
       const brief =
         (
           await query(
@@ -650,12 +743,12 @@ export function createMerchantOperationsService(deps = {}) {
       messaging,
       walletHealth(
         "apple",
-        rows.find((row) => row.provider === "apple"),
+        rows.find((/** @type {{ provider: string }} */ row) => row.provider === "apple"),
         readiness?.apple_wallet,
       ),
       walletHealth(
         "google",
-        rows.find((row) => row.provider === "google"),
+        rows.find((/** @type {{ provider: string }} */ row) => row.provider === "google"),
         readiness?.google_wallet,
       ),
       economics,

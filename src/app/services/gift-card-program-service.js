@@ -10,11 +10,22 @@ import { lookupCustomerByQrToken } from "./staff-service.js";
 import { loadStoredValue, transferStoredValue } from "./cashback-service.js";
 import { giftCardTerms } from "./wallet-model.js";
 
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+
 // Staff tops up a member's gift-card wallet. Resolves the customer from the
 // scanned QR (same verification the award flow uses), checks the business runs
 // GIFT_CARD, applies the configured load bonus, and credits inside a
 // tenant-scoped transaction so RLS and the account lock apply. Idempotent on
 // requestId. Audited.
+/**
+ * @param {{
+ *   staff: { id: string, business_id: string, [key: string]: unknown },
+ *   customerQrToken: string,
+ *   amount_q: number,
+ *   requestId?: string | null,
+ *   note?: string | null,
+ * }} input
+ */
 export async function loadGiftCardForStaff({
   staff,
   customerQrToken,
@@ -29,7 +40,7 @@ export async function loadGiftCardForStaff({
   // Bonus = amount * bonus_percent / 100 in exact centavo arithmetic, rounded
   // half away from zero like the NUMERIC(12,2) ledger column.
   const bonus_q = toNumber(pct(toMinor(amount_q), terms.bonus_percent));
-  const result = await withTransaction((client) =>
+  const result = await withTransaction((/** @type {TxClient} */ client) =>
     loadStoredValue(client, {
       businessId: staff.business_id,
       customerId: customer.id,
@@ -72,6 +83,15 @@ export async function loadGiftCardForStaff({
 // A logged-in member gifts part of their gift-card balance to another member of
 // the same business, found by the recipient's phone. Runs in a tenant-scoped
 // transaction; the transfer itself is atomic and idempotent on requestId.
+/**
+ * @param {{
+ *   auth: { id: string, business_id: string },
+ *   recipient_phone: unknown,
+ *   amount_q: number,
+ *   requestId?: string | null,
+ *   note?: string | null,
+ * }} input
+ */
 export async function transferGiftCardForCustomer({
   auth,
   recipient_phone,
@@ -87,7 +107,7 @@ export async function transferGiftCardForCustomer({
   const recipient = await CustomerRepo.getByBusinessAndPhone(auth.business_id, phone);
   if (!recipient) throw badRequest("No encontramos un cliente con ese teléfono en este negocio.");
   if (recipient.id === auth.id) throw badRequest("No puedes regalarte saldo a ti mismo.");
-  const result = await withTransaction((client) =>
+  const result = await withTransaction((/** @type {TxClient} */ client) =>
     transferStoredValue(client, {
       businessId: auth.business_id,
       fromCustomerId: auth.id,

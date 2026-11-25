@@ -5,6 +5,9 @@ import { PlanConfigService } from "./plan-config-service.js";
 import { hasPlanFeature, canUseProgramType } from "../../utils/plan.js";
 import { badRequest, conflict, forbidden, notFound } from "../../utils/http-error.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
+/** @type {Record<string, "points_per_q" | "points_per_visit" | "points_per_item">} */
 const rateKey = { SPEND: "points_per_q", VISIT: "points_per_visit", ITEM: "points_per_item" };
 export const LaunchProgramInput = z
   .object({
@@ -85,9 +88,11 @@ export const LaunchProgramInput = z
         message: "Usa hasta cuatro decimales por quetzal y puntos enteros por visita o artículo.",
       });
   });
+/** @param {{ program_type?: string | null, program_json?: MerchantProgramJson | null }} business */
 export function programBasics(business) {
-  const config = business.program_json ?? {},
-    type = business.program_type ?? "SPEND";
+  /** @type {MerchantProgramJson} */
+  const config = business.program_json ?? {};
+  const type = business.program_type ?? "SPEND";
   const basics = {
     program_type: type,
     points_per_q: config.points_per_q ?? null,
@@ -119,6 +124,10 @@ export function programBasics(business) {
     version,
   };
 }
+/**
+ * @param {{ businessId: string }} target
+ * @param {typeof dbQuery} [query]
+ */
 export async function getLaunchProgram({ businessId }, query = dbQuery) {
   const { rows } = await query("SELECT program_type,program_json FROM businesses WHERE id=$1", [
     businessId,
@@ -126,12 +135,22 @@ export async function getLaunchProgram({ businessId }, query = dbQuery) {
   if (!rows[0]) throw notFound("Negocio no encontrado.");
   return { ok: true, program: programBasics(rows[0]) };
 }
+/**
+ * @param {TxClient} client
+ * @param {{
+ *   businessId: string,
+ *   programType: string,
+ *   patch: { stamps_required?: number, head_start?: number, reward_label?: string, [key: string]: unknown },
+ *   priorRewardId: string | null,
+ * }} input
+ */
 async function ensureStampReward(client, { businessId, programType, patch, priorRewardId }) {
   if (programType === "STAMP") {
     // The free item is an ordinary reward whose cost is the real purchases needed
     // (stamps_required - head_start). Stamps are points, so resizing the card only
     // updates this cost; members keep their progress. Idempotent via stamp_reward_id.
-    const cost = patch.stamps_required - patch.head_start,
+    // A STAMP patch always carries both counts (see updateLaunchProgram).
+    const cost = Number(patch.stamps_required) - Number(patch.head_start),
       name = patch.reward_label,
       desc = "Premio de tu tarjeta de sellos";
     let rewardId = priorRewardId;
@@ -161,6 +180,20 @@ async function ensureStampReward(client, { businessId, programType, patch, prior
     ]);
   }
 }
+/**
+ * @param {{
+ *   businessId: string,
+ *   staffId?: string | null,
+ *   input: unknown,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null,
+ * }} options
+ * @param {{
+ *   transaction?: typeof withTransaction,
+ *   getPlanFeatureOverrides?: () => ReturnType<typeof PlanConfigService.getPlanFeatureOverrides>,
+ * }} [injected]
+ */
 export async function updateLaunchProgram(options, injected = {}) {
   const parsed = LaunchProgramInput.safeParse(options.input);
   if (!parsed.success) throw badRequest("Revisa la regla de puntos.");
@@ -171,7 +204,7 @@ export async function updateLaunchProgram(options, injected = {}) {
   };
   const overrides = await d.getPlanFeatureOverrides(),
     input = parsed.data;
-  return d.transaction(async (client) => {
+  return d.transaction(async (/** @type {TxClient} */ client) => {
     const { rows } = await client.query(
       "SELECT id,plan,program_type,program_json FROM businesses WHERE id=$1 FOR NO KEY UPDATE",
       [options.businessId],
@@ -194,7 +227,8 @@ export async function updateLaunchProgram(options, injected = {}) {
             ? { load_bonus_percent: Math.max(0, Math.min(100, input.load_bonus_percent ?? 0)) }
             : input.program_type === "STAMP"
               ? {
-                  stamps_required: input.stamps_required,
+                  // The schema's superRefine requires stamps_required for STAMP programs.
+                  stamps_required: /** @type {number} */ (input.stamps_required),
                   head_start: Math.min(
                     // The schema's superRefine requires stamps_required for STAMP programs.
                     /** @type {number} */ (input.stamps_required) - 1,

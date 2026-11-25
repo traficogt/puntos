@@ -6,6 +6,17 @@ import {
   sendProviderJson,
 } from "./http-provider.js";
 
+/** @typedef {import("../message-router.js").RoutedMessage} RoutedMessage */
+/**
+ * @typedef {{
+ *   EVOLUTION_BASE_URL?: string,
+ *   EVOLUTION_API_KEY?: string,
+ *   EVOLUTION_INSTANCE?: string,
+ *   MESSAGE_PROVIDER_TIMEOUT_MS?: unknown,
+ * }} EvolutionConfig
+ */
+
+/** @param {{ config: EvolutionConfig, fetchImpl?: typeof fetch }} options */
 export function createEvolutionProvider({ config, fetchImpl = fetch }) {
   const instance = String(config.EVOLUTION_INSTANCE || "").trim();
   const url = providerUrl(
@@ -15,9 +26,11 @@ export function createEvolutionProvider({ config, fetchImpl = fetch }) {
   const ready = Boolean(url && instance && config.EVOLUTION_API_KEY?.trim());
   return {
     name: "evolution",
+    /** @param {Pick<RoutedMessage, "destinations">} message */
     canSend({ destinations }) {
       return Boolean(ready && internationalPhoneDigits(destinations?.phone));
     },
+    /** @param {Pick<RoutedMessage, "destinations" | "body">} message */
     async send({ destinations, body }) {
       const phone = internationalPhoneDigits(destinations?.phone);
       if (!ready || !phone) throw new MessageProviderError("MESSAGE_PROVIDER_NOT_READY");

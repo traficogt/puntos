@@ -1,3 +1,4 @@
+/** @param {unknown} value */
 function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
@@ -7,6 +8,7 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+/** @param {unknown[]} [lines] */
 export function renderTextParagraphs(lines = []) {
   return lines
     .map((line) => String(line || "").trim())
@@ -18,6 +20,7 @@ export function renderPoweredByText() {
   return "Powered by PuntosFieles: https://puntosfieles.com/";
 }
 
+/** @param {unknown[]} [lines] */
 export function renderHtmlParagraphs(lines = []) {
   return lines
     .map((line) => String(line || "").trim())
@@ -29,6 +32,16 @@ export function renderHtmlParagraphs(lines = []) {
     .join("");
 }
 
+/**
+ * @param {{
+ *   branding: import("../email-branding.js").EmailBranding,
+ *   preheader?: string,
+ *   title?: string,
+ *   eyebrow?: string,
+ *   bodyHtml?: string,
+ *   footerText?: string,
+ * }} input
+ */
 export function renderBaseEmailTemplate({
   branding,
   preheader = "",

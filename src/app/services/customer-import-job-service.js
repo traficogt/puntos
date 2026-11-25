@@ -31,6 +31,34 @@ export const importJobCreateSchema = migrationCommitSchema.extend({
   source: z.never().optional(),
 });
 const defaults = { query: dbQuery, transaction: withTransaction, context: withDbClientContext };
+/** @typedef {typeof defaults} ImportJobDeps */
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {{ phone: string, name: string | null, points: number }} ImportJobRow */
+/**
+ * customer_import_jobs row.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   request_id: string,
+ *   payload_hash: string,
+ *   label: string,
+ *   existing_policy: string,
+ *   created_by_staff_id: string,
+ *   rows_json: ImportJobRow[],
+ *   total: number,
+ *   processed: number,
+ *   imported: number,
+ *   skipped: number,
+ *   opening_points: number,
+ *   status: string,
+ *   last_error: string | null,
+ *   batch_ids: string[],
+ *   expires_at: string | Date,
+ *   created_at: string | Date,
+ *   updated_at: string | Date,
+ * }} ImportJobRecord
+ */
+/** @param {ImportJobRecord} job */
 const publicJob = ({
   rows_json: _rows,
   payload_hash: _hash,
@@ -38,6 +66,11 @@ const publicJob = ({
   business_id: _tenant,
   ...job
 }) => job;
+/**
+ * @param {string} businessId
+ * @param {unknown} input
+ * @param {ImportJobDeps} d
+ */
 async function inspect(businessId, input, d) {
   const parsed = importJobPreviewSchema.safeParse(input);
   if (!parsed.success) throw badRequest("Revisa el archivo de hasta 5,000 clientes y 750 KB.");
@@ -56,13 +89,21 @@ async function inspect(businessId, input, d) {
           "SELECT phone FROM customers WHERE business_id=$1 AND phone=ANY($2::text[])",
           [businessId, phones],
         )
-      ).rows.map((x) => x.phone)
+      ).rows.map((/** @type {{ phone: string }} */ x) => x.phone)
     : [];
   return summarizeCustomerMigration(normalized, existing, parsed.data.existing_policy);
 }
+/**
+ * @param {{ businessId: string, input: unknown }} request
+ * @param {Partial<ImportJobDeps>} [injected]
+ */
 export async function previewCustomerImportJob({ businessId, input }, injected = {}) {
   return inspect(businessId, input, { ...defaults, ...injected });
 }
+/**
+ * @param {{ businessId: string }} request
+ * @param {Partial<ImportJobDeps>} [injected]
+ */
 export async function listCustomerImportJobs({ businessId }, injected = {}) {
   const d = { ...defaults, ...injected };
   return {
@@ -74,12 +115,21 @@ export async function listCustomerImportJobs({ businessId }, injected = {}) {
     ).rows.map(publicJob),
   };
 }
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string} importJobId
+ */
 async function enqueue(client, businessId, importJobId) {
   await client.query(
     "INSERT INTO background_jobs(id,business_id,job_type,payload,status,run_after) VALUES($1,$2,'customer.import',$3,'QUEUED',now())",
     [randomUUID(), businessId, JSON.stringify({ businessId, importJobId })],
   );
 }
+/**
+ * @param {{ businessId: string, staffId: string, input: unknown, impersonated_by?: string | null }} request
+ * @param {Partial<ImportJobDeps>} [injected]
+ */
 export async function createCustomerImportJob(
   { businessId, staffId, input, impersonated_by = null },
   injected = {},
@@ -89,7 +139,7 @@ export async function createCustomerImportJob(
   const d = { ...defaults, ...injected },
     value = parsed.data;
   const hash = createHash("sha256").update(JSON.stringify(value)).digest("hex");
-  return d.transaction(async (client) => {
+  return d.transaction(async (/** @type {TxClient} */ client) => {
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1),hashtext($2))", [
       businessId,
       "customer-import-job",
@@ -144,6 +194,10 @@ export async function createCustomerImportJob(
     return { job: publicJob(job) };
   });
 }
+/**
+ * @param {{ businessId: string, staffId: string, id: string, action: string, impersonated_by?: string | null }} request
+ * @param {Partial<ImportJobDeps>} [injected]
+ */
 export async function controlCustomerImportJob(
   { businessId, staffId, id, action, impersonated_by = null },
   injected = {},
@@ -151,7 +205,7 @@ export async function controlCustomerImportJob(
   if (!z.guid().safeParse(id).success || !["cancel", "retry"].includes(action))
     throw badRequest("Acción de importación inválida.");
   const d = { ...defaults, ...injected };
-  return d.transaction(async (client) => {
+  return d.transaction(async (/** @type {TxClient} */ client) => {
     const job = (
       await client.query(
         "SELECT * FROM customer_import_jobs WHERE business_id=$1 AND id=$2 FOR UPDATE",
@@ -199,10 +253,15 @@ export async function controlCustomerImportJob(
     };
   });
 }
+/** @param {unknown} value */
 const escape = (value) => '"' + String(value ?? "").replaceAll('"', '""') + '"';
+/**
+ * @param {{ businessId: string, importJobId: string }} payload
+ * @param {Partial<ImportJobDeps>} [injected]
+ */
 export async function processCustomerImportChunk({ businessId, importJobId }, injected = {}) {
   const d = { ...defaults, ...injected };
-  return d.transaction(async (client) => {
+  return d.transaction(async (/** @type {TxClient} */ client) => {
     const job = (
       await client.query(
         "SELECT * FROM customer_import_jobs WHERE business_id=$1 AND id=$2 FOR UPDATE",
@@ -240,7 +299,11 @@ export async function processCustomerImportChunk({ businessId, importJobId }, in
     // Chunk commit and cursor advancement share one transaction. A lost reply cannot duplicate points.
     const csv =
       "phone,name,points\n" +
-      chunk.map((row) => ["+" + row.phone, row.name, row.points].map(escape).join(",")).join("\n");
+      chunk
+        .map((/** @type {ImportJobRow} */ row) =>
+          ["+" + row.phone, row.name, row.points].map(escape).join(","),
+        )
+        .join("\n");
     const { batch } = await commitCustomerMigration(
       {
         businessId,
@@ -275,6 +338,10 @@ export async function processCustomerImportChunk({ businessId, importJobId }, in
     return { job: publicJob(next), terminal: done };
   });
 }
+/**
+ * @param {{ businessId: string, importJobId: string }} payload
+ * @param {Partial<ImportJobDeps>} [injected]
+ */
 export async function runCustomerImportJob(payload, injected = {}) {
   const d = { ...defaults, ...injected };
   return d.context({ tenantId: payload.businessId, platformAdmin: false }, async () => {

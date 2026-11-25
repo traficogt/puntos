@@ -5,6 +5,38 @@ import { AuditRepo } from "../repositories/audit-repository.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 import { reportingPurchase } from "./reporting-purchase.js";
 
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/**
+ * recovery_runs row with its result aggregates (listRecoveryRuns / getRecoveryRun).
+ * @typedef {{
+ *   id: string,
+ *   name: string,
+ *   notes: string | null,
+ *   inactive_days: number,
+ *   requested_limit: number,
+ *   member_count: number | null,
+ *   created_at: string | Date,
+ *   contacted_count?: number | null,
+ *   returned_count?: number | null,
+ *   recorded_sales_after_contact_q?: string | number | null,
+ * }} RecoveryRunRow
+ */
+/**
+ * recovery_members row joined with the customer and its post-contact outcome.
+ * @typedef {{
+ *   customer_id: string,
+ *   name?: string | null,
+ *   phone?: string | null,
+ *   last_purchase_at: string | Date,
+ *   recorded_sales_q?: string | number,
+ *   status: string,
+ *   contacted_at: string | Date | null,
+ *   returned_at?: string | Date | null,
+ *   recorded_sales_after_contact_q?: string | number | null,
+ * }} RecoveryMemberRow
+ */
+/** @typedef {{ id: string, name: string | null, last_purchase_at: string | Date, recorded_sales_q: string | number, purchases: number | string }} RecoveryAudienceCustomer */
+
 // Audience eligibility is also used to persist recovery/marketing selection.
 // Keep that contract separate from the read-only reporting definition below.
 const PURCHASE_FILTER = `t.source IN ('online','offline','external','order')
@@ -54,7 +86,7 @@ export async function getRecoveryAudience(
     count_status: "available",
     data_readiness,
     total: rows[0].total,
-    customers: rows[0].customers.map((customer) => ({
+    customers: rows[0].customers.map((/** @type {RecoveryAudienceCustomer} */ customer) => ({
       ...customer,
       last_purchase_at: new Date(customer.last_purchase_at).toISOString(),
     })),
@@ -63,6 +95,7 @@ export async function getRecoveryAudience(
 
 const RUN_FIELDS = "id,name,notes,inactive_days,requested_limit,member_count,created_at";
 
+/** @param {RecoveryRunRow} row */
 function publicRun(row) {
   return {
     id: row.id,
@@ -100,7 +133,7 @@ export async function createRecoveryRun(
   { transaction = withTransaction, audit = AuditRepo.log } = {},
 ) {
   const normalizedName = name.trim();
-  return transaction(async (client) => {
+  return transaction(async (/** @type {TxClient} */ client) => {
     const inserted = await client.query(
       `INSERT INTO recovery_runs
       (id,business_id,request_id,name,notes,inactive_days,requested_limit,created_by_staff_id,created_at)
@@ -239,7 +272,7 @@ export async function getRecoveryRun(
   return {
     run: publicRun(row.run),
     total: row.total,
-    members: row.members.map((member) => ({
+    members: row.members.map((/** @type {RecoveryMemberRow} */ member) => ({
       ...member,
       last_purchase_at: new Date(member.last_purchase_at).toISOString(),
       contacted_at: member.contacted_at ? new Date(member.contacted_at).toISOString() : null,
@@ -248,6 +281,7 @@ export async function getRecoveryRun(
   };
 }
 
+/** @param {Pick<RecoveryMemberRow, "customer_id" | "status" | "contacted_at">} row */
 function publicMember(row) {
   return {
     customer_id: row.customer_id,
@@ -278,7 +312,7 @@ export async function updateRecoveryMember(
     throw badRequest("Selecciona contactado u omitido.");
   if (status === "contacted" && contactConfirmed !== true)
     throw badRequest("Confirma que contactaste a este cliente.");
-  return transaction(async (client) => {
+  return transaction(async (/** @type {TxClient} */ client) => {
     const { rows } = await client.query(
       `SELECT m.customer_id,m.status,m.contacted_at
       FROM recovery_members m

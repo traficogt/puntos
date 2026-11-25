@@ -14,10 +14,49 @@ import { logger } from "../../utils/logger.js";
 import { withDbClientContext, withTransaction } from "../database.js";
 import { errorCode, errorMessage } from "../../utils/error-shape.js";
 
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/**
+ * Business context of an enrollment (slug + program_json drive phone normalization and the token).
+ * @typedef {{
+ *   id: string,
+ *   name?: string,
+ *   slug?: string | null,
+ *   program_json?: import("./merchant-data-readiness.js").MerchantProgramJson | null,
+ * }} EnrollmentBusiness
+ */
+/**
+ * Delivery of the verification code; tests inject fakes that only report `ok`.
+ * @typedef {(message: Parameters<typeof sendMessage>[0]) => Promise<{ ok?: boolean | null } | null | undefined>} CustomerSendMessage
+ */
+/**
+ * Collaborators of the enrollment flows. Unit tests inject fakes that omit
+ * `create`/`updateName` when their scenario never reaches them.
+ * @typedef {{
+ *   CustomerRepo: Pick<typeof CustomerRepo, "getByBusinessAndPhone"> &
+ *     Partial<Pick<typeof CustomerRepo, "create" | "updateName">>,
+ *   VerifyCodeRepo: Pick<
+ *     typeof VerifyCodeRepo,
+ *     "countRecent" | "create" | "invalidateById" | "latestValid" | "consume" | "markFailedAttempt"
+ *   >,
+ *   withDbClientContext: typeof withDbClientContext,
+ *   withTransaction: typeof withTransaction,
+ *   sendMessage?: CustomerSendMessage,
+ *   signCustomerToken: typeof signCustomerToken,
+ *   recordAcquisition?:
+ *     | ((client: TxClient, input: Parameters<typeof AcquisitionService.attributeVerified>[1]) => Promise<unknown>)
+ *     | null,
+ * }} CustomerServiceDeps
+ */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/**
+ * @param {Pick<typeof VerifyCodeRepo, "countRecent">} repo
+ * @param {string} businessId
+ * @param {string} phone
+ */
 async function ensureRateLimits(repo, businessId, phone) {
   const recent = await repo.countRecent(businessId, phone, "60 seconds");
   if (recent >= 1) throw tooManyRequests("Espera un momento antes de solicitar otro código.");
@@ -25,6 +64,11 @@ async function ensureRateLimits(repo, businessId, phone) {
   if (hour >= 5) throw tooManyRequests("Solicitaste demasiados códigos de verificación.");
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string} phone
+ */
 async function lockVerification(client, businessId, phone) {
   await client.query("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", [
     String(businessId),
@@ -32,32 +76,44 @@ async function lockVerification(client, businessId, phone) {
   ]);
 }
 
+/**
+ * @param {CustomerServiceDeps & { sendMessage: CustomerSendMessage }} deps
+ * @param {{
+ *   business: EnrollmentBusiness | null | undefined,
+ *   phone: string | null | undefined,
+ *   email?: string | null,
+ *   name?: string | null,
+ *   requireExisting?: boolean,
+ * }} input
+ */
 export async function requestJoinCodeWithDeps(
   deps,
   { business, phone, email: _email = null, name: _name, requireExisting = false },
 ) {
   if (!business?.id) throw notFound("Negocio no encontrado");
   if (!phone) throw badRequest("Falta el teléfono");
-  phone = normalizeEnrollmentPhone(phone, business);
+  phone = /** @type {string} */ (normalizeEnrollmentPhone(phone, business));
 
   return deps.withDbClientContext({ tenantId: business.id, platformAdmin: false }, async () => {
-    const { code, verifyCodeId } = await deps.withTransaction(async (client) => {
-      await lockVerification(client, business.id, phone);
-      const existingCustomer = await deps.CustomerRepo.getByBusinessAndPhone(business.id, phone);
-      if (requireExisting && !existingCustomer)
-        throw notFound("No encontramos una tarjeta con ese teléfono en este negocio.");
-      await ensureRateLimits(deps.VerifyCodeRepo, business.id, phone);
-      const code = random6();
-      const verifyCodeId = id();
-      await deps.VerifyCodeRepo.create({
-        id: verifyCodeId,
-        business_id: business.id,
-        phone,
-        code_hash: await bcrypt.hash(code, 10),
-        expires_at: new Date(Date.now() + 10 * 60 * 1000),
-      });
-      return { code, verifyCodeId };
-    });
+    const { code, verifyCodeId } = await deps.withTransaction(
+      async (/** @type {TxClient} */ client) => {
+        await lockVerification(client, business.id, phone);
+        const existingCustomer = await deps.CustomerRepo.getByBusinessAndPhone(business.id, phone);
+        if (requireExisting && !existingCustomer)
+          throw notFound("No encontramos una tarjeta con ese teléfono en este negocio.");
+        await ensureRateLimits(deps.VerifyCodeRepo, business.id, phone);
+        const code = random6();
+        const verifyCodeId = id();
+        await deps.VerifyCodeRepo.create({
+          id: verifyCodeId,
+          business_id: business.id,
+          phone,
+          code_hash: await bcrypt.hash(code, 10),
+          expires_at: new Date(Date.now() + 10 * 60 * 1000),
+        });
+        return { code, verifyCodeId };
+      },
+    );
 
     const sent = await deps.sendMessage({
       businessId: business.id,
@@ -77,10 +133,11 @@ export async function requestJoinCodeWithDeps(
     });
     if (!sent?.ok) {
       await deps.VerifyCodeRepo.invalidateById(verifyCodeId);
-      const err = new Error(
-        "No se pudo enviar el código por los canales disponibles. Intenta de nuevo en unos minutos.",
+      const err = /** @type {Error & { statusCode?: number }} */ (
+        new Error(
+          "No se pudo enviar el código por los canales disponibles. Intenta de nuevo en unos minutos.",
+        )
       );
-      // @ts-ignore custom status
       err.statusCode = 503;
       throw err;
     }
@@ -90,6 +147,19 @@ export async function requestJoinCodeWithDeps(
   });
 }
 
+/**
+ * @param {CustomerServiceDeps} deps
+ * @param {{
+ *   business: EnrollmentBusiness | null | undefined,
+ *   phone: string | null | undefined,
+ *   code: string | null | undefined,
+ *   name?: string | null,
+ *   referralCode?: string | null,
+ *   requireExisting?: boolean,
+ *   visitToken?: unknown,
+ *   marketingOptIn?: boolean,
+ * }} input
+ */
 export async function verifyJoinCodeWithDeps(
   deps,
   {
@@ -105,11 +175,11 @@ export async function verifyJoinCodeWithDeps(
 ) {
   if (!business?.id) throw notFound("Negocio no encontrado");
   if (!phone) throw badRequest("Falta el teléfono");
-  phone = normalizeEnrollmentPhone(phone, business);
+  phone = /** @type {string} */ (normalizeEnrollmentPhone(phone, business));
   if (!code) throw badRequest("Falta el código");
 
   return deps.withDbClientContext({ tenantId: business.id, platformAdmin: false }, async () => {
-    const result = await deps.withTransaction(async (client) => {
+    const result = await deps.withTransaction(async (/** @type {TxClient} */ client) => {
       await lockVerification(client, business.id, phone);
       const vc = await deps.VerifyCodeRepo.latestValid(business.id, phone);
       if (!vc) throw badRequest("No hay un código válido. Solicita uno nuevo.");
@@ -129,7 +199,10 @@ export async function verifyJoinCodeWithDeps(
 
       if (!customer) {
         const newCustomerId = id();
-        customer = await deps.CustomerRepo.create({
+        // Test fakes may omit create/updateName; the real repository always has them.
+        customer = await /** @type {Required<CustomerServiceDeps["CustomerRepo"]>["create"]} */ (
+          deps.CustomerRepo.create
+        )({
           id: newCustomerId,
           business_id: business.id,
           phone,
@@ -138,7 +211,9 @@ export async function verifyJoinCodeWithDeps(
         // Another entry path may have created the same phone while this request was verifying.
         isNewCustomer = customer.id === newCustomerId;
       } else if (name && !customer.name) {
-        await deps.CustomerRepo.updateName(customer.id, String(name).slice(0, 120));
+        await /** @type {Required<CustomerServiceDeps["CustomerRepo"]>["updateName"]} */ (
+          deps.CustomerRepo.updateName
+        )(customer.id, String(name).slice(0, 120));
       }
 
       if (!(await deps.VerifyCodeRepo.consume(vc.id)))
@@ -220,7 +295,7 @@ export async function verifyJoinCodeWithDeps(
             );
           }
         })
-        .catch((err) => {
+        .catch((/** @type {{ message?: string } | null | undefined} */ err) => {
           logger.warn(
             { err: err?.message || err, customerId: customer.id },
             "Post-join hooks failed",
@@ -247,14 +322,17 @@ const customerDeps = {
   recordAcquisition: AcquisitionService.attributeVerified,
 };
 
+/** @param {Parameters<typeof requestJoinCodeWithDeps>[1]} input */
 export function requestJoinCode(input) {
   return requestJoinCodeWithDeps(customerDeps, input);
 }
 
+/** @param {Parameters<typeof verifyJoinCodeWithDeps>[1]} input */
 export function verifyJoinCode(input) {
   return verifyJoinCodeWithDeps(customerDeps, input);
 }
 
+/** @param {{ businessId: string, customerId: string }} target */
 export async function issueCustomerQr({ businessId, customerId }) {
   const ttl = 5 * 60; // 5 minutes
   const out = await signQrToken(businessId, customerId, ttl);

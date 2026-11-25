@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { createPrivateKey } from "node:crypto";
 
 /**
- * @typedef {{ teamId: string, keyId: string, topic: string, privateKey: unknown }} MobilePushConfig
+ * @typedef {{ teamId: string, keyId: string, topic: string, privateKey: import("node:crypto").KeyObject }} MobilePushConfig
  * @param {Record<string, string | undefined>} [env]
  * @param {{readFile?: (path: string, encoding?: string) => string | Buffer}} [options]
  */
@@ -26,6 +26,7 @@ export function loadMobilePushConfig(
   if (!/^[A-Z0-9]{10}$/.test(keyId)) result.errors.push("APNS_KEY_ID_INVALID");
   if (!/^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/.test(topic) || topic.length > 255)
     result.errors.push("APNS_TOPIC_INVALID");
+  /** @type {import("node:crypto").KeyObject | undefined} */
   let privateKey;
   try {
     privateKey = createPrivateKey(readFile(env.MOBILE_PUSH_APNS_KEY_FILE || ""));
@@ -38,6 +39,13 @@ export function loadMobilePushConfig(
     result.errors.push("APNS_KEY_INVALID_OR_UNAVAILABLE");
   }
   result.ready = result.errors.length === 0;
-  if (result.ready) result.config = { teamId, keyId, topic, privateKey };
+  // ready implies the key parsed above.
+  if (result.ready)
+    result.config = {
+      teamId,
+      keyId,
+      topic,
+      privateKey: /** @type {import("node:crypto").KeyObject} */ (privateKey),
+    };
   return result;
 }

@@ -12,13 +12,19 @@ const Z975 = 1.959963984540054,
   Z80 = 0.8416212335729143;
 /** @param {unknown} value @returns {value is number} */
 const finite = (value) => typeof value === "number" && Number.isFinite(value);
+/** @param {unknown} value @returns {value is Record<string, unknown>} */
 const object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
+/** @param {unknown} holdoutPercent */
 function validateAllocation(holdoutPercent) {
   if (!finite(holdoutPercent) || holdoutPercent <= 0 || holdoutPercent >= 100)
     throw badRequest("La proporción del grupo de comparación debe estar entre 0 y 100 %.");
 }
 
+/**
+ * @param {unknown} input
+ * @param {{ durationDays?: number | null, holdoutPercent?: number }} [options]
+ */
 export function normalizeMeasurementPlan(input, { durationDays = 1, holdoutPercent = 50 } = {}) {
   if (input == null) return null;
   validateAllocation(holdoutPercent);
@@ -43,15 +49,22 @@ export function normalizeMeasurementPlan(input, { durationDays = 1, holdoutPerce
       "Indica una tasa habitual entre 1 y 95 % y un aumento positivo de hasta 50 puntos porcentuales, sin llegar al 100 %.",
     );
   if (
+    typeof durationDays !== "number" ||
     !Number.isInteger(durationDays) ||
     durationDays < 1 ||
+    typeof input.observation_days !== "number" ||
     !Number.isInteger(input.observation_days) ||
     input.observation_days < durationDays ||
     input.observation_days > 180
   )
     throw badRequest("La observación debe cubrir la oferta y durar como máximo 180 días.");
   const reconciliation = input.reconciliation_days === undefined ? 7 : input.reconciliation_days;
-  if (!Number.isInteger(reconciliation) || reconciliation < 0 || reconciliation > 30)
+  if (
+    typeof reconciliation !== "number" ||
+    !Number.isInteger(reconciliation) ||
+    reconciliation < 0 ||
+    reconciliation > 30
+  )
     throw badRequest("La conciliación debe durar entre 0 y 30 días completos.");
   return {
     version: 1,
@@ -62,13 +75,17 @@ export function normalizeMeasurementPlan(input, { durationDays = 1, holdoutPerce
   };
 }
 
+/**
+ * @param {number} total
+ * @param {number} holdoutPercent
+ */
 function allocate(total, holdoutPercent) {
   // Matches campaign activation: Fisher–Yates followed by this fixed count.
   const control = total === 0 ? 0 : Math.max(1, Math.round((total * holdoutPercent) / 100));
   return { treatment: total - control, control };
 }
 
-/** @param {{plan?: object|null, holdoutPercent?: number, availableMembers?: number|null}} options */
+/** @param {{plan?: unknown, holdoutPercent?: number, availableMembers?: number|null}} options */
 export function planCampaignExperiment({ plan, holdoutPercent = 50, availableMembers } = {}) {
   if (plan == null) return null;
   const normalized = normalizeMeasurementPlan(plan, { holdoutPercent });
@@ -142,18 +159,21 @@ const COST_FIELDS = [
 ];
 const INCURRED_FIELDS = ["fulfillment_cost_q", "messaging_cost_q", "other_cost_q"];
 // Q amounts in whole centavos (null when unknown); `money` is the JSON number.
+/** @param {number | null | undefined} value */
 const minor = (value) => (value == null || !Number.isFinite(value) ? null : toMinor(value));
+/** @param {number | null | undefined} value */
 const money = (value) => {
   const cents = minor(value);
   return cents == null ? null : toNumber(cents);
 };
 /**
- * @typedef {{members: number, recorded_sales_q: number}} SalesGroup
+ * @typedef {{members: number | null | undefined, recorded_sales_q: number}} SalesGroup
  * @param {SalesGroup | null | undefined} group
- * @returns {group is SalesGroup}
+ * @returns {group is SalesGroup & { members: number }}
  */
 const comparableSales = (group) =>
   group != null &&
+  typeof group.members === "number" &&
   Number.isSafeInteger(group.members) &&
   group.members > 0 &&
   finite(group.recorded_sales_q);
@@ -223,6 +243,12 @@ export function campaignContribution({ treatment, control, costs = null } = {}) 
   };
 }
 
+/**
+ * @param {string} code
+ * @param {string} title
+ * @param {string} summary
+ * @param {string} next_action
+ */
 const verdict = (code, title, summary, next_action) => ({
   code,
   title,
@@ -239,7 +265,7 @@ const verdict = (code, title, summary, next_action) => ({
  * @property {boolean} [assignment_counts_match]
  * @property {number | null} [unavailable_members]
  * @property {{complete?:boolean}} [window]
- * @property {{treatment:number, control:number} | null} [sample_counts]
+ * @property {{treatment:number | null | undefined, control:number | null | undefined} | null} [sample_counts]
  * @property {ReturnDifference | null} [return_difference]
  * @typedef {object} ExperimentDiagnostics
  * @property {string} [capture_state]
@@ -385,6 +411,8 @@ export function campaignDecision({
     measurement.state === "insufficient_sample" ||
     planning.feasible !== true ||
     counts == null ||
+    typeof counts.treatment !== "number" ||
+    typeof counts.control !== "number" ||
     !Number.isSafeInteger(counts.treatment) ||
     !Number.isSafeInteger(counts.control) ||
     counts.treatment < planning.required_treatment ||

@@ -24,7 +24,14 @@ import {
   toNumber,
 } from "../../utils/money.js";
 
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+
 // Locks the member's account row and returns its balance in centavos.
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string} customerId
+ */
 async function lockAccount(client, businessId, customerId) {
   await client.query(
     `INSERT INTO cashback_accounts (customer_id, business_id)
@@ -43,7 +50,7 @@ async function lockAccount(client, businessId, customerId) {
 // { earn_q, balance_after_q, replay? } otherwise. `requestId` should be the
 // source transaction id so a replayed award does not credit twice.
 /**
- * @param {{ query: (...args: any[]) => Promise<any> }} client
+ * @param {TxClient} client
  * @param {{
  *   businessId: string,
  *   customerId: string,
@@ -104,6 +111,17 @@ export async function accrueCashback(
 // Spend (apply) cashback credit as a discount. Debits up to the balance; throws
 // on insufficient funds. Idempotent on `requestId`. Returns { spent_q,
 // balance_after_q, replay? }.
+/**
+ * @param {TxClient} client
+ * @param {{
+ *   businessId: string,
+ *   customerId: string,
+ *   staffUserId?: string | null,
+ *   amountQ: number | string,
+ *   requestId?: string | null,
+ *   meta?: Record<string, unknown>,
+ * }} spend
+ */
 export async function spendCashback(
   client,
   { businessId, customerId, staffUserId = null, amountQ, requestId, meta = {} },
@@ -177,6 +195,15 @@ export async function spendCashback(
 // at 0 in the result for callers that still read it. Returns null when the
 // source accrued no cashback (non-cashback business, a pending award, or nothing
 // earned).
+/**
+ * @param {TxClient} client
+ * @param {{
+ *   businessId: string,
+ *   customerId: string,
+ *   sourceTransactionId: string,
+ *   meta?: Record<string, unknown>,
+ * }} reversal
+ */
 export async function reverseCashback(
   client,
   { businessId, customerId, sourceTransactionId, meta = {} },
@@ -256,6 +283,10 @@ export async function reverseCashback(
 
 // Read a member's cashback balance. Returns zeros when there is no account row
 // yet (nothing earned). Uses any client/pool handle.
+/**
+ * @param {TxClient} client
+ * @param {string} customerId
+ */
 export async function getCashbackBalance(client, customerId) {
   const row = await client.query(
     `SELECT balance_q, lifetime_earned_q, lifetime_spent_q FROM cashback_accounts WHERE customer_id = $1`,
@@ -277,6 +308,18 @@ export async function getCashbackBalance(client, customerId) {
 // Staff loads (tops up) a member's wallet by `amountQ`, plus `bonusQ` of promo
 // credit. Idempotent on `requestId`. Returns
 // { loaded_q, base_q, bonus_q, balance_after_q, replay? }.
+/**
+ * @param {TxClient} client
+ * @param {{
+ *   businessId: string,
+ *   customerId: string,
+ *   staffUserId?: string | null,
+ *   amountQ: number | string,
+ *   bonusQ?: number | string,
+ *   requestId?: string | null,
+ *   meta?: Record<string, unknown>,
+ * }} load
+ */
 export async function loadStoredValue(
   client,
   { businessId, customerId, staffUserId = null, amountQ, bonusQ = 0, requestId, meta = {} },
@@ -326,6 +369,17 @@ export async function loadStoredValue(
 // Locks both accounts in a stable order to avoid deadlock, and re-checks
 // idempotency under the locks so concurrent retries collapse. Returns
 // { transferred_q, balance_after_q, replay? }.
+/**
+ * @param {TxClient} client
+ * @param {{
+ *   businessId: string,
+ *   fromCustomerId: string,
+ *   toCustomerId: string,
+ *   amountQ: number | string,
+ *   requestId?: string | null,
+ *   meta?: Record<string, unknown>,
+ * }} transfer
+ */
 export async function transferStoredValue(
   client,
   { businessId, fromCustomerId, toCustomerId, amountQ, requestId, meta = {} },
@@ -338,6 +392,7 @@ export async function transferStoredValue(
   // Lock both accounts first, in a deterministic order, so concurrent transfers
   // serialize and the idempotency check below sees any committed prior attempt.
   const order = [fromCustomerId, toCustomerId].sort();
+  /** @type {Record<string, number>} */
   const bal = {};
   for (const cid of order) bal[cid] = await lockAccount(client, businessId, cid);
   const already = await client.query(

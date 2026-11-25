@@ -7,12 +7,39 @@ import { readinessForBusiness, campaignNeedsFreshActivity } from "./merchant-dat
 import { businessRegion } from "./regional-settings.js";
 import { computePointsWithEvidence } from "./points-service.js";
 
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("./merchant-data-readiness.js").MerchantBusinessLike} MerchantBusinessLike */
+/** @typedef {import("./growth-campaign-service.js").GrowthCampaignRow} GrowthCampaignRow */
+/**
+ * growth_campaign_members joined with consent and contact history.
+ * @typedef {{
+ *   id: string,
+ *   customer_id: string,
+ *   deleted_at: string | Date | null,
+ *   active: boolean,
+ *   contactable: boolean,
+ *   frequency_excluded: boolean,
+ * }} PreflightMemberRow
+ */
+
+/** @param {unknown} value */
 const digest = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+// operating-capacity-service infers `excludeCampaignId` as null-only from its `= null`
+// default; this is its documented contract until that module annotates the parameter.
+const occupiedCapacity =
+  /** @type {(client: TxClient, businessId: string, excludeCampaignId?: string | null) => ReturnType<typeof occupiedOperatingCapacity>} */ (
+    occupiedOperatingCapacity
+  );
 /** Read all participating customers in one statement. No phone/name is returned
  * to the owner or stored in the preview; the private digest binds eligibility. */
 /**
- * @param {{ businessId: string, campaign: any, business?: any, now?: Date | null }} input
- * @param {{ query: (...args: any[]) => Promise<any> }} client
+ * @param {{
+ *   businessId: string,
+ *   campaign: GrowthCampaignRow,
+ *   business?: MerchantBusinessLike | null,
+ *   now?: Date | null,
+ * }} input
+ * @param {TxClient} client
  */
 export async function evaluateCampaignPreflight(
   { businessId, campaign, business = null, now = null },
@@ -33,6 +60,7 @@ export async function evaluateCampaignPreflight(
         : 7,
     ),
   );
+  /** @type {{ rows: PreflightMemberRow[] }} */
   const { rows } = await client.query(
     `WITH contacts AS (
       SELECT customer_id,max(last_attempt_at) AS last_at FROM (
@@ -62,6 +90,7 @@ export async function evaluateCampaignPreflight(
         ? treatmentCount
         : Math.floor(campaign.points_budget / campaign.bonus_points),
     ) * campaign.bonus_points;
+  /** @type {Array<{ id: string, bonus_points: number, expires_at: string | Date, members: number }>} */
   const overlaps = (
     await client.query(
       `SELECT g.id,g.bonus_points,g.expires_at,COUNT(*)::int AS members FROM growth_campaigns g
@@ -87,7 +116,7 @@ export async function evaluateCampaignPreflight(
     mode.capacity !== null &&
     campaign.offer_kind === "quiet" &&
     maximumPoints / campaign.bonus_points +
-      (await occupiedOperatingCapacity(client, businessId, campaign.id)) >
+      (await occupiedCapacity(client, businessId, campaign.id)) >
       mode.capacity
   )
     blockers.push({
@@ -217,11 +246,15 @@ export async function evaluateCampaignPreflight(
   });
   return { report, fingerprint, now: currentTime };
 }
+/**
+ * @param {{ businessId: string, campaignId: string }} target
+ * @param {{ transaction?: typeof withTransaction }} [deps]
+ */
 export async function createCampaignPreflight(
   { businessId, campaignId },
   { transaction = withTransaction } = {},
 ) {
-  return transaction(async (client) => {
+  return transaction(async (/** @type {TxClient} */ client) => {
     const business = (
       await client.query("SELECT * FROM businesses WHERE id=$1::uuid FOR SHARE", [businessId])
     ).rows[0];
@@ -242,6 +275,10 @@ export async function createCampaignPreflight(
     return { preflight: { ...evaluated.report, id, expires_at: expiresAt.toISOString() } };
   });
 }
+/**
+ * @param {{ businessId: string, campaign: GrowthCampaignRow, preflightId?: string | null }} input
+ * @param {TxClient} client
+ */
 export async function validateCampaignPreflight({ businessId, campaign, preflightId }, client) {
   if (
     (campaign.offer_kind === "quiet" || campaign.audience_snapshot?.preparation === "background") &&

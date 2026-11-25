@@ -3,6 +3,7 @@ import { invalidateBrowserSessionsForActor } from "../auth-session-service.js";
 import { sendSecurityNotification } from "../security-notification-service.js";
 import { normalizeEmail, logAudit, logSecurity, getStaffMfaRecord } from "./shared.js";
 
+/** @param {{ staffId: string, ip?: string | null, ua?: string | null }} input */
 export async function lockdownStaffAccount({ staffId, ip = null, ua = null }) {
   const staff = await getStaffMfaRecord(staffId);
   const revokedSessions = await invalidateBrowserSessionsForActor({
@@ -40,6 +41,7 @@ export async function lockdownStaffAccount({ staffId, ip = null, ua = null }) {
   return { ok: true, revokedSessions };
 }
 
+/** @param {{ ip?: string | null, ua?: string | null }} input */
 export async function lockdownSuperAccount({ ip = null, ua = null }) {
   const auth = await SuperAdminAuthRepo.getEffective();
   const revokedSessions = await invalidateBrowserSessionsForActor({

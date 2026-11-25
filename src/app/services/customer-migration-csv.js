@@ -66,6 +66,7 @@ export function normalizeCustomerMigration({
   if (columns === undefined) return { headers: document.headers, rows: [] };
   if (!columns || typeof columns !== "object" || Array.isArray(columns))
     throw badRequest("Selecciona las columnas del archivo.");
+  /** @type {Partial<Record<"phone" | "name" | "points", number>>} */
   const mapping = {};
   for (const [key, header] of Object.entries(columns)) {
     if (!["phone", "name", "points"].includes(key))
@@ -76,11 +77,12 @@ export function normalizeCustomerMigration({
     const index = document.headers.indexOf(header);
     if (Object.values(mapping).includes(index))
       throw badRequest("Cada campo debe usar una columna diferente.");
-    mapping[key] = index;
+    mapping[/** @type {"phone" | "name" | "points"} */ (key)] = index;
   }
   if (mapping.phone === undefined) throw badRequest("Selecciona la columna de teléfono.");
   const rows = document.rows.map(({ row, values }) => {
-    const rawPhone = values[mapping.phone].trim();
+    // mapping.phone was required above; the closure cannot see that narrowing.
+    const rawPhone = values[/** @type {number} */ (mapping.phone)].trim();
     const phone = normalizePhone(rawPhone, country);
     const name = mapping.name === undefined ? null : values[mapping.name].trim() || null;
     const rawPoints = mapping.points === undefined ? "0" : values[mapping.points].trim();
@@ -130,6 +132,11 @@ export function normalizeCustomerMigration({
   return { headers: document.headers, rows };
 }
 
+/**
+ * @param {ReturnType<typeof normalizeCustomerMigration>} normalized
+ * @param {string[]} existingPhones
+ * @param {string} [existingPolicy]
+ */
 export function summarizeCustomerMigration(normalized, existingPhones, existingPolicy = "skip") {
   if (!["skip", "reject"].includes(existingPolicy))
     throw badRequest("Selecciona si se omiten los clientes existentes o se rechaza el lote.");
@@ -148,7 +155,8 @@ export function summarizeCustomerMigration(normalized, existingPhones, existingP
   for (const row of rows) {
     if (row.status === "new") {
       summary.new_customers += 1;
-      summary.opening_points += row.points;
+      // A "new" row has no issues, so its points are an integer.
+      summary.opening_points += row.points ?? 0;
     } else if (row.status === "existing") summary.existing_customers += 1;
     else summary.errors += 1;
   }

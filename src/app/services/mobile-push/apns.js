@@ -1,6 +1,28 @@
 import http2 from "node:http2";
 import { sign } from "node:crypto";
 
+/** @typedef {import("./config.js").MobilePushConfig} MobilePushConfig */
+/** @typedef {{ accepted: boolean, invalidToken: boolean, retryable: boolean, reason: string }} ApnsResult */
+/**
+ * The HTTP/2 stream surface the provider drives; unit tests supply plain emitters.
+ * @typedef {{
+ *   on(event: "response", listener: (headers: Record<string, unknown>) => void): unknown,
+ *   on(event: "data", listener: (chunk: Buffer | string) => void): unknown,
+ *   on(event: "error" | "close" | "end", listener: () => void): unknown,
+ *   end(body: string): unknown,
+ *   close(): unknown,
+ * }} ApnsStream
+ */
+/**
+ * @typedef {{
+ *   closed?: boolean,
+ *   destroyed?: boolean,
+ *   close(): unknown,
+ *   on(event: "error" | "goaway" | "close", listener: () => void): unknown,
+ *   request(headers: Record<string, string>): ApnsStream,
+ * }} ApnsSession
+ */
+
 const HOST = "https://api.push.apple.com";
 const invalidReasons = new Set(["BadDeviceToken", "Unregistered", "ExpiredToken"]);
 const knownReasons = new Set([
@@ -27,6 +49,11 @@ const knownReasons = new Set([
   "BadPath",
   "MethodNotAllowed",
 ]);
+/**
+ * @param {string} [reason]
+ * @param {boolean} [retryable]
+ * @returns {ApnsResult}
+ */
 const failure = (reason = "TransportFailure", retryable = true) => ({
   accepted: false,
   invalidToken: false,
@@ -35,13 +62,23 @@ const failure = (reason = "TransportFailure", retryable = true) => ({
 });
 
 // Dependencies expose only the HTTP/2 transport and clock for deterministic tests.
+/**
+ * @param {MobilePushConfig} config
+ * @param {{
+ *   connect?: (authority: string, options: { minVersion: "TLSv1.2" }) => ApnsSession,
+ *   now?: () => number,
+ *   timeoutMs?: number,
+ * }} [deps]
+ */
 export function createApnsProvider(
   config,
   { connect = http2.connect, now = Date.now, timeoutMs = 8000 } = {},
 ) {
-  let session,
-    jwt,
-    issuedAt = 0;
+  /** @type {ApnsSession | null | undefined} */
+  let session;
+  /** @type {string | null | undefined} */
+  let jwt;
+  let issuedAt = 0;
   function authorization() {
     const seconds = Math.floor(now() / 1000);
     if (!jwt || seconds - issuedAt >= 50 * 60 || seconds < issuedAt) {
@@ -74,6 +111,10 @@ export function createApnsProvider(
     return session;
   }
   return {
+    /**
+     * @param {{ token: unknown, payload: unknown, collapseId?: string }} input
+     * @returns {Promise<ApnsResult>}
+     */
     async send({ token, payload, collapseId = "pf-card" }) {
       if (typeof token !== "string" || !/^(?:[a-f0-9]{2}){16,256}$/i.test(token))
         return failure("InvalidInput", false);
@@ -81,12 +122,15 @@ export function createApnsProvider(
       if (Buffer.byteLength(body) > 4096 || Buffer.byteLength(collapseId) > 64)
         return failure("InvalidInput", false);
       return new Promise((resolve) => {
-        let stream,
-          timer,
-          finished = false,
+        /** @type {ApnsStream | undefined} */
+        let stream;
+        /** @type {ReturnType<typeof setTimeout> | undefined} */
+        let timer;
+        let finished = false,
           status = 0,
           bytes = 0,
           response = "";
+        /** @param {ApnsResult} result */
         const finish = (result) => {
           if (finished) return;
           finished = true;

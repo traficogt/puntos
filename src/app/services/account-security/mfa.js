@@ -17,6 +17,9 @@ import {
 import { sendSecurityNotification } from "../security-notification-service.js";
 import { normalizeEmail, logAudit, logSecurity, getStaffMfaRecord } from "./shared.js";
 
+/** @typedef {import("./shared.js").AccountSecurityStaffRecord} AccountSecurityStaffRecord */
+
+/** @param {string | null | undefined} code */
 function requireTotpFormat(code) {
   const normalized = String(code || "").trim();
   if (!/^\d{6}$/.test(normalized)) throw badRequest("Código MFA inválido", "VALIDATION_ERROR");
@@ -28,6 +31,11 @@ function requireTotpFormat(code) {
 // A replay of the same code for the SAME operation (accountType namespaces login
 // vs reauth) within its validity window returns false. The table
 // has no RLS and no business_id, so this works during login before tenant context.
+/**
+ * @param {string} accountType
+ * @param {string} accountId
+ * @param {number | null | undefined} counter
+ */
 async function consumeTotpCounter(accountType, accountId, counter) {
   if (counter === null || counter === undefined) return false;
   const { rowCount } = await dbQuery(
@@ -50,6 +58,7 @@ export async function pruneExpiredMfaCounters({ olderThan = "1 day" } = {}) {
   return rowCount ?? 0;
 }
 
+/** @param {{ staffId: string, businessId: string }} input */
 export async function startStaffMfaEnrollment({ staffId, businessId }) {
   const staff = await getStaffMfaRecord(staffId);
   const secret = generateBase32Secret();
@@ -71,6 +80,7 @@ export async function startStaffMfaEnrollment({ staffId, businessId }) {
   };
 }
 
+/** @param {{ staffId: string, code: string, sessionId?: string | null }} input */
 export async function confirmStaffMfaEnrollment({ staffId, code, sessionId = null }) {
   const staff = await getStaffMfaRecord(staffId);
   const secret = decryptSecretMaybe(staff.mfa_pending_secret_enc || "");
@@ -106,6 +116,7 @@ export async function confirmStaffMfaEnrollment({ staffId, code, sessionId = nul
   return { ok: true };
 }
 
+/** @param {{ staffId: string }} input */
 export async function disableStaffMfa({ staffId }) {
   const staff = await getStaffMfaRecord(staffId);
   await dbQuery(
@@ -153,6 +164,7 @@ export async function startSuperMfaEnrollment() {
   };
 }
 
+/** @param {{ code: string, sessionId?: string | null }} input */
 export async function confirmSuperMfaEnrollment({ code, sessionId = null }) {
   const auth = await SuperAdminAuthRepo.getEffective();
   const secret = decryptSecretMaybe(auth.mfa_pending_secret_enc || "");
@@ -203,6 +215,10 @@ export async function disableSuperMfa() {
   return { ok: true };
 }
 
+/**
+ * @param {AccountSecurityStaffRecord | null | undefined} staff
+ * @param {string | null | undefined} code
+ */
 export async function verifyStaffMfaForLogin(staff, code) {
   if (!staff?.mfa_enabled) return { ok: true };
   const secret = decryptSecretMaybe(staff.mfa_secret_enc || "");
@@ -235,6 +251,7 @@ export async function verifyStaffMfaForLogin(staff, code) {
   return { ok: true, mfaVerified: true };
 }
 
+/** @param {string | null | undefined} code */
 export async function verifySuperMfaForLogin(code) {
   const auth = await SuperAdminAuthRepo.getEffective();
   if (!auth?.mfa_enabled) return { ok: true, auth };
@@ -261,6 +278,14 @@ export async function verifySuperMfaForLogin(code) {
   return { ok: true, auth, mfaVerified: true };
 }
 
+/**
+ * @param {{
+ *   staff: Pick<AccountSecurityStaffRecord, "id">,
+ *   password: string,
+ *   mfaCode?: string | null,
+ *   sessionId?: string | null,
+ * }} input
+ */
 export async function reauthenticateStaffSession({ staff, password, mfaCode, sessionId }) {
   const fresh = await getStaffMfaRecord(staff.id);
   const ok = await verifyPassword(password, fresh.password_hash);
@@ -282,6 +307,7 @@ export async function reauthenticateStaffSession({ staff, password, mfaCode, ses
   return { ok: true };
 }
 
+/** @param {{ password: string, mfaCode?: string | null, sessionId?: string | null }} input */
 export async function reauthenticateSuperSession({ password, mfaCode, sessionId }) {
   const auth = await SuperAdminAuthRepo.getEffective();
   const ok = auth.password_hash ? await verifyPassword(password, auth.password_hash) : false;

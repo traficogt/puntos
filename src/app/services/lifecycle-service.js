@@ -9,10 +9,45 @@ import { sendMessage } from "./messaging-service.js";
 import { TierService } from "./tier-service.js";
 import { expirePointsForBusiness } from "./loyalty-ops-service.js";
 
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
+/** @typedef {{ id: string, email?: string | null, program_json?: MerchantProgramJson | null, [key: string]: unknown }} LifecycleBusiness */
+/** @typedef {{ suspicious_digest_enabled?: unknown, suspicious_digest_min_count?: unknown, [key: string]: unknown }} LifecycleDigestConfig */
+/**
+ * Suspicious-transaction row of the daily digest query.
+ * @typedef {{
+ *   id: string,
+ *   created_at: string | Date,
+ *   points: number | string | null,
+ *   amount_q: string | number | null,
+ *   staff_name?: string | null,
+ *   staff_email?: string | null,
+ *   customer_phone?: string | null,
+ * }} SuspiciousTransactionRow
+ */
+/**
+ * Daily maintenance collaborators; tests inject partial fakes.
+ * @typedef {{
+ *   context: typeof withDbClientContext,
+ *   listBusinessIds: () => Promise<string[]>,
+ *   getBusiness: (businessId: string) => Promise<LifecycleBusiness | null>,
+ *   birthday: (businessId: string) => Promise<unknown>,
+ *   winback: (businessId: string) => Promise<unknown>,
+ *   digest: (business: LifecycleBusiness, cfg: LifecycleDigestConfig | null | undefined) => Promise<unknown>,
+ *   retention: (businessId: string, policy: Record<string, unknown>) => Promise<unknown>,
+ *   expiration: (businessId: string) => Promise<unknown>,
+ *   log: { warn: (context: Record<string, unknown>, message: string) => void },
+ * }} LifecycleMaintenanceDeps
+ */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/**
+ * @param {TxClient} client
+ * @param {{ businessId: string, customerId: string, eventType: string, eventDate: string, meta?: Record<string, unknown> }} event
+ */
 async function recordLifecycleEvent(
   client,
   { businessId, customerId, eventType, eventDate, meta = {} },
@@ -28,13 +63,19 @@ async function recordLifecycleEvent(
 }
 
 // Legacy job entry points now use the same durable, budgeted rules as the owner screen.
+/** @param {string} businessId */
 export async function processBirthdayBusiness(businessId) {
   return runAutomationRule({ businessId, rule: "birthday" });
 }
+/** @param {string} businessId */
 export async function processWinbackBusiness(businessId) {
   return runAutomationRule({ businessId, rule: "winback" });
 }
 
+/**
+ * @param {LifecycleBusiness} business
+ * @param {LifecycleDigestConfig | null | undefined} cfg
+ */
 async function processSuspiciousDigestBusiness(business, cfg) {
   if (!cfg?.suspicious_digest_enabled) return { sent: false, count: 0 };
   const minCount = Math.max(1, Number(cfg.suspicious_digest_min_count ?? 1));
@@ -69,7 +110,7 @@ async function processSuspiciousDigestBusiness(business, cfg) {
   );
   if (!anyCustomer[0]) return { sent: false, count: rows.length, reason: "no_customer_for_dedupe" };
 
-  const dedupe = await withTransaction(async (client) => {
+  const dedupe = await withTransaction(async (/** @type {TxClient} */ client) => {
     return recordLifecycleEvent(client, {
       businessId: business.id,
       customerId: anyCustomer[0].id,
@@ -80,7 +121,7 @@ async function processSuspiciousDigestBusiness(business, cfg) {
   });
   if (!dedupe) return { sent: false, count: rows.length, reason: "already_sent_today" };
 
-  const lines = rows.slice(0, 10).map((r) => {
+  const lines = rows.slice(0, 10).map((/** @type {SuspiciousTransactionRow} */ r) => {
     const when = new Date(r.created_at).toLocaleString();
     const who = r.staff_name || r.staff_email || "staff";
     return `${when} | ${who} | +${Number(r.points || 0)} pts | Q${Number(r.amount_q || 0).toFixed(2)} | ${r.customer_phone || "-"}`;
@@ -105,6 +146,7 @@ async function processSuspiciousDigestBusiness(business, cfg) {
   return { sent: Boolean(result?.ok && result?.accepted), count: rows.length };
 }
 
+/** @type {LifecycleMaintenanceDeps} */
 const maintenanceDefaults = {
   context: withDbClientContext,
   listBusinessIds: () => BusinessRepo.listAllIds(),
@@ -117,12 +159,20 @@ const maintenanceDefaults = {
   log: logger,
 };
 
+/**
+ * @param {{ businessId?: string | null }} [options]
+ * @param {Partial<LifecycleMaintenanceDeps>} [injected]
+ */
 export async function runLifecycleOnce({ businessId = null } = {}, injected = {}) {
   const deps = { ...maintenanceDefaults, ...injected };
   const businessIds = businessId
     ? [businessId]
     : await deps.context({ platformAdmin: true, tenantId: null }, deps.listBusinessIds);
   const out = [];
+  /**
+   * @param {string} stage
+   * @param {() => Promise<unknown>} fn
+   */
   async function step(stage, fn) {
     try {
       return await fn();
@@ -168,7 +218,7 @@ export async function runLifecycleOnce({ businessId = null } = {}, injected = {}
 // event/claim keys handle duplication across processes; this guard also avoids
 // overlapping timer callbacks within one process.
 /**
- * @param {{generate?: () => Promise<unknown>, dispatchAutomations?: () => Promise<unknown>, dispatchCampaigns?: () => Promise<unknown>, log?: {warn: (...args: any[]) => unknown}}} [dependencies]
+ * @param {{generate?: () => Promise<unknown>, dispatchAutomations?: () => Promise<unknown>, dispatchCampaigns?: () => Promise<unknown>, log?: {warn: (context: Record<string, unknown>, message: string) => unknown}}} [dependencies]
  */
 export function createMarketingTick({
   generate = runGuidedAutomationsOnce,

@@ -22,6 +22,26 @@ const checksForVersion = /** @type {PilotChecksForVersion} */ (
   /** @type {unknown} */ (pilotChecksForVersion)
 );
 export const PILOT_CHECKS = checksForVersion(currentPilotChecklistVersion, allPilotCapabilities);
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {{ businessId: string, staffId?: string | null, ip?: string | null, ua?: string | null }} PilotActor */
+/**
+ * merchant_pilots row.
+ * @typedef {{
+ *   id: string,
+ *   checklist_version: number,
+ *   pos_profile: unknown,
+ *   capabilities: Record<string, boolean> | null,
+ *   name: string,
+ *   duration_days: number,
+ *   status: string,
+ *   started_at: string | Date | null,
+ *   planned_end_at: string | Date | null,
+ *   closed_at: string | Date | null,
+ *   close_note: string | null,
+ *   request_id?: string,
+ *   [key: string]: unknown,
+ * }} PilotRow
+ */
 export const PilotCapabilities = z
   .object({ wallet: z.boolean(), promotional_messaging: z.boolean(), pos: z.boolean() })
   .strict();
@@ -39,13 +59,19 @@ export const PilotPosProfile = z
     deployment: z.enum(["unknown", "online", "odoo_sh", "self_hosted", "cloud", "other"]),
   })
   .strict();
+/** @param {unknown} value */
 function normalizedProfile(value) {
   const parsed = PilotPosProfile.nullable().safeParse(value ?? null);
   if (!parsed.success)
     throw badRequest("Revisa el sistema, sus versiones y el alojamiento del piloto.");
   return parsed.data;
 }
+/** @param {unknown} value */
 const profileSignature = (value) => JSON.stringify(normalizedProfile(value));
+/**
+ * @param {unknown} value
+ * @param {unknown} posProfile
+ */
 function normalizedCapabilities(value, posProfile) {
   const parsed = PilotCapabilities.safeParse(
     value === undefined
@@ -57,6 +83,10 @@ function normalizedCapabilities(value, posProfile) {
     throw badRequest("La selección de POS debe coincidir con su sistema y sus versiones.");
   return parsed.data;
 }
+/**
+ * @param {Record<string, unknown> | null | undefined} a
+ * @param {Record<string, unknown> | null | undefined} b
+ */
 const sameCapabilities = (a, b) =>
   Object.keys(allPilotCapabilities).every((key) => a?.[key] === b?.[key]);
 const defaults = {
@@ -66,7 +96,9 @@ const defaults = {
   getPlanFeatureOverrides: () => PlanConfigService.getPlanFeatureOverrides(),
   now: () => new Date(),
 };
+/** @param {string | Date | null | undefined} v */
 const iso = (v) => (v ? new Date(v).toISOString() : null);
+/** @param {PilotRow} p */
 function publicPilot(p) {
   return {
     id: p.id,
@@ -82,6 +114,11 @@ function publicPilot(p) {
     close_note: p.close_note,
   };
 }
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {Awaited<ReturnType<typeof PlanConfigService.getPlanFeatureOverrides>>} overrides
+ */
 async function entitled(client, businessId, overrides) {
   const { rows } = await client.query("SELECT id,plan FROM businesses WHERE id=$1 FOR UPDATE", [
     businessId,
@@ -90,6 +127,12 @@ async function entitled(client, businessId, overrides) {
   if (!hasPlanFeature(rows[0].plan, "analytics", overrides))
     throw forbidden("Tu plan no incluye seguimiento de pilotos.");
 }
+/**
+ * @param {{ audit: typeof defaults.audit }} deps
+ * @param {PilotActor} actor
+ * @param {Pick<PilotRow, "id" | "status">} pilot
+ * @param {string} action
+ */
 async function auditChange(deps, actor, pilot, action) {
   await deps.audit({
     id: randomUUID(),
@@ -102,6 +145,12 @@ async function auditChange(deps, actor, pilot, action) {
     meta: { pilot_id: pilot.id, status: pilot.status },
   });
 }
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string} pilotId
+ * @returns {Promise<PilotRow>}
+ */
 async function lockedPilot(client, businessId, pilotId) {
   const { rows } = await client.query(
     "SELECT * FROM merchant_pilots WHERE business_id=$1 AND id=$2 FOR UPDATE",
@@ -110,6 +159,16 @@ async function lockedPilot(client, businessId, pilotId) {
   if (!rows[0]) throw notFound("Piloto no encontrado.");
   return rows[0];
 }
+/**
+ * @param {PilotActor & {
+ *   requestId: string,
+ *   durationDays: number,
+ *   name: string,
+ *   posProfile?: unknown,
+ *   capabilities?: unknown,
+ * }} options
+ * @param {Partial<typeof defaults>} [injected]
+ */
 export async function createPilot(options, injected = {}) {
   const d = { ...defaults, ...injected },
     overrides = await d.getPlanFeatureOverrides();
@@ -117,7 +176,7 @@ export async function createPilot(options, injected = {}) {
     name = options.name.trim(),
     posProfile = normalizedProfile(options.posProfile),
     capabilities = normalizedCapabilities(options.capabilities, posProfile);
-  return d.transaction(async (client) => {
+  return d.transaction(async (/** @type {TxClient} */ client) => {
     await entitled(client, businessId, overrides);
     const old = await client.query(
       "SELECT * FROM merchant_pilots WHERE business_id=$1 AND request_id=$2",
@@ -170,6 +229,10 @@ export async function createPilot(options, injected = {}) {
     return { pilot: publicPilot(rows[0]) };
   });
 }
+/**
+ * @param {{ businessId: string, offset?: number }} target
+ * @param {Partial<typeof defaults>} [injected]
+ */
 export async function listPilots({ businessId, offset = 0 }, injected = {}) {
   const d = { ...defaults, ...injected };
   const { rows } = await d.query(
@@ -184,17 +247,21 @@ export async function listPilots({ businessId, offset = 0 }, injected = {}) {
     offset,
   };
 }
+/**
+ * @param {PilotActor & { pilotId: string, key: string, status: string, note: string }} options
+ * @param {Partial<typeof defaults>} [injected]
+ */
 export async function updatePilotCheck(options, injected = {}) {
   const d = { ...defaults, ...injected },
     overrides = await d.getPlanFeatureOverrides();
   const note = options.note.trim();
   if (options.status !== "pending" && !note)
     throw badRequest("Registra qué comprobaste sin incluir datos personales.");
-  return d.transaction(async (client) => {
+  return d.transaction(async (/** @type {TxClient} */ client) => {
     await entitled(client, options.businessId, overrides);
     const p = await lockedPilot(client, options.businessId, options.pilotId);
     if (p.status !== "active") throw conflict("El piloto está cerrado. Conservamos sus registros.");
-    const definition = pilotChecksForVersion(p.checklist_version, p.capabilities).find(
+    const definition = checksForVersion(p.checklist_version, p.capabilities).find(
       (c) => c.key === options.key,
     );
     if (!definition) throw badRequest("Esta prueba no pertenece a la versión del piloto.");
@@ -220,10 +287,14 @@ export async function updatePilotCheck(options, injected = {}) {
     return { ok: true };
   });
 }
+/**
+ * @param {PilotActor & { pilotId: string, outcome: string, note: string }} options
+ * @param {Partial<typeof defaults>} [injected]
+ */
 export async function closePilot(options, injected = {}) {
   const d = { ...defaults, ...injected },
     overrides = await d.getPlanFeatureOverrides();
-  return d.transaction(async (client) => {
+  return d.transaction(async (/** @type {TxClient} */ client) => {
     await entitled(client, options.businessId, overrides);
     const p = await lockedPilot(client, options.businessId, options.pilotId);
     if (p.status !== "active") {
@@ -249,6 +320,10 @@ export async function closePilot(options, injected = {}) {
     return { pilot: publicPilot(rows[0]) };
   });
 }
+/**
+ * @param {{ businessId: string, pilotId: string }} target
+ * @param {Partial<typeof defaults>} [injected]
+ */
 export async function getPilot({ businessId, pilotId }, injected = {}) {
   const d = { ...defaults, ...injected };
   const { rows } = await d.query(
@@ -285,7 +360,7 @@ export async function getPilot({ businessId, pilotId }, injected = {}) {
       status: "pending",
       note: "",
       updated_at: null,
-      ...row.checks.find((s) => s.key === c.key),
+      ...row.checks.find((/** @type {{ key: string }} */ s) => s.key === c.key),
       evidence_type: "owner_reported",
     })),
     checklist_evidence: {

@@ -3,11 +3,19 @@ import { dbQuery, withTransaction, withDbClientContext } from "../database.js";
 import { notFound } from "../../utils/http-error.js";
 import { config } from "../../config/index.js";
 
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+
+/**
+ * @param {unknown} token
+ * @returns {token is string}
+ */
 export const validUnsubscribeToken = (token) =>
   typeof token === "string" && /^[A-Za-z0-9_-]{43}$/.test(token);
+/** @param {string} token */
 export const unsubscribeTokenHash = (token) =>
   crypto.createHash("sha256").update(token).digest("hex");
 
+/** @param {{ businessId: string, customerId: string }} target */
 export async function getMarketingPreference({ businessId, customerId }) {
   const { rows } = await dbQuery(
     `SELECT b.name AS business_name, COALESCE(p.marketing_opt_in,false) AS marketing_opt_in
@@ -20,8 +28,9 @@ export async function getMarketingPreference({ businessId, customerId }) {
   return { ok: true, ...rows[0] };
 }
 
+/** @param {{ businessId: string, customerId: string, marketing_opt_in: boolean }} preference */
 export async function setMarketingPreference({ businessId, customerId, marketing_opt_in }) {
-  return withTransaction(async (client) => {
+  return withTransaction(async (/** @type {TxClient} */ client) => {
     const { rows } = await client.query(
       `SELECT id FROM customers WHERE business_id=$1 AND id=$2 AND deleted_at IS NULL FOR UPDATE`,
       [businessId, customerId],
@@ -47,6 +56,7 @@ export async function setMarketingPreference({ businessId, customerId, marketing
   });
 }
 
+/** @param {{ businessId: string, customerId: string }} target */
 export async function issueMarketingUnsubscribeUrl({ businessId, customerId }) {
   const token = crypto.randomBytes(32).toString("base64url");
   await dbQuery(
@@ -58,6 +68,7 @@ export async function issueMarketingUnsubscribeUrl({ businessId, customerId }) {
   return url.toString();
 }
 
+/** @param {{ token: unknown, confirm?: boolean }} input */
 export async function tokenMarketingPreference({ token, confirm = false }) {
   if (!validUnsubscribeToken(token)) throw notFound("Este enlace no está disponible.");
   // Only the hashed capability can select an anonymous record. No identifiers or contact fields leave this service.

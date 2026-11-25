@@ -7,10 +7,21 @@ import { badRequest } from "../../utils/http-error.js";
 import { lookupCustomerByQrToken } from "./staff-service.js";
 import { spendCashback } from "./cashback-service.js";
 
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+
 // Staff applies a member's cashback credit as a discount. Resolves the customer
 // from the scanned QR (same verification the award flow uses), checks the
 // business runs CASHBACK, then debits inside a tenant-scoped transaction so RLS
 // and the account lock apply. Idempotent on requestId. Audited.
+/**
+ * @param {{
+ *   staff: { id: string, business_id: string, [key: string]: unknown },
+ *   customerQrToken: string,
+ *   amount_q: number,
+ *   requestId?: string | null,
+ *   note?: string | null,
+ * }} input
+ */
 export async function spendCashbackForStaff({
   staff,
   customerQrToken,
@@ -23,7 +34,7 @@ export async function spendCashbackForStaff({
   if (!business || !["CASHBACK", "GIFT_CARD"].includes(business.program_type)) {
     throw badRequest("Este negocio no usa un programa con saldo (cashback o tarjeta).");
   }
-  const result = await withTransaction((client) =>
+  const result = await withTransaction((/** @type {TxClient} */ client) =>
     spendCashback(client, {
       businessId: staff.business_id,
       customerId: customer.id,

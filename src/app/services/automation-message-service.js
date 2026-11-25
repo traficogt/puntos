@@ -13,6 +13,32 @@ import { deliverLifecycleWalletMessage } from "./wallet-notification-service.js"
 import { PlatformSettingsRepo } from "../repositories/platform-settings-repository.js";
 import { resolveWalletBroadcast, walletBroadcastDelivery } from "./wallet-broadcast-config.js";
 
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("./automation-controls-service.js").AutomationRule} AutomationRule */
+/**
+ * lifecycle_message_outbox row (SELECT *), as far as this module reads it.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   customer_id: string,
+ *   event_id: string,
+ *   rule: AutomationRule,
+ *   points: number,
+ *   status: string,
+ *   attempts: number,
+ *   expires_at: string | Date,
+ *   claim_token: string | null,
+ * }} AutomationOutboxItem
+ */
+/**
+ * Result of claiming the next outbox item: skipped, or the leased item.
+ * @typedef {{ skipped: true } | (AutomationOutboxItem & { claim_token: string, skipped?: false })} AutomationClaim
+ */
+
+/**
+ * @param {Pick<AutomationOutboxItem, "rule" | "points">} item
+ * @param {string} businessName
+ */
 export function automationMessageBody(item, businessName) {
   const opening =
     item.rule === "birthday"
@@ -20,8 +46,16 @@ export function automationMessageBody(item, businessName) {
       : "Te extrañamos. Nos encantará verte de nuevo.";
   return `${businessName}: ${opening} ${item.points > 0 ? `Ya abonamos ${item.points} puntos a tu cuenta. ` : ""}Consulta tus beneficios en PuntosFieles.`;
 }
+/**
+ * @param {string} businessId
+ * @param {Date} now
+ * @param {Awaited<ReturnType<typeof PlanConfigService.getPlanFeatureOverrides>>} overrides
+ * @param {boolean} walletEnabled
+ * @param {ReturnType<typeof resolveWalletBroadcast>} walletCfg
+ * @returns {Promise<AutomationClaim | null>}
+ */
 async function claim(businessId, now, overrides, walletEnabled, walletCfg) {
-  return withTransaction(async (client) => {
+  return withTransaction(async (/** @type {TxClient} */ client) => {
     await client.query(
       `UPDATE lifecycle_message_outbox SET status='uncertain',reason='processing_lease_expired',claim_token=NULL,lease_until=NULL,updated_at=$2 WHERE business_id=$1 AND status='processing' AND lease_until<=$2`,
       [businessId, now],
@@ -39,6 +73,7 @@ async function claim(businessId, now, overrides, walletEnabled, walletCfg) {
       [businessId, candidate.customer_id],
     );
     if (!pref.rows[0]) return { skipped: true };
+    /** @type {AutomationOutboxItem | undefined} */
     const item = (
       await client.query(
         `SELECT * FROM lifecycle_message_outbox WHERE business_id=$1 AND id=$2 AND status IN ('queued','failed') AND attempts<3 AND next_attempt_at<=$3 FOR UPDATE SKIP LOCKED`,
@@ -114,6 +149,14 @@ async function claim(businessId, now, overrides, walletEnabled, walletCfg) {
     return { ...item, claim_token, attempts: item.attempts + 1 };
   });
 }
+/**
+ * @param {{
+ *   businessId?: string | null,
+ *   limit?: number,
+ *   now?: () => Date,
+ *   send?: typeof sendMessage,
+ * }} [options]
+ */
 export async function processAutomationMessagesOnce({
   businessId = null,
   limit = 25,
@@ -126,7 +169,7 @@ export async function processAutomationMessagesOnce({
         const { rows } = await dbQuery(
           `SELECT DISTINCT business_id FROM lifecycle_message_outbox WHERE status IN ('queued','processing') OR (status='failed' AND attempts<3)`,
         );
-        return rows.map((row) => row.business_id);
+        return rows.map((/** @type {{ business_id: string }} */ row) => row.business_id);
       });
   // Deliver via wallet push only where the pass table exists; this stays false for the
   // schema.sql bootstrap (no native_wallet_passes), keeping the SMS/email path unchanged.
@@ -143,156 +186,159 @@ export async function processAutomationMessagesOnce({
   const walletSettings = walletEnabled ? await PlatformSettingsRepo.getWalletBroadcast() : {};
   const counts = { accepted: 0, failed: 0, uncertain: 0, suppressed: 0 };
   for (const bid of ids)
-    await withDbClientContext({ tenantId: bid, platformAdmin: false }, async (client) => {
-      const walletCfg = resolveWalletBroadcast(walletSettings, bid);
-      for (let i = 0; i < Math.min(200, Math.max(1, limit)); i++) {
-        const overrides = await PlanConfigService.getPlanFeatureOverrides();
-        const item = await claim(bid, now(), overrides, walletEnabled, walletCfg);
-        if (!item) break;
-        if (item.skipped) continue;
-        let result;
-        try {
-          const dispatchOverrides = await PlanConfigService.getPlanFeatureOverrides();
-          // Commit capability before provider I/O; an uncertain response cannot invalidate the link.
-          const unsubscribeUrl = await issueMarketingUnsubscribeUrl({
-            businessId: bid,
-            customerId: item.customer_id,
-          });
-          await client.query("BEGIN");
+    await withDbClientContext(
+      { tenantId: bid, platformAdmin: false },
+      async (/** @type {TxClient} */ client) => {
+        const walletCfg = resolveWalletBroadcast(walletSettings, bid);
+        for (let i = 0; i < Math.min(200, Math.max(1, limit)); i++) {
+          const overrides = await PlanConfigService.getPlanFeatureOverrides();
+          const item = await claim(bid, now(), overrides, walletEnabled, walletCfg);
+          if (!item) break;
+          if (item.skipped === true) continue;
+          let result;
           try {
-            const business = (
-              await client.query(
-                "SELECT name,plan,program_json FROM businesses WHERE id=$1 FOR SHARE",
-                [bid],
-              )
-            ).rows[0];
-            const customer = (
-              await client.query(
-                `SELECT c.phone${walletEnabled ? ", EXISTS(SELECT 1 FROM native_wallet_passes w WHERE w.business_id=c.business_id AND w.customer_id=c.id AND w.revoked_at IS NULL) AS has_pass" : ", false AS has_pass"} FROM customers c WHERE c.business_id=$1 AND c.id=$2 AND c.deleted_at IS NULL FOR SHARE`,
-                [bid, item.customer_id],
-              )
-            ).rows[0];
-            const pref = (
-              await client.query(
-                "SELECT marketing_opt_in FROM customer_marketing_preferences WHERE business_id=$1 AND customer_id=$2 FOR SHARE",
-                [bid, item.customer_id],
-              )
-            ).rows[0];
-            const current = (
-              await client.query(
-                `SELECT status,claim_token FROM lifecycle_message_outbox WHERE id=$1`,
-                [item.id],
-              )
-            ).rows[0];
-            const cfg = automationSettings(business?.program_json?.lifecycle, business);
-            const dispatchDelay = promotionDelay({ business, rule: item.rule, now: now() });
-            const reach = walletBroadcastDelivery({
-              enabled: true,
-              channelPolicy: walletCfg.channelPolicy,
-              hasPass: customer?.has_pass === true,
-              hasPhone: !!customer?.phone,
+            const dispatchOverrides = await PlanConfigService.getPlanFeatureOverrides();
+            // Commit capability before provider I/O; an uncertain response cannot invalidate the link.
+            const unsubscribeUrl = await issueMarketingUnsubscribeUrl({
+              businessId: bid,
+              customerId: item.customer_id,
             });
-            if (
-              !business ||
-              (!reach.tryWallet && !reach.smsFallback) ||
-              !pref?.marketing_opt_in ||
-              !cfg[`${item.rule}_enabled`] ||
-              !hasPlanFeature(business.plan, "lifecycle_automation", dispatchOverrides) ||
-              new Date(item.expires_at) <= now() ||
-              current?.status !== "processing" ||
-              current?.claim_token !== item.claim_token
-            )
-              result = { ok: false, suppressed: true };
-            else if (dispatchDelay) result = { deferred: dispatchDelay };
-            else {
-              const last = await recentMarketingContact(client, {
-                businessId: bid,
-                customerId: item.customer_id,
-                excludeId: item.id,
-                now: now(),
-                days: cfg.minimum_contact_days,
+            await client.query("BEGIN");
+            try {
+              const business = (
+                await client.query(
+                  "SELECT name,plan,program_json FROM businesses WHERE id=$1 FOR SHARE",
+                  [bid],
+                )
+              ).rows[0];
+              const customer = (
+                await client.query(
+                  `SELECT c.phone${walletEnabled ? ", EXISTS(SELECT 1 FROM native_wallet_passes w WHERE w.business_id=c.business_id AND w.customer_id=c.id AND w.revoked_at IS NULL) AS has_pass" : ", false AS has_pass"} FROM customers c WHERE c.business_id=$1 AND c.id=$2 AND c.deleted_at IS NULL FOR SHARE`,
+                  [bid, item.customer_id],
+                )
+              ).rows[0];
+              const pref = (
+                await client.query(
+                  "SELECT marketing_opt_in FROM customer_marketing_preferences WHERE business_id=$1 AND customer_id=$2 FOR SHARE",
+                  [bid, item.customer_id],
+                )
+              ).rows[0];
+              const current = (
+                await client.query(
+                  `SELECT status,claim_token FROM lifecycle_message_outbox WHERE id=$1`,
+                  [item.id],
+                )
+              ).rows[0];
+              const cfg = automationSettings(business?.program_json?.lifecycle, business);
+              const dispatchDelay = promotionDelay({ business, rule: item.rule, now: now() });
+              const reach = walletBroadcastDelivery({
+                enabled: true,
+                channelPolicy: walletCfg.channelPolicy,
+                hasPass: customer?.has_pass === true,
+                hasPhone: !!customer?.phone,
               });
-              if (last || !marketingWindow(now(), business).allowed)
-                result = {
-                  ok: false,
-                  suppressed: true,
-                  suppressionReason: last ? "frequency_cap" : "quiet_hours",
-                };
+              if (
+                !business ||
+                (!reach.tryWallet && !reach.smsFallback) ||
+                !pref?.marketing_opt_in ||
+                !cfg[`${item.rule}_enabled`] ||
+                !hasPlanFeature(business.plan, "lifecycle_automation", dispatchOverrides) ||
+                new Date(item.expires_at) <= now() ||
+                current?.status !== "processing" ||
+                current?.claim_token !== item.claim_token
+              )
+                result = { ok: false, suppressed: true };
+              else if (dispatchDelay) result = { deferred: dispatchDelay };
               else {
-                const body = automationMessageBody(item, business.name);
-                // Channel policy (platform-owned, per business) governs wallet vs SMS; the wallet-first
-                // default preserves prior behavior. wallet_only never pays for SMS; sms_only never uses wallet.
-                const wallet = reach.tryWallet
-                  ? await deliverLifecycleWalletMessage({
-                      businessId: bid,
-                      customerId: item.customer_id,
-                      body,
-                      now,
-                    })
-                  : null;
-                if (wallet?.ok) result = wallet;
-                else if (reach.smsFallback)
-                  result = await send({
-                    businessId: bid,
-                    customerId: item.customer_id,
-                    channel: "lifecycle",
-                    to: customer.phone,
-                    body,
-                    unsubscribeUrl,
-                  });
-                else
+                const last = await recentMarketingContact(client, {
+                  businessId: bid,
+                  customerId: item.customer_id,
+                  excludeId: item.id,
+                  now: now(),
+                  days: cfg.minimum_contact_days,
+                });
+                if (last || !marketingWindow(now(), business).allowed)
                   result = {
                     ok: false,
                     suppressed: true,
-                    suppressionReason: "customer_unavailable",
+                    suppressionReason: last ? "frequency_cap" : "quiet_hours",
                   };
+                else {
+                  const body = automationMessageBody(item, business.name);
+                  // Channel policy (platform-owned, per business) governs wallet vs SMS; the wallet-first
+                  // default preserves prior behavior. wallet_only never pays for SMS; sms_only never uses wallet.
+                  const wallet = reach.tryWallet
+                    ? await deliverLifecycleWalletMessage({
+                        businessId: bid,
+                        customerId: item.customer_id,
+                        body,
+                        now,
+                      })
+                    : null;
+                  if (wallet?.ok) result = wallet;
+                  else if (reach.smsFallback)
+                    result = await send({
+                      businessId: bid,
+                      customerId: item.customer_id,
+                      channel: "lifecycle",
+                      to: customer.phone,
+                      body,
+                      unsubscribeUrl,
+                    });
+                  else
+                    result = {
+                      ok: false,
+                      suppressed: true,
+                      suppressionReason: "customer_unavailable",
+                    };
+                }
               }
+              await client.query("COMMIT");
+            } catch (error) {
+              await client.query("ROLLBACK");
+              throw error;
             }
-            await client.query("COMMIT");
-          } catch (error) {
-            await client.query("ROLLBACK");
-            throw error;
+          } catch {
+            result = { ok: false, error: "DELIVERY_UNCERTAIN" };
           }
-        } catch {
-          result = { ok: false, error: "DELIVERY_UNCERTAIN" };
-        }
-        if (result && "deferred" in result) {
+          if (result && "deferred" in result) {
+            await dbQuery(
+              `UPDATE lifecycle_message_outbox SET status='queued',reason=$3,next_attempt_at=$4,attempts=GREATEST(attempts-1,0),claim_token=NULL,lease_until=NULL,updated_at=$5 WHERE id=$1 AND claim_token=$2 AND status='processing'`,
+              [item.id, item.claim_token, result.deferred.reason, result.deferred.until, now()],
+            );
+            continue;
+          }
+          const status = classifyCampaignSend(result),
+            stamp = now();
+          const reason =
+            status === "failed"
+              ? "provider_rejected"
+              : status === "uncertain"
+                ? "delivery_uncertain"
+                : status === "suppressed"
+                  ? result && "suppressionReason" in result
+                    ? String(result.suppressionReason)
+                    : "dispatch_suppressed"
+                  : null;
           await dbQuery(
-            `UPDATE lifecycle_message_outbox SET status='queued',reason=$3,next_attempt_at=$4,attempts=GREATEST(attempts-1,0),claim_token=NULL,lease_until=NULL,updated_at=$5 WHERE id=$1 AND claim_token=$2 AND status='processing'`,
-            [item.id, item.claim_token, result.deferred.reason, result.deferred.until, now()],
-          );
-          continue;
-        }
-        const status = classifyCampaignSend(result),
-          stamp = now();
-        const reason =
-          status === "failed"
-            ? "provider_rejected"
-            : status === "uncertain"
-              ? "delivery_uncertain"
-              : status === "suppressed"
-                ? result && "suppressionReason" in result
-                  ? String(result.suppressionReason)
-                  : "dispatch_suppressed"
-                : null;
-        await dbQuery(
-          `UPDATE lifecycle_message_outbox SET status=$3,reason=$4,claim_token=NULL,lease_until=NULL,provider=$5,provider_reference=$6,message_log_id=$7,
+            `UPDATE lifecycle_message_outbox SET status=$3,reason=$4,claim_token=NULL,lease_until=NULL,provider=$5,provider_reference=$6,message_log_id=$7,
         accepted_at=CASE WHEN $3='accepted' THEN $8::timestamptz ELSE NULL END,next_attempt_at=$9,updated_at=$8 WHERE id=$1 AND claim_token=$2 AND status='processing'`,
-          [
-            item.id,
-            item.claim_token,
-            status,
-            reason,
-            result?.provider || null,
-            result?.providerId || null,
-            result?.id || null,
-            stamp,
-            new Date(stamp.getTime() + 2 ** (item.attempts - 1) * 5 * 60000),
-          ],
-        );
-        counts[status]++;
-      }
-    }).catch(() => {
+            [
+              item.id,
+              item.claim_token,
+              status,
+              reason,
+              result?.provider || null,
+              result?.providerId || null,
+              result?.id || null,
+              stamp,
+              new Date(stamp.getTime() + 2 ** (item.attempts - 1) * 5 * 60000),
+            ],
+          );
+          counts[status]++;
+        }
+      },
+    ).catch(() => {
       // Leave durable claims intact: lease recovery marks uncertain outcomes
       // without retrying a message whose provider acceptance could be lost.
       logger.warn(

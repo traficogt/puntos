@@ -4,12 +4,79 @@ import { getCustomerGamificationStats } from "./customer-stats.js";
 import { achievementProgressValue } from "./achievements-service.js";
 import { hasRecurringWindowElapsed } from "./challenges-service.js";
 
+/** @typedef {{ query: typeof import("../../database.js").dbQuery }} TxClient */
+/** @typedef {import("./customer-stats.js").GamificationStats} GamificationStats */
+/** @typedef {{ id?: string | null, [key: string]: unknown }} ReconcileStaff */
+/**
+ * transactions row of an achievement/challenge reward (SELECT *).
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   branch_id: string | null,
+ *   customer_id: string,
+ *   type: string | null,
+ *   points: number | string | null,
+ *   status: string | null,
+ *   meta?: Record<string, unknown> | null,
+ *   [key: string]: unknown,
+ * }} RewardTransactionRow
+ */
+/**
+ * One entry of customer_challenges.completion_history.
+ * @typedef {{
+ *   source_transaction_id?: string | null,
+ *   reward_transaction_id?: string | null,
+ *   completed_at?: string | null,
+ *   [key: string]: unknown,
+ * }} CompletionEntry
+ */
+/**
+ * customer_achievements joined with achievements.
+ * @typedef {{
+ *   achievement_id: string,
+ *   earned_at: string | Date,
+ *   source_transaction_id: string | null,
+ *   reward_transaction_id: string | null,
+ *   business_id: string,
+ *   name: string,
+ *   requirement_type: string,
+ *   requirement_value: number | string | null,
+ *   points_reward: number,
+ * }} AchievementStateRow
+ */
+/**
+ * customer_challenges joined with challenges.
+ * @typedef {{
+ *   challenge_id: string,
+ *   progress: number | string | null,
+ *   completed: boolean | null,
+ *   completed_at: string | Date | null,
+ *   times_completed: number | null,
+ *   last_reset_at: string | Date | null,
+ *   last_source_transaction_id: string | null,
+ *   last_reward_transaction_id: string | null,
+ *   completion_history: unknown,
+ *   business_id: string,
+ *   name: string,
+ *   requirement_type: string,
+ *   requirement_value: number | string | null,
+ *   reward_points: number,
+ *   recurrence: string | null,
+ *   max_completions: number | null,
+ * }} ChallengeStateRow
+ */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/**
+ * @param {string | Date | null | undefined} date
+ * @param {string | null | undefined} recurrence
+ */
 function recurrenceWindowStart(date, recurrence) {
-  const at = new Date(date);
+  // A missing stamp yields an invalid Date and therefore null below.
+  const at = new Date(/** @type {string | Date} */ (date));
   if (Number.isNaN(at.getTime())) return null;
 
   if (recurrence === "daily") {
@@ -34,6 +101,10 @@ function recurrenceWindowStart(date, recurrence) {
   return null;
 }
 
+/**
+ * @param {Date | null} start
+ * @param {string | null | undefined} recurrence
+ */
 function recurrenceWindowEnd(start, recurrence) {
   if (!start) return null;
   const end = new Date(start);
@@ -56,8 +127,10 @@ function recurrenceWindowEnd(start, recurrence) {
   return null;
 }
 
+/** @param {RewardTransactionRow[] | null | undefined} rows */
 function uniqueTransactions(rows) {
   const seen = new Set();
+  /** @type {RewardTransactionRow[]} */
   const result = [];
   for (const row of rows || []) {
     if (!row?.id || seen.has(row.id)) continue;
@@ -67,6 +140,10 @@ function uniqueTransactions(rows) {
   return result;
 }
 
+/**
+ * @param {unknown} history
+ * @returns {CompletionEntry[]}
+ */
 function normalizeCompletionHistory(history) {
   if (Array.isArray(history)) return history.filter((entry) => entry && typeof entry === "object");
   if (typeof history === "string") {
@@ -82,11 +159,16 @@ function normalizeCompletionHistory(history) {
   return [];
 }
 
+/** @param {unknown} entries */
 function latestCompletionEntry(entries) {
   const normalized = normalizeCompletionHistory(entries);
   return normalized.length ? normalized[normalized.length - 1] : null;
 }
 
+/**
+ * @param {unknown} entries
+ * @param {CompletionEntry[] | null | undefined} entriesToRemove
+ */
 function removeCompletionEntries(entries, entriesToRemove) {
   const removals = new Set((entriesToRemove || []).map((entry) => JSON.stringify(entry)));
   return normalizeCompletionHistory(entries).filter(
@@ -94,6 +176,11 @@ function removeCompletionEntries(entries, entriesToRemove) {
   );
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string | null | undefined} transactionId
+ * @returns {Promise<RewardTransactionRow | null>}
+ */
 async function getTransactionById(client, transactionId) {
   if (!transactionId) return null;
   const { rows } = await client.query(
@@ -111,6 +198,11 @@ async function getTransactionById(client, transactionId) {
   return rows[0] || null;
 }
 
+/**
+ * @param {number | string | null | undefined} currentValue
+ * @param {number | string | null | undefined} requirementValue
+ * @param {number | string | null} [maxCompletions]
+ */
 export function expectedNonRecurringChallengeCompletions(
   currentValue,
   requirementValue,
@@ -124,6 +216,16 @@ export function expectedNonRecurringChallengeCompletions(
     : Math.min(rawCompletions, Number(maxCompletions || 0));
 }
 
+/**
+ * @param {{
+ *   currentValue: number | string | null | undefined,
+ *   requirementValue: number | string | null | undefined,
+ *   completed: boolean | null | undefined,
+ *   completedAt: string | Date | null | undefined,
+ *   recurrence: string | null | undefined,
+ *   referenceAt?: Date,
+ * }} input
+ */
 export function shouldRevokeRecurringChallengeCompletion({
   currentValue,
   requirementValue,
@@ -137,6 +239,11 @@ export function shouldRevokeRecurringChallengeCompletion({
   return Number(currentValue || 0) < Number(requirementValue || 0);
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} customerId
+ * @returns {Promise<AchievementStateRow[]>}
+ */
 async function getCurrentAchievementRows(client, customerId) {
   const { rows } = await client.query(
     `SELECT
@@ -158,6 +265,11 @@ async function getCurrentAchievementRows(client, customerId) {
   return rows;
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} customerId
+ * @returns {Promise<ChallengeStateRow[]>}
+ */
 async function getCurrentChallengeRows(client, customerId) {
   const { rows } = await client.query(
     `SELECT
@@ -187,7 +299,7 @@ async function getCurrentChallengeRows(client, customerId) {
 }
 
 /**
- * @param {{ query: (...args: any[]) => Promise<any> }} client
+ * @param {TxClient} client
  * @param {{
  *   customerId: string,
  *   businessId: string,
@@ -199,6 +311,7 @@ async function getCurrentChallengeRows(client, customerId) {
  *   startAt?: Date | null,
  *   endAt?: Date | null
  * }} lookup
+ * @returns {Promise<RewardTransactionRow[]>}
  */
 async function getRewardTransactions(
   client,
@@ -254,6 +367,13 @@ async function getRewardTransactions(
   return rows;
 }
 
+/**
+ * @param {TxClient} client
+ * @param {RewardTransactionRow} tx
+ * @param {ReconcileStaff} staff
+ * @param {string} reason
+ * @param {Record<string, unknown>} [meta]
+ */
 async function reverseRewardTransaction(client, tx, staff, reason, meta = {}) {
   const points = Number(tx.points || 0);
   const pointsEffect = -points;
@@ -303,12 +423,12 @@ async function reverseRewardTransaction(client, tx, staff, reason, meta = {}) {
 }
 
 /**
- * @param {{ query: (...args: any[]) => Promise<any> }} client
+ * @param {TxClient} client
  * @param {string} customerId
  * @param {string} requirementType
  * @param {Date | null} [startAt]
  * @param {Date | null} [endAt]
- * @param {Record<string, any> | null} [stats]
+ * @param {GamificationStats | null} [stats]
  */
 async function getChallengeMetricValue(
   client,
@@ -378,9 +498,9 @@ async function getChallengeMetricValue(
 }
 
 /**
- * @param {{ query: (...args: any[]) => Promise<any> }} client
+ * @param {TxClient} client
  * @param {string} customerId
- * @param {any} staff
+ * @param {ReconcileStaff} staff
  * @param {string} reason
  * @param {Date | null} [_referenceAt]
  * @param {string | null} [refundedTransactionId]
@@ -451,6 +571,14 @@ async function reconcileAchievements(
   return revokedCount;
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} customerId
+ * @param {ReconcileStaff} staff
+ * @param {string} reason
+ * @param {Date} referenceAt
+ * @param {string | null} [refundedTransactionId]
+ */
 async function reconcileChallenges(
   client,
   customerId,
@@ -661,6 +789,16 @@ async function reconcileChallenges(
   return revokedCount;
 }
 
+/**
+ * @param {TxClient} client
+ * @param {{
+ *   customerId: string,
+ *   staff: ReconcileStaff,
+ *   reason: string,
+ *   referenceAt?: Date,
+ *   refundedTransactionId?: string | null,
+ * }} input
+ */
 export async function reconcileCustomerGamificationAfterRefund(
   client,
   { customerId, staff, reason, referenceAt = new Date(), refundedTransactionId = null },

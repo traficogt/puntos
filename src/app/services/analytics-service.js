@@ -58,6 +58,7 @@ export async function businessSummary(businessId, branchId = null) {
   };
 }
 
+/** @param {string} businessId @param {number} [days] @param {number} [limit] */
 export async function churnCandidates(businessId, days = 30, limit = 200) {
   return many(
     `SELECT id, phone, name, COALESCE(last_visit_at, created_at) AS last_seen

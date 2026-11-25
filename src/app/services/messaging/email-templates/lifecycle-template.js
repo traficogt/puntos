@@ -5,6 +5,7 @@ import {
   renderTextParagraphs,
 } from "./base-template.js";
 
+/** @param {string} tone */
 function resolveEyebrow(tone) {
   if (tone === "celebration") return "Celebración";
   if (tone === "alert") return "Alerta";

@@ -10,6 +10,11 @@ import { logger } from "../../../utils/logger.js";
 import { sendSecurityNotification } from "../security-notification-service.js";
 import { id, hashActionToken, randomActionToken, normalizeEmail, logSecurity } from "./shared.js";
 
+/** @typedef {{ query: typeof import("../../database.js").dbQuery }} TxClient */
+/** @typedef {import("./shared.js").AccountSecurityStaffRecord} AccountSecurityStaffRecord */
+/** @typedef {import("./shared.js").AccountSecuritySuperAuthRecord} AccountSecuritySuperAuthRecord */
+
+/** @param {string} token */
 function resetNotificationLines(token) {
   return [
     "Se solicitó un restablecimiento de contraseña para tu cuenta.",
@@ -18,6 +23,10 @@ function resetNotificationLines(token) {
   ];
 }
 
+/**
+ * @param {AccountSecurityStaffRecord} staff
+ * @param {string} candidatePassword
+ */
 function passwordContextForStaff(staff, candidatePassword) {
   assertPasswordAllowed(candidatePassword, {
     email: staff.email,
@@ -26,6 +35,10 @@ function passwordContextForStaff(staff, candidatePassword) {
   });
 }
 
+/**
+ * @param {AccountSecuritySuperAuthRecord} authRecord
+ * @param {string} candidatePassword
+ */
 function passwordContextForSuper(authRecord, candidatePassword) {
   assertPasswordAllowed(candidatePassword, {
     email: authRecord.email,
@@ -34,6 +47,7 @@ function passwordContextForSuper(authRecord, candidatePassword) {
   });
 }
 
+/** @param {string} email */
 async function findStaffForReset(email) {
   const normalized = normalizeEmail(email);
   if (!normalized) return null;
@@ -42,6 +56,7 @@ async function findStaffForReset(email) {
   return staff;
 }
 
+/** @param {{ email: string, ip?: string | null, ua?: string | null }} input */
 export async function requestStaffPasswordReset({ email, ip = null, ua: _ua = null }) {
   const staff = await findStaffForReset(email);
   if (!staff) return { ok: true };
@@ -81,6 +96,7 @@ export async function requestStaffPasswordReset({ email, ip = null, ua: _ua = nu
   return { ok: true };
 }
 
+/** @param {{ token: string, newPassword: string, ip?: string | null, ua?: string | null }} input */
 export async function completeStaffPasswordReset({
   token,
   newPassword,
@@ -99,7 +115,7 @@ export async function completeStaffPasswordReset({
   passwordContextForStaff(staff, newPassword);
   const passwordHash = await hashPassword(newPassword);
 
-  await withTransaction(async (client) => {
+  await withTransaction(async (/** @type {TxClient} */ client) => {
     await client.query(`UPDATE staff_users SET password_hash = $2 WHERE id = $1`, [
       staff.id,
       passwordHash,
@@ -137,6 +153,7 @@ export async function completeStaffPasswordReset({
   return { ok: true };
 }
 
+/** @param {{ email: string, ip?: string | null, ua?: string | null }} input */
 export async function requestSuperPasswordReset({ email, ip = null, ua: _ua = null }) {
   const auth = await SuperAdminAuthRepo.getEffective();
   if (!auth.email || normalizeEmail(email) !== normalizeEmail(auth.email)) return { ok: true };
@@ -167,6 +184,7 @@ export async function requestSuperPasswordReset({ email, ip = null, ua: _ua = nu
   return { ok: true };
 }
 
+/** @param {{ token: string, newPassword: string, ip?: string | null, ua?: string | null }} input */
 export async function completeSuperPasswordReset({
   token,
   newPassword,
@@ -183,7 +201,7 @@ export async function completeSuperPasswordReset({
   const auth = await SuperAdminAuthRepo.getEffective();
   passwordContextForSuper(auth, newPassword);
   const passwordHash = await hashPassword(newPassword);
-  await withTransaction(async (client) => {
+  await withTransaction(async (/** @type {TxClient} */ client) => {
     await SuperAdminAuthRepo.update({ password_hash: passwordHash }, client.query.bind(client));
     await AuthActionTokenRepo.markUsed(active.id, { completed: true }, client.query.bind(client));
   });

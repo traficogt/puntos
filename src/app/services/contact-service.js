@@ -4,6 +4,7 @@ import { logger } from "../../utils/logger.js";
 import { contactSite } from "../../utils/contact-site.js";
 import { maskContact } from "../../utils/pii.js";
 
+/** @param {unknown} str */
 function escapeHtml(str) {
   return String(str ?? "")
     .replace(/&/g, "&amp;")
@@ -13,6 +14,10 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
+/**
+ * @param {{ name: string, business: string, contact: string, message: string }} payload
+ * @param {ReturnType<typeof contactSite>} site
+ */
 function buildEmailHtml({ name, business, contact, message }, site) {
   const timestamp = new Date().toLocaleString("es-GT", { timeZone: "America/Guatemala" });
   return `<!DOCTYPE html>
@@ -49,6 +54,10 @@ function buildEmailHtml({ name, business, contact, message }, site) {
 </html>`;
 }
 
+/**
+ * @param {string} token
+ * @param {string | null | undefined} remoteip
+ */
 export async function verifyTurnstile(token, remoteip) {
   if (!config.CONTACT_TURNSTILE_SECRET) return true; // disabled in dev
   const body = new URLSearchParams({

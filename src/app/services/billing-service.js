@@ -9,6 +9,13 @@ function id() {
 
 /**
  * Emit a billing/usage event. Non-blocking best-effort.
+ * @param {{
+ *   businessId: string | null | undefined,
+ *   eventType: string,
+ *   amount?: number,
+ *   unit?: string,
+ *   metadata?: Record<string, unknown>,
+ * }} event
  */
 export async function emitBillingEvent({
   businessId,

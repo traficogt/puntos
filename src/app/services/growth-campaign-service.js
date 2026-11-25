@@ -13,6 +13,120 @@ import { badRequest, conflict, forbidden, notFound } from "../../utils/http-erro
 import { hasMaxScale } from "../../utils/money.js";
 import { SYNC_AUDIENCE_LIMIT, assertAudienceWithinPlan } from "./scale-limits.js";
 
+/** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
+/** @typedef {import("./merchant-data-readiness.js").MerchantAudienceSnapshot} MerchantAudienceSnapshot */
+/**
+ * growth_campaigns row (SELECT *), optionally joined with its business
+ * (business_name, plan, program_json) or member counts. Timestamps are Date
+ * objects from PostgreSQL and ISO strings when they come from JSON snapshots;
+ * NUMERIC columns arrive as strings.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   request_id?: string | null,
+ *   recovery_run_id?: string | null,
+ *   name: string,
+ *   status: string,
+ *   offer_kind: string,
+ *   preparation_status: string,
+ *   prepared_count: number,
+ *   bonus_points: number,
+ *   minimum_purchase_q: string | number,
+ *   duration_days?: number | null,
+ *   duration_minutes?: number | null,
+ *   holdout_percent: number,
+ *   points_budget: number | null,
+ *   points_committed: number,
+ *   estimated_cost_per_point_q?: string | number | null,
+ *   measurement_plan?: unknown,
+ *   audience_snapshot?: MerchantAudienceSnapshot | null,
+ *   starts_at: string | Date | null,
+ *   expires_at: string | Date | null,
+ *   observation_ends_at?: string | Date | null,
+ *   reconciliation_ends_at?: string | Date | null,
+ *   paused_at?: string | Date | null,
+ *   created_at: string | Date,
+ *   created_by_staff_id?: string | null,
+ *   member_count: number | null,
+ *   treatment_count: number | null,
+ *   control_count: number | null,
+ *   business_name?: string,
+ *   plan?: string,
+ *   program_json?: MerchantProgramJson | null,
+ * }} GrowthCampaignRow
+ */
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/**
+ * Owner request to create a campaign (route-validated).
+ * @typedef {{
+ *   businessId: string,
+ *   staffId?: string | null,
+ *   requestId: string,
+ *   recoveryRunId?: string | null,
+ *   audienceSegmentId?: string | null,
+ *   audienceSegmentVersion?: number | null,
+ *   audienceLimit?: number | null,
+ *   now?: Date,
+ *   name: string,
+ *   bonusPoints: number,
+ *   pointsBudget?: number | null,
+ *   minimumPurchaseQ?: number,
+ *   durationDays?: number | null,
+ *   offerKind?: string,
+ *   durationMinutes?: number | null,
+ *   holdoutPercent?: number,
+ *   estimatedCostPerPointQ?: number | null,
+ *   measurementPlan?: unknown,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null,
+ * }} GrowthCampaignCreateRequest
+ */
+/**
+ * Owner action on an existing campaign.
+ * @typedef {{
+ *   businessId: string,
+ *   campaignId: string,
+ *   staffId?: string | null,
+ *   preflightId?: string | null,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null,
+ * }} GrowthCampaignTarget
+ */
+/**
+ * Audit context shared by the campaign writers.
+ * @typedef {{
+ *   businessId: string,
+ *   staffId?: string | null,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null,
+ * }} GrowthCampaignAuditContext
+ */
+/**
+ * @typedef {{
+ *   transaction?: typeof withTransaction,
+ *   audit?: typeof AuditRepo.log,
+ *   getPlanFeatureOverrides?: () => ReturnType<typeof PlanConfigService.getPlanFeatureOverrides>,
+ * }} GrowthCampaignDeps
+ */
+/**
+ * Campaign terms as validated before persisting.
+ * @typedef {{
+ *   name: unknown,
+ *   bonusPoints: number,
+ *   pointsBudget?: number | null,
+ *   minimumPurchaseQ?: number,
+ *   durationDays?: number | null,
+ *   offerKind?: string,
+ *   durationMinutes?: number | null,
+ *   holdoutPercent?: number,
+ *   estimatedCostPerPointQ?: number | null,
+ * }} GrowthCampaignTerms
+ */
+
+/** @param {GrowthCampaignRow} row */
 export function publicGrowthCampaign(row) {
   return {
     id: row.id,
@@ -56,6 +170,12 @@ export function publicGrowthCampaign(row) {
   };
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {Awaited<ReturnType<typeof PlanConfigService.getPlanFeatureOverrides>>} overrides
+ * @returns {Promise<{ id: string, plan: string }>}
+ */
 export async function lockEntitledBusiness(client, businessId, overrides) {
   const { rows } = await client.query(
     // Keep owner operations serialized while permitting child-row FK checks.
@@ -72,6 +192,12 @@ export async function lockEntitledBusiness(client, businessId, overrides) {
   }
   return rows[0];
 }
+/**
+ * @param {typeof AuditRepo.log} audit
+ * @param {string} action
+ * @param {GrowthCampaignAuditContext} context
+ * @param {Pick<GrowthCampaignRow, "id" | "status" | "member_count">} campaign
+ */
 export async function auditChange(
   audit,
   action,
@@ -97,6 +223,7 @@ export async function auditChange(
   });
 }
 
+/** @param {GrowthCampaignTerms} terms */
 export function validateCampaignTerms({
   name,
   bonusPoints,
@@ -149,13 +276,17 @@ export function validateCampaignTerms({
       );
   } else if (
     offerKind !== "experiment" ||
-    ![7, 14, 30].includes(durationDays) ||
+    !(/** @type {unknown[]} */ ([7, 14, 30]).includes(durationDays)) ||
     durationMinutes !== null ||
     ![10, 20, 30, 50].includes(holdoutPercent)
   )
     throw badRequest("Revisa la vigencia y el grupo de comparación de la campaña.");
 }
 
+/**
+ * @param {GrowthCampaignCreateRequest} options
+ * @param {GrowthCampaignDeps} [deps]
+ */
 export async function createGrowthCampaign(
   options,
   {
@@ -199,9 +330,11 @@ export async function createGrowthCampaign(
     throw badRequest("Elige una lista de recuperación o una audiencia guardada.");
   if (
     audienceSegmentId &&
-    (!Number.isInteger(audienceSegmentVersion) ||
+    (typeof audienceSegmentVersion !== "number" ||
+      !Number.isInteger(audienceSegmentVersion) ||
       audienceSegmentVersion < 1 ||
       audienceSegmentVersion > 2147483647 ||
+      typeof audienceLimit !== "number" ||
       !Number.isInteger(audienceLimit) ||
       audienceLimit < (offerKind === "quiet" ? 1 : 10) ||
       audienceLimit > SYNC_AUDIENCE_LIMIT)
@@ -228,7 +361,7 @@ export async function createGrowthCampaign(
   // Shared plan settings use their own database transaction. Resolve them before
   // holding a purchase/campaign transaction so a busy pool cannot wait on itself.
   const overrides = await getPlanFeatureOverrides();
-  return transaction(async (client) => {
+  return transaction(async (/** @type {TxClient} */ client) => {
     const business = await lockEntitledBusiness(client, businessId, overrides);
     const existing = await client.query(
       "SELECT * FROM growth_campaigns WHERE business_id=$1::uuid AND request_id=$2::uuid",
@@ -266,12 +399,13 @@ export async function createGrowthCampaign(
     /** @type {Awaited<ReturnType<typeof snapshotCustomerAudience>>["snapshot"] | null} */
     let audienceSnapshot = null;
     if (audienceSegmentId) {
+      // Both are integers here: validated above whenever audienceSegmentId is set.
       const result = await snapshotCustomerAudience(
         {
           businessId,
           segmentId: audienceSegmentId,
-          version: audienceSegmentVersion,
-          limit: audienceLimit,
+          version: /** @type {number} */ (audienceSegmentVersion),
+          limit: /** @type {number} */ (audienceLimit),
           now,
         },
         client,
@@ -327,6 +461,10 @@ export async function createGrowthCampaign(
   });
 }
 
+/**
+ * @param {GrowthCampaignTarget} options
+ * @param {GrowthCampaignDeps} [deps]
+ */
 export async function activateGrowthCampaign(
   options,
   {
@@ -339,7 +477,7 @@ export async function activateGrowthCampaign(
   // Shared plan settings use their own database transaction. Resolve them before
   // holding a purchase/campaign transaction so a busy pool cannot wait on itself.
   const overrides = await getPlanFeatureOverrides();
-  return transaction(async (client) => {
+  return transaction(async (/** @type {TxClient} */ client) => {
     await lockEntitledBusiness(client, businessId, overrides);
     const selected = await client.query(
       "SELECT * FROM growth_campaigns WHERE business_id=$1::uuid AND id=$2::uuid FOR UPDATE",
@@ -358,7 +496,7 @@ export async function activateGrowthCampaign(
     );
     if (active.rowCount < (campaign.offer_kind === "quiet" ? 1 : 10))
       throw badRequest("Se necesitan al menos 10 clientes activos para comparar la campaña.");
-    const ids = active.rows.map((row) => row.id);
+    const ids = active.rows.map((/** @type {{ id: string }} */ row) => row.id);
     // Fisher–Yates uses Node's cryptographic integer sampler. Store assignments,
     // never rerandomize them on requests, purchases or measurement refreshes.
     for (let i = ids.length - 1; i > 0; i -= 1) {
@@ -402,6 +540,10 @@ export async function activateGrowthCampaign(
   });
 }
 
+/**
+ * @param {GrowthCampaignTarget} options
+ * @param {GrowthCampaignDeps} [deps]
+ */
 export async function pauseGrowthCampaign(
   options,
   {
@@ -414,7 +556,7 @@ export async function pauseGrowthCampaign(
   // Shared plan settings use their own database transaction. Resolve them before
   // holding a purchase/campaign transaction so a busy pool cannot wait on itself.
   const overrides = await getPlanFeatureOverrides();
-  return transaction(async (client) => {
+  return transaction(async (/** @type {TxClient} */ client) => {
     await lockEntitledBusiness(client, businessId, overrides);
     const selected = await client.query(
       "SELECT * FROM growth_campaigns WHERE business_id=$1::uuid AND id=$2::uuid FOR UPDATE",
@@ -433,6 +575,10 @@ export async function pauseGrowthCampaign(
   });
 }
 
+/**
+ * @param {{ businessId: string, limit?: number, offset?: number }} input
+ * @param {{ query?: typeof dbQuery }} [deps]
+ */
 export async function listGrowthCampaigns(
   { businessId, limit = 20, offset = 0 },
   { query = dbQuery } = {},
@@ -466,6 +612,10 @@ export async function listGrowthCampaigns(
 }
 
 // Additive report contract preserves all existing result fields.
+/**
+ * @param {Parameters<typeof readCampaignReport>[0]} options
+ * @param {Parameters<typeof readCampaignReport>[1]} [dependencies]
+ */
 export async function getGrowthCampaign(options, dependencies = {}) {
   return readCampaignReport(options, dependencies);
 }

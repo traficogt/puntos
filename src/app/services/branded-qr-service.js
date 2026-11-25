@@ -7,10 +7,29 @@ const FALLBACK_INK = "#302820";
 const QUIET_ZONE = 4;
 const LOGO_POSITIONS = ["center", "header", "none"];
 
+/** @typedef {import("./acquisition-link.js").AcquisitionSourceRow} AcquisitionSourceRow */
+/**
+ * businesses row fields the QR export reads; customer_branding_json is owner-provided JSON.
+ * @typedef {{
+ *   id: string,
+ *   name: string,
+ *   slug: string,
+ *   customer_branding_json?: BrandedQrBranding | null,
+ * }} BrandedQrBusiness
+ */
+/** @typedef {{ primary_color?: unknown, accent_color?: unknown, customer_logo_url?: unknown }} BrandedQrBranding */
+
+/**
+ * @template {string | null} F
+ * @param {unknown} value
+ * @param {F} fallback
+ * @returns {string | F}
+ */
 function color(value, fallback) {
   return typeof value === "string" && HEX_COLOR.test(value) ? value.toUpperCase() : fallback;
 }
 
+/** @param {unknown} value */
 export function contrastOnWhite(value) {
   if (typeof value !== "string" || !HEX_COLOR.test(value)) return 0;
   const channels = [1, 3, 5].map((offset) => {
@@ -20,17 +39,26 @@ export function contrastOnWhite(value) {
   return 1.05 / (channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722 + 0.05);
 }
 
+/** @param {unknown} value */
 function xml(value) {
   return String(value)
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
     .replace(
       /[&<>"']/g,
-      (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[char],
+      (char) =>
+        /** @type {Record<string, string>} */ ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&apos;",
+        })[char],
     );
 }
 
 // Never fetch tenant-provided URLs or embed SVG, HTML, or remote dependencies.
 // Small pre-existing embedded PNG/JPEG logos remain portable inside the export.
+/** @param {unknown} value */
 function portableLogo(value) {
   if (typeof value !== "string" || value.length > 180000) return null;
   const match = /^data:image\/(png|jpeg);base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
@@ -83,7 +111,13 @@ function portableLogo(value) {
   return null;
 }
 
+/**
+ * @param {BrandedQrBusiness} business
+ * @param {string} appOrigin
+ * @param {Pick<AcquisitionSourceRow, "business_id" | "code"> | null} [source]
+ */
 export function brandedQrConfiguration(business, appOrigin, source = null) {
+  /** @type {BrandedQrBranding} */
   const branding = business.customer_branding_json ?? {};
   const primary = color(branding.primary_color, FALLBACK_INK);
   const logo = portableLogo(branding.customer_logo_url);
@@ -116,7 +150,12 @@ export function brandedQrConfiguration(business, appOrigin, source = null) {
   };
 }
 
-/** @param {any} business @param {string} appOrigin @param {{ foreground?: string, logo_position?: "center"|"header"|"none", logo_data_url?: string|null }} options */
+/**
+ * @param {BrandedQrBusiness} business
+ * @param {string} appOrigin
+ * @param {{ foreground?: string, logo_position?: "center"|"header"|"none", logo_data_url?: string|null }} options
+ * @param {Pick<AcquisitionSourceRow, "business_id" | "code"> | null} [source]
+ */
 export function renderBrandedQr(
   business,
   appOrigin,

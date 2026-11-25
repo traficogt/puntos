@@ -18,6 +18,67 @@ import {
 } from "../../utils/money.js";
 import { errorCode } from "../../utils/error-shape.js";
 
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {{ id?: string, [key: string]: unknown }} GiftCardStaff */
+/**
+ * audit_logs row as AuditRepo.log receives it.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string | null,
+ *   actor_type: string,
+ *   actor_id: string | null,
+ *   action: string,
+ *   ip: string | null,
+ *   ua: string | null,
+ *   meta: unknown,
+ * }} AuditLogEntry
+ */
+/**
+ * staff_users row of the acting staff member (StaffRepo.getById).
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   branch_id?: string | null,
+ *   role?: string,
+ *   active?: boolean,
+ *   can_manage_gift_cards?: boolean,
+ *   [key: string]: unknown,
+ * }} GiftCardActor
+ */
+/**
+ * gift_cards row, optionally joined with the replayed gift_card_transactions row.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   branch_id: string | null,
+ *   code: string,
+ *   qr_token: string,
+ *   issued_to_name?: string | null,
+ *   issued_to_phone?: string | null,
+ *   initial_amount_q?: string | number | null,
+ *   balance_q?: string | number | null,
+ *   balance_after_q?: string | number | null,
+ *   status?: string | null,
+ *   expires_at?: string | Date | null,
+ *   created_by?: string | null,
+ *   created_at?: string | Date,
+ *   updated_at?: string | Date,
+ *   meta?: Record<string, unknown> | null,
+ *   tx_type?: string,
+ *   transaction_id?: string,
+ * }} GiftCardSnapshotRow
+ */
+/**
+ * Collaborators; unit tests inject fakes with only what their scenario reaches.
+ * @typedef {{
+ *   GiftCardRepo?: Partial<Pick<typeof GiftCardRepo, "getByCodeOrToken" | "listTxByCard">>,
+ *   StaffRepo?: Partial<typeof StaffRepo>,
+ *   withTransaction: typeof withTransaction,
+ *   assertGiftCardAccess: (staff: GiftCardStaff, options?: { create?: boolean }) => Promise<GiftCardActor>,
+ *   AuditRepo?: { log: (entry: AuditLogEntry) => Promise<unknown> },
+ * }} GiftCardDeps
+ */
+
 function makeCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const bytes = crypto.randomBytes(8);
@@ -30,6 +91,11 @@ function makeToken() {
   return `gft_${crypto.randomBytes(16).toString("hex")}`;
 }
 
+/**
+ * @param {GiftCardStaff} staff
+ * @param {{ create?: boolean }} [options]
+ * @returns {Promise<GiftCardActor>}
+ */
 async function assertGiftCardAccess(staff, { create = false } = {}) {
   const actor = await StaffRepo.getById(staff.id);
   if (!actor || !actor.active) throw forbidden("Staff no autorizado");
@@ -43,12 +109,18 @@ async function assertGiftCardAccess(staff, { create = false } = {}) {
 // Client-supplied amount: must be a positive finite number. Returned as the
 // number the regional decimal-scale check expects; the ledger math below works
 // on integer centavos (toMinor) once that check has passed.
+/** @param {unknown} v */
 function validateMoney(v) {
   const n = Number(v);
   if (!Number.isFinite(n) || n <= 0) throw badRequest("Monto inválido");
   return n;
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {number} amount
+ */
 async function validateRegionalMoney(client, businessId, amount) {
   const { rows } = await client.query("SELECT program_json FROM businesses WHERE id=$1 FOR SHARE", [
     businessId,
@@ -60,6 +132,13 @@ async function validateRegionalMoney(client, businessId, amount) {
   return region;
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string | null | undefined} requestId
+ * @param {{ expectType?: string, cardToken?: string }} [opts]
+ * @returns {Promise<GiftCardSnapshotRow | null>}
+ */
 async function findExistingGiftCardTx(client, businessId, requestId, opts = {}) {
   if (!requestId) return null;
   const { rows } = await client.query(
@@ -90,6 +169,11 @@ async function findExistingGiftCardTx(client, businessId, requestId, opts = {}) 
   return existing;
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string | null | undefined} requestId
+ */
 async function lockGiftCardRequest(client, businessId, requestId) {
   if (!requestId) return;
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
@@ -98,6 +182,7 @@ async function lockGiftCardRequest(client, businessId, requestId) {
   ]);
 }
 
+/** @param {GiftCardSnapshotRow} existing */
 function hydrateGiftCardSnapshot(existing) {
   const meta = existing?.meta && typeof existing.meta === "object" ? existing.meta : {};
   return {
@@ -121,6 +206,17 @@ function hydrateGiftCardSnapshot(existing) {
   };
 }
 
+/**
+ * @param {GiftCardDeps} deps
+ * @param {{
+ *   staff: GiftCardStaff,
+ *   amount_q: unknown,
+ *   issued_to_name?: string | null,
+ *   issued_to_phone?: string | null,
+ *   expires_at?: string | null,
+ *   requestId?: string | null,
+ * }} input
+ */
 export async function createGiftCardWithDeps(
   deps,
   { staff, amount_q, issued_to_name, issued_to_phone, expires_at, requestId = null },
@@ -129,7 +225,7 @@ export async function createGiftCardWithDeps(
   const actor = await deps.assertGiftCardAccess(staff, { create: true });
   const amount = validateMoney(amount_q);
 
-  return deps.withTransaction(async (client) => {
+  return deps.withTransaction(async (/** @type {TxClient} */ client) => {
     await lockGiftCardRequest(client, actor.business_id, requestId);
     const existing = await findExistingGiftCardTx(client, actor.business_id, requestId, {
       expectType: "ISSUE",
@@ -159,7 +255,7 @@ export async function createGiftCardWithDeps(
 
     const region = await validateRegionalMoney(client, actor.business_id, amount);
     const amountMinor = toMinor(amount);
-    /** @type {Record<string, any> | null} */
+    /** @type {Record<string, unknown> | null} */
     let card = null;
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const id = crypto.randomUUID();
@@ -278,6 +374,16 @@ export async function createGiftCardWithDeps(
   });
 }
 
+/**
+ * @param {GiftCardDeps} deps
+ * @param {{
+ *   staff: GiftCardStaff,
+ *   code_or_token: string,
+ *   amount_q: unknown,
+ *   note?: string | null,
+ *   requestId?: string | null,
+ * }} input
+ */
 export async function redeemGiftCardWithDeps(
   deps,
   { staff, code_or_token, amount_q, note, requestId = null },
@@ -286,7 +392,7 @@ export async function redeemGiftCardWithDeps(
   const actor = await deps.assertGiftCardAccess(staff, { create: false });
   const amount = validateMoney(amount_q);
 
-  return deps.withTransaction(async (client) => {
+  return deps.withTransaction(async (/** @type {TxClient} */ client) => {
     await lockGiftCardRequest(client, actor.business_id, requestId);
     const existing = await findExistingGiftCardTx(client, actor.business_id, requestId, {
       expectType: "REDEEM",
@@ -404,19 +510,23 @@ const giftCardDeps = {
   assertGiftCardAccess,
 };
 
+/** @param {Parameters<typeof createGiftCardWithDeps>[1]} args */
 export async function createGiftCard(args) {
   return createGiftCardWithDeps(giftCardDeps, args);
 }
 
+/** @param {Parameters<typeof redeemGiftCardWithDeps>[1]} args */
 export async function redeemGiftCard(args) {
   return redeemGiftCardWithDeps(giftCardDeps, args);
 }
 
+/** @param {{ staff: GiftCardStaff & { business_id: string }, limit?: number }} input */
 export async function listGiftCards({ staff, limit = 100 }) {
   await assertGiftCardAccess(staff, { create: false });
   return GiftCardRepo.listByBusiness(staff.business_id, limit);
 }
 
+/** @param {{ staff: GiftCardStaff & { business_id: string }, code_or_token: string }} input */
 export async function giftCardDetails({ staff, code_or_token }) {
   await assertGiftCardAccess(staff, { create: false });
   const card = await GiftCardRepo.getByCodeOrToken(staff.business_id, code_or_token);
@@ -425,11 +535,18 @@ export async function giftCardDetails({ staff, code_or_token }) {
   return { card, transactions: tx };
 }
 
+/**
+ * @param {Pick<GiftCardDeps, "assertGiftCardAccess"> & {
+ *   GiftCardRepo: Pick<typeof GiftCardRepo, "getByCodeOrToken" | "listTxByCard">,
+ * }} deps
+ * @param {{ staff: GiftCardStaff & { business_id: string }, code_or_token: string }} input
+ */
 export async function giftCardLedgerDetailsWithDeps(deps, { staff, code_or_token }) {
   await deps.assertGiftCardAccess(staff, { create: false });
   const card = await deps.GiftCardRepo.getByCodeOrToken(staff.business_id, code_or_token);
   if (!card) throw badRequest("Gift card no encontrada");
 
+  /** @type {Array<{ tx_type: string, amount_q: string | number }>} */
   const transactions = await deps.GiftCardRepo.listTxByCard(card.id, 100);
   // Exact centavo sums over the NUMERIC strings pg returns; a mismatch is any
   // non-zero delta rather than a float comparison with a tolerance.
@@ -457,6 +574,7 @@ export async function giftCardLedgerDetailsWithDeps(deps, { staff, code_or_token
   };
 }
 
+/** @param {Parameters<typeof giftCardLedgerDetailsWithDeps>[1]} args */
 export async function giftCardLedgerDetails(args) {
   return giftCardLedgerDetailsWithDeps(giftCardDeps, args);
 }

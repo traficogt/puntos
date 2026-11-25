@@ -6,16 +6,47 @@ import { InternalMagicLinkRepo } from "../repositories/internal-magic-link-repos
 import { StaffRepo } from "../repositories/staff-repository.js";
 import { CustomerRepo } from "../repositories/customer-repository.js";
 
+/** @typedef {Pick<typeof InternalMagicLinkRepo, "create" | "lookupByTokenHash" | "consumeSingleUse" | "touchReusable">} MagicLinkRepo */
+/**
+ * Overridable collaborators; unit tests inject fakes with only the methods
+ * their scenario reaches.
+ * @typedef {{
+ *   now?: () => Date,
+ *   randomBytes?: (size: number) => { toString(encoding?: string): string } | string,
+ *   randomUUID?: () => string,
+ *   InternalMagicLinkRepo?: Partial<MagicLinkRepo>,
+ *   StaffRepo?: Pick<typeof StaffRepo, "getById">,
+ *   CustomerRepo?: Pick<typeof CustomerRepo, "getById">,
+ *   signStaffToken?: typeof signStaffToken,
+ *   signCustomerToken?: typeof signCustomerToken,
+ *   config?: Partial<Pick<typeof config, "APP_ORIGIN" | "STAFF_COOKIE_NAME" | "CUSTOMER_COOKIE_NAME">>,
+ * }} InternalMagicLinkDeps
+ */
+/**
+ * Staff or customer the link acts as (a row, or a request body).
+ * @typedef {{
+ *   id?: string | null,
+ *   actor_id?: string | null,
+ *   business_id?: string | null,
+ *   businessId?: string | null,
+ *   role?: string | null,
+ *   [key: string]: unknown,
+ * }} InternalMagicLinkActor
+ */
+
+/** @param {string} rawToken */
 function hashInternalMagicToken(rawToken) {
   return crypto.createHash("sha256").update(String(rawToken)).digest("hex");
 }
 
+/** @param {InternalMagicLinkDeps} [overrides] */
 function resolveDeps(overrides = {}) {
   return {
     now: overrides.now ?? (() => new Date()),
     randomBytes: overrides.randomBytes ?? crypto.randomBytes,
     randomUUID: overrides.randomUUID ?? crypto.randomUUID,
-    repo: overrides.InternalMagicLinkRepo ?? InternalMagicLinkRepo,
+    // Tests inject only the repository methods their scenario reaches.
+    repo: /** @type {MagicLinkRepo} */ (overrides.InternalMagicLinkRepo ?? InternalMagicLinkRepo),
     staffRepo: overrides.StaffRepo ?? StaffRepo,
     customerRepo: overrides.CustomerRepo ?? CustomerRepo,
     signStaff: overrides.signStaffToken ?? signStaffToken,
@@ -24,6 +55,7 @@ function resolveDeps(overrides = {}) {
   };
 }
 
+/** @param {(size: number) => { toString(encoding?: string): string } | string} randomBytes */
 function makeRawToken(randomBytes) {
   const bytes = randomBytes(24);
   if (typeof bytes === "string") return bytes;
@@ -33,12 +65,14 @@ function makeRawToken(randomBytes) {
   return String(bytes);
 }
 
+/** @param {unknown} actorType */
 function normalizeActorType(actorType) {
   return String(actorType || "")
     .trim()
     .toLowerCase();
 }
 
+/** @param {string} actorType */
 function normalizeTargetRoute(actorType) {
   return actorType === "customer" ? "customer" : "staff";
 }
@@ -64,6 +98,10 @@ function assertValidTargetForActor(actorType, target, actor = null) {
   }
 }
 
+/**
+ * @param {string} actorType
+ * @param {InternalMagicLinkActor | null | undefined} actor
+ */
 function assertActorShape(actorType, actor) {
   const actorId = actor?.id ?? actor?.actor_id ?? null;
   const businessId = actor?.business_id ?? actor?.businessId ?? null;
@@ -74,6 +112,16 @@ function assertActorShape(actorType, actor) {
   }
 }
 
+/**
+ * @param {{
+ *   actorType: unknown,
+ *   actor: InternalMagicLinkActor | null | undefined,
+ *   target: string,
+ *   createdBy?: string | null,
+ *   origin?: string | null,
+ * }} input
+ * @param {InternalMagicLinkDeps} [deps]
+ */
 export async function buildInternalMagicLink(
   { actorType, actor, target, createdBy, origin },
   deps = {},
@@ -121,6 +169,11 @@ export async function buildInternalMagicLink(
   };
 }
 
+/**
+ * @param {unknown} rawToken
+ * @param {Record<string, unknown>} [meta]
+ * @param {InternalMagicLinkDeps} [deps]
+ */
 export async function consumeInternalMagicLink(rawToken, meta = {}, deps = {}) {
   const resolvedDeps = resolveDeps(deps);
   const token = String(rawToken || "").trim();

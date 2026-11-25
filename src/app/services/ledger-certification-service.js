@@ -5,13 +5,50 @@ import { config } from "../../config/index.js";
 import { toCSV } from "../../utils/csv.js";
 import { add, fromMinor, toMinor, toNumber } from "../../utils/money.js";
 
-/** Fixed two-decimal text for a Q amount the report holds as a JSON number. */
+/**
+ * Subset of node:fs the artifact writer uses (tests may inject an in-memory fake).
+ * @typedef {{
+ *   existsSync: (path: string) => boolean,
+ *   readdirSync: ((path: string, options: { withFileTypes: true }) => Array<{ name: string, isDirectory: () => boolean }>) &
+ *     ((path: string) => string[]),
+ *   readFileSync: (path: string, encoding: "utf8") => string,
+ *   writeFileSync: (path: string, data: string, encoding: "utf8") => void,
+ *   mkdirSync: (path: string, options?: { recursive?: boolean }) => unknown,
+ *   rmSync: (path: string, options?: { recursive?: boolean, force?: boolean }) => void,
+ * }} CertificationFs
+ */
+/** @typedef {Awaited<ReturnType<typeof readLedgerCertificationReportWithDeps>>} CertificationReport */
+/** A report as read back from JSON or supplied by tests (`ok` is not required). */
+/** @typedef {Omit<CertificationReport, "ok"> & { ok?: boolean }} CertificationReportInput */
+/**
+ * Daily aggregate row of the certification query (money columns are NUMERIC strings).
+ * @typedef {{
+ *   day: string | Date,
+ *   points_issued: number,
+ *   points_redeemed: number,
+ *   points_reversed: number,
+ *   points_expired: number,
+ *   adjustment_points: number,
+ *   gift_cards_issued_q: string | number,
+ *   gift_cards_redeemed_q: string | number,
+ *   replay_events: number,
+ * }} CertificationDailyRow
+ */
+/** Artifact entry of a day manifest (index.json). */
+/** @typedef {{ businessId?: unknown, jsonPath?: unknown, csvPath?: unknown, generatedAt?: unknown, certificationStatus?: unknown, period?: unknown }} CertificationArtifactEntry */
+
+/**
+ * Fixed two-decimal text for a Q amount the report holds as a JSON number.
+ * @param {number} value
+ */
 const moneyText = (value) => fromMinor(toMinor(value));
 
+/** @param {Date} date */
 function formatDate(date) {
   return date.toISOString().slice(0, 10);
 }
 
+/** @param {{ from?: unknown, to?: unknown } | null | undefined} [query] */
 export function resolveCertificationPeriod(query = {}) {
   const today = new Date();
   const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
@@ -35,6 +72,7 @@ function replayActions() {
   ];
 }
 
+/** @param {unknown} value */
 function sanitizeSlug(value) {
   return (
     String(value || "")
@@ -45,15 +83,24 @@ function sanitizeSlug(value) {
   );
 }
 
+/**
+ * @param {unknown} value
+ * @param {number} [fallback]
+ */
 function parseRetentionDays(value, fallback = 90) {
   const n = Number(value);
   return Number.isInteger(n) && n > 0 ? n : fallback;
 }
 
+/** @param {unknown} value */
 function dayDirectoryName(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? String(value) : "";
 }
 
+/**
+ * @param {string} outputRoot
+ * @param {string} filePath
+ */
 function relativeArtifactPath(outputRoot, filePath) {
   return path.relative(outputRoot, filePath).replaceAll(path.sep, "/");
 }
@@ -68,14 +115,27 @@ function certificationRetentionDays() {
   return parseRetentionDays(config.LEDGER_CERTIFICATION_RETENTION_DAYS, 90);
 }
 
+/**
+ * @param {CertificationFs} fsModule
+ * @param {string} filePath
+ */
 function readJsonFile(fsModule, filePath) {
   return JSON.parse(fsModule.readFileSync(filePath, "utf8"));
 }
 
+/**
+ * @param {CertificationFs} fsModule
+ * @param {string} filePath
+ * @param {unknown} payload
+ */
 function writeJsonFile(fsModule, filePath, payload) {
   fsModule.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 
+/**
+ * @param {CertificationFs} fsModule
+ * @param {string} outputRoot
+ */
 function listDayDirectories(fsModule, outputRoot) {
   if (!fsModule.existsSync(outputRoot)) return [];
   return fsModule
@@ -85,6 +145,11 @@ function listDayDirectories(fsModule, outputRoot) {
     .sort();
 }
 
+/**
+ * @param {CertificationFs} fsModule
+ * @param {string} outputRoot
+ * @param {number} retentionDays
+ */
 function pruneOldCertificationDays(fsModule, outputRoot, retentionDays) {
   if (!fsModule.existsSync(outputRoot) || retentionDays <= 0) {
     return { prunedDays: [], keptDays: listDayDirectories(fsModule, outputRoot) };
@@ -106,6 +171,11 @@ function pruneOldCertificationDays(fsModule, outputRoot, retentionDays) {
   return { prunedDays, keptDays: dayNames.filter((dayName) => keep.has(dayName)) };
 }
 
+/**
+ * @param {CertificationFs} fsModule
+ * @param {string} outputRoot
+ * @param {string} dayName
+ */
 function buildDayManifest(fsModule, outputRoot, dayName) {
   const dayDir = path.join(outputRoot, dayName);
   if (!fsModule.existsSync(dayDir)) return null;
@@ -140,14 +210,24 @@ function buildDayManifest(fsModule, outputRoot, dayName) {
   return manifest;
 }
 
+/**
+ * @param {string} outputRoot
+ * @param {string} dayName
+ */
 function safeManifestPath(outputRoot, dayName) {
   return path.join(outputRoot, dayName, "index.json");
 }
 
+/** @param {unknown} value */
 function safeArtifactFileName(value) {
   return /^[a-z0-9-]+_[a-z0-9-]+\.(json|csv)$/i.test(String(value || "")) ? String(value) : "";
 }
 
+/**
+ * @param {CertificationFs} fsModule
+ * @param {string} outputRoot
+ * @param {number} retentionDays
+ */
 function refreshCertificationIndexes(fsModule, outputRoot, retentionDays) {
   const dayNames = listDayDirectories(fsModule, outputRoot);
   const days = dayNames
@@ -176,6 +256,12 @@ function refreshCertificationIndexes(fsModule, outputRoot, retentionDays) {
   return rootIndex;
 }
 
+/**
+ * @param {{ dbQuery: typeof import("../database.js").dbQuery }} deps
+ * @param {string} businessId
+ * @param {string} from
+ * @param {string} to
+ */
 export async function readLedgerCertificationReportWithDeps(deps, businessId, from, to) {
   const [{ rows: businessRows }, { rows: dailyRows }, { rows: statusRows }] = await Promise.all([
     deps.dbQuery(
@@ -279,7 +365,9 @@ export async function readLedgerCertificationReportWithDeps(deps, businessId, fr
 
   const business = businessRows[0] ?? { id: businessId, name: "Unknown business", slug: "" };
   const status = statusRows[0] ?? {};
-  const daily = dailyRows.map((row) => ({
+  /** @type {CertificationDailyRow[]} */
+  const dailyTyped = dailyRows;
+  const daily = dailyTyped.map((row) => ({
     date: String(row.day).slice(0, 10),
     points_issued: Number(row.points_issued || 0),
     points_redeemed: Number(row.points_redeemed || 0),
@@ -348,11 +436,17 @@ export async function readLedgerCertificationReportWithDeps(deps, businessId, fr
   };
 }
 
+/**
+ * @param {string} businessId
+ * @param {string} from
+ * @param {string} to
+ */
 export async function readLedgerCertificationReport(businessId, from, to) {
   const { dbQuery } = await import("../database.js");
   return readLedgerCertificationReportWithDeps({ dbQuery }, businessId, from, to);
 }
 
+/** @param {CertificationReportInput} report */
 export function toCertificationCsvRows(report) {
   const totalRow = {
     row_type: "TOTAL",
@@ -399,6 +493,7 @@ export function toCertificationCsvRows(report) {
   return [totalRow, ...dayRows];
 }
 
+/** @param {CertificationReportInput} report */
 export function ledgerCertificationCsv(report) {
   return toCSV(toCertificationCsvRows(report), [
     "row_type",
@@ -422,6 +517,17 @@ export function ledgerCertificationCsv(report) {
   ]);
 }
 
+/**
+ * @param {{
+ *   readReport?: (businessId: string, from: string, to: string) => Promise<CertificationReportInput>,
+ *   fsModule?: CertificationFs,
+ *   outputRoot?: string,
+ *   retentionDays?: number,
+ *   businessId: string,
+ *   from: string,
+ *   to: string,
+ * }} options
+ */
 export async function writeLedgerCertificationArtifactsWithDeps({
   readReport = readLedgerCertificationReport,
   fsModule = fs,
@@ -458,6 +564,9 @@ export async function writeLedgerCertificationArtifactsWithDeps({
   };
 }
 
+/**
+ * @param {{ businessId: string, from: string, to: string, outputRoot?: string, retentionDays?: number }} options
+ */
 export async function writeLedgerCertificationArtifacts({
   businessId,
   from,
@@ -476,6 +585,7 @@ export async function writeLedgerCertificationArtifacts({
   });
 }
 
+/** @param {{ fsModule?: CertificationFs, outputRoot?: string, retentionDays?: number }} [options] */
 export function rebuildLedgerCertificationIndexesWithDeps({
   fsModule = fs,
   outputRoot = certificationOutputRoot(),
@@ -492,6 +602,7 @@ export function rebuildLedgerCertificationIndexesWithDeps({
   };
 }
 
+/** @param {{ outputRoot?: string, retentionDays?: number }} [options] */
 export function rebuildLedgerCertificationIndexes({
   outputRoot = certificationOutputRoot(),
   retentionDays = certificationRetentionDays(),
@@ -504,7 +615,7 @@ export function rebuildLedgerCertificationIndexes({
 }
 
 /**
- * @param {{ fsModule?: typeof import("node:fs"), outputRoot?: string, businessId?: string }} [options]
+ * @param {{ fsModule?: CertificationFs, outputRoot?: string, businessId?: string }} [options]
  */
 export function readLedgerCertificationArchiveIndexWithDeps({
   fsModule = fs,
@@ -530,7 +641,10 @@ export function readLedgerCertificationArchiveIndexWithDeps({
     if (!fsModule.existsSync(dayManifestPath)) continue;
     const dayManifest = readJsonFile(fsModule, dayManifestPath);
     const artifact = Array.isArray(dayManifest.artifacts)
-      ? dayManifest.artifacts.find((item) => String(item.businessId) === String(businessId))
+      ? dayManifest.artifacts.find(
+          (/** @type {CertificationArtifactEntry} */ item) =>
+            String(item.businessId) === String(businessId),
+        )
       : null;
     if (!artifact) continue;
     availableDays.push({
@@ -566,7 +680,7 @@ export function readLedgerCertificationArchiveIndex({
 }
 
 /**
- * @param {{ fsModule?: typeof import("node:fs"), outputRoot?: string, businessId?: string, date?: string, format?: string }} [options]
+ * @param {{ fsModule?: CertificationFs, outputRoot?: string, businessId?: string, date?: string, format?: string }} [options]
  */
 export function readLedgerCertificationArtifactWithDeps({
   fsModule = fs,
@@ -581,7 +695,10 @@ export function readLedgerCertificationArtifactWithDeps({
   if (!fsModule.existsSync(dayManifestPath)) return null;
   const dayManifest = readJsonFile(fsModule, dayManifestPath);
   const artifact = Array.isArray(dayManifest.artifacts)
-    ? dayManifest.artifacts.find((item) => String(item.businessId) === String(businessId))
+    ? dayManifest.artifacts.find(
+        (/** @type {CertificationArtifactEntry} */ item) =>
+          String(item.businessId) === String(businessId),
+      )
     : null;
   if (!artifact) return null;
 

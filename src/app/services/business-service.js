@@ -12,10 +12,13 @@ import { hashPassword } from "../../utils/password-hash.js";
 import { assertPasswordAllowed } from "../../utils/password-policy.js";
 import { errorMessage, isErrorLike } from "../../utils/error-shape.js";
 
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/** @type {Record<string, Array<{ name: string, points_cost: number, description: string }>>} */
 const DEFAULT_REWARDS_BY_CATEGORY = {
   cafe: [
     { name: "Bebida gratis", points_cost: 100, description: "Café o bebida gratis" },
@@ -49,7 +52,7 @@ const DEFAULT_REFERRAL_SETTINGS = {
  *   password: string,
  *   category?: string | null,
  *   program_type?: string,
- *   program_json?: Record<string, any>,
+ *   program_json?: Record<string, unknown>,
  *   slug?: string | null,
  *   plan?: string | undefined
  * }} input
@@ -95,7 +98,7 @@ export async function createBusinessWithOwner({
   for (let attempt = 0; attempt < 25; attempt += 1) {
     slug = attempt === 0 ? slugBase : `${slugBase}-${attempt}`;
     try {
-      const { business } = await withTransaction(async (client) => {
+      const { business } = await withTransaction(async (/** @type {TxClient} */ client) => {
         // Onboarding happens before any tenant context exists, but our INSERT uses
         // `RETURNING *`, which is subject to SELECT RLS on `businesses`.
         // Pre-setting the tenant to the new business id makes the inserted row
@@ -172,6 +175,7 @@ export async function createBusinessWithOwner({
   throw lastErr ?? new Error("Could not allocate unique business slug");
 }
 
+/** @param {{ businessId: string, programType: string }} input */
 async function runIntegrationHooks({ businessId, programType }) {
   return withDbClientContext({ tenantId: businessId, platformAdmin: false }, async () => {
     const steps = [

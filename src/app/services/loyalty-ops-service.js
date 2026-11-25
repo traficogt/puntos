@@ -9,10 +9,20 @@ import { refreshCustomerDerivedState } from "./customer-derived-state.js";
 import { reconcileCustomerGamificationAfterRefund } from "./gamification/reconciliation-service.js";
 import { logger } from "../../utils/logger.js";
 
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
+/** @typedef {{ id?: string | null, business_id: string, [key: string]: unknown }} RefundStaff */
+/** @typedef {{ rows: Array<{ id: string, points: number | string | null }> }} PointsRowsResult */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string} requestId
+ */
 async function lockRefundRequest(client, businessId, requestId) {
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
     String(businessId),
@@ -20,6 +30,11 @@ async function lockRefundRequest(client, businessId, requestId) {
   ]);
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string} requestId
+ */
 async function findExistingRefundByRequestId(client, businessId, requestId) {
   const { rows } = await client.query(
     `SELECT reversal.id AS reversal_transaction_id,
@@ -40,11 +55,12 @@ async function findExistingRefundByRequestId(client, businessId, requestId) {
   return rows[0] ?? null;
 }
 
+/** @param {MerchantProgramJson | null | undefined} [programJson] */
 function allowNegativeRefundBalance(programJson = {}) {
   return programJson?.balance_policy?.allow_negative_balance_on_refund === true;
 }
 
-/** @param {{ businessId: string, client?: { query: (...args: any[]) => Promise<any> } | null }} options */
+/** @param {{ businessId: string, client?: TxClient | null }} options */
 async function getPointsExpirationDays({ businessId, client = null }) {
   const q = client ? client.query.bind(client) : dbQuery;
   const { rows } = await q(
@@ -56,12 +72,17 @@ async function getPointsExpirationDays({ businessId, client = null }) {
   return Math.max(0, Number(rows?.[0]?.days ?? 0));
 }
 
+/**
+ * @param {string} customerId
+ * @param {string | null} [businessId]
+ * @param {typeof withTransaction} [transaction]
+ */
 export async function settlePendingPointsForCustomer(
   customerId,
   businessId = null,
   transaction = withTransaction,
 ) {
-  return transaction(async (client) => {
+  return transaction(async (/** @type {TxClient} */ client) => {
     const params = [customerId];
     let where = `customer_id = $1`;
     if (businessId) {
@@ -69,6 +90,7 @@ export async function settlePendingPointsForCustomer(
       where += ` AND business_id = $2`;
     }
 
+    /** @type {PointsRowsResult} */
     const { rows } = await client.query(
       `SELECT id, points
        FROM transactions
@@ -104,6 +126,10 @@ export async function settlePendingPointsForCustomer(
   });
 }
 
+/**
+ * @param {string} businessId
+ * @param {number} [limit]
+ */
 export async function settlePendingPointsForBusiness(businessId, limit = 1000) {
   const { rows } = await dbQuery(
     `SELECT DISTINCT customer_id
@@ -130,12 +156,17 @@ export async function settlePendingPointsForBusiness(businessId, limit = 1000) {
   return { totalCustomers, totalSettled, totalPoints };
 }
 
+/**
+ * @param {string} customerId
+ * @param {string | null} [businessId]
+ * @param {typeof withTransaction} [transaction]
+ */
 export async function expirePointsForCustomer(
   customerId,
   businessId = null,
   transaction = withTransaction,
 ) {
-  return transaction(async (client) => {
+  return transaction(async (/** @type {TxClient} */ client) => {
     let resolvedBusinessId = businessId;
     if (!resolvedBusinessId) {
       const c = await client.query(`SELECT business_id FROM customers WHERE id = $1`, [customerId]);
@@ -146,6 +177,7 @@ export async function expirePointsForCustomer(
     const days = await getPointsExpirationDays({ client, businessId: resolvedBusinessId });
     if (days <= 0) return { expiredCount: 0, expiredPoints: 0, deductedPoints: 0 };
 
+    /** @type {PointsRowsResult} */
     const { rows } = await client.query(
       `SELECT id, points
        FROM transactions
@@ -212,6 +244,10 @@ export async function expirePointsForCustomer(
   });
 }
 
+/**
+ * @param {string} businessId
+ * @param {number} [limit]
+ */
 export async function expirePointsForBusiness(businessId, limit = 1000) {
   const days = await getPointsExpirationDays({ businessId });
   if (days <= 0)
@@ -245,19 +281,24 @@ export async function expirePointsForBusiness(businessId, limit = 1000) {
   return { totalCustomers, totalExpired, totalExpiredPoints, totalDeductedPoints };
 }
 
+/** @param {{ staff: RefundStaff, transactionId: string, requestId: string, reason?: string }} input */
 export async function refundAwardTransaction({
   staff,
   transactionId,
   requestId,
   reason = "refund",
 }) {
-  return withTransaction((client) =>
+  return withTransaction((/** @type {TxClient} */ client) =>
     refundAwardTransactionWithClient(client, { staff, transactionId, requestId, reason }),
   );
 }
 
 // Call only inside an existing transaction. POS reconciliation must commit its
 // receipt result together with the ledger and gamification corrections.
+/**
+ * @param {TxClient} client
+ * @param {{ staff: RefundStaff, transactionId: string, requestId: string, reason?: string }} input
+ */
 export async function refundAwardTransactionWithClient(
   client,
   { staff, transactionId, requestId, reason = "refund" },

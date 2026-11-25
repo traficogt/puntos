@@ -56,7 +56,13 @@ FROM customers c LEFT JOIN customer_balances cb ON cb.customer_id=c.id
 CROSS JOIN bounds b CROSS JOIN totals t CROSS JOIN completed r
 WHERE c.business_id=$1 AND c.id=$2 AND c.deleted_at IS NULL`;
 
-/** Public customer fields only. No merchant cost, cash conversion or staff notes. */
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+
+/**
+ * Public customer fields only. No merchant cost, cash conversion or staff notes.
+ * @param {TxClient} client
+ * @param {{ businessId: string, customerId: string, now?: string | Date | null }} target
+ */
 export async function getCustomerStatement(client, { businessId, customerId, now = null }) {
   const row = (await client.query(STATEMENT_SQL, [businessId, customerId, now])).rows[0];
   if (!row) return null;

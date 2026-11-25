@@ -14,7 +14,50 @@ import {
   DEMAND_STATUSES,
   demandText,
 } from "./demand-funding-model.js";
+
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {{ transaction?: typeof withTransaction }} DemandDeps */
+/** @typedef {{ id: string, business_id?: string, [key: string]: unknown }} DemandStaff */
+/**
+ * Request to record a demand signal (owner/staff or a logged-in customer).
+ * @typedef {{
+ *   businessId: string,
+ *   source: string,
+ *   customerId?: string | null,
+ *   customerAuth?: { business_id?: string, id?: string } | null,
+ *   staff?: DemandStaff | null,
+ *   requestId?: unknown,
+ *   category?: unknown,
+ *   topic?: unknown,
+ *   note?: unknown,
+ *   productContext?: unknown,
+ *   rewardId?: string | null,
+ * }} DemandRequestOptions
+ */
+/**
+ * Owner request on the demand notebook (topics are owner/manager-scoped).
+ * @typedef {{
+ *   businessId: string,
+ *   staff: DemandStaff,
+ *   status?: string,
+ *   offset?: number,
+ *   topicId?: unknown,
+ *   version?: number,
+ *   requestId?: unknown,
+ *   note?: unknown,
+ *   follow_up_at?: string | null,
+ * }} DemandTopicOptions
+ */
+
+/**
+ * @param {DemandDeps} deps
+ * @param {(client: TxClient) => Promise<unknown>} fn
+ */
 const tx = (deps, fn) => (deps.transaction ?? withTransaction)(fn);
+/**
+ * @param {TxClient} client
+ * @param {DemandRequestOptions} options
+ */
 async function member(client, options) {
   if (options.source === "customer") {
     if (
@@ -22,7 +65,12 @@ async function member(client, options) {
       options.customerAuth?.id !== options.customerId
     )
       throw forbidden("La sesión no corresponde a esta solicitud.");
-  } else await livePromiseMember(client, options);
+  } else
+    // Non-customer sources always carry the acting staff member.
+    await livePromiseMember(
+      client,
+      /** @type {DemandRequestOptions & { staff: DemandStaff }} */ (options),
+    );
   if (options.customerId) {
     const row = (
       await client.query(
@@ -33,6 +81,7 @@ async function member(client, options) {
     if (!row) throw notFound("Cliente no encontrado.");
   }
 }
+/** @param {Record<string, unknown>} row */
 const publicRequest = (row) => {
   const {
     request_fingerprint: _hash,
@@ -43,12 +92,24 @@ const publicRequest = (row) => {
   } = row;
   return out;
 };
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string} requestId
+ * @param {{ id: string }} row
+ * @param {string} hash
+ * @param {boolean} deduplicated
+ */
 async function receipt(client, businessId, requestId, row, hash, deduplicated) {
   await client.query(
     "INSERT INTO demand_request_receipts(business_id,request_id,demand_request_id,request_fingerprint,deduplicated) VALUES($1,$2,$3,$4,$5)",
     [businessId, requestId, row.id, hash, deduplicated],
   );
 }
+/**
+ * @param {DemandRequestOptions} options
+ * @param {DemandDeps} [deps]
+ */
 export async function createDemandRequest(options, deps = {}) {
   const { businessId, source, customerId = null } = options,
     requestId = requestIdentity(options.requestId),
@@ -138,7 +199,8 @@ export async function createDemandRequest(options, deps = {}) {
           businessId,
           topic.id,
           customerId,
-          source === "staff" ? options.staff.id : null,
+          // A staff-sourced request always carries the acting staff member.
+          source === "staff" ? /** @type {DemandStaff} */ (options.staff).id : null,
           source,
           value.note,
           requestId,
@@ -148,11 +210,16 @@ export async function createDemandRequest(options, deps = {}) {
     ).rows[0];
     await receipt(client, businessId, requestId, row, hash, false);
     if (source === "staff")
-      await promiseAudit(client, options, "demand.request.create", {
-        topic_id: topic.id,
-        request_id: row.id,
-        customer_linked: !!customerId,
-      });
+      await promiseAudit(
+        client,
+        /** @type {DemandRequestOptions & { staff: DemandStaff }} */ (options),
+        "demand.request.create",
+        {
+          topic_id: topic.id,
+          request_id: row.id,
+          customer_linked: !!customerId,
+        },
+      );
     else
       await client.query(
         "INSERT INTO audit_logs(id,business_id,actor_type,actor_id,action,meta) VALUES($1,$2,'CUSTOMER',$3,'demand.request.create',$4)",
@@ -161,6 +228,10 @@ export async function createDemandRequest(options, deps = {}) {
     return { ok: true, request: publicRequest(row), topic, deduplicated: false, replay: false };
   });
 }
+/**
+ * @param {DemandRequestOptions} options
+ * @param {DemandDeps} [deps]
+ */
 export async function getDemandEntry(options, deps = {}) {
   return tx(deps, async (client) => {
     await member(client, options);
@@ -182,6 +253,10 @@ export async function getDemandEntry(options, deps = {}) {
     return { ok: true, categories: DEMAND_CATEGORIES, rewards, requests };
   });
 }
+/**
+ * @param {DemandTopicOptions} options
+ * @param {DemandDeps} [deps]
+ */
 export async function listDemandTopics(options, deps = {}) {
   const status = options.status ?? "all",
     offset = options.offset ?? 0;
@@ -212,6 +287,10 @@ export async function listDemandTopics(options, deps = {}) {
     };
   });
 }
+/**
+ * @param {DemandTopicOptions} options
+ * @param {DemandDeps} [deps]
+ */
 export async function getDemandTopic(options, deps = {}) {
   return tx(deps, async (client) => {
     await livePromiseMember(client, options, true);
@@ -237,13 +316,18 @@ export async function getDemandTopic(options, deps = {}) {
     return { ok: true, topic, requests, events };
   });
 }
+/**
+ * @param {DemandTopicOptions} options
+ * @param {DemandDeps} [deps]
+ */
 export async function triageDemandTopic(options, deps = {}) {
   const { businessId, topicId, version, status } = options,
     requestId = requestIdentity(options.requestId),
     note = demandText(options.note, 3, 1000),
     followUp = options.follow_up_at ?? null;
   if (
-    !DEMAND_STATUSES.includes(status) ||
+    !(/** @type {unknown[]} */ (DEMAND_STATUSES).includes(status)) ||
+    typeof version !== "number" ||
     !Number.isInteger(version) ||
     version < 1 ||
     (followUp && !Number.isFinite(Date.parse(followUp)))

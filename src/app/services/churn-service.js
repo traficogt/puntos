@@ -3,6 +3,10 @@ import { runAutomationRule } from "./automation-controls-service.js";
 
 // Compatibility entry point: the legacy `days` argument cannot override the
 // owner's saved winback rule. Preparing an incentive never sends it directly.
+/**
+ * @param {{ businessId: string, days?: number, now?: Date }} input
+ * @param {{ context?: typeof withDbClientContext, runRule?: typeof runAutomationRule }} [deps]
+ */
 export async function runChurnOnce(
   { businessId, days: _days = undefined, now = new Date() },
   { context = withDbClientContext, runRule = runAutomationRule } = {},

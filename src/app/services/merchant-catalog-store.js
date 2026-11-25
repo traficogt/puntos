@@ -2,6 +2,30 @@ import { randomUUID } from "node:crypto";
 import { badRequest, conflict } from "../../utils/http-error.js";
 import { markRewardInventoryWallets } from "./reward-inventory-service.js";
 import { fulfillmentFingerprint } from "./redemption-pos-model.js";
+
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/**
+ * merchant_catalog_items row, optionally joined with a branch inventory snapshot.
+ * @typedef {{
+ *   id: string,
+ *   business_id?: string,
+ *   source: string,
+ *   product_ref: string,
+ *   sku: string | null,
+ *   name: string,
+ *   item_kind: string,
+ *   active: boolean,
+ *   origin: string,
+ *   revision: number,
+ *   observed_at: string | Date | null,
+ *   available_quantity?: string | number | null,
+ *   inventory_observed_at?: string | Date | null,
+ *   checked_at?: string | Date,
+ * }} CatalogItemRow
+ */
+/** @typedef {{ productRef: string, sku?: string | null, name: string, itemKind: string, active: boolean, revision?: number }} CatalogItemInput */
+
+/** @param {CatalogItemRow} row */
 export const publicCatalogItem = (row) => ({
   id: row.id,
   source: row.source,
@@ -14,6 +38,11 @@ export const publicCatalogItem = (row) => ({
   revision: row.revision,
   observedAt: row.observed_at ? new Date(row.observed_at).toISOString() : null,
 });
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string | null | undefined} branchId
+ */
 export async function catalogBranch(client, businessId, branchId) {
   if (
     branchId &&
@@ -26,6 +55,10 @@ export async function catalogBranch(client, businessId, branchId) {
   )
     throw badRequest("Selecciona una sucursal de este negocio.");
 }
+/**
+ * @param {TxClient} client
+ * @param {{ businessId: string, source: string, requestId: string, operation: string, input: unknown }} request
+ */
 export async function catalogRequest(client, { businessId, source, requestId, operation, input }) {
   // Event/source foreign keys need this lock later; acquire it before catalog
   // rows so owner workspace edits cannot form the reverse lock dependency.
@@ -46,7 +79,7 @@ export async function catalogRequest(client, { businessId, source, requestId, op
   return { fingerprint, replay: old ? { ...old.result, replay: true } : null };
 }
 /**
- * @param {{ query: (...args: any[]) => Promise<any> }} client
+ * @param {TxClient} client
  * @param {{
  *   businessId: string,
  *   source: string,
@@ -95,11 +128,26 @@ export async function catalogEvent(
     if (affected.rowCount) await markRewardInventoryWallets(client, businessId);
   }
 }
+/**
+ * @param {TxClient} client
+ * @param {string | Date} observedAt
+ */
 export async function checkObservation(client, observedAt) {
   const now = (await client.query("SELECT clock_timestamp() AS now")).rows[0].now;
   if (new Date(observedAt).getTime() > new Date(now).getTime())
     throw badRequest("La observación no puede estar en el futuro.");
 }
+/**
+ * @param {TxClient} client
+ * @param {{
+ *   businessId: string,
+ *   source: string,
+ *   origin: string,
+ *   scope?: string,
+ *   branchId?: string | null,
+ *   observedAt?: string | null,
+ * }} input
+ */
 export async function catalogSource(
   client,
   { businessId, source, origin, scope = "catalog", branchId = null, observedAt = null },
@@ -125,6 +173,10 @@ export async function catalogSource(
       [randomUUID(), businessId, source, scope, branchId, origin, observedAt],
     );
 }
+/**
+ * @param {TxClient} client
+ * @param {{ businessId: string, source: string, origin: string, item: CatalogItemInput, observedAt?: string | null }} input
+ */
 export async function writeCatalogItem(
   client,
   { businessId, source, origin, item, observedAt = null },

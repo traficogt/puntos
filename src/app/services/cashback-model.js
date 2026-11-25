@@ -8,8 +8,15 @@
 
 import { pct, toMinor, toNumber } from "../../utils/money.js";
 
+/** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
+
+/**
+ * @param {{ program_type?: string | null, program_json?: MerchantProgramJson | null } | null | undefined} business
+ * @param {{ amount_q?: number | string }} [purchase]
+ */
 export function cashbackTerms(business, { amount_q = 0 } = {}) {
   if (!business || business.program_type !== "CASHBACK") return null;
+  /** @type {MerchantProgramJson} */
   const cfg = business.program_json ?? {};
   const percent = Math.min(100, Math.max(0, Number(cfg.cashback_percent) || 0));
   if (!(percent > 0)) return null;

@@ -23,6 +23,26 @@ LEFT JOIN referrals r ON r.referrer_customer_id = c.id AND r.status = 'completed
 WHERE c.id = $1
 GROUP BY c.id, c.business_id, cb.points, cl.total_spend, cl.total_visits, vs.current_streak`;
 
+/**
+ * Aggregated gamification counters for one customer (CUSTOMER_STATS_SQL).
+ * Sums over NUMERIC/bigint columns arrive as strings.
+ * Unit tests pass partial objects, so every counter is optional.
+ * @typedef {{
+ *   business_id?: string,
+ *   points?: number | null,
+ *   total_spend?: string | number | null,
+ *   total_visits?: number | null,
+ *   current_streak?: number | null,
+ *   referral_count?: number | string,
+ *   total_items?: number | string | null,
+ * }} GamificationStats
+ */
+
+/**
+ * @param {string} customerId
+ * @param {typeof dbQuery} [query]
+ * @returns {Promise<GamificationStats>}
+ */
 export async function getCustomerGamificationStats(customerId, query = dbQuery) {
   const { rows } = await query(CUSTOMER_STATS_SQL, [customerId]);
   if (!rows[0]) throw notFound("Cliente no encontrado");

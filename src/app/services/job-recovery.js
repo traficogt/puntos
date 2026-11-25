@@ -1,6 +1,22 @@
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/**
+ * background_jobs row.
+ * @typedef {{
+ *   id: string,
+ *   job_type: string,
+ *   attempts: number | string,
+ *   business_id?: string | null,
+ *   payload?: Record<string, unknown> | null,
+ *   status?: string,
+ *   [key: string]: unknown,
+ * }} BackgroundJob
+ */
+
 export const RETRYABLE_JOB_TYPES = ["customer.import", "growth.campaign.prepare"];
+/** @param {Pick<BackgroundJob, "job_type" | "attempts">} job */
 export const canRetryJob = (job) =>
   RETRYABLE_JOB_TYPES.includes(job.job_type) && Number(job.attempts) < 5;
+/** @param {number | string} attempt */
 export const jobRetrySeconds = (attempt) =>
   Math.min(900, 30 * 2 ** Math.max(0, Number(attempt) - 1));
 // Both domain updates consume only rows changed by the fenced queue update.
@@ -14,6 +30,7 @@ const terminalDomainUpdates = `failed_imports AS (
  WHERE j.status='FAILED' AND j.job_type='growth.campaign.prepare' AND d.business_id=j.business_id
  AND d.id::text=j.payload->>'campaignId' AND d.preparation_status IN ('queued','preparing') RETURNING d.id
 )`;
+/** @param {TxClient} client */
 export async function recoverJobLeases(client) {
   const result = await client.query(
     `WITH changed_jobs AS (
@@ -28,18 +45,31 @@ export async function recoverJobLeases(client) {
   );
   return result.rowCount;
 }
+/**
+ * @param {TxClient} client
+ * @param {Pick<BackgroundJob, "id" | "attempts">} job
+ */
 export async function heartbeatJob(client, job) {
   return client.query(
     "UPDATE background_jobs SET locked_at=now() WHERE id=$1 AND status='RUNNING' AND attempts=$2",
     [job.id, job.attempts],
   );
 }
+/**
+ * @param {TxClient} client
+ * @param {Pick<BackgroundJob, "id" | "attempts">} job
+ * @param {unknown} result
+ */
 export async function completeClaimedJob(client, job, result) {
   return client.query(
     "UPDATE background_jobs SET status='DONE',result=$2,completed_at=now(),error=NULL,locked_at=NULL WHERE id=$1 AND status='RUNNING' AND attempts=$3",
     [job.id, result ?? {}, job.attempts],
   );
 }
+/**
+ * @param {TxClient} client
+ * @param {Pick<BackgroundJob, "id" | "job_type" | "attempts">} job
+ */
 export async function failClaimedJob(client, job) {
   const retry = canRetryJob(job);
   return client.query(

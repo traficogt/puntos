@@ -2,14 +2,27 @@ import { GamificationRepository } from "../../repositories/gamification-reposito
 import { dbQuery } from "../../database.js";
 import { notFound } from "../../../utils/http-error.js";
 
+/**
+ * @param {string} businessId
+ * @param {number} [limit]
+ * @param {string} [timeframe]
+ */
 export async function getPointsLeaderboard(businessId, limit = 10, timeframe = "all_time") {
   return GamificationRepository.getPointsLeaderboard(businessId, limit, timeframe);
 }
 
+/**
+ * @param {string} businessId
+ * @param {number} [limit]
+ */
 export async function getStreakLeaderboard(businessId, limit = 10) {
   return GamificationRepository.getStreakLeaderboard(businessId, limit);
 }
 
+/**
+ * @param {string} customerId
+ * @param {string} [leaderboardType]
+ */
 export async function getCustomerPosition(customerId, leaderboardType = "points") {
   const { rows: customerData } = await dbQuery(`SELECT business_id FROM customers WHERE id = $1`, [
     customerId,

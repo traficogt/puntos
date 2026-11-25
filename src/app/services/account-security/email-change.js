@@ -16,6 +16,14 @@ import {
   getStaffMfaRecord,
 } from "./shared.js";
 
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("./shared.js").AccountSecurityActionToken} AccountSecurityActionToken */
+
+/**
+ * @param {string} token
+ * @param {string} newEmail
+ * @param {string} role
+ */
 function emailChangeLines(token, newEmail, role) {
   return [
     `Se solicitó cambiar el correo ${role} a: ${newEmail}`,
@@ -24,6 +32,7 @@ function emailChangeLines(token, newEmail, role) {
   ];
 }
 
+/** @param {{ staff: { id: string }, newEmail: string, ip?: string | null, ua?: string | null }} input */
 export async function requestStaffEmailChange({ staff, newEmail, ip = null, ua = null }) {
   const freshStaff = await getStaffMfaRecord(staff.id);
   const normalizedNewEmail = normalizeEmail(newEmail);
@@ -43,7 +52,7 @@ export async function requestStaffEmailChange({ staff, newEmail, ip = null, ua =
     old_email: normalizeEmail(freshStaff.email),
   };
 
-  await withTransaction(async (client) => {
+  await withTransaction(async (/** @type {TxClient} */ client) => {
     await AuthActionTokenRepo.create(
       {
         id: id(),
@@ -100,7 +109,12 @@ export async function requestStaffEmailChange({ staff, newEmail, ip = null, ua =
   return { ok: true, requestId };
 }
 
+/**
+ * @param {string} requestId
+ * @param {typeof dbQuery} [query]
+ */
 async function maybeApplyStaffEmailChange(requestId, query = dbQuery) {
+  /** @type {AccountSecurityActionToken[]} */
   const tokens = await AuthActionTokenRepo.listByRequestId(requestId, query);
   const oldToken = tokens.find((row) => row.purpose === "STAFF_EMAIL_CHANGE_OLD");
   const newToken = tokens.find((row) => row.purpose === "STAFF_EMAIL_CHANGE_NEW");
@@ -131,6 +145,7 @@ async function maybeApplyStaffEmailChange(requestId, query = dbQuery) {
   return { applied: true, email: newEmail, staff };
 }
 
+/** @param {{ token: string, ip?: string | null, ua?: string | null }} input */
 export async function confirmStaffEmailChange({ token, ip = null, ua: _ua = null }) {
   const active = await AuthActionTokenRepo.lookupActiveByTokenHash(hashActionToken(token));
   if (
@@ -157,6 +172,7 @@ export async function confirmStaffEmailChange({ token, ip = null, ua: _ua = null
   return { ok: true, applied: result.applied };
 }
 
+/** @param {{ currentEmail: string, newEmail: string, ip?: string | null, ua?: string | null }} input */
 export async function requestSuperEmailChange({
   currentEmail,
   newEmail,
@@ -180,7 +196,7 @@ export async function requestSuperEmailChange({
     old_email: normalizeEmail(auth.email),
   };
 
-  await withTransaction(async (client) => {
+  await withTransaction(async (/** @type {TxClient} */ client) => {
     await AuthActionTokenRepo.create(
       {
         id: id(),
@@ -229,7 +245,12 @@ export async function requestSuperEmailChange({
   return { ok: true, requestId };
 }
 
+/**
+ * @param {string} requestId
+ * @param {typeof dbQuery} [query]
+ */
 async function maybeApplySuperEmailChange(requestId, query = dbQuery) {
+  /** @type {AccountSecurityActionToken[]} */
   const tokens = await AuthActionTokenRepo.listByRequestId(requestId, query);
   const oldToken = tokens.find((row) => row.purpose === "SUPER_EMAIL_CHANGE_OLD");
   const newToken = tokens.find((row) => row.purpose === "SUPER_EMAIL_CHANGE_NEW");
@@ -254,6 +275,7 @@ async function maybeApplySuperEmailChange(requestId, query = dbQuery) {
   return { applied: true, email: newEmail };
 }
 
+/** @param {{ token: string, ip?: string | null, ua?: string | null }} input */
 export async function confirmSuperEmailChange({ token, ip = null, ua: _ua = null }) {
   const active = await AuthActionTokenRepo.lookupActiveByTokenHash(hashActionToken(token));
   if (

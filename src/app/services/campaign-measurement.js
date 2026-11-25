@@ -1,13 +1,44 @@
 import { readinessForBusiness } from "./merchant-data-readiness.js";
 
+/** @typedef {import("./merchant-data-readiness.js").MerchantBusinessLike} MerchantBusinessLike */
+/**
+ * One allocation arm (treatment or control) as campaign-report-service groups it.
+ * `returned_customers` may be null for a baseline period with unknown history.
+ * @typedef {{
+ *   members: number | null | undefined,
+ *   returned_customers: number | null | undefined,
+ *   observed_members?: number,
+ *   unavailable_members?: number,
+ *   [key: string]: unknown,
+ * }} MeasurementGroup
+ */
+/**
+ * Campaign fields the measurement reads (publicGrowthCampaign output or a row).
+ * @typedef {{
+ *   status: string,
+ *   offer_kind?: string | null,
+ *   starts_at?: string | Date | null,
+ *   expires_at?: string | Date | null,
+ *   observation_ends_at?: string | Date | null,
+ *   reconciliation_ends_at?: string | Date | null,
+ *   paused_at?: string | Date | null,
+ * }} MeasurementCampaign
+ */
+
 // Wilson score interval, without continuity correction (NIST PRC 7.2.4.1).
 // Difference: Newcombe (1998), Statistics in Medicine 17:873–890, method 10.
 // Fixed-horizon intervals; repeated inspection is not sequential testing.
 const Z95 = 1.959963984540054;
+/**
+ * @param {unknown} [successes] returned customers (any non-integer yields null)
+ * @param {unknown} [total] assigned members
+ */
 export function wilsonInterval(successes, total) {
   if (
+    typeof total !== "number" ||
     !Number.isSafeInteger(total) ||
     total <= 0 ||
+    typeof successes !== "number" ||
     !Number.isSafeInteger(successes) ||
     successes < 0 ||
     successes > total
@@ -20,12 +51,17 @@ export function wilsonInterval(successes, total) {
   const half = (Z95 * Math.sqrt((p * (1 - p)) / total + z2 / (4 * total * total))) / divisor;
   return { lower: Math.max(0, center - half), upper: Math.min(1, center + half) };
 }
+/**
+ * @param {MeasurementGroup} treatment
+ * @param {MeasurementGroup} control
+ */
 export function returnDifference(treatment, control) {
   const a = wilsonInterval(treatment.returned_customers, treatment.members),
     b = wilsonInterval(control.returned_customers, control.members);
   if (!a || !b) return null;
-  const p = treatment.returned_customers / treatment.members,
-    q = control.returned_customers / control.members,
+  // wilsonInterval accepted both counts, so they are safe integers here.
+  const p = Number(treatment.returned_customers) / Number(treatment.members),
+    q = Number(control.returned_customers) / Number(control.members),
     difference = p - q;
   return {
     estimate_pp: difference * 100,
@@ -34,14 +70,18 @@ export function returnDifference(treatment, control) {
     confidence_level: 0.95,
   };
 }
+/** @param {string | Date | null | undefined} value */
 function stamp(value) {
-  const ms = value == null ? NaN : Date.parse(value);
+  const ms = value == null ? NaN : Date.parse(String(value));
   return Number.isFinite(ms) ? ms : null;
 }
+/** @param {MeasurementGroup} group */
 function validGroup(group) {
   return (
+    typeof group.members === "number" &&
     Number.isSafeInteger(group.members) &&
     group.members >= 0 &&
+    typeof group.returned_customers === "number" &&
     Number.isSafeInteger(group.returned_customers) &&
     group.returned_customers >= 0 &&
     group.returned_customers <= group.members &&
@@ -49,7 +89,24 @@ function validGroup(group) {
     group.unavailable_members === 0
   );
 }
-/** @param {{campaign:any,treatment:any,control:any,asOf:any,business?:any,messageCounts?:any,planning?:any,diagnostics?:any}} input */
+/**
+ * @param {{
+ *   campaign: MeasurementCampaign,
+ *   treatment: MeasurementGroup,
+ *   control: MeasurementGroup,
+ *   asOf: string | Date | null,
+ *   business?: MerchantBusinessLike,
+ *   messageCounts?: Record<string, unknown>,
+ *   planning?: { required_treatment: number, required_control: number } | null,
+ *   diagnostics?: {
+ *     capture_state?: string,
+ *     pending_refunds?: number,
+ *     untrusted_time_purchases?: number,
+ *     missing_purchase_dates?: number,
+ *     [key: string]: unknown,
+ *   },
+ * }} input
+ */
 export function campaignMeasurement({
   campaign,
   treatment,
@@ -77,9 +134,9 @@ export function campaignMeasurement({
     missing ||
     readiness.state === "blocked" ||
     diagnostics.capture_state === "incomplete" ||
-    diagnostics.pending_refunds > 0 ||
-    diagnostics.untrusted_time_purchases > 0 ||
-    diagnostics.missing_purchase_dates > 0 ||
+    (diagnostics.pending_refunds ?? 0) > 0 ||
+    (diagnostics.untrusted_time_purchases ?? 0) > 0 ||
+    (diagnostics.missing_purchase_dates ?? 0) > 0 ||
     (!quiet && !difference)
   )
     state = "incomplete_data";
@@ -89,18 +146,20 @@ export function campaignMeasurement({
   else if (reconciliationEnd != null && now < reconciliationEnd) state = "reconciling";
   else if (
     planning &&
-    (treatment.members < planning.required_treatment || control.members < planning.required_control)
+    (Number(treatment.members) < planning.required_treatment ||
+      Number(control.members) < planning.required_control)
   )
     state = "insufficient_sample";
   // This is a conservative display guard, not a power calculation or a promise
   // that 30 participants is sufficient. The interval is retained either way.
-  else if (!planning && (treatment.members < 30 || control.members < 30))
+  else if (!planning && (Number(treatment.members) < 30 || Number(control.members) < 30))
     state = "insufficient_sample";
   // Unreachable: a missing interval already resolved to "incomplete_data" above.
   else if (!difference) state = "incomplete_data";
   else if (difference.lower_pp > 0) state = "positive_difference";
   else if (difference.upper_pp < 0) state = "negative_difference";
   else state = "inconclusive";
+  /** @param {string} key */
   const count = (key) => Math.max(0, Number(messageCounts[key]) || 0);
   const messages = {
     queued: count("queued"),

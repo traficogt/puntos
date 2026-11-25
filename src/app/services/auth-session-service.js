@@ -4,6 +4,32 @@ import { config } from "../../config/index.js";
 import { withTransaction } from "../database.js";
 import { AuthSessionRepo } from "../repositories/auth-session-repository.js";
 
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/**
+ * Browser session row (auth_sessions). Timestamps are ISO strings in the
+ * in-memory test store and Date or string when read back from PostgreSQL.
+ * @typedef {{
+ *   id: string,
+ *   session_token_hash?: string,
+ *   actor_type: string,
+ *   actor_id: string | null,
+ *   actor_email: string | null,
+ *   business_id: string | null,
+ *   role: string | null,
+ *   branch_id: string | null,
+ *   impersonated_by: string | null,
+ *   reauth_verified_at: string | Date | null,
+ *   mfa_verified_at: string | Date | null,
+ *   last_seen_at: string | Date | null,
+ *   idle_expires_at: string | Date | null,
+ *   absolute_expires_at: string | Date | null,
+ *   invalidated_at: string | Date | null,
+ *   invalidation_reason: string | null,
+ *   meta: Record<string, unknown>,
+ * }} AuthSessionRecord
+ */
+
+/** @type {Map<string, AuthSessionRecord>} */
 const TEST_MEMORY_SESSIONS = new Map();
 const TOUCH_GRACE_MS = 60 * 1000;
 
@@ -15,6 +41,7 @@ function now() {
   return Date.now();
 }
 
+/** @param {number | string | Date} value */
 function asIso(value) {
   return new Date(value).toISOString();
 }
@@ -23,6 +50,7 @@ function randomSessionToken() {
   return crypto.randomBytes(32).toString("base64url");
 }
 
+/** @param {string | null | undefined} token */
 export function hashSessionToken(token) {
   return crypto
     .createHash("sha256")
@@ -30,6 +58,7 @@ export function hashSessionToken(token) {
     .digest("hex");
 }
 
+/** @param {string | null | undefined} actorType */
 function ttlConfigFor(actorType) {
   const normalized = String(actorType || "").toUpperCase();
   if (normalized === "SUPER") {
@@ -44,16 +73,22 @@ function ttlConfigFor(actorType) {
   };
 }
 
+/** @param {AuthSessionRecord & { session_token_hash: string }} record */
 function memoryCreate(record) {
   TEST_MEMORY_SESSIONS.set(record.session_token_hash, { ...record });
   return { ...record };
 }
 
+/** @param {string} tokenHash */
 function memoryLookup(tokenHash) {
   const record = TEST_MEMORY_SESSIONS.get(tokenHash);
   return record ? { ...record } : null;
 }
 
+/**
+ * @param {string} id
+ * @param {string} idleExpiresAt
+ */
 function memoryTouch(id, idleExpiresAt) {
   for (const [key, record] of TEST_MEMORY_SESSIONS.entries()) {
     if (record.id !== id) continue;
@@ -68,6 +103,10 @@ function memoryTouch(id, idleExpiresAt) {
   return null;
 }
 
+/**
+ * @param {string} id
+ * @param {{ mfaVerified?: boolean }} [options]
+ */
 function memoryMarkReauthenticated(id, { mfaVerified = false } = {}) {
   for (const [key, record] of TEST_MEMORY_SESSIONS.entries()) {
     if (record.id !== id) continue;
@@ -82,6 +121,10 @@ function memoryMarkReauthenticated(id, { mfaVerified = false } = {}) {
   return null;
 }
 
+/**
+ * @param {string} id
+ * @param {string | null} reason
+ */
 function memoryInvalidateById(id, reason) {
   for (const [key, record] of TEST_MEMORY_SESSIONS.entries()) {
     if (record.id !== id) continue;
@@ -180,7 +223,7 @@ export async function createBrowserSession(
   } else if (sessionMode() === "memory") {
     memoryCreate(record);
   } else {
-    await withTransaction(async (client) => {
+    await withTransaction(async (/** @type {TxClient} */ client) => {
       await AuthSessionRepo.create(record, client.query.bind(client));
     });
   }
@@ -194,6 +237,7 @@ export async function createBrowserSession(
   };
 }
 
+/** @param {string | null | undefined} token */
 export async function getBrowserSession(token) {
   const tokenHash = hashSessionToken(token);
   return sessionMode() === "memory"
@@ -201,6 +245,7 @@ export async function getBrowserSession(token) {
     : AuthSessionRepo.lookupByTokenHash(tokenHash);
 }
 
+/** @param {AuthSessionRecord | null | undefined} session */
 export async function touchBrowserSessionIfNeeded(session) {
   if (!session?.id || !session?.idle_expires_at) return session;
   const lastSeenMs = session.last_seen_at ? Date.parse(String(session.last_seen_at)) : 0;
@@ -246,6 +291,7 @@ export async function invalidateBrowserSessionsForActor({
     : AuthSessionRepo.invalidateByActor({ actorType, actorId, actorEmail, reason });
 }
 
+/** @param {{ sessionId?: string | null, mfaVerified?: boolean }} input */
 export async function markBrowserSessionReauthenticated({ sessionId, mfaVerified = false }) {
   if (!sessionId) return null;
   return sessionMode() === "memory"
@@ -253,6 +299,9 @@ export async function markBrowserSessionReauthenticated({ sessionId, mfaVerified
     : AuthSessionRepo.markReauthenticatedById(sessionId, { mfaVerified });
 }
 
+/**
+ * @param {Pick<AuthSessionRecord, "invalidated_at" | "idle_expires_at" | "absolute_expires_at"> | null | undefined} session
+ */
 export function browserSessionStatus(session) {
   if (!session) return { ok: false, reason: "missing" };
   if (session.invalidated_at) return { ok: false, reason: "invalidated" };

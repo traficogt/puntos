@@ -5,6 +5,7 @@ import { parsePosCsv } from "./pos/csv.js";
 import { posSourceSchema } from "./redemption-pos-model.js";
 export const MANUAL_CATALOG_SOURCE = "catalog:manual";
 export const CSV_CATALOG_SOURCE = "catalog:csv";
+/** @param {number} max */
 const text = (max) =>
   z
     .string()
@@ -29,6 +30,10 @@ const source = posSourceSchema.refine(
 const observedAt = dateTimeSchema({ offset: true }).transform((value) =>
   new Date(value).toISOString(),
 );
+/**
+ * @template {import("zod").ZodType<{ productRef: string }>} T
+ * @param {T} schema
+ */
 const uniqueItems = (schema) =>
   z
     .array(schema)
@@ -57,17 +62,29 @@ const inventory = z
 const manual = item.extend({ requestId: uuid, revision }).strict();
 const csvBody = z.object({ csv: z.string().max(200 * 1024) }).strict();
 const csvImport = csvBody.extend({ requestId: uuid }).strict();
+/**
+ * @template {import("zod").ZodType} T
+ * @param {T} schema
+ * @param {unknown} input
+ * @returns {import("zod").output<T>}
+ */
 function parse(schema, input) {
   const parsed = schema.safeParse(input);
   if (!parsed.success)
     throw badRequest("Revisa las referencias, cantidades, fechas y campos del catálogo.");
   return parsed.data;
 }
+/** @param {unknown} input */
 export const normalizeCatalogSync = (input) => parse(catalogSync, input);
+/** @param {unknown} input */
 export const normalizeInventorySnapshot = (input) => parse(inventory, input);
+/** @param {unknown} input */
 export const normalizeManualCatalogItem = (input) => parse(manual, input);
+/** @param {unknown} input */
 export const normalizeCatalogCsvBody = (input) => parse(csvBody, input);
+/** @param {unknown} input */
 export const normalizeCatalogImport = (input) => parse(csvImport, input);
+/** @param {string} csv */
 export function normalizeCatalogCsv(csv) {
   const { headers, rows } = parsePosCsv(csv, { bytes: 200 * 1024, rows: 200 });
   const allowed = ["productRef", "sku", "name", "itemKind", "active", "revision"];

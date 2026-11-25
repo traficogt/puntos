@@ -6,6 +6,36 @@ import { computePointsWithEvidence } from "./points-service.js";
 import { businessRegion, assertRegionAmount } from "./regional-settings.js";
 import { operatingMode } from "./merchant-decisions-model.js";
 import { evaluateCampaignPreflight } from "./campaign-preflight-service.js";
+
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("./merchant-data-readiness.js").MerchantBusinessLike} MerchantBusinessLike */
+/** @typedef {import("./growth-campaign-service.js").GrowthCampaignRow} GrowthCampaignRow */
+/**
+ * Campaign terms the collision sample needs (a row, or a minimal test shape).
+ * @typedef {{
+ *   id: string,
+ *   name?: string,
+ *   bonus_points: number,
+ *   minimum_purchase_q: string | number,
+ *   expires_at?: string | Date | null,
+ *   duration_minutes?: number | null,
+ *   duration_days?: number | null,
+ * }} CollisionCampaign
+ */
+/** @typedef {{ id: string, name: string, points_multiplier: unknown, perks: unknown }} CollisionTier */
+/**
+ * @typedef {{
+ *   id: string,
+ *   name: string,
+ *   points_cost: number,
+ *   active: boolean,
+ *   stock: number | null,
+ *   valid_until: string | Date | null,
+ *   available: boolean,
+ *   branch_ids: string[],
+ * }} CollisionReward
+ */
+
 export const CollisionSampleInput = z
   .object({
     amount_q: z.number().finite().min(0).max(999999.99),
@@ -16,6 +46,14 @@ export const CollisionSampleInput = z
     tier_id: z.guid().nullable().default(null),
   })
   .strict();
+/**
+ * @param {{
+ *   business: MerchantBusinessLike,
+ *   input: z.input<typeof CollisionSampleInput>,
+ *   campaigns: CollisionCampaign[],
+ *   now?: Date,
+ * }} sample
+ */
 export function collisionSample({ business, input, campaigns, now = new Date() }) {
   const evaluated = computePointsWithEvidence(business, input, { now }),
     guard = Number(business.program_json?.award_guard?.max_points_per_tx ?? 0);
@@ -35,7 +73,7 @@ export function collisionSample({ business, input, campaigns, now = new Date() }
     }))
     .sort(
       (a, b) =>
-        Date.parse(a.expires_at) - Date.parse(b.expires_at) ||
+        Date.parse(String(a.expires_at)) - Date.parse(String(b.expires_at)) ||
         a.campaign_id.localeCompare(b.campaign_id),
     );
   const supported = candidates.filter((c) => !guard || c.total_points <= guard),
@@ -67,10 +105,14 @@ export function collisionSample({ business, input, campaigns, now = new Date() }
     priority: "earliest_expiry_then_id",
   };
 }
+/**
+ * @param {{ businessId: string, campaignId: string, input: unknown }} request
+ * @param {{ transaction?: typeof withTransaction }} [injected]
+ */
 export async function previewCampaignCollisions({ businessId, campaignId, input }, injected = {}) {
   const parsed = CollisionSampleInput.safeParse(input);
   if (!parsed.success) throw badRequest("Revisa la compra y las opciones del ejemplo.");
-  return (injected.transaction ?? withTransaction)(async (client) => {
+  return (injected.transaction ?? withTransaction)(async (/** @type {TxClient} */ client) => {
     const business = (await client.query("SELECT * FROM businesses WHERE id=$1", [businessId]))
       .rows[0];
     if (!business) throw notFound("Negocio no encontrado.");
@@ -84,18 +126,21 @@ export async function previewCampaignCollisions({ businessId, campaignId, input 
     const now = new Date((await client.query("SELECT clock_timestamp() AS at")).rows[0].at),
       region = businessRegion(business);
     assertRegionAmount(parsed.data.amount_q, region.currency, business);
+    /** @type {Array<{ id: string, name: string }>} */
     const branches = (
       await client.query(
         "SELECT id,name FROM branches WHERE business_id=$1 ORDER BY name LIMIT 200",
         [businessId],
       )
     ).rows;
+    /** @type {CollisionTier[]} */
     const tiers = (
       await client.query(
         "SELECT id,name,points_multiplier,perks FROM loyalty_tiers WHERE business_id=$1 AND active ORDER BY tier_level LIMIT 100",
         [businessId],
       )
     ).rows;
+    /** @type {CollisionReward[]} */
     const rewards = (
       await client.query(
         `SELECT r.id,r.name,r.points_cost,r.active,r.stock,r.valid_until,COALESCE(a.available,true) AS available,
@@ -228,6 +273,10 @@ export async function previewCampaignCollisions({ businessId, campaignId, input 
     };
   });
 }
+/**
+ * @param {CollisionTier[]} tiers
+ * @param {string | null} id
+ */
 function selectedTier(tiers, id) {
   const tier = tiers.find((t) => t.id === id);
   return tier ? { ...tier, applied_to_sample: false, descriptive_benefits_value: "unknown" } : null;

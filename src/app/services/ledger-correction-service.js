@@ -9,12 +9,28 @@ function id() {
   return crypto.randomUUID();
 }
 
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("./ledger-reconciliation-service.js").LedgerBalanceRow} LedgerBalanceRow */
+/** @typedef {ReturnType<typeof buildLedgerFinding>} LedgerFinding */
+/**
+ * audit_logs row as AuditRepo.log receives it.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string | null,
+ *   actor_type: string,
+ *   actor_id: string | null,
+ *   action: string,
+ *   ip: string | null,
+ *   ua: string | null,
+ *   meta: unknown,
+ * }} AuditLogEntry
+ */
 /**
  * @typedef {{
- *   withTransaction: <T>(fn: (client: { query: (...args: any[]) => Promise<any> }) => Promise<T>) => Promise<T>,
- *   AuditRepo: { log: (...args: any[]) => Promise<unknown> },
- *   readCustomerLedgerRow: (query: (...args: any[]) => Promise<any>, customerId: string) => Promise<any>,
- *   applyBalanceAdjustment: (client: { query: (...args: any[]) => Promise<any> }, correctionId: string, requestedByStaffId: string, reason: string, finding: Record<string, any>) => Promise<string>
+ *   withTransaction: <T>(fn: (client: TxClient) => Promise<T>) => Promise<T>,
+ *   AuditRepo: { log: (entry: AuditLogEntry) => Promise<unknown> },
+ *   readCustomerLedgerRow: (query: typeof dbQuery, customerId: string) => Promise<LedgerBalanceRow | null>,
+ *   applyBalanceAdjustment: (client: TxClient, correctionId: string, requestedByStaffId: string, reason: string, finding: LedgerFinding) => Promise<string>
  * }} LedgerCorrectionDeps
  *
  * @typedef {{
@@ -46,6 +62,7 @@ function id() {
  * }} RejectLedgerCorrectionInput
  */
 
+/** @param {unknown} reason */
 function normalizeReason(reason) {
   const value = String(reason || "").trim();
   if (value.length < 8) throw badRequest("Describe el motivo con al menos 8 caracteres");
@@ -55,6 +72,11 @@ function normalizeReason(reason) {
 
 // Correction-linked adjustments document a repair of the stored balance. They are
 // not additional earned points; ordinary restorations (no correction_id) remain additive.
+/**
+ * @param {typeof dbQuery} query
+ * @param {string} customerId
+ * @returns {Promise<LedgerBalanceRow | null>}
+ */
 async function readCustomerLedgerRow(query, customerId) {
   const { rows } = await query(
     `WITH tx_agg AS (
@@ -97,6 +119,13 @@ async function readCustomerLedgerRow(query, customerId) {
   return rows[0] ?? null;
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} correctionId
+ * @param {string} requestedByStaffId
+ * @param {string} reason
+ * @param {LedgerFinding} finding
+ */
 async function applyBalanceAdjustment(client, correctionId, requestedByStaffId, reason, finding) {
   const adjustmentId = id();
   await client.query(
@@ -133,6 +162,7 @@ async function applyBalanceAdjustment(client, correctionId, requestedByStaffId, 
   return adjustmentId;
 }
 
+/** @param {LedgerFinding} finding */
 function buildResolutionMeta(finding) {
   return {
     stored_points: finding.stored_points,

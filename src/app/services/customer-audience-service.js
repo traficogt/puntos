@@ -7,6 +7,47 @@ import { badRequest, conflict, forbidden, notFound } from "../../utils/http-erro
 import { parseAudienceDefinition } from "./customer-audience-definition.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {ReturnType<typeof parseAudienceDefinition>} AudienceDefinition */
+/**
+ * merchant_audiences row.
+ * @typedef {{
+ *   id: string,
+ *   business_id?: string,
+ *   request_id?: string,
+ *   request_fingerprint?: string,
+ *   name: string,
+ *   version: number,
+ *   definition: unknown,
+ *   archived: boolean,
+ *   created_at: string | Date,
+ *   updated_at: string | Date,
+ * }} CustomerSegmentRow
+ */
+/**
+ * Owner request for a saved audience (create or update).
+ * @typedef {{
+ *   businessId: string,
+ *   staffId?: string | null,
+ *   requestId?: string,
+ *   name?: unknown,
+ *   definition?: unknown,
+ *   segmentId?: string,
+ *   version?: number,
+ *   archived?: boolean,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null,
+ * }} CustomerSegmentOptions
+ */
+/**
+ * @typedef {{
+ *   transaction?: typeof withTransaction,
+ *   audit?: typeof AuditRepo.log,
+ *   getPlanFeatureOverrides?: () => ReturnType<typeof PlanConfigService.getPlanFeatureOverrides>,
+ * }} CustomerSegmentDeps
+ */
+
 // The same genuine-purchase predicate used by recovery and campaign measurement.
 const PURCHASE_FILTER = `t.source IN ('online','offline','external','order')
   AND (t.type='PURCHASE' OR t.type IS NULL) AND t.status IN ('POSTED','PENDING')
@@ -22,8 +63,16 @@ const columns = Object.freeze({
   marketing_opt_in: "m.marketing_opt_in",
 });
 
+/**
+ * @param {string} businessId
+ * @param {AudienceDefinition} definition
+ * @param {Date} now
+ * @param {number} limit
+ */
 function audienceQuery(businessId, definition, now, limit) {
+  /** @type {unknown[]} */
   const values = [businessId, now.toISOString(), definition.window_days];
+  /** @param {AudienceDefinition["include"]} value */
   function group(value) {
     if (!value.rules.length) return "FALSE";
     return value.rules
@@ -67,6 +116,10 @@ function audienceQuery(businessId, definition, now, limit) {
   return { sql, values };
 }
 
+/**
+ * @param {{ businessId: string, definition: unknown, limit?: number, now?: Date }} input
+ * @param {{ query?: typeof dbQuery }} [deps]
+ */
 export async function previewCustomerAudience(
   { businessId, definition, limit = 10, now = new Date() },
   { query = dbQuery } = {},
@@ -84,6 +137,7 @@ export async function previewCustomerAudience(
   };
 }
 
+/** @param {CustomerSegmentRow} row */
 export function publicCustomerSegment(row) {
   return {
     id: row.id,
@@ -95,6 +149,10 @@ export function publicCustomerSegment(row) {
     updated_at: new Date(row.updated_at).toISOString(),
   };
 }
+/**
+ * @param {{ businessId: string }} input
+ * @param {{ query?: typeof dbQuery }} [deps]
+ */
 export async function listCustomerSegments({ businessId }, { query = dbQuery } = {}) {
   const { rows } = await query(
     "SELECT * FROM merchant_audiences WHERE business_id=$1::uuid ORDER BY created_at DESC,id DESC LIMIT 100",
@@ -102,6 +160,10 @@ export async function listCustomerSegments({ businessId }, { query = dbQuery } =
   );
   return { segments: rows.map(publicCustomerSegment), total: rows.length };
 }
+/**
+ * @param {unknown} name
+ * @param {unknown} definition
+ */
 function segmentInput(name, definition) {
   if (
     typeof name !== "string" ||
@@ -112,6 +174,11 @@ function segmentInput(name, definition) {
     throw badRequest("Escribe un nombre de audiencia de hasta 100 caracteres.");
   return { name: name.trim(), definition: parseAudienceDefinition(definition) };
 }
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {Awaited<ReturnType<typeof PlanConfigService.getPlanFeatureOverrides>>} overrides
+ */
 async function lockBusiness(client, businessId, overrides) {
   // Serialize owner changes without blocking FK key-share checks from a
   // customer transaction that may hold a row needed by a campaign snapshot.
@@ -126,6 +193,12 @@ async function lockBusiness(client, businessId, overrides) {
   )
     throw forbidden("Tu plan no incluye audiencias de campañas.");
 }
+/**
+ * @param {typeof AuditRepo.log} audit
+ * @param {string} action
+ * @param {CustomerSegmentOptions} options
+ * @param {CustomerSegmentRow} segment
+ */
 async function auditSegment(audit, action, options, segment) {
   await audit({
     id: randomUUID(),
@@ -141,6 +214,10 @@ async function auditSegment(audit, action, options, segment) {
     ),
   });
 }
+/**
+ * @param {CustomerSegmentOptions} options
+ * @param {CustomerSegmentDeps} [deps]
+ */
 export async function createCustomerSegment(
   options,
   {
@@ -152,7 +229,7 @@ export async function createCustomerSegment(
   const input = segmentInput(options.name, options.definition);
   const fingerprint = createHash("sha256").update(JSON.stringify(input)).digest("hex");
   const overrides = await getPlanFeatureOverrides();
-  return transaction(async (client) => {
+  return transaction(async (/** @type {TxClient} */ client) => {
     await lockBusiness(client, options.businessId, overrides);
     const previous = await client.query(
       "SELECT * FROM merchant_audiences WHERE business_id=$1::uuid AND request_id=$2::uuid",
@@ -188,6 +265,10 @@ export async function createCustomerSegment(
     return { segment: publicCustomerSegment(rows[0]) };
   });
 }
+/**
+ * @param {CustomerSegmentOptions} options
+ * @param {CustomerSegmentDeps} [deps]
+ */
 export async function updateCustomerSegment(
   options,
   {
@@ -198,6 +279,7 @@ export async function updateCustomerSegment(
 ) {
   const input = segmentInput(options.name, options.definition);
   if (
+    typeof options.version !== "number" ||
     !Number.isInteger(options.version) ||
     options.version < 1 ||
     options.version >= 2147483647 ||
@@ -205,7 +287,7 @@ export async function updateCustomerSegment(
   )
     throw badRequest("Revisa la versión y el estado de la audiencia.");
   const overrides = await getPlanFeatureOverrides();
-  return transaction(async (client) => {
+  return transaction(async (/** @type {TxClient} */ client) => {
     await lockBusiness(client, options.businessId, overrides);
     const selected = await client.query(
       "SELECT * FROM merchant_audiences WHERE business_id=$1::uuid AND id=$2::uuid FOR UPDATE",
@@ -231,6 +313,10 @@ export async function updateCustomerSegment(
 }
 
 // Called only within campaign creation's transaction after its idempotency check.
+/**
+ * @param {{ businessId: string, segmentId: string, version: number, limit: number, now?: Date }} input
+ * @param {TxClient} client
+ */
 export async function snapshotCustomerAudience(
   { businessId, segmentId, version, limit, now = new Date() },
   client,
@@ -252,7 +338,7 @@ export async function snapshotCustomerAudience(
   const result = (await client.query(request.sql, request.values)).rows[0];
   if (!result.customers.length)
     throw badRequest("No hay clientes activos que coincidan con esta audiencia.");
-  const ids = result.customers.map((customer) => customer.id);
+  const ids = result.customers.map((/** @type {{ id: string }} */ customer) => customer.id);
   const active = await client.query(
     "SELECT id FROM customers WHERE business_id=$1::uuid AND id=ANY($2::uuid[]) AND deleted_at IS NULL ORDER BY id FOR SHARE",
     [businessId, ids],
@@ -281,6 +367,15 @@ export async function snapshotCustomerAudience(
 
 // Worker-only: definition is frozen when the owner queues the job. The first
 // worker transaction captures IDs once; every later chunk reuses those IDs.
+/**
+ * @param {{
+ *   businessId: string,
+ *   snapshot: import("./merchant-data-readiness.js").MerchantAudienceSnapshot,
+ *   limit: number,
+ *   now?: Date,
+ * }} input
+ * @param {TxClient} client
+ */
 export async function snapshotFrozenCustomerAudience(
   { businessId, snapshot, limit, now = new Date() },
   client,
@@ -290,7 +385,7 @@ export async function snapshotFrozenCustomerAudience(
   const definition = parseAudienceDefinition(snapshot.definition);
   const request = audienceQuery(businessId, definition, now, limit);
   const result = (await client.query(request.sql, request.values)).rows[0];
-  const ids = result.customers.map((customer) => customer.id);
+  const ids = result.customers.map((/** @type {{ id: string }} */ customer) => customer.id);
   return {
     customerIds: ids,
     snapshot: {

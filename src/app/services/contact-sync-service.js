@@ -2,19 +2,37 @@ import crypto from "node:crypto";
 import { normalizePhone } from "../../utils/phone.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 
+/**
+ * Injected collaborators. Unit tests supply partial CustomerRepo fakes, so the
+ * lookups are optional-called; create/updateName are asserted where reached.
+ * @typedef {{
+ *   randomUUID?: () => string,
+ *   CustomerRepo?: Partial<Pick<typeof import("../repositories/customer-repository.js").CustomerRepo, "getByBusinessAndId" | "getByBusinessAndPhone" | "updateName" | "create">> | null,
+ * } | null | undefined} ContactSyncDeps
+ */
+/** @typedef {{ businessId?: unknown, phone?: unknown, customerId?: unknown, name?: unknown } | null | undefined} ContactSyncInput */
+/** @typedef {NonNullable<NonNullable<ContactSyncDeps>["CustomerRepo"]>} ContactSyncCustomerRepo */
+
+/** @param {unknown} value */
 function toText(value) {
   return String(value ?? "").trim();
 }
 
+/** @param {unknown} value */
 function normalizeName(value) {
   const name = toText(value);
   return name ? name.slice(0, 120) : null;
 }
 
+/** @param {ContactSyncDeps} deps */
 function makeId(deps) {
   return deps?.randomUUID?.() ?? crypto.randomUUID();
 }
 
+/**
+ * @param {ContactSyncDeps} deps
+ * @param {ContactSyncInput} input
+ */
 export async function upsertContactWithDeps(deps, input) {
   const businessId = toText(input?.businessId);
   if (!businessId) throw badRequest("businessId is required");
@@ -45,7 +63,9 @@ export async function upsertContactWithDeps(deps, input) {
 
     if (existingByPhone) {
       if (name && name !== existingByPhone.name) {
-        return customerRepo.updateName(existingByPhone.id, name);
+        return /** @type {Required<ContactSyncCustomerRepo>["updateName"]} */ (
+          customerRepo.updateName
+        )(existingByPhone.id, name);
       }
       return existingByPhone;
     }
@@ -54,7 +74,7 @@ export async function upsertContactWithDeps(deps, input) {
       throw conflict("phone does not match the supplied customerId");
     }
 
-    return customerRepo.create({
+    return /** @type {Required<ContactSyncCustomerRepo>["create"]} */ (customerRepo.create)({
       id: makeId(deps),
       business_id: businessId,
       phone,
@@ -63,7 +83,10 @@ export async function upsertContactWithDeps(deps, input) {
   }
 
   if (name && name !== existingById.name) {
-    return customerRepo.updateName(existingById.id, name);
+    return /** @type {Required<ContactSyncCustomerRepo>["updateName"]} */ (customerRepo.updateName)(
+      existingById.id,
+      name,
+    );
   }
 
   return existingById;

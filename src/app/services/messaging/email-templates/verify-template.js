@@ -4,6 +4,7 @@ import {
   renderTextParagraphs,
 } from "./base-template.js";
 
+/** @param {unknown} value */
 function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")

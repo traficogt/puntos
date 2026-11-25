@@ -10,12 +10,43 @@ import {
   livePromiseMember,
   lockPromiseRequest,
 } from "./reward-promise-service.js";
+
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {{ transaction?: typeof withTransaction }} HospitalityDeps */
+/** @typedef {{ id: string, [key: string]: unknown }} HospitalityStaff */
+/**
+ * Owner request to authorize a hospitality budget for one staff member.
+ * @typedef {{
+ *   businessId: string,
+ *   staff: HospitalityStaff,
+ *   staffId: string,
+ *   branchId?: string | null,
+ *   rewardId: string,
+ *   title: unknown,
+ *   totalUnits: unknown,
+ *   totalCost: unknown,
+ *   unitCostLimit: unknown,
+ *   validHours: unknown,
+ *   startsAt: string,
+ *   endsAt: string,
+ *   requestId?: unknown,
+ * }} HospitalityGrantOptions
+ */
+
+/**
+ * @param {unknown} value
+ * @returns {value is number}
+ */
 const money = (value) =>
   typeof value === "number" &&
   Number.isFinite(value) &&
   value >= 0 &&
   value <= 1000000 &&
   hasMaxScale(value, 2);
+/**
+ * @param {HospitalityGrantOptions} options
+ * @param {HospitalityDeps} [injected]
+ */
 export async function createHospitalityGrant(options, injected = {}) {
   const {
     businessId,
@@ -37,12 +68,14 @@ export async function createHospitalityGrant(options, injected = {}) {
     !Number.isFinite(ends.getTime()) ||
     ends <= starts ||
     ends.getTime() - starts.getTime() > 31 * 86400000 ||
+    typeof totalUnits !== "number" ||
     !Number.isInteger(totalUnits) ||
     totalUnits < 1 ||
     totalUnits > 10000 ||
     !money(totalCost) ||
     !money(unitCostLimit) ||
     unitCostLimit > totalCost ||
+    typeof validHours !== "number" ||
     !Number.isInteger(validHours) ||
     validHours < 1 ||
     validHours > 2160 ||
@@ -64,7 +97,7 @@ export async function createHospitalityGrant(options, injected = {}) {
     ends.toISOString(),
     validHours,
   ]);
-  return (injected.transaction ?? withTransaction)(async (client) => {
+  return (injected.transaction ?? withTransaction)(async (/** @type {TxClient} */ client) => {
     await lockPromiseRequest(client, businessId, requestId);
     await livePromiseMember(client, options, true);
     const existing = (
@@ -149,8 +182,12 @@ export async function createHospitalityGrant(options, injected = {}) {
     return { ok: true, grant: rows[0], replay: false };
   });
 }
+/**
+ * @param {{ businessId: string, staff: HospitalityStaff, grantId: string }} options
+ * @param {HospitalityDeps} [injected]
+ */
 export async function revokeHospitalityGrant(options, injected = {}) {
-  return (injected.transaction ?? withTransaction)(async (client) => {
+  return (injected.transaction ?? withTransaction)(async (/** @type {TxClient} */ client) => {
     await livePromiseMember(client, options, true);
     const result = await client.query(
       "UPDATE hospitality_grants SET revoked_at=COALESCE(revoked_at,clock_timestamp()) WHERE business_id=$1 AND id=$2 RETURNING id",
@@ -161,11 +198,21 @@ export async function revokeHospitalityGrant(options, injected = {}) {
     return { ok: true };
   });
 }
+/**
+ * @param {{
+ *   businessId: string,
+ *   staff: HospitalityStaff,
+ *   grantId: string,
+ *   customerId: string,
+ *   requestId?: unknown,
+ * }} options
+ * @param {HospitalityDeps} [injected]
+ */
 export async function issueHospitality(options, injected = {}) {
   const { businessId, staff, grantId, customerId } = options,
     requestId = requestIdentity(options.requestId),
     hash = fingerprint([staff.id, grantId, customerId]);
-  return (injected.transaction ?? withTransaction)(async (client) => {
+  return (injected.transaction ?? withTransaction)(async (/** @type {TxClient} */ client) => {
     await lockPromiseRequest(client, businessId, requestId);
     const member = await livePromiseMember(client, options);
     const existing = (
@@ -206,7 +253,7 @@ export async function issueHospitality(options, injected = {}) {
       throw conflict("La recompensa necesita una nueva aprobación de costo.");
     const scope = (
       await client.query("SELECT branch_id FROM reward_branches WHERE reward_id=$1", [reward.id])
-    ).rows.map((x) => x.branch_id);
+    ).rows.map((/** @type {{ branch_id: string }} */ x) => x.branch_id);
     if (scope.length && !scope.includes(member.branch_id))
       throw forbidden("La recompensa corresponde a otra sucursal.");
     const availability = (
@@ -264,8 +311,12 @@ export async function issueHospitality(options, injected = {}) {
     return { ok: true, entitlement: rows[0], replay: false };
   });
 }
+/**
+ * @param {{ businessId: string, staff: HospitalityStaff, owner?: boolean }} options
+ * @param {HospitalityDeps} [injected]
+ */
 export async function listHospitality(options, injected = {}) {
-  return (injected.transaction ?? withTransaction)(async (client) => {
+  return (injected.transaction ?? withTransaction)(async (/** @type {TxClient} */ client) => {
     const member = await livePromiseMember(client, options, options.owner === true),
       own = options.owner !== true;
     // Owner totals cover every entitlement, independently of the paged history.

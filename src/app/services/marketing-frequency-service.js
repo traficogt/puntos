@@ -1,3 +1,8 @@
+/**
+ * Most recent marketing contact (campaign or automation) within the window.
+ * @param {{ query: typeof import("../database.js").dbQuery }} client
+ * @param {{ businessId: string, customerId: string, excludeId: string, now: Date, days?: number }} window
+ */
 export async function recentMarketingContact(
   client,
   { businessId, customerId, excludeId, now, days = 7 },

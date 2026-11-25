@@ -13,6 +13,50 @@ import {
 import { MeasurementCostInput } from "./campaign-measurement-input.js";
 import { campaignReportQuery } from "./campaign-report-query.js";
 
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("./growth-campaign-service.js").GrowthCampaignRow} GrowthCampaignRow */
+/** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
+/**
+ * Per-allocation aggregate of campaignReportQuery; metric columns are read by
+ * computed name (`${period}_returned_customers`, ...), so they stay unknown.
+ * @typedef {{ allocation: string, [column: string]: unknown }} CampaignReportGroupRow
+ */
+/**
+ * One row of campaignReportQuery (see campaign-report-query.js).
+ * @typedef {{
+ *   campaign: GrowthCampaignRow,
+ *   as_of: string | Date,
+ *   groups: CampaignReportGroupRow[],
+ *   receipt_coverage: { total: unknown, linked: unknown, unmatched: unknown, rejected: unknown } | null,
+ *   unallocated_refunds: unknown,
+ *   measurement_program: MerchantProgramJson | null,
+ *   message_counts: Record<string, unknown>,
+ *   cost_revision: { inputs: Record<string, number | null>, revision: number, created_at: string | Date } | null,
+ *   last_report: {
+ *     id: string,
+ *     revision: number,
+ *     created_at: string | Date,
+ *     fingerprint: string,
+ *     payload: { results?: { measurement?: { as_of?: unknown } } } | null,
+ *   } | null,
+ * }} CampaignReportRow
+ */
+/**
+ * Owner request for a measurement write (costs or a saved report revision).
+ * @typedef {{
+ *   businessId: string,
+ *   campaignId: string,
+ *   requestId: string,
+ *   staffId?: string | null,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null,
+ *   costs?: unknown,
+ * }} MeasurementOptions
+ */
+/** @typedef {{ transaction?: typeof withTransaction, audit?: typeof AuditRepo.log }} MeasurementDeps */
+
+/** @param {unknown} value */
 const numeric = (value) => Number(value ?? 0);
 const costKeys = [
   "gross_margin_pct",
@@ -21,6 +65,12 @@ const costKeys = [
   "other_cost_q",
   "outstanding_reward_cost_q",
 ];
+/**
+ * @param {CampaignReportGroupRow[]} rows
+ * @param {"treatment" | "control"} allocation
+ * @param {number | null | undefined} count assigned members (null before activation)
+ * @param {"" | "followup" | "offer"} [period]
+ */
 function group(rows, allocation, count, period = "") {
   const r = rows.find((item) => item.allocation === allocation),
     returned = numeric(r?.[period ? `${period}_returned_customers` : "returned_customers"]);
@@ -50,16 +100,32 @@ function group(rows, allocation, count, period = "") {
       : {}),
   };
 }
+/**
+ * @param {unknown} value
+ * @returns {unknown}
+ */
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === "object")
     return Object.fromEntries(
       Object.keys(value)
         .sort()
-        .map((k) => [k, canonical(value[k])]),
+        .map((k) => [k, canonical(/** @type {Record<string, unknown>} */ (value)[k])]),
     );
   return value;
 }
+/**
+ * @param {{
+ *   measurement: {
+ *     as_of?: unknown,
+ *     window: Record<string, unknown>,
+ *     data_readiness: { state: unknown, reason?: unknown },
+ *     [key: string]: unknown,
+ *   },
+ *   report_revision?: unknown,
+ *   [key: string]: unknown,
+ * }} results
+ */
 export function measurementFingerprint(results) {
   // Clock time alone never creates a revision; observed facts and phase do.
   const { measurement: m, ...rest } = results;
@@ -81,11 +147,16 @@ export function measurementFingerprint(results) {
     )
     .digest("hex");
 }
+/**
+ * @param {{ businessId: string, campaignId: string }} target
+ * @param {{ query?: typeof dbQuery }} [deps]
+ */
 export async function readCampaignReport({ businessId, campaignId }, { query = dbQuery } = {}) {
   const { rows } = await query(campaignReportQuery, [businessId, campaignId]);
   if (!rows[0]) throw notFound("No se encontró esta campaña.");
-  const r = rows[0],
-    campaign = publicGrowthCampaign(r.campaign),
+  /** @type {CampaignReportRow} */
+  const r = rows[0];
+  const campaign = publicGrowthCampaign(r.campaign),
     asOf = new Date(r.as_of).toISOString(),
     quiet = campaign.offer_kind === "quiet";
   const treatment = group(r.groups, "treatment", campaign.treatment_count),
@@ -95,6 +166,7 @@ export async function readCampaignReport({ businessId, campaignId }, { query = d
     holdoutPercent: campaign.holdout_percent,
     availableMembers: campaign.member_count,
   });
+  /** @param {string} key */
   const sum = (key) => r.groups.reduce((n, row) => n + numeric(row[key]), 0);
   const coverage = r.receipt_coverage ?? { total: 0, linked: 0, unmatched: 0, rejected: 0 };
   const baselineDifference = returnDifference(
@@ -202,27 +274,35 @@ export async function readCampaignReport({ businessId, campaignId }, { query = d
       ? false
       : planning
         ? !planning.feasible
-        : treatment.members < 30 || control.members < 30,
+        : Number(treatment.members) < 30 || Number(control.members) < 30,
   };
   const fingerprint = measurementFingerprint(results),
     last = r.last_report;
-  results.report_revision = {
-    latest: last
-      ? {
-          id: last.id,
-          revision: last.revision,
-          created_at: last.created_at,
-          as_of: last.payload?.results?.measurement?.as_of,
-        }
-      : null,
-    changed: !!last && last.fingerprint !== fingerprint,
-    reason:
-      last && last.fingerprint !== fingerprint
-        ? "Los datos, los costos o la etapa de observación cambiaron desde el último corte guardado. Guarda una nueva revisión para conservar ambos."
+  // Same [[Set]] as a property assignment; keeps `results` typed from its literal.
+  Object.assign(results, {
+    report_revision: {
+      latest: last
+        ? {
+            id: last.id,
+            revision: last.revision,
+            created_at: last.created_at,
+            as_of: last.payload?.results?.measurement?.as_of,
+          }
         : null,
-  };
+      changed: !!last && last.fingerprint !== fingerprint,
+      reason:
+        last && last.fingerprint !== fingerprint
+          ? "Los datos, los costos o la etapa de observación cambiaron desde el último corte guardado. Guarda una nueva revisión para conservar ambos."
+          : null,
+    },
+  });
   return { campaign, results };
 }
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string} campaignId
+ */
 async function lockedCampaign(client, businessId, campaignId) {
   const { rows } = await client.query(
     "SELECT id FROM growth_campaigns WHERE business_id=$1 AND id=$2 FOR UPDATE",
@@ -230,6 +310,12 @@ async function lockedCampaign(client, businessId, campaignId) {
   );
   if (!rows[0]) throw notFound("No se encontró esta campaña.");
 }
+/**
+ * @param {typeof AuditRepo.log} audit
+ * @param {MeasurementOptions} options
+ * @param {string} action
+ * @param {number} revision
+ */
 async function auditEvidence(audit, options, action, revision) {
   await audit({
     id: randomUUID(),
@@ -245,6 +331,10 @@ async function auditEvidence(audit, options, action, revision) {
     ),
   });
 }
+/**
+ * @param {MeasurementOptions} options
+ * @param {MeasurementDeps} [deps]
+ */
 export async function saveMeasurementCosts(
   options,
   { transaction = withTransaction, audit = AuditRepo.log } = {},
@@ -256,7 +346,7 @@ export async function saveMeasurementCosts(
       "Revisa los costos. Deja vacío lo desconocido y usa cero solo para un costo confirmado.",
     );
   const costs = parsed.data;
-  return transaction(async (client) => {
+  return transaction(async (/** @type {TxClient} */ client) => {
     await lockedCampaign(client, businessId, campaignId);
     const previous = (
       await client.query(
@@ -284,12 +374,16 @@ export async function saveMeasurementCosts(
     return { costs: row.inputs, revision: row.revision, created_at: row.created_at };
   });
 }
+/**
+ * @param {MeasurementOptions} options
+ * @param {MeasurementDeps} [deps]
+ */
 export async function saveMeasurementReport(
   options,
   { transaction = withTransaction, audit = AuditRepo.log } = {},
 ) {
   const { businessId, campaignId, requestId, staffId } = options;
-  return transaction(async (client) => {
+  return transaction(async (/** @type {TxClient} */ client) => {
     await lockedCampaign(client, businessId, campaignId);
     const previous = (
       await client.query(
@@ -323,6 +417,10 @@ export async function saveMeasurementReport(
     return row;
   });
 }
+/**
+ * @param {{ businessId: string, campaignId: string }} target
+ * @param {{ query?: typeof dbQuery }} [deps]
+ */
 export async function listMeasurementReports({ businessId, campaignId }, { query = dbQuery } = {}) {
   const { rows } = await query(
     `SELECT g.id,COALESCE((SELECT jsonb_agg(r ORDER BY r.revision DESC) FROM (

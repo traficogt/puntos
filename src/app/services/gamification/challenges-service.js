@@ -4,10 +4,32 @@ import { GamificationRepository } from "../../repositories/gamification-reposito
 import { dbQuery, withTransaction } from "../../database.js";
 import { notFound } from "../../../utils/http-error.js";
 
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {{ sourceTransactionId?: string | null }} ChallengeContext */
+/**
+ * challenges row.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   name: string,
+ *   requirement_type: string,
+ *   requirement_value: number | string | null,
+ *   reward_points: number,
+ *   recurrence: string | null,
+ *   max_completions: number | null,
+ *   active?: boolean,
+ *   [key: string]: unknown,
+ * }} ChallengeRow
+ */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/**
+ * @param {string | null | undefined} sourceTransactionId
+ * @param {typeof dbQuery} [query]
+ */
 async function sourceTransactionIsActive(sourceTransactionId, query = dbQuery) {
   if (!sourceTransactionId) return true;
   const { rows } = await query(
@@ -21,12 +43,23 @@ async function sourceTransactionIsActive(sourceTransactionId, query = dbQuery) {
   return Boolean(tx && tx.status === "POSTED" && !tx.reversed_transaction_id);
 }
 
+/**
+ * @param {string} customerId
+ * @param {typeof dbQuery} [query]
+ */
 async function getCustomerBusinessId(customerId, query = dbQuery) {
   const { rows } = await query(`SELECT business_id FROM customers WHERE id = $1`, [customerId]);
   if (!rows[0]) throw notFound("Cliente no encontrado");
   return rows[0].business_id;
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string} customerId
+ * @param {ChallengeRow} challenge
+ * @param {ChallengeContext} [context]
+ */
 async function awardChallenge(client, businessId, customerId, challenge, context = {}) {
   const rewardTransactionId = id();
   await client.query(
@@ -73,6 +106,10 @@ export function calculateMilestoneCompletionDelta({
   return Math.max(0, completionCap - Math.max(0, Number(timesCompleted || 0)));
 }
 
+/**
+ * @param {string | number | Date} date
+ * @param {string | null | undefined} recurrence
+ */
 function recurrenceWindowStart(date, recurrence) {
   const at = new Date(date);
   if (Number.isNaN(at.getTime())) return null;
@@ -99,6 +136,11 @@ function recurrenceWindowStart(date, recurrence) {
   return null;
 }
 
+/**
+ * @param {string | Date | null | undefined} completedAt
+ * @param {string | null | undefined} recurrence
+ * @param {Date} [now]
+ */
 export function hasRecurringWindowElapsed(completedAt, recurrence, now = new Date()) {
   if (!completedAt || !recurrence) return true;
   const completedWindow = recurrenceWindowStart(completedAt, recurrence);
@@ -107,6 +149,10 @@ export function hasRecurringWindowElapsed(completedAt, recurrence, now = new Dat
   return currentWindow.getTime() > completedWindow.getTime();
 }
 
+/**
+ * @param {string} businessId
+ * @param {Record<string, unknown>} challengeData
+ */
 export async function createChallenge(businessId, challengeData) {
   return GamificationRepository.createChallenge({
     business_id: businessId,
@@ -114,17 +160,27 @@ export async function createChallenge(businessId, challengeData) {
   });
 }
 
+/**
+ * @param {string} customerId
+ * @param {string} businessId
+ */
 export async function getCustomerChallenges(customerId, businessId) {
   return GamificationRepository.getCustomerActiveChallenges(customerId, businessId);
 }
 
+/**
+ * @param {string} customerId
+ * @param {string} challengeType
+ * @param {number} [incrementValue]
+ * @param {ChallengeContext} [context]
+ */
 export async function updateChallengeProgress(
   customerId,
   challengeType,
   incrementValue = 1,
   context = {},
 ) {
-  return withTransaction(async (client) => {
+  return withTransaction(async (/** @type {TxClient} */ client) => {
     const q = client.query.bind(client);
     if (!(await sourceTransactionIsActive(context.sourceTransactionId || null, q))) {
       return [];
@@ -132,7 +188,7 @@ export async function updateChallengeProgress(
     const businessId = await getCustomerBusinessId(customerId, q);
     const challenges = await GamificationRepository.listActiveChallenges(businessId);
     const matchingChallenges = challenges.filter(
-      (challenge) => challenge.requirement_type === challengeType,
+      (/** @type {ChallengeRow} */ challenge) => challenge.requirement_type === challengeType,
     );
     const completed = [];
 

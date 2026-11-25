@@ -38,9 +38,36 @@ export const heartbeatSchema = z
     errors: z.number().int().min(0).max(10000000),
   })
   .strict();
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
+/** @typedef {z.infer<typeof heartbeatSchema> & { coverage_through: string, received_at: string, evidence: string }} DataHealthHeartbeat */
+/** @typedef {z.infer<typeof healthSourceSchema> & { last_heartbeat?: DataHealthHeartbeat | null }} DataHealthSource */
+/** @typedef {{ sources: DataHealthSource[] }} DataHealthSettings */
+/**
+ * @typedef {{
+ *   businessId: string,
+ *   staffId?: string | null,
+ *   input?: unknown,
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null,
+ * }} DataHealthOptions
+ */
+/** @param {unknown} v */
 const hash = (v) => createHash("sha256").update(JSON.stringify(v)).digest("hex");
-const stored = (b) => b.program_json?.data_health ?? { sources: [] };
+/**
+ * program_json.data_health as this module writes it (sources with their last heartbeat).
+ * @param {{ program_json?: MerchantProgramJson | null }} b
+ */
+const stored = (b) =>
+  /** @type {DataHealthSettings} */ (b.program_json?.data_health ?? { sources: [] });
 const defaults = { query: dbQuery, transaction: withTransaction, now: () => new Date() };
+/**
+ * @param {TxClient} client
+ * @param {DataHealthOptions} o
+ * @param {string} action
+ * @param {Record<string, unknown>} meta
+ */
 async function audit(client, o, action, meta) {
   await client.query(
     "INSERT INTO audit_logs(id,business_id,actor_type,actor_id,action,meta) VALUES($1,$2,$3,$4,$5,$6)",
@@ -54,6 +81,10 @@ async function audit(client, o, action, meta) {
     ],
   );
 }
+/**
+ * @param {{ businessId: string }} target
+ * @param {Partial<typeof defaults>} [injected]
+ */
 export async function getDataHealth({ businessId }, injected = {}) {
   const d = { ...defaults, ...injected };
   const b = (await d.query("SELECT id,slug,program_json FROM businesses WHERE id=$1", [businessId]))
@@ -79,12 +110,16 @@ export async function getDataHealth({ businessId }, injected = {}) {
     heartbeat_path: `/api/public/pos/${encodeURIComponent(b.slug)}/health/heartbeat`,
   };
 }
+/**
+ * @param {DataHealthOptions} options
+ * @param {Partial<typeof defaults>} [injected]
+ */
 export async function saveDataHealth(options, injected = {}) {
   const parsed = healthSettingsSchema.safeParse(options.input);
   if (!parsed.success) throw badRequest("Revisa las conexiones, sucursales y plazos.");
   const d = { ...defaults, ...injected },
     input = parsed.data;
-  return d.transaction(async (client) => {
+  return d.transaction(async (/** @type {TxClient} */ client) => {
     const b = (
       await client.query("SELECT id,program_json FROM businesses WHERE id=$1 FOR UPDATE", [
         options.businessId,
@@ -95,7 +130,7 @@ export async function saveDataHealth(options, injected = {}) {
       throw conflict("La configuración cambió. Actualiza antes de guardar.");
     const branches = (
       await client.query("SELECT id FROM branches WHERE business_id=$1", [options.businessId])
-    ).rows.map((r) => r.id);
+    ).rows.map((/** @type {{ id: string }} */ r) => r.id);
     if (input.sources.some((s) => s.branch_id && !branches.includes(s.branch_id)))
       throw badRequest("La sucursal no pertenece a este negocio.");
     const existing = stored(b).sources ?? [];
@@ -114,6 +149,11 @@ export async function saveDataHealth(options, injected = {}) {
     return { ok: true, version: hash(value), sources };
   });
 }
+/**
+ * @param {{ id: string }} business
+ * @param {unknown} payload
+ * @param {Partial<typeof defaults>} [injected]
+ */
 export async function recordDataHeartbeat(business, payload, injected = {}) {
   const parsed = heartbeatSchema.safeParse(payload);
   if (!parsed.success) throw badRequest("La confirmación de sincronización no es válida.");
@@ -123,7 +163,7 @@ export async function recordDataHeartbeat(business, payload, injected = {}) {
     fingerprint = hash(input);
   if (Date.parse(input.coverage_through) > now.getTime() + 300000)
     throw badRequest("La ventana no puede terminar en el futuro.");
-  return d.transaction(async (client) => {
+  return d.transaction(async (/** @type {TxClient} */ client) => {
     const b = (
       await client.query("SELECT id,program_json FROM businesses WHERE id=$1 FOR UPDATE", [
         business.id,

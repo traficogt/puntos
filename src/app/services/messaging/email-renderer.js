@@ -4,6 +4,7 @@ import { renderSecurityEmail } from "./email-templates/security-template.js";
 import { renderLifecycleEmail } from "./email-templates/lifecycle-template.js";
 import { renderChurnEmail } from "./email-templates/churn-template.js";
 
+/** @param {unknown} value */
 function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
@@ -13,6 +14,10 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+/**
+ * @param {string} channel
+ * @param {import("./email-branding.js").EmailBranding} branding
+ */
 function defaultSubject(channel, branding) {
   if (channel === "verify") return `${branding.brandName}: tu código de acceso`;
   if (channel === "security") return `${branding.brandName}: aviso de seguridad`;
@@ -20,6 +25,7 @@ function defaultSubject(channel, branding) {
   return branding.brandName;
 }
 
+/** @param {string} body */
 function legacyHtml(body) {
   return String(body || "")
     .split(/\n{2,}/)

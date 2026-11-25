@@ -17,10 +17,56 @@ import { logger } from "../../utils/logger.js";
 import { createClient } from "redis";
 import { errorMessage } from "../../utils/error-shape.js";
 
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/**
+ * A claimed background_jobs row, or a legacy Redis queue item carrying `jobType`.
+ * @typedef {{
+ *   id?: string,
+ *   job_type?: string,
+ *   jobType?: string,
+ *   business_id?: string | null,
+ *   payload?: { businessId?: string | null, [key: string]: unknown } | null,
+ *   attempts?: number | string | null,
+ *   status?: string | null,
+ *   [key: string]: unknown,
+ * }} JobLike
+ */
+/** @typedef {(payload: { businessId?: string | null, [key: string]: unknown }) => Promise<unknown>} JobHandler */
+/**
+ * @typedef {{
+ *   jobRepo: {
+ *     create: (row: {
+ *       id: string,
+ *       business_id?: string | null,
+ *       job_type: string,
+ *       payload?: Record<string, unknown>,
+ *       run_after?: string | Date | null,
+ *     }) => Promise<JobLike>,
+ *   },
+ *   redisClient: { lPush: (key: string, value: string) => Promise<unknown> } | null,
+ *   logger: {
+ *     warn: (context: Record<string, unknown>, message: string) => void,
+ *     info?: (context: Record<string, unknown>, message: string) => void,
+ *   },
+ * }} EnqueueJobDeps
+ */
+/**
+ * @typedef {{
+ *   businessId?: string | null,
+ *   jobType: string,
+ *   payload?: Record<string, unknown>,
+ *   runAfter?: string | Date | null,
+ * }} EnqueueJobInput
+ */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/**
+ * @param {JobLike | null | undefined} job
+ * @param {Record<string, unknown>} [extras]
+ */
 function jobLogContext(job, extras = {}) {
   return {
     jobId: job?.id ?? null,
@@ -32,9 +78,11 @@ function jobLogContext(job, extras = {}) {
   };
 }
 
+/** @type {Record<string, typeof runCampaignPreparationJob | typeof runCustomerImportJob | JobHandler>} */
 const HANDLERS = {
   "growth.campaign.prepare": runCampaignPreparationJob,
   "customer.import": runCustomerImportJob,
+  /** @param {{ businessId?: string | null }} payload */
   "analytics.calculate": async ({ businessId }) => {
     if (!businessId) throw new Error("Missing businessId");
     await withDbClientContext({ tenantId: businessId, platformAdmin: false }, async () => {
@@ -45,6 +93,7 @@ const HANDLERS = {
     });
     return { ok: true, message: "analytics recalculated" };
   },
+  /** @param {{ businessId?: string | null }} [payload] */
   "lifecycle.run": async ({ businessId = null } = {}) => {
     const out = await runLifecycleOnce({ businessId });
     return { ok: true, runs: out.length };
@@ -93,6 +142,7 @@ export async function closeJobQueueRedis() {
   }
 }
 
+/** @param {JobLike | null | undefined} job */
 function isTrackedJob(job) {
   return Boolean(
     job &&
@@ -102,9 +152,10 @@ function isTrackedJob(job) {
   );
 }
 
+/** @param {unknown} item a Redis bulk-string reply */
 function parseRedisQueueItem(item) {
   try {
-    const parsed = JSON.parse(item);
+    const parsed = JSON.parse(/** @type {string} */ (item));
     if (typeof parsed === "string") {
       return { jobId: parsed, legacyJob: null };
     }
@@ -123,12 +174,15 @@ function parseRedisQueueItem(item) {
   return { jobId: null, legacyJob: null };
 }
 
+/** @param {string} jobId */
 async function claimQueuedJobById(jobId) {
-  return withDbClientContext({ platformAdmin: true, tenantId: null }, async (client) => {
-    await client.query("BEGIN");
-    try {
-      const upd = await client.query(
-        `UPDATE background_jobs
+  return withDbClientContext(
+    { platformAdmin: true, tenantId: null },
+    async (/** @type {TxClient} */ client) => {
+      await client.query("BEGIN");
+      try {
+        const upd = await client.query(
+          `UPDATE background_jobs
          SET status='RUNNING',
              locked_at=now(),
              started_at=now(),
@@ -137,64 +191,72 @@ async function claimQueuedJobById(jobId) {
            AND status='QUEUED'
            AND run_after <= now()
          RETURNING *`,
-        [jobId],
-      );
-      await client.query("COMMIT");
-      return upd.rows[0] ?? null;
-    } catch (e) {
-      try {
-        await client.query("ROLLBACK");
-      } catch {
-        // Best effort: the original error below is the one worth surfacing.
+          [jobId],
+        );
+        await client.query("COMMIT");
+        return upd.rows[0] ?? null;
+      } catch (e) {
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          // Best effort: the original error below is the one worth surfacing.
+        }
+        throw e;
       }
-      throw e;
-    }
-  });
+    },
+  );
 }
 
 async function claimNextQueuedDbJob() {
   // Claim under platform-admin context; jobs can be cross-tenant and may have NULL business_id.
-  return withDbClientContext({ platformAdmin: true, tenantId: null }, async (client) => {
-    await client.query("BEGIN");
-    try {
-      const lock = await client.query(
-        `SELECT id
+  return withDbClientContext(
+    { platformAdmin: true, tenantId: null },
+    async (/** @type {TxClient} */ client) => {
+      await client.query("BEGIN");
+      try {
+        const lock = await client.query(
+          `SELECT id
          FROM background_jobs
          WHERE status='QUEUED'
            AND run_after <= now()
          ORDER BY created_at ASC
          FOR UPDATE SKIP LOCKED
          LIMIT 1`,
-      );
-      if (!lock.rowCount) {
-        await client.query("ROLLBACK");
-        return null;
-      }
+        );
+        if (!lock.rowCount) {
+          await client.query("ROLLBACK");
+          return null;
+        }
 
-      const jobId = lock.rows[0].id;
-      const upd = await client.query(
-        `UPDATE background_jobs
+        const jobId = lock.rows[0].id;
+        const upd = await client.query(
+          `UPDATE background_jobs
          SET status='RUNNING',
              locked_at=now(),
              started_at=now(),
              attempts=attempts+1
          WHERE id=$1
          RETURNING *`,
-        [jobId],
-      );
-      await client.query("COMMIT");
-      return upd.rows[0] ?? null;
-    } catch (e) {
-      try {
-        await client.query("ROLLBACK");
-      } catch {
-        // Best effort: the original error below is the one worth surfacing.
+          [jobId],
+        );
+        await client.query("COMMIT");
+        return upd.rows[0] ?? null;
+      } catch (e) {
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          // Best effort: the original error below is the one worth surfacing.
+        }
+        throw e;
       }
-      throw e;
-    }
-  });
+    },
+  );
 }
 
+/**
+ * @param {EnqueueJobDeps} deps
+ * @param {EnqueueJobInput} job
+ */
 export async function enqueueJobWithDeps(
   deps,
   { businessId = null, jobType, payload = {}, runAfter = null },
@@ -226,10 +288,13 @@ export async function enqueueJobWithDeps(
   return jobRecord;
 }
 
+/** @param {EnqueueJobInput} job */
 export async function enqueueJob({ businessId = null, jobType, payload = {}, runAfter = null }) {
   return enqueueJobWithDeps(
     {
-      jobRepo: JobRepo,
+      // JobRepo.create's `= null` defaults make TS infer null-only columns for
+      // business_id/run_after; the repository accepts ids and timestamps.
+      jobRepo: /** @type {EnqueueJobDeps["jobRepo"]} */ (/** @type {unknown} */ (JobRepo)),
       redisClient: getJobQueueRedis(),
       logger,
     },
@@ -256,6 +321,7 @@ async function claimNextJob() {
   return claimNextQueuedDbJob();
 }
 
+/** @param {{ limit?: number }} [options] */
 export async function processPendingJobsOnce({ limit = 10 } = {}) {
   await withDbClientContext({ platformAdmin: true, tenantId: null }, recoverJobLeases);
   let processed = 0;
@@ -268,16 +334,19 @@ export async function processPendingJobsOnce({ limit = 10 } = {}) {
     const trackedJob = isTrackedJob(job);
     if (!handler) {
       if (trackedJob) {
-        await withDbClientContext({ platformAdmin: true, tenantId: null }, async (client) => {
-          await client.query(
-            `UPDATE background_jobs
+        await withDbClientContext(
+          { platformAdmin: true, tenantId: null },
+          async (/** @type {TxClient} */ client) => {
+            await client.query(
+              `UPDATE background_jobs
              SET status='FAILED',
                  error=$2,
                  completed_at=now()
              WHERE id=$1`,
-            [job.id, `Unknown job type: ${resolvedJobType}`],
-          );
-        });
+              [job.id, `Unknown job type: ${resolvedJobType}`],
+            );
+          },
+        );
         logger.warn(jobLogContext(job), "Background job failed: unknown job type");
       } else {
         logger.warn({ jobType: resolvedJobType }, "Unknown job type (Redis queue)");
@@ -289,8 +358,9 @@ export async function processPendingJobsOnce({ limit = 10 } = {}) {
     const recoverable = trackedJob && RETRYABLE_JOB_TYPES.includes(resolvedJobType);
     const heartbeat = recoverable
       ? setInterval(() => {
-          withDbClientContext({ platformAdmin: true, tenantId: null }, (client) =>
-            heartbeatJob(client, job),
+          withDbClientContext(
+            { platformAdmin: true, tenantId: null },
+            (/** @type {TxClient} */ client) => heartbeatJob(client, job),
           ).catch((err) =>
             logger.warn({ jobId: job.id, err: err?.message }, "Job heartbeat failed"),
           );
@@ -302,9 +372,12 @@ export async function processPendingJobsOnce({ limit = 10 } = {}) {
       logger.info(jobLogContext(job, { businessId }), "Processing background job");
       const result = await handler({ ...(job.payload ?? {}), businessId });
       if (trackedJob) {
-        await withDbClientContext({ platformAdmin: true, tenantId: null }, async (client) => {
-          await completeClaimedJob(client, job, result);
-        });
+        await withDbClientContext(
+          { platformAdmin: true, tenantId: null },
+          async (/** @type {TxClient} */ client) => {
+            await completeClaimedJob(client, job, result);
+          },
+        );
         logger.info(jobLogContext(job, { businessId }), "Background job completed");
       } else {
         logger.info(
@@ -315,14 +388,17 @@ export async function processPendingJobsOnce({ limit = 10 } = {}) {
     } catch (e) {
       const message = errorMessage(e) ?? String(e);
       if (trackedJob) {
-        await withDbClientContext({ platformAdmin: true, tenantId: null }, async (client) => {
-          if (recoverable) await failClaimedJob(client, job);
-          else
-            await client.query(
-              "UPDATE background_jobs SET status='FAILED',error=$2,completed_at=now() WHERE id=$1 AND status='RUNNING' AND attempts=$3",
-              [job.id, message, job.attempts],
-            );
-        });
+        await withDbClientContext(
+          { platformAdmin: true, tenantId: null },
+          async (/** @type {TxClient} */ client) => {
+            if (recoverable) await failClaimedJob(client, job);
+            else
+              await client.query(
+                "UPDATE background_jobs SET status='FAILED',error=$2,completed_at=now() WHERE id=$1 AND status='RUNNING' AND attempts=$3",
+                [job.id, message, job.attempts],
+              );
+          },
+        );
         logger.warn(jobLogContext(job, { err: message }), "Background job failed");
       } else {
         logger.warn({ jobType: resolvedJobType, err: message }, "Job failed (Redis queue)");

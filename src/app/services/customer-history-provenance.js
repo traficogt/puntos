@@ -1,6 +1,30 @@
 import { awardSchema } from "./transaction-evidence-schema.js";
 
+/**
+ * transactions row joined for the customer history (reward_name, has_original_transaction).
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   branch_id: string | null,
+ *   customer_id: string,
+ *   amount_q: string | number | null,
+ *   points_delta: number | string,
+ *   source: string | null,
+ *   type: string | null,
+ *   status: string,
+ *   created_at: string | Date,
+ *   visits?: number | null,
+ *   items?: number | null,
+ *   meta?: Record<string, unknown> | null,
+ *   reward_name?: string | null,
+ *   has_original_transaction?: boolean,
+ *   reversed_transaction_id?: string | null,
+ * }} CustomerTransactionRow
+ */
+
+/** @type {Array<string | null>} */
 const purchaseSources = ["online", "offline", "external", "order"];
+/** @type {Map<string | null, string>} */
 const typeKinds = new Map([
   ["REFERRAL_REWARD", "referral_bonus"],
   ["ACHIEVEMENT", "achievement_bonus"],
@@ -14,6 +38,7 @@ const typeKinds = new Map([
   ["REDEMPTION", "redemption"],
   ["REFUND", "reversal"],
 ]);
+/** @type {Map<string | null, string>} */
 const sourceKinds = new Map([
   ["referral", "referral_bonus"],
   ["achievement", "achievement_bonus"],
@@ -30,6 +55,7 @@ const sourceKinds = new Map([
   ["pos_checkout_cancel", "reversal"],
 ]);
 
+/** @param {CustomerTransactionRow} row */
 function includesDocumentedBonus(row) {
   const parsed = awardSchema.safeParse(row.meta?.award_evidence);
   if (!parsed.success) return false;
@@ -48,7 +74,10 @@ function includesDocumentedBonus(row) {
   );
 }
 
-/** Classify only persisted, recognized evidence. Never expose metadata or infer a base/bonus split. */
+/**
+ * Classify only persisted, recognized evidence. Never expose metadata or infer a base/bonus split.
+ * @param {CustomerTransactionRow} row
+ */
 export function customerPointProvenance(row) {
   // The checkout cancellation writer records a zero-point ADJUSTMENT marker;
   // its actual balance restoration remains in the separate statement ledger.
@@ -97,7 +126,10 @@ export function customerPointProvenance(row) {
   return { kind, status, includes_bonus: kind === "purchase" && includesDocumentedBonus(row) };
 }
 
-/** Browser history retains public legacy fields; metadata and staff identifiers stay internal. */
+/**
+ * Browser history retains public legacy fields; metadata and staff identifiers stay internal.
+ * @param {CustomerTransactionRow} row
+ */
 export function publicCustomerTransaction(row) {
   return {
     id: row.id,

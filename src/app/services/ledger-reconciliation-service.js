@@ -1,14 +1,33 @@
 import crypto from "node:crypto";
 import { dbQuery, withTransaction } from "../database.js";
 
+/** @typedef {{ query: typeof dbQuery }} TxClient */
+/**
+ * Stored vs expected balance columns for one customer (readLedgerRows /
+ * ledger-correction-service.readCustomerLedgerRow). Counts arrive as ints or strings.
+ * @typedef {{
+ *   customer_id: string,
+ *   business_id: string,
+ *   stored_points?: number | string | null,
+ *   stored_pending_points?: number | string | null,
+ *   stored_lifetime_points?: number | string | null,
+ *   expected_points?: number | string | null,
+ *   expected_pending_points?: number | string | null,
+ *   expected_lifetime_points?: number | string | null,
+ * }} LedgerBalanceRow
+ */
+/** @typedef {ReturnType<typeof buildLedgerFinding>} LedgerFinding */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/** @param {unknown} value */
 function toInt(value) {
   return Number.parseInt(String(value ?? 0), 10) || 0;
 }
 
+/** @param {number | string | null | undefined} limit */
 function normalizeLimit(limit) {
   return Math.max(1, Math.min(50_000, Math.floor(Number(limit) || 0) || 5_000));
 }
@@ -20,6 +39,7 @@ function reconciliationScope({ businessId = null, customerId = null }) {
   return "all";
 }
 
+/** @param {Partial<LedgerBalanceRow> | null | undefined} row */
 export function expectedLedgerBalances(row) {
   return {
     points: toInt(row?.expected_points),
@@ -28,6 +48,7 @@ export function expectedLedgerBalances(row) {
   };
 }
 
+/** @param {Partial<LedgerBalanceRow> | null | undefined} row */
 export function isLedgerBalanceMismatch(row) {
   const expected = expectedLedgerBalances(row);
   return (
@@ -37,6 +58,7 @@ export function isLedgerBalanceMismatch(row) {
   );
 }
 
+/** @param {LedgerBalanceRow} row */
 export function buildLedgerFinding(row) {
   const expected = expectedLedgerBalances(row);
   const stored = {
@@ -152,6 +174,11 @@ async function insertRun({
   return runId;
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} runId
+ * @param {{ checkedCustomers: number, mismatchedCustomers: number, repairedCustomers: number, hasMore: boolean, limit: number }} summary
+ */
 async function markRunCompleted(client, runId, summary) {
   await client.query(
     `UPDATE ledger_reconciliation_runs
@@ -175,7 +202,12 @@ async function markRunCompleted(client, runId, summary) {
   );
 }
 
+/**
+ * @param {string} runId
+ * @param {unknown} error
+ */
 async function markRunFailed(runId, error) {
+  const message = /** @type {{ message?: unknown } | null | undefined} */ (error)?.message;
   await dbQuery(
     `UPDATE ledger_reconciliation_runs
      SET status = 'FAILED',
@@ -185,12 +217,18 @@ async function markRunFailed(runId, error) {
     [
       runId,
       JSON.stringify({
-        error: error?.message || String(error),
+        error: message || String(error),
       }),
     ],
   );
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} runId
+ * @param {LedgerFinding} finding
+ * @param {boolean} repaired
+ */
 async function recordFinding(client, runId, finding, repaired) {
   await client.query(
     `INSERT INTO ledger_reconciliation_findings
@@ -214,6 +252,10 @@ async function recordFinding(client, runId, finding, repaired) {
   );
 }
 
+/**
+ * @param {TxClient} client
+ * @param {LedgerFinding} finding
+ */
 async function repairBalance(client, finding) {
   await client.query(
     `INSERT INTO customer_balances
@@ -250,7 +292,7 @@ export async function runLedgerReconciliation({
     : null;
 
   try {
-    return await withTransaction(async (client) => {
+    return await withTransaction(async (/** @type {TxClient} */ client) => {
       const report = await readLedgerRows(client.query.bind(client), {
         businessId,
         customerId,

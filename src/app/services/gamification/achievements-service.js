@@ -5,10 +5,31 @@ import { withTransaction } from "../../database.js";
 import { DEFAULT_ACHIEVEMENTS } from "./default-achievements.js";
 import { getCustomerGamificationStats } from "./customer-stats.js";
 
+/** @typedef {typeof import("../../database.js").dbQuery} GamificationQuery */
+/** @typedef {{ query: GamificationQuery }} TxClient */
+/** @typedef {import("./customer-stats.js").GamificationStats} GamificationStats */
+/**
+ * achievements row.
+ * @typedef {{
+ *   id: string,
+ *   business_id: string,
+ *   name: string,
+ *   requirement_type: string,
+ *   requirement_value: number | string | null,
+ *   points_reward: number,
+ *   active: boolean,
+ *   [key: string]: unknown,
+ * }} AchievementRow
+ */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/**
+ * @param {string | null | undefined} sourceTransactionId
+ * @param {GamificationQuery} query
+ */
 async function sourceTransactionIsActive(sourceTransactionId, query) {
   if (!sourceTransactionId) return true;
   const { rows } = await query(
@@ -22,6 +43,10 @@ async function sourceTransactionIsActive(sourceTransactionId, query) {
   return Boolean(tx && tx.status === "POSTED" && !tx.reversed_transaction_id);
 }
 
+/**
+ * @param {GamificationStats} stats
+ * @param {string} requirementType
+ */
 export function achievementProgressValue(stats, requirementType) {
   switch (requirementType) {
     case "points":
@@ -41,6 +66,13 @@ export function achievementProgressValue(stats, requirementType) {
   }
 }
 
+/**
+ * @param {TxClient} client
+ * @param {GamificationStats} stats
+ * @param {string} customerId
+ * @param {AchievementRow} achievement
+ * @param {{ sourceTransactionId?: string | null }} [context]
+ */
 async function awardAchievementPoints(client, stats, customerId, achievement, context = {}) {
   if (achievement.points_reward <= 0) return undefined;
   const rewardTransactionId = id();
@@ -71,6 +103,7 @@ async function awardAchievementPoints(client, stats, customerId, achievement, co
   return rewardTransactionId;
 }
 
+/** @param {string} businessId */
 export async function createDefaultAchievements(businessId) {
   const achievements = [];
   for (const achievementData of DEFAULT_ACHIEVEMENTS) {
@@ -89,7 +122,7 @@ export async function createDefaultAchievements(businessId) {
  * @param {{ sourceTransactionId?: string | null }} [context]
  */
 export async function checkAndAwardAchievements(customerId, _eventType = null, context = {}) {
-  return withTransaction(async (client) => {
+  return withTransaction(async (/** @type {TxClient} */ client) => {
     const q = client.query.bind(client);
     if (!(await sourceTransactionIsActive(context.sourceTransactionId || null, q))) {
       return [];
@@ -135,9 +168,12 @@ export async function checkAndAwardAchievements(customerId, _eventType = null, c
   });
 }
 
+/** @param {string} customerId */
 export async function getCustomerAchievementsWithProgress(customerId) {
+  /** @type {Array<{ achievement_id: string, [key: string]: unknown }>} */
   const earned = await GamificationRepository.getCustomerAchievements(customerId);
   const stats = await getCustomerGamificationStats(customerId);
+  /** @type {AchievementRow[]} */
   const allAchievements = await GamificationRepository.listAchievements(stats.business_id);
 
   const inProgress = allAchievements

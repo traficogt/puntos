@@ -8,10 +8,14 @@ import { createApnsProvider } from "./apns.js";
 import { createMobilePushService } from "./service.js";
 
 export const mobilePushSettings = loadMobilePushConfig();
+/** @type {ReturnType<typeof createApnsProvider> | undefined} */
 let provider;
 if (mobilePushSettings.ready) {
   try {
-    provider = createApnsProvider(mobilePushSettings.config);
+    // ready implies config (loadMobilePushConfig).
+    provider = createApnsProvider(
+      /** @type {import("./config.js").MobilePushConfig} */ (mobilePushSettings.config),
+    );
   } catch {
     mobilePushSettings.ready = false;
     mobilePushSettings.errors.push("APNS_INITIALIZATION_FAILED");
@@ -27,11 +31,14 @@ export const mobilePushService = createMobilePushService({
   provider,
   settings: mobilePushSettings,
   planConfigService: PlanConfigService,
-  getRewardProgress: (identity) =>
-    withDbClientContext({ platformAdmin: false, tenantId: identity.businessId }, (client) =>
-      getCustomerRewardProgress(client, identity),
+  getRewardProgress: (/** @type {{ businessId: string, customerId: string }} */ identity) =>
+    withDbClientContext(
+      { platformAdmin: false, tenantId: identity.businessId },
+      (/** @type {import("../customer-reward-progress.js").TxClient} */ client) =>
+        getCustomerRewardProgress(client, identity),
     ),
-  globalContext: (fn) => withDbClientContext({ platformAdmin: true, tenantId: null }, fn),
+  globalContext: (/** @type {() => Promise<unknown>} */ fn) =>
+    withDbClientContext({ platformAdmin: true, tenantId: null }, fn),
 });
 let running = false;
 export async function processMobilePushUpdates() {

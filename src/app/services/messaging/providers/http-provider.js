@@ -5,6 +5,10 @@ const REJECTED_STATUSES = new Set([400, 401, 403, 404, 405, 413, 415, 422, 429])
 
 // Error objects deliberately contain no upstream response, URL, recipient or key.
 export class MessageProviderError extends Error {
+  /**
+   * @param {string} code
+   * @param {boolean} [deliveryUncertain]
+   */
   constructor(code, deliveryUncertain = false) {
     super(code);
     this.name = "MessageProviderError";
@@ -12,11 +16,16 @@ export class MessageProviderError extends Error {
   }
 }
 
+/** @param {unknown} phone */
 export function internationalPhoneDigits(phone) {
   const value = typeof phone === "string" ? phone.trim() : "";
   return /^\+?[1-9]\d{7,14}$/.test(value) ? value.replace(/^\+/, "") : "";
 }
 
+/**
+ * @param {unknown} baseUrl
+ * @param {string} route
+ */
 export function providerUrl(baseUrl, route) {
   try {
     const url = new URL(String(baseUrl || ""));
@@ -35,6 +44,7 @@ export function providerUrl(baseUrl, route) {
   }
 }
 
+/** @param {unknown} value */
 export function providerTimeoutMs(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0
@@ -42,6 +52,10 @@ export function providerTimeoutMs(value) {
     : 10_000;
 }
 
+/**
+ * @param {string} provider
+ * @param {unknown} messageId
+ */
 export function providerReceipt(provider, messageId) {
   if (typeof messageId !== "string" || !messageId.trim()) {
     throw new MessageProviderError("MESSAGE_DELIVERY_UNCERTAIN", true);
@@ -50,6 +64,11 @@ export function providerReceipt(provider, messageId) {
   return `${provider}:${createHash("sha256").update(messageId).digest("hex")}`;
 }
 
+/**
+ * Reads a bounded JSON body. Upstream payloads are provider-specific, so the parsed
+ * value keeps JSON.parse's type and each provider picks the receipt field it needs.
+ * @param {Response} response
+ */
 async function readJson(response) {
   if (!response.body) throw new MessageProviderError("MESSAGE_DELIVERY_UNCERTAIN", true);
   const reader = response.body.getReader();
@@ -72,6 +91,16 @@ async function readJson(response) {
   }
 }
 
+/**
+ * @param {{
+ *   url: string,
+ *   headers?: Record<string, string | undefined>,
+ *   payload: Record<string, unknown>,
+ *   timeoutMs?: unknown,
+ *   fetchImpl: typeof fetch,
+ *   form?: boolean,
+ * }} request
+ */
 export async function sendProviderJson({
   url,
   headers,
@@ -85,12 +114,16 @@ export async function sendProviderJson({
   try {
     const response = await fetchImpl(url, {
       method: "POST",
-      headers: {
+      // Providers send only after their readiness checks, so every header is a string
+      // and a form payload (Twilio) is a flat string map.
+      headers: /** @type {Record<string, string>} */ ({
         "Content-Type": form ? "application/x-www-form-urlencoded" : "application/json",
         Accept: "application/json",
         ...headers,
-      },
-      body: form ? new URLSearchParams(payload).toString() : JSON.stringify(payload),
+      }),
+      body: form
+        ? new URLSearchParams(/** @type {Record<string, string>} */ (payload)).toString()
+        : JSON.stringify(payload),
       signal: controller.signal,
       // Never replay a POST or forward authentication to a redirect target.
       redirect: "manual",

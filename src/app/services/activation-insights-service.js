@@ -6,6 +6,11 @@ import { businessRegion } from "./regional-settings.js";
 import { activityAttributionSql } from "./activity-attribution.js";
 
 const uuid = z.guid();
+/**
+ * @param {string} businessId
+ * @param {string | null} branchId
+ * @param {Date} now
+ */
 async function scope(businessId, branchId, now) {
   if (!uuid.safeParse(businessId).success || getDbTenantId() !== businessId)
     throw notFound("Negocio no disponible.");

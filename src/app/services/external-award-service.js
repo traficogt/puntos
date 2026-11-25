@@ -14,10 +14,43 @@ import { timingSafeEqualString } from "../../utils/timing-safe.js";
 import { isLedgerAmount, isLedgerInteger } from "../../utils/ledger-limits.js";
 import { purchaseEventTime, assertPurchaseTimeReplay } from "./purchase-event-time.js";
 
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
+/**
+ * businesses row as the award flow needs it (program_json and the protected
+ * earning cycle, when reward-promise-service attaches one).
+ * @typedef {{
+ *   id: string,
+ *   program_json?: MerchantProgramJson | null,
+ *   reward_promise_cycle_id?: string | null,
+ *   [key: string]: unknown,
+ * }} ExternalAwardBusiness
+ */
+/**
+ * transactions row of a previous external award (replay detection).
+ * @typedef {{
+ *   id: string,
+ *   customer_id: string,
+ *   amount_q: string | number | null,
+ *   visits: number | null,
+ *   items: number | null,
+ *   points: number | string | null,
+ *   status: string | null,
+ *   available_at: string | Date | null,
+ *   meta: Record<string, unknown> | null,
+ *   purchase_occurred_at?: string | Date | null,
+ *   purchase_time_source?: string | null,
+ * }} ExternalAwardTransactionRow
+ */
+
 function id() {
   return crypto.randomUUID();
 }
 
+/**
+ * @param {string} prefix
+ * @param {unknown} payload
+ */
 function hashPayload(prefix, payload) {
   return crypto
     .createHash("sha256")
@@ -25,16 +58,23 @@ function hashPayload(prefix, payload) {
     .digest("hex");
 }
 
+/**
+ * @param {unknown} value
+ * @returns {unknown}
+ */
 function canonicalValue(value) {
   if (Array.isArray(value)) return value.map(canonicalValue);
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
     Object.keys(value)
       .sort()
-      .map((key) => [key, canonicalValue(value[key])]),
+      .map((key) => [key, canonicalValue(/** @type {Record<string, unknown>} */ (value)[key])]),
   );
 }
 
+/**
+ * @param {{ customerId: unknown, amountQ: unknown, visits: unknown, items: unknown, meta: unknown }} sale
+ */
 function buildExternalAwardFingerprint({ customerId, amountQ, visits, items, meta }) {
   // Program settings and the resulting ledger status are not part of the sale.
   return `v2:${hashPayload("external-award-v2", {
@@ -46,6 +86,7 @@ function buildExternalAwardFingerprint({ customerId, amountQ, visits, items, met
   })}`;
 }
 
+/** @param {ExternalAwardTransactionRow} existing */
 function storedRequestFingerprint(existing) {
   if ([existing.amount_q, existing.visits, existing.items].some((value) => value == null))
     return null;
@@ -67,22 +108,22 @@ function storedRequestFingerprint(existing) {
 
 /**
  * @typedef {{
- *   withTransaction: <T>(fn: (client: { query: (...args: any[]) => Promise<any> }) => Promise<T>) => Promise<T>,
+ *   withTransaction: <T>(fn: (client: TxClient) => Promise<T>) => Promise<T>,
  *   setCurrentTenant: (tenantId: string) => Promise<void>,
  *   BusinessRepo: {
  *     getPublicBySlug: (slug: string) => Promise<{ id: string } | null>,
- *     getById: (id: string) => Promise<{ id: string, program_json?: Record<string, any>, reward_promise_cycle_id?: string } | null>
+ *     getById: (id: string) => Promise<ExternalAwardBusiness | null>
  *   },
  *   CustomerRepo: {
  *     getById: (customerId: string) => Promise<{ id: string, business_id: string } | null>,
  *     getByBusinessAndPhone: (businessId: string, phone: string) => Promise<{ id: string, business_id: string } | null>
  *   },
- *   computePoints: (business: any, values: { amount_q?: number, visits?: number, items?: number }) => number,
+ *   computePoints: (business: ExternalAwardBusiness, values: { amount_q?: number, visits?: number, items?: number }) => number,
  *   computePointsWithEvidence?: typeof computePointsWithEvidence,
  *   claimTargetedOffer?: typeof claimTargetedOffer,
  *   protectedEarningBusiness?: typeof protectedEarningBusiness,
- *   getPlanFeatureOverrides?: () => Promise<Record<string, any>>,
- *   timingSafeEqualString: (left: string, right: string) => boolean
+ *   getPlanFeatureOverrides?: () => Promise<Record<string, unknown>>,
+ *   timingSafeEqualString: (left: string, right: string | null | undefined) => boolean
  * }} ExternalAwardDeps
  *
  * @typedef {{
@@ -102,6 +143,11 @@ function storedRequestFingerprint(existing) {
  * }} ExternalAwardInput
  */
 
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string} externalEventId
+ */
 async function lockExternalEventRequest(client, businessId, externalEventId) {
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`, [
     String(businessId),
@@ -109,6 +155,12 @@ async function lockExternalEventRequest(client, businessId, externalEventId) {
   ]);
 }
 
+/**
+ * @param {TxClient} client
+ * @param {string} businessId
+ * @param {string} externalEventId
+ * @returns {Promise<ExternalAwardTransactionRow | null>}
+ */
 async function findExistingExternalEventTransaction(client, businessId, externalEventId) {
   const { rows } = await client.query(
     `SELECT id, customer_id, amount_q, visits, items, points, status, available_at, meta, purchase_occurred_at, purchase_time_source
@@ -154,9 +206,10 @@ export async function awardFromExternalEventWithDeps(
   // invalidate existing request fingerprints. Freeze the fallback before locking.
   const posCurrency =
     meta?.pos_sale && typeof meta.pos_sale === "object"
-      ? (meta.pos_sale["currency"] ?? "GTQ")
+      ? (/** @type {Record<string, unknown>} */ (meta.pos_sale)["currency"] ?? "GTQ")
       : undefined;
   const settlementCurrency = expectedCurrency ?? posCurrency ?? regionCurrency(business);
+  /** @type {NonNullable<MerchantProgramJson["external_awards"]>} */
   const ext = business.program_json?.external_awards ?? {};
   if (!ext.enabled) throw forbidden("External awards are disabled");
   if (!skipApiKeyCheck && (!apiKey || !deps.timingSafeEqualString(apiKey, ext.api_key)))

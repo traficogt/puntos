@@ -1,13 +1,43 @@
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 
+/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/**
+ * Injected collaborators: the real repositories, or test fakes implementing
+ * the methods a given call reaches. Each method is checked before use.
+ * @typedef {{
+ *   client?: TxClient | null,
+ *   dbClient?: TxClient | null,
+ *   CustomerRepo?: Partial<Pick<typeof import("../repositories/customer-repository.js").CustomerRepo, "getByBusinessAndId">> | null,
+ *   ContactIdentifierRepo?: Partial<typeof import("../repositories/contact-identifier-repository.js").ContactIdentifierRepo> | null,
+ * } | null | undefined} ContactIdentifierDeps
+ */
+/**
+ * Raw request fields; everything is re-validated as text here.
+ * @typedef {{
+ *   businessId?: unknown,
+ *   customerId?: unknown,
+ *   identifierType?: unknown,
+ *   identifierValue?: unknown,
+ *   label?: string | null,
+ *   meta?: Record<string, unknown>,
+ * } | null | undefined} ContactIdentifierInput
+ */
+
+/** @param {unknown} value */
 function toText(value) {
   return String(value ?? "").trim();
 }
 
+/** @param {ContactIdentifierDeps} deps */
 function getClient(deps) {
   return deps?.client ?? deps?.dbClient ?? null;
 }
 
+/**
+ * @param {ContactIdentifierDeps} deps
+ * @param {string} businessId
+ * @param {string} customerId
+ */
 async function requireScopedCustomer(deps, businessId, customerId) {
   const customerRepo = deps?.CustomerRepo;
   if (!customerRepo?.getByBusinessAndId) {
@@ -22,6 +52,12 @@ async function requireScopedCustomer(deps, businessId, customerId) {
   return customer;
 }
 
+/**
+ * @param {ContactIdentifierDeps} deps
+ * @param {string} businessId
+ * @param {string} identifierType
+ * @param {string} identifierValue
+ */
 async function getActiveIdentifier(deps, businessId, identifierType, identifierValue) {
   const repo = deps?.ContactIdentifierRepo;
   if (!repo?.getByBusinessTypeAndValue) {
@@ -36,6 +72,12 @@ async function getActiveIdentifier(deps, businessId, identifierType, identifierV
   );
 }
 
+/**
+ * @param {ContactIdentifierDeps} deps
+ * @param {string} businessId
+ * @param {string} identifierType
+ * @param {string} identifierValue
+ */
 async function getAnyIdentifier(deps, businessId, identifierType, identifierValue) {
   const repo = deps?.ContactIdentifierRepo;
   if (!repo?.getAnyByBusinessTypeAndValue) {
@@ -50,6 +92,10 @@ async function getAnyIdentifier(deps, businessId, identifierType, identifierValu
   );
 }
 
+/**
+ * @param {ContactIdentifierDeps} deps
+ * @param {ContactIdentifierInput} input
+ */
 export async function linkContactIdentifierWithDeps(deps, input) {
   const businessId = toText(input?.businessId);
   const customerId = toText(input?.customerId);
@@ -105,6 +151,10 @@ export async function linkContactIdentifierWithDeps(deps, input) {
   });
 }
 
+/**
+ * @param {ContactIdentifierDeps} deps
+ * @param {ContactIdentifierInput} input
+ */
 export async function listContactIdentifiersWithDeps(deps, input) {
   const businessId = toText(input?.businessId);
   const customerId = toText(input?.customerId);
@@ -121,6 +171,10 @@ export async function listContactIdentifiersWithDeps(deps, input) {
   return repo.listByCustomer(getClient(deps), businessId, customer.id);
 }
 
+/**
+ * @param {ContactIdentifierDeps} deps
+ * @param {ContactIdentifierInput} input
+ */
 export async function unlinkContactIdentifierWithDeps(deps, input) {
   const businessId = toText(input?.businessId);
   const identifierType = toText(input?.identifierType);
@@ -149,6 +203,10 @@ export async function unlinkContactIdentifierWithDeps(deps, input) {
   return deactivated;
 }
 
+/**
+ * @param {ContactIdentifierDeps} deps
+ * @param {ContactIdentifierInput} input
+ */
 export async function resolveContactIdentifierWithDeps(deps, input) {
   const businessId = toText(input?.businessId);
   const identifierType = toText(input?.identifierType);

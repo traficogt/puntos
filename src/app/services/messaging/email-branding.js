@@ -1,5 +1,6 @@
 import { config } from "../../../config/index.js";
 
+/** @param {unknown} value */
 function isPublicHttpOrigin(value) {
   const origin = String(value || "").trim();
   if (!origin.startsWith("http://") && !origin.startsWith("https://")) return false;
@@ -27,11 +28,16 @@ const PLATFORM_EMAIL_BRANDING = {
   poweredByVisible: false,
 };
 
+/**
+ * @param {unknown} value
+ * @param {string} fallback
+ */
 function normalizeHexColor(value, fallback) {
   const color = String(value || "").trim();
   return /^#[0-9A-Fa-f]{6}$/.test(color) ? color.toUpperCase() : fallback;
 }
 
+/** @param {unknown} value */
 function normalizeLogoUrl(value) {
   const url = String(value || "").trim();
   if (!url) return "";
@@ -58,7 +64,7 @@ function normalizeLogoUrl(value) {
  */
 
 /**
- * @typedef {{ name?: string | null, customer_branding_json?: Record<string, any> | null }} BrandingSource
+ * @typedef {{ name?: string | null, customer_branding_json?: Record<string, unknown> | null }} BrandingSource
  * @param {{
  *   businessId?: string | null,
  *   business?: BrandingSource | null,

@@ -28,6 +28,7 @@ import { MessageProviderError } from "./providers/http-provider.js";
  */
 export function createMessageRouter({ order, providers }) {
   return {
+    /** @param {RoutedMessage} message */
     canSend(message) {
       return order.some((name) => Boolean(providers[name]?.canSend(message)));
     },
