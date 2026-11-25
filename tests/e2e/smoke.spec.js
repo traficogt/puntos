@@ -9,9 +9,11 @@ test("homepage loads and exposes the demo CTA", async ({ page }) => {
   await useRandomClientIp(page);
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 1 })).toContainText(/se repite/i);
-  const demoLink = page
-    .locator(".marketing-hero")
-    .getByRole("link", { name: "Probar la demo", exact: true });
+  const hero = page.locator(".marketing-hero");
+  const trialLink = hero.getByRole("link", { name: "Prueba gratis 14 días", exact: true });
+  await expect(trialLink).toBeVisible();
+  await expect(trialLink).toHaveAttribute("href", "/prueba/");
+  const demoLink = hero.getByRole("link", { name: "Ver la demo", exact: true });
   await expect(demoLink).toBeVisible();
   await expect(demoLink).toHaveAttribute("href", "/demostracion/");
 });

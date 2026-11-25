@@ -106,3 +106,10 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''(^|/)docs/superpowers/plans/2026\-11\-14\-measurement\-completion\.md$''']
 regexes = ['''^\s*- \[[ x]\] \QPersistence/API: `2026-11-14-b-campaign-measurement.sql`, growth/preparation services and growth routes. Validate identical creation/retry terms including plan; 50% allocation; frozen baseline; tenant-scoped append-only costs and report cuts; owner authorization, CSRF and idempotency tests.\E\s*$''']
+
+[[rules.allowlists]]
+description = "Synthetic owner password in the trial signup unit test; not a credential"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)tests/unit/trial\-signup\-model\.test\.js$''']
+regexes = ['''^\s*\Q{ businessName: "Café Bourbon", email: "ana@example.com", password: "OrchardLantern2026" },\E\s*$''']
