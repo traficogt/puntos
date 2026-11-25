@@ -74,6 +74,11 @@ export const navigationGroups = [
       { page: "pilot", label: "Mi piloto" },
       { page: "operations", label: "Estado de la operación" },
       { page: "onboarding", label: "Puesta en marcha y guías" },
+      // operations (wave 15b)
+      { page: "alerts", label: "Alertas y pagos pendientes" },
+      { page: "jobs", label: "Trabajos en segundo plano" },
+      { page: "ledger", label: "Conciliación del libro de puntos" },
+      { page: "audit", label: "Auditoría" },
     ],
   },
 ];
@@ -119,4 +124,9 @@ export const pageFeatures = {
   pos: ["external_awards"],
   economics: ["analytics"],
   pilot: ["analytics"],
+  // operations (wave 15b): these lived in the vanilla analytics tab, which required `analytics`.
+  jobs: ["analytics"],
+  alerts: ["analytics"],
+  ledger: ["analytics"],
+  audit: ["analytics"],
 };

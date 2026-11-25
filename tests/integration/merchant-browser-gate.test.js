@@ -35,6 +35,8 @@ const runners = [
     "first-purchase-returns-browser.spec.mjs",
     /First purchase report:.*light\/dark and axe passed\./,
   ],
+  // operations (wave 15b)
+  ["owner operations", "owner-operations-browser.spec.mjs", /Owner operations browser:.*passed\./],
 ];
 
 for (const [name, file, completion] of runners) {

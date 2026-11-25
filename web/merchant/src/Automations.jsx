@@ -2,6 +2,7 @@ import { NumberInput, Select } from './inputs';
 import {merchantRegion} from './region.js';
 import SecondVisitControls from "./SecondVisitControls.jsx";
 import WeeklyOwnerBrief from "./WeeklyOwnerBrief.jsx";
+import AutomationTemplates from "./AutomationTemplates.tsx";
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {useForm} from '@mantine/form';
 import {Alert,Badge,Button,Fieldset,Group,Progress,SimpleGrid,Stack,Switch,Table,Text,Title} from '@mantine/core';
@@ -67,6 +68,8 @@ function AutomationEditor({data,onDirty,onSaved}) {
     <Alert color="blue" title="Solo clientes que aceptaron promociones">Se requiere consentimiento y un teléfono disponible. Los puntos se abonan al preparar el incentivo; un mensaje fallido, pausado o no entregado no revierte ese abono. Los envíos respetan el horario de 9:00 a 18:00 en {data.timezone} y el límite compartido con tus campañas.</Alert>
     <form onSubmit={save}>
       <Stack gap="lg">
+        {/* Plantillas (wave 15b): prefill only; the save below validates budgets and writes PUT /api/admin/automations. */}
+        <AutomationTemplates current={form.values} disabled={saving} onApply={values=>form.setValues(values)}/>
         <SimpleGrid cols={{base:1,lg:2}} spacing="lg">
           {['birthday','winback'].map(rule=><Fieldset key={rule} legend={titles[rule]} disabled={saving}>
             <Stack gap="md">

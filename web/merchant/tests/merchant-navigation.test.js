@@ -16,6 +16,8 @@ const existingRoutes = {
   automations: "automatizaciones", reports: "reportes", limits: "limites",
   tiers: "niveles", gamification: "logros-y-retos", giftcards: "tarjetas-de-regalo",
   branding: "identidad", onboarding: "puesta-en-marcha",
+  // operations (wave 15b)
+  jobs: "trabajos", alerts: "alertas", ledger: "conciliacion", audit: "auditoria",
 };
 
 test("the task catalog includes every existing and routable merchant page exactly once", () => {

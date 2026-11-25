@@ -37,6 +37,11 @@ const fragments = {
   giftcards: "tarjetas-de-regalo",
   branding: "identidad",
   onboarding: "puesta-en-marcha",
+  // operations (wave 15b)
+  jobs: "trabajos",
+  alerts: "alertas",
+  ledger: "conciliacion",
+  audit: "auditoria",
 };
 export const merchantPages = Object.keys(fragments);
 export function pageFromHash(hash) {

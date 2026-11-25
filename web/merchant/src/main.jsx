@@ -44,6 +44,11 @@ const OwnerReports = lazy(() => import('./OwnerReports.tsx'));
 const OwnerProgramLimits = lazy(() => import('./OwnerProgramLimits.tsx'));
 const OwnerOnboarding = lazy(() => import('./OwnerOnboarding.tsx'));
 const OwnerProgress = lazy(() => import('./OwnerProgress.tsx'));
+// operations (wave 15b)
+const OwnerJobs = lazy(() => import('./OwnerJobs.tsx'));
+const OwnerAlerts = lazy(() => import('./OwnerAlerts.tsx'));
+const OwnerLedger = lazy(() => import('./OwnerLedger.tsx'));
+const OwnerAudit = lazy(() => import('./OwnerAudit.tsx'));
 const RewardsWorkspace = lazy(() => import('./RewardsWorkspace.jsx'));
 const Fulfillment = lazy(() => import('./Fulfillment.jsx'));
 const RegionSettings = lazy(() => import('./RegionSettings.jsx'));
@@ -465,6 +470,14 @@ function Merchant({ staff }) {
                     features={plan.data?.features || {}}
                     onDirty={setDirty}
                   />
+                ) : /* operations (wave 15b) */ page === "jobs" ? (
+                  <OwnerJobs staff={staff} features={plan.data?.features || {}} onNavigate={navigate} />
+                ) : page === "alerts" ? (
+                  <OwnerAlerts staff={staff} features={plan.data?.features || {}} onNavigate={navigate} />
+                ) : page === "ledger" ? (
+                  <OwnerLedger staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                ) : page === "audit" ? (
+                  <OwnerAudit staff={staff} features={plan.data?.features || {}} onNavigate={navigate} />
                 ) : (
                   <Campaigns
                     features={plan.data?.features || {}}
