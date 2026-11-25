@@ -49,6 +49,9 @@ const OwnerJobs = lazy(() => import('./OwnerJobs.tsx'));
 const OwnerAlerts = lazy(() => import('./OwnerAlerts.tsx'));
 const OwnerLedger = lazy(() => import('./OwnerLedger.tsx'));
 const OwnerAudit = lazy(() => import('./OwnerAudit.tsx'));
+// analytics (wave 15a)
+const OwnerAnalytics = lazy(() => import('./OwnerAnalytics.tsx'));
+const OwnerRewardRedemptions = lazy(() => import('./OwnerRewardRedemptions.tsx'));
 const RewardsWorkspace = lazy(() => import('./RewardsWorkspace.jsx'));
 const Fulfillment = lazy(() => import('./Fulfillment.jsx'));
 const RegionSettings = lazy(() => import('./RegionSettings.jsx'));
@@ -346,9 +349,11 @@ function Merchant({ staff }) {
             <div id="merchant-navigation" hidden={compactNavigation && !navigationOpen}>
             <MerchantNavigation page={page} visible={!compactNavigation || navigationOpen} onNavigate={navigate} features={plan.data?.features} />
             <div className="sidebar-secondary">
-              <BusinessLink href="/administracion/?seccion=analisis">
-                Informes detallados
-              </BusinessLink>
+              {plan.data?.features?.analytics && (
+                <Anchor component="button" type="button" onClick={() => navigate("analytics")}>
+                  Informes detallados
+                </Anchor>
+              )}
               <BusinessLink href="/equipo/escaner/">Abrir escáner</BusinessLink>
             </div>
             <Text size="xs" c="dimmed" className="plan-name">
@@ -419,6 +424,10 @@ function Merchant({ staff }) {
                   <OwnerProgramLimits staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "onboarding" ? (
                   <OwnerOnboarding staff={staff} features={plan.data?.features || {}} onNavigate={navigate} />
+                ) : page === "analytics" ? (
+                  <OwnerAnalytics staff={staff} features={plan.data?.features || {}} onNavigate={navigate} />
+                ) : page === "redemptions" ? (
+                  <OwnerRewardRedemptions staff={staff} features={plan.data?.features || {}} onNavigate={navigate} />
                 ) : page === "decisions" ? (
                   <Decisions />
                 ) : page === "cases" ? (

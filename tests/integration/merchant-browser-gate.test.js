@@ -37,6 +37,12 @@ const runners = [
   ],
   // operations (wave 15b)
   ["owner operations", "owner-operations-browser.spec.mjs", /Owner operations browser:.*passed\./],
+  // analytics (wave 15a)
+  [
+    "analytics suite",
+    "owner-analytics-browser.spec.mjs",
+    /Analytics browser:.*redemption ledger detail, axe at 1280\/390 passed\./,
+  ],
 ];
 
 for (const [name, file, completion] of runners) {

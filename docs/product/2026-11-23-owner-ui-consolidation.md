@@ -103,3 +103,39 @@ Demo fixtures live in `demo-owner-program.ts`; the demo plan now also advertises
   ("Explorar todas las funciones") and former group labels. The unit test
   `merchant-navigation.test.js` was also stale (expected five daily items and four groups) and was
   updated to the current navigation plus the new pages.
+
+## Wave 15a (2026-11-25): analytics suite ported to the merchant app
+
+Owner decision: retire the vanilla dashboard and converge on the merchant app. This wave ports the
+analytics half of the remaining vanilla-only capabilities (the operations/ledger/audit half is a
+separate wave). No server change; every view keeps the `analytics` plan gate the vanilla tab used
+(`pageFeatures` hides the menu entries, `OwnerRestricted` renders without sending a request).
+
+| View | Route | Vanilla capability | Endpoints |
+| --- | --- | --- | --- |
+| `OwnerAnalytics.tsx` | `#analitica` (Avanzado; also "Informes detallados" in the sidebar and the demo menu) | Executive summary (`renderExecutiveSummary`: narrative, KPI tiles, suggested actions), summary tiles, growth radar and smart alert (folded into the narrative and suggestions), RFM distribution, 30-day revenue trend, branch performance + branch comparison table (one table, "Filtrar" drill-down), branch-vs-global benchmark, cohort retention, churn list, "Reporte ROI" (shown as a factual 30/60/90-day comparison, no ROI claim), IVA CSV export | `GET /api/admin/analytics/dashboard[?branch_id]` (twice when a branch is filtered, for the benchmark), `GET /api/admin/analytics/churn-risk?limit=10[&branch_id]`, `GET /api/admin/analytics/cohorts?months=12`, `GET /api/admin/roi?days=30\|60\|90`, `GET /api/admin/branches`, `GET /api/admin/billing/iva.csv?from&to` |
+| `OwnerRewardRedemptions.tsx` | `#canjes-por-recompensa` (Avanzado) | Rewards tab "Ver canje" + "Ledger de canjes" (now every one of the latest 20 redemptions, with the server's consistency flag, and the detail of any of them) | `GET /api/admin/rewards`, `GET /api/admin/analytics/rewards/:id/redemptions`, `GET /api/admin/analytics/redemptions/:id` |
+
+Shared derivation code lives in `owner-analytics-model.ts` (executive metrics, narrative,
+suggestions, RFM order, trend/benchmark rows, cohort pivot, redemption consistency, IVA CSV split
+and download-name parsing); demo fixtures in `demo-owner-analytics.ts` reuse the Overview preview's
+daily series so both screens agree. The CSV download fetches with the session cookie and honours
+the server's `Content-Disposition` name; the preview generates the same file locally.
+
+Observations for the owner (no server change made):
+
+- The vanilla cohort card read `cohort_month`/`m1`/`m2`/`m3`, fields the cohorts endpoint never
+  returns (it returns one row per cohort and month offset: `cohort_name`, `cohort_size`,
+  `month_number`, `retention_rate`). The new matrix reads the real shape. The endpoint also reports
+  0 % for months that have not started yet; the view shows those as pending.
+- `/api/admin/roi` never returns `roi_ratio`; the vanilla "ROI" tile therefore always fell back to
+  the redemption rate. The new view labels that figure as what it is (canjes por cada 100 compras)
+  and the definitions say rentabilidad and retorno are not calculated. Its "Tasa repetición" is
+  active customers over the base, now labelled so.
+- `/api/admin/roi` and `/api/admin/billing/iva.csv` are owner-only on the server but not behind the
+  `analytics` plan feature; the merchant app keeps them inside the analytics page, as the vanilla tab
+  did. Moving the IVA export to Reportes (every plan) would be a one-line UI change.
+- The real IVA CSV's `fecha` column is the DATE serialised as an ISO timestamp
+  (`2026-11-10T06:00:00.000Z`); a `to_char(..., 'YYYY-MM-DD')` on the server would make it a plain date.
+- The vanilla narrative also counted open operational alerts (`/api/admin/alerts`); that reading
+  belongs to the operations wave and is not repeated here.

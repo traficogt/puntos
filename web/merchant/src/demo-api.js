@@ -3,6 +3,7 @@ import {demoOwnerWorkspace} from './demo-owner-workspace.ts';
 import {demoOwnerProgram} from './demo-owner-program.ts';
 import {demoOwnerProgress} from './demo-owner-progress.ts';
 import {demoOwnerOperations} from './demo-owner-operations.ts';
+import {demoOwnerAnalytics} from './demo-owner-analytics.ts'; // analytics (wave 15a)
 import {demoServiceCompletion} from './demo-service-completion.js';
 import {demoDemandFunding} from './demo-demand-funding.js';
 import {demoEvidenceHealth} from './demo-evidence-health.js';
@@ -135,6 +136,10 @@ export async function demoApi(path, options = {}) {
   const operationsResponse = demoOwnerOperations(url, options);
   if (operationsResponse !== undefined) return structuredClone(operationsResponse);
   if(url.pathname==='/api/admin/data-health'||url.pathname==='/api/admin/transaction-rejections')return demoEvidenceHealth(url,options);
+  // analytics (wave 15a): dashboard, churn, cohorts, /admin/roi, reward redemption ledger, IVA CSV.
+  const analyticsResponse = demoOwnerAnalytics(url, options);
+  if (analyticsResponse !== undefined) return structuredClone(analyticsResponse);
+  if(url.pathname==='/api/admin/data-health'||url.pathname==='/api/admin/transaction-rejections'||url.pathname.startsWith('/api/admin/analytics/ledger-corrections'))return demoEvidenceHealth(url,options);
   if (['/api/admin/demand-notebook','/api/admin/supplier-funding'].some(prefix=>url.pathname.startsWith(prefix))) return demoDemandFunding(url,options);
   if (url.pathname.startsWith('/api/admin/service-operations')) return demoServiceCompletion(url,options);
   const method = options.method || "GET";

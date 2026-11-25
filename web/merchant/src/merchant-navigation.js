@@ -79,6 +79,9 @@ export const navigationGroups = [
       { page: "jobs", label: "Trabajos en segundo plano" },
       { page: "ledger", label: "Conciliación del libro de puntos" },
       { page: "audit", label: "Auditoría" },
+      // analytics (wave 15a)
+      { page: "analytics", label: "Analítica avanzada" },
+      { page: "redemptions", label: "Canjes por recompensa" },
     ],
   },
 ];
@@ -97,13 +100,15 @@ export const demoNavigation = [
   { page: "growth", label: "Campañas y ofertas" },
   { page: "brand", label: "Marca y QR" },
   { page: "fulfillment", label: "Canjes y caja" },
+  // analytics (wave 15a)
+  { page: "analytics", label: "Analítica" },
 ];
 
 // Plan features each page requires to be usable (ALL must be present). Derived
 // from the components' own lock checks (Campaigns, Automations, Recovery,
 // Referrals, GrowthCampaigns, Audiences, OwnerTeam, OwnerBranches, BrandedQr,
 // PosConnect, Economics, Pilot, OwnerTiers, OwnerGamification, OwnerGiftCards,
-// OwnerReports, OwnerProgramLimits). Pages not listed are core and always shown —
+// OwnerReports, OwnerProgramLimits, OwnerAnalytics, OwnerRewardRedemptions). Pages not listed are core and always shown —
 // including overview/launch/rewards/customers/settings/acquisition/branding/
 // onboarding, which only lock a sub-widget, not the whole page.
 export const pageFeatures = {
@@ -129,4 +134,7 @@ export const pageFeatures = {
   alerts: ["analytics"],
   ledger: ["analytics"],
   audit: ["analytics"],
+  // analytics (wave 15a)
+  analytics: ["analytics"],
+  redemptions: ["analytics", "rewards"],
 };

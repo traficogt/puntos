@@ -18,6 +18,8 @@ const existingRoutes = {
   branding: "identidad", onboarding: "puesta-en-marcha",
   // operations (wave 15b)
   jobs: "trabajos", alerts: "alertas", ledger: "conciliacion", audit: "auditoria",
+  // analytics (wave 15a)
+  analytics: "analitica", redemptions: "canjes-por-recompensa",
 };
 
 test("the task catalog includes every existing and routable merchant page exactly once", () => {

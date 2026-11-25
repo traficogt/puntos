@@ -37,7 +37,7 @@ requests are blocked, except four explicitly fulfilled, read-only fixture
 responses for the plan restriction check; no request reaches a provider or live
 API.
 
-Twelve browser checks cover all 38 operator route selections, the 10-entry demo
+Twelve browser checks cover all 40 operator route selections, the 11-entry demo
 menu, keyboard disclosures and the tools reveal, legacy deep links, back/forward
 history, canceled/accepted draft abandonment, plan restrictions, mobile menu
 reopening and focus, and theme switching/persistence at 1440px and 390px in light

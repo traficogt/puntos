@@ -42,6 +42,9 @@ const fragments = {
   alerts: "alertas",
   ledger: "conciliacion",
   audit: "auditoria",
+  // analytics (wave 15a)
+  analytics: "analitica",
+  redemptions: "canjes-por-recompensa",
 };
 export const merchantPages = Object.keys(fragments);
 export function pageFromHash(hash) {

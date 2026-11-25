@@ -56,6 +56,6 @@ export default function OwnerReports({staff, features, limits, usage, onNavigate
       {resource.data?.notes?.map(note => <Text key={note} size="xs" c="dimmed">{note}</Text>)}
     </>}
     <section aria-labelledby="owner-report-capacity"><Title order={2} id="owner-report-capacity">Capacidad del plan</Title>{!capacity ? <Text mt="sm">Capacidad del plan no disponible por el momento.</Text> : <Stack gap="xs" mt="sm" maw={640}><Text fw={600}>{capacity.title}</Text>{!capacity.unlimited && <Progress value={capacity.pct} aria-label="Clientes activos frente al límite del plan"/>}<Text size="sm">{capacity.note}</Text>{capacity.suggestUpgrade && <Anchor href="/precios" target="_blank" rel="noopener">Ver planes</Anchor>}</Stack>}</section>
-    {onNavigate && features.analytics && <Group><Button variant="default" onClick={() => onNavigate('overview')}>Ver el análisis completo en Inicio</Button></Group>}
+    {onNavigate && features.analytics && <Group><Button variant="default" onClick={() => onNavigate('analytics')}>Abrir la analítica avanzada</Button><Button variant="subtle" onClick={() => onNavigate('overview')}>Ver el análisis completo en Inicio</Button></Group>}
   </Stack>;
 }
