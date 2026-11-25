@@ -22,8 +22,8 @@ The owner has no Mac and wants to conserve Codemagic's free build minutes.
   app versions. A website deployment must not require customers to update their
   native apps. Browser tests do not establish native device behavior.
 
-The current native baseline is iOS **0.1.0 (3)** in TestFlight and Android
-**0.1.0 (13)** on Google Play's internal-testing track.
+The current native baseline is iOS **0.1.1 (4)** in TestFlight and Android
+**0.1.1 (14)** on Google Play's internal-testing track (released 2026-11-25).
 
 ## Android build infrastructure
 
