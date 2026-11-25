@@ -10,11 +10,11 @@ useDefault = true
 id = "generic-api-key"
 
 [[rules.allowlists]]
-description = "Exact help-review SHA-256 verified against public/customer-auth-entry.js; not a credential"
+description = "Help-review lock line for public/customer-auth-entry.js: a SHA-256 of a reviewed source file, re-recorded on each editorial review; not a credential"
 condition = "AND"
 regexTarget = "line"
 paths = ['''(^|/)help/reviewed-sources\.json$''']
-regexes = ['''^\s*\Q"public/customer-auth-entry.js": "2b636a9032a0622af107b2799f4b4b69203b496858bd9a6b2f3482fe058bfec5",\E\s*$''']
+regexes = ['''^\s*"public/customer-auth-entry\.js": "[0-9a-f]{64}",\s*$''']
 
 [[rules.allowlists]]
 description = "Synthetic JWT fixture used only by the isolated consent-race test"

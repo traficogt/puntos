@@ -134,7 +134,7 @@ export function normalizeCustomerMigration({
 
 /**
  * @param {ReturnType<typeof normalizeCustomerMigration>} normalized
- * @param {string[]} existingPhones
+ * @param {Iterable<string>} existingPhones
  * @param {string} [existingPolicy]
  */
 export function summarizeCustomerMigration(normalized, existingPhones, existingPolicy = "skip") {
