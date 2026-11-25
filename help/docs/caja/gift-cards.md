@@ -2,7 +2,7 @@
 title: Descontar saldo de una tarjeta de regalo
 description: Usa el código de la tarjeta de regalo y confirma el importe antes del
   descuento.
-reviewed: '2026-11-16'
+reviewed: '2026-11-25'
 kind: task
 sources:
 - public/staff.html
@@ -17,7 +17,7 @@ Usa el código de la tarjeta de regalo y confirma el importe antes del descuento
 
 ## Antes de empezar
 
-Necesitas conexión y permiso para gift cards. El descuento de una tarjeta de regalo es una operación diferente del canje de puntos.
+Necesitas conexión y permiso para gift cards. El descuento de una tarjeta de regalo es una operación diferente del canje de puntos. El bloque **Gift Cards** descuenta saldo de una tarjeta emitida por el negocio; son distintos los bloques **Recargar tarjeta** (**Monto a recargar**, **Recargar saldo**) y **Cashback** (**Monto a usar**, **Usar saldo**), que solo aparecen cuando el programa del negocio usa un monedero o cashback.
 
 ## Paso a paso
 
@@ -37,7 +37,8 @@ La pantalla confirma el descuento autorizado. Conserva la referencia con el comp
 ## Continúa con otra tarea
 
 - [Pedir ayuda](/ayuda/problemas/pedir-ayuda/)
+- [Emitir una tarjeta de regalo y revisar sus movimientos](/ayuda/negocio/tarjetas-de-regalo/)
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/equipo/escaner/#giftCardActionBlock). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/equipo/escaner/#giftCardActionBlock). Revisión del 25 de noviembre de 2026.

@@ -3,7 +3,7 @@ web/**/node_modules/
 web/**/dist/
 public/merchant/assets/
 public/merchant/recursos/
-public/ayuda/search/
+public/ayuda/
 public/revision-astryx/
 public/pwa-test/
 playwright-report/

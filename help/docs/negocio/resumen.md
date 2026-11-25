@@ -2,13 +2,15 @@
 title: Leer el resumen del negocio
 description: Consulta compras, repetición y canjes, y sigue el regreso de quienes
   registraron su primera compra durante una semana.
-reviewed: '2026-11-16'
+reviewed: '2026-11-25'
 kind: task
 sources:
 - web/merchant/src/Overview.jsx
 - web/merchant/src/FirstPurchaseReturns.jsx
 - src/app/services/first-purchase-return-service.js
 - src/app/routes/analytics/first-purchase-returns.js
+- web/merchant/src/ActivationInsights.jsx
+- web/merchant/src/RedemptionReturns.jsx
 owner_route: resumen
 ---
 
@@ -20,16 +22,16 @@ Consulta compras, repetición y canjes, y sigue el regreso de quienes registraro
 
 ## Antes de empezar
 
-Necesitas operaciones registradas. Las cifras de PF pueden representar solo una parte de las ventas si no registras todas las compras del negocio. El informe **De la primera compra a la segunda** requiere la cuenta del dueño y acceso al análisis según el plan y la configuración.
+Necesitas operaciones registradas. Las cifras de PF pueden representar solo una parte de las ventas si no registras todas las compras del negocio. El resumen se abre con **Inicio**, la primera opción del menú **Día a día**. El informe **De la primera compra a la segunda** requiere la cuenta del dueño y acceso al análisis según el plan y la configuración; si tu plan no incluye el análisis, **Inicio** muestra **Tus números básicos** con un acceso a [Reportes](/ayuda/negocio/reportes/).
 
 ## Paso a paso
 
-1. Abre **Resumen**, elige **Período** y **Sucursal**, y pulsa **Actualizar**.
-2. Comprueba la fecha de consulta, la zona horaria y si el día actual es parcial.
-3. Revisa ventas registradas, clientes con compras, clientes que repitieron y recompensas canjeadas. Lee el denominador del porcentaje.
-4. En **Actividad del equipo esta semana**, distingue compras, abonos, ajustes y reversiones. Usa **Ver movimientos de esta semana** para investigar.
+1. Abre **Inicio**. Mientras el programa no esté listo, la tarjeta **Pon tu programa en marcha** ofrece configuraciones iniciales por tipo de negocio y la opción **Prefiero configurarlo manualmente**; la tarjeta **Tu progreso** resume la puesta en marcha y la meta sugerida.
+2. Elige **Período** y **Sucursal**, y pulsa **Actualizar**. Comprueba la fecha de consulta, la zona horaria y si el día actual es parcial.
+3. Revisa **Ventas registradas**, **Clientes con compras**, **Clientes que repitieron** y **Recompensas canjeadas**, cada una con su comparación frente al período anterior. Lee el denominador del porcentaje. En **Cómo se mueven tus ventas**, **Ver los datos del gráfico** muestra la tabla por fecha; **Recompensas más elegidas** y **Tu próximo paso** completan la vista.
+4. Abre **Ver análisis detallado**. Allí están los informes que siguen; conservan su selección cuando cambias el período o la sucursal. En **Actividad del equipo esta semana**, distingue compras, abonos, ajustes y reversiones. Usa **Ver movimientos de esta semana** para investigar.
 5. Para **Visitas después de canjear**, separa quienes tienen treinta días completos de quienes siguen en seguimiento.
-6. En **De la primera compra a la segunda**, elige **Semana de la primera compra**. Este selector es independiente de **Período**. Revisa cuántos clientes tienen treinta días completos, cuántos regresaron y cuántos siguen en seguimiento. Usa **Actualizar primeras compras** para consultar cambios.
+6. En **De la primera compra a la segunda**, elige **Semana de la primera compra**. Este selector es independiente de **Período**. Revisa cuántos clientes tienen treinta días completos, cuántos regresaron y cuántos siguen en seguimiento. Usa **Actualizar primeras compras** para consultar cambios. **Qué significan estos números** explica cada definición.
 
 ## De la primera compra a la segunda
 
@@ -56,9 +58,11 @@ Obtienes un resumen de los registros dentro del alcance indicado. Una compra pue
 ## Continúa con otra tarea
 
 - [Revisar movimientos](/ayuda/negocio/movimientos/)
+- [Leer el reporte básico y la capacidad del plan](/ayuda/negocio/reportes/)
+- [Seguir tu progreso como dueño](/ayuda/negocio/tu-progreso/)
 - [Leer costos conocidos y estimados](/ayuda/negocio/costos/)
 - [Invitar a una segunda compra](/ayuda/negocio/segunda-visita/)
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#resumen). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#resumen). Revisión del 25 de noviembre de 2026.

@@ -1,7 +1,7 @@
 ---
 title: Publicar y confirmar avisos del turno
 description: Comparte instrucciones operativas y revisa qué versión leyó cada persona.
-reviewed: '2026-11-16'
+reviewed: '2026-11-25'
 kind: task
 sources:
 - web/merchant/src/StaffAuthority.jsx
@@ -20,7 +20,7 @@ Ingresa como dueño o con el acceso correspondiente. Escribe un aviso concreto q
 
 ## Paso a paso
 
-1. En **Equipo y permisos**, busca **Avisos del turno** y pulsa **Publicar aviso**.
+1. En **Permisos del equipo** (pantalla **Equipo y turnos**; pulsa **Ver todas las herramientas** si el menú no la muestra), busca **Avisos del turno** y pulsa **Publicar aviso**.
 2. Completa **Título**, **Qué debe saber el equipo**, **Quién verá el aviso** y **Vigencia desde la publicación**.
 3. Pulsa **Guardar aviso**. Al editar uno existente, usa **Publicar nueva versión**.
 4. Para una corrección, usa **Editar** y revisa la nueva versión.
@@ -40,4 +40,4 @@ El personal ve avisos nuevos o actualizados. Publicar una nueva versión reinici
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#equipo). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#equipo). Revisión del 25 de noviembre de 2026.

@@ -2,7 +2,7 @@
 title: Atender una decisión pendiente
 description: Revisa la evidencia, asigna seguimiento y abre la herramienta que puede
   resolver el problema.
-reviewed: '2026-11-16'
+reviewed: '2026-11-25'
 kind: task
 sources:
 - web/merchant/src/Decisions.jsx
@@ -22,7 +22,7 @@ Ingresa con acceso al panel. Antes de interpretar una alerta, confirma si PF tie
 
 ## Paso a paso
 
-1. Abre **Decisiones** y pulsa **Actualizar bandeja**.
+1. Abre **Decisiones automáticas** (grupo **Avanzado**; pulsa **Ver todas las herramientas** si el menú no lo muestra) y pulsa **Actualizar bandeja**.
 2. Lee el pendiente, sus límites de evidencia y el costo conocido o desconocido.
 3. Usa su acción, como **Atender casos** o **Revisar costos**, para resolver el asunto en la pantalla correspondiente.
 4. Si necesitas seguimiento, elige un responsable y pulsa **Guardar responsable**, o usa **Recordarme después**.
@@ -43,4 +43,4 @@ La bandeja conserva el estado de seguimiento y su historial. Marcar como revisad
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#decisiones). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#decisiones). Revisión del 25 de noviembre de 2026.

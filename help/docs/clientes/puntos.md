@@ -2,7 +2,7 @@
 title: Consultar puntos disponibles y pendientes
 description: Revisa tu saldo disponible, el origen de los movimientos y lo que
   falta para la siguiente recompensa.
-reviewed: '2026-11-16'
+reviewed: '2026-11-25'
 kind: task
 sources:
 - public/customer.html
@@ -51,6 +51,8 @@ Las correcciones del saldo también pueden aparecer agrupadas en **Ajustes y res
 
 La tarjeta muestra el saldo y progreso que PF conoce. Una copia sin conexión puede mostrar la última consulta y no el saldo actual.
 
+Si el negocio usa otro tipo de programa, la tarjeta lo muestra junto al saldo: **Beneficio de miembro** con el porcentaje de descuento, la tarjeta de sellos con los sellos marcados y los que faltan, **Saldo de cashback** o **Saldo de tu tarjeta**. Con saldo en un monedero de tarjeta de regalo aparece **Regalar saldo a otro miembro**: indica **Teléfono de quien recibe** y **Monto a regalar** y pulsa **Regalar saldo**; la tarjeta confirma el monto regalado y tu nuevo saldo.
+
 ## Si algo no funciona
 
 **Faltan puntos:** puede faltar sincronizar la compra o liberar los puntos según la regla del negocio. **Ganados en total difiere del saldo:** los canjes y otros movimientos afectan el disponible; no son la misma medida. **No coincide con tu comprobante:** pide al negocio revisar el movimiento antes de repetir el registro.
@@ -62,4 +64,4 @@ La tarjeta muestra el saldo y progreso que PF conoce. Una copia sin conexión pu
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/mi-tarjeta/). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/mi-tarjeta/). Revisión del 25 de noviembre de 2026.

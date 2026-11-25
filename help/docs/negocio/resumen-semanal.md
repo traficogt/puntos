@@ -2,7 +2,7 @@
 title: Recibir el resumen semanal por correo
 description: Verifica el correo del dueño y elige cuándo recibir un resumen de los
   registros de PF.
-reviewed: '2026-11-16'
+reviewed: '2026-11-25'
 kind: task
 sources:
 - web/merchant/src/WeeklyOwnerBrief.jsx
@@ -21,7 +21,7 @@ Ingresa como propietario activo. Debes poder recibir correo en la dirección de 
 
 ## Paso a paso
 
-1. En **Automatizaciones**, abre **Tu resumen de la semana** y confirma la dirección mostrada.
+1. En **Notificaciones automáticas**, abre **Tu resumen de la semana** y confirma la dirección mostrada.
 2. Pulsa **Enviar código a mi correo** y pega **Código del correo** y pulsa **Verificar mi correo**.
 3. Revisa **Recibir resumen semanal**, **Día del resumen** y **Hora del resumen**, en la zona del negocio.
 4. Pulsa **Guardar resumen semanal**. Puedes usar **Preparar muestra, sin enviar** para revisar el contenido.
@@ -41,4 +41,4 @@ Se programa como máximo un resumen por semana desde el siguiente horario elegid
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#automatizaciones). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#automatizaciones). Revisión del 25 de noviembre de 2026.

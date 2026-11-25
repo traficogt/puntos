@@ -132,6 +132,7 @@ if __name__=='__main__':
     try:
         count=validate_content()
         if len(sys.argv)>1: validate_output(Path(sys.argv[1]).resolve())
-        print(f'PASS {count} pages: navigation, 30 owner routes, citations, source freshness and screenshot provenance'+('; generated links, anchors, semantics and search' if len(sys.argv)>1 else ''))
+        routes=len(set(re.findall(r': "([a-z-]+)"',(ROOT/'web/merchant/src/navigation.js').read_text().split('};')[0])))
+        print(f'PASS {count} pages: navigation, {routes} owner routes, citations, source freshness and screenshot provenance'+('; generated links, anchors, semantics and search' if len(sys.argv)>1 else ''))
     except (ValueError,AssertionError,KeyError) as error:
         print(f'FAIL {error}',file=sys.stderr);sys.exit(1)

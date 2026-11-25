@@ -51,8 +51,13 @@ nav:
   - Agregar una sucursal: negocio/sucursales.md
   - Encontrar los ajustes del negocio: negocio/configuracion.md
   - Revisar moneda, horario y ubicaciones de Wallet: negocio/region.md
+  - Definir la identidad del programa que ve el cliente: negocio/identidad.md
   - Preparar e imprimir el QR del negocio: negocio/marca-qr.md
   - Preparar doble puntos o un bono por compra: negocio/reglas-adicionales.md
+  - Ajustar límites, alertas, vencimiento y políticas: negocio/limites.md
+  - Crear niveles de cliente con multiplicador: negocio/niveles.md
+  - Crear un logro o un reto temporal: negocio/logros-y-retos.md
+  - Emitir una tarjeta de regalo y revisar sus movimientos: negocio/tarjetas-de-regalo.md
   - Guardar una lista de clientes para seguimiento: negocio/recuperar-clientes.md
   - Crear una audiencia con condiciones: negocio/audiencias.md
   - Preparar y activar una campaña dirigida: negocio/campanas.md
@@ -67,6 +72,7 @@ nav:
   - Importar clientes y saldos anteriores: negocio/importar-clientes.md
   - Seguir una importación grande por lotes: negocio/importacion-grande.md
   - Leer el resumen del negocio: negocio/resumen.md
+  - Leer el reporte básico y la capacidad del plan: negocio/reportes.md
   - Seguir tu progreso como dueño: negocio/tu-progreso.md
   - Atender una decisión pendiente: negocio/decisiones.md
   - Cambiar el ritmo y aprobar ofertas del equipo: negocio/ritmo.md
@@ -85,6 +91,7 @@ nav:
   - Revisar devoluciones de caja y sus puntos: negocio/devoluciones.md
   - Revisar pendientes y datos atrasados: negocio/estado-operacion.md
   - Organizar y documentar una prueba real: negocio/piloto.md
+  - Revisar la lista de activación e imprimir guías: negocio/puesta-en-marcha.md
   - Lista imprimible antes de invitar clientes: negocio/lista-de-lanzamiento.md
 - Clientes:
   - Empezar aquí: clientes/index.md

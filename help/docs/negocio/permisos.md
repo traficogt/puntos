@@ -1,7 +1,7 @@
 ---
 title: Autorizar acciones con límites
 description: Permite una acción específica por persona, sucursal y período.
-reviewed: '2026-11-16'
+reviewed: '2026-11-25'
 kind: task
 sources:
 - web/merchant/src/StaffAuthority.jsx
@@ -20,7 +20,7 @@ Crea primero la cuenta del personal. Un rol de cajero no equivale a autorizació
 
 ## Paso a paso
 
-1. Abre **Equipo y permisos** y pulsa **Autorizar persona**.
+1. Abre **Permisos del equipo** (pantalla **Equipo y turnos**; pulsa **Ver todas las herramientas** si el menú no la muestra) y pulsa **Autorizar persona**.
 2. Elige **Acción autorizada**, **Persona del equipo** y **Alcance**.
 3. Completa los límites que correspondan: puntos por acción, total, cantidad de acciones, frecuencia, costo y vigencia.
 4. Revisa todos los límites juntos y pulsa **Guardar autorización**.
@@ -41,4 +41,4 @@ PF comprueba los límites antes de cada uso. La autorización vigente no elimina
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#equipo). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#equipo). Revisión del 25 de noviembre de 2026.

@@ -2,7 +2,7 @@
 title: Cambiar el ritmo y aprobar ofertas del equipo
 description: Define límites para la operación y autoriza plantillas que el equipo
   pueda activar.
-reviewed: '2026-11-16'
+reviewed: '2026-11-25'
 kind: task
 sources:
 - web/merchant/src/Decisions.jsx
@@ -22,11 +22,11 @@ Revisa capacidad real, presupuesto y permisos. Una plantilla requiere una oferta
 
 ## Paso a paso
 
-1. En **Decisiones**, encuentra **Ritmo del negocio**.
+1. En **Decisiones automáticas**, encuentra **Ritmo del negocio**.
 2. Elige **Nuevo ritmo**: tranquilo, normal u ocupado. Revisa **Capacidad para bonos** y pulsa **Guardar ritmo**.
 3. En **Ofertas preaprobadas para el equipo**, selecciona un **Borrador de oferta breve**.
 4. Define **Activaciones autorizadas** y **Vigencia de la aprobación (días)**. Revisa audiencia, bono y límites antes de **Aprobar límites de la plantilla**.
-5. Configura quién puede activar la oferta desde **Equipo y permisos**.
+5. Configura quién puede activar la oferta desde **Permisos del equipo**.
 
 ## Qué debe pasar
 
@@ -43,4 +43,4 @@ El ritmo ocupado pausa invitaciones pendientes; las recompensas y ofertas ya emi
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#decisiones). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#decisiones). Revisión del 25 de noviembre de 2026.

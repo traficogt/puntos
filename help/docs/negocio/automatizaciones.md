@@ -2,7 +2,7 @@
 title: Configurar cumpleaños y recuperación automática
 description: Revisa incentivo, consentimiento, presupuesto y horario antes de activar
   una regla automática.
-reviewed: '2026-11-16'
+reviewed: '2026-11-25'
 kind: task
 sources:
 - web/merchant/src/Automations.jsx
@@ -21,7 +21,7 @@ Necesitas tener configurada la mensajería y conocer el costo de los puntos que 
 
 ## Paso a paso
 
-1. Abre **Automatizaciones** y busca **Cumpleaños y recuperación**.
+1. Abre **Notificaciones automáticas** y busca **Cumpleaños y recuperación**.
 2. Revisa **Activar cumpleaños** o **Activar recuperación**. Define los puntos y el presupuesto mensual de cada regla.
 3. Para recuperación, configura **Días sin actividad**. Compras y canjes cuentan como actividad; la regla no recupera días anteriores.
 4. Revisa **Preparar incentivos a partir de** y **Días mínimos entre mensajes**. Guarda con el botón de configuración de esa sección.
@@ -46,4 +46,4 @@ El presupuesto se renueva al empezar el mes en la zona del negocio. Reembolsos y
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#automatizaciones). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#automatizaciones). Revisión del 25 de noviembre de 2026.

@@ -1,7 +1,7 @@
 ---
 title: Ayuda para dueños y administradores
 description: Ayuda para dueños y administradores
-reviewed: '2026-11-16'
+reviewed: '2026-11-25'
 kind: index
 sources:
 - web/merchant/src/navigation.js
@@ -9,7 +9,7 @@ sources:
 
 # Ayuda para dueños y administradores
 
-Encuentra el ajuste, conoce sus efectos y revisa lo que quedó guardado. Las instrucciones indican cuándo una función requiere la cuenta del dueño o una autorización.
+Encuentra el ajuste, conoce sus efectos y revisa lo que quedó guardado. Las instrucciones indican cuándo una función requiere la cuenta del dueño o una autorización. El menú del negocio muestra primero el **Día a día** y los grupos **Mi programa**, **Clientes** y **Hacer crecer**; **Ver todas las herramientas** despliega **Caja, equipo y ajustes** y **Avanzado**.
 
 [Lista imprimible antes de invitar clientes](/ayuda/negocio/lista-de-lanzamiento/)
 
@@ -21,6 +21,12 @@ Encuentra el ajuste, conoce sus efectos y revisa lo que quedó guardado. Las ins
 - [Vincular un artículo a una recompensa](/ayuda/negocio/catalogo/)
 - [Preparar e imprimir el QR del negocio](/ayuda/negocio/marca-qr/)
 - [Revisar moneda, horario y ubicaciones de Wallet](/ayuda/negocio/region/)
+- [Definir la identidad del programa que ve el cliente](/ayuda/negocio/identidad/)
+- [Ajustar límites, alertas, vencimiento y políticas](/ayuda/negocio/limites/)
+- [Crear niveles de cliente con multiplicador](/ayuda/negocio/niveles/)
+- [Crear un logro o un reto temporal](/ayuda/negocio/logros-y-retos/)
+- [Emitir una tarjeta de regalo y revisar sus movimientos](/ayuda/negocio/tarjetas-de-regalo/)
+- [Revisar la lista de activación e imprimir guías](/ayuda/negocio/puesta-en-marcha/)
 - [Organizar y documentar una prueba real](/ayuda/negocio/piloto/)
 
 ## Personas, clientes y sucursales
@@ -38,6 +44,7 @@ Encuentra el ajuste, conoce sus efectos y revisa lo que quedó guardado. Las ins
 ## Atender lo que ocurre hoy
 
 - [Leer el resumen del negocio](/ayuda/negocio/resumen/)
+- [Leer el reporte básico y la capacidad del plan](/ayuda/negocio/reportes/)
 - [Seguir tu progreso como dueño](/ayuda/negocio/tu-progreso/)
 - [Atender una decisión pendiente](/ayuda/negocio/decisiones/)
 - [Cambiar el ritmo y aprobar ofertas del equipo](/ayuda/negocio/ritmo/)
