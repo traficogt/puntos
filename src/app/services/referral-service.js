@@ -4,10 +4,8 @@ import { notFound, badRequest, forbidden } from "../../utils/http-error.js";
 import { errorCode } from "../../utils/error-shape.js";
 
 /**
- * Transaction client. tests/unit/referral-service.test.js annotates its fake client as
- * `{ query: Function }`, so this stays at that shape (a typed `query` signature would
- * reject the harness under the base typecheck).
- * @typedef {{ query: Function }} ReferralQueryClient
+ * Transaction client (src/types/db.ts); unit tests pass `{ query }` doubles.
+ * @typedef {import("../../types/db.js").DbQueryClient} ReferralQueryClient
  * @typedef {{
  *   withTransaction: <T>(fn: (client: ReferralQueryClient) => Promise<T>) => Promise<T>
  * }} ReferralDeps
@@ -31,14 +29,8 @@ import { errorCode } from "../../utils/error-shape.js";
  *   referred_customer_id: string,
  *   status: string
  * }} ReferralRow
- * Owner-editable referral settings (referral_settings columns).
- * @typedef {{
- *   enabled?: boolean,
- *   referrer_reward_points?: number,
- *   referred_reward_points?: number,
- *   min_purchase_to_complete?: number | string | null,
- *   reward_on_signup?: boolean
- * }} ReferralSettingsInput
+ * Owner-editable referral settings (ReferralRepository, repositories owner).
+ * @typedef {import("../repositories/referral-repository.js").ReferralSettingsInput} ReferralSettingsInput
  */
 
 /** @type {ReferralSettingsInput} */
@@ -274,7 +266,7 @@ export async function applyReferralCodeWithDeps(deps, referralCode, newCustomerI
        LIMIT 1`,
       [newCustomerId],
     );
-    if (existing.rowCount > 0) {
+    if (Number(existing.rowCount) > 0) {
       throw badRequest("Este cliente ya fue referido");
     }
 

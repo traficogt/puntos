@@ -81,6 +81,7 @@ function normalizeTargetRoute(actorType) {
  * @param {string} actorType
  * @param {string} target
  * @param {{ role?: string | null } | null} [actor]
+ * @returns {asserts target is import("../repositories/internal-magic-link-repository.js").InternalMagicLinkRow["target"]}
  */
 function assertValidTargetForActor(actorType, target, actor = null) {
   if (actorType === "customer") {
@@ -101,6 +102,7 @@ function assertValidTargetForActor(actorType, target, actor = null) {
 /**
  * @param {string} actorType
  * @param {InternalMagicLinkActor | null | undefined} actor
+ * @returns {{ actorId: string, businessId: string }} the identifiers the link is issued for
  */
 function assertActorShape(actorType, actor) {
   const actorId = actor?.id ?? actor?.actor_id ?? null;
@@ -110,6 +112,7 @@ function assertActorShape(actorType, actor) {
       actorType === "customer" ? "Este cliente no es válido." : "Este usuario no es válido.",
     );
   }
+  return { actorId, businessId };
 }
 
 /**
@@ -128,18 +131,16 @@ export async function buildInternalMagicLink(
 ) {
   const resolvedDeps = resolveDeps(deps);
   const normalizedActorType = normalizeActorType(actorType);
-  if (!["staff", "customer"].includes(normalizedActorType)) {
+  if (normalizedActorType !== "staff" && normalizedActorType !== "customer") {
     throw badRequest("Tipo de actor inválido.");
   }
-  assertActorShape(normalizedActorType, actor);
+  const { actorId, businessId } = assertActorShape(normalizedActorType, actor);
   assertValidTargetForActor(normalizedActorType, target, actor);
 
   const usageMode = normalizedActorType === "customer" ? "reusable_window" : "single_use";
   const rawToken = makeRawToken(resolvedDeps.randomBytes);
   const expiresAt = new Date(resolvedDeps.now().getTime() + 15 * 60 * 1000);
   const id = resolvedDeps.randomUUID();
-  const actorId = actor?.id ?? actor?.actor_id ?? null;
-  const businessId = actor?.business_id ?? actor?.businessId ?? null;
 
   await resolvedDeps.repo.create({
     id,

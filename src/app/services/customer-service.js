@@ -14,7 +14,7 @@ import { logger } from "../../utils/logger.js";
 import { withDbClientContext, withTransaction } from "../database.js";
 import { errorCode, errorMessage } from "../../utils/error-shape.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /**
  * Business context of an enrollment (slug + program_json drive phone normalization and the token).
  * @typedef {{

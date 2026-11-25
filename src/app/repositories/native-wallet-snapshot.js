@@ -5,6 +5,37 @@ export const walletTimezoneDefaults = JSON.stringify(
     Object.entries(REGIONAL_COUNTRIES).map(([code, region]) => [code, region.timezone]),
   ),
 );
+/**
+ * One `wallet_branches` entry of the snapshot (`branches` columns, via jsonb_agg).
+ * @typedef {{
+ *   id: string,
+ *   name: string | null,
+ *   wallet_location_enabled: boolean | null,
+ *   wallet_latitude: number | null,
+ *   wallet_longitude: number | null
+ * }} WalletSnapshotBranch
+ */
+/**
+ * One `wallet_rewards` entry: a reward, or a protected promise entry, as
+ * `rewardSnapshotSql` lists it. NUMERIC columns may arrive as strings and
+ * timestamps as strings or `Date`s depending on the path; consumers coerce.
+ * @typedef {{
+ *   id: string,
+ *   name: string | null,
+ *   description: string | null,
+ *   active: boolean,
+ *   stock: number | string | null,
+ *   available: boolean,
+ *   promise_id: string | null,
+ *   reward_name: string | null,
+ *   protected_description: string | null,
+ *   points_cost: number | string | null,
+ *   valid_until: string | Date | null,
+ *   branch_ids: string[] | null,
+ *   daily_count: number | string | null,
+ *   last_redeemed_at: string | Date | null
+ * }} WalletSnapshotReward
+ */
 const walletSeedSql = `
  SELECT p.*,CASE WHEN v.is_voided THEN NULL ELSE c.name END AS customer_name,
  c.deleted_at AS customer_deleted_at,

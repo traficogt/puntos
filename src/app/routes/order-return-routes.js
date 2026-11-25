@@ -45,7 +45,10 @@ function verifySignature(rawBody, businessSlug, signature) {
   return timingSafeEqualString(normalizeSignature(signature), expected);
 }
 
-/** @param {{ processOrderReturn?: typeof processOrderReturnService }} [deps] */
+/**
+ * Unit tests inject a fake service, so its result is forwarded opaquely (`res.json`).
+ * @param {{ processOrderReturn?: (input: Parameters<typeof processOrderReturnService>[0]) => Promise<unknown> }} [deps]
+ */
 export function createOrderReturnRoutes(deps = {}) {
   const router = Router();
   const processOrderReturn = deps.processOrderReturn ?? processOrderReturnService;

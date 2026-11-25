@@ -7,7 +7,7 @@ import { sourceHealth, sourceHealthReasons } from "./source-health-model.js";
  *   lifecycle?: { minimum_contact_days?: number, [key: string]: unknown } | null,
  *   award_guard?: { max_points_per_tx?: number | null, [key: string]: unknown } | null,
  *   pos_integration?: MerchantPosIntegration | null,
- *   data_health?: { sources?: unknown, [key: string]: unknown } | null,
+ *   data_health?: { sources?: import("./source-health-model.js").SourceHealthSource[] | null, [key: string]: unknown } | null,
  *   merchant_operating_mode?: { mode?: unknown, until?: unknown, capacity?: unknown } | null,
  *   region?: { country?: unknown, currency?: unknown, timezone?: unknown } | null,
  *   external_awards?: { enabled?: boolean, api_key?: string, [key: string]: unknown } | null,

@@ -11,7 +11,7 @@ import { errorMessage, errorStatus } from "../../utils/error-shape.js";
 
 /**
  * pg client handed to a withTransaction callback (pg ships no types; this mirrors QueryResult<any>).
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} PosRefundQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} PosRefundQueryClient
  *
  * A pos_refund_receipts row (2026-11-10-pos-refunds.sql). amount_q is NUMERIC, so pg hands back a string.
  * @typedef {{

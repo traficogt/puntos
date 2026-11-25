@@ -12,7 +12,7 @@ import { badRequest, conflict, forbidden, notFound } from "../../utils/http-erro
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 
 /**
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} ServiceRecoveryQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} ServiceRecoveryQueryClient
  * @typedef {<T>(fn: (client: ServiceRecoveryQueryClient) => Promise<T>) => Promise<T>} ServiceRecoveryTransaction
  * The staff session as the routes pass it (req.staff); fixtures may omit `id`.
  * @typedef {{ id?: string, business_id: string, branch_id?: string | null, role?: string | null, impersonated_by?: string | null }} ServiceRecoverySession

@@ -570,10 +570,17 @@ const schemas = {
  * walks it. Express does not type its internal layers.
  * @typedef {object} RouterLayer
  * @property {string} [name]
- * @property {RouterLayer | null} [handle]
+ * @property {RouterLayer | RouterHandle | null} [handle]
  * @property {OpenApiMiddlewareMeta} [__openapi]
  * @property {RouterLayer[]} [stack]
  * @property {{ path?: string, stack?: RouterLayer[], methods?: Record<string, boolean> } | null} [route]
+ */
+
+/**
+ * A layer's handler as Express stores it: the middleware or route function,
+ * possibly annotated with `__openapi`, or a nested router carrying its own
+ * `stack`.
+ * @typedef {((...args: never[]) => unknown) & { __openapi?: OpenApiMiddlewareMeta, stack?: RouterLayer[] }} RouterHandle
  */
 
 /**

@@ -11,10 +11,11 @@ import type { PoolConfig, QueryResult, QueryResultBase, QueryResultRow, QueryVal
  * `req.pgClient`: a real pg connection whose results carry the full statement
  * metadata.
  *
- * The loose tier (`...Like`, `DbPool`, `DbContext`) is the contract the pools
- * and the AsyncLocalStorage context are declared with. It admits what the
- * integration tests pin in place of a connection: `pg.Client` instances, plain
- * `{ query }` objects and doubles that answer `{ rows }` without metadata.
+ * The loose tier (`DbQueryClient`, `...Like`, `DbPool`, `DbContext`) is the
+ * contract consumers declare: what repositories and services accept as a client
+ * and what the pools and the AsyncLocalStorage context are declared with. It
+ * admits what the tests pin in place of a connection: `pg.Client` instances,
+ * plain `{ query }` objects and doubles that answer `{ rows }` without metadata.
  * src/app/db converts from the loose to the strict tier at its boundaries.
  */
 
@@ -59,6 +60,22 @@ export interface DbQueryResultLike<
 > extends Partial<QueryResultBase> {
   rows: R[];
 }
+
+/**
+ * The connection contract repositories and services declare for their `client`
+ * parameters and injected `query` functions. Real connections (`DbClient`,
+ * `req.pgClient`, the `withTransaction` client, `dbQuery`) satisfy it, and so do
+ * the `{ query }` doubles unit tests pass, which answer `{ rows }` with or
+ * without `rowCount` and take a mutable params array. `query` is a method
+ * signature so those doubles' `params: unknown[]` stay assignable to the
+ * readonly `QueryValues`.
+ */
+export interface DbQueryClient {
+  query(sql: string, params?: QueryValues): Promise<DbQueryResultLike>;
+}
+
+/** The `query` member of {@link DbQueryClient} on its own, e.g. an injected `dbQuery`. */
+export type DbQueryFnLike = DbQueryClient["query"];
 
 /**
  * Anything that can run a parameterized query. The context layer never reads

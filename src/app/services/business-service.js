@@ -12,7 +12,7 @@ import { hashPassword } from "../../utils/password-hash.js";
 import { assertPasswordAllowed } from "../../utils/password-policy.js";
 import { errorMessage, isErrorLike } from "../../utils/error-shape.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 
 function id() {
   return crypto.randomUUID();

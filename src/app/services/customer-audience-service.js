@@ -7,7 +7,7 @@ import { badRequest, conflict, forbidden, notFound } from "../../utils/http-erro
 import { parseAudienceDefinition } from "./customer-audience-definition.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {ReturnType<typeof parseAudienceDefinition>} AudienceDefinition */
 /**
  * merchant_audiences row.

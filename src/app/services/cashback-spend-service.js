@@ -7,7 +7,7 @@ import { badRequest } from "../../utils/http-error.js";
 import { lookupCustomerByQrToken } from "./staff-service.js";
 import { spendCashback } from "./cashback-service.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 
 // Staff applies a member's cashback credit as a discount. Resolves the customer
 // from the scanned QR (same verification the award flow uses), checks the

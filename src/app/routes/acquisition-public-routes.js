@@ -14,12 +14,13 @@ import { AcquisitionService, sourceCodePattern } from "../services/acquisition-s
  */
 
 const visitSchema = z.object({ source_code: z.string().max(80) }).strict();
+/** @typedef {import("../services/acquisition-link.js").AcquisitionBusiness} AcquisitionBusiness */
 /**
- * The router only passes the business through to `visit`, so the lookup result
- * stays opaque here (tests inject partial business shapes).
+ * The router only passes the business through to `visit`; both use the
+ * acquisition service's own business shape.
  * @param {{
- *   getBusiness?: (slug: string) => Promise<unknown>,
- *   visit?: (business: unknown, code: string) => Promise<unknown>,
+ *   getBusiness?: (slug: string) => Promise<AcquisitionBusiness | null | undefined>,
+ *   visit?: (business: AcquisitionBusiness, code: string) => Promise<unknown>,
  *   rateLimit?: import("express").RequestHandler
  * }} [deps]
  */

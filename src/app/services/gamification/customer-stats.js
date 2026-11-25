@@ -26,9 +26,10 @@ GROUP BY c.id, c.business_id, cb.points, cl.total_spend, cl.total_visits, vs.cur
 /**
  * Aggregated gamification counters for one customer (CUSTOMER_STATS_SQL).
  * Sums over NUMERIC/bigint columns arrive as strings.
- * Unit tests pass partial objects, so every counter is optional.
+ * Unit tests pass partial objects, so every counter is optional; `business_id`
+ * is always present (the statement groups by it).
  * @typedef {{
- *   business_id?: string,
+ *   business_id: string,
  *   points?: number | null,
  *   total_spend?: string | number | null,
  *   total_visits?: number | null,

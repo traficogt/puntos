@@ -1,6 +1,6 @@
 import { conflict } from "../../utils/http-error.js";
 export const INVENTORY_FRESH_SECONDS = 300;
-/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} RewardInventoryQueryClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} RewardInventoryQueryClient */
 /**
  * Catalog item, mapping quantity and latest inventory snapshot for one reward/branch.
  * @param {{

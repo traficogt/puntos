@@ -15,7 +15,7 @@ import { deliverLifecycleWalletMessage } from "./wallet-notification-service.js"
 import { PlatformSettingsRepo } from "../repositories/platform-settings-repository.js";
 import { resolveWalletBroadcast, walletBroadcastDelivery } from "./wallet-broadcast-config.js";
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./merchant-data-readiness.js").MerchantBusinessLike} MerchantBusinessLike */
 /** @typedef {import("./growth-campaign-service.js").GrowthCampaignRow} GrowthCampaignRow */
 /**
@@ -289,7 +289,7 @@ export async function queueCampaignMessages({
         VALUES($1,$2,$3,$4,$5) ON CONFLICT(business_id,campaign_id,customer_id) DO NOTHING`,
         [crypto.randomUUID(), businessId, campaignId, customer_id, now],
       );
-      queued_count += inserted.rowCount;
+      queued_count += Number(inserted.rowCount);
     }
     return { queued_count, replayed: false };
   });

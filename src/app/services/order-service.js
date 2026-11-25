@@ -18,7 +18,7 @@ import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 const PROCESSABLE_STATUSES = new Set(["paid", "completed"]);
 
 /**
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} OrderQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} OrderQueryClient
  *
  * Business row as BusinessRepo.getById returns it (repositories owner); only what this flow reads.
  * @typedef {{ id: string, plan?: string | null, program_type?: string | null, program_json?: Record<string, any> | null }} OrderBusiness
@@ -50,7 +50,7 @@ const PROCESSABLE_STATUSES = new Set(["paid", "completed"]);
  *   discount_q?: number | string | null,
  *   tax_q?: number | string | null,
  *   currency?: string | null,
- *   occurred_at?: unknown,
+ *   occurred_at?: string | Date | null,
  *   source?: string | null,
  *   line_items_json?: unknown,
  *   meta?: unknown
@@ -71,26 +71,8 @@ const PROCESSABLE_STATUSES = new Set(["paid", "completed"]);
  *   meta: Record<string, any>
  * }} OrderFingerprintPayload
  *
- * Row inserted through OrderRepo.create.
- * @typedef {{
- *   business_id: string,
- *   customer_id: string,
- *   external_order_id: string,
- *   status: string,
- *   amount_q: number,
- *   subtotal_q: number | null,
- *   discount_q: number | null,
- *   tax_q: number | null,
- *   currency: string,
- *   occurred_at: unknown,
- *   source: string,
- *   line_items_json: any[],
- *   meta: Record<string, any>,
- *   fingerprint: string,
- *   transaction_id: string,
- *   points_awarded: number,
- *   transaction_status: string
- * }} OrderCreateInput
+ * Row inserted through OrderRepo.create (repositories owner).
+ * @typedef {import("../repositories/order-repository.js").OrderCreateInput} OrderCreateInput
  *
  * The targeted-offer claim this flow issues (targeted-offer-service.js owns the rules).
  * @typedef {{

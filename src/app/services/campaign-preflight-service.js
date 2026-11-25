@@ -7,7 +7,7 @@ import { readinessForBusiness, campaignNeedsFreshActivity } from "./merchant-dat
 import { businessRegion } from "./regional-settings.js";
 import { computePointsWithEvidence } from "./points-service.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./merchant-data-readiness.js").MerchantBusinessLike} MerchantBusinessLike */
 /** @typedef {import("./growth-campaign-service.js").GrowthCampaignRow} GrowthCampaignRow */
 /**

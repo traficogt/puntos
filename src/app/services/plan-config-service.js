@@ -20,6 +20,7 @@ export const PlanConfigService = {
    */
   async updatePlanFeatures(plan, featurePatch) {
     const current = await this.getPlanFeatureOverrides();
+    /** @type {Record<string, Record<string, boolean>>} */
     const merged = mergePlanFeatures(current);
     if (!merged[plan]) return null;
     merged[plan] = { ...merged[plan], ...featurePatch };

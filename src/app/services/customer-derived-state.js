@@ -1,6 +1,6 @@
 import { fromMinor, mul, toMinor, toNumber } from "../../utils/money.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 
 /** @param {string | Date | null | undefined} value */
 function dateKey(value) {

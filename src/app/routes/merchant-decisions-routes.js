@@ -48,13 +48,15 @@ import {
 /** @typedef {z.infer<typeof RevokeOperatingTemplateInput>} RevokeOperatingTemplateBody */
 /**
  * Services the router calls, by the input it hands them. Unit tests inject
- * fakes, so results are forwarded opaquely (`res.json`).
+ * fakes, so results are forwarded opaquely (`res.json`). The three decision
+ * actions take the service's own owner/delegate option union (the delegate
+ * handlers pass `delegated: true` literally).
  * @typedef {{
  *   getDecisionInbox: (input: { businessId: string }) => Promise<unknown>,
  *   getDelegatedDecisionInbox: (input: DecisionActor) => Promise<unknown>,
- *   getDecisionHistory: (input: DecisionActor & { decisionKey: string, delegated?: boolean }) => Promise<unknown>,
- *   reviewDecision: (input: DecisionActor & { input: ReviewDecisionBody, delegated?: boolean }) => Promise<unknown>,
- *   setOperatingMode: (input: DecisionActor & { input: OperatingModeBody, delegated?: boolean }) => Promise<unknown>,
+ *   getDecisionHistory: (input: Parameters<typeof getDecisionHistory>[0]) => Promise<unknown>,
+ *   reviewDecision: (input: Parameters<typeof reviewDecision>[0]) => Promise<unknown>,
+ *   setOperatingMode: (input: Parameters<typeof setOperatingMode>[0]) => Promise<unknown>,
  *   listOperatingTemplates: (input: DecisionActor & { delegated?: boolean }) => Promise<unknown>,
  *   approveOperatingTemplate: (input: DecisionActor & { input: ApproveOperatingTemplateBody }) => Promise<unknown>,
  *   triggerOperatingTemplate: (input: DecisionActor & { input: TriggerOperatingTemplateBody, delegated?: boolean }) => Promise<unknown>,

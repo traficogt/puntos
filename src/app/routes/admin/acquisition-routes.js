@@ -17,7 +17,7 @@ import {
 /** @typedef {import("../_request-types.js").Response} Response */
 /** @typedef {import("../_request-types.js").NextFunction} NextFunction */
 
-/** @param {{staffAuth?: import("express").RequestHandler, getBusiness?: (id: string) => Promise<any>, getPlanFeatureOverrides?: () => Promise<any>, service?: Pick<typeof AcquisitionService,"listSources"|"report"|"createSource">, appOrigin?: string}} [deps] */
+/** @param {{staffAuth?: import("express").RequestHandler, getBusiness?: (id: string) => Promise<any>, getPlanFeatureOverrides?: () => Promise<any>, service?: { listSources: (...args: Parameters<typeof AcquisitionService.listSources>) => Promise<unknown>, report: (...args: Parameters<typeof AcquisitionService.report>) => Promise<unknown>, createSource: typeof AcquisitionService.createSource }, appOrigin?: string}} [deps] */
 export function createAdminAcquisitionRoutes({
   staffAuth = requireStaff,
   getBusiness = (id) => BusinessRepo.getById(id),

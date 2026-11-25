@@ -5,7 +5,7 @@ import { badRequest, conflict, notFound, tooManyRequests } from "../../utils/htt
 
 export const SUPPORT_ATTACHMENT_BYTES = 600 * 1024;
 /**
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} SupportQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} SupportQueryClient
  * @typedef {<T>(fn: (client: SupportQueryClient) => Promise<T>) => Promise<T>} SupportTransaction
  */
 /** @param {number} max @param {number} [min] */

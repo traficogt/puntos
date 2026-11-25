@@ -38,7 +38,7 @@ export const heartbeatSchema = z
     errors: z.number().int().min(0).max(10000000),
   })
   .strict();
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
 /** @typedef {z.infer<typeof heartbeatSchema> & { coverage_through: string, received_at: string, evidence: string }} DataHealthHeartbeat */
 /** @typedef {z.infer<typeof healthSourceSchema> & { last_heartbeat?: DataHealthHeartbeat | null }} DataHealthSource */

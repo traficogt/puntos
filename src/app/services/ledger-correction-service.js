@@ -9,21 +9,12 @@ function id() {
   return crypto.randomUUID();
 }
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./ledger-reconciliation-service.js").LedgerBalanceRow} LedgerBalanceRow */
 /** @typedef {ReturnType<typeof buildLedgerFinding>} LedgerFinding */
 /**
- * audit_logs row as AuditRepo.log receives it.
- * @typedef {{
- *   id: string,
- *   business_id: string | null,
- *   actor_type: string,
- *   actor_id: string | null,
- *   action: string,
- *   ip: string | null,
- *   ua: string | null,
- *   meta: unknown,
- * }} AuditLogEntry
+ * audit_logs row as AuditRepo.log receives it (repositories owner).
+ * @typedef {import("../repositories/audit-repository.js").AuditLogInput} AuditLogEntry
  */
 /**
  * @typedef {{

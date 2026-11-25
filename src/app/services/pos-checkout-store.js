@@ -4,7 +4,7 @@ import { enqueueWebhookEvent } from "./webhook-service.js";
 
 /**
  * pg client inside a transaction (pg ships no types; this mirrors QueryResult<any>).
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} PosCheckoutQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} PosCheckoutQueryClient
  *
  * What the POS receives when a cart line is authorized (stored as authorization_snapshot).
  * @typedef {{

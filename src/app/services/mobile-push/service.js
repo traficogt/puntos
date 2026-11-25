@@ -3,24 +3,19 @@ import { HttpError, badRequest, conflict } from "../../../utils/http-error.js";
 import { planFeaturesWithOverrides } from "../../../utils/plan.js";
 
 /**
- * mobile_push_devices row joined with the business plan, as MobilePushRepo.getSnapshot returns it.
- * @typedef {{
- *   installation_id: string,
- *   customer_id: string,
- *   business_id: string,
- *   token: string,
- *   topic: string,
- *   points: unknown,
- *   pending_points: unknown,
- *   baseline_points: unknown,
- *   baseline_pending: unknown,
- *   revision: unknown,
- *   plan: string,
- *   [key: string]: unknown,
- * }} PushSnapshot
+ * mobile_push_devices row joined with the business plan, as MobilePushRepo.getSnapshot
+ * returns it (repositories owner); only the columns this service reads are named, so
+ * unit-test doubles may omit the rest.
+ * @typedef {Pick<import("../../repositories/mobile-push-repository.js").MobilePushDeviceRow,
+ *   | "installation_id" | "customer_id" | "business_id" | "topic" | "points" | "pending_points"
+ *   | "baseline_points" | "baseline_pending" | "revision"> & { plan: string, token: string }} PushSnapshot
  */
-/** A leased device (installation, generation and lock token); opaque to this service. */
-/** @typedef {{ installation_id: string, [key: string]: unknown }} PushClaim */
+/**
+ * A leased device (MobilePushRepo.claimDue, repositories owner); opaque to this service,
+ * which only keys on the installation. Unit-test doubles pass `{ installation_id }` alone.
+ * @typedef {Pick<import("../../repositories/mobile-push-repository.js").MobilePushClaim, "installation_id">
+ *   & Partial<import("../../repositories/mobile-push-repository.js").MobilePushClaim>} PushClaim
+ */
 /** @typedef {{ accepted: boolean, invalidToken?: boolean, retryable?: boolean, reason?: string }} PushSendResult */
 /**
  * Storage the service drives (MobilePushRepo, or a unit-test fake). The reward-refresh

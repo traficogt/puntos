@@ -6,7 +6,7 @@ import { businessRegion } from "./regional-settings.js";
 import { snapshotCompletedRedemption } from "./reward-economics-service.js";
 import { assertNoPendingCheckout } from "./pos-checkout-guard.js";
 import { assertRewardInventory } from "./reward-inventory-service.js";
-/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} RewardPromiseQueryClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} RewardPromiseQueryClient */
 /**
  * Staff session attached to the request (req.staff); livePromiseMember rejects a session
  * whose business_id is not the tenant. Same shape as the other staff-facing services use.

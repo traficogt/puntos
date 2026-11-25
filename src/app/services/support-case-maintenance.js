@@ -1,6 +1,6 @@
 import { withDbClientContext, withTransaction } from "../database.js";
 /**
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} SupportMaintenanceQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} SupportMaintenanceQueryClient
  * @typedef {<T>(fn: (client: SupportMaintenanceQueryClient) => Promise<T>) => Promise<T>} SupportMaintenanceTransaction
  */
 // Run from the daily worker. DELETE policy permits only expired attachments.

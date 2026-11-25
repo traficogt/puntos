@@ -78,7 +78,7 @@ function makeReferralClient(initialStatus = "pending") {
 }
 
 describe("completeAndRewardReferral", () => {
-  /** @type {{ client: { query: Function }, state: { balanceUpdates: any[], rewardLogs: any[], seenSql: string[] } }} */
+  /** @type {{ client: import("../../src/types/db.js").DbQueryClient, state: { balanceUpdates: any[], rewardLogs: any[], seenSql: string[] } }} */
   let harness;
 
   beforeEach(() => {

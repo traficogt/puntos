@@ -5,8 +5,8 @@ import { withTransaction } from "../../database.js";
 import { DEFAULT_ACHIEVEMENTS } from "./default-achievements.js";
 import { getCustomerGamificationStats } from "./customer-stats.js";
 
-/** @typedef {typeof import("../../database.js").dbQuery} GamificationQuery */
-/** @typedef {{ query: GamificationQuery }} TxClient */
+/** @typedef {import("../../../types/db.js").DbQueryFnLike} GamificationQuery */
+/** @typedef {import("../../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./customer-stats.js").GamificationStats} GamificationStats */
 /**
  * achievements row.
@@ -44,7 +44,7 @@ async function sourceTransactionIsActive(sourceTransactionId, query) {
 }
 
 /**
- * @param {GamificationStats} stats
+ * @param {Omit<GamificationStats, "business_id">} stats the counters (unit tests pass a subset)
  * @param {string} requirementType
  */
 export function achievementProgressValue(stats, requirementType) {

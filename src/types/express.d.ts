@@ -14,10 +14,10 @@ declare module "express-serve-static-core" {
      * read. (Making it optional needs the route handlers to narrow it first.)
      */
     staff: StaffActor;
-    /** Set by requireCustomer. */
-    customerAuth?: CustomerActor;
-    /** Set by requireSuperAdmin. */
-    superAdmin?: SuperAdminActor;
+    /** Set by requireCustomer; declared present for the same reason as `staff`. */
+    customerAuth: CustomerActor;
+    /** Set by requireSuperAdmin; declared present for the same reason as `staff`. */
+    superAdmin: SuperAdminActor;
     /** The browser session behind staff/customer/super auth, after validation. */
     authSession?: BrowserSessionRecord;
     /** Request-pinned connection on API prefixes (src/middleware/pg-client.js). */

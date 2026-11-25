@@ -17,7 +17,7 @@ import { logger } from "../../utils/logger.js";
 import { createClient } from "redis";
 import { errorMessage } from "../../utils/error-shape.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /**
  * A claimed background_jobs row, or a legacy Redis queue item carrying `jobType`.
  * @typedef {{

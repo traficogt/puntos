@@ -36,7 +36,7 @@ import { assertRewardInventory } from "./reward-inventory-service.js";
 import { errorCode, errorMessage, errorStatus, isErrorLike } from "../../utils/error-shape.js";
 
 /**
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} StaffServiceQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} StaffServiceQueryClient
  * The staff session as the routes pass it (req.staff).
  * @typedef {{ id: string, business_id: string, branch_id?: string | null, role?: string | null, impersonated_by?: string | null }} StaffServiceActor
  * Business row from BusinessRepo.getById (repositories owner) as redemption reads it; this
@@ -956,7 +956,7 @@ export async function syncAwards({ staff, awards }) {
   return results;
 }
 
-/** @param {{ staff: StaffServiceActor, transactionId: string, requestId: string | null | undefined, reason?: string }} args */
+/** @param {{ staff: StaffServiceActor, transactionId: string, requestId: string, reason?: string }} args */
 export async function refundAward(args) {
   return refundAwardTransaction(args);
 }

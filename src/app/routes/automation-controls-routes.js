@@ -31,13 +31,14 @@ import {
 /** @typedef {import("./_request-types.js").NextFunction} NextFunction */
 /** @typedef {import("./_request-types.js").TenantRequest} TenantRequest */
 /**
- * The acting owner as the automation services receive it.
+ * The acting owner as the automation services receive it (the shape of
+ * weekly-owner-brief-service's `WeeklyBriefActor`, without the legacy `imp`).
  * @typedef {{
  *   businessId: string,
  *   staffId: string,
- *   ip: string | undefined,
- *   ua: string | null,
- *   impersonated_by?: string
+ *   ip?: string | null,
+ *   ua?: string | null,
+ *   impersonated_by?: string | null
  * }} AutomationActor
  */
 /** @typedef {z.infer<typeof AutomationSettings>} AutomationSettingsInput */
@@ -49,7 +50,13 @@ import {
  * validated `settings`, so the table widens it to `unknown`.
  * @typedef {(input: AutomationActor & { settings: unknown }) => Promise<unknown>} AutomationSave
  */
-/** @typedef {(input: AutomationActor & { requestId: string, token?: string }) => Promise<unknown>} OwnerBriefAction */
+/**
+ * One owner-brief action. Declared as a method (bivariant parameters) so the
+ * confirm step, which requires `token`, shares the table with the two that do
+ * not; each row's schema validates its own body before the call.
+ * @typedef {{ run(input: AutomationActor & { requestId: string, token?: string }): Promise<unknown> }} OwnerBriefActionTable
+ * @typedef {OwnerBriefActionTable["run"]} OwnerBriefAction
+ */
 /**
  * Services the router calls, by the input it hands them. Unit tests inject
  * fakes, so results are forwarded opaquely (`res.json`).

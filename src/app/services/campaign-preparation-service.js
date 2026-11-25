@@ -19,7 +19,7 @@ import {
   formatCount,
 } from "./scale-limits.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /**
  * Owner request to create a campaign whose audience is prepared in the
  * background (validated by the route before it gets here).

@@ -1,33 +1,19 @@
 import { businessRegion } from "../regional-settings.js";
 
+/** @typedef {import("../../repositories/native-wallet-snapshot.js").WalletSnapshotBranch} WalletSnapshotBranch */
+/** @typedef {import("../../repositories/native-wallet-snapshot.js").WalletSnapshotReward} WalletSnapshotReward */
 /**
- * A branch row with its Wallet relevance settings (branches table, repositories owner).
- * @typedef {{
- *   id: string,
- *   name?: string | null,
- *   wallet_location_enabled?: boolean | null,
- *   wallet_latitude?: number | null,
- *   wallet_longitude?: number | null
- * }} WalletEngagementBranch
+ * A branch with its Wallet relevance settings, as the snapshot lists it
+ * (repositories owner); only `id` is required so unit tests may pass partial rows.
+ * @typedef {Pick<WalletSnapshotBranch, "id"> & Partial<WalletSnapshotBranch>} WalletEngagementBranch
  */
 
 /**
- * A reward (or protected promise entry) as the wallet snapshot lists it; numeric
- * columns may arrive as NUMERIC strings and are coerced here.
- * @typedef {{
- *   id: string,
- *   name?: string | null,
- *   reward_name?: string | null,
- *   points_cost: number | string | null,
- *   active?: boolean | null,
- *   available?: boolean | null,
- *   promise_id?: string | null,
- *   stock?: number | string | null,
- *   valid_until?: string | Date | null,
- *   branch_ids?: string[] | null,
- *   daily_count?: number | string | null,
- *   last_redeemed_at?: string | Date | null
- * }} WalletEngagementReward
+ * A reward (or protected promise entry) as the wallet snapshot lists it
+ * (repositories owner); numeric columns may arrive as NUMERIC strings and are
+ * coerced here. Only `id` and `points_cost` are required so unit tests may pass
+ * partial rows.
+ * @typedef {Pick<WalletSnapshotReward, "id" | "points_cost"> & Partial<WalletSnapshotReward>} WalletEngagementReward
  */
 
 /**

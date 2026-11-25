@@ -69,8 +69,8 @@ import { encryptSecret, decryptSecretMaybe } from "../../utils/secret-crypto.js"
  *   wallet_cycle: Record<string, unknown> | null,
  *   wallet_next_day: Date,
  *   wallet_daily_redemptions: number,
- *   wallet_branches: Array<Record<string, unknown>>,
- *   wallet_rewards: Array<Record<string, unknown>>
+ *   wallet_branches: import("./native-wallet-snapshot.js").WalletSnapshotBranch[],
+ *   wallet_rewards: import("./native-wallet-snapshot.js").WalletSnapshotReward[]
  * }} NativeWalletSnapshotRow
  */
 
@@ -286,13 +286,13 @@ export const NativeWalletRepo = {
    * @param {string} deviceId
    * @param {string} [provider]
    * @param {string | number | null} [since] the device's last known revision
-   * @returns {Promise<{ serial_numbers: string[], last_updated: string } | null>}
+   * @returns {Promise<{ serial_numbers: string[], last_updated: string }>}
    */
   async getDeviceUpdates(deviceId, provider = "apple", since = null) {
     // A sequence is allocated before COMMIT. Lock the registered rows before
     // filtering so an earlier, still-running change cannot be skipped when a
     // later transaction has already committed a larger revision.
-    return one(
+    const updates = await one(
       `WITH registered AS MATERIALIZED (
       SELECT p.id, p.serial_number, p.revision
       FROM native_wallet_passes p JOIN native_wallet_registrations r ON r.pass_id=p.id
@@ -303,6 +303,8 @@ export const NativeWalletRepo = {
       FROM registered p`,
       [deviceId, provider, since],
     );
+    // An aggregate without GROUP BY: the statement always yields exactly one row.
+    return /** @type {{ serial_numbers: string[], last_updated: string }} */ (updates);
   },
 
   /**

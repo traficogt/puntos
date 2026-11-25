@@ -5,7 +5,7 @@ import { AuditRepo } from "../repositories/audit-repository.js";
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 import { reportingPurchase } from "./reporting-purchase.js";
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /**
  * recovery_runs row with its result aggregates (listRecoveryRuns / getRecoveryRun).
  * @typedef {{

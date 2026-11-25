@@ -57,11 +57,11 @@ export const PublicContactIdentifierResolveSchema = z.object({
 export const PublicContactIdentifierUnlinkSchema = PublicContactIdentifierResolveSchema;
 
 /**
- * Tenant-scoped database work: `fn` runs with `app.current_tenant` set to `tenantId`.
- * The client is `Partial` because unit tests run the callback with a bare `{}`.
+ * Tenant-scoped database work: `fn` runs with `app.current_tenant` set to `tenantId`
+ * on the pinned connection it receives (unit tests pass a `{ query }` double).
  * @typedef {<T>(
  *   ctx: { tenantId: string, platformAdmin: boolean },
- *   fn: (client: Partial<DbClient>) => Promise<T>
+ *   fn: (client: DbClient) => Promise<T>
  * ) => Promise<T>} ScopedDbRunner
  */
 /**
@@ -69,7 +69,7 @@ export const PublicContactIdentifierUnlinkSchema = PublicContactIdentifierResolv
  * only calls `CustomerRepo.getByBusinessAndId`; the services may use more. Unit
  * tests pass `{}` for the identifier repository (services are stubbed too).
  * @typedef {{
- *   client: Partial<DbClient>,
+ *   client: DbClient,
  *   CustomerRepo: Pick<typeof CustomerRepo, "getByBusinessAndId"> & Partial<typeof CustomerRepo>,
  *   ContactIdentifierRepo: Partial<typeof ContactIdentifierRepo>,
  *   randomUUID?: () => string
@@ -129,7 +129,7 @@ function verifySignature(payload, businessSlug, signature) {
 }
 
 /**
- * @param {Partial<DbClient>} client
+ * @param {DbClient} client
  * @param {Partial<ContactServiceDeps>} [overrides]
  * @returns {ContactServiceDeps}
  */

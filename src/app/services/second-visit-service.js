@@ -14,7 +14,7 @@ import { reportingPurchase } from "./reporting-purchase.js";
 import { logger } from "../../utils/logger.js";
 
 /**
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} SecondVisitQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} SecondVisitQueryClient
  * @typedef {<T>(fn: (client: SecondVisitQueryClient) => Promise<T>) => Promise<T>} SecondVisitTransaction
  * Collaborators; production wiring is `dependencies`, tests may inject partial fakes.
  * @typedef {{

@@ -5,7 +5,7 @@ import {
 import { buildWalletEngagement } from "./native-wallet/engagement.js";
 import { withWalletRewardInventory, walletInventoryEngagement } from "./reward-inventory-public.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /**
  * Reward row of a wallet snapshot (reward-inventory-public.js), as read here.
  * @typedef {{

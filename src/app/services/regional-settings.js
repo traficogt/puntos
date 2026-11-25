@@ -66,7 +66,7 @@ export const regionCurrency = (business) => businessRegion(business).currency;
 export const regionTimezone = (business) => businessRegion(business).timezone;
 /**
  * @param {number} amount
- * @param {string} currency
+ * @param {unknown} currency the settlement currency as reported; anything but the region's currency is rejected
  * @param {RegionalBusiness} [business]
  */
 export function assertRegionAmount(amount, currency, business) {

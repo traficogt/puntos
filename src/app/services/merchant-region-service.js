@@ -6,7 +6,7 @@ import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 import { businessRegion, REGIONAL_COUNTRIES, validateRegionalInput } from "./regional-settings.js";
 import { errorMessage } from "../../utils/error-shape.js";
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {{ program_json?: import("./merchant-data-readiness.js").MerchantProgramJson | null }} RegionBusiness */
 /** @param {RegionBusiness} business */
 const version = (business) =>

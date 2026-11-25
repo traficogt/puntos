@@ -23,9 +23,10 @@ import {
 } from "./merchant-catalog-store.js";
 import { catalogInventory } from "./reward-inventory-service.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./merchant-catalog-store.js").CatalogItemRow} CatalogItemRow */
-/** @typedef {{ id: string, [key: string]: unknown }} CatalogStaff */
+/** The acting staff session (`req.staff`); only `id` is read here.
+ * @typedef {Pick<import("../../types/auth.js").StaffActor, "id">} CatalogStaff */
 /** @typedef {{ transaction?: typeof withTransaction }} CatalogDeps */
 /** @typedef {{ businessId: string, staff: CatalogStaff, input: unknown }} CatalogStaffRequest */
 /** Listing row: a catalog item joined with its branch inventory snapshot. */

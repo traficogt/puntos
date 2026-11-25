@@ -10,7 +10,7 @@ import { lookupCustomerByQrToken } from "./staff-service.js";
 import { loadStoredValue, transferStoredValue } from "./cashback-service.js";
 import { giftCardTerms } from "./wallet-model.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 
 // Staff tops up a member's gift-card wallet. Resolves the customer from the
 // scanned QR (same verification the award flow uses), checks the business runs

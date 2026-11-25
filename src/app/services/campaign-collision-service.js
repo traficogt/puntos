@@ -7,7 +7,7 @@ import { businessRegion, assertRegionAmount } from "./regional-settings.js";
 import { operatingMode } from "./merchant-decisions-model.js";
 import { evaluateCampaignPreflight } from "./campaign-preflight-service.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./merchant-data-readiness.js").MerchantBusinessLike} MerchantBusinessLike */
 /** @typedef {import("./growth-campaign-service.js").GrowthCampaignRow} GrowthCampaignRow */
 /**

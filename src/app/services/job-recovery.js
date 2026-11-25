@@ -1,4 +1,4 @@
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /**
  * background_jobs row.
  * @typedef {{

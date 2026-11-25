@@ -4,7 +4,7 @@ import { getCustomerGamificationStats } from "./customer-stats.js";
 import { achievementProgressValue } from "./achievements-service.js";
 import { hasRecurringWindowElapsed } from "./challenges-service.js";
 
-/** @typedef {{ query: typeof import("../../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./customer-stats.js").GamificationStats} GamificationStats */
 /** @typedef {{ id?: string | null, [key: string]: unknown }} ReconcileStaff */
 /**

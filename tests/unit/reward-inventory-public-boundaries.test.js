@@ -172,7 +172,7 @@ test("Wallet repository skips unchecked schema and chooses only presently eligib
     out.wallet_engagement.locations.map((branch) => branch.branch_id),
     ["center"],
   );
-  assert.ok(Date.parse(out.next_refresh_at) > Date.parse(out.snapshot_at));
-  assert.ok(Date.parse(out.next_refresh_at) - Date.parse(out.snapshot_at) <= 300001);
+  assert.ok(Date.parse(out.next_refresh_at) > Date.parse(String(out.snapshot_at)));
+  assert.ok(Date.parse(out.next_refresh_at) - Date.parse(String(out.snapshot_at)) <= 300001);
   assert.equal(out.wallet_rewards[0].stock, null);
 });

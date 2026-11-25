@@ -56,7 +56,7 @@ FROM customers c LEFT JOIN customer_balances cb ON cb.customer_id=c.id
 CROSS JOIN bounds b CROSS JOIN totals t CROSS JOIN completed r
 WHERE c.business_id=$1 AND c.id=$2 AND c.deleted_at IS NULL`;
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 
 /**
  * Public customer fields only. No merchant cost, cash conversion or staff notes.

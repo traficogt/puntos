@@ -55,7 +55,9 @@ import { mobileAccessService } from "../services/mobile-access-service.js";
 /** @typedef {import("../repositories/auth-session-repository.js").AuthSessionRow} AuthSessionRow */
 /**
  * Request past `requireMobileCustomer`: the bearer session and `customerAuth` are set.
- * @typedef {Request & { authSession: AuthSessionRow }} MobileCustomerRequest
+ * `P` narrows `req.params` where a handler reads one (see `_request-types.js`).
+ * @template [P=import("./_request-types.js").ParamsDictionary]
+ * @typedef {ParamsRequest<P> & { authSession: AuthSessionRow }} MobileCustomerRequest
  */
 /** @typedef {Promise<Response | void>} HandlerResult early `return res...` or fall-through */
 /**
@@ -578,7 +580,7 @@ export function createMobileRoutes(overrides = {}) {
     "/mobile/customer/wallet/:provider",
     deps.walletIssueLimit,
     asyncRoute(
-      /** @param {MobileCustomerRequest} req @param {Response} res */
+      /** @param {MobileCustomerRequest<{ provider: string }>} req @param {Response} res */
       async (req, res) => {
         const result = await deps.walletService.issue(req.customerAuth, req.params.provider);
         res.json(

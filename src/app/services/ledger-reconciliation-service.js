@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { dbQuery, withTransaction } from "../database.js";
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /**
  * Stored vs expected balance columns for one customer (readLedgerRows /
  * ledger-correction-service.readCustomerLedgerRow). Counts arrive as ints or strings.

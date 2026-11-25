@@ -15,7 +15,7 @@ import {
 } from "./reward-promise-service.js";
 import { saveRewardPosMapping } from "./reward-pos-mapping-service.js";
 import { catalogInventory } from "./reward-inventory-service.js";
-/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} RewardWorkspaceQueryClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} RewardWorkspaceQueryClient */
 /**
  * Staff session (req.staff) as livePromiseMember / promiseAudit and, through
  * saveRewardPosMapping, redemption-pos-store.fulfillmentActor read it.

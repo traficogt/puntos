@@ -18,20 +18,14 @@ import {
 } from "../../utils/money.js";
 import { errorCode } from "../../utils/error-shape.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
-/** @typedef {{ id?: string, [key: string]: unknown }} GiftCardStaff */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /**
- * audit_logs row as AuditRepo.log receives it.
- * @typedef {{
- *   id: string,
- *   business_id: string | null,
- *   actor_type: string,
- *   actor_id: string | null,
- *   action: string,
- *   ip: string | null,
- *   ua: string | null,
- *   meta: unknown,
- * }} AuditLogEntry
+ * The acting staff session (`req.staff`); unit tests pass partial doubles.
+ * @typedef {Partial<Pick<import("../../types/auth.js").StaffActor, "id" | "business_id">>} GiftCardStaff
+ */
+/**
+ * audit_logs row as AuditRepo.log receives it (repositories owner).
+ * @typedef {import("../repositories/audit-repository.js").AuditLogInput} AuditLogEntry
  */
 /**
  * staff_users row of the acting staff member (StaffRepo.getById).
@@ -97,7 +91,8 @@ function makeToken() {
  * @returns {Promise<GiftCardActor>}
  */
 async function assertGiftCardAccess(staff, { create = false } = {}) {
-  const actor = await StaffRepo.getById(staff.id);
+  // A session without an id (test doubles) matches no staff row.
+  const actor = staff.id ? await StaffRepo.getById(staff.id) : null;
   if (!actor || !actor.active) throw forbidden("Staff no autorizado");
   if (actor.role === "OWNER") return actor;
   if (!actor.can_manage_gift_cards) throw forbidden("No tienes permiso de gift cards");

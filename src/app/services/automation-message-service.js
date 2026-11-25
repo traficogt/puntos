@@ -13,7 +13,7 @@ import { deliverLifecycleWalletMessage } from "./wallet-notification-service.js"
 import { PlatformSettingsRepo } from "../repositories/platform-settings-repository.js";
 import { resolveWalletBroadcast, walletBroadcastDelivery } from "./wallet-broadcast-config.js";
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./automation-controls-service.js").AutomationRule} AutomationRule */
 /**
  * lifecycle_message_outbox row (SELECT *), as far as this module reads it.

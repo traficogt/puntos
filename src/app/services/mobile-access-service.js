@@ -8,7 +8,7 @@ import { normalizePhone } from "../../utils/phone.js";
 import { random6 } from "../../utils/random-code.js";
 import { badRequest, HttpError, tooManyRequests, unauthorized } from "../../utils/http-error.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** A business the phone holds a card with (businesses row subset, branding included). */
 /**
  * @typedef {{

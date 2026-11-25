@@ -16,7 +16,7 @@ import {
   getStaffMfaRecord,
 } from "./shared.js";
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./shared.js").AccountSecurityActionToken} AccountSecurityActionToken */
 
 /**
@@ -119,7 +119,8 @@ async function maybeApplyStaffEmailChange(requestId, query = dbQuery) {
   const oldToken = tokens.find((row) => row.purpose === "STAFF_EMAIL_CHANGE_OLD");
   const newToken = tokens.find((row) => row.purpose === "STAFF_EMAIL_CHANGE_NEW");
   if (!oldToken || !newToken || !oldToken.used_at || !newToken.used_at) return { applied: false };
-  const staff = await StaffRepo.getById(oldToken.actor_id);
+  // Email-change tokens are issued for a staff actor; a missing id matches no row.
+  const staff = oldToken.actor_id ? await StaffRepo.getById(oldToken.actor_id) : null;
   if (!staff) throw notFound("Staff no encontrado");
   const newEmail = normalizeEmail(oldToken.payload?.new_email);
   const existing = await StaffRepo.getByEmail(newEmail);

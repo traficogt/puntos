@@ -24,7 +24,7 @@ import {
   toNumber,
 } from "../../utils/money.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 
 // Locks the member's account row and returns its balance in centavos.
 /**

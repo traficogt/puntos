@@ -8,7 +8,7 @@ import { withImpersonationMeta } from "../../utils/impersonation.js";
 import { hasMaxScale, mul, pct, sub, toMinor, toNumber } from "../../utils/money.js";
 import { reportingPurchase } from "./reporting-purchase.js";
 
-/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} RewardEconomicsQueryClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} RewardEconomicsQueryClient */
 /** @typedef {(text: string, values?: unknown[]) => Promise<{ rows: any[] }>} RewardEconomicsQuery */
 /**
  * Collaborators; unit tests inject `{ transaction: (fn) => fn(client), getPlanFeatureOverrides }`.

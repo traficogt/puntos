@@ -1,6 +1,6 @@
 import { getRewardInventory, INVENTORY_FRESH_SECONDS } from "./reward-inventory-service.js";
 
-/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[] }> }} RewardInventoryPublicQueryClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} RewardInventoryPublicQueryClient */
 /**
  * A branch a reward can be fulfilled at; `id: null` stands for the business itself.
  * @typedef {{ id: string | null, name?: string | null }} RewardInventoryPublicBranch
@@ -184,7 +184,7 @@ export async function withWalletRewardInventory(client, snapshot, injected = {})
  * @template {RewardInventoryPublicEngagement} E
  * @param {{
  *   wallet_rewards?: Array<{ id: string, inventory?: ReturnType<typeof aggregate> | null }> | null,
- *   snapshot_at?: string | null
+ *   snapshot_at?: string | Date | null
  * }} snapshot
  * @param {E} engagement
  */
@@ -192,7 +192,7 @@ export function walletInventoryEngagement(snapshot, engagement) {
   const inventory = snapshot.wallet_rewards?.find(
     (reward) => reward.id === engagement.reward?.id,
   )?.inventory;
-  const now = Date.parse(snapshot.snapshot_at ?? "") || Date.now();
+  const now = Date.parse(String(snapshot.snapshot_at ?? "")) || Date.now();
   const deadlines = (snapshot.wallet_rewards ?? [])
     .flatMap((reward) =>
       (reward.inventory?.branches ?? [])

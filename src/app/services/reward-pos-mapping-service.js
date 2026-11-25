@@ -5,7 +5,7 @@ import { normalizeRewardPosMapping, normalizeMappingLookup } from "./redemption-
 import { fulfillmentActor, fulfillmentAudit, publicMapping } from "./redemption-pos-store.js";
 import { markRewardInventoryWallets } from "./reward-inventory-service.js";
 import { businessRegion } from "./regional-settings.js";
-/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} RewardPosMappingQueryClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} RewardPosMappingQueryClient */
 /**
  * Staff session (req.staff) as redemption-pos-store.fulfillmentActor reads it.
  * @typedef {{

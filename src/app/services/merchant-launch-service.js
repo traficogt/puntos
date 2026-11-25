@@ -5,7 +5,7 @@ import { PlanConfigService } from "./plan-config-service.js";
 import { hasPlanFeature, canUseProgramType } from "../../utils/plan.js";
 import { badRequest, conflict, forbidden, notFound } from "../../utils/http-error.js";
 import { withImpersonationMeta } from "../../utils/impersonation.js";
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
 /** @type {Record<string, "points_per_q" | "points_per_visit" | "points_per_item">} */
 const rateKey = { SPEND: "points_per_q", VISIT: "points_per_visit", ITEM: "points_per_item" };

@@ -9,9 +9,12 @@ import { refreshCustomerDerivedState } from "./customer-derived-state.js";
 import { reconcileCustomerGamificationAfterRefund } from "./gamification/reconciliation-service.js";
 import { logger } from "../../utils/logger.js";
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
-/** @typedef {{ id?: string | null, business_id: string, [key: string]: unknown }} RefundStaff */
+/**
+ * The acting staff session (`req.staff`); `id` is absent for system-initiated refunds.
+ * @typedef {Pick<import("../../types/auth.js").StaffActor, "business_id"> & { id?: import("../../types/auth.js").StaffActor["id"] | null }} RefundStaff
+ */
 /** @typedef {{ rows: Array<{ id: string, points: number | string | null }> }} PointsRowsResult */
 
 function id() {

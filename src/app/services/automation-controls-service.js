@@ -11,7 +11,7 @@ import { PlanConfigService } from "./plan-config-service.js";
 import { marketingProviderReady } from "./messaging-service.js";
 import { AuditRepo } from "../repositories/audit-repository.js";
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {"birthday" | "winback"} AutomationRule */
 /** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
 /**

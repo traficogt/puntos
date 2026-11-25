@@ -4,7 +4,7 @@ import { config } from "../../config/index.js";
 import { withTransaction } from "../database.js";
 import { AuthSessionRepo } from "../repositories/auth-session-repository.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /**
  * Browser session row (auth_sessions). Timestamps are ISO strings in the
  * in-memory test store and Date or string when read back from PostgreSQL.

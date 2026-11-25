@@ -7,7 +7,7 @@ import { reportingPurchase } from "./reporting-purchase.js";
 import { sourceCodePattern, acquisitionSourceUrl } from "./acquisition-link.js";
 export { sourceCodePattern, acquisitionSourceUrl };
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./acquisition-link.js").AcquisitionBusiness} AcquisitionBusiness */
 /** @typedef {import("./acquisition-link.js").AcquisitionSourceRow} AcquisitionSourceRow */
 /**
@@ -51,11 +51,12 @@ export function createAcquisitionService({
   transaction = withTransaction,
   context = withDbClientContext,
 } = {}) {
-  // Return type follows `context` (withDbClientContext) so unit tests can keep
-  // injecting partial service fakes through the route factory.
   /**
+   * Runs `fn` in the tenant's context and resolves to its result.
+   * @template T
    * @param {string} businessId
-   * @param {() => Promise<unknown>} fn
+   * @param {() => Promise<T>} fn
+   * @returns {Promise<T>}
    */
   const scoped = (businessId, fn) => context({ tenantId: businessId, platformAdmin: false }, fn);
   /**

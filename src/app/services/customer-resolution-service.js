@@ -1,22 +1,27 @@
 import { normalizePhone } from "../../utils/phone.js";
 import { notFound } from "../../utils/http-error.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
+/** @typedef {typeof import("../repositories/contact-identifier-repository.js").ContactIdentifierRepo} ContactIdentifierRepoType */
 /**
  * Injected collaborators (real repositories or test fakes); every method is
- * optional-checked before use.
+ * optional-checked before use. The identifier lookup is a method signature so
+ * the real repository (which needs a client) and unit-test fakes (called with
+ * the `null` this service passes when no client was injected) both satisfy it.
  * @typedef {{
  *   client?: TxClient | null,
  *   dbClient?: TxClient | null,
  *   CustomerRepo?: Partial<Pick<typeof import("../repositories/customer-repository.js").CustomerRepo, "getByBusinessAndId" | "getById" | "getByBusinessAndPhone">> | null,
- *   ContactIdentifierRepo?: Partial<Pick<typeof import("../repositories/contact-identifier-repository.js").ContactIdentifierRepo, "getByBusinessTypeAndValue">> | null,
+ *   ContactIdentifierRepo?: {
+ *     getByBusinessTypeAndValue?(client: TxClient | null, businessId: string, identifierType: string, identifierValue: string): ReturnType<ContactIdentifierRepoType["getByBusinessTypeAndValue"]>
+ *   } | null,
  * } | null | undefined} CustomerResolutionDeps
  */
 /**
- * Raw integration request fields.
+ * Raw integration request fields; `customerId` is the route's validated id.
  * @typedef {{
  *   businessId?: unknown,
- *   customerId?: unknown,
+ *   customerId?: string | null,
  *   identifierType?: unknown,
  *   identifierValue?: unknown,
  *   customerPhone?: unknown,
@@ -31,7 +36,7 @@ function toStringValue(value) {
 /**
  * @param {CustomerResolutionDeps} deps
  * @param {string} businessId
- * @param {unknown} customerId
+ * @param {string | null | undefined} customerId
  */
 async function resolveByCustomerId(deps, businessId, customerId) {
   if (!customerId) return null;

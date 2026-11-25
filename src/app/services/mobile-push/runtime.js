@@ -37,8 +37,7 @@ export const mobilePushService = createMobilePushService({
       (/** @type {import("../customer-reward-progress.js").TxClient} */ client) =>
         getCustomerRewardProgress(client, identity),
     ),
-  globalContext: (/** @type {() => Promise<unknown>} */ fn) =>
-    withDbClientContext({ platformAdmin: true, tenantId: null }, fn),
+  globalContext: (fn) => withDbClientContext({ platformAdmin: true, tenantId: null }, fn),
 });
 let running = false;
 export async function processMobilePushUpdates() {

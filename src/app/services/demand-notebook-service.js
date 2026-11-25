@@ -15,9 +15,10 @@ import {
   demandText,
 } from "./demand-funding-model.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {{ transaction?: typeof withTransaction }} DemandDeps */
-/** @typedef {{ id: string, business_id?: string, [key: string]: unknown }} DemandStaff */
+/** The acting staff session (`req.staff`).
+ * @typedef {Pick<import("../../types/auth.js").StaffActor, "id"> & Partial<Pick<import("../../types/auth.js").StaffActor, "business_id">>} DemandStaff */
 /**
  * Request to record a demand signal (owner/staff or a logged-in customer).
  * @typedef {{

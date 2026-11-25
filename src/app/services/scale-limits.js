@@ -85,7 +85,7 @@ export function scaleLimitsTable() {
 /**
  * Throws a 400 with owner-facing Spanish when the audience exceeds the plan or ceiling.
  * @param {string | null | undefined} plan
- * @param {number | string} audienceLimit the requested maximum, as validated by the route
+ * @param {number | string | null | undefined} audienceLimit the requested maximum, as validated by the route (`Number()`-coerced)
  */
 export function assertAudienceWithinPlan(plan, audienceLimit) {
   const requested = Number(audienceLimit);

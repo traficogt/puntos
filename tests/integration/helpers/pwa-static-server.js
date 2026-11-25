@@ -8,6 +8,10 @@ import {
   createSpanishWebRedirects,
 } from "../../../src/middleware/spanish-web.js";
 
+/**
+ * @param {string} publicDir
+ * @param {string} filename
+ */
 function publicFile(publicDir, filename) {
   return path.join(publicDir, filename);
 }

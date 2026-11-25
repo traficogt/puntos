@@ -6,7 +6,7 @@ import { isLedgerInteger } from "../../utils/ledger-limits.js";
 import { badRequest, forbidden } from "../../utils/http-error.js";
 
 /** @typedef {(text: string, values?: unknown[]) => Promise<{ rows: any[] }>} TargetedOfferQuery */
-/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} TargetedOfferQueryClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TargetedOfferQueryClient */
 /**
  * Business row fields read here (id, plan and the JSONB program bag).
  * @typedef {{ id: string, plan?: string | null, program_json?: Record<string, any> | null }} TargetedOfferBusiness

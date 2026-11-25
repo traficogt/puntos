@@ -8,7 +8,7 @@ import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 import { reverseCashback } from "./cashback-service.js";
 
 /**
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} OrderReturnQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} OrderReturnQueryClient
  *
  * Business row as BusinessRepo.getById returns it (repositories owner); only what this flow reads.
  * @typedef {{ id: string, program_type?: string | null, program_json?: Record<string, any> | null }} OrderReturnBusiness
@@ -53,25 +53,12 @@ import { reverseCashback } from "./cashback-service.js";
  *   externalReturnId?: unknown,
  *   externalOrderId?: unknown,
  *   reason?: string | null,
- *   occurred_at?: unknown,
+ *   occurred_at?: string | Date | null,
  *   meta?: unknown
  * }} OrderReturnInput
  *
- * Row inserted through OrderReturnRepo.create.
- * @typedef {{
- *   business_id: string,
- *   customer_id: string,
- *   order_id: string,
- *   external_return_id: string,
- *   external_order_id: string,
- *   reason: string | null,
- *   occurred_at: unknown,
- *   meta: Record<string, any>,
- *   fingerprint: string,
- *   reversal_transaction_id: string | null,
- *   points_effect: number,
- *   outcome: "PENDING_CANCELLED" | "POSTED_REVERSED" | null
- * }} OrderReturnCreateInput
+ * Row inserted through OrderReturnRepo.create (repositories owner).
+ * @typedef {import("../repositories/order-return-repository.js").OrderReturnCreateInput} OrderReturnCreateInput
  *
  * Collaborators once defaults are applied; typed by what this module uses.
  * @typedef {{

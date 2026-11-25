@@ -12,8 +12,9 @@ import { withImpersonationMeta } from "../../utils/impersonation.js";
 import { getOwnerOutcomeEvidence } from "./owner-outcome-service.js";
 import { ownerOutcomeFindings } from "./owner-outcome-model.js";
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
-/** @typedef {{ id: string, [key: string]: unknown }} DecisionStaff */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
+/** The acting staff session (`req.staff`); only `id` is read here.
+ * @typedef {Pick<import("../../types/auth.js").StaffActor, "id">} DecisionStaff */
 /**
  * @typedef {{
  *   businessId: string,

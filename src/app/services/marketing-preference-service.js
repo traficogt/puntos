@@ -3,7 +3,7 @@ import { dbQuery, withTransaction, withDbClientContext } from "../database.js";
 import { notFound } from "../../utils/http-error.js";
 import { config } from "../../config/index.js";
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 
 /**
  * @param {unknown} token

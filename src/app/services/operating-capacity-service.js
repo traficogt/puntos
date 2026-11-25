@@ -1,4 +1,4 @@
-/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} OperatingCapacityQueryClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} OperatingCapacityQueryClient */
 
 /**
  * Remaining bonus slots in active quiet offers, whether activated directly or from an approved template. No stock reservation is inferred.

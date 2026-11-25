@@ -22,7 +22,7 @@ const checksForVersion = /** @type {PilotChecksForVersion} */ (
   /** @type {unknown} */ (pilotChecksForVersion)
 );
 export const PILOT_CHECKS = checksForVersion(currentPilotChecklistVersion, allPilotCapabilities);
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {{ businessId: string, staffId?: string | null, ip?: string | null, ua?: string | null }} PilotActor */
 /**
  * merchant_pilots row.

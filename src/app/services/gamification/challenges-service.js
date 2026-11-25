@@ -4,7 +4,7 @@ import { GamificationRepository } from "../../repositories/gamification-reposito
 import { dbQuery, withTransaction } from "../../database.js";
 import { notFound } from "../../../utils/http-error.js";
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {{ sourceTransactionId?: string | null }} ChallengeContext */
 /**
  * challenges row.
@@ -151,7 +151,7 @@ export function hasRecurringWindowElapsed(completedAt, recurrence, now = new Dat
 
 /**
  * @param {string} businessId
- * @param {Record<string, unknown>} challengeData
+ * @param {Omit<import("../../repositories/gamification-repository.js").ChallengeCreateInput, "business_id"> & { business_id?: string }} challengeData validated route body (GamificationRepository owns the row shape)
  */
 export async function createChallenge(businessId, challengeData) {
   return GamificationRepository.createChallenge({

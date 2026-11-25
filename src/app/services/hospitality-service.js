@@ -11,9 +11,10 @@ import {
   lockPromiseRequest,
 } from "./reward-promise-service.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {{ transaction?: typeof withTransaction }} HospitalityDeps */
-/** @typedef {{ id: string, [key: string]: unknown }} HospitalityStaff */
+/** The acting staff session (`req.staff`); only `id` is read here.
+ * @typedef {Pick<import("../../types/auth.js").StaffActor, "id">} HospitalityStaff */
 /**
  * Owner request to authorize a hospitality budget for one staff member.
  * @typedef {{

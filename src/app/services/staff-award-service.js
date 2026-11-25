@@ -29,7 +29,7 @@ import { isNativeWalletCode, verifyNativeWalletAward } from "./native-wallet/mem
 import { errorMessage, errorStatus } from "../../utils/error-shape.js";
 
 /**
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} StaffAwardQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} StaffAwardQueryClient
  * The staff session as the routes pass it (req.staff).
  * @typedef {{ id: string, business_id: string, branch_id?: string | null, role?: string | null, impersonated_by?: string | null }} StaffAwardActor
  * Business row from BusinessRepo.getById (repositories owner) as the award path reads it.

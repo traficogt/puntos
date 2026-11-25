@@ -131,19 +131,18 @@ const posBodyShapes = {
 /** @typedef {keyof typeof posBodyShapes} PosKind */
 /**
  * A POS ingestion service: receives the tenant business and the shape-checked
- * payload; the redemption-event ingest also gets connection-enforcement options.
- * @typedef {(
- *   business: BusinessRow,
- *   input: Record<string, unknown>,
- *   options?: { enforceConnection: boolean, getPlanFeatureOverrides: () => Promise<unknown> }
- * ) => Promise<unknown>} PosIngest
+ * payload. Each service may take its own injected-dependency bag as a third
+ * parameter, which this dispatcher never passes; the redemption-event ingest,
+ * which does receive connection-enforcement options, is typed by its own
+ * signature below.
+ * @typedef {(business: BusinessRow, input: Record<string, unknown>) => Promise<unknown>} PosIngest
  */
 /**
  * Collaborators the router resolves per request. Unit tests inject fakes for
  * the repository lookups and the ingestion services.
  * @typedef {{
  *   BusinessRepo: Pick<typeof BusinessRepo, "getPublicBySlug" | "getById">,
- *   PlanConfigService: { getPlanFeatureOverrides: () => Promise<unknown> },
+ *   PlanConfigService: Pick<typeof PlanConfigService, "getPlanFeatureOverrides">,
  *   setTenantForRequest: (req: Request, businessId: string) => Promise<void>,
  *   syncMerchantCatalog: PosIngest,
  *   recordInventorySnapshot: PosIngest,
@@ -154,7 +153,7 @@ const posBodyShapes = {
  *   ingestPosSale: PosIngest,
  *   ingestPosRefund: PosIngest,
  *   lookupPosRedemption: PosIngest,
- *   recordPosFulfillmentEvent: PosIngest,
+ *   recordPosFulfillmentEvent: typeof recordPosFulfillmentEvent,
  *   getPosRewardMappings: PosIngest,
  *   recordDataHeartbeat: PosIngest
  * }} PosRouteDeps
@@ -166,6 +165,7 @@ export function createPosRoutes(deps = {}) {
   const businessRepo = deps.BusinessRepo ?? BusinessRepo;
   const plans = deps.PlanConfigService ?? PlanConfigService;
   const setTenant = deps.setTenantForRequest ?? setTenantForRequest;
+  const fulfillmentEvent = deps.recordPosFulfillmentEvent ?? recordPosFulfillmentEvent;
   /** @type {Partial<Record<PosKind, PosIngest>>} */
   const handlers = {
     "catalog/sync": deps.syncMerchantCatalog ?? syncMerchantCatalog,
@@ -177,7 +177,7 @@ export function createPosRoutes(deps = {}) {
     sales: deps.ingestPosSale ?? ingestPosSale,
     refunds: deps.ingestPosRefund ?? ingestPosRefund,
     "redemptions/lookup": deps.lookupPosRedemption ?? lookupPosRedemption,
-    "redemptions/events": deps.recordPosFulfillmentEvent ?? recordPosFulfillmentEvent,
+    "redemptions/events": fulfillmentEvent,
     "redemptions/mappings": deps.getPosRewardMappings ?? getPosRewardMappings,
   };
 
@@ -242,7 +242,7 @@ export function createPosRoutes(deps = {}) {
           if (!shape.success) return res.status(400).json(validationErrorBody(shape.error));
           if (kind === "redemptions/events")
             return res.json(
-              await ingest(business, shape.data, {
+              await fulfillmentEvent(business, shape.data, {
                 enforceConnection: true,
                 getPlanFeatureOverrides: async () => overrides,
               }),

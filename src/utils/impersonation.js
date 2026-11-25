@@ -1,9 +1,10 @@
 /**
  * A staff actor as the request or a session carries it: `impersonated_by` on
- * `req.staff` and session rows, `imp` on legacy token claims.
- * Any staff-shaped object qualifies; the index signature keeps callers that
- * pass a plain `{ id, business_id }` row from tripping the weak-type check.
- * @typedef {{ impersonated_by?: string | null, imp?: string | null, [key: string]: unknown }} ImpersonationActor
+ * `req.staff` (src/types/auth.ts `StaffActor`) and session rows, `imp` on
+ * legacy token claims (`StaffTokenPayload`). Any object qualifies (staff rows
+ * without either field read as "not impersonated"); the `object` intersection
+ * keeps the all-optional shape from being a weak type.
+ * @typedef {object & Partial<Pick<import("../types/auth.js").StaffActor, "impersonated_by"> & Pick<import("../types/auth.js").StaffTokenPayload, "imp">>} ImpersonationActor
  */
 
 /** @param {ImpersonationActor | null | undefined} actor */

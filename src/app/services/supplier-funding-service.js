@@ -13,7 +13,7 @@ import {
 } from "./reward-promise-service.js";
 import { demandText, validateClaimTransition, supplierExport } from "./demand-funding-model.js";
 /**
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} SupplierFundingQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} SupplierFundingQueryClient
  * @typedef {<T>(fn: (client: SupplierFundingQueryClient) => Promise<T>) => Promise<T>} SupplierFundingTransaction
  * @typedef {{ transaction?: SupplierFundingTransaction }} SupplierFundingDeps
  * The staff session as the routes pass it (req.staff).

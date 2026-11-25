@@ -5,12 +5,12 @@ import { errorCode } from "../../../utils/error-shape.js";
 /**
  * Database client handed to the pass lock (pg PoolClient surface used here; the
  * project ships no pg type declarations).
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} NativeWalletQueryClient
+ * @typedef {import("../../../types/db.js").DbQueryClient} NativeWalletQueryClient
  */
 
 /**
  * Customer session the mobile/customer routes resolve (req.customerAuth).
- * @typedef {{ id: string, business_id: string }} NativeWalletCustomerAuth
+ * @typedef {import("../../../types/auth.js").CustomerActor} NativeWalletCustomerAuth
  */
 
 /**

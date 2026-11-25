@@ -5,7 +5,7 @@ import { badRequest, conflict, forbidden, notFound } from "../../utils/http-erro
 import { withImpersonationMeta } from "../../utils/impersonation.js";
 
 /**
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} StaffDelegationQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} StaffDelegationQueryClient
  * @typedef {<T>(fn: (client: StaffDelegationQueryClient) => Promise<T>) => Promise<T>} StaffDelegationTransaction
  * @typedef {{ transaction: StaffDelegationTransaction }} StaffDelegationDeps
  * The staff session as the routes pass it (req.staff), or a verified staff_users row.

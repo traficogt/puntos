@@ -6,7 +6,7 @@ import { conflict, notFound } from "../../utils/http-error.js";
 import { livePromiseMember, promiseAudit, requestIdentity } from "./reward-promise-service.js";
 import { programBasics } from "./merchant-launch-service.js";
 /**
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} ServiceCompletionQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} ServiceCompletionQueryClient
  * @typedef {<T>(fn: (client: ServiceCompletionQueryClient) => Promise<T>) => Promise<T>} ServiceCompletionTransaction
  * @typedef {{ transaction?: ServiceCompletionTransaction }} ServiceCompletionDeps
  * The staff session as the routes pass it (req.staff).

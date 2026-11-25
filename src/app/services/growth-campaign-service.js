@@ -55,7 +55,7 @@ import { SYNC_AUDIENCE_LIMIT, assertAudienceWithinPlan } from "./scale-limits.js
  *   program_json?: MerchantProgramJson | null,
  * }} GrowthCampaignRow
  */
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /**
  * Owner request to create a campaign (route-validated).
  * @typedef {{
@@ -494,7 +494,7 @@ export async function activateGrowthCampaign(
       WHERE m.business_id=$1::uuid AND m.campaign_id=$2::uuid AND c.deleted_at IS NULL ORDER BY m.id FOR UPDATE OF m FOR SHARE OF c`,
       [businessId, campaignId],
     );
-    if (active.rowCount < (campaign.offer_kind === "quiet" ? 1 : 10))
+    if (Number(active.rowCount) < (campaign.offer_kind === "quiet" ? 1 : 10))
       throw badRequest("Se necesitan al menos 10 clientes activos para comparar la campaña.");
     const ids = active.rows.map((/** @type {{ id: string }} */ row) => row.id);
     // Fisher–Yates uses Node's cryptographic integer sampler. Store assignments,

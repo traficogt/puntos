@@ -54,7 +54,7 @@ test("rejects linking an identifier already assigned to another customer", async
 });
 
 test("links a new identifier for the scoped customer with trimmed value and metadata", async () => {
-  /** @type {{client: unknown, input: {business_id: string, customer_id: string, identifier_type: string, identifier_value: string, label: string, meta: Record<string, unknown>, active: boolean}} | null} */
+  /** @type {{client: unknown, input: import("../../src/app/repositories/contact-identifier-repository.js").ContactIdentifierCreateInput} | null} */
   let createArgs = null;
   const out = await linkContactIdentifierWithDeps(
     {

@@ -32,7 +32,7 @@ export const importJobCreateSchema = migrationCommitSchema.extend({
 });
 const defaults = { query: dbQuery, transaction: withTransaction, context: withDbClientContext };
 /** @typedef {typeof defaults} ImportJobDeps */
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {{ phone: string, name: string | null, points: number }} ImportJobRow */
 /**
  * customer_import_jobs row.

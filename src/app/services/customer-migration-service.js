@@ -10,7 +10,7 @@ import {
 } from "./customer-migration-csv.js";
 
 const defaults = { query: dbQuery, transaction: withTransaction };
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /**
  * customer_migration_batches row (counts come back as strings from bigint sums).
  * @typedef {{

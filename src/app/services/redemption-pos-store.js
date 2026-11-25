@@ -4,7 +4,7 @@ import { withImpersonationMeta } from "../../utils/impersonation.js";
 
 /**
  * pg client inside a transaction (pg ships no types; this mirrors QueryResult<any>).
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} RedemptionPosQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} RedemptionPosQueryClient
  *
  * The staff session as the routes attach it (the staff row belongs to the repositories
  * owner). fulfillmentActor() re-reads and verifies the account, so the session fields are

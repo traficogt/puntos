@@ -14,7 +14,7 @@ import { timingSafeEqualString } from "../../utils/timing-safe.js";
 import { isLedgerAmount, isLedgerInteger } from "../../utils/ledger-limits.js";
 import { purchaseEventTime, assertPurchaseTimeReplay } from "./purchase-event-time.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
 /**
  * businesses row as the award flow needs it (program_json and the protected

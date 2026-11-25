@@ -9,7 +9,7 @@ import { sendMessage } from "./messaging-service.js";
 import { TierService } from "./tier-service.js";
 import { expirePointsForBusiness } from "./loyalty-ops-service.js";
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
 /** @typedef {{ id: string, email?: string | null, program_json?: MerchantProgramJson | null, [key: string]: unknown }} LifecycleBusiness */
 /** @typedef {{ suspicious_digest_enabled?: unknown, suspicious_digest_min_count?: unknown, [key: string]: unknown }} LifecycleDigestConfig */

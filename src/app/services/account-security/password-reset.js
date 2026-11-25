@@ -10,7 +10,7 @@ import { logger } from "../../../utils/logger.js";
 import { sendSecurityNotification } from "../security-notification-service.js";
 import { id, hashActionToken, randomActionToken, normalizeEmail, logSecurity } from "./shared.js";
 
-/** @typedef {{ query: typeof import("../../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./shared.js").AccountSecurityStaffRecord} AccountSecurityStaffRecord */
 /** @typedef {import("./shared.js").AccountSecuritySuperAuthRecord} AccountSecuritySuperAuthRecord */
 

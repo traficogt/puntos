@@ -2,7 +2,7 @@ import { TierRepository } from "../repositories/tier-repository.js";
 import { dbQuery, withTransaction } from "../database.js";
 import { notFound, badRequest, forbidden } from "../../utils/http-error.js";
 
-/** @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} TierQueryClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TierQueryClient */
 /**
  * loyalty_tiers row as TierRepository returns it (repositories owner).
  * @typedef {{

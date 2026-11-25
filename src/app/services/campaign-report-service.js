@@ -13,7 +13,7 @@ import {
 import { MeasurementCostInput } from "./campaign-measurement-input.js";
 import { campaignReportQuery } from "./campaign-report-query.js";
 
-/** @typedef {{ query: typeof dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /** @typedef {import("./growth-campaign-service.js").GrowthCampaignRow} GrowthCampaignRow */
 /** @typedef {import("./merchant-data-readiness.js").MerchantProgramJson} MerchantProgramJson */
 /**

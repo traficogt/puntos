@@ -1,6 +1,7 @@
 import { badRequest, conflict, notFound } from "../../utils/http-error.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
+/** @typedef {typeof import("../repositories/contact-identifier-repository.js").ContactIdentifierRepo} ContactIdentifierRepoType */
 /**
  * Injected collaborators: the real repositories, or test fakes implementing
  * the methods a given call reaches. Each method is checked before use.
@@ -8,8 +9,21 @@ import { badRequest, conflict, notFound } from "../../utils/http-error.js";
  *   client?: TxClient | null,
  *   dbClient?: TxClient | null,
  *   CustomerRepo?: Partial<Pick<typeof import("../repositories/customer-repository.js").CustomerRepo, "getByBusinessAndId">> | null,
- *   ContactIdentifierRepo?: Partial<typeof import("../repositories/contact-identifier-repository.js").ContactIdentifierRepo> | null,
+ *   ContactIdentifierRepo?: ContactIdentifierRepoLike | null,
  * } | null | undefined} ContactIdentifierDeps
+ */
+/**
+ * ContactIdentifierRepo as this service drives it. Method signatures (bivariant
+ * parameters) let the real repository, which needs a client, and unit-test
+ * fakes, called with the `null` this service passes when no client was
+ * injected, both satisfy it.
+ * @typedef {{
+ *   create?(client: TxClient | null, input: Parameters<ContactIdentifierRepoType["create"]>[1]): ReturnType<ContactIdentifierRepoType["create"]>,
+ *   getByBusinessTypeAndValue?(client: TxClient | null, businessId: string, identifierType: string, identifierValue: string): ReturnType<ContactIdentifierRepoType["getByBusinessTypeAndValue"]>,
+ *   getAnyByBusinessTypeAndValue?(client: TxClient | null, businessId: string, identifierType: string, identifierValue: string): ReturnType<ContactIdentifierRepoType["getAnyByBusinessTypeAndValue"]>,
+ *   listByCustomer?(client: TxClient | null, businessId: string, customerId: string): ReturnType<ContactIdentifierRepoType["listByCustomer"]>,
+ *   deactivate?(client: TxClient | null, businessId: string, identifierType: string, identifierValue: string): ReturnType<ContactIdentifierRepoType["deactivate"]>
+ * }} ContactIdentifierRepoLike
  */
 /**
  * Raw request fields; everything is re-validated as text here.

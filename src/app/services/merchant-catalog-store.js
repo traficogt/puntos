@@ -3,7 +3,7 @@ import { badRequest, conflict } from "../../utils/http-error.js";
 import { markRewardInventoryWallets } from "./reward-inventory-service.js";
 import { fulfillmentFingerprint } from "./redemption-pos-model.js";
 
-/** @typedef {{ query: typeof import("../database.js").dbQuery }} TxClient */
+/** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
 /**
  * merchant_catalog_items row, optionally joined with a branch inventory snapshot.
  * @typedef {{

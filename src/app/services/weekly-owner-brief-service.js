@@ -27,8 +27,8 @@ export const WeeklyBriefSettings = z
     channel: z.enum(["email", "phone"]).optional(),
   })
   .strict();
-/** @typedef {(text: string, values?: readonly unknown[]) => Promise<{ rows: any[], rowCount?: number | null }>} WeeklyBriefQuery */
-/** @typedef {{ query: WeeklyBriefQuery }} WeeklyBriefQueryClient */
+/** @typedef {import("../../types/db.js").DbQueryFnLike} WeeklyBriefQuery */
+/** @typedef {import("../../types/db.js").DbQueryClient} WeeklyBriefQueryClient */
 /**
  * Business row; program_json.weekly_owner_brief holds { settings, channel, owner_id,
  * destination, enabled_at } as saved below.
@@ -54,16 +54,7 @@ export const WeeklyBriefSettings = z
  *   imp?: string | null
  * }} WeeklyBriefActor
  * Audit row as AuditRepo.log receives it (repositories owner).
- * @typedef {{
- *   id: string,
- *   business_id: string,
- *   actor_type: string,
- *   actor_id: string,
- *   action: string,
- *   ip: string | null,
- *   ua: string | null,
- *   meta: unknown
- * }} WeeklyBriefAuditEvent
+ * @typedef {import("../repositories/audit-repository.js").AuditLogInput} WeeklyBriefAuditEvent
  * Provider answer as classifyCampaignSend reads it.
  * @typedef {{
  *   ok?: boolean,

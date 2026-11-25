@@ -59,7 +59,7 @@ test("POST /public/contacts rejects an invalid signature", async () => {
     BusinessRepo: {
       getPublicBySlug: async () => ({ id: "biz-1", slug: "cafe-gt" }),
     },
-    withDbClientContext: async (_ctx, task) => task({}),
+    withDbClientContext: async (_ctx, task) => task({ query: async () => ({ rows: [] }) }),
     upsertContactWithDeps: async () => {
       upsertCalled = true;
       return { id: "customer-1" };

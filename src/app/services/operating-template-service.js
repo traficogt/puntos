@@ -20,11 +20,11 @@ import { businessRegion } from "./regional-settings.js";
 import { PlanConfigService } from "./plan-config-service.js";
 
 /**
- * @typedef {{ query: (text: string, values?: unknown[]) => Promise<{ rows: any[], rowCount?: number | null }> }} OperatingTemplateQueryClient
+ * @typedef {import("../../types/db.js").DbQueryClient} OperatingTemplateQueryClient
  *
  * Staff session as the routes resolve it (req.staff); reward-promise-service checks it
  * against the live staff row.
- * @typedef {{ id: string, business_id: string, branch_id?: string | null, role?: string | null, impersonated_by?: string | null, [field: string]: unknown }} OperatingTemplateStaff
+ * @typedef {import("../../types/auth.js").StaffActor} OperatingTemplateStaff
  *
  * @typedef {{ businessId: string, staff: OperatingTemplateStaff, delegated?: boolean, input?: unknown }} OperatingTemplateOptions `input` is the request body, validated per action
  * @typedef {{ transaction?: typeof withTransaction, getPlanFeatureOverrides?: () => Promise<Record<string, any>> }} OperatingTemplateInjected
@@ -370,7 +370,7 @@ export async function triggerOperatingTemplate(options, injected = {}) {
       /** @param {(client: OperatingTemplateQueryClient) => Promise<unknown>} fn */
       transaction: (fn) => fn(client),
       getPlanFeatureOverrides: async () => overrides,
-      /** @param {{ id: string, business_id: string, actor_type: string, actor_id: string | null, action: string, meta: unknown }} event */
+      /** @param {import("../repositories/audit-repository.js").AuditLogInput} event */
       audit: async (event) => {
         // The campaign services only await this hook (AuditRepo.log resolves to void).
         await client.query(
