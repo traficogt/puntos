@@ -2,7 +2,7 @@
   "expo": {
     "name": "PuntosFieles",
     "slug": "puntosfieles",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "scheme": "puntosfieles",
     "icon": "./assets/pf-logo.png",
     "userInterfaceStyle": "automatic",
