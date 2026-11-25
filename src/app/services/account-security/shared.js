@@ -87,8 +87,11 @@ export function normalizeEmail(value) {
 }
 
 /**
+ * Tenant-scoped audit entry. `audit_logs.business_id` is NOT NULL, so every
+ * caller must supply the business; platform-level (super admin) events belong
+ * in `security_events` via {@link logSecurity}, whose business_id is nullable.
  * @param {{
- *   businessId?: string | null,
+ *   businessId: string,
  *   actorType: string,
  *   actorId?: string | null,
  *   action: string,
@@ -98,7 +101,7 @@ export function normalizeEmail(value) {
  * }} entry
  */
 export async function logAudit({
-  businessId = null,
+  businessId,
   actorType,
   actorId = null,
   action,

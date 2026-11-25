@@ -32,7 +32,11 @@ export const TierCreateSchema = z.object({
   icon_url: z.string().max(300).optional().nullable(),
 });
 
-export const TierUpdateSchema = TierCreateSchema.partial();
+// Edits may also toggle `active`: deleteTier refuses a tier that still has members and
+// tells the owner to deactivate it instead, and this PUT is the only path that can.
+export const TierUpdateSchema = TierCreateSchema.partial().extend({
+  active: z.boolean().optional(),
+});
 
 router.get(
   "/admin/tiers",
@@ -92,8 +96,6 @@ router.put(
     async (req, res) => {
       const v = validate(TierUpdateSchema, req.body);
       if (!v.ok) return res.status(400).json({ error: v.error });
-      // Note: "active" is not part of TierUpdateSchema, so zod strips it and that
-      // key never reaches `updates` (pre-existing; reported, not changed here).
       /** @type {Record<string, unknown>} */
       const updates = {};
       for (const key of [

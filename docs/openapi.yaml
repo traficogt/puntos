@@ -8560,6 +8560,8 @@ components:
           nullable: true
           type: string
           maxLength: 300
+        active:
+          type: boolean
       additionalProperties: false
     RewardCreateRequest:
       type: object

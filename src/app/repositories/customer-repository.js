@@ -35,14 +35,6 @@ import { conflict } from "../../utils/http-error.js";
  */
 
 /**
- * Result of {@link CustomerRepo.upsertByPhone}: a fresh customer carries its
- * balance counters, while an existing (conflicting) row is returned from
- * `customers` alone, so the counters may be absent.
- * @typedef {CustomerRow
- *   & Partial<Pick<CustomerBalanceRow, "points" | "pending_points" | "lifetime_points" | "tier">>} CustomerUpsertRow
- */
-
-/**
  * Directory projection returned by {@link CustomerRepo.listByBusiness}.
  * @typedef {Pick<CustomerRow, "id" | "phone" | "name" | "created_at" | "last_visit_at">
  *   & Pick<CustomerBalanceRow, "points" | "pending_points" | "lifetime_points">} CustomerListRow
@@ -55,7 +47,7 @@ import { conflict } from "../../utils/http-error.js";
 export const CustomerRepo = {
   // ✅ Alias expected by customer-service.js
   /**
-   * Resolves to `CustomerUpsertRow | null`.
+   * Resolves to `CustomerWithBalanceRow | null`.
    * @param {CustomerCreateInput} customer
    */
   async create({ id, business_id, phone, name }) {
@@ -63,7 +55,8 @@ export const CustomerRepo = {
   },
 
   /**
-   * Resolves to `CustomerUpsertRow | null`.
+   * Resolves to `CustomerWithBalanceRow | null`: both the fresh and the existing
+   * (conflicting) customer come back joined with their balance counters.
    * @param {CustomerCreateInput} customer
    */
   async upsertByPhone({ id, business_id, phone, name }) {
@@ -74,10 +67,9 @@ export const CustomerRepo = {
       [id, business_id, phone, name ?? null],
     );
     if (!created) {
-      const existing = await one(
-        `SELECT * FROM customers WHERE business_id=$1 AND phone=$2 AND deleted_at IS NULL`,
-        [business_id, phone],
-      );
+      // Same joined shape as the fresh path (getById): callers such as the mobile
+      // join/login response project points/pending_points/lifetime_points from it.
+      const existing = await CustomerRepo.getByBusinessAndPhone(business_id, phone);
       if (existing) return existing;
       throw conflict(
         "Esta tarjeta fue desactivada o eliminada. Contacta al negocio para recibir ayuda.",

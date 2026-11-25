@@ -152,6 +152,7 @@ export async function confirmStaffEmailChange({ token, ip = null, ua: _ua = null
   if (
     !active ||
     active.actor_type !== "STAFF" ||
+    !active.business_id ||
     !String(active.purpose || "").startsWith("STAFF_EMAIL_CHANGE_")
   ) {
     throw badRequest(

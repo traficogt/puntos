@@ -31,13 +31,19 @@ function database(existing = null) {
           balanceWrites += 1;
           return { rows: [] };
         }
-        if (/FROM customers/.test(sql))
+        if (/FROM customers/.test(sql)) {
+          if (!customer || (/deleted_at IS NULL/.test(sql) && customer.deleted_at))
+            return { rows: [] };
+          // Only the joined lookups carry the counters, as in the real schema.
+          const joined = /JOIN customer_balances/.test(sql);
           return {
-            rows:
-              !customer || (/deleted_at IS NULL/.test(sql) && customer.deleted_at)
-                ? []
-                : [customer],
+            rows: [
+              joined
+                ? { ...customer, points: 0, pending_points: 0, lifetime_points: 0, tier: null }
+                : customer,
+            ],
           };
+        }
         throw new Error(`Unexpected SQL: ${sql}`);
       },
     },
@@ -67,6 +73,20 @@ test("enrollment creates a zero balance once and repeated enrollment returns the
   assert.equal(first.id, input.id);
   assert.equal(second.id, input.id);
   assert.equal(db.balanceWrites, 1);
+});
+
+test("repeated enrollment returns the same joined shape as a fresh enrollment", async () => {
+  const db = database();
+  const first = await runWithDbContext({ client: db.client }, () => CustomerRepo.create(input));
+  const second = await runWithDbContext({ client: db.client }, () =>
+    CustomerRepo.create({ ...input, id: "other-id" }),
+  );
+  // Callers project the balance counters from this result (mobile join/login response), so
+  // the conflicting path must not hand back a bare customers row.
+  assert.deepEqual(Object.keys(second).sort(), Object.keys(first).sort());
+  assert.equal(second.points, 0);
+  assert.equal(second.pending_points, 0);
+  assert.equal(second.lifetime_points, 0);
 });
 
 test("concurrent enrollment converges on one phone identity without a database uniqueness error", async () => {

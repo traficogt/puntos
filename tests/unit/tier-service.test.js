@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { TierService } from "../../src/app/services/tier-service.js";
+import { TierRepository } from "../../src/app/repositories/tier-repository.js";
 import { runWithDbContext } from "../../src/app/database.js";
 
 // GET /api/admin/tiers feeds the owner editors (web/merchant OwnerTiers, vanilla "Niveles").
@@ -79,4 +80,18 @@ test("tier list keeps the historical statistic fields and adds the rule fields",
   assert.equal(tiers[0].min_points, 5000);
   assert.deepEqual(tiers[0].perks, ["Puntos ×1.5"]);
   assert.equal(tiers[0].customer_count, "12");
+});
+
+// DECIMAL(4,2) points_multiplier arrives from pg as a string ("1.25"). The service only
+// multiplies inside Math.floor, which coerces that string numerically; this pins that no
+// `+` (concatenation) or string comparison creeps into the calculation.
+test("points multiplier applies a DECIMAL string from pg numerically", async (t) => {
+  const multipliers = ["1.25", "1.50", null];
+  t.mock.method(TierRepository, "getCustomerTier", async () => ({
+    id: "tier-1",
+    points_multiplier: multipliers.shift(),
+  }));
+  assert.equal(await TierService.calculatePointsWithMultiplier("customer-1", 100), 125);
+  assert.equal(await TierService.calculatePointsWithMultiplier("customer-1", 33), 49);
+  assert.equal(await TierService.calculatePointsWithMultiplier("customer-1", 40), 40);
 });

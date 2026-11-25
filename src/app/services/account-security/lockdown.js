@@ -57,21 +57,15 @@ export async function lockdownSuperAccount({ ip = null, ua = null }) {
       "Debes volver a iniciar sesión.",
     ],
   });
+  // The super admin has no tenant and audit_logs.business_id is NOT NULL, so the
+  // platform-level record lives only in security_events (nullable business_id);
+  // the user agent rides in meta because that table has no ua column.
   await logSecurity({
     event_type: "super_account_lockdown",
     severity: "HIGH",
     actor_type: "SUPER_ADMIN",
     ip,
-    meta: { revoked_sessions: revokedSessions, email: normalizeEmail(auth.email) },
-  });
-  await logAudit({
-    businessId: null,
-    actorType: "SUPER_ADMIN",
-    actorId: null,
-    action: "super.security.lockdown",
-    ip,
-    ua,
-    meta: { revoked_sessions: revokedSessions, email: normalizeEmail(auth.email) },
+    meta: { revoked_sessions: revokedSessions, email: normalizeEmail(auth.email), ua },
   });
   return { ok: true, revokedSessions };
 }

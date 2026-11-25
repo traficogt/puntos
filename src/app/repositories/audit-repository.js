@@ -17,11 +17,11 @@ import { exec } from "./base.js";
 
 /**
  * Entry accepted by {@link AuditRepo.log}; `meta` is serialised to jsonb.
- * `business_id` admits `null` only because `logAudit` (account-security/shared.js)
- * defaults it so; the column is NOT NULL, so a null insert fails at runtime.
+ * `business_id` is required: the column is NOT NULL, so a null insert fails at
+ * runtime. Platform-level events go to `security_events` (nullable business_id).
  * @typedef {{
  *   id: string,
- *   business_id: string | null,
+ *   business_id: string,
  *   actor_type: string,
  *   actor_id?: string | null,
  *   action: string,
