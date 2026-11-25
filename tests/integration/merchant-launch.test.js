@@ -49,8 +49,13 @@ suite("guided setup with disposable PostgreSQL", () => {
     ]);
   });
   async function input() {
+    // The strict launch schema takes only the fields the owner edits for this program type;
+    // the read model also carries the other program types' keys as null.
+    const { program } = await service.getLaunchProgram({ businessId: id }, pool.query.bind(pool));
     return {
-      ...(await service.getLaunchProgram({ businessId: id }, pool.query.bind(pool))).program,
+      program_type: program.program_type,
+      round: program.round,
+      version: program.version,
       rate: 0.2,
     };
   }

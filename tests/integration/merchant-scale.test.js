@@ -316,7 +316,8 @@ suite("merchant scale with fictional customers and the complete schema", () => {
       },
       { samples: 1, budgetMs: 60000 },
     );
-    assert.equal(chunks, 50);
+    // 5,000 rows in 200-row chunks (IMPORT_CHUNK_ROWS).
+    assert.equal(chunks, 25);
     assert.equal(final.job.status, "completed");
     assert.equal(final.job.imported, 5000);
     assert.equal(Number(final.job.opening_points), 10000);

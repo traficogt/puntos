@@ -249,8 +249,10 @@ suite("campaign point limits on disposable PostgreSQL", () => {
       WAHA_API_KEY: "fixture-only",
     });
     await db.query("TRUNCATE businesses CASCADE");
+    // An explicit points rule: a points program without one refuses purchases and the
+    // campaign preflight (PROGRAM_NOT_CONFIGURED).
     await db.query(
-      "INSERT INTO businesses(id,name,slug,email,password_hash,plan) VALUES($1,'Café','limits','limits@example.test','unused','NEGOCIO'),($2,'Other','other','other@example.test','unused','NEGOCIO')",
+      "INSERT INTO businesses(id,name,slug,email,password_hash,plan,program_json) VALUES($1,'Café','limits','limits@example.test','unused','NEGOCIO','{\"points_per_q\":0.1}'),($2,'Other','other','other@example.test','unused','NEGOCIO','{}')",
       [businessId, otherBusiness],
     );
     await db.query(

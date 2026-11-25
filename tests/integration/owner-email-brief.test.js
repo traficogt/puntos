@@ -48,6 +48,7 @@ suite("verified owner email briefs on disposable PostgreSQL", () => {
         "2026-11-11-campaign-expansion",
         "2026-11-11-guided-owner-growth",
         "2026-11-11-owner-email-brief",
+        "2026-11-23-owner-progress",
       ].map((x) => `migrations/${x}.sql`),
     ];
     for (const file of files) {

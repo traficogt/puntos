@@ -250,12 +250,43 @@ export async function saveWeeklyBriefSettings(options, injected = {}) {
   });
 }
 /**
+ * The optional "Tu progreso" line: the week's milestones and the current goal. It never
+ * costs the owner the brief. Inside a transaction the attempt runs under a savepoint,
+ * because a failed statement (for example a database that predates the owner-progress
+ * migration) would otherwise leave the transaction aborted and fail every later
+ * statement of the brief with 25P02. The preview reads outside a transaction.
  * @param {WeeklyBriefQueryClient} client
  * @param {WeeklyBriefBusiness} business
  * @param {Date} now
  * @param {WeeklyBriefDeps} deps
+ * @param {boolean} transactional
+ * @returns {Promise<Awaited<ReturnType<typeof ownerProgressBriefLine>> | null>}
  */
-async function buildBrief(client, business, now, deps) {
+async function ownerProgressLine(client, business, now, deps, transactional) {
+  if (transactional) await client.query("SAVEPOINT owner_progress_line");
+  /** @type {Awaited<ReturnType<typeof ownerProgressBriefLine>> | null} */
+  let line = null;
+  try {
+    line = await deps.ownerProgressBriefLine(client.query.bind(client), business, now);
+  } catch (error) {
+    logger.warn(
+      { businessId: business.id, err: error },
+      "Owner progress line omitted from the weekly brief",
+    );
+    if (transactional) await client.query("ROLLBACK TO SAVEPOINT owner_progress_line");
+    return null;
+  }
+  if (transactional) await client.query("RELEASE SAVEPOINT owner_progress_line");
+  return line;
+}
+/**
+ * @param {WeeklyBriefQueryClient} client
+ * @param {WeeklyBriefBusiness} business
+ * @param {Date} now
+ * @param {WeeklyBriefDeps} deps
+ * @param {{ transactional?: boolean }} [options] `transactional` when `client` runs inside a transaction
+ */
+async function buildBrief(client, business, now, deps, { transactional = false } = {}) {
   const since = new Date(now.getTime() - 7 * 86400000),
     businessId = business.id;
   // Weekly activity is read in one statement; each outcome carries its own window.
@@ -368,13 +399,7 @@ async function buildBrief(client, business, now, deps) {
   const selected = selectWeeklyFindings(candidates);
   // "Tu progreso": one line with the week's milestones and the current goal. Never blocks
   // the brief; absent when the mode is off, for holdout businesses or a hidden card.
-  /** @type {Awaited<ReturnType<typeof ownerProgressBriefLine>> | null} */
-  let ownerProgress = null;
-  try {
-    ownerProgress = await deps.ownerProgressBriefLine(client.query.bind(client), business, now);
-  } catch (error) {
-    logger.warn({ businessId, err: error }, "Owner progress line omitted from the weekly brief");
-  }
+  const ownerProgress = await ownerProgressLine(client, business, now, deps, transactional);
   return {
     business_name: business.name,
     generated_at: now.toISOString(),
@@ -504,7 +529,7 @@ async function queueBrief(businessId, now, deps) {
       destinationFor(owner, channel) !== stored.destination
     )
       return;
-    const snapshot = await buildBrief(client, business, now, deps);
+    const snapshot = await buildBrief(client, business, now, deps, { transactional: true });
     await client.query(
       "INSERT INTO weekly_owner_briefs(id,business_id,owner_id,destination,period_start,snapshot,next_attempt_at,expires_at,created_at,channel) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$7,$9) ON CONFLICT DO NOTHING",
       [
@@ -968,7 +993,7 @@ export async function requestWeeklyOwnerBriefTest(options, injected = {}) {
     ).rows[0];
     if (counts.hourly >= 2 || counts.daily >= 5)
       throw conflict("Alcanzaste el límite de pruebas. Espera una hora para solicitar otra.");
-    const snapshot = await buildBrief(client, business, now, deps),
+    const snapshot = await buildBrief(client, business, now, deps, { transactional: true }),
       id = randomUUID();
     await client.query(
       "INSERT INTO weekly_owner_briefs(id,business_id,owner_id,destination,period_start,snapshot,next_attempt_at,expires_at,created_at,channel,kind,request_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$7,'email','test',$9)",

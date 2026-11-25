@@ -61,6 +61,7 @@ suite("second visit and weekly owner brief on isolated PostgreSQL", () => {
     assert.ok(migration, "Second visit and owner brief durable schema must exist");
     await db.query(migration);
     await db.query(await read("../../src/app/migrations/2026-11-11-owner-email-brief.sql"));
+    await db.query(await read("../../src/app/migrations/2026-11-23-owner-progress.sql"));
     database = await import("../../src/app/database.js");
     second = await import("../../src/app/services/second-visit-service.js");
     weekly = await import("../../src/app/services/weekly-owner-brief-service.js");

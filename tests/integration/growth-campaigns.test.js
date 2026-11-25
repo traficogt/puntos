@@ -101,8 +101,10 @@ integrationDescribe(
       await db.query(
         "TRUNCATE businesses,staff_users,customers,transactions,customer_balances,qr_tokens CASCADE",
       );
+      // An explicit points rule: a points program without one refuses purchases and the
+      // campaign preflight (PROGRAM_NOT_CONFIGURED).
       await db.query(
-        "INSERT INTO businesses(id,program_json) VALUES($1,'{\"existing\":true}'),($2,'{}')",
+        "INSERT INTO businesses(id,program_json) VALUES($1,'{\"existing\":true,\"points_per_q\":0.1}'),($2,'{}')",
         [businessId, otherBusiness],
       );
       await db.query("INSERT INTO staff_users VALUES($1,$2)", [staffId, businessId]);
@@ -270,7 +272,7 @@ integrationDescribe(
       assert.deepEqual(
         (await db.query("SELECT program_json FROM businesses WHERE id=$1", [businessId])).rows[0]
           .program_json,
-        { existing: true, targeted_offers_enabled: true },
+        { existing: true, points_per_q: 0.1, targeted_offers_enabled: true },
       );
       const assignments = await members(first.campaign.id);
       await activate(first.campaign.id);

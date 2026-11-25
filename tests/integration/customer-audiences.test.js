@@ -93,7 +93,12 @@ integration("reusable audiences and campaign snapshots on disposable PostgreSQL"
     await db.query(
       "TRUNCATE businesses,staff_users,customers,transactions,customer_balances CASCADE",
     );
-    await db.query("INSERT INTO businesses(id) VALUES($1),($2)", [businessId, otherBusiness]);
+    // An explicit points rule: the campaign preflight refuses a points program without one
+    // (PROGRAM_NOT_CONFIGURED).
+    await db.query(
+      "INSERT INTO businesses(id,program_json) VALUES($1,'{\"points_per_q\":0.1}'),($2,'{}')",
+      [businessId, otherBusiness],
+    );
     await db.query("INSERT INTO staff_users VALUES($1,$2)", [staffId, businessId]);
     for (const [i, id] of customers.entries()) {
       await db.query(

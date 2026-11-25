@@ -233,9 +233,10 @@ describe(
             businessId: f.businessId,
             staffId: f.staffId,
             input: {
+              // One full 200-row chunk (IMPORT_CHUNK_ROWS) and a second chunk of one row.
               csv:
                 "phone,name,points\n" +
-                Array.from({ length: 101 }, (_, i) => `+502${55550000 + i},Fictional ${i},2`).join(
+                Array.from({ length: 201 }, (_, i) => `+502${55550000 + i},Fictional ${i},2`).join(
                   "\n",
                 ),
               columns: { phone: "phone", name: "name", points: "points" },
@@ -252,7 +253,7 @@ describe(
         let child, exit, oldClaim, interruptedPid;
         await lock.query("SELECT pg_advisory_lock($1)", [key]);
         await db.query(`CREATE FUNCTION fixture_pause_import() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
-      IF EXISTS(SELECT 1 FROM customer_import_jobs WHERE business_id=NEW.business_id AND processed=100 AND status='running')
+      IF EXISTS(SELECT 1 FROM customer_import_jobs WHERE business_id=NEW.business_id AND processed=200 AND status='running')
       THEN PERFORM pg_advisory_xact_lock(8116101); END IF; RETURN NEW; END $$;
       CREATE TRIGGER fixture_pause_import BEFORE INSERT ON customer_migration_batches FOR EACH ROW EXECUTE FUNCTION fixture_pause_import()`);
         try {
@@ -281,7 +282,7 @@ describe(
             "SELECT processed,imported,opening_points FROM customer_import_jobs WHERE id=$1",
             [importId],
           );
-          assert.deepEqual(progress, { processed: 100, imported: 100, opening_points: "200" });
+          assert.deepEqual(progress, { processed: 200, imported: 200, opening_points: "400" });
           oldClaim = await one("SELECT * FROM background_jobs WHERE business_id=$1", [
             f.businessId,
           ]);
@@ -314,7 +315,7 @@ describe(
               f.businessId,
             ])
           ).n,
-          100,
+          200,
         );
         await db.query(
           "UPDATE background_jobs SET locked_at=now()-interval '16 minutes' WHERE id=$1",
@@ -347,9 +348,9 @@ describe(
           [importId],
         );
         assert.equal(final.status, "completed");
-        assert.equal(final.processed, 101);
-        assert.equal(final.imported, 101);
-        assert.equal(final.opening_points, "202");
+        assert.equal(final.processed, 201);
+        assert.equal(final.imported, 201);
+        assert.equal(final.opening_points, "402");
         assert.equal(final.batch_ids.length, 2);
         assert.deepEqual(final.rows_json, []);
         const counts = await one(
@@ -359,23 +360,23 @@ describe(
           [f.businessId],
         );
         assert.deepEqual(counts, {
-          customers: 101,
-          phones: 101,
-          points: 202,
+          customers: 201,
+          phones: 201,
+          points: 402,
           pending: 0,
-          lifetime: 202,
+          lifetime: 402,
         });
         const tx = await one(
           "SELECT count(*)::int AS n,count(DISTINCT customer_id)::int AS customers,sum(points)::int AS points FROM transactions WHERE business_id=$1",
           [f.businessId],
         );
-        assert.deepEqual(tx, { n: 101, customers: 101, points: 202 });
+        assert.deepEqual(tx, { n: 201, customers: 201, points: 402 });
         const done = await one("SELECT status,attempts,result FROM background_jobs WHERE id=$1", [
           oldClaim.id,
         ]);
         assert.equal(done.status, "DONE");
         assert.equal(done.attempts, 2);
-        assert.equal(done.result.processed, 101);
+        assert.equal(done.result.processed, 201);
         assert.equal(
           (await recovery.completeClaimedJob(db, oldClaim, { stale: true })).rowCount,
           0,
@@ -386,9 +387,9 @@ describe(
           recoveredLeases: 1,
           attempts: 2,
           committedChunks: 2,
-          customers: 101,
-          ledgerRows: 101,
-          points: 202,
+          customers: 201,
+          ledgerRows: 201,
+          points: 402,
           staleClaimsRejected: 4,
         };
       },

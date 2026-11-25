@@ -292,8 +292,13 @@ test(
           const verificationFinishedAt = Date.now();
           assert.equal(result.status, "choose_card");
           assert.equal(result.cards.length, 2);
+          // Card identity plus the branding the customer app renders; no balance or
+          // membership data before a card is chosen.
           assert.ok(
-            result.cards.every((card) => Object.keys(card).sort().join(",") === "id,name,slug"),
+            result.cards.every(
+              (card) =>
+                Object.keys(card).sort().join(",") === "customer_branding_json,id,name,slug",
+            ),
           );
           const stored = (
             await admin.query("SELECT * FROM mobile_access_grants WHERE token_hash=$1", [
