@@ -17,13 +17,8 @@ test("app-facing shells expose host-aware navigation markers and role-based entr
   );
   // eslint-disable-next-line security/detect-non-literal-fs-filename
   const staffHtml = fs.readFileSync(new URL("../../public/staff.html", import.meta.url), "utf8");
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  const adminHtml = fs.readFileSync(
-    new URL("../../public/admin-dashboard.html", import.meta.url),
-    "utf8",
-  );
 
-  for (const html of [customerHtml, joinHtml, staffLoginHtml, staffHtml, adminHtml]) {
+  for (const html of [customerHtml, joinHtml, staffLoginHtml, staffHtml]) {
     assert.match(html, /data-shell-link="marketing-home"/);
     assert.match(html, /href="\/sitio"/);
     assert.match(html, /<script src="\/runtime-config\.js"><\/script>/);
@@ -32,8 +27,9 @@ test("app-facing shells expose host-aware navigation markers and role-based entr
   assert.match(staffLoginHtml, /Para propietarios/i);
   assert.match(staffLoginHtml, /Para el equipo de caja/i);
   assert.match(staffLoginHtml, /Escáner|panel/i);
-  assert.match(adminHtml, /Centro de control/i);
-  assert.match(adminHtml, /data-shell-link="app-login"/);
+  // The owner panel is the merchant app; the staff shell points its "Panel" badge there.
+  assert.match(staffHtml, /href="\/negocio\/" data-shell-link="app-dashboard"/);
+  assert.doesNotMatch(staffHtml, /administracion/);
   assert.doesNotMatch(staffHtml, />Inicio</);
   assert.doesNotMatch(customerHtml, />Inicio</);
 });

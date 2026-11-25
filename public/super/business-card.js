@@ -94,9 +94,9 @@ export function renderBusinessCard(ctx, business, { plans, reloadBusinesses }) {
           method: "POST",
           body: "{}",
         });
-        toast("Impersonación lista. Abriendo panel admin...");
+        toast("Impersonación lista. Abriendo el panel del negocio...");
         setTimeout(() => {
-          location.href = "/administracion/";
+          location.href = "/negocio/";
         }, 500);
       },
       (error) => {

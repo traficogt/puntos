@@ -1,8 +1,8 @@
 import { Select } from './inputs';
 import { useEffect, useRef, useState } from "react";
-import { Alert, Badge, Button, Group, Modal, Paper, SimpleGrid, Stack, Text, Title } from "@mantine/core";
+import { Alert, Anchor, Badge, Button, Group, Modal, Paper, SimpleGrid, Stack, Text, Title } from "@mantine/core";
 import { api, isDemo, useResource } from "./api.js";
-import { BusinessLink, Failure, Loading, money, number } from "./ui.jsx";
+import { Failure, Loading, money, number } from "./ui.jsx";
 
 const base = "/api/admin/pos/refunds";
 const reviewedReasons = new Set(["partial_refund", "scope_unverified", "amount_mismatch", "ambiguous_original"]);
@@ -58,7 +58,7 @@ export default function PosRefunds() {
         {row.status === "pending" && <Button mt="md" variant="default" disabled={busy || reviewedReasons.has(row.reason)} aria-label={row.reason === "partial_refund" ? "Revisión de devolución parcial" : `Comprobar ${row.refund_id} de nuevo`} onClick={() => { setSelected(row); setError(""); }}>{reviewedReasons.has(row.reason) ? "Revisar recibo e historial" : "Comprobar de nuevo"}</Button>}
       </Paper>)}</Stack>}
     </>}
-    <BusinessLink href="/administracion/?seccion=analisis">Abrir historial y auditoría en administración</BusinessLink>
+    <Anchor href="#auditoria">Abrir historial y auditoría</Anchor>
     <Modal opened={!!selected} onClose={() => { if (!busy) { setSelected(null); setError(""); } }} title="Reintentar conciliación" centered closeOnClickOutside={!busy} closeOnEscape={!busy} withCloseButton={!busy}>
       <Stack><Text>PF volverá a comprobar la devolución {selected?.refund_id}. Si encuentra una devolución completa válida, revertirá los puntos de la compra y sus beneficios según la política del negocio.</Text><Text size="sm" c="dimmed">Reintentar conserva el recibo recibido. No corrige importes ni convierte una devolución parcial en completa.</Text>{error && <Alert color="red" role="alert">{error}</Alert>}<Group justify="end"><Button variant="subtle" disabled={busy} onClick={() => setSelected(null)}>Cancelar</Button><Button loading={busy} onClick={retry}>Reintentar ahora</Button></Group></Stack>
     </Modal>

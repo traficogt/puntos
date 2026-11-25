@@ -48,20 +48,44 @@ async function createBusinessViaUi(page) {
   return { slug, businessName, email, password };
 }
 
-test("owner can onboard business and create reward in dashboard", async ({ page }) => {
+// The merchant app (/negocio/) is the owner dashboard; the vanilla /administracion/ was retired.
+const merchantNav = (page) => page.locator('nav[aria-label="Tu negocio"]');
+const navItem = (page, label) =>
+  merchantNav(page)
+    .locator("button.merchant-nav-item")
+    .filter({ hasText: new RegExp(`^${label}$`) });
+async function openMerchant(page, hash = "") {
+  // From /negocio/ a hash-only goto is a same-document navigation; reload so the shell
+  // fetches the plan again (tests change it through the super API in between).
+  const sameDocument = new URL(page.url(), "http://e2e.invalid").pathname === "/negocio/";
+  await page.goto(`/negocio/${hash}`, { waitUntil: "domcontentloaded" });
+  if (sameDocument) await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(merchantNav(page)).toBeVisible();
+  // The menu filters pages by plan feature once the plan has loaded.
+  await expect(page.locator(".plan-name")).toContainText(/^Plan /);
+}
+
+test("owner can onboard business and create reward in the merchant app", async ({ page }) => {
   await useRandomClientIp(page);
   await createBusinessViaUi(page);
 
-  await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
-  await expect(page.locator("#main")).toBeVisible();
+  await openMerchant(page, "#recompensas");
+  await expect(page.getByRole("heading", { level: 1, name: "Recompensas" })).toBeVisible();
+  await page.getByRole("button", { name: "Crear recompensa", exact: true }).click();
 
   const rewardName = `Promo ${rand(5)}`;
-  await page.fill("#rewardName", rewardName);
-  await page.fill("#rewardDescription", "Promo creada por test E2E");
-  await page.fill("#rewardPointsCost", "75");
-  await page.click("#btnCreateReward");
+  await page.getByLabel("Nombre de la recompensa").fill(rewardName);
+  await page.getByLabel("Descripción (opcional)").fill("Promo creada por test E2E");
+  await page.getByLabel("Puntos necesarios").fill("75");
+  const created = page.waitForResponse(
+    (resp) =>
+      resp.request().method() === "POST" && resp.url().includes("/api/admin/reward-workspace"),
+  );
+  await page.getByRole("button", { name: "Guardar recompensa", exact: true }).click();
+  expect((await created).ok(), "reward should be created").toBeTruthy();
 
-  await expect(page.locator("#rewardsList")).toContainText(rewardName);
+  await expect(page.getByRole("heading", { level: 1, name: "Recompensas" })).toBeVisible();
+  await expect(page.getByText(rewardName, { exact: true }).first()).toBeVisible();
 });
 
 test("customer can join business with OTP and open card", async ({ page }) => {
@@ -163,40 +187,33 @@ test("staff can award points using customer QR token", async ({ page }) => {
   expect(Number(result.after)).toBeGreaterThanOrEqual(Number(result.before));
 });
 
-test("admin dashboard tab visibility matches plan features", async ({ page }) => {
+test("merchant navigation matches plan features", async ({ page }) => {
   await useRandomClientIp(page);
   await createBusinessViaUi(page);
-  await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
-  await expect(page.locator("#main")).toBeVisible();
+  await openMerchant(page);
 
   const plan = await apiGet(page, "/api/admin/plan");
   expectOk(plan, "plan should be readable");
+  const features = plan.body?.features || {};
 
-  const result = await page.evaluate((features) => {
-    const mapping = {
-      rewards: "rewards",
-      tiers: "tiers",
-      branches: "multi_branch",
-      staff: "staff_management",
-      giftcards: "gift_cards",
-      achievements: "gamification",
-      challenges: "gamification",
-      referrals: "referrals",
-      analytics: "analytics",
-    };
-    const mismatches = [];
-    for (const [tab, feature] of Object.entries(mapping)) {
-      const el = document.querySelector(`.tab[data-tab=\"${tab}\"]`);
-      if (!el) continue;
-      const isVisible = getComputedStyle(el).display !== "none";
-      const shouldBeVisible = Boolean(features?.[feature]);
-      if (isVisible !== shouldBeVisible)
-        mismatches.push({ tab, feature, isVisible, shouldBeVisible });
-    }
-    return { mismatches };
-  }, plan.body?.features || {});
-
-  expect(result.mismatches).toEqual([]);
+  // Menu label -> plan features that must all be on (web/merchant/src/merchant-navigation.js).
+  const mapping = {
+    "Recompensas y catálogo": [],
+    Reportes: ["basic_reporting"],
+    "Niveles de cliente": ["tiers"],
+    Sucursales: ["multi_branch"],
+    Personal: ["staff_management"],
+    "Tarjetas de regalo": ["gift_cards"],
+    "Logros y retos": ["gamification"],
+    Recomendaciones: ["referrals"],
+    "Analítica avanzada": ["analytics"],
+  };
+  for (const [label, required] of Object.entries(mapping)) {
+    const shouldShow = required.every((feature) => Boolean(features[feature]));
+    await expect(navItem(page, label), `${label} (${required.join(", ") || "core"})`).toHaveCount(
+      shouldShow ? 1 : 0,
+    );
+  }
 });
 
 test("staff can redeem reward for customer after points award", async ({ page }) => {
@@ -296,11 +313,10 @@ test("staff can redeem reward for customer after points award", async ({ page })
   expect(Number(result.afterPoints)).toBeLessThan(Number(result.beforePoints) + 200);
 });
 
-test("admin can apply automation template from dashboard", async ({ page }) => {
+test("owner can load an automation template in the merchant app", async ({ page }) => {
   await useRandomClientIp(page);
   await createBusinessViaUi(page);
-  await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
-  await expect(page.locator("#main")).toBeVisible();
+  await openMerchant(page);
 
   const plan = await apiGet(page, "/api/admin/plan");
   expectOk(plan, "plan should be readable");
@@ -331,21 +347,27 @@ test("admin can apply automation template from dashboard", async ({ page }) => {
       ),
       "automation plan should be applied",
     );
-    await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
-    await expect(page.locator("#main")).toBeVisible();
   }
 
-  await page.locator(".admin-program-disclosure > summary").click();
-  await page.click("#btnTplReactivacion");
-  await expect(page.locator("#lifecycleWinbackEnabled")).toBeChecked();
-  await expect(page.locator("#lifecycleWinbackDays")).toHaveValue("21");
+  await openMerchant(page, "#automatizaciones");
+  await expect(page.getByRole("heading", { name: "Plantillas", exact: true })).toBeVisible();
+  // Templates only prefill the editor; the owner saves through the editor's budget validation.
+  await page
+    .getByRole("button", { name: "Cargar plantilla Reactivación fuerte", exact: true })
+    .click();
+  await expect(page.getByLabel("Activar recuperación")).toBeChecked();
+  await expect(page.getByLabel("Días sin actividad")).toHaveValue("21");
+  await expect(page.getByLabel("Puntos por invitación")).toHaveValue("35");
+  await expect(page.getByLabel("Enviar un resumen diario al dueño")).toBeChecked();
+  await expect(
+    page.getByText("Plantilla «Reactivación fuerte» cargada en el formulario"),
+  ).toBeVisible();
 });
 
 test("rbac: cashier cannot refund while manager can reach refund validation", async ({ page }) => {
   await useRandomClientIp(page);
   await createBusinessViaUi(page);
-  await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
-  await expect(page.locator("#main")).toBeVisible();
+  await openMerchant(page);
 
   const plan = await apiGet(page, "/api/admin/plan");
   expectOk(plan, "plan should be readable");
@@ -405,7 +427,8 @@ test("rbac: cashier cannot refund while manager can reach refund validation", as
   await page.click("#btnLogin");
   const mgrLoginResp = await mgrLoginRespPromise;
   expect(mgrLoginResp.ok(), "manager login should succeed").toBeTruthy();
-  await page.waitForURL(/\/administracion\/$/);
+  // Managers open the scanner (the retired dashboard's manager mode only had gift cards).
+  await page.waitForURL(/\/equipo\/escaner\/$/);
   const managerStatus = await postRefundAndGetStatus();
 
   const logout = await apiPost(page, "/api/staff/logout", {}, { csrf: true });
@@ -427,7 +450,7 @@ test("rbac: cashier cannot refund while manager can reach refund validation", as
   expect(cashierStatus).toBe(403);
 });
 
-test("super admin plan update is reflected in admin feature tabs", async ({ page }) => {
+test("super admin plan update is reflected in the merchant navigation", async ({ page }) => {
   const superEmail = process.env.SUPER_ADMIN_EMAIL || "";
   const superPassword = process.env.SUPER_ADMIN_PASSWORD || "";
   test.skip(!superEmail || !superPassword, "Faltan credenciales de super admin para e2e");
@@ -492,9 +515,8 @@ test("super admin plan update is reflected in admin feature tabs", async ({ page
     );
     expectOk(imp1, "impersonate should succeed");
 
-    await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
-    await expect(page.locator("#main")).toBeVisible();
-    const analyticsVisibleLow = await page.locator('.tab[data-tab="analytics"]').isVisible();
+    await openMerchant(page);
+    const analyticsVisibleLow = (await navItem(page, "Analítica avanzada").count()) === 1;
 
     await page.goto("/super", { waitUntil: "domcontentloaded" });
     const upPlan = await apiPut(
@@ -512,9 +534,8 @@ test("super admin plan update is reflected in admin feature tabs", async ({ page
     );
     expectOk(imp2, "impersonate should succeed");
 
-    await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
-    await expect(page.locator("#main")).toBeVisible();
-    const analyticsVisibleHigh = await page.locator('.tab[data-tab="analytics"]').isVisible();
+    await openMerchant(page);
+    const analyticsVisibleHigh = (await navItem(page, "Analítica avanzada").count()) === 1;
 
     expect(analyticsVisibleLow).toBeFalsy();
     expect(analyticsVisibleHigh).toBeTruthy();
@@ -670,8 +691,7 @@ test("suspicious awards are flagged when guard threshold is exceeded", async ({ 
   const out = await createBusinessViaUi(page);
   const phone = `5555${Math.floor(1000 + Math.random() * 8999)}`;
 
-  await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
-  await expect(page.locator("#main")).toBeVisible();
+  await openMerchant(page);
 
   const plan = await apiGet(page, "/api/admin/plan");
   expectOk(plan, "plan should be readable");
@@ -684,10 +704,16 @@ test("suspicious awards are flagged when guard threshold is exceeded", async ({ 
     "Plan sin program_rules o fraud_monitoring",
   );
 
-  await page.locator(".admin-program-disclosure > summary").click();
-  await page.fill("#guardSuspiciousAmount", "1");
-  await page.fill("#guardSuspiciousPoints", "1");
-  await page.click("#btnSaveProgram");
+  await openMerchant(page, "#limites");
+  await expect(page.getByRole("heading", { level: 1, name: "Límites y políticas" })).toBeVisible();
+  await page.getByLabel("Marcar si los puntos son al menos").fill("1");
+  await page.getByLabel(/^Marcar si el monto es al menos/).fill("1");
+  const saved = page.waitForResponse(
+    (resp) => resp.request().method() === "POST" && resp.url().includes("/api/admin/program"),
+  );
+  await page.getByRole("button", { name: "Guardar límites y políticas", exact: true }).click();
+  expect((await saved).ok(), "program limits should be saved").toBeTruthy();
+  await expect(page.getByText("Límites y políticas guardados.", { exact: false })).toBeVisible();
 
   await page.goto(`/join/${out.slug}`, { waitUntil: "domcontentloaded" });
   await page.fill("#phone", phone);

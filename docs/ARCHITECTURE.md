@@ -36,18 +36,22 @@ means in practice: the owner operates a single hosted deployment, and the stack 
 self-hostable with Docker Compose. There is no multi-install distribution, and the compose
 defaults now assume the owner's central DB VM.
 
-**User-facing surfaces (three UI stacks plus two static sites):**
+**User-facing surfaces (two UI stacks plus two static sites):**
 
 1. **Vanilla-JS PWA** in `public/`: customer wallet (`/mi-tarjeta/` → `customer.html`),
    staff scanner (`/equipo/escaner/` → `staff.html`), staff login (`/equipo/ingresar/`),
-   owner dashboard (`/administracion/` → `admin-dashboard.html`), business signup
-   (`/crear-negocio/` → `admin.html`), super console (`/plataforma/` → `super.html`),
-   join/sign-in pages, marketing pages, calculator and status page. Spanish document
-   routes live in `src/middleware/spanish-web.js`; English legacy paths (`/staff`, `/c`,
-   `/super`, ...) are still served by `server.js`.
-2. **React 19 + Mantine 9 merchant dashboard** in `web/merchant/` (Vite, `base: "/negocio/"`,
-   build output committed to `public/merchant`). `src/middleware/merchant-web.js` injects a
-   per-response nonce for Mantine's style tags. The service worker never caches
+   business signup (`/crear-negocio/` → `admin.html`), super console (`/plataforma/` →
+   `super.html`), join/sign-in pages, marketing pages, calculator and status page. Spanish
+   document routes live in `src/middleware/spanish-web.js`; English legacy paths (`/staff`,
+   `/c`, `/super`, ...) are still served by `server.js`. The former vanilla owner dashboard
+   (`/administracion/`, `/admin-dashboard`) was retired on 2026-11-25: both paths now 308 to
+   `/negocio/`, and `src/utils/spanish-web-routes.js` maps the old `?seccion=`/`?configurar=`
+   views to the merchant page that holds each capability (for example `?seccion=analisis` →
+   `/negocio/#analitica`, `?configurar=punto-de-venta` → `/negocio/#conectar-caja`).
+2. **React 19 + Mantine 9 merchant app** in `web/merchant/` (Vite, `base: "/negocio/"`,
+   build output committed to `public/merchant`): the only owner dashboard. Owners land here
+   after login; managers and cashiers land on the staff scanner. `src/middleware/merchant-web.js`
+   injects a per-response nonce for Mantine's style tags. The service worker never caches
    `/merchant/`, `/negocio/` or `/demostracion/` documents.
 3. **Expo native app** in `apps/customer/` (Expo ~57, version 0.1.0). Frozen per
    `AGENTS.md`: iOS 0.1.0 (3) in TestFlight, Android 0.1.0 (13) internal testing. It has
@@ -62,17 +66,13 @@ defaults now assume the owner's central DB VM.
 `web/astryx-prototype/` (→ `public/revision-astryx/9b72f5a1/`) is an unlisted design
 preview, not a product surface.
 
-Three UI stacks is a known cost. `docs/FRONTEND_MIGRATION_PLAN.md` proposes an incremental
-React + Vite migration; only `web/merchant` has followed it. The owner wants the
-owner-facing UI to converge on the merchant app; `docs/product/2026-11-23-owner-ui-consolidation.md`
-is the gap table. Status after `cfc1932`: every vanilla owner module except the deep analytics
-suite (dashboard narrative, RFM, ROI, cohorts, IVA CSV, recalculation, payment-webhook
-mapping, anomalies, reconciliation, certification, audit), reward redemption ledger inspection
-and automation templates has a merchant equivalent (`OwnerBranding`, `OwnerTiers`,
-`OwnerProgramLimits`, `OwnerGamification`, `OwnerGiftCards`, `OwnerOnboarding`,
-`OwnerReports` were added; branches, staff, rewards, program rule, referrals, POS and
-automations already existed). Nothing on the vanilla side was removed or redirected; retiring
-`/administracion/` is a separate owner decision, so **three stacks remain until then**.
+Two web stacks is a known cost. `docs/FRONTEND_MIGRATION_PLAN.md` proposes an incremental
+React + Vite migration; only `web/merchant` has followed it. The owner-facing UI converged on
+the merchant app: `docs/product/2026-11-23-owner-ui-consolidation.md` records the gap table,
+the analytics and operations ports (`75daa1e`, `20fc472`) and the retirement of the vanilla
+dashboard (2026-11-25), which deleted `public/admin-dashboard/**`, `admin-dashboard.html/.js`
+and their stylesheets. The customer wallet, staff scanner, staff login, signup page and super
+console stay vanilla.
 
 ## 2. Request lifecycle and tenancy
 
@@ -380,13 +380,9 @@ version is the filename, so a rename re-applies the file and an edit fails the c
 - **`session-epoch.js`** is the single implementation of the cross-tab logout epoch and
   pending-logout handshake for the `staff`, `super` and `customer` scopes (storage keys
   `pf_staff_epoch`, `pf_staff_logout_pending`, `pf_staff_snapshot`, `pf_super_epoch`,
-  `pf_super_logout_pending`, `pf_customer_epoch`). Admin, staff, super, staff-login and
-  customer session code all import it.
-- **Admin dashboard module registry**: `admin-dashboard.js` → `admin-dashboard/index.js`
-  creates the app with `createAdminDashboardApp` (`core.js`) and calls twelve
-  `register*Module(app)` functions; each module registers tabs through
-  `app.registerTab(name, { feature, allowManager, load })` and renders fragments from
-  `admin-dashboard/fragments/*.html`.
+  `pf_super_logout_pending`, `pf_customer_epoch`). Staff, super, staff-login and customer
+  session code import it; the merchant app implements the same `staff` handshake over the
+  same storage keys in `web/merchant/src/api.js`, so a logout in either stack blocks the other.
 - **Composition roots**: `public/staff/index.js` (64 lines) and `public/super/index.js`
   (54 lines) wire focused modules around one shared context (`page-context.js`); cross-module
   reactions are injected as hooks to avoid import cycles. DOM ids, classes, storage keys
@@ -410,8 +406,8 @@ version is the filename, so a rename re-applies the file and an edit fails the c
   (`src/utils/static-cache-headers.js`) while documents and `sw.js` keep `max-age=0` /
   `no-store`.
 - **Type checking of browser files**: `tsconfig.json` (`checkJs`) includes `src/**` and
-  `tests/**` plus an explicit allowlist of `public/` files (admin-dashboard core and
-  analytics modules, `customer/*`, `session-epoch.js`, `staff/*`, `super/*`, `types.ts`);
+  `tests/**` plus an explicit allowlist of `public/` files (`admin.js`, `customer/*`,
+  `session-epoch.js`, `staff/*`, `super/*`, `types.ts`);
   `paths` maps `/lib.js` and `/idb.js` to `src/types/public-*.d.ts`. Add new browser modules
   to that list when they are typed.
 
@@ -542,10 +538,11 @@ Design of record: `docs/product/2026-11-23-owner-progress.md` (v2). Landed in `8
 
 ## 11. Known debt and open decisions
 
-- **Three UI stacks** (vanilla PWA, React/Mantine merchant dashboard, Expo native app)
-  until the vanilla owner dashboard is retired. The merchant app now covers every owner
-  module except the deep analytics suite (section 1); retiring `/administracion/` and porting
-  that suite are owner decisions, not plans in progress.
+- **Two web stacks** (vanilla PWA for customer, staff, signup and super screens; React/Mantine
+  merchant app for owners) plus the Expo native app. The vanilla owner dashboard was retired
+  on 2026-11-25 (section 1); `/administracion/` is a permanent redirect, kept so saved links,
+  magic links with the stored `admin-dashboard` target and old bookmarks still work. Moving
+  the remaining vanilla screens is not planned.
 - **TypeScript strictness.** `strict` is off. `strictNullChecks` is clean for the application
   layer only (`npm run typecheck:strict`, about 372 errors left in the infrastructure and
   browser halves); `--noImplicitAny` adds about 13 000 errors and is not scheduled
@@ -570,7 +567,7 @@ Design of record: `docs/product/2026-11-23-owner-progress.md` (v2). Landed in `8
 - **`LEDGER_RECONCILE_HOUR_LOCAL`** is configured and passed to the worker but unused; the
   daily job runs at `CHURN_SEND_HOUR_LOCAL`.
 - **Third-party analytics on authenticated pages.** `https://privatrack.com` is allowed by
-  the CSP and referenced from 10 HTML pages including `admin-dashboard.html`, `staff.html`,
+  the CSP and referenced from the hand-written HTML pages including `staff.html`,
   `super.html` and `customer.html`. Whether an analytics script belongs on authenticated
   screens is a product and privacy decision for the owner, not an engineering default.
 - **Hard limits to know.** Campaign audience snapshots are capped at 200 customers

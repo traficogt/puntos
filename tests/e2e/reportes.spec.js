@@ -36,8 +36,10 @@ test("entry-tier owner gets Reportes with KPIs and plan capacity, but not deep a
 }) => {
   await useRandomClientIp(page);
   await createBusinessViaUi(page);
-  await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
-  await expect(page.locator("#main")).toBeVisible();
+  await page.goto("/negocio/#reportes", { waitUntil: "domcontentloaded" });
+  const nav = page.locator('nav[aria-label="Tu negocio"]');
+  await expect(nav).toBeVisible();
+  await expect(page.locator(".plan-name")).toContainText(/^Plan /);
 
   const plan = await apiGet(page, "/api/admin/plan");
   expectOk(plan, "plan should be readable");
@@ -47,22 +49,23 @@ test("entry-tier owner gets Reportes with KPIs and plan capacity, but not deep a
   );
   expect(typeof plan.body.usage?.active_customers, "plan exposes soft-cap usage").toBe("number");
 
-  const reportesTab = page.locator('.tab[data-tab="reportes"]');
-  await expect(reportesTab).toBeVisible();
-  await expect(page.locator('.tab[data-tab="analytics"]')).toBeHidden();
+  const navItem = (label) =>
+    nav.locator("button.merchant-nav-item").filter({ hasText: new RegExp(`^${label}$`) });
+  await expect(navItem("Reportes")).toHaveCount(1);
+  await expect(navItem("Analítica avanzada")).toHaveCount(0);
 
-  await reportesTab.click();
-  await expect(page.locator("#reportes-content")).toBeVisible();
-  await expect(page.locator("#reportesKpis .metric-tile")).toHaveCount(7);
-  await expect(page.locator("#reportesKpis")).toContainText("Clientes activos");
-  await expect(page.locator("#reportes-content")).toContainText("no el total de ventas");
+  await expect(page.getByRole("heading", { level: 1, name: "Reportes" })).toBeVisible();
+  const tiles = page.getByRole("list", { name: "Indicadores del período" });
+  await expect(tiles.getByRole("listitem")).toHaveCount(7);
+  await expect(tiles).toContainText("Clientes activos");
+  await expect(page.getByRole("main")).toContainText("no el total de ventas");
 
-  const usage = page.locator("#reportesPlanUsage");
-  await expect(usage).toContainText(/\d+ de \d+ clientes activos/);
-  await expect(usage.locator("progress")).toHaveCount(1);
+  const capacity = page.locator('section[aria-labelledby="owner-report-capacity"]');
+  await expect(capacity).toContainText(/\d+ de \d+ clientes activos/);
+  await expect(capacity.locator('[role="progressbar"]')).toHaveCount(1);
 
-  await page.selectOption("#reportesPeriod", "7");
-  await expect(page.locator("#reportesKpis .metric-tile")).toHaveCount(7);
+  await page.getByLabel("Período", { exact: true }).selectOption("7");
+  await expect(tiles.getByRole("listitem")).toHaveCount(7);
 
   const deep = await apiGet(page, "/api/admin/analytics/cohorts");
   expect(deep.status, "deep analytics stays locked on the entry tier").toBe(403);

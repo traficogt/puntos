@@ -150,7 +150,7 @@ test("already expired staff session does not block login after pending logout", 
 
 for (const [role, destination] of [
   ["OWNER", "/negocio/#region"],
-  ["MANAGER", "/administracion/"],
+  ["MANAGER", "/equipo/escaner/"],
   ["CASHIER", "/equipo/escaner/"],
 ]) {
   test(`login preserves an authorized target for ${role}`, async (t) => {

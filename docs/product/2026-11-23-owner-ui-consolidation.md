@@ -1,5 +1,44 @@
 # Owner UI consolidation: vanilla dashboard vs. merchant app (2026-11-23)
 
+**Status: retired (2026-11-25).** The vanilla owner dashboard no longer exists.
+`public/admin-dashboard/**`, `admin-dashboard.html`, `admin-dashboard.js` and the stylesheets
+only they used (`admin-dashboard-premium.css`, `pos-integration.css`, `customer-enrollment.css`)
+were deleted; `/administracion/`, `/administracion`, `/admin-dashboard` and `/admin-dashboard.html`
+answer `308` to `/negocio/`. `src/utils/spanish-web-routes.js` translates the old view state into
+the merchant hash and drops the branch filter (which has no merchant counterpart):
+
+| Vanilla query | Merchant URL |
+| --- | --- |
+| `?seccion=recompensas` / `?tab=rewards` | `/negocio/#recompensas` |
+| `?seccion=marca` / `?tab=branding` | `/negocio/#identidad` |
+| `?seccion=niveles`, `sucursales`, `referidos`, `reportes` | same hash |
+| `?seccion=equipo` / `?tab=staff` | `/negocio/#personal` |
+| `?seccion=tarjetas-regalo` | `/negocio/#tarjetas-de-regalo` |
+| `?seccion=logros` / `retos` | `/negocio/#logros-y-retos` |
+| `?seccion=operaciones` | `/negocio/#puesta-en-marcha` |
+| `?seccion=analisis` / `?tab=analytics` | `/negocio/#analitica` |
+| `?seccion=programa` / `plan` | `/negocio/#preparar` / `/negocio/#reportes` |
+| `?configurar=puntos` / `?setup=program` | `/negocio/#limites` |
+| `?configurar=punto-de-venta` / `?setup=pos` | `/negocio/#conectar-caja` |
+| unknown view | `/negocio/` |
+
+Other query components (tokens, UTM values) survive with their original encoding. Managers,
+whose vanilla "manager mode" only exposed the gift-cards tab, now land on the staff scanner
+after login (`public/staff-return-path.js`); the scanner already loads and redeems gift cards.
+Super-console impersonation and the stored `admin-dashboard` magic-link target open `/negocio/`.
+
+The retirement also closed a gap this document had mislabelled as "existing": the vanilla
+"Conexiones" panel held the Loyverse credential form, CSV column mapping with preview/import,
+Loyverse receipt preview/sync and API-key generation, and `PosConnect` only linked to it.
+`web/merchant/src/PosAdvanced.tsx` (helpers in `pos-advanced-model.ts`) now provides those
+tools inside "Conectar caja" over the same `/api/admin/pos*` endpoints. Two server items the
+port surfaced were fixed: the IVA CSV `fecha` column is formatted in SQL as `YYYY-MM-DD`, and
+`PUT /api/admin/automations` accepts the optional `suspicious_digest_enabled` /
+`suspicious_digest_min_count` keys so the Automations editor (and its Plantillas) can save the
+daily digest; `PUT /api/admin/automations/template`, which no UI used any more, was removed.
+
+The rest of this document is the historical record of the gap analysis and the ports.
+
 The owner wants the owner-facing UI to converge on the React 19 + Mantine merchant app
 (`web/merchant`, served at `/negocio/`, `/merchant/` and the password-free preview `/demostracion/`).
 The older vanilla-JS dashboard lives in `public/admin-dashboard/` (served at `/administracion/`).

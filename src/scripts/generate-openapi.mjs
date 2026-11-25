@@ -34,7 +34,7 @@ const {
   OwnerProgressVisibilitySchema,
   OwnerProgressSettingsSchema,
 } = await import("../app/services/owner-progress-service.js");
-const { ProgramSchema, AutomationTemplateSchema, CampaignRulesSchema, ExternalAwardsSchema } =
+const { ProgramSchema, CampaignRulesSchema, ExternalAwardsSchema } =
   await import("../app/routes/admin/program-support.js");
 const { StaffCreateSchema, StaffUpdateSchema } = await import("../app/routes/admin/staff.js");
 const { WebhookSchema } = await import("../app/routes/admin/webhooks.js");
@@ -400,7 +400,6 @@ const schemas = {
   ProgramUpdateRequest: ProgramSchema,
   CampaignRulesRequest: CampaignRulesSchema,
   ExternalAwardsRequest: ExternalAwardsSchema,
-  AutomationTemplateRequest: AutomationTemplateSchema,
   OwnerProgressAcknowledgeRequest: OwnerProgressAcknowledgeSchema,
   OwnerProgressGoalRequest: OwnerProgressGoalSchema,
   OwnerProgressReviewRequest: OwnerProgressReviewSchema,
@@ -789,9 +788,6 @@ const routeSchemaBindings = {
   },
   "/api/v1/admin/program": {
     put: { body: "ProgramUpdateRequest" },
-  },
-  "/api/v1/admin/program/automations/apply-template": {
-    post: { body: "AutomationTemplateRequest" },
   },
   "/api/v1/admin/program/campaign-rules": {
     put: { body: "CampaignRulesRequest" },
@@ -1974,27 +1970,6 @@ const curatedPaths = {
       security: [{ staffAuth: [] }],
       responses: {
         200: { description: "Automation settings" },
-        401: { description: "Not authenticated" },
-        403: { description: "Owner role and plan feature required" },
-        404: { description: "Business not found" },
-      },
-    },
-  },
-  "/api/v1/admin/automations/template": {
-    put: {
-      summary: "Apply a lifecycle automation template",
-      security: [{ staffAuth: [] }],
-      requestBody: {
-        required: true,
-        content: {
-          "application/json": {
-            schema: { $ref: "#/components/schemas/AutomationTemplateRequest" },
-          },
-        },
-      },
-      responses: {
-        200: { description: "Automation template applied" },
-        400: { description: "Validation error" },
         401: { description: "Not authenticated" },
         403: { description: "Owner role and plan feature required" },
         404: { description: "Business not found" },

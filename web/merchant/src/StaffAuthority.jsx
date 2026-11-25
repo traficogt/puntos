@@ -2,9 +2,9 @@ import { NumberInput } from './inputs';
 import AutomaticBriefing from './AutomaticBriefing.jsx';
 import {merchantRegion} from './region.js';
 import { useRef, useState } from 'react';
-import { Alert, Badge, Button, Group, NativeSelect, Stack, Table, Text, Textarea, TextInput, Title } from '@mantine/core';
+import { Alert, Anchor, Badge, Button, Group, NativeSelect, Stack, Table, Text, Textarea, TextInput, Title } from '@mantine/core';
 import { api, isDemo, useResource } from './api.js';
-import { BusinessLink, Failure, Loading, number } from './ui.jsx';
+import { Failure, Loading, number } from './ui.jsx';
 const actionLabels={restore_redemption:'Restituir puntos',extend_promise:'Ampliar vencimiento de promesa',fulfill_promise:'Entregar promesa en un caso',operating_mode:'Cambiar ritmo de operación',offer_template:'Activar oferta preaprobada'};
 const durations=[{value:'4',label:'4 horas'},{value:'8',label:'8 horas'},{value:'24',label:'1 día'},{value:'72',label:'3 días'},{value:'168',label:'7 días'}];
 const date=value=>new Intl.DateTimeFormat(merchantRegion().locale,{dateStyle:'medium',timeStyle:'short',timeZone:merchantRegion().timezone}).format(new Date(value));
@@ -39,7 +39,7 @@ export default function StaffAuthority(){
   <section className="operation-section" aria-labelledby="authority-heading">
    <Group justify="space-between" align="start"><div><Title order={2} id="authority-heading">Autorizaciones con límites</Title><Text mt="sm" maw={740}>Aprueba acciones específicas por persona, sucursal y período. Puntos, costo, cantidad y frecuencia se comprueban juntos antes de guardar cada uso.</Text></div><Button onClick={()=>{setGrantOpen(true);setPerson(staff[0]?.id||'');}} disabled={!!busy||!staff.length||grantOpen}>Autorizar persona</Button></Group>
    {authority.loading?<Loading label="Cargando autorizaciones…"/>:authority.error?<Failure error={authority.error} retry={refresh}/>:<>
-    {staff.length===0&&<Text mt="md">Agrega una persona activa desde <BusinessLink href="/administracion/?seccion=equipo">Administrar equipo</BusinessLink> para delegar esta acción.</Text>}
+    {staff.length===0&&<Text mt="md">Agrega una persona activa desde <Anchor href="#personal">Administrar equipo</Anchor> para delegar esta acción.</Text>}
     {grantOpen&&<form onSubmit={grantSubmit}><Stack gap="md" mt="xl" maw={650}>
      <Title order={3}>Nueva autorización</Title>
      <NativeSelect label="Acción autorizada" value={action} onChange={e=>setAction(e.currentTarget.value)} data={Object.entries(actionLabels).map(([value,label])=>({value,label}))} disabled={!!busy}/>

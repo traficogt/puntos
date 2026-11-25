@@ -10,8 +10,8 @@ tree on 2026-11-23; see [ARCHITECTURE.md](ARCHITECTURE.md) section 8 for the tes
   flags are on with zero errors: `strictFunctionTypes`, `strictBindCallApply`,
   `noImplicitThis`, `alwaysStrict`, `noFallthroughCasesInSwitch`, `useUnknownInCatchVariables`,
   `noImplicitReturns` and `noImplicitOverride` (`919d3dc`). It includes `src/**`, `tests/**` and
-  an explicit allowlist of browser files under `public/` (admin-dashboard core and analytics
-  modules, `customer/*`, `staff/*`, `super/*`, `session-epoch.js`, `types.ts`); `paths` maps
+  an explicit allowlist of browser files under `public/` (`admin.js`, `customer/*`, `staff/*`,
+  `super/*`, `session-epoch.js`, `types.ts`); `paths` maps
   `/lib.js` and `/idb.js` to `src/types/public-*.d.ts`.
 - `tsconfig.strict.json` extends the base configuration and adds `strictNullChecks` and
   `strictPropertyInitialization`; it excludes `tests/**` (`ce8dac0`).

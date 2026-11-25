@@ -236,7 +236,8 @@ async function main() {
   for (const [legacy, canonical] of [
     ["/admin.html", "/crear-negocio/"],
     ["/c", "/mi-tarjeta/"],
-    ["/admin-dashboard.html", "/administracion/"],
+    ["/admin-dashboard.html", "/negocio/"],
+    ["/administracion/", "/negocio/"],
     ["/staff-login.html", "/equipo/ingresar/"],
     ["/super.html", "/plataforma/"],
   ]) {
@@ -251,7 +252,6 @@ async function main() {
   await expectHtml("/negocio/");
 
   await expectStaticAsset("/customer.js", { origin, mustContain: ["initCustomerPage"] });
-  await expectStaticAsset("/admin-dashboard.js", { origin, mustContain: ["initAdminDashboard"] });
   await expectStaticAsset("/styles.css", {
     origin,
     // Asset versioning appends ?v=<hash> to the import; match the path prefix only.

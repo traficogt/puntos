@@ -1,0 +1,1 @@
+import{L as e,N as t,T as n,m as r}from"./api-07IcfWLw.js";var i=e(),a=n(e=>{let n=t([`Input`,`InputWrapper`,`TextInput`],null,e);return(0,i.jsx)(r,{component:`input`,...n,__staticSelector:`TextInput`})});a.classes=r.classes,a.displayName=`@mantine/core/TextInput`;export{a as t};

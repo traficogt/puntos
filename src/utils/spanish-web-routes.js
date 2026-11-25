@@ -1,9 +1,21 @@
 /** @type {Array<[string, string[]]>} */
 const browserRoutes = [
   ["/preferencias-de-mensajes/", ["/marketing-preferences.html"]],
-  ["/negocio/", ["/merchant", "/merchant/index.html", "/negocio/index.html"]],
+  // The retired vanilla owner dashboard (/administracion/, /admin-dashboard) now opens the
+  // merchant app; resolveSpanishWebRedirect maps its ?seccion= / ?configurar= query to a hash.
+  [
+    "/negocio/",
+    [
+      "/merchant",
+      "/merchant/index.html",
+      "/negocio/index.html",
+      "/admin-dashboard",
+      "/admin-dashboard.html",
+      "/administracion",
+      "/administracion/index.html",
+    ],
+  ],
   ["/demostracion/", ["/demostracion/index.html"]],
-  ["/administracion/", ["/admin-dashboard", "/admin-dashboard.html"]],
   ["/crear-negocio/", ["/admin", "/admin.html"]],
   ["/equipo/ingresar/", ["/staff/login", "/staff-login", "/staff-login.html"]],
   ["/equipo/escaner/", ["/staff", "/staff.html"]],
@@ -26,29 +38,67 @@ const publicEntryPaths = new Map([
   ["/credenciales/index.html", "/credenciales/"],
 ]);
 
-const sections = new Map(
+/** Entry paths of the retired vanilla owner dashboard (lowercase, no trailing slash). */
+const legacyOwnerEntries = new Set([
+  "/admin-dashboard",
+  "/admin-dashboard.html",
+  "/administracion",
+  "/administracion/index.html",
+]);
+
+/**
+ * Vanilla dashboard sections (English `tab` values and their Spanish `seccion` names) and the
+ * merchant page that now holds each capability (`web/merchant/src/navigation.js` fragments).
+ * @type {Map<string, string>}
+ */
+export const legacyOwnerSections = new Map(
   Object.entries({
+    program: "preparar",
+    programa: "preparar",
+    puntos: "preparar",
     rewards: "recompensas",
-    branding: "marca",
+    recompensas: "recompensas",
+    branding: "identidad",
+    marca: "identidad",
     tiers: "niveles",
+    niveles: "niveles",
     branches: "sucursales",
-    staff: "equipo",
-    giftcards: "tarjetas-regalo",
-    achievements: "logros",
-    challenges: "retos",
+    sucursales: "sucursales",
+    staff: "personal",
+    equipo: "personal",
+    giftcards: "tarjetas-de-regalo",
+    "tarjetas-regalo": "tarjetas-de-regalo",
+    achievements: "logros-y-retos",
+    logros: "logros-y-retos",
+    challenges: "logros-y-retos",
+    retos: "logros-y-retos",
     referrals: "referidos",
-    operations: "operaciones",
-    analytics: "analisis",
+    referidos: "referidos",
+    operations: "puesta-en-marcha",
+    operaciones: "puesta-en-marcha",
+    reportes: "reportes",
+    analytics: "analitica",
+    analisis: "analitica",
+    plan: "reportes",
   }),
 );
-const setupValues = new Map([
-  ["program", "puntos"],
-  ["pos", "punto-de-venta"],
-]);
-const queryKeys = new Map([
-  ["tab", "seccion"],
-  ["branch_id", "sucursal"],
-  ["setup", "configurar"],
+/** Vanilla `setup` / `configurar` values and their merchant pages. */
+const legacyOwnerSetups = new Map(
+  Object.entries({
+    program: "limites",
+    puntos: "limites",
+    pos: "conectar-caja",
+    "punto-de-venta": "conectar-caja",
+  }),
+);
+/** Query keys of the vanilla dashboard view state; none has a merchant counterpart. */
+const legacyOwnerQueryKeys = new Set([
+  "tab",
+  "seccion",
+  "setup",
+  "configurar",
+  "branch_id",
+  "sucursal",
 ]);
 
 /** @param {string} pathname */
@@ -62,29 +112,36 @@ export function isSpanishWebRoutePath(pathname) {
   return Boolean(entryPath(String(pathname || "")));
 }
 
-// Rewrite only known query components so opaque tokens and future parameters keep
-// their original encoding, order and duplicate values.
-/** @param {string} query the raw query string without `?` */
-function canonicalAdminQuery(query) {
-  const params = new URLSearchParams(query);
-  return query
-    .split("&")
-    .flatMap((component) => {
-      const [entry] = new URLSearchParams(component);
-      if (!entry) return [component];
-      const [key, value] = entry;
-      const canonicalKey = queryKeys.get(key) || key;
-      if (key !== canonicalKey && params.has(canonicalKey)) return [];
-      const canonicalValue =
-        canonicalKey === "seccion"
-          ? sections.get(value) || value
-          : canonicalKey === "configurar"
-            ? setupValues.get(value) || value
-            : value;
-      if (key === canonicalKey && value === canonicalValue) return [component];
-      return [`${canonicalKey}=${encodeURIComponent(canonicalValue)}`];
-    })
-    .join("&");
+/**
+ * Translate the vanilla owner dashboard view (`?seccion=` / `?tab=`, `?configurar=` / `?setup=`)
+ * into the merchant app's hash, dropping the branch filter, and keep every other query
+ * component with its original encoding, order and duplicate values.
+ * @param {string} query the raw query string without `?`
+ * @returns {{ query: string, hash: string }}
+ */
+export function merchantViewForLegacyOwnerQuery(query) {
+  let section = "";
+  let setup = "";
+  /** @type {string[]} */
+  const kept = [];
+  for (const component of query.split("&")) {
+    const [entry] = new URLSearchParams(component);
+    if (!entry) {
+      if (component) kept.push(component);
+      continue;
+    }
+    const [key, value] = entry;
+    if (!legacyOwnerQueryKeys.has(key)) {
+      kept.push(component);
+      continue;
+    }
+    if ((key === "tab" || key === "seccion") && !section)
+      section = legacyOwnerSections.get(value.toLowerCase()) || "";
+    if ((key === "setup" || key === "configurar") && !setup)
+      setup = legacyOwnerSetups.get(value.toLowerCase()) || "";
+  }
+  const page = section || setup;
+  return { query: kept.join("&"), hash: page ? `#${page}` : "" };
 }
 
 /** Return a same-origin canonical browser URL, or an empty string if unchanged. */
@@ -97,14 +154,17 @@ export function resolveSpanishWebRedirect(originalUrl) {
   let canonicalPath = publicEntryPaths.get(pathname) || entryPath(pathname);
   if (!canonicalPath) return "";
   let canonicalQuery = query;
-  if (canonicalPath === "/negocio/" && new URLSearchParams(query).get("demo") === "1") {
+  let hash = "";
+  if (legacyOwnerEntries.has(pathname.replace(/\/$/, "").toLowerCase())) {
+    ({ query: canonicalQuery, hash } = merchantViewForLegacyOwnerQuery(query));
+  }
+  if (canonicalPath === "/negocio/" && new URLSearchParams(canonicalQuery).get("demo") === "1") {
     canonicalPath = "/demostracion/";
-    canonicalQuery = query
+    canonicalQuery = canonicalQuery
       .split("&")
       .filter((component) => !new URLSearchParams(component).has("demo"))
       .join("&");
   }
-  if (canonicalPath === "/administracion/") canonicalQuery = canonicalAdminQuery(query);
-  const canonical = `${canonicalPath}${canonicalQuery ? `?${canonicalQuery}` : ""}`;
+  const canonical = `${canonicalPath}${canonicalQuery ? `?${canonicalQuery}` : ""}${hash}`;
   return canonical === original ? "" : canonical;
 }

@@ -23,8 +23,9 @@ Ingresa con la cuenta del dueño. **Configuración** está en el grupo **Caja, e
 1. Abre **Configuración**.
 2. En **Personas y operación**, pulsa **Abrir** junto a **Equipo**, **Sucursales**, **Autorizaciones y turnos**, **Conectar caja**, **Puesta en marcha** o **Reportes**.
 3. En **Tu programa**, abre **Marca y QR**, **Identidad del programa**, **Región del negocio**, **Recompensas**, **Automatizaciones**, **Límites y políticas**, **Niveles de cliente**, **Logros y retos** o **Tarjetas de regalo**.
-4. Para un ajuste que siga en el panel anterior, usa **Abrir administración avanzada**.
-5. Revisa y guarda cada cambio dentro de su pantalla; entrar a Configuración por sí solo no cambia nada.
+4. Revisa y guarda cada cambio dentro de su pantalla; entrar a Configuración por sí solo no cambia nada.
+
+Todos los ajustes del negocio viven en este panel. El panel de administración anterior se retiró el 25 de noviembre de 2026; sus enlaces guardados abren ahora la pantalla equivalente aquí.
 
 ## Qué debe pasar
 

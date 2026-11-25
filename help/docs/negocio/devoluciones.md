@@ -26,7 +26,7 @@ Ten el recibo original y la devolución. Los importes se devuelven en tu POS; es
 2. Elige **Devoluciones que quieres revisar** y pulsa **Actualizar devoluciones**.
 3. Lee el motivo de cada **Requiere revisión**. Compara recibo original, artículos e importe.
 4. Si faltaba importar la venta original y ya lo corregiste, utiliza **Comprobar de nuevo** cuando esa acción aparezca.
-5. Para una devolución parcial, usa **Abrir historial y auditoría en administración**, al final del panel, y acuerda la corrección autorizada con el responsable. El botón **Revisar recibo e historial** de esa devolución permanece desactivado.
+5. Para una devolución parcial, usa **Abrir historial y auditoría**, al final del panel; abre la pantalla **Auditoría** de este mismo panel para acordar la corrección autorizada con el responsable. El botón **Revisar recibo e historial** de esa devolución permanece desactivado.
 
 ## Qué debe pasar
 

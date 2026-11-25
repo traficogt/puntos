@@ -98,7 +98,7 @@ function section(id, state, summary, lastObservedAt = null, metrics = [], reason
 function locked(id) {
   return {
     ...section(id, "not_in_plan", "Esta función no está incluida en tu plan actual."),
-    action: { label: "Revisar mi plan", href: "/administracion/?seccion=plan" },
+    action: { label: "Revisar mi plan", href: "#reportes" },
   };
 }
 /** @param {boolean | null | undefined} ready */

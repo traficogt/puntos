@@ -64,7 +64,9 @@ for (const [name, file, completion] of runners) {
     if (completion) assert.match(result.stdout.toString(), completion, detail);
     else
       assert.equal(
-        hasBrowserCompletion(result.stdout.toString(), "owner-workspace-browser", 30),
+        // 16 counted checks per engine (chromium, firefox); the settings screen check that the
+        // retired vanilla dashboard is no longer offered was added on 2026-11-25.
+        hasBrowserCompletion(result.stdout.toString(), "owner-workspace-browser", 32),
         true,
         detail,
       );

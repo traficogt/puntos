@@ -35,7 +35,6 @@ export function createSpanishWeb(publicDir) {
     return res.sendFile(path.join(publicDir, "marketing-preferences.html"));
   });
   const documents = {
-    "/administracion/": "admin-dashboard.html",
     "/crear-negocio/": "admin.html",
     "/equipo/ingresar/": "staff-login.html",
     "/equipo/escaner/": "staff.html",

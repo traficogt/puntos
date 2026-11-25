@@ -30,7 +30,7 @@ function guided(url,options){
   {key:'redemption-follow-up',title:'Revisa las visitas después de canjear',text:'Ejemplo: 12 de 30 clientes con 30 días completos volvieron a comprar. Otros 12 siguen en seguimiento. Se analizan canjes de los últimos 90 días. No demuestra visitas causadas por la recompensa.',action:'Ver seguimiento después del canje',href:'?ver=visitas-tras-canje#resumen'}],note:'Datos ficticios. Esta muestra no se envía. En producción, los enlaces requieren iniciar sesión.'};
  throw Error('Ruta de demostración no disponible.');
 }
-let settings={birthday_enabled:false,birthday_points:40,birthday_monthly_points_cap:1200,winback_enabled:false,winback_days:30,winback_points:25,winback_monthly_points_cap:1500,minimum_contact_days:7,scheduler_hour_local:9,scheduler_tz:'America/Guatemala'};
+let settings={birthday_enabled:false,birthday_points:40,birthday_monthly_points_cap:1200,winback_enabled:false,winback_days:30,winback_points:25,winback_monthly_points_cap:1500,minimum_contact_days:7,scheduler_hour_local:9,scheduler_tz:'America/Guatemala',suspicious_digest_enabled:false,suspicious_digest_min_count:1};
 export function demoAutomations(url,options={}) {
   if(url.pathname!=='/api/admin/automations')return guided(url,options);
   if(options.method==='PUT'){settings={...JSON.parse(options.body||'{}')};return{ok:true,settings:{...settings}};}

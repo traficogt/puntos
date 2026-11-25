@@ -10,19 +10,10 @@ import {
   suggestedPlanForFeature,
 } from "../../../utils/plan.js";
 import { Permission, hasPermission } from "../../../utils/permissions.js";
-import { withImpersonationMeta } from "../../../utils/impersonation.js";
 import { sanitizeProgramForClient } from "../../../utils/program-secrets.js";
-import { AuditRepo } from "../../repositories/audit-repository.js";
 import { BusinessRepo } from "../../repositories/business-repository.js";
 import { PlanConfigService } from "../../services/plan-config-service.js";
-import { makeId } from "./_util.js";
-import {
-  AUTOMATION_TEMPLATES,
-  AutomationTemplateSchema,
-  automationTemplateMap,
-  getBusinessOr404,
-  ProgramSchema,
-} from "./program-support.js";
+import { AUTOMATION_TEMPLATES, getBusinessOr404, ProgramSchema } from "./program-support.js";
 
 /** @typedef {import("../_request-types.js").Response} Response */
 /** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
@@ -122,44 +113,6 @@ export function registerProgramConfigRoutes(router) {
           ok: true,
           lifecycle: business.program_json?.lifecycle ?? {},
           templates: AUTOMATION_TEMPLATES,
-        });
-      },
-    ),
-  );
-
-  router.put(
-    "/admin/automations/template",
-    requireStaff,
-    requireOwner,
-    tenantContext,
-    requirePlanFeature("lifecycle_automation"),
-    csrfProtect,
-    asyncRoute(
-      /** @param {TenantRequest} req @param {Response} res @returns {Promise<void | Response>} */
-      async (req, res) => {
-        const v = validate(AutomationTemplateSchema, req.body);
-        if (!v.ok) return res.status(400).json({ error: v.error });
-        const business = await getBusinessOr404(res, req.tenantId);
-        if (!business) return;
-
-        const updated = await BusinessRepo.updateLifecycle(
-          req.tenantId,
-          automationTemplateMap[v.data.template],
-        );
-        await AuditRepo.log({
-          id: makeId(),
-          business_id: req.tenantId,
-          actor_type: "STAFF",
-          actor_id: req.staff.id,
-          action: "automation.template.apply",
-          ip: null,
-          ua: null,
-          meta: withImpersonationMeta({ template: v.data.template }, req.staff),
-        }).catch(() => {});
-        return res.json({
-          ok: true,
-          lifecycle: updated?.program_json?.lifecycle ?? {},
-          template: v.data.template,
         });
       },
     ),

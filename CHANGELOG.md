@@ -24,6 +24,32 @@ fix), including the quality waves of 2026-11-23 (`919d3dc`, `0b2a428`, `cfc1932`
   it widens the three batch-count CHECKs on `customer_migration_batches` to 200 rows. Import
   batches of 101–200 rows fail with a database error until it runs.
 
+### Owner dashboard: the vanilla `/administracion/` is retired (2026-11-25)
+- The owner dashboard is the merchant app at `/negocio/`. `/administracion/`, `/administracion`,
+  `/admin-dashboard` and `/admin-dashboard.html` now redirect permanently (308) there; saved
+  links keep working because the old `?seccion=` / `?configurar=` views open the matching
+  merchant page (`recompensas`, `identidad`, `niveles`, `sucursales`, `personal`,
+  `tarjetas-de-regalo`, `logros-y-retos`, `referidos`, `puesta-en-marcha`, `reportes`,
+  `analitica`, `limites`, `conectar-caja`, `preparar`). The branch filter is dropped.
+- Merchant views that replace the vanilla tabs: Preparar mi programa, Recompensas y catálogo,
+  Reglas de puntos, Límites y políticas, Notificaciones automáticas (with Plantillas and the
+  daily suspicious-purchase digest), Niveles de cliente, Logros y retos, Tarjetas de regalo,
+  Clientes, Recuperar clientes, Recomendaciones, Movimientos, Campañas y ofertas, Audiencias,
+  Origen de clientes, Personal, Permisos del equipo, Sucursales, Marca y QR, Identidad del
+  programa, Conectar caja (now including Loyverse credentials, CSV preview/import, Loyverse
+  preview/sync and the API key), Configuración, Región, Reportes, Analítica avanzada, Canjes
+  por recompensa, Alertas y pagos pendientes, Trabajos en segundo plano, Conciliación del
+  libro de puntos, Auditoría, Puesta en marcha y guías.
+- Managers and cashiers open the staff scanner after login (the vanilla manager mode only
+  exposed gift cards, which the scanner handles). Super-console impersonation and magic links
+  with the `admin-dashboard` target open `/negocio/`.
+- Removed: `public/admin-dashboard/**`, `admin-dashboard.html`, `admin-dashboard.js`,
+  `styles/admin-dashboard-premium.css`, `styles/pos-integration.css`,
+  `styles/customer-enrollment.css`, their type-check entries, tests and visual snapshots, and
+  `PUT /api/admin/automations/template` (no client used it; templates are applied through the
+  Automations editor's validated save). `GET /api/admin/billing/iva.csv` now writes `fecha` as
+  `YYYY-MM-DD`.
+
 ### Owner progress ("Tu progreso")
 - New owner-only feature on every plan (`83ae51c` server, `aeec174` UI; design of record
   `docs/product/2026-11-23-owner-progress.md`). `GET /api/admin/owner-progress` returns a

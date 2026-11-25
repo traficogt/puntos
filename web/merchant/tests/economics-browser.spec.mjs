@@ -66,7 +66,7 @@ try {
   await page.evaluate(() => { window.__emptyRewards = true; });
   await page.getByRole("button", { name: "Actualizar", exact: true }).click();
   await page.getByRole("link", { name: "Administrar recompensas" }).waitFor();
-  assert.equal(await page.getByRole("link", { name: "Administrar recompensas" }).getAttribute("href"), "/administracion/?seccion=recompensas");
+  assert.equal(await page.getByRole("link", { name: "Administrar recompensas" }).getAttribute("href"), "#recompensas");
   assert.deepEqual(requests, []);
   assert.deepEqual(errors, []);
   console.log("Economics browser: delayed cost/assumption saves resist Escape and outside clicks; canonical rewards link; zero API requests passed.");

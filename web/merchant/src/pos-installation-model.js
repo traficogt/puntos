@@ -45,7 +45,7 @@ export function installationPlan(profile = {}) {
     cashier: "Asocia el cliente al recibo en Loyverse; su teléfono debe coincidir con el registro de ese cliente en PF.",
     versionNote: `Registra la versión de Loyverse POS${version ? ` (${version})` : ""} y comprueba de nuevo el flujo cuando cambie. El conector usa la API v1.0.`,
     prerequisites: [
-      "Cuenta de Loyverse con la moneda y precisión configuradas en PF, tienda correcta y token verificado en administración. El token de Loyverse tiene acceso amplio: no es una credencial de solo lectura.",
+      "Cuenta de Loyverse con la moneda y precisión configuradas en PF, tienda correcta y token verificado en Conectar caja. El token de Loyverse tiene acceso amplio: no es una credencial de solo lectura.",
       "El recibo aporta customer_id; PF consulta el phone_number de ese cliente. Un nombre, correo o NIT no sustituye al teléfono inscrito en este negocio.",
       "PF conserva receipt_number como saleId y loyverse:{merchant_id}:{store_id} como source. No cambies esta identidad al reintentar.",
       "Comprueba pagos, recibos anulados, artículos por peso y devoluciones en la vista previa; las cantidades fraccionarias no suman puntos por artículo.",
@@ -167,8 +167,8 @@ export function buildInstallationPackage(input, region = {currency:"GTQ"}) {
     ...(plan.addon ? { addon: plan.addon } : {}),
     contract: {
       saleEndpoint: "/api/public/pos/{slug-del-negocio}/sales", refundEndpoint: "/api/public/pos/{slug-del-negocio}/refunds",
-      host: "Usar el dominio de la instalación PF confirmado en administración.",
-      authentication: "Bearer o HMAC x-signature; obtener la clave en administración y guardarla fuera de este paquete.",
+      host: "Usar el dominio de la instalación PF que muestra Conectar caja.",
+      authentication: "Bearer o HMAC x-signature; generar la clave en Conectar caja y guardarla fuera de este paquete.",
       identity: "Conservar source + saleId; para una devolución, source + originalSaleId y refundId estable.",
       customer: "El teléfono identifica a un cliente inscrito en ese negocio; customer_id del POS no es el ID del cliente PF.",
       refunds: "full solo al devolver todo el importe y todos los artículos, incluidos los gratuitos. partial y unknown requieren revisión; no hay cálculo proporcional automático.",

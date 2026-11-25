@@ -38,8 +38,9 @@ const eventsQuerySchema = z.object({
 /** @typedef {z.infer<typeof eventsQuerySchema>} EventsQuery */
 
 /**
- * One day of gross sales; `monto_bruto_q` is NUMERIC and arrives as a string.
- * @typedef {{ fecha: Date, transacciones: number, monto_bruto_q: string }} IvaDayRow
+ * One day of gross sales; `monto_bruto_q` is NUMERIC and arrives as a string. `fecha` is
+ * formatted in SQL as YYYY-MM-DD so the CSV carries a plain date, not an ISO timestamp.
+ * @typedef {{ fecha: string, transacciones: number, monto_bruto_q: string }} IvaDayRow
  */
 
 adminBillingRoutes.get(
@@ -67,7 +68,7 @@ adminBillingRoutes.get(
       /** @type {{ rows: IvaDayRow[] }} */
       const { rows } = await dbQuery(
         `SELECT
-         t.created_at::date AS fecha,
+         to_char(t.created_at::date, 'YYYY-MM-DD') AS fecha,
          COUNT(*)::int AS transacciones,
          COALESCE(SUM(t.amount_q), 0)::numeric(10,2) AS monto_bruto_q
        FROM transactions t

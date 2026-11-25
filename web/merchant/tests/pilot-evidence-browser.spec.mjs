@@ -92,7 +92,7 @@ try{
   await page.goto(`${origin}/negocio/#region`);
   if(role){
    await expect(page.getByRole('heading',{name:'Este panel es para propietarios',exact:true})).toBeVisible();
-   await expect(page.getByRole('link',{name:role==='MANAGER'?'Abrir administración':'Abrir escáner',exact:true})).toHaveAttribute('href',role==='MANAGER'?'/administracion/':'/equipo/escaner/');
+   await expect(page.getByRole('link',{name:'Abrir escáner',exact:true})).toHaveAttribute('href','/equipo/escaner/');
    await expect(page.getByRole('link',{name:'Ingresar con otra cuenta',exact:true})).toHaveAttribute('href','/equipo/ingresar/?return_to=%2Fnegocio%2F%23region');
   }else{
    await page.getByRole('link',{name:'Iniciar sesión',exact:true}).click();

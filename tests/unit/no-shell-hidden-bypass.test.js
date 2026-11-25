@@ -4,12 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = new URL("../../", import.meta.url);
-const FILES = [
-  "public/customer/load.js",
-  "public/customer/me.js",
-  "public/admin-dashboard/session-controller.js",
-  "public/super/index.js",
-];
+const FILES = ["public/customer/load.js", "public/customer/me.js", "public/super/index.js"];
 
 const BLOCKED_PATTERNS = [
   /\#needLogin["'`)]\s*[^;\n]*\.hidden\s*=/,

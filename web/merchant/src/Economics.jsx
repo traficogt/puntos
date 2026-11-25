@@ -1,9 +1,9 @@
 import { NumberInput, Select } from './inputs';
 import IssuedCommitments from './IssuedCommitments.jsx';
 import { useState } from 'react';
-import { Accordion, Alert, Badge, Button, Group, Modal, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
+import { Accordion, Alert, Anchor, Badge, Button, Group, Modal, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
 import { api, isDemo, useResource } from './api.js';
-import { BusinessLink, Failure, Loading, Locked, money, number, periodDate } from './ui.jsx';
+import { Failure, Loading, Locked, money, number, periodDate } from './ui.jsx';
 import { merchantRegion } from './region.js';
 import CommitmentScenarios from './CommitmentScenarios.jsx';
 
@@ -67,7 +67,7 @@ export default function Economics({ features }) {
                 <Table.Td ta="right">{reward.retail_value_q==null?'Sin registrar':money(reward.retail_value_q)}</Table.Td><Table.Td><Button variant="subtle" size="compact-sm" mih={44} aria-label={`Editar costo de ${reward.name}`} onClick={() => setEditing({ kind: 'reward', reward })}>Editar costo</Button></Table.Td>
               </Table.Tr>)}</Table.Tbody>
             </Table>
-          </Table.ScrollContainer> : <Text>No hay recompensas en esta página. <BusinessLink href="/administracion/?seccion=recompensas">Administrar recompensas</BusinessLink></Text>}
+          </Table.ScrollContainer> : <Text>No hay recompensas en esta página. <Anchor href="#recompensas">Administrar recompensas</Anchor></Text>}
           {data.rewards_pagination.total > 50 && <Group mt="md" justify="space-between"><Button variant="default" disabled={offset === 0} onClick={() => setOffset(value => Math.max(0, value - 50))}>Anterior</Button><Text size="sm">{number(offset + 1)}–{number(Math.min(offset + 50, data.rewards_pagination.total))} de {number(data.rewards_pagination.total)}</Text><Button variant="default" disabled={!data.rewards_pagination.has_more} onClick={() => setOffset(value => value + 50)}>Siguiente</Button></Group>}
         </section>
         <section className="operation-section" aria-labelledby="economics-balances">

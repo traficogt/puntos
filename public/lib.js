@@ -146,7 +146,7 @@ export function hydrateShellLinks(root = document) {
     "marketing-home": () => marketingUrl("/"),
     "app-login": () => appUrl("/equipo/ingresar/"),
     "app-scanner": () => appUrl("/equipo/escaner/"),
-    "app-dashboard": () => appUrl("/administracion/"),
+    "app-dashboard": () => appUrl("/negocio/"),
     "customer-wallet": () => appUrl("/mi-tarjeta/"),
   };
 

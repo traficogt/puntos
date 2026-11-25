@@ -360,10 +360,7 @@ async function handleStaffMagicLink(req, res) {
   const out = await consumePublicMagicLink(req, res, "staff");
   if (!out) return;
   res.cookie(config.STAFF_COOKIE_NAME, out.token, staffCookieOptionsFor(req));
-  const destinations = new Map([
-    ["/admin-dashboard", "/administracion/"],
-    ["/staff", "/equipo/escaner/"],
-  ]);
+  const destinations = new Map([["/staff", "/equipo/escaner/"]]);
   res.redirect(destinations.get(out.redirectTo) || out.redirectTo);
 }
 

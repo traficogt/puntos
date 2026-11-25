@@ -1,10 +1,10 @@
 import { NumberInput, Select } from './inputs';
 import {merchantRegion} from './region.js';
 import {useEffect,useState} from 'react';
-import {Alert,Button,Group,Stack,Text,TextInput} from '@mantine/core';
+import {Alert,Anchor,Button,Group,Stack,Text,TextInput} from '@mantine/core';
 import {useForm} from '@mantine/form';
 import {merchantApi} from './typed-api';
-import {number,BusinessLink} from './ui.jsx';
+import {number} from './ui.jsx';
 import {basePointsPreview,discountPreview,stampPreview,cashbackPreview,giftCardPreview} from './launch-model.js';
 /** @param {{program: import('./types/api').ProgramBasics, onDirty?: (dirty: boolean) => void, onSaved?: (program: import('./types/api').ProgramBasics) => void}} props */
 export default function LaunchProgramEditor({program,onDirty,onSaved}){
@@ -66,6 +66,6 @@ export default function LaunchProgramEditor({program,onDirty,onSaved}){
    :<div className="launch-example"><NumberInput label={form.values.program_type==='SPEND'?`Compra de ejemplo (${merchantRegion().currency})`:form.values.program_type==='VISIT'?'Visitas de ejemplo':'Artículos de ejemplo'} min={form.values.program_type==='SPEND'?0:1} max={100000} decimalScale={form.values.program_type==='SPEND'?merchantRegion().minorUnits:0} value={quantity} onChange={setQuantity}/><Text mt="sm" fw={600} role="status">{number(basePointsPreview(form.values,typeof quantity==='number'?quantity:Number(quantity)))} puntos base</Text><Text size="sm" c="dimmed">Ejemplo antes de bonos, niveles y límites. Los puntos pueden quedar pendientes según tu política de liberación.</Text></div>}
   <Text size="sm">Guardar cambia las compras futuras; conserva saldos, campañas, automatizaciones e integraciones existentes.</Text>
   {error&&<Alert color="red" role="alert">{error}</Alert>}{saved&&<Text role="status">Regla guardada.</Text>}
-  <Group><Button type="submit" loading={busy} disabled={!dirty}>{isDiscount?'Guardar descuento':isCashback?'Guardar cashback':isGiftCard?'Guardar tarjeta de regalo':isStamp?'Guardar tarjeta de sellos':'Guardar regla de puntos'}</Button><BusinessLink href="/administracion/?configurar=puntos">Límites y configuración avanzada</BusinessLink></Group>
+  <Group><Button type="submit" loading={busy} disabled={!dirty}>{isDiscount?'Guardar descuento':isCashback?'Guardar cashback':isGiftCard?'Guardar tarjeta de regalo':isStamp?'Guardar tarjeta de sellos':'Guardar regla de puntos'}</Button><Anchor href="#limites">Límites y configuración avanzada</Anchor></Group>
  </Stack></form>;
 }

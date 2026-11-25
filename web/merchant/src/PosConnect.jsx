@@ -2,15 +2,15 @@ import { NumberInput, Select } from './inputs';
 import {merchantRegion} from './region.js';
 import PosInstallation from "./PosInstallation.jsx";
 import PosRefunds from "./PosRefunds.jsx";
+import PosAdvanced from "./PosAdvanced.tsx";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Badge, Button, Checkbox, Divider, Group, SimpleGrid, Stack, Text, TextInput, Title } from "@mantine/core";
+import { Alert, Anchor, Badge, Button, Checkbox, Divider, Group, SimpleGrid, Stack, Text, TextInput, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { api, isDemo, useResource } from "./api.js";
-import { BusinessLink, Failure, Loading, Locked, money, number } from "./ui.jsx";
+import { Failure, Loading, Locked, money, number } from "./ui.jsx";
 import { configurationPayload, connectionModes, connectionSnapshot, connectionValues, receiptFromValues } from "./pos-model.js";
 
 const base = "/api/admin/pos";
-const advanced = "/administracion/?configurar=punto-de-venta";
 
 export default function PosConnect({ features, onDirty }) {
   const [refresh, setRefresh] = useState(0);
@@ -20,11 +20,11 @@ export default function PosConnect({ features, onDirty }) {
   if (resource.error) return <Failure error={resource.error} retry={() => setRefresh(v => v + 1)} />;
   if (!resource.data) return null;
   try { connectionValues(resource.data.integration); }
-  catch (error) { return <Alert color="yellow" title="Revisa la conexión"><Text>{error.message}</Text><BusinessLink href={advanced}>Abrir conexiones en administración</BusinessLink></Alert>; }
-  return <Workspace initial={resource.data.integration} onDirty={onDirty} />;
+  catch (error) { return <Alert color="yellow" title="Revisa la conexión"><Text>{error.message}</Text><Button variant="default" mt="sm" onClick={() => setRefresh(v => v + 1)}>Volver a cargar</Button></Alert>; }
+  return <Workspace initial={resource.data.integration} business={resource.data.business} onDirty={onDirty} />;
 }
 
-function Workspace({ initial, onDirty }) {
+function Workspace({ initial, business, onDirty }) {
   const [integration, setIntegration] = useState(initial);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -59,6 +59,13 @@ function Workspace({ initial, onDirty }) {
     finally { if (alive.current) setBusy(""); }
   }
 
+  // Adopt a connection the server just returned (save, Loyverse verification, key rotation, sync refresh).
+  function applyIntegration(next) {
+    const values = connectionValues(next);
+    configuration.setValues(values); configuration.setInitialValues(values); configuration.resetDirty(values);
+    setIntegration(next); baseline.current = connectionSnapshot(next);
+    return values;
+  }
   function chooseMode(mode) {
     configuration.setValues({ mode, enabled: mode === integration.mode ? integration.enabled : false, automatic: mode === integration.mode ? integration.automatic : false });
     setNotice(""); setError("");
@@ -76,9 +83,7 @@ function Workspace({ initial, onDirty }) {
       const payload = configurationPayload(configuration.values, latest.integration);
       const result = await api(base, { method: "PUT", body: JSON.stringify(payload) });
       if (!alive.current) return;
-      const values = connectionValues(result.integration);
-      configuration.setValues(values); configuration.setInitialValues(values); configuration.resetDirty(values);
-      setIntegration(result.integration); baseline.current = connectionSnapshot(result.integration);
+      const values = applyIntegration(result.integration);
       setNotice(isDemo ? "Demostración: configuración guardada solo en esta pestaña." : values.enabled ? "Conexión habilitada. Completa los pasos de tu método para recibir ventas." : "Conexión guardada y pausada.");
     } catch (e) { if (alive.current && e.name !== "AbortError") setError(e.message || "No se pudo guardar la conexión. Tus ajustes siguen aquí."); }
     finally { if (alive.current) setBusy(""); }
@@ -114,25 +119,23 @@ function Workspace({ initial, onDirty }) {
           <Text size="sm">Teléfono comprobado: {row.customerPhone || receipt.values.customerPhone} · Importe: {money(row.amountQ)}</Text>
           {row.status === "ready" && <Text size="sm"><strong>{number(row.points)} puntos estimados{isDemo ? " de ejemplo" : " con las reglas actuales"}.</strong> Los beneficios aplicables al procesar la venta pueden cambiar el resultado final.</Text>}
           <Text size="sm">No se guardó una compra ni se asignaron puntos. Esta prueba comprueba los datos en PF; aún debes verificar el envío desde tu caja.</Text>
-          {row.code === "SALE_404" && <BusinessLink href="/administracion/?configurar=puntos">Revisar la inscripción del cliente</BusinessLink>}
+          {row.code === "SALE_404" && <Anchor href="#preparar">Revisar la inscripción del cliente</Anchor>}
         </Stack>
       </Alert>}
-      <Text size="sm" c="dimmed" mt="md">Para CSV, revisa también las columnas del archivo en administración. En Loyverse, verifica la cuenta y consulta la vista previa de recibos; esta muestra no prueba esa conexión.</Text>
+      <Text size="sm" c="dimmed" mt="md">Para CSV, elige las columnas del archivo en las herramientas de la conexión, más abajo. En Loyverse, verifica la cuenta y consulta la vista previa de recibos allí; esta muestra no prueba esa conexión.</Text>
     </section>
     <Divider />
     <section aria-labelledby="pos-configuration-title">
       <Group justify="space-between" mb="md"><Title order={2} id="pos-configuration-title">Configura la conexión</Title><Badge color={integration.enabled ? "teal" : "gray"} variant="light">{integration.enabled ? "Habilitada" : "Pausada"}</Badge></Group>
       <form onSubmit={save}><Stack gap="md">
         <Select label="Método que guardará PF" value={mode} onChange={v => chooseMode(v || "api")} allowDeselect={false} data={connectionModes} disabled={!!busy} maw={500} />
-        {mode === "loyverse" ? <Text size="sm">{integration.loyverse?.configured ? `Cuenta verificada${integration.loyverse.merchant_name ? `: ${integration.loyverse.merchant_name}` : ""}.` : "Conecta tu cuenta de Loyverse desde administración. Allí se verifican el acceso y la moneda antes de guardar las credenciales."}</Text> : mode === "api" ? <Text size="sm">Tu proveedor necesita adaptar las ventas al formato de PF. La dirección de envío, el ejemplo JSON y la gestión de la clave están en administración.</Text> : <Text size="sm">Importar CSV requiere una revisión y confirmación por lote. Habilitar este método no importa archivos automáticamente.</Text>}
+        {mode === "loyverse" ? <Text size="sm">{integration.loyverse?.configured ? `Cuenta verificada${integration.loyverse.merchant_name ? `: ${integration.loyverse.merchant_name}` : ""}.` : "Conecta tu cuenta de Loyverse más abajo: PF verifica el acceso y la moneda antes de guardar el token."}</Text> : mode === "api" ? <Text size="sm">Tu proveedor necesita adaptar las ventas al formato de PF. La dirección de envío, el ejemplo JSON y la clave API están más abajo.</Text> : <Text size="sm">Importar CSV requiere una revisión y confirmación por lote. Habilitar este método no importa archivos automáticamente.</Text>}
         <Checkbox label="Habilitar esta conexión para recibir o importar ventas" description="Guardar con esta opción activa permite que el método elegido asigne puntos al procesar ventas válidas." disabled={!!busy || (mode === "loyverse" && !integration.loyverse?.configured)} {...configuration.getInputProps("enabled", { type: "checkbox" })} />
         {mode === "loyverse" && <Checkbox label="Sincronizar nuevas ventas automáticamente" description="Con la conexión habilitada, las ventas pagadas posteriores a su activación pueden sumar puntos sin una confirmación por venta." disabled={!!busy || !integration.loyverse?.configured} {...configuration.getInputProps("automatic", { type: "checkbox" })} />}
         <Group><Button type="submit" loading={busy === "save"} disabled={!!busy || !configuration.isDirty()}>Guardar conexión</Button><Button variant="subtle" disabled={!!busy || !configuration.isDirty()} onClick={() => { configuration.reset(); setError(""); setNotice(""); }}>Descartar ajustes</Button></Group>
       </Stack></form>
-      <Stack gap="sm" mt="lg">
-        <BusinessLink href={advanced}>{mode === "loyverse" ? "Verificar cuenta y revisar recibos de Loyverse" : mode === "csv" ? "Seleccionar columnas y revisar archivo CSV" : "Ver instrucciones para el proveedor y gestionar la clave"}</BusinessLink>
-        <Text size="sm" c="dimmed">Las claves y los permisos de lectura se administran dentro de tu cuenta real. El equipo de caja no necesita verlos.</Text>
-      </Stack>
+      <PosAdvanced integration={integration} businessSlug={business?.slug ?? null} mode={mode} dirty={configuration.isDirty()} disabled={!!busy} onIntegration={applyIntegration} />
+      <Text size="sm" c="dimmed" mt="md">Las claves y los permisos de lectura se administran desde esta cuenta de dueño. El equipo de caja no necesita verlos.</Text>
     </section>
     {error && errorScope === "save" && <Alert color="red" role="alert" title="No se pudo guardar la conexión">{error}</Alert>}
     {notice && <Alert color="teal" role="status">{notice}</Alert>}

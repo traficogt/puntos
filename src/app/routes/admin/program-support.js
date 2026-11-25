@@ -61,14 +61,6 @@ export const AUTOMATION_TEMPLATES = [
   },
 ];
 
-export const AutomationTemplateSchema = z.object({
-  template: z.enum(["cafeteria_basico", "reactivacion_fuerte", "solo_alertas"]),
-});
-
-export const automationTemplateMap = Object.fromEntries(
-  AUTOMATION_TEMPLATES.map((template) => [template.key, template.config]),
-);
-
 export const CampaignRulesSchema = z.object({
   rules: z
     .array(

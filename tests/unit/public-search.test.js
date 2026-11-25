@@ -81,7 +81,7 @@ test("applications carry noindex while public pages stay indexable", async (t) =
     ["/join", "puntosfieles.com"],
     ["/ingresar", "puntosfieles.com"],
     ["/customer", "puntosfieles.com"],
-    ["/admin-dashboard/fragments/branding.html", "puntosfieles.com"],
+    ["/administracion/", "puntosfieles.com"],
     ["/api/mobile/customer", "puntosfieles.com"],
     ["/app-preview/", "puntosfieles.com"],
     ["/soporte", "app.puntosfieles.com"],

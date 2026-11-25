@@ -60,8 +60,9 @@ test("service worker precache block is generated and current (npm run sw:build)"
 
 test("hand-written pages and stylesheets carry content-hashed asset versions (npm run sw:build)", () => {
   const versions = checkAssetVersions();
+  // 18 hand-written pages since the vanilla owner dashboard was retired (2026-11-25).
   assert.ok(
-    versions.pages.length >= 20 && versions.versioned >= 150,
+    versions.pages.length >= 18 && versions.versioned >= 150,
     "the versioning step must cover the hand-written pages under public/",
   );
   assert.equal(
@@ -108,7 +109,6 @@ test("service worker core assets are explicit and exist on disk", () => {
       "/equipo/ingresar/": "/staff-login.html",
       "/equipo/escaner/": "/staff.html",
       "/mi-tarjeta/": "/customer.html",
-      "/administracion/": "/admin-dashboard.html",
       "/plataforma/": "/super.html",
       "/registro/": "/join.html",
       "/ingresar/": "/ingresar.html",

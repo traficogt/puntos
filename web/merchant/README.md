@@ -1,9 +1,10 @@
 # Merchant website
 
 React 19.3 + Mantine 9.8 with Recharts. Separate dependencies and release cadence
-from `apps/customer`. Express serves `/merchant/`; existing administration remains
-at `/admin-dashboard`. Owner login opens the merchant overview; managers retain
-the existing staff workflow.
+from `apps/customer`. Express serves it at `/negocio/` (`/merchant/` redirects). It is
+the only owner dashboard: the former vanilla `/administracion/` was retired on
+2026-11-25 and permanently redirects here. Owner login opens the merchant overview;
+managers and cashiers open the staff scanner.
 
 Run from the repository root:
 
@@ -33,7 +34,8 @@ native APIs and commercial feature gates remain unchanged.
 
 Campaign forms edit the existing rules API. Templates remain disabled drafts
 until explicitly activated and saved; no outbound messaging occurs. Existing
-unsupported configurations link to advanced administration. The client checks for
+configurations the structured editor cannot represent are shown read-only with a
+support link. The client checks for
 intervening edits before saving, but the existing API is not an atomic revision
 protocol: avoid simultaneous edits from multiple admin sessions.
 

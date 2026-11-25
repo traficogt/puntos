@@ -24,7 +24,7 @@ test("marketing header and entry points reference the canonical PF icon", () => 
   const indexHtml = read("public/index.html");
   const customerHtml = read("public/customer.html");
   const joinHtml = read("public/join.html");
-  const adminDashboardHtml = read("public/admin-dashboard.html");
+  const staffHtml = read("public/staff.html");
 
   // Asset versions are content hashes written by npm run sw:build.
   const version = "\\?v=[0-9a-f]{8}";
@@ -39,7 +39,7 @@ test("marketing header and entry points reference the canonical PF icon", () => 
   assert.match(read("public/styles/fonts.css"), /font-family: 'Bricolage Grotesque'/);
   assert.match(customerHtml, icon);
   assert.match(joinHtml, icon);
-  assert.match(adminDashboardHtml, icon);
+  assert.match(staffHtml, icon);
 });
 
 test("manifest stays installable and aligned with the canonical icon set", () => {

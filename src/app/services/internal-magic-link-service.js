@@ -217,7 +217,9 @@ export async function consumeInternalMagicLink(rawToken, meta = {}, deps = {}) {
       actorType: "staff",
       cookieName: resolvedDeps.runtimeConfig.STAFF_COOKIE_NAME,
       token: tokenValue,
-      redirectTo: record.target === "admin-dashboard" ? "/admin-dashboard" : "/staff",
+      // The stored "admin-dashboard" target predates the vanilla dashboard's retirement; it
+      // now opens the merchant app.
+      redirectTo: record.target === "admin-dashboard" ? "/negocio/" : "/staff",
     };
   }
 

@@ -14,10 +14,12 @@ export function staffLoginHref(value) {
   return `/equipo/ingresar/?return_to=${encodeURIComponent(ownerReturnPath(value))}`;
 }
 /**
+ * Owners open the merchant app; managers and cashiers open the scanner (the retired vanilla
+ * dashboard's manager mode only exposed gift cards, which the scanner also handles).
  * @param {unknown} role
  * @param {unknown} value
  */
 export function staffLoginDestination(role, value) {
   if (String(role).toUpperCase() === "OWNER") return ownerReturnPath(value);
-  return String(role).toUpperCase() === "MANAGER" ? "/administracion/" : "/equipo/escaner/";
+  return "/equipo/escaner/";
 }

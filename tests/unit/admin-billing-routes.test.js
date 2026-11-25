@@ -8,10 +8,12 @@ import { pool } from "../../src/app/database.js";
 // Daily sums as PostgreSQL hands them over: numeric(10,2) strings.
 let dailyRows = [];
 let lastParams = null;
+let lastSql = "";
 pool.query = async (sql, params) => {
   const text = String(sql);
   if (text.includes("FROM transactions t")) {
     lastParams = params;
+    lastSql = text;
     return { rows: dailyRows, rowCount: dailyRows.length };
   }
   return { rows: [], rowCount: 0 };
@@ -88,6 +90,8 @@ describe("admin billing IVA csv", () => {
       // 59.97 / 1.12 = 53.5446... -> 53.54; IVA is the remainder, 6.43.
       "2026-11-02,3,59.97,53.54,6.43",
     ]);
+    // The date is formatted in SQL: a DATE column would otherwise serialize as an ISO timestamp.
+    assert.match(lastSql, /to_char\(t\.created_at::date, 'YYYY-MM-DD'\) AS fecha/);
   });
 
   it("keeps bruto = base + IVA on every row, including exact .xx5 ties", async () => {

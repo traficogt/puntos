@@ -90,6 +90,12 @@ nav:
   - Autorizar canjes desde una caja compatible: negocio/canjes-pos.md
   - Revisar devoluciones de caja y sus puntos: negocio/devoluciones.md
   - Revisar pendientes y datos atrasados: negocio/estado-operacion.md
+  - Leer la analítica avanzada y exportar el CSV de IVA: negocio/analitica.md
+  - Revisar los últimos canjes de una recompensa: negocio/canjes-por-recompensa.md
+  - Revisar alertas y asignar pagos sin cliente: negocio/alertas.md
+  - Revisar trabajos en segundo plano y recalcular la analítica: negocio/trabajos.md
+  - Conciliar el libro de puntos y certificar un periodo: negocio/conciliacion.md
+  - Consultar la auditoría del negocio: negocio/auditoria.md
   - Organizar y documentar una prueba real: negocio/piloto.md
   - Revisar la lista de activación e imprimir guías: negocio/puesta-en-marcha.md
   - Lista imprimible antes de invitar clientes: negocio/lista-de-lanzamiento.md

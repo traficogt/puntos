@@ -1,5 +1,5 @@
 // Contracts and pure helpers for the operations screens ported from the vanilla analytics tab
-// (/administracion/?seccion=analisis): background jobs, pending payments, the alerts center, the
+// (formerly the vanilla dashboard analytics tab): background jobs, pending payments, the alerts center, the
 // points ledger (anomalies, reconciliation, certification, corrections) and the audit log.
 // Interfaces mirror the server rows; NUMERIC/COUNT columns may arrive as strings.
 

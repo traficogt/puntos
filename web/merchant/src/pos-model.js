@@ -29,7 +29,7 @@ export function recommendConnection(vendor, capability) {
 
 export function connectionValues(integration) {
   if (!integration || !connectionModes.some(m => m.value === integration.mode) || typeof integration.enabled !== "boolean" || typeof integration.automatic !== "boolean")
-    throw new Error("La configuración necesita una revisión en administración.");
+    throw new Error("La configuración guardada tiene un formato inesperado. Vuelve a cargar la página.");
   return { mode: integration.mode, enabled: integration.enabled, automatic: integration.automatic };
 }
 
@@ -44,7 +44,7 @@ export function connectionSnapshot(integration) {
 export function configurationPayload(values, integration) {
   const next = connectionValues(values);
   if (next.enabled && next.mode === "loyverse" && !integration.loyverse?.configured)
-    throw new Error("Conecta y verifica tu cuenta de Loyverse en administración antes de habilitarla.");
+    throw new Error("Conecta y verifica tu cuenta de Loyverse, más abajo, antes de habilitarla.");
   return next;
 }
 

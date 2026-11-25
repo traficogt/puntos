@@ -44,9 +44,11 @@ export default function Campaigns({ features, onDirty }) {
     return (
       <Alert color="yellow" title="Configuración avanzada">
         <Text>{error.message}</Text>
-        <BusinessLink href="/administracion/?configurar=puntos">
-          Abrir configuración avanzada
-        </BusinessLink>
+        <Text size="sm" mt="xs">
+          Estas reglas se guardaron con una herramienta anterior y este editor no puede modificarlas sin
+          perder detalles. Escríbenos para migrarlas.
+        </Text>
+        <BusinessLink href="/soporte">Pedir ayuda a soporte</BusinessLink>
       </Alert>
     );
   }

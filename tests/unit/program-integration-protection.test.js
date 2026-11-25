@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Router } from "express";
 import { runWithDbContext } from "../../src/app/database.js";
-import { AuditRepo } from "../../src/app/repositories/audit-repository.js";
 import { BusinessRepo } from "../../src/app/repositories/business-repository.js";
 import { publicRoutes } from "../../src/app/routes/public-routes.js";
 import { staffRoutes } from "../../src/app/routes/staff-routes.js";
@@ -250,33 +249,4 @@ test("repository rotation detects a POS token even when there is no external awa
   assert.equal(rotated, 1);
   assert.equal(updates.length, 1);
   assert.match(updates[0][1].pos_integration.loyverse.access_token, /^enc:v2:/);
-});
-
-test("legacy template applies only its patch without re-submitting a stale whole program", async (t) => {
-  t.mock.method(BusinessRepo, "getById", async () =>
-    structuredClone({
-      ...business,
-      program_json: {
-        ...program,
-        lifecycle: { birthday_monthly_points_cap: 100, minimum_contact_days: 14 },
-      },
-    }),
-  );
-  t.mock.method(BusinessRepo, "updateProgram", async () =>
-    assert.fail("Template must not replace a previously read program snapshot"),
-  );
-  t.mock.method(BusinessRepo, "updateLifecycle", async (_id, patch) => {
-    assert.equal(patch.birthday_monthly_points_cap, undefined);
-    assert.equal(patch.minimum_contact_days, undefined);
-    assert.equal(patch.birthday_points, 50);
-    return structuredClone(business);
-  });
-  t.mock.method(AuditRepo, "log", async () => {});
-  t.mock.method(PlanConfigService, "getPlanFeatureOverrides", async () => ({}));
-  const res = await runHandler(adminRoutes, "/admin/automations/template", "put", {
-    tenantId: "biz-1",
-    staff: { role: "OWNER" },
-    body: { template: "cafeteria_basico" },
-  });
-  assert.equal(res.statusCode, 200);
 });

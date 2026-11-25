@@ -77,12 +77,12 @@ test("audit queries, scope copy and detail markers follow the vanilla filters", 
 });
 
 test("templates prefill the editor without touching budgets, and flag budgets the editor will reject", () => {
-  const saved = { birthday_enabled: false, birthday_points: 40, birthday_monthly_points_cap: 1200, winback_enabled: false, winback_days: 30, winback_points: 25, winback_monthly_points_cap: 30, minimum_contact_days: 14, scheduler_hour_local: 11, scheduler_tz: "America/Guatemala" };
+  const saved = { birthday_enabled: false, birthday_points: 40, birthday_monthly_points_cap: 1200, winback_enabled: false, winback_days: 30, winback_points: 25, winback_monthly_points_cap: 30, minimum_contact_days: 14, scheduler_hour_local: 11, scheduler_tz: "America/Guatemala", suspicious_digest_enabled: false, suspicious_digest_min_count: 3 };
   const strong = automationTemplates.find((template) => template.key === "reactivacion_fuerte");
   const values = templateFormValues(saved, strong);
-  assert.deepEqual(values, { ...saved, birthday_enabled: true, birthday_points: 75, winback_enabled: true, winback_days: 21, winback_points: 35, scheduler_hour_local: 10 });
+  assert.deepEqual(values, { ...saved, birthday_enabled: true, birthday_points: 75, winback_enabled: true, winback_days: 21, winback_points: 35, scheduler_hour_local: 10, suspicious_digest_enabled: true, suspicious_digest_min_count: 1 });
   assert.equal(values.winback_monthly_points_cap, 30, "the saved budget is kept for the owner to review");
-  assert.equal(Object.hasOwn(values, "suspicious_digest_enabled"), false, "digest keys never enter the strict PUT /api/admin/automations payload");
+  assert.equal(values.suspicious_digest_enabled, true, "the daily suspicious-purchase digest is part of the template and is saved through PUT /api/admin/automations");
   assert.deepEqual(templateBudgetNotes(values), ["El presupuesto mensual de recuperación (30 puntos) no cubre una invitación de 35 puntos."]);
   const alertsOnly = automationTemplates.find((template) => template.key === "solo_alertas");
   assert.deepEqual(templateBudgetNotes(templateFormValues(saved, alertsOnly)), [], "paused rules never fail the budget rule");

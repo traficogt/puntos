@@ -9,10 +9,10 @@ const stubs = {
   "/lib.js": library,
   "./operations-health.js":
     "export const createPlatformHealth=({container})=>({load:async()=>{},clear:()=>{container.textContent='';}});",
-  "./view-state.js": "export const copyCurrentViewUrl=async()=>{};",
 };
+// The owner dashboard is the merchant app (web/merchant/src/api.js owns its logout handshake);
+// this file covers the vanilla super console.
 const entries = {
-  admin: new URL("../../public/admin-dashboard/session-controller.js", import.meta.url),
   super: new URL("../../public/super/index.js", import.meta.url),
 };
 let run = 0;
@@ -64,66 +64,10 @@ async function setup(t, kind, api, initial = {}) {
     });
   }
   const module = await loadBrowserModule(entries[kind], { stubs, instance: ++run });
-  const deps = { api, $, toast: (text) => messages.push(text), syncDashboardViewToUrl() {} };
-  if (kind === "admin") module.initDashboardChrome(deps);
-  else await module.initSuperPage(deps);
+  const deps = { api, $, toast: (text) => messages.push(text) };
+  await module.initSuperPage(deps);
   return { saved, messages, elements, events, module, deps, logout: events["#btnLogout:click"] };
 }
-
-test("owner logout failure hides private view, blocks cached staff identity, and retries on reconnect", async (t) => {
-  let fail = true;
-  const h = await setup(
-    t,
-    "admin",
-    async () => {
-      if (fail) throw new TypeError("Failed to fetch");
-      return { ok: true };
-    },
-    { pf_staff_snapshot: "old staff" },
-  );
-  await h.logout();
-  assert.equal(h.elements["#main"].hidden, true);
-  assert.equal(h.saved.has("pf_staff_snapshot"), false);
-  assert.equal(h.saved.get("pf_staff_logout_pending"), "1");
-  assert.equal(location.href, "");
-  assert.ok(h.messages.some((message) => /no se pudo.*sesión/i.test(message)));
-  fail = false;
-  await h.events["window:online"]();
-  assert.equal(h.saved.has("pf_staff_logout_pending"), false);
-  assert.equal(location.href, "/equipo/ingresar/");
-});
-
-test("a late owner session response cannot reopen the dashboard after logout", async (t) => {
-  let resolveMe = (_value) => {};
-  const response = new Promise((resolve) => {
-    resolveMe = resolve;
-  });
-  const h = await setup(t, "admin", async (path) =>
-    path.endsWith("/me") ? response : { ok: true },
-  );
-  const state = {};
-  const pending = h.module.loadStaffSession({ ...h.deps, state });
-  await h.logout();
-  resolveMe({ staff: { role: "OWNER" } });
-  assert.equal(await pending, false);
-  assert.equal(h.elements["#main"].hidden, true);
-});
-
-test("owner dashboard refuses a pending local logout before checking the old cookie", async (t) => {
-  const calls = [];
-  const h = await setup(
-    t,
-    "admin",
-    async (path) => {
-      calls.push(path);
-      throw new TypeError("Failed to fetch");
-    },
-    { pf_staff_logout_pending: "1" },
-  );
-  const result = await h.module.loadStaffSession({ ...h.deps, state: {} });
-  assert.equal(result, false);
-  assert.ok(!calls.includes("/api/staff/me"));
-});
 
 test("super logout failure hides all private cards and secrets without claiming success", async (t) => {
   const h = await setup(t, "super", async (path) => {

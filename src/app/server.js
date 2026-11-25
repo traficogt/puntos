@@ -228,9 +228,6 @@ app.use(express.static(publicDir, { extensions: ["html"], redirect: false, setHe
 // Friendly routes
 app.get("/", (req, res) => res.sendFile(path.join(publicDir, "index.html")));
 app.get("/admin", (req, res) => res.sendFile(path.join(publicDir, "admin.html")));
-app.get("/admin-dashboard", (req, res) =>
-  res.sendFile(path.join(publicDir, "admin-dashboard.html")),
-);
 app.get("/staff/login", (req, res) => res.sendFile(path.join(publicDir, "staff-login.html")));
 app.get("/staff", (req, res) => res.sendFile(path.join(publicDir, "staff.html")));
 app.get("/registro/:slug", (req, res) => res.sendFile(path.join(publicDir, "join.html")));

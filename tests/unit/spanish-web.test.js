@@ -21,7 +21,6 @@ async function serveFixture(t, { splitHosts = false } = {}) {
     "merchant/assets/old.js": "window.oldMerchant = true;",
     "app-preview/index.html": "<main>App preview</main>",
     "app-preview/_expo/app.js": "window.preview = true;",
-    "admin-dashboard.html": "<main>Administration</main>",
     "admin.html": "<main>Signup</main>",
     "staff-login.html": "<main>Team login</main>",
     "staff.html": "<main>Scanner</main>",
@@ -93,10 +92,13 @@ test("browser aliases redirect only GET/HEAD with a permanent same-origin Locati
   for (const method of ["GET", "HEAD"]) {
     const response = await request("/admin-dashboard.html?tab=rewards&token=a%2Bb", { method });
     assert.equal(response.status, 308);
-    assert.equal(
-      response.headers.get("location"),
-      "/administracion/?seccion=recompensas&token=a%2Bb",
-    );
+    assert.equal(response.headers.get("location"), "/negocio/?token=a%2Bb#recompensas");
+    const spanish = await request("/administracion/?seccion=analisis", { method });
+    assert.equal(spanish.status, 308);
+    assert.equal(spanish.headers.get("location"), "/negocio/#analitica");
+    const bare = await request("/administracion", { method });
+    assert.equal(bare.status, 308);
+    assert.equal(bare.headers.get("location"), "/negocio/");
   }
   for (const method of ["POST", "PUT", "DELETE"]) {
     const response = await request("/admin-dashboard?tab=rewards", { method });
@@ -110,8 +112,10 @@ test("browser aliases redirect only GET/HEAD with a permanent same-origin Locati
 
 test("canonical Spanish routes serve their existing HTML", async (t) => {
   const request = await serveFixture(t);
+  // The retired owner dashboard has no document of its own any more.
+  assert.equal((await request("/administracion/")).status, 308);
+  assert.equal((await request("/admin-dashboard.html")).status, 308);
   for (const [route, label] of Object.entries({
-    "/administracion/": "Administration",
     "/crear-negocio/": "Signup",
     "/equipo/ingresar/": "Team login",
     "/equipo/escaner/": "Scanner",

@@ -126,11 +126,11 @@ class ErrorBoundary extends React.Component {
       <Stack p="xl">
         <Title order={1}>El panel no pudo abrirse</Title>
         <Text>
-          Recarga la página. Puedes seguir trabajando en administración.
+          Recarga la página. Si el problema continúa, el escáner del equipo sigue disponible.
         </Text>
         <Button onClick={() => location.reload()}>Recargar</Button>
-        <BusinessLink href="/administracion/">
-          Abrir administración
+        <BusinessLink href="/equipo/escaner/">
+          Abrir escáner
         </BusinessLink>
       </Stack>
     ) : (
@@ -164,7 +164,7 @@ function Access({ pending = false, staff = null }) {
       <img src="/icon.svg?v=4" alt="PuntosFieles" width="48" height="48" />
       <Title order={1}>{signedIn ? "Este panel es para propietarios" : "Ingresa a tu negocio"}</Title>
       <Text>
-        {signedIn ? manager ? "Tu sesión de gerente está activa. Puedes administrar el negocio desde tu área." : "Tu sesión de equipo está activa. Puedes registrar compras y canjes desde el escáner." : "Inicia sesión con una cuenta de propietario para consultar resultados y administrar tu programa."}
+        {signedIn ? manager ? "Tu sesión de gerente está activa. Puedes registrar compras, canjes y tarjetas de regalo desde el escáner." : "Tu sesión de equipo está activa. Puedes registrar compras y canjes desde el escáner." : "Inicia sesión con una cuenta de propietario para consultar resultados y administrar tu programa."}
       </Text>
       {error && (
         <Text c="red" role="alert">
@@ -176,7 +176,7 @@ function Access({ pending = false, staff = null }) {
           Completar cierre de sesión
         </Button>
       )}
-      {signedIn && <Button component="a" href={manager ? "/administracion/" : "/equipo/escaner/"}>{manager ? "Abrir administración" : "Abrir escáner"}</Button>}
+      {signedIn && <Button component="a" href="/equipo/escaner/">Abrir escáner</Button>}
       <Button component="a" href={loginHref} variant={signedIn ? "outline" : "filled"}>
         {signedIn ? "Ingresar con otra cuenta" : "Iniciar sesión"}
       </Button>

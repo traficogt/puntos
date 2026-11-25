@@ -26,6 +26,6 @@ test("owner return paths preserve internal sections and reject ambiguous destina
     helpers.staffLoginHref("/negocio/#region"),
     "/equipo/ingresar/?return_to=%2Fnegocio%2F%23region",
   );
-  assert.equal(helpers.staffLoginDestination("MANAGER", "/negocio/#region"), "/administracion/");
+  assert.equal(helpers.staffLoginDestination("MANAGER", "/negocio/#region"), "/equipo/escaner/");
   assert.equal(helpers.staffLoginDestination("STAFF", "/negocio/#region"), "/equipo/escaner/");
 });

@@ -71,11 +71,6 @@ describe("ui visibility helper", () => {
 
   it("application entrypoints expose the premium app shell markers", () => {
     // eslint-disable-next-line security/detect-non-literal-fs-filename
-    const admin = fs.readFileSync(
-      new URL("../../public/admin-dashboard.html", import.meta.url),
-      "utf8",
-    );
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const customer = fs.readFileSync(
       new URL("../../public/customer.html", import.meta.url),
       "utf8",
@@ -88,9 +83,6 @@ describe("ui visibility helper", () => {
       "utf8",
     );
 
-    assert.match(admin, /<body class="[^"]*\bapp-shell\b[^"]*\bpage-admin\b[^"]*">/);
-    assert.match(admin, /class="nav app-topbar"/);
-    assert.match(admin, /id="themeToggle" class="theme-toggle" aria-label="Cambiar tema"/);
     assert.match(customer, /<body class="[^"]*\bapp-shell\b[^"]*\bpage-customer\b[^"]*">/);
     assert.match(customer, /class="nav app-topbar"/);
     assert.match(customer, /id="themeToggle" class="theme-toggle" aria-label="Cambiar tema"/);

@@ -43,7 +43,7 @@ export function Locked({ feature }) {
       <Text>
         Esta función no está incluida en el plan actual de tu negocio.
       </Text>
-      <BusinessLink href="/administracion/">Abrir administración</BusinessLink>
+      <Anchor href="#reportes">Ver la capacidad y el plan de mi negocio</Anchor>
     </Stack>
   );
 }

@@ -36,6 +36,11 @@ export const AutomationSettings = z
       .string()
       .max(100)
       .refine((value) => value.includes("/") && IANAZone.isValidZone(value)),
+    // Daily digest of suspicious purchases (lifecycle-service.js). Optional so installed
+    // clients that never sent these keys keep validating; the merchant Automations editor
+    // (and its Plantillas) writes them together with the lifecycle rules.
+    suspicious_digest_enabled: z.boolean().optional(),
+    suspicious_digest_min_count: z.number().int().min(1).max(1000).optional(),
   })
   .strict()
   .refine(
@@ -75,6 +80,8 @@ export function automationSettings(raw = {}, business = {}) {
     minimum_contact_days: bounded(source.minimum_contact_days, 7, 90, 7),
     scheduler_hour_local: bounded(source.scheduler_hour_local, 9, 17, 9),
     scheduler_tz: regionTimezone(business),
+    suspicious_digest_enabled: source.suspicious_digest_enabled === true,
+    suspicious_digest_min_count: bounded(source.suspicious_digest_min_count, 1, 1000, 1),
   };
 }
 /** @param {Date} now @param {Partial<AutomationBusinessRow>} [business] */

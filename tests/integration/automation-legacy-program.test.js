@@ -338,7 +338,6 @@ test(
             program_json: { points_per_q: 9, lifecycle: { birthday_points: 7 } },
           },
         ],
-        ["template", "/admin/automations/template", "put", { template: "cafeteria_basico" }],
         [
           "campaign",
           "/admin/campaign-rules",

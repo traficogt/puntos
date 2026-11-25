@@ -1347,52 +1347,6 @@ paths:
       x-plan-features:
         - lifecycle_automation
       parameters: undefined
-  /api/v1/admin/automations/template:
-    put:
-      summary: "Apply a lifecycle automation template"
-      responses:
-        200:
-          description: "Automation template applied"
-        400:
-          description: "Validation error"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        401:
-          description: "Not authenticated"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        403:
-          description: "Owner role and plan feature required"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        404:
-          description: "Business not found"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-      security:
-        - staffAuth:
-            []
-      x-csrf-required: true
-      x-tenant-context: true
-      x-required-roles:
-        - OWNER
-      x-plan-features:
-        - lifecycle_automation
-      parameters: undefined
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AutomationTemplateRequest"
   /api/v1/admin/awards/suspicious:
     get:
       summary: "Derived GET /api/v1/admin/awards/suspicious"
@@ -8955,18 +8909,6 @@ components:
           maxLength: 120
       required:
         - enabled
-      additionalProperties: false
-    AutomationTemplateRequest:
-      type: object
-      properties:
-        template:
-          type: string
-          enum:
-            - cafeteria_basico
-            - reactivacion_fuerte
-            - solo_alertas
-      required:
-        - template
       additionalProperties: false
     OwnerProgressAcknowledgeRequest:
       type: object

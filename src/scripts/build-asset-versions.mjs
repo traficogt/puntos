@@ -60,10 +60,6 @@ export const EXCLUDED_DIRECTORIES = ["merchant", "revision-astryx", "ayuda", "pw
  */
 export const RUNTIME_REFERENCED_ASSETS = [
   { asset: "/styles/demand-notebook.css", source: "public/demand-notebook.js (link.href)" },
-  {
-    asset: "/admin-dashboard/fragments/*.html",
-    source: "public/admin-dashboard/layout.js (fetch of 14 tab fragments)",
-  },
   { asset: "/runtime-config.js", source: "src/app/server.js (dynamic route, no-store)" },
   {
     asset: "/icon-192.png, /icon-512.png, /icon.svg",

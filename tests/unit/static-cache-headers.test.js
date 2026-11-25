@@ -63,7 +63,7 @@ test("unversioned assets, documents and the worker keep their caching", async ()
     "/index.html?v=0123abcd",
     "/admin?v=0123abcd",
     "/?v=0123abcd",
-    "/admin-dashboard/fragments/program.html?v=0123abcd",
+    "/staff.html?v=0123abcd",
   ]) {
     assert.equal(await cacheControl(target), "public, max-age=0", target);
   }

@@ -20,7 +20,7 @@ export default function BrandedQr({ features, staff }) {
         <Text>Incluye el logotipo dentro del QR, el nombre y los colores de tu negocio en un cartel listo para imprimir.</Text>
         <Text fw={600}>Disponible en los planes Negocio y Empresa.</Text>
         <Text>Tu QR de inscripción estándar sigue disponible en Primeros pasos.</Text>
-        <Group><Button size="md" mih={44} component="a" href="#preparar">Ver mi QR estándar</Button><BusinessLink href="/administracion/?seccion=plan">Revisar mi plan</BusinessLink></Group>
+        <Group><Button size="md" mih={44} component="a" href="#preparar">Ver mi QR estándar</Button><Anchor href="#reportes">Revisar mi plan</Anchor></Group>
       </Stack>
     );
   }
@@ -168,7 +168,7 @@ function BrandedQrEditor({ staff }) {
           </form>
           <div className="branded-qr-details">
             {!upload.dataUrl && <Text size="sm">{data.branding.logo_note}</Text>}
-            <BusinessLink href="/administracion/?seccion=marca" display="inline-block" mt="sm">Editar nombre, logotipo y colores</BusinessLink>
+            <Anchor href="#identidad" display="inline-block" mt="sm">Editar nombre, logotipo y colores</Anchor>
           </div>
           <TextInput label={isDemo ? "Enlace de demostración" : "Enlace de inscripción"} value={registrationUrl} readOnly onFocus={(event) => event.target.select()} />
           <Group><Button variant="subtle" size="md" mih={44} onClick={copyLink}>Copiar enlace</Button><Anchor href={registrationUrl} target="_blank" rel="noopener noreferrer">{isDemo ? "Abrir demostración" : "Ver inscripción"}</Anchor></Group>

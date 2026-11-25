@@ -6,6 +6,8 @@ reviewed: '2026-11-25'
 kind: task
 sources:
 - web/merchant/src/Automations.jsx
+- web/merchant/src/AutomationTemplates.tsx
+- src/app/services/automation-controls-service.js
 owner_route: automatizaciones
 ---
 
@@ -22,10 +24,12 @@ Necesitas tener configurada la mensajería y conocer el costo de los puntos que 
 ## Paso a paso
 
 1. Abre **Notificaciones automáticas** y busca **Cumpleaños y recuperación**.
-2. Revisa **Activar cumpleaños** o **Activar recuperación**. Define los puntos y el presupuesto mensual de cada regla.
-3. Para recuperación, configura **Días sin actividad**. Compras y canjes cuentan como actividad; la regla no recupera días anteriores.
-4. Revisa **Preparar incentivos a partir de** y **Días mínimos entre mensajes**. Guarda con el botón de configuración de esa sección.
-5. Consulta **Hoy, con la configuración guardada** y **Ejecuciones y mensajes** para entender los candidatos y resultados.
+2. Si quieres partir de una configuración conocida, en **Plantillas** pulsa **Cargar en el formulario** en **Cafetería básico**, **Reactivación fuerte** o **Solo alertas**. La plantilla solo rellena el formulario; nada se guarda hasta que revises los presupuestos y pulses **Guardar y aplicar**.
+3. Revisa **Activar cumpleaños** o **Activar recuperación**. Define los puntos y el presupuesto mensual de cada regla.
+4. Para recuperación, configura **Días sin actividad**. Compras y canjes cuentan como actividad; la regla no recupera días anteriores.
+5. En **Alerta diaria de compras sospechosas**, decide si quieres **Enviar un resumen diario al dueño** y desde cuántas compras marcadas (**Avisar a partir de**). Este aviso no se envía a clientes.
+6. Revisa **Preparar incentivos a partir de** y **Días mínimos entre mensajes**. Pulsa **Guardar y aplicar**.
+7. Consulta **Hoy, con la configuración guardada** y **Ejecuciones y mensajes** para entender los candidatos y resultados.
 
 ## Qué debe pasar
 

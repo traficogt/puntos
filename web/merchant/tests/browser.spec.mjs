@@ -410,12 +410,13 @@ try {
     await manager.page
       .getByRole("heading", { name: "Este panel es para propietarios" })
       .waitFor();
+    // Managers no longer have a vanilla dashboard; the scanner covers their gift-card work.
     assert.ok(
       await manager.page
-        .getByRole("link", { name: "Abrir administración" })
+        .getByRole("link", { name: "Abrir escáner" })
         .isVisible(),
     );
-    assert.equal(await manager.page.getByRole("link", { name: "Abrir administración" }).getAttribute("href"), "/administracion/");
+    assert.equal(await manager.page.getByRole("link", { name: "Abrir escáner" }).getAttribute("href"), "/equipo/escaner/");
   });
   await manager.context.close();
   const exiting = await session();

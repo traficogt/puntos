@@ -47,7 +47,7 @@ try{
  for(const mode of ['light','dark'])for(const width of [1280,390]){
   await page.setViewportSize({width,height:950});await page.goto(origin+'/negocio/?theme='+mode);
   await expect(page.getByRole('tab',{name:'3. Equipo y práctica',exact:true})).toHaveAttribute('aria-selected','true');
-  await expect(page.getByRole('link',{name:'Crear accesos para mi equipo',exact:true})).toHaveAttribute('href','/administracion/?seccion=equipo');
+  await expect(page.getByRole('link',{name:'Crear accesos para mi equipo',exact:true})).toHaveAttribute('href','#personal');
   await page.getByRole('button',{name:'Iniciar práctica guardada',exact:true}).click();
   await expect(page.getByLabel('Recompensa de práctica')).toContainText('Café (ficticio)');
   const before=await page.evaluate(()=>window.__calls.length);

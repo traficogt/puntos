@@ -6,7 +6,9 @@ async function useClientIp(page) {
   });
 }
 
-test("admin logout hides both tabs offline and revokes the session on reconnect", async ({
+// The owner dashboard is the merchant app (/negocio/); web/merchant/src/api.js owns the cross-tab
+// logout epoch (pf_staff_epoch / pf_staff_logout_pending) that the retired vanilla dashboard shared.
+test("owner logout hides both merchant tabs offline and revokes the session on reconnect", async ({
   page,
   context,
 }) => {
@@ -24,21 +26,24 @@ test("admin logout hides both tabs offline and revokes the session on reconnect"
     },
   });
   expect(signup.ok()).toBeTruthy();
-  await page.goto("/admin-dashboard", { waitUntil: "domcontentloaded" });
-  await expect(page.locator("#main")).toBeVisible();
+  const nav = (tab) => tab.locator('nav[aria-label="Tu negocio"]');
+  await page.goto("/negocio/", { waitUntil: "domcontentloaded" });
+  await expect(nav(page)).toBeVisible();
   const sibling = await context.newPage();
-  await sibling.goto("/admin-dashboard", { waitUntil: "domcontentloaded" });
-  await expect(sibling.locator("#main")).toBeVisible();
+  await sibling.goto("/negocio/", { waitUntil: "domcontentloaded" });
+  await expect(nav(sibling)).toBeVisible();
 
   await context.setOffline(true);
-  await page.locator("#btnLogout").click();
-  await expect(page.locator("#main")).toBeHidden();
-  await expect(page.locator("#needLogin")).toBeVisible();
-  await expect(sibling.locator("#main")).toBeHidden();
+  await page.getByRole("button", { name: "Salir", exact: true }).click();
+  await expect(nav(page)).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Ingresa a tu negocio" })).toBeVisible();
+  await expect(nav(sibling)).toBeHidden();
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem("pf_staff_logout_pending")))
     .toBe("1");
-  await expect(page.locator("#toast")).toContainText("No se pudo cerrar");
+  // Retrying while offline says so instead of claiming success.
+  await page.getByRole("button", { name: "Completar cierre de sesión", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("No se pudo cerrar la sesión");
 
   const revoked = page.waitForResponse(
     (response) =>
@@ -46,7 +51,7 @@ test("admin logout hides both tabs offline and revokes the session on reconnect"
   );
   await context.setOffline(false);
   expect([200, 401]).toContain((await revoked).status());
-  await page.waitForURL(/\/equipo\/ingresar\/$/);
+  await page.waitForURL(/\/equipo\/ingresar\//);
   expect((await page.request.get("/api/staff/me")).status()).toBe(401);
   expect(await page.evaluate(() => localStorage.getItem("pf_staff_logout_pending"))).toBeNull();
 });

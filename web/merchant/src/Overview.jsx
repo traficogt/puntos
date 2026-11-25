@@ -2,6 +2,7 @@ import { Select } from './inputs';
 import { useState } from "react";
 import {
   Alert,
+  Anchor,
   Button,
   Group,
   Stack,
@@ -18,7 +19,7 @@ import {RewardExposurePanel,StaffActivityPanel} from "./ActivationInsights.jsx";
 import RedemptionReturns from "./RedemptionReturns.jsx";
 import FirstPurchaseReturns from "./FirstPurchaseReturns.jsx";
 import { api, isDemo, useResource } from "./api.js";
-import { BusinessLink, Failure, Loading, Locked, number, money, periodDate } from "./ui.jsx";
+import { Failure, Loading, Locked, number, money, periodDate } from "./ui.jsx";
 import { launchReadiness } from "./launch-model.js";
 import { merchantApi } from "./typed-api";
 import { programPresets } from "./program-presets.js";
@@ -251,7 +252,7 @@ export default function Overview({ features, onNavigate }) {
           <Stack className="panel" gap="xs" p="md">
             <Title order={2}>Tus números básicos</Title>
             <Text>Clientes activos, compras registradas, premios usados y la capacidad de tu plan están en Reportes, incluido en tu plan.</Text>
-            <BusinessLink href="/administracion/?seccion=reportes" display="inline-block">Abrir Reportes</BusinessLink>
+            <Anchor component="button" type="button" display="inline-block" onClick={() => onNavigate("reports")}>Abrir Reportes</Anchor>
           </Stack>
         )}
         <Locked feature="Análisis de resultados" />
@@ -505,13 +506,15 @@ export default function Overview({ features, onNavigate }) {
                     Aún no hay canjes completados en este período.
                   </Text>
                 )}
-                <BusinessLink
-                  href="/administracion/?seccion=recompensas"
+                <Anchor
+                  component="button"
+                  type="button"
+                  onClick={() => onNavigate("rewards")}
                   mt="md"
                   display="inline-block"
                 >
                   Administrar recompensas
-                </BusinessLink>
+                </Anchor>
               </section>
               <section className="next-step">
                 <Title order={2}>Tu próximo paso</Title>
@@ -533,9 +536,7 @@ export default function Overview({ features, onNavigate }) {
                     </Text>
                     <Button
                       mt="lg"
-                      component="a"
-                      href={isDemo?undefined:"/administracion/?seccion=recompensas"}
-                      disabled={isDemo}
+                      onClick={() => onNavigate("rewards")}
                     >
                       Revisar recompensas
                     </Button>

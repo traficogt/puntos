@@ -78,3 +78,14 @@ Encuentra el ajuste, conoce sus efectos y revisa lo que quedó guardado. Las ins
 - [Autorizar canjes desde una caja compatible](/ayuda/negocio/canjes-pos/)
 - [Revisar devoluciones de caja y sus puntos](/ayuda/negocio/devoluciones/)
 - [Revisar pendientes y datos atrasados](/ayuda/negocio/estado-operacion/)
+
+## Analítica, conciliación y auditoría
+
+Estas pantallas del grupo **Avanzado** requieren un plan con análisis avanzado. Antes vivían en el panel de administración anterior, retirado el 25 de noviembre de 2026; sus enlaces guardados abren ahora la pantalla equivalente aquí.
+
+- [Leer la analítica avanzada y exportar el CSV de IVA](/ayuda/negocio/analitica/)
+- [Revisar los últimos canjes de una recompensa](/ayuda/negocio/canjes-por-recompensa/)
+- [Revisar alertas y asignar pagos sin cliente](/ayuda/negocio/alertas/)
+- [Revisar trabajos en segundo plano y recalcular la analítica](/ayuda/negocio/trabajos/)
+- [Conciliar el libro de puntos y certificar un periodo](/ayuda/negocio/conciliacion/)
+- [Consultar la auditoría del negocio](/ayuda/negocio/auditoria/)

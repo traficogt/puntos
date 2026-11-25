@@ -7,7 +7,7 @@ Loyalty platform for Guatemala, operated as a hosted service at `app.puntosfiele
 - Express 5 (API and worker processes)
 - PostgreSQL 17 on the central database VM (`APP_DB_HOST`, default `10.10.1.51` in `docker-compose.yml`); PostgreSQL 16 in the test and e2e compose stacks
 - Redis 7, optional (`RATE_LIMIT_DRIVER=redis`, `JOB_QUEUE_DRIVER=redis`)
-- Vanilla HTML/CSS/JS PWA in `public/`; React 19 + Mantine 9 merchant dashboard in `web/merchant`; Expo native app in `apps/customer` (frozen, see `AGENTS.md`)
+- Vanilla HTML/CSS/JS PWA in `public/` (customer wallet, staff scanner, signup, super console); React 19 + Mantine 9 merchant app in `web/merchant` (the owner dashboard at `/negocio/`; the vanilla `/administracion/` was retired on 2026-11-25 and redirects there); Expo native app in `apps/customer` (frozen, see `AGENTS.md`)
 - Playwright
 - Docker Compose
 
@@ -74,8 +74,7 @@ stylesheets -> pages), and `express.static` serves any `?v=` request as
 while documents and `sw.js` keep their headers. Vite output under `public/merchant/`,
 `public/ayuda/`, `public/revision-astryx/` and `public/pwa-test/` are not touched.
 JavaScript sources are never rewritten: assets a script requests by string literal
-(`/styles/demand-notebook.css`, the admin dashboard fragments, `/runtime-config.js`, ES
-module imports) stay unversioned and are served network-first by the worker; the list is
+(`/styles/demand-notebook.css`, `/runtime-config.js`, ES module imports) stay unversioned and are served network-first by the worker; the list is
 `RUNTIME_REFERENCED_ASSETS` in the script.
 
 `public/sw.js` no longer carries a hand-maintained precache list or version. The block

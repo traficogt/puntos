@@ -59,12 +59,20 @@ test("logged-out customer page shows the entry shell", async ({ page, context })
   await expect(page.locator(".cus-entry-note")).toContainText("enlace de acceso");
 });
 
-test("logged-out admin dashboard shows the access gate", async ({ page, context }) => {
+test("the retired owner dashboard URL opens the merchant app's access gate", async ({
+  page,
+  context,
+}) => {
   await context.clearCookies();
   await useRandomClientIp(page);
-  await page.goto("/admin-dashboard.html", { waitUntil: "domcontentloaded" });
+  // /administracion/ (and /admin-dashboard) redirect permanently to /negocio/, mapping the old
+  // ?seccion= view to the merchant page that now holds it.
+  const response = await page.goto("/administracion/?seccion=recompensas", {
+    waitUntil: "domcontentloaded",
+  });
+  expect(response?.ok()).toBeTruthy();
+  await expect(page).toHaveURL(/\/negocio\/#recompensas$/);
 
-  await expect(page.locator("#needLogin")).toBeVisible();
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(/Acceso denegado/i);
-  await expect(page.getByRole("link", { name: /Ir a ingreso/i })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Ingresa a tu negocio");
+  await expect(page.getByRole("link", { name: "Iniciar sesión", exact: true })).toBeVisible();
 });

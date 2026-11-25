@@ -50,6 +50,7 @@ function AutomationEditor({data,onDirty,onSaved}) {
     }
     if(!Number.isInteger(values.winback_days)||values.winback_days<7||values.winback_days>365)errors.winback_days='Usa entre 7 y 365 días.';
     if(!Number.isInteger(values.minimum_contact_days)||values.minimum_contact_days<7||values.minimum_contact_days>90)errors.minimum_contact_days='Usa entre 7 y 90 días.';
+    if(!Number.isInteger(values.suspicious_digest_min_count)||values.suspicious_digest_min_count<1||values.suspicious_digest_min_count>1000)errors.suspicious_digest_min_count='Usa entre 1 y 1,000 compras.';
     return errors;
   }});
   const [saving,setSaving]=useState(false),[error,setError]=useState('');const active=useRef(true);const dirty=form.isDirty();
@@ -82,6 +83,12 @@ function AutomationEditor({data,onDirty,onSaved}) {
             </Stack>
           </Fieldset>)}
         </SimpleGrid>
+        <Fieldset legend="Alerta diaria de compras sospechosas" disabled={saving}>
+          <Stack gap="md">
+            <Switch label="Enviar un resumen diario al dueño" description="Un solo aviso al día con las compras marcadas por los límites de sospecha; no se envía nada a los clientes." {...form.getInputProps('suspicious_digest_enabled',{type:'checkbox'})}/>
+            <NumberInput label="Avisar a partir de" description="Número mínimo de compras marcadas en el día para enviar el resumen." min={1} max={1000} allowDecimal={false} disabled={saving||!form.values.suspicious_digest_enabled} {...form.getInputProps('suspicious_digest_min_count')}/>
+          </Stack>
+        </Fieldset>
         <Fieldset legend="Horario y frecuencia" disabled={saving}>
           <SimpleGrid cols={{base:1,sm:2}}>
             <Select label="Preparar incentivos a partir de" description={`Hora de ${data.timezone}. Se procesan durante esta hora, sin repetir el mismo evento.`} data={Array.from({length:9},(_,i)=>({value:String(i+9),label:`${String(i+9).padStart(2,'0')}:00`}))} value={String(form.values.scheduler_hour_local)} onChange={value=>form.setFieldValue('scheduler_hour_local',Number(value))} allowDeselect={false}/>
