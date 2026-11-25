@@ -20,6 +20,10 @@ fix), including the quality waves of 2026-11-23 (`919d3dc`, `0b2a428`, `cfc1932`
   `businesses.owner_progress_variant`. The "Tu progreso" API and card need it; installed
   native apps never touch these tables.
 
+- **Apply the managed migration `2026-11-24-import-batch-200.sql`** with `npm run ops:migrate`:
+  it widens the three batch-count CHECKs on `customer_migration_batches` to 200 rows. Import
+  batches of 101–200 rows fail with a database error until it runs.
+
 ### Owner progress ("Tu progreso")
 - New owner-only feature on every plan (`83ae51c` server, `aeec174` UI; design of record
   `docs/product/2026-11-23-owner-progress.md`). `GET /api/admin/owner-progress` returns a
@@ -45,6 +49,33 @@ fix), including the quality waves of 2026-11-23 (`919d3dc`, `0b2a428`, `cfc1932`
 - Known limits (flagged in code and help): no marker exists for test or pilot-seed customer
   accounts; a plain branded-QR download is not persisted and cannot satisfy the card step on
   its own.
+
+### Scale limits, holdout rule and merchant app (24–25 November)
+
+- Campaign audience limits are plan-aware (`src/app/services/scale-limits.js`): Conecta 300,
+  Impulsa 2,000, Expande up to the 5,000 technical ceiling. Saved-audience sends above 200
+  members run through the preparation job (202 Accepted, 250-member chunks, frozen snapshot,
+  persisted cursor). Over-limit requests answer 400 `PLAN_AUDIENCE_LIMIT` in Spanish.
+- Customer imports accept 200 rows per synchronous request (was 100) and job files up to
+  5,000 rows in resumable 200-row chunks. Channel policy, consent and collision checks are
+  unchanged.
+- "Tu progreso" holdout assignment: a variant is persisted only while
+  `owner_progress_holdout_pct` is above zero and only for businesses not yet exposed to the
+  full experience; with the share at zero nothing is stored. A holdout set later still yields
+  a usable comparison.
+- The public merchant demo (`/demostracion/`) no longer crashes on plain-HTTP hosts other than
+  localhost: `crypto.randomUUID` is secure-context-only and now has a fallback.
+- Overview: the "Ver análisis detallado" accordion no longer resets the first-purchase-returns
+  cohort selection on every period or branch change.
+- `GET /api/admin/tiers` returns each tier's full rule beside its statistics so the Mantine
+  editor prefills; super login 401 responses carry `code: "AUTH_REQUIRED"`.
+- Types: `tsconfig.strict.json` now enforces `strictNullChecks` and `noImplicitAny` for
+  `src/` and the type-checked `public/` modules, and `npm run typecheck` runs it. Shared
+  shapes live in `src/types/` (db, auth, express augmentation, pg/cors/cookie-parser/
+  qrcode/swagger-ui-express shims); `@types/luxon` is installed and the twelve null gaps it
+  exposed are closed.
+- Merchant browser gate specs are current (7/7); `test:integration:live` lists the same ten
+  suites as the live runner.
 
 ### Database and runtime
 - Schema initialization and managed migrations run under a session-level advisory lock
