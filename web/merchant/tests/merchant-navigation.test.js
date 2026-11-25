@@ -20,6 +20,8 @@ const existingRoutes = {
   jobs: "trabajos", alerts: "alertas", ledger: "conciliacion", audit: "auditoria",
   // analytics (wave 15a)
   analytics: "analitica", redemptions: "canjes-por-recompensa",
+  // self-serve trial wave 2: Plan y facturación (Recurrente returns to #plan?checkout=…)
+  plan: "plan",
 };
 
 test("the task catalog includes every existing and routable merchant page exactly once", () => {
@@ -42,4 +44,9 @@ test("all original Spanish fragments and legacy aliases remain compatible", () =
   }
   assert.equal(pageFromHash(""), "overview");
   assert.equal(pageFromHash("#unknown"), null);
+  // The payment return carries a query in the hash; the page is the part before it.
+  assert.equal(pageFromHash("#plan?checkout=chk_1&resultado=exito"), "plan");
+  assert.equal(pageFromHash("#recompensas?x=1"), "rewards");
+  assert.equal(pageFromHash("#?checkout=chk_1"), "overview", "a query without a page is the home");
+  assert.equal(pageFromHash("#nope?checkout=chk_1"), null);
 });

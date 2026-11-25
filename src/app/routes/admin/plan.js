@@ -6,6 +6,7 @@ import { BusinessRepo } from "../../repositories/business-repository.js";
 import { TrialRepo } from "../../repositories/trial-repository.js";
 import { PlanConfigService } from "../../services/plan-config-service.js";
 import { ownerTrialPayload, planDisplayName } from "../../services/trial-entitlement.js";
+import { subscriptionService } from "../../services/billing/subscription-service.js";
 import { planFeaturesWithOverrides, planLimits } from "../../../utils/plan.js";
 
 /** @typedef {import("../../../types/http-dto.js").AdminPlanResponse} AdminPlanResponse */
@@ -36,7 +37,10 @@ adminPlanRoutes.get(
       // Additive trial/billing state (design section 7.3): the installed PWA ignores the
       // new keys; the Mantine banner and lock screen read them.
       const subscription = await TrialRepo.activeSubscription(req.tenantId).catch(() => null);
-      const { trial, billing } = ownerTrialPayload(business, { subscription });
+      const { trial, billing } = ownerTrialPayload(business, {
+        subscription,
+        upgradeAvailable: subscriptionService().isConfigured(),
+      });
       /** @type {AdminPlanResponse} */
       const response = {
         ok: true,

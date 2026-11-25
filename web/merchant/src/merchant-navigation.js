@@ -56,6 +56,7 @@ export const navigationGroups = [
       { page: "branding", label: "Identidad del programa" },
       { page: "pos", label: "Conectar caja" },
       { page: "settings", label: "Configuración" },
+      { page: "plan", label: "Plan y facturación" },
       { page: "region", label: "Región del negocio" },
     ],
   },

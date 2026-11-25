@@ -47,6 +47,7 @@ LIVE_INTEGRATION_FILES=(
   tests/integration/super-giftcards.test.js
   tests/integration/transaction-pool-isolation.test.js
   tests/integration/trial-signup.test.js
+  tests/integration/billing-subscription.test.js
 )
 if [[ $# -gt 0 ]]; then
   LIVE_INTEGRATION_FILES=("$@")

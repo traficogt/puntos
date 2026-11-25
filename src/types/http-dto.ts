@@ -116,6 +116,105 @@ export interface PublicTrialSignupResponse {
   next_url: string;
 }
 
+/** One subscription as GET /api/admin/billing and its mutations return it. */
+export interface AdminBillingSubscription {
+  id: string;
+  /** recurrente | manual */
+  provider: string;
+  plan: string;
+  plan_name: string;
+  quantity: number;
+  currency: string;
+  unit_amount_minor: number;
+  monthly_total_minor: number;
+  /** active | past_due | paused | canceled */
+  status: string;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at: string | null;
+  canceled_at: string | null;
+  past_due_since: string | null;
+  next_payment_attempt_at: string | null;
+  latest_tax_invoice_url: string | null;
+  /** A downgrade waiting for the next cycle (design section 6). */
+  pending_plan: string | null;
+  pending_quantity: number | null;
+}
+
+/** GET /api/admin/billing (design sections 4.4 and 7.3, wave 2). */
+export interface AdminBillingResponse {
+  ok: true;
+  billing: {
+    /** none | trialing | locked | active | past_due | canceled */
+    status: string;
+    provider: string | null;
+    currency: "GTQ" | "USD";
+    plan: string;
+    plan_name: string;
+    quantity: number;
+    unit_amount_minor: number | null;
+    monthly_total_minor: number | null;
+    current_period_start: string | null;
+    current_period_end: string | null;
+    cancel_at: string | null;
+    past_due_since: string | null;
+    next_payment_attempt_at: string | null;
+    latest_tax_invoice_url: string | null;
+    /** A hosted checkout can start (provider configured, catalog ready, no active subscription). */
+    upgrade_available: boolean;
+    /** POST /api/admin/billing/change applies (active provider subscription). */
+    change_available: boolean;
+    checkout_pending: { id: string; url: string; expires_at: string | null } | null;
+    /** Why billing_status is locked: trial_expired | payment_failed | canceled; null otherwise. */
+    lock_reason: "trial_expired" | "payment_failed" | "canceled" | null;
+    subscription: AdminBillingSubscription | null;
+  };
+  catalog: {
+    currency: "GTQ" | "USD";
+    currencies: string[];
+    plans: Array<{ id: string; name: string; unit_amount_minor: number; monthly: number }>;
+  };
+  branches: number;
+  trial: { status: TrialStatus; days_left: number | null; ends_at: string | null };
+}
+
+/** POST /api/admin/billing/checkout: 201 when created, 200 when a pending checkout is reused. */
+export interface AdminBillingCheckoutResponse {
+  ok: true;
+  reused: boolean;
+  checkout: {
+    id: string;
+    url: string;
+    expires_at: string | null;
+    plan: string;
+    quantity: number;
+    currency: string;
+    unit_amount_minor: number;
+  };
+}
+
+/** GET /api/admin/billing/checkout/:id, polled after the hosted checkout returns. */
+export interface AdminBillingCheckoutStatusResponse {
+  ok: true;
+  status: "pending" | "completed" | "expired" | "canceled";
+  checkout: AdminBillingCheckoutResponse["checkout"] & { status: string };
+  subscription: AdminBillingSubscription | null;
+}
+
+/** GET /api/admin/billing/invoices: payment outcomes with the FEL invoice link. */
+export interface AdminBillingInvoicesResponse {
+  ok: true;
+  invoices: Array<{
+    occurred_at: string | null;
+    amount_minor: number | null;
+    currency: string | null;
+    status: "paid" | "failed" | "refunded";
+    tax_invoice_url: string | null;
+    fee_minor: number | null;
+    intent_id: string | null;
+  }>;
+}
+
 /** The 402 body every staff mutation receives while a trial is locked. */
 export interface TrialLockedError {
   error: string;

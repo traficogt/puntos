@@ -1,0 +1,36 @@
+{
+  "id": "ch_fixture01",
+  "status": "unpaid",
+  "items": [
+    {
+      "id": "ci_fixture01",
+      "price_id": "price_negocio_usd",
+      "quantity": 1,
+      "metadata": {}
+    }
+  ],
+  "total_in_cents": 7900,
+  "subtotal_in_cents": 7900,
+  "discount": null,
+  "currency": "USD",
+  "payment_method_types": [
+    "card"
+  ],
+  "available_installments": [],
+  "live_mode": false,
+  "success_url": "https://app.puntosfieles.com/negocio/#plan?checkout=22222222-2222-4222-8222-222222222222",
+  "cancel_url": "https://app.puntosfieles.com/negocio/#plan?checkout=22222222-2222-4222-8222-222222222222&cancelado=1",
+  "expires_at": "2026-12-02T14:00:00Z",
+  "created_at": "2026-12-01T14:00:00Z",
+  "metadata": {
+    "business_id": "11111111-1111-4111-8111-111111111111",
+    "checkout_id": "22222222-2222-4222-8222-222222222222",
+    "plan": "NEGOCIO",
+    "quantity": "1",
+    "currency": "USD"
+  },
+  "latest_intent": null,
+  "payment": null,
+  "payment_method": null,
+  "checkout_url": "https://app.recurrente.com/checkout-session/ch_fixture01"
+}

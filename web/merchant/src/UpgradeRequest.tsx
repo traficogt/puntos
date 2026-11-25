@@ -8,14 +8,18 @@ interface UpgradeRequestProps {
   currentPlan: string | null;
   initialPlan?: string | null;
   onDone?: () => void;
+  /** Card checkout is offered (trial.upgrade_available): point to "Plan y facturación" instead of the form. */
+  upgradeAvailable?: boolean;
+  onOpenPlan?: () => void;
 }
 
 /**
- * Wave 1 has no payment provider: "Mejorar plan" sends an upgrade request through the
+ * Without a payment provider, "Mejorar plan" sends an upgrade request through the
  * owner-authenticated concierge mailer (POST /api/admin/concierge-request) and says that a card
- * payment option is coming. Checkout replaces this form in wave 2 (design §4.4).
+ * payment option is coming. When the server reports `upgrade_available`, the card checkout on
+ * the "Plan y facturación" page (OwnerPlan) replaces this form (design §4.4, wave 2).
  */
-export default function UpgradeRequest({request, currentPlan, initialPlan, onDone}: UpgradeRequestProps) {
+export default function UpgradeRequest({request, currentPlan, initialPlan, onDone, upgradeAvailable = false, onOpenPlan}: UpgradeRequestProps) {
   const [plan, setPlan] = useState(initialPlan ?? suggestedUpgradePlan(currentPlan));
   const [phone, setPhone] = useState('');
   const [preferredTime, setPreferredTime] = useState('');
@@ -23,6 +27,16 @@ export default function UpgradeRequest({request, currentPlan, initialPlan, onDon
   const [fieldError, setFieldError] = useState('');
   const [sent, setSent] = useState(false);
   const mutation = useOwnerMutation();
+  if (upgradeAvailable && onOpenPlan)
+    return (
+      <Stack gap="sm" data-testid="upgrade-checkout-available">
+        <Text size="sm">Ya puedes pagar con tarjeta desde el panel: elige Conecta, Impulsa o Expande, revisa el cobro mensual por sucursal y paga en la página segura de Recurrente. El plan se activa en cuanto se confirma el pago.</Text>
+        <Group>
+          <Button onClick={onOpenPlan}>Ir a Plan y facturación</Button>
+          {onDone && <Button variant="default" onClick={onDone}>Cerrar</Button>}
+        </Group>
+      </Stack>
+    );
   if (sent)
     return (
       <Alert color="teal" title="Recibimos tu solicitud" role="status">

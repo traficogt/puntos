@@ -1,6 +1,9 @@
 import {DEMO_CATALOG} from './demo-catalog.js';
 import {demoOwnerWorkspace} from './demo-owner-workspace.ts';
 import {demoTrial} from './demo-trial.ts';
+import {demoBilling, demoBillingScenario} from './demo-billing.ts';
+import {demoTrialScenario} from './demo-trial.ts';
+import {isSubscriptionBillingPath} from './billing-model.ts';
 import {demoOwnerProgram} from './demo-owner-program.ts';
 import {demoOwnerProgress} from './demo-owner-progress.ts';
 import {demoOwnerOperations} from './demo-owner-operations.ts';
@@ -127,6 +130,15 @@ function overview(url) {
 export async function demoApi(path, options = {}) {
   if (options.signal?.aborted) throw new DOMException("Aborted", "AbortError");
   const url = new URL(path, "https://preview.invalid");
+  // Subscription billing from ?plan= (wave 2): the six /api/admin/billing endpoints (never the
+  // analytics IVA export), and /api/admin/trial unless a ?prueba= scenario is also present (that
+  // one keeps the trial state). 404 without a scenario.
+  const pageUrl = typeof location !== "undefined" ? new URL(location.href) : null;
+  const billingOwnsTrial = url.pathname === "/api/admin/trial" && demoBillingScenario(pageUrl) !== "none" && demoTrialScenario(pageUrl) === "none";
+  if (isSubscriptionBillingPath(url.pathname) || billingOwnsTrial) {
+    const billingResponse = demoBilling(url, options);
+    if (billingResponse !== undefined) return structuredClone(billingResponse);
+  }
   // Trial state from ?prueba= (docs/product/2026-11-25-self-serve-trial.md): 404 without it.
   const trialResponse = demoTrial(url, options);
   if (trialResponse !== undefined) return structuredClone(trialResponse);

@@ -48,6 +48,7 @@ test("daily maintenance keeps the business-calendar hour and orders the worker-o
     "support.purge-expired-attachments",
     "lifecycle.daily",
     "trial.daily",
+    "billing.reconcile",
     "mfa.prune-counters",
     "ledger.reconcile-and-certify",
   ]);

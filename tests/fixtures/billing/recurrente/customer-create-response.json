@@ -1,0 +1,11 @@
+{
+  "id": "cus_fixture01",
+  "email": "owner@example.com",
+  "full_name": "Ana Lopez",
+  "phone": "+50255551234",
+  "nit": null,
+  "metadata": {
+    "business_id": "11111111-1111-4111-8111-111111111111"
+  },
+  "created_at": "2026-12-01T13:59:00Z"
+}

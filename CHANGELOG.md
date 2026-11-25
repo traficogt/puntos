@@ -54,6 +54,47 @@ fix), including the quality waves of 2026-11-23 (`919d3dc`, `0b2a428`, `cfc1932`
 - Help center: owner guide "Empezar la prueba gratis de 14 días y elegir plan"; the landing FAQ
   answers "¿Puedo probarlo gratis antes de contratar?".
 
+### Card payment for the trial: "Plan y facturación" and the super billing console (2026-11-25, wave 2 web)
+- Owner app: new page `#plan` ("Plan y facturación", in the "Caja, equipo y ajustes" menu and
+  under Configuración → "Plan y cobro"). It reads `GET /api/admin/billing` and shows the current
+  plan and status (trial days left; active with the next charge date; past due with the next
+  attempt; canceled with the end date; manual activations), the three tiers with per-branch math
+  (`unit × branches`, in the catalog currency, "USD 79.00" formatting, Conecta fixed at one
+  branch) and the note "El comprobante fiscal (FEL) lo emite Recurrente". "Pagar con tarjeta"
+  calls `POST /api/admin/billing/checkout { plan, currency }` and sends the owner to the hosted
+  Recurrente page; the return URL `/negocio/#plan?checkout=<id>&resultado=exito|cancelado` is
+  read before the hash is normalised and the page polls `GET /api/admin/billing/checkout/:id`
+  every 3 s for up to 2 minutes ("Confirmando tu pago…" → "Tu plan Impulsa está activo", or a
+  retry notice on `expired`/`canceled`/timeout). "Cambiar a …" confirms with plain-words copy
+  (upgrade: prorated charge now; downgrade: next cycle, limits must fit) and calls
+  `POST /api/admin/billing/change { plan }`; "Cancelar al final del período" shows the end date
+  and calls `POST /api/admin/billing/cancel { at_period_end: true }`; "Cobros y comprobantes"
+  lists `GET /api/admin/billing/invoices` with the FEL links. A pending checkout can be resumed
+  ("Continuar el pago").
+- Compatibility: when the billing API is absent (404) or the provider is unconfigured
+  (`503 BILLING_UNAVAILABLE`), or the server reports `upgrade_available: false`, the page shows
+  "El pago con tarjeta estará disponible pronto" and keeps the wave-1 upgrade request form. The
+  trial banner, the lock screen and the request dialog lead to `#plan` once
+  `trial.upgrade_available` is true. `GET /api/admin/billing/iva.csv` (analytics) is untouched.
+- Demo: `/demostracion/?plan=sin-cobro|pago-pendiente|activa|pago-fallido|cancelada` (like
+  `?prueba=`); the demo checkout "returns" to the demo itself so the confirmation loop runs
+  without leaving the page.
+- Super console (`/plataforma/`): "Suscripciones y cobro" section with the billing catalog editor
+  (USD read-only as published, GTQ list amounts and a dated reference, provider price ids
+  read-only, "Sincronizar productos" → `POST /api/super/billing/catalog/sync`), the subscription
+  list (`GET /api/super/billing/subscriptions`, status filter, link to the business card,
+  "Cancelar suscripción" with confirmation → `POST /api/super/businesses/:id/billing/cancel`) and
+  a "Movimientos" drawer per business (`GET /api/super/billing/events?business_id=`). 404 and
+  503 end in notices, never in a broken section.
+- Help center: new owner guide "Pagar con tarjeta, cambiar o cancelar tu plan" (how the payment
+  works, what the card statement shows, the FEL invoice, change/cancel, failed payments);
+  "Empezar la prueba gratis" and "Encontrar los ajustes" updated.
+- Tests: merchant unit tests for the billing model and demo fixtures, the `plan-browser`
+  Playwright smoke in the merchant browser gate, super-console model tests and
+  `tests/e2e/plan.spec.js` (fresh trial sees the fallback copy while billing is unconfigured).
+  The service-worker precache must be regenerated (`npm run sw:build`) for the new lazy module
+  and the super-console files.
+
 ### Owner dashboard: the vanilla `/administracion/` is retired (2026-11-25)
 - The owner dashboard is the merchant app at `/negocio/`. `/administracion/`, `/administracion`,
   `/admin-dashboard` and `/admin-dashboard.html` now redirect permanently (308) there; saved

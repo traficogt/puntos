@@ -252,3 +252,80 @@ Validate the alert inputs after rollout:
 npm run ops:alerts:check -- --scope api --base-url https://your-domain.example --metrics-token <token> --mode evaluate
 npm run ops:alerts:check -- --scope worker --worker-base-url https://worker.example.internal:3002 --metrics-token <token> --mode evaluate
 ```
+
+## 11. Billing (Recurrente)
+
+Self-serve subscriptions (design of record `docs/product/2026-11-25-self-serve-trial.md`,
+wave 2) charge the published USD prices through Recurrente. Nothing is charged until the
+key is configured: without it every checkout route answers `503 BILLING_UNAVAILABLE`,
+`GET /api/admin/billing` reports `upgrade_available: false`, and the super console's manual
+activation keeps working.
+
+### Environment
+
+```env
+BILLING_PROVIDER=recurrente                      # recurrente (default); manual activation always works
+BILLING_RETURN_ORIGIN=https://app.puntosfieles.com   # where the hosted checkout sends the owner back (default APP_ORIGIN)
+RECURRENTE_API_BASE=https://app.recurrente.com/api   # same base for live and Sandbox keys
+RECURRENTE_SECRET_KEY_FILE=/app/.secrets/recurrente_secret_key
+RECURRENTE_WEBHOOK_SECRET_FILE=/app/.secrets/recurrente_webhook_secret
+```
+
+Secrets follow the `_FILE` pattern of `JWT_SECRET`: add `recurrente_secret_key` (the account's
+`sk_live_…` key, or a Sandbox `sk_test_…` key while testing) and `recurrente_webhook_secret`
+(the endpoint's `whsec_…` signing secret) to the secrets directory of section 1, then set the
+two `_FILE` variables above; `docker-compose.yml` passes them to the api and worker containers.
+The key's prefix fixes the environment: a Sandbox key only sees test objects, and the webhook
+handler ignores events whose `live_mode` does not match the key.
+
+### Webhook endpoint to register
+
+In Recurrente (**Settings → Developers and API → Webhooks**, or `POST /api/webhook_endpoints`)
+register:
+
+```text
+https://<APP_ORIGIN>/api/public/billing/webhooks/recurrente
+```
+
+Select at least `intent.succeeded`, `intent.failed`, `subscription.create`,
+`subscription.past_due`, `subscription.update`, `subscription.item_added`,
+`subscription.item_removed`, `subscription.cancel`, `refund.create`, `dispute.create`. Store
+the endpoint's signing secret as `recurrente_webhook_secret`. The handler verifies the Svix
+signature over the raw body, deduplicates by `svix-id`, answers 200 for unknown event types
+and 500 only when processing failed (Recurrente redelivers after 1 min, 5 min, 30 min, 2 h, 6 h).
+A Sandbox has its own endpoints: register the same URL from the Sandbox dashboard while testing.
+
+### Catalog
+
+Prices live in the platform setting `billing_catalog` (super console, `GET/PUT
+/api/super/billing/catalog`). After the key is in place create the Recurrente products once per
+environment with `POST /api/super/billing/catalog/sync` (super console); it creates one recurring
+monthly product per plan in USD (and in GTQ when `billing_catalog.gtq` amounts are set) and
+stores the `price_ids`. GTQ checkouts are offered only when both the GTQ amounts and the GTQ
+price ids exist.
+
+### Sandbox check before going live
+
+With the Sandbox TEST key:
+
+```bash
+RECURRENTE_SECRET_KEY_FILE=/path/to/sandbox_key node src/scripts/billing-sandbox-check.mjs \
+  --currency USD --plan NEGOCIO --quantity 1 --wait-seconds 600 --cleanup
+```
+
+It reports PASS/FAIL per step: `GET /test` (must be a Sandbox), product creation, customer,
+checkout with `Idempotency-Key` replay, then, after you pay the printed URL with the Sandbox card
+`4242 4242 4242 4242`, the subscription read, the plan swap (`items` remove + add with
+`now_and_charge`, the design's riskiest assumption), a quantity change and the cancel at period
+end. Nothing secret is printed. The printed price ids can be pasted into the catalog if you prefer
+not to run the sync against the Sandbox.
+
+### Jobs and observability
+
+The worker runs `billing.reconcile` inside the daily maintenance cron: it expires stale
+checkouts, re-reads every provider subscription, applies the 7-day past-due grace lock and locks
+businesses whose canceled subscription ended (retention clock of `TRIAL_RETENTION_DAYS`).
+Metrics: `puntos_billing_events_total{type}` on `/api/metrics`. Every transition is written to
+the tenant ledger `billing_events` (`checkout.*`, `subscription.*`, `payment.*`) and every
+webhook delivery to `billing_provider_events` (`GET /api/super/billing/events`).
+

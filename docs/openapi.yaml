@@ -1362,12 +1362,194 @@ paths:
       x-plan-features:
         - fraud_monitoring
       parameters: undefined
+  /api/v1/admin/billing:
+    get:
+      summary: "Owner billing overview: access state, subscription, catalog for the chosen currency, branch count and trial summary"
+      responses:
+        200:
+          description: "Billing overview"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBillingResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+      description: "Readable while locked. upgrade_available is false when no payment provider is configured, the catalog has no price ids for the currency, or an open subscription exists; change_available is true for an active provider subscription."
+  /api/v1/admin/billing/cancel:
+    post:
+      summary: "Stop the renewal at the end of the paid period (immediate cancel is a super action)"
+      responses:
+        200:
+          description: "Subscription with cancel_at set"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBillingSubscriptionResponse"
+        404:
+          description: "No active subscription"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminBillingCancelRequest"
+  /api/v1/admin/billing/change:
+    post:
+      summary: "Change the plan of the active subscription (upgrade now_and_charge, downgrade next_cycle)"
+      responses:
+        200:
+          description: "Subscription after the change"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBillingSubscriptionResponse"
+        404:
+          description: "No active subscription (BILLING_NO_SUBSCRIPTION)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        409:
+          description: "Manual subscription (BILLING_PROVIDER_MISMATCH) or branches above the target plan (BILLING_PLAN_LIMITS)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        503:
+          description: "Online billing unavailable"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminBillingChangeRequest"
+  /api/v1/admin/billing/checkout:
+    post:
+      summary: "Start a hosted checkout for a plan (quantity = branch count, 1..9)"
+      responses:
+        200:
+          description: "Pending checkout reused"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBillingCheckoutResponse"
+        201:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBillingCheckoutResponse"
+          description: "Checkout created"
+        400:
+          description: "Invalid plan or currency"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        409:
+          description: "Active subscription exists or more than 9 branches"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        503:
+          description: "Online billing unavailable"
+      security:
+        - staffAuth:
+            []
+      x-csrf-required: true
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminBillingCheckoutRequest"
+      description: "201 with the checkout URL; 200 when a still-pending checkout for the same plan, currency and quantity is reused. Exempt from the trial lock: it is the way out of it. Error codes: BILLING_UNAVAILABLE (503, no provider or incomplete catalog), BILLING_PLAN_INVALID (400), BILLING_CURRENCY_UNAVAILABLE (400), BILLING_QUANTITY_LIMIT (409, more than 9 branches), BILLING_ALREADY_ACTIVE (409)."
+  /api/v1/admin/billing/checkout/{id}:
+    get:
+      summary: "Poll a checkout after the hosted page returns (pending | completed | expired | canceled)"
+      responses:
+        200:
+          description: "Checkout state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBillingCheckoutStatusResponse"
+        404:
+          description: "Unknown checkout"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
   /api/v1/admin/billing/events:
     get:
       summary: "Derived GET /api/v1/admin/billing/events"
       responses:
         200:
           description: Success
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
+  /api/v1/admin/billing/invoices:
+    get:
+      summary: "Payment outcomes of the subscription with the Recurrente FEL invoice links"
+      responses:
+        200:
+          description: "Payments, newest first"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBillingInvoicesResponse"
       security:
         - staffAuth:
             []
@@ -5553,6 +5735,56 @@ paths:
         200:
           description: Success
       parameters: undefined
+  /api/v1/public/billing/webhooks/{provider}:
+    post:
+      summary: "Payment provider webhook (Recurrente, Svix-signed raw body)"
+      responses:
+        200:
+          description: "Event processed, ignored or duplicate"
+        401:
+          description: "Invalid signature"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: "Unknown provider"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        500:
+          description: "Processing failed; the provider retries"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        503:
+          description: "Provider not configured"
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            type: string
+            enum:
+              - recurrente
+        - in: header
+          name: svix-id
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: svix-timestamp
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: svix-signature
+          required: true
+          schema:
+            type: string
+      description: "No CSRF; the svix-id, svix-timestamp and svix-signature headers authenticate the sender. 401 on a bad signature, 200 { ok, duplicate: true } on a redelivery, 200 { type: ignored } for unknown event types, 500 when processing failed so the provider redelivers, 503 when no provider is configured."
   /api/v1/public/business/{slug}:
     get:
       summary: "Get a business public profile by slug"
@@ -7333,6 +7565,78 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/SuperBillingCatalogRequest"
+  /api/v1/super/billing/catalog/sync:
+    post:
+      summary: "Create the Recurrente products (USD, plus GTQ when amounts exist) and store their price ids in billing_catalog"
+      responses:
+        200:
+          description: "Created and kept price ids"
+        503:
+          description: "Provider not configured"
+      security:
+        - superAuth:
+            []
+      x-csrf-required: true
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuperBillingCatalogSyncRequest"
+  /api/v1/super/billing/events:
+    get:
+      summary: "Webhook deliveries (billing_provider_events) with their processing status, optionally for one business"
+      responses:
+        200:
+          description: "Deliveries, newest first; payloads stay in the database"
+      security:
+        - superAuth:
+            []
+      parameters:
+        - in: query
+          name: business_id
+          required: false
+          schema:
+            type: string
+            format: uuid
+            pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 100
+            type: integer
+            minimum: 1
+            maximum: 500
+  /api/v1/super/billing/subscriptions:
+    get:
+      summary: "List subscriptions across businesses, optionally by status"
+      responses:
+        200:
+          description: "Subscriptions with their business"
+      security:
+        - superAuth:
+            []
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum:
+              - active
+              - past_due
+              - paused
+              - canceled
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 200
+            type: integer
+            minimum: 1
+            maximum: 500
   /api/v1/super/businesses:
     get:
       summary: "List businesses visible to the super admin"
@@ -7377,6 +7681,34 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/SuperCreateBusinessRequest"
+  /api/v1/super/businesses/{businessId}/billing/cancel:
+    post:
+      summary: "Cancel a business's subscription now (default) or at the period end; audited"
+      responses:
+        200:
+          description: "Subscription and business state"
+        404:
+          description: "Business or subscription not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      parameters:
+        - in: path
+          name: businessId
+          required: true
+          schema:
+            type: string
+      x-csrf-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuperBillingCancelRequest"
   /api/v1/super/businesses/{businessId}/billing/manual-activate:
     post:
       summary: "Activate a paid plan by hand (provider manual) and record who did it"
@@ -8699,6 +9031,694 @@ components:
           additionalProperties: false
       required:
         - usd
+      additionalProperties: false
+    AdminBillingCheckoutRequest:
+      type: object
+      properties:
+        plan:
+          type: string
+          enum:
+            - EMPRENDEDOR
+            - NEGOCIO
+            - EMPRESA
+        currency:
+          type: string
+          enum:
+            - GTQ
+            - USD
+      required:
+        - plan
+      additionalProperties: false
+    AdminBillingChangeRequest:
+      type: object
+      properties:
+        plan:
+          type: string
+          enum:
+            - EMPRENDEDOR
+            - NEGOCIO
+            - EMPRESA
+      required:
+        - plan
+      additionalProperties: false
+    AdminBillingCancelRequest:
+      type: object
+      properties:
+        at_period_end:
+          type: boolean
+          enum:
+            - true
+      required:
+        - at_period_end
+      additionalProperties: false
+    AdminBillingResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+        billing:
+          type: object
+          properties:
+            status:
+              type: string
+            provider:
+              nullable: true
+              type: string
+            currency:
+              type: string
+              enum:
+                - GTQ
+                - USD
+            plan:
+              type: string
+            plan_name:
+              type: string
+            quantity:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            unit_amount_minor:
+              nullable: true
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            monthly_total_minor:
+              nullable: true
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            current_period_start:
+              nullable: true
+              type: string
+            current_period_end:
+              nullable: true
+              type: string
+            cancel_at:
+              nullable: true
+              type: string
+            past_due_since:
+              nullable: true
+              type: string
+            next_payment_attempt_at:
+              nullable: true
+              type: string
+            latest_tax_invoice_url:
+              nullable: true
+              type: string
+            upgrade_available:
+              type: boolean
+            change_available:
+              type: boolean
+            checkout_pending:
+              nullable: true
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+                url:
+                  type: string
+                expires_at:
+                  nullable: true
+                  type: string
+              required:
+                - id
+                - url
+                - expires_at
+              additionalProperties: false
+            lock_reason:
+              nullable: true
+              type: string
+              enum:
+                - trial_expired
+                - payment_failed
+                - canceled
+            subscription:
+              nullable: true
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+                provider:
+                  type: string
+                plan:
+                  type: string
+                plan_name:
+                  type: string
+                quantity:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                currency:
+                  type: string
+                unit_amount_minor:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                monthly_total_minor:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - past_due
+                    - paused
+                    - canceled
+                current_period_start:
+                  nullable: true
+                  type: string
+                current_period_end:
+                  nullable: true
+                  type: string
+                cancel_at:
+                  nullable: true
+                  type: string
+                canceled_at:
+                  nullable: true
+                  type: string
+                past_due_since:
+                  nullable: true
+                  type: string
+                next_payment_attempt_at:
+                  nullable: true
+                  type: string
+                latest_tax_invoice_url:
+                  nullable: true
+                  type: string
+                pending_plan:
+                  nullable: true
+                  type: string
+                pending_quantity:
+                  nullable: true
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+              required:
+                - id
+                - provider
+                - plan
+                - plan_name
+                - quantity
+                - currency
+                - unit_amount_minor
+                - monthly_total_minor
+                - status
+                - current_period_start
+                - current_period_end
+                - cancel_at
+                - canceled_at
+                - past_due_since
+                - next_payment_attempt_at
+                - latest_tax_invoice_url
+                - pending_plan
+                - pending_quantity
+              additionalProperties: false
+          required:
+            - status
+            - provider
+            - currency
+            - plan
+            - plan_name
+            - quantity
+            - unit_amount_minor
+            - monthly_total_minor
+            - current_period_start
+            - current_period_end
+            - cancel_at
+            - past_due_since
+            - next_payment_attempt_at
+            - latest_tax_invoice_url
+            - upgrade_available
+            - change_available
+            - checkout_pending
+            - lock_reason
+            - subscription
+          additionalProperties: false
+        catalog:
+          type: object
+          properties:
+            currency:
+              type: string
+              enum:
+                - GTQ
+                - USD
+            currencies:
+              type: array
+              items:
+                type: string
+            plans:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  unit_amount_minor:
+                    type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                  monthly:
+                    type: number
+                required:
+                  - id
+                  - name
+                  - unit_amount_minor
+                  - monthly
+                additionalProperties: false
+          required:
+            - currency
+            - currencies
+            - plans
+          additionalProperties: false
+        branches:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        trial:
+          type: object
+          properties:
+            status:
+              type: string
+              enum:
+                - active
+                - expiring
+                - locked
+                - converted
+                - none
+            days_left:
+              nullable: true
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            ends_at:
+              nullable: true
+              type: string
+          required:
+            - status
+            - days_left
+            - ends_at
+          additionalProperties: false
+      required:
+        - ok
+        - billing
+        - catalog
+        - branches
+        - trial
+      additionalProperties: false
+    AdminBillingCheckoutResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+        reused:
+          type: boolean
+        checkout:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+            url:
+              type: string
+            expires_at:
+              nullable: true
+              type: string
+            plan:
+              type: string
+            quantity:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            currency:
+              type: string
+              enum:
+                - GTQ
+                - USD
+            unit_amount_minor:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - id
+            - url
+            - expires_at
+            - plan
+            - quantity
+            - currency
+            - unit_amount_minor
+          additionalProperties: false
+      required:
+        - ok
+        - reused
+        - checkout
+      additionalProperties: false
+    AdminBillingCheckoutStatusResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+        status:
+          type: string
+          enum:
+            - pending
+            - completed
+            - expired
+            - canceled
+        checkout:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+            url:
+              type: string
+            expires_at:
+              nullable: true
+              type: string
+            plan:
+              type: string
+            quantity:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            currency:
+              type: string
+              enum:
+                - GTQ
+                - USD
+            unit_amount_minor:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            status:
+              type: string
+          required:
+            - id
+            - url
+            - expires_at
+            - plan
+            - quantity
+            - currency
+            - unit_amount_minor
+            - status
+          additionalProperties: false
+        subscription:
+          nullable: true
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+            provider:
+              type: string
+            plan:
+              type: string
+            plan_name:
+              type: string
+            quantity:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            currency:
+              type: string
+            unit_amount_minor:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            monthly_total_minor:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            status:
+              type: string
+              enum:
+                - active
+                - past_due
+                - paused
+                - canceled
+            current_period_start:
+              nullable: true
+              type: string
+            current_period_end:
+              nullable: true
+              type: string
+            cancel_at:
+              nullable: true
+              type: string
+            canceled_at:
+              nullable: true
+              type: string
+            past_due_since:
+              nullable: true
+              type: string
+            next_payment_attempt_at:
+              nullable: true
+              type: string
+            latest_tax_invoice_url:
+              nullable: true
+              type: string
+            pending_plan:
+              nullable: true
+              type: string
+            pending_quantity:
+              nullable: true
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - id
+            - provider
+            - plan
+            - plan_name
+            - quantity
+            - currency
+            - unit_amount_minor
+            - monthly_total_minor
+            - status
+            - current_period_start
+            - current_period_end
+            - cancel_at
+            - canceled_at
+            - past_due_since
+            - next_payment_attempt_at
+            - latest_tax_invoice_url
+            - pending_plan
+            - pending_quantity
+          additionalProperties: false
+      required:
+        - ok
+        - status
+        - checkout
+        - subscription
+      additionalProperties: false
+    AdminBillingSubscriptionResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+        subscription:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+            provider:
+              type: string
+            plan:
+              type: string
+            plan_name:
+              type: string
+            quantity:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            currency:
+              type: string
+            unit_amount_minor:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            monthly_total_minor:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            status:
+              type: string
+              enum:
+                - active
+                - past_due
+                - paused
+                - canceled
+            current_period_start:
+              nullable: true
+              type: string
+            current_period_end:
+              nullable: true
+              type: string
+            cancel_at:
+              nullable: true
+              type: string
+            canceled_at:
+              nullable: true
+              type: string
+            past_due_since:
+              nullable: true
+              type: string
+            next_payment_attempt_at:
+              nullable: true
+              type: string
+            latest_tax_invoice_url:
+              nullable: true
+              type: string
+            pending_plan:
+              nullable: true
+              type: string
+            pending_quantity:
+              nullable: true
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - id
+            - provider
+            - plan
+            - plan_name
+            - quantity
+            - currency
+            - unit_amount_minor
+            - monthly_total_minor
+            - status
+            - current_period_start
+            - current_period_end
+            - cancel_at
+            - canceled_at
+            - past_due_since
+            - next_payment_attempt_at
+            - latest_tax_invoice_url
+            - pending_plan
+            - pending_quantity
+          additionalProperties: false
+      required:
+        - ok
+        - subscription
+      additionalProperties: false
+    AdminBillingInvoicesResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+        invoices:
+          type: array
+          items:
+            type: object
+            properties:
+              occurred_at:
+                nullable: true
+                type: string
+              amount_minor:
+                nullable: true
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              currency:
+                nullable: true
+                type: string
+              status:
+                type: string
+                enum:
+                  - paid
+                  - failed
+                  - refunded
+              tax_invoice_url:
+                nullable: true
+                type: string
+              fee_minor:
+                nullable: true
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              intent_id:
+                nullable: true
+                type: string
+            required:
+              - occurred_at
+              - amount_minor
+              - currency
+              - status
+              - tax_invoice_url
+              - fee_minor
+              - intent_id
+            additionalProperties: false
+      required:
+        - ok
+        - invoices
+      additionalProperties: false
+    SuperBillingSubscriptionsQuery:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - active
+            - past_due
+            - paused
+            - canceled
+        limit:
+          default: 200
+          type: integer
+          minimum: 1
+          maximum: 500
+      additionalProperties: false
+    SuperBillingEventsQuery:
+      type: object
+      properties:
+        business_id:
+          type: string
+          format: uuid
+          pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+        limit:
+          default: 100
+          type: integer
+          minimum: 1
+          maximum: 500
+      additionalProperties: false
+    SuperBillingCancelRequest:
+      type: object
+      properties:
+        at_period_end:
+          default: false
+          type: boolean
+        note:
+          type: string
+          maxLength: 500
+      additionalProperties: false
+    SuperBillingCatalogSyncRequest:
+      type: object
+      properties:
+        force:
+          default: false
+          type: boolean
       additionalProperties: false
     StaffLoginRequest:
       type: object

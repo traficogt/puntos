@@ -46,6 +46,42 @@
 2. Invalidate sessions if required
 3. Preserve logs and evidence before cleanup
 
+### Billing webhooks failing or a payment that did not activate
+Symptoms: an owner paid in Recurrente but the app still shows the trial lock, Recurrente's
+webhook dashboard shows non-2xx deliveries, or `puntos_billing_events_total{type="failed"}`
+or `{type="invalid_signature"}` grows.
+
+1. Check the deliveries: `GET /api/super/billing/events?business_id=<id>` (super console)
+   lists each webhook with `status` (`processed`, `ignored`, `failed`) and `error`.
+   - `invalid_signature` / 401 in Recurrente's dashboard: the signing secret in
+     `recurrente_webhook_secret` does not match the endpoint (each endpoint and each Sandbox
+     has its own `whsec_…`); fix the secret file and restart the api. Recurrente redelivers
+     on its own schedule; use its dashboard's "resend" for older events.
+   - `live_mode_mismatch`: the key and the events belong to different environments
+     (Sandbox events reaching the live endpoint or the reverse).
+   - `failed` with a provider error: the follow-up read `GET /subscriptions/{id}` failed;
+     the next redelivery reprocesses the row automatically.
+   - `ignored` with `unmatched_*`: the payload could not be tied to a checkout or business
+     (metadata lost); activate by hand (step 3) and keep the event id for support.
+2. Check the local state: `GET /api/super/billing/subscriptions?status=active` and the
+   business row (`billing_status`, `plan`, `trial_status`). The daily `billing.reconcile`
+   (worker) converges every provider subscription on the next run; to converge now run
+   `node -e "import('./src/app/services/billing/subscription-service.js').then(m=>m.subscriptionService().reconcileOnce())"`
+   inside the worker container.
+3. Manual activation when the money is in Recurrente but the webhook cannot be recovered:
+   `POST /api/super/businesses/<id>/billing/manual-activate` with `{ "plan": "NEGOCIO",
+   "currency": "USD", "note": "<Recurrente intent id>" }` (super console, "Pruebas" card).
+   It records a `manual` subscription, converts the trial and lifts the lock; audit_logs and
+   security_events keep who did it. When the Recurrente subscription later reports through
+   a webhook, the paid subscription replaces the manual row.
+4. Wrong charge or dispute: refunds are manual in Recurrente (`POST /refunds`); the app only
+   records `payment.refunded` / `payment.disputed` in the tenant ledger. Cancel a
+   subscription immediately with `POST /api/super/businesses/<id>/billing/cancel`
+   (`{ "at_period_end": false }`), which locks the business with the retention clock.
+5. If the provider is down for long: nothing in the app blocks on it except the hosted
+   checkout (owners see 502 `BILLING_PROVIDER_ERROR`) and branch additions log
+   `subscription.sync_failed` instead of blocking. Reconcile once it is back.
+
 ## Backups
 
 ```bash

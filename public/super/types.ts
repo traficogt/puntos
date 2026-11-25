@@ -74,6 +74,71 @@ export interface SuperTrialsSummaryResponse {
   median_days_to_first_customer?: number | null;
 }
 
+/** Subscription billing (docs/product/2026-11-25-self-serve-trial.md §3.3, §7.4; wave 2). */
+export type SuperSubscriptionStatus =
+  | "none"
+  | "trial"
+  | "active"
+  | "past_due"
+  | "canceled"
+  | "manual"
+  | string;
+
+export interface SuperBillingSubscriptionRow {
+  business_id: string;
+  business_name?: string | null;
+  slug?: string | null;
+  provider?: "recurrente" | "manual" | string | null;
+  status: SuperSubscriptionStatus;
+  plan?: string | null;
+  quantity?: number | null;
+  currency?: "USD" | "GTQ" | string | null;
+  monthly_total_minor?: number | null;
+  current_period_end?: string | null;
+  cancel_at?: string | null;
+  past_due_since?: string | null;
+}
+
+export interface SuperBillingSubscriptionsResponse {
+  ok?: boolean;
+  subscriptions?: SuperBillingSubscriptionRow[];
+}
+
+export interface SuperBillingEvent {
+  occurred_at?: string | null;
+  type: string;
+  amount_minor?: number | null;
+  currency?: string | null;
+  fee_minor?: number | null;
+  tax_invoice_url?: string | null;
+}
+
+export interface SuperBillingEventsResponse {
+  ok?: boolean;
+  events?: SuperBillingEvent[];
+}
+
+export type SuperPlanAmounts = { EMPRENDEDOR?: number; NEGOCIO?: number; EMPRESA?: number };
+export type SuperPriceIds = { EMPRENDEDOR?: string; NEGOCIO?: string; EMPRESA?: string };
+
+export interface SuperBillingCatalog {
+  published_at?: string;
+  usd: SuperPlanAmounts;
+  gtq?: SuperPlanAmounts | null;
+  gtq_reference?: { rate: number; as_of: string } | null;
+  /** Provider price ids, read-only in the console; filled by POST …/catalog/sync. */
+  price_ids?: { USD?: SuperPriceIds; GTQ?: SuperPriceIds } | null;
+  providers?: {
+    recurrente?: { price_ids?: { USD?: SuperPriceIds; GTQ?: SuperPriceIds } };
+    stripe?: { price_ids?: { USD?: SuperPriceIds } };
+  };
+}
+
+export interface SuperBillingCatalogResponse {
+  ok?: boolean;
+  catalog?: SuperBillingCatalog;
+}
+
 export interface SuperStaffRow {
   id: string;
   business_id: string;

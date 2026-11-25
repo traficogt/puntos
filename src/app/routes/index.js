@@ -21,6 +21,8 @@ import { superOwnerProgressRoutes } from "./super-owner-progress-routes.js";
 import { publicPlanRoutes } from "./public-plan-routes.js";
 import { publicTrialRoutes } from "./public-trial-routes.js";
 import { superTrialRoutes } from "./super-trial-routes.js";
+import { superBillingRoutes } from "./super-billing-routes.js";
+import { publicBillingWebhookRoutes } from "./public-billing-webhook-routes.js";
 const serviceRecoveryRoutes = createServiceRecoveryRoutes();
 import { createCustomerAudienceRouter } from "./customer-audience-routes.js";
 import { customerMigrationRoutes } from "./admin/customer-migration-routes.js";
@@ -128,6 +130,7 @@ const mountRoutes = (basePath) => {
   mountApiRoute(basePath, publicRoutes);
   mountApiRoute(basePath, publicPlanRoutes);
   mountApiRoute(basePath, publicTrialRoutes);
+  mountApiRoute(basePath, publicBillingWebhookRoutes);
   mountApiRoute(basePath, staffRoutes);
   mountApiRoute(basePath, adminRoutes);
   mountApiRoute(basePath, customerRoutes);
@@ -140,6 +143,7 @@ const mountRoutes = (basePath) => {
   mountApiRoute(basePath, superRoutes);
   mountApiRoute(basePath, superOwnerProgressRoutes);
   mountApiRoute(basePath, superTrialRoutes);
+  mountApiRoute(basePath, superBillingRoutes);
   mountApiRoute(basePath, superMagicLinkRoutes);
   mountApiRoute(basePath, paymentWebhookRoutes);
   mountApiRoute(basePath, posRoutes);

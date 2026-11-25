@@ -7,6 +7,7 @@ import { createOwnerProgressSettings } from "./owner-progress-settings.js";
 import { createMagicLinks } from "./magic-links.js";
 import { createBusinesses } from "./businesses.js";
 import { createTrials } from "./trials.js";
+import { createBilling } from "./billing.js";
 import { createSecurityPosture } from "./security-posture.js";
 import { bindAccountSecurity } from "./account-security.js";
 
@@ -29,6 +30,7 @@ export async function initSuperPage({ api, $, toast }) {
   const ownerProgress = createOwnerProgressSettings(ctx);
   const magicLinks = createMagicLinks(ctx);
   const trials = createTrials(ctx, { plans, reloadBusinesses: () => businesses.loadBusinesses() });
+  const billing = createBilling(ctx, { reloadBusinesses: () => businesses.loadBusinesses() });
   const businesses = createBusinesses(ctx, { plans, magicLinks, onLoaded: () => trials.render() });
   const posture = createSecurityPosture(ctx, {
     reloadBusinesses: () => businesses.loadBusinesses(),
@@ -47,6 +49,8 @@ export async function initSuperPage({ api, $, toast }) {
       await businesses.loadBusinesses();
       if (!current()) return;
       await trials.loadSummary();
+      if (!current()) return;
+      await billing.load();
       if (!current()) return;
       await platformHealth.load();
     },

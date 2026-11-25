@@ -7,7 +7,7 @@ Loyalty platform for Guatemala, operated as a hosted service at `app.puntosfiele
 - Express 5 (API and worker processes)
 - PostgreSQL 17 on the central database VM (`APP_DB_HOST`, default `10.10.1.51` in `docker-compose.yml`); PostgreSQL 16 in the test and e2e compose stacks
 - Redis 7, optional (`RATE_LIMIT_DRIVER=redis`, `JOB_QUEUE_DRIVER=redis`)
-- Vanilla HTML/CSS/JS PWA in `public/` (customer wallet, staff scanner, internal signup at `/crear-negocio/`, self-serve 14-day trial signup at `/prueba/`, published prices at `/precios`, super console); React 19 + Mantine 9 merchant app in `web/merchant` (the owner dashboard at `/negocio/`; the vanilla `/administracion/` was retired on 2026-11-25 and redirects there); Expo native app in `apps/customer` (frozen, see `AGENTS.md`)
+- Vanilla HTML/CSS/JS PWA in `public/` (customer wallet, staff scanner, internal signup at `/crear-negocio/`, self-serve 14-day trial signup at `/prueba/`, published prices at `/precios`, super console); React 19 + Mantine 9 merchant app in `web/merchant` (the owner dashboard at `/negocio/`, including "Plan y facturación" at `#plan` for card checkout through Recurrente; the vanilla `/administracion/` was retired on 2026-11-25 and redirects there); Expo native app in `apps/customer` (frozen, see `AGENTS.md`)
 - Playwright
 - Docker Compose
 
@@ -38,6 +38,7 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/puntos/secrets-dev
 - A curated OpenAPI subset is served at `/api/v1/openapi.json`, `/api/v1/openapi.yaml`, and Swagger UI at `/api/v1/docs`
 - `docker-compose.yml` runs `api` and `worker` only; PostgreSQL lives on the central database VM (`APP_DB_HOST`). The e2e compose files start their own disposable PostgreSQL 16 and Redis
 - Secrets are loaded from files via `*_FILE` env vars and should live outside the repo tree
+- Subscription billing (self-serve trial wave 2): the owner page `#plan` and the super console's "Suscripciones y cobro" section talk to `/api/admin/billing*` and `/api/super/billing*`; without a configured provider the API answers `503 BILLING_UNAVAILABLE` and both surfaces fall back to the upgrade request form or a notice (see `docs/ARCHITECTURE.md` §5)
 
 ## Commands
 ```bash

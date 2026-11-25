@@ -1,0 +1,113 @@
+{
+  "type": "payment",
+  "event_type": "intent.succeeded",
+  "api_version": "2026-06-01",
+  "id": "in_fixture001",
+  "legacy_id": "pa_fixture001",
+  "receipt_number": 100482,
+  "status": "succeeded",
+  "raw_status": "succeeded",
+  "created_at": "2026-12-01T14:03:21Z",
+  "customer_id": "cus_fixture01",
+  "user_id": "usr_fixture01",
+  "customer": {
+    "id": "cus_fixture01",
+    "email": "owner@example.com",
+    "full_name": "Ana Lopez",
+    "nit": "CF",
+    "phone": "+50255551234"
+  },
+  "amount_in_cents": 7900,
+  "currency": "USD",
+  "product": {
+    "id": "prod_negocio_usd"
+  },
+  "subscription": {
+    "id": "su_fixture01"
+  },
+  "bulk_charge": null,
+  "tax_invoice_url": "https://app.recurrente.com/fel/in_fixture001",
+  "checkout": {
+    "id": "ch_fixture01",
+    "status": "paid",
+    "items": [
+      {
+        "id": "ci_fixture01",
+        "price_id": "price_negocio_usd",
+        "quantity": 1,
+        "metadata": {}
+      }
+    ],
+    "total_in_cents": 7900,
+    "subtotal_in_cents": 7900,
+    "discount": null,
+    "currency": "USD",
+    "payment_method_types": [
+      "card"
+    ],
+    "available_installments": [],
+    "live_mode": false,
+    "success_url": "https://app.puntosfieles.com/negocio/#plan?checkout=22222222-2222-4222-8222-222222222222",
+    "cancel_url": "https://app.puntosfieles.com/negocio/#plan?checkout=22222222-2222-4222-8222-222222222222&cancelado=1",
+    "expires_at": "2026-12-02T14:00:00Z",
+    "created_at": "2026-12-01T14:00:00Z",
+    "metadata": {
+      "business_id": "11111111-1111-4111-8111-111111111111",
+      "checkout_id": "22222222-2222-4222-8222-222222222222",
+      "plan": "NEGOCIO",
+      "quantity": "1",
+      "currency": "USD"
+    },
+    "latest_intent": {
+      "id": "in_fixture001",
+      "type": "payment",
+      "created_at": "2026-12-01T14:03:21Z"
+    },
+    "payment": {
+      "id": "pa_fixture001",
+      "paymentable": {
+        "type": "Subscription",
+        "id": "su_fixture01",
+        "tax_name": "Ana Lopez",
+        "tax_id": "CF",
+        "metadata": {
+          "business_id": "11111111-1111-4111-8111-111111111111",
+          "checkout_id": "22222222-2222-4222-8222-222222222222",
+          "plan": "NEGOCIO",
+          "quantity": "1",
+          "currency": "USD"
+        }
+      }
+    },
+    "payment_method": {
+      "id": "pay_m_fixture",
+      "type": "card",
+      "card": {
+        "last4": "4242",
+        "expiration_month": 12,
+        "expiration_year": 2030,
+        "network": "visa"
+      }
+    },
+    "checkout_url": "https://app.recurrente.com/checkout-session/ch_fixture01"
+  },
+  "payment": {
+    "id": "pa_fixture001"
+  },
+  "details": {
+    "failure_reason": null,
+    "fee": 357,
+    "tax_invoicing_fee": 25,
+    "vat_withheld": 0,
+    "vat_withheld_currency": "USD",
+    "used_presaved_payment_method": false,
+    "installments": 1,
+    "channel": "Link de pago",
+    "products": [
+      {
+        "id": "prod_negocio_usd",
+        "quantity": 1
+      }
+    ]
+  }
+}

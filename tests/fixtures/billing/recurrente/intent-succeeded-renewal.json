@@ -1,0 +1,50 @@
+{
+  "type": "payment",
+  "event_type": "intent.succeeded",
+  "api_version": "2026-06-01",
+  "id": "in_fixture002",
+  "legacy_id": "pa_fixture002",
+  "receipt_number": 100611,
+  "status": "succeeded",
+  "raw_status": "succeeded",
+  "created_at": "2027-01-01T14:05:00Z",
+  "customer_id": "cus_fixture01",
+  "user_id": "usr_fixture01",
+  "customer": {
+    "id": "cus_fixture01",
+    "email": "owner@example.com",
+    "full_name": "Ana Lopez",
+    "nit": "CF",
+    "phone": "+50255551234"
+  },
+  "amount_in_cents": 7900,
+  "currency": "USD",
+  "product": {
+    "id": "prod_negocio_usd"
+  },
+  "subscription": {
+    "id": "su_fixture01"
+  },
+  "bulk_charge": null,
+  "tax_invoice_url": "https://app.recurrente.com/fel/in_fixture002",
+  "checkout": null,
+  "payment": {
+    "id": "pa_fixture002"
+  },
+  "details": {
+    "failure_reason": null,
+    "fee": 357,
+    "tax_invoicing_fee": 25,
+    "vat_withheld": 0,
+    "vat_withheld_currency": "USD",
+    "used_presaved_payment_method": false,
+    "installments": 1,
+    "channel": "Link de pago",
+    "products": [
+      {
+        "id": "prod_negocio_usd",
+        "quantity": 1
+      }
+    ]
+  }
+}

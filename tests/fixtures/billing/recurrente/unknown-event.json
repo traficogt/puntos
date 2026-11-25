@@ -1,0 +1,16 @@
+{
+  "event_type": "withdrawal.update",
+  "api_version": "2026-06-01",
+  "id": "wd_fixture01",
+  "created_at": "2027-01-05T10:00:00Z",
+  "withdrawal": {
+    "id": "wd_fixture01",
+    "status": "sent",
+    "amount_in_cents": 150000,
+    "currency": "GTQ"
+  },
+  "transfer": {
+    "id": "tr_fixture01",
+    "status": "sent"
+  }
+}

@@ -403,6 +403,18 @@ export const config = {
   // Platform circuit breaker on signup SMS codes per calendar day (UTC); 0 disables signup codes.
   TRIAL_OTP_DAILY_CAP: Number(process.env.TRIAL_OTP_DAILY_CAP ?? 200),
   TRIAL_ALLOWED_DIAL_CODES: parseCsv(envValue("TRIAL_ALLOWED_DIAL_CODES", "502")),
+  // Subscription billing, wave 2 (design section 5). Secrets follow the `_FILE` pattern
+  // of JWT_SECRET. Without a Recurrente key every checkout route answers 503
+  // BILLING_UNAVAILABLE and the owner app keeps the contact path behind "Elegir plan".
+  BILLING_PROVIDER: envValue("BILLING_PROVIDER", "recurrente"),
+  // Where the hosted checkout sends the owner back; the owner app origin by default.
+  BILLING_RETURN_ORIGIN:
+    normalizeOrigin(envValue("BILLING_RETURN_ORIGIN", "")) || RESOLVED_APP_ORIGIN,
+  RECURRENTE_API_BASE: String(
+    envValue("RECURRENTE_API_BASE", "https://app.recurrente.com/api"),
+  ).replace(/\/+$/, ""),
+  RECURRENTE_SECRET_KEY: envValue("RECURRENTE_SECRET_KEY", ""),
+  RECURRENTE_WEBHOOK_SECRET: envValue("RECURRENTE_WEBHOOK_SECRET", ""),
   ENFORCE_TENANT_CONTEXT: (process.env.ENFORCE_TENANT_CONTEXT ?? "true") !== "false",
 
   // Schema extensions (tiers/referrals/gamification/analytics)

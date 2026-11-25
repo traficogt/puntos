@@ -19,9 +19,12 @@ const iso = (value) => (value ? new Date(value).toISOString() : null);
 
 /**
  * @param {Pick<BusinessRow, "plan" | "program_json" | "billing_currency"> & import("./trial-state.js").TrialColumns} business
- * @param {{ subscription?: BillingSubscriptionRow | null, now?: Date }} [options]
+ * @param {{ subscription?: BillingSubscriptionRow | null, now?: Date, upgradeAvailable?: boolean }} [options]
  */
-export function ownerTrialPayload(business, { subscription = null, now = new Date() } = {}) {
+export function ownerTrialPayload(
+  business,
+  { subscription = null, now = new Date(), upgradeAvailable = false } = {},
+) {
   const timezone = regionTimezone(business);
   const state = trialState(business, { now, timezone });
   const daysLeft = state.days_left ?? 0;
@@ -38,9 +41,10 @@ export function ownerTrialPayload(business, { subscription = null, now = new Dat
       plan: business.plan,
       plan_name: planDisplayName(business.plan),
       upgrade_url: TRIAL_UPGRADE_URL,
-      // Online checkout arrives with the billing adapter (wave 2); until then the owner app
-      // shows the contact path behind "Elegir plan".
-      upgrade_available: false,
+      // True when a payment provider is configured (wave 2, GET /api/admin/billing has the
+      // catalog and checkout); otherwise the owner app shows the contact path behind
+      // "Elegir plan".
+      upgrade_available: Boolean(upgradeAvailable),
       copy: {
         banner: TRIAL_COPY.banner(daysLeft),
         banner_cta: TRIAL_COPY.banner_cta,

@@ -1,0 +1,31 @@
+{
+  "event_type": "dispute.create",
+  "api_version": "2026-06-01",
+  "id": "dp_fixture01",
+  "created_at": "2027-01-10T10:00:00Z",
+  "status": "needs_response",
+  "amount_in_cents": 7900,
+  "currency": "USD",
+  "customer_id": "cus_fixture01",
+  "customer": {
+    "id": "cus_fixture01",
+    "email": "owner@example.com",
+    "full_name": "Ana Lopez",
+    "nit": "CF",
+    "phone": "+50255551234"
+  },
+  "intent": {
+    "id": "in_fixture002"
+  },
+  "subscription": {
+    "id": "su_fixture01"
+  },
+  "evidence_due_by": "2027-01-20T10:00:00Z",
+  "metadata": {
+    "business_id": "11111111-1111-4111-8111-111111111111",
+    "checkout_id": "22222222-2222-4222-8222-222222222222",
+    "plan": "NEGOCIO",
+    "quantity": "1",
+    "currency": "USD"
+  }
+}

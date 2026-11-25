@@ -43,7 +43,9 @@ defaults now assume the owner's central DB VM.
    internal business signup (`/crear-negocio/` → `admin.html`), self-serve 14-day trial
    signup (`/prueba/` → `prueba.html` + `trial-signup.js`, calling `/api/public/trial/*`),
    super console (`/plataforma/` → `super.html`, including the "Pruebas" section over
-   `/api/super/businesses` trial columns), join/sign-in pages, marketing pages (`/precios`
+   `/api/super/businesses` trial columns and the "Suscripciones y cobro" section,
+   `public/super/billing.js` + `billing-model.js`, over `/api/super/billing/*`), join/sign-in
+   pages, marketing pages (`/precios`
    is rendered by `src/middleware/public-plans.js` from `precios.html` and re-rendered
    client-side from `GET /api/public/plans` by `precios.js`), calculator and status page. Spanish
    document routes live in `src/middleware/spanish-web.js`; English legacy paths (`/staff`,
@@ -57,7 +59,9 @@ defaults now assume the owner's central DB VM.
    after login; managers and cashiers land on the staff scanner. The shell reads
    `GET /api/admin/trial` (`trial-model.ts`) for the trial banner, the soft-lock screen and
    the upgrade request (`TrialBanner.tsx`, `OwnerTrialLocked.tsx`, `UpgradeRequest.tsx`); a
-   404 means the trial feature is not deployed and nothing is shown. `src/middleware/merchant-web.js`
+   404 means the trial feature is not deployed and nothing is shown. "Plan y facturación"
+   (`#plan`, `OwnerPlan.tsx` over `billing-model.ts`) is the card-checkout surface described in
+   §5 below. `src/middleware/merchant-web.js`
    injects a per-response nonce for Mantine's style tags. The service worker never caches
    `/merchant/`, `/negocio/` or `/demostracion/` documents.
 3. **Expo native app** in `apps/customer/` (Expo ~57, version 0.1.0). Frozen per
@@ -309,6 +313,37 @@ after `LEDGER_CERTIFICATION_RETENTION_DAYS` (90). Both run as the worker-only da
 `ledger.reconcile-and-certify`; CLI equivalents are `ops:ledger:reconcile`,
 `ops:ledger:certify`, `ops:ledger:certify:prune`. Manual corrections go through
 `ledger-correction-service.js` (audit-logged, `2026-03-08-ledger-corrections.sql`).
+
+### 5.x Subscription billing surfaces (self-serve trial, wave 2)
+
+Design of record: `docs/product/2026-11-25-self-serve-trial.md` §4.4–4.6, §5, §6. The web
+surfaces code to this contract and must keep working when an endpoint answers 404 (not
+deployed) or `503 BILLING_UNAVAILABLE` (provider unconfigured):
+
+- Owner: `GET /api/admin/billing` → `{ billing: { status: none|trial|active|past_due|canceled|manual,
+  provider, currency, plan, quantity, unit_amount_minor, monthly_total_minor, current_period_*,
+  cancel_at, past_due_since, next_payment_attempt_at, latest_tax_invoice_url,
+  upgrade_available, checkout_pending }, catalog: { currency, plans[] }, branches, trial }`;
+  `POST /api/admin/billing/checkout { plan, currency? }` → 201 `{ checkout: { id, url,
+  expires_at } }` (409 `BILLING_QUANTITY_LIMIT` above 9 branches, 409
+  `BILLING_ALREADY_ACTIVE`, 400 `BILLING_PLAN_INVALID`); `GET /api/admin/billing/checkout/:id`
+  → `{ status: pending|completed|expired|canceled, subscription }`, polled every 3 s for up to
+  2 minutes after Recurrente returns the owner to `/negocio/#plan?checkout=<id>&resultado=…`
+  (`web/merchant/src/navigation.js` ignores the hash query when resolving the page, and
+  `main.jsx` captures it before normalising the hash); `POST /api/admin/billing/change { plan }`
+  (upgrade = `now_and_charge`, downgrade = next cycle), `POST /api/admin/billing/cancel
+  { at_period_end: true }`, `GET /api/admin/billing/invoices` (FEL links). Money travels in
+  minor units; `billing-model.ts` formats "USD 79.00" / "Q600.00" with fixed grouping. The
+  analytics export `GET /api/admin/billing/iva.csv` predates this API and is unrelated.
+- Super: `GET /api/super/billing/subscriptions?status=`, `GET /api/super/billing/events?business_id=`,
+  `GET/PUT /api/super/billing/catalog` (USD as published, `gtq` list amounts, dated
+  `gtq_reference`, provider `price_ids` passed through on every PUT so a GTQ edit never drops
+  them), `POST /api/super/billing/catalog/sync` (503 when unconfigured),
+  `POST /api/super/businesses/:id/billing/cancel`.
+- Fallbacks: the owner page shows "El pago con tarjeta estará disponible pronto" and keeps the
+  wave-1 request form (`UpgradeRequest.tsx` → `POST /api/admin/concierge-request`); the trial
+  banner and lock screen lead to `#plan` only when `trial.upgrade_available` is true. The super
+  section replaces each block with a Spanish notice.
 
 ## 6. Background work
 

@@ -16,6 +16,7 @@ Encuentra el ajuste, conoce sus efectos y revisa lo que quedó guardado. Las ins
 ## Preparar el negocio
 
 - [Empezar la prueba gratis de 14 días y elegir plan](/ayuda/negocio/prueba-gratis/)
+- [Pagar con tarjeta, cambiar o cancelar tu plan](/ayuda/negocio/pagar-y-cambiar-plan/)
 - [Preparar el programa antes de invitar clientes](/ayuda/negocio/empezar/)
 - [Guardar la regla base de puntos](/ayuda/negocio/regla-puntos/)
 - [Crear o editar una recompensa](/ayuda/negocio/recompensas/)

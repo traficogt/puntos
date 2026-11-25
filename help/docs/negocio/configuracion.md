@@ -22,8 +22,9 @@ Ingresa con la cuenta del dueño. **Configuración** está en el grupo **Caja, e
 
 1. Abre **Configuración**.
 2. En **Personas y operación**, pulsa **Abrir** junto a **Equipo**, **Sucursales**, **Autorizaciones y turnos**, **Conectar caja**, **Puesta en marcha** o **Reportes**.
-3. En **Tu programa**, abre **Marca y QR**, **Identidad del programa**, **Región del negocio**, **Recompensas**, **Automatizaciones**, **Límites y políticas**, **Niveles de cliente**, **Logros y retos** o **Tarjetas de regalo**.
-4. Revisa y guarda cada cambio dentro de su pantalla; entrar a Configuración por sí solo no cambia nada.
+3. En **Plan y cobro**, abre **Plan y facturación** para ver tu plan y su estado, pagar con tarjeta, cambiar o cancelar el plan y descargar los comprobantes fiscales.
+4. En **Tu programa**, abre **Marca y QR**, **Identidad del programa**, **Región del negocio**, **Recompensas**, **Automatizaciones**, **Límites y políticas**, **Niveles de cliente**, **Logros y retos** o **Tarjetas de regalo**.
+5. Revisa y guarda cada cambio dentro de su pantalla; entrar a Configuración por sí solo no cambia nada.
 
 Todos los ajustes del negocio viven en este panel. El panel de administración anterior se retiró el 25 de noviembre de 2026; sus enlaces guardados abren ahora la pantalla equivalente aquí.
 
@@ -38,6 +39,7 @@ Llegas a la sección que gestiona la tarea. Si una opción muestra **Disponible 
 ## Continúa con otra tarea
 
 - [Región del negocio](/ayuda/negocio/region/)
+- [Pagar con tarjeta, cambiar o cancelar tu plan](/ayuda/negocio/pagar-y-cambiar-plan/)
 - [Puesta en marcha y guías imprimibles](/ayuda/negocio/puesta-en-marcha/)
 - [Límites y políticas](/ayuda/negocio/limites/)
 - [Crear personal](/ayuda/negocio/personal/)

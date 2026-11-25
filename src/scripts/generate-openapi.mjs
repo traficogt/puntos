@@ -79,6 +79,14 @@ const { TrialRequestCodeSchema, TrialVerifySchema, TrialSignupSchema } =
 const { TrialExtendSchema, ManualActivateSchema } =
   await import("../app/routes/super-trial-routes.js");
 const { BillingCatalogSchema } = await import("../app/services/billing-catalog-service.js");
+const { BillingCheckoutSchema, BillingChangeSchema, BillingCancelSchema } =
+  await import("../app/routes/admin/billing-subscription-routes.js");
+const {
+  SuperBillingSubscriptionsQuerySchema,
+  SuperBillingEventsQuerySchema,
+  SuperBillingCancelSchema,
+  SuperBillingCatalogSyncSchema,
+} = await import("../app/routes/super-billing-routes.js");
 
 const TimestampSchema = z.string();
 const JsonRecordSchema = z.record(z.string(), z.any());
@@ -429,6 +437,103 @@ const PublicPlansResponseSchema = okEnvelope({
       .passthrough(),
   ),
 });
+const AdminBillingSubscriptionSchema = z.object({
+  id: z.guid(),
+  provider: z.string(),
+  plan: z.string(),
+  plan_name: z.string(),
+  quantity: z.number().int(),
+  currency: z.string(),
+  unit_amount_minor: z.number().int(),
+  monthly_total_minor: z.number().int(),
+  status: z.enum(["active", "past_due", "paused", "canceled"]),
+  current_period_start: TimestampSchema.nullable(),
+  current_period_end: TimestampSchema.nullable(),
+  cancel_at: TimestampSchema.nullable(),
+  canceled_at: TimestampSchema.nullable(),
+  past_due_since: TimestampSchema.nullable(),
+  next_payment_attempt_at: TimestampSchema.nullable(),
+  latest_tax_invoice_url: z.string().nullable(),
+  pending_plan: z.string().nullable(),
+  pending_quantity: z.number().int().nullable(),
+});
+const AdminBillingCheckoutSchema = z.object({
+  id: z.guid(),
+  url: z.string(),
+  expires_at: TimestampSchema.nullable(),
+  plan: z.string(),
+  quantity: z.number().int(),
+  currency: z.enum(["GTQ", "USD"]),
+  unit_amount_minor: z.number().int(),
+});
+const AdminBillingResponseSchema = okEnvelope({
+  billing: z.object({
+    status: z.string(),
+    provider: z.string().nullable(),
+    currency: z.enum(["GTQ", "USD"]),
+    plan: z.string(),
+    plan_name: z.string(),
+    quantity: z.number().int(),
+    unit_amount_minor: z.number().int().nullable(),
+    monthly_total_minor: z.number().int().nullable(),
+    current_period_start: TimestampSchema.nullable(),
+    current_period_end: TimestampSchema.nullable(),
+    cancel_at: TimestampSchema.nullable(),
+    past_due_since: TimestampSchema.nullable(),
+    next_payment_attempt_at: TimestampSchema.nullable(),
+    latest_tax_invoice_url: z.string().nullable(),
+    upgrade_available: z.boolean(),
+    change_available: z.boolean(),
+    checkout_pending: z
+      .object({ id: z.guid(), url: z.string(), expires_at: TimestampSchema.nullable() })
+      .nullable(),
+    lock_reason: z.enum(["trial_expired", "payment_failed", "canceled"]).nullable(),
+    subscription: AdminBillingSubscriptionSchema.nullable(),
+  }),
+  catalog: z.object({
+    currency: z.enum(["GTQ", "USD"]),
+    currencies: z.array(z.string()),
+    plans: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        unit_amount_minor: z.number().int(),
+        monthly: z.number(),
+      }),
+    ),
+  }),
+  branches: z.number().int(),
+  trial: z.object({
+    status: TrialStatusSchema,
+    days_left: z.number().int().nullable(),
+    ends_at: TimestampSchema.nullable(),
+  }),
+});
+const AdminBillingCheckoutResponseSchema = okEnvelope({
+  reused: z.boolean(),
+  checkout: AdminBillingCheckoutSchema,
+});
+const AdminBillingCheckoutStatusResponseSchema = okEnvelope({
+  status: z.enum(["pending", "completed", "expired", "canceled"]),
+  checkout: AdminBillingCheckoutSchema.extend({ status: z.string() }),
+  subscription: AdminBillingSubscriptionSchema.nullable(),
+});
+const AdminBillingSubscriptionResponseSchema = okEnvelope({
+  subscription: AdminBillingSubscriptionSchema,
+});
+const AdminBillingInvoicesResponseSchema = okEnvelope({
+  invoices: z.array(
+    z.object({
+      occurred_at: TimestampSchema.nullable(),
+      amount_minor: z.number().int().nullable(),
+      currency: z.string().nullable(),
+      status: z.enum(["paid", "failed", "refunded"]),
+      tax_invoice_url: z.string().nullable(),
+      fee_minor: z.number().int().nullable(),
+      intent_id: z.string().nullable(),
+    }),
+  ),
+});
 const TrialLockedErrorSchema = z.object({
   error: z.string(),
   code: z.literal("TRIAL_LOCKED"),
@@ -449,6 +554,18 @@ const schemas = {
   SuperTrialExtendRequest: TrialExtendSchema,
   SuperManualActivateRequest: ManualActivateSchema,
   SuperBillingCatalogRequest: BillingCatalogSchema,
+  AdminBillingCheckoutRequest: BillingCheckoutSchema,
+  AdminBillingChangeRequest: BillingChangeSchema,
+  AdminBillingCancelRequest: BillingCancelSchema,
+  AdminBillingResponse: AdminBillingResponseSchema,
+  AdminBillingCheckoutResponse: AdminBillingCheckoutResponseSchema,
+  AdminBillingCheckoutStatusResponse: AdminBillingCheckoutStatusResponseSchema,
+  AdminBillingSubscriptionResponse: AdminBillingSubscriptionResponseSchema,
+  AdminBillingInvoicesResponse: AdminBillingInvoicesResponseSchema,
+  SuperBillingSubscriptionsQuery: SuperBillingSubscriptionsQuerySchema,
+  SuperBillingEventsQuery: SuperBillingEventsQuerySchema,
+  SuperBillingCancelRequest: SuperBillingCancelSchema,
+  SuperBillingCatalogSyncRequest: SuperBillingCatalogSyncSchema,
   StaffLoginRequest: staffLoginSchema,
   AwardPointsRequest: awardPointsSchema,
   StaffRedeemRequest: RedeemSchema,
@@ -837,6 +954,45 @@ const routeSchemaBindings = {
   "/api/v1/super/billing/catalog": {
     put: { body: "SuperBillingCatalogRequest" },
   },
+  "/api/v1/admin/billing": {
+    get: { responses: { 200: "AdminBillingResponse" } },
+  },
+  "/api/v1/admin/billing/checkout": {
+    post: {
+      body: "AdminBillingCheckoutRequest",
+      responses: { 200: "AdminBillingCheckoutResponse", 201: "AdminBillingCheckoutResponse" },
+    },
+  },
+  "/api/v1/admin/billing/checkout/{id}": {
+    get: { responses: { 200: "AdminBillingCheckoutStatusResponse" } },
+  },
+  "/api/v1/admin/billing/change": {
+    post: {
+      body: "AdminBillingChangeRequest",
+      responses: { 200: "AdminBillingSubscriptionResponse" },
+    },
+  },
+  "/api/v1/admin/billing/cancel": {
+    post: {
+      body: "AdminBillingCancelRequest",
+      responses: { 200: "AdminBillingSubscriptionResponse" },
+    },
+  },
+  "/api/v1/admin/billing/invoices": {
+    get: { responses: { 200: "AdminBillingInvoicesResponse" } },
+  },
+  "/api/v1/super/billing/subscriptions": {
+    get: { query: "SuperBillingSubscriptionsQuery" },
+  },
+  "/api/v1/super/billing/events": {
+    get: { query: "SuperBillingEventsQuery" },
+  },
+  "/api/v1/super/billing/catalog/sync": {
+    post: { body: "SuperBillingCatalogSyncRequest" },
+  },
+  "/api/v1/super/businesses/{businessId}/billing/cancel": {
+    post: { body: "SuperBillingCancelRequest" },
+  },
   "/api/v1/super/businesses": {
     post: { body: "SuperCreateBusinessRequest" },
   },
@@ -1129,6 +1285,136 @@ const curatedPaths = {
       summary: "Replace the billing catalog",
       security: [{ superAuth: [] }],
       responses: { 200: { description: "Catalog saved" }, 400: { description: "Payload invalid" } },
+    },
+  },
+  "/api/v1/admin/billing": {
+    get: {
+      summary:
+        "Owner billing overview: access state, subscription, catalog for the chosen currency, branch count and trial summary",
+      description:
+        "Readable while locked. upgrade_available is false when no payment provider is configured, the catalog has no price ids for the currency, or an open subscription exists; change_available is true for an active provider subscription.",
+      responses: {
+        200: { description: "Billing overview" },
+        401: { description: "Not authenticated" },
+      },
+    },
+  },
+  "/api/v1/admin/billing/checkout": {
+    post: {
+      summary: "Start a hosted checkout for a plan (quantity = branch count, 1..9)",
+      description:
+        "201 with the checkout URL; 200 when a still-pending checkout for the same plan, currency and quantity is reused. Exempt from the trial lock: it is the way out of it. Error codes: BILLING_UNAVAILABLE (503, no provider or incomplete catalog), BILLING_PLAN_INVALID (400), BILLING_CURRENCY_UNAVAILABLE (400), BILLING_QUANTITY_LIMIT (409, more than 9 branches), BILLING_ALREADY_ACTIVE (409).",
+      responses: {
+        201: { description: "Checkout created" },
+        200: { description: "Pending checkout reused" },
+        400: { description: "Invalid plan or currency" },
+        409: { description: "Active subscription exists or more than 9 branches" },
+        503: { description: "Online billing unavailable" },
+      },
+    },
+  },
+  "/api/v1/admin/billing/checkout/{id}": {
+    get: {
+      summary:
+        "Poll a checkout after the hosted page returns (pending | completed | expired | canceled)",
+      responses: {
+        200: { description: "Checkout state" },
+        404: { description: "Unknown checkout" },
+      },
+    },
+  },
+  "/api/v1/admin/billing/change": {
+    post: {
+      summary:
+        "Change the plan of the active subscription (upgrade now_and_charge, downgrade next_cycle)",
+      responses: {
+        200: { description: "Subscription after the change" },
+        404: { description: "No active subscription (BILLING_NO_SUBSCRIPTION)" },
+        409: {
+          description:
+            "Manual subscription (BILLING_PROVIDER_MISMATCH) or branches above the target plan (BILLING_PLAN_LIMITS)",
+        },
+        503: { description: "Online billing unavailable" },
+      },
+    },
+  },
+  "/api/v1/admin/billing/cancel": {
+    post: {
+      summary:
+        "Stop the renewal at the end of the paid period (immediate cancel is a super action)",
+      responses: {
+        200: { description: "Subscription with cancel_at set" },
+        404: { description: "No active subscription" },
+      },
+    },
+  },
+  "/api/v1/admin/billing/invoices": {
+    get: {
+      summary: "Payment outcomes of the subscription with the Recurrente FEL invoice links",
+      responses: { 200: { description: "Payments, newest first" } },
+    },
+  },
+  "/api/v1/public/billing/webhooks/{provider}": {
+    post: {
+      summary: "Payment provider webhook (Recurrente, Svix-signed raw body)",
+      description:
+        "No CSRF; the svix-id, svix-timestamp and svix-signature headers authenticate the sender. 401 on a bad signature, 200 { ok, duplicate: true } on a redelivery, 200 { type: ignored } for unknown event types, 500 when processing failed so the provider redelivers, 503 when no provider is configured.",
+      parameters: [
+        {
+          in: "path",
+          name: "provider",
+          required: true,
+          schema: { type: "string", enum: ["recurrente"] },
+        },
+        { in: "header", name: "svix-id", required: true, schema: { type: "string" } },
+        { in: "header", name: "svix-timestamp", required: true, schema: { type: "string" } },
+        { in: "header", name: "svix-signature", required: true, schema: { type: "string" } },
+      ],
+      responses: {
+        200: { description: "Event processed, ignored or duplicate" },
+        401: { description: "Invalid signature" },
+        404: { description: "Unknown provider" },
+        500: { description: "Processing failed; the provider retries" },
+        503: { description: "Provider not configured" },
+      },
+    },
+  },
+  "/api/v1/super/billing/subscriptions": {
+    get: {
+      summary: "List subscriptions across businesses, optionally by status",
+      security: [{ superAuth: [] }],
+      responses: { 200: { description: "Subscriptions with their business" } },
+    },
+  },
+  "/api/v1/super/billing/events": {
+    get: {
+      summary:
+        "Webhook deliveries (billing_provider_events) with their processing status, optionally for one business",
+      security: [{ superAuth: [] }],
+      responses: {
+        200: { description: "Deliveries, newest first; payloads stay in the database" },
+      },
+    },
+  },
+  "/api/v1/super/billing/catalog/sync": {
+    post: {
+      summary:
+        "Create the Recurrente products (USD, plus GTQ when amounts exist) and store their price ids in billing_catalog",
+      security: [{ superAuth: [] }],
+      responses: {
+        200: { description: "Created and kept price ids" },
+        503: { description: "Provider not configured" },
+      },
+    },
+  },
+  "/api/v1/super/businesses/{businessId}/billing/cancel": {
+    post: {
+      summary: "Cancel a business's subscription now (default) or at the period end; audited",
+      security: [{ superAuth: [] }],
+      responses: {
+        200: { description: "Subscription and business state" },
+        404: { description: "Business or subscription not found" },
+      },
     },
   },
   "/api/v1/health": {

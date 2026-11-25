@@ -34,6 +34,7 @@ import { demoThemeOptions, demoThemeKey } from "./demo-catalog.js";
 import { Loading, Failure, BusinessLink } from "./ui.jsx";
 import TrialBanner from "./TrialBanner.tsx";
 import { normalizeTrial, planDisplayName, trialPhase } from "./trial-model.ts";
+import { parseBillingReturn } from "./billing-model.ts";
 import { setMerchantRegion } from './region.js';
 const OwnerCustomers = lazy(() => import('./OwnerCustomers.tsx'));
 const OwnerTeam = lazy(() => import('./OwnerTeam.tsx'));
@@ -50,6 +51,8 @@ const OwnerProgress = lazy(() => import('./OwnerProgress.tsx'));
 // self-serve trial (docs/product/2026-11-25-self-serve-trial.md §7.3)
 const OwnerTrialLocked = lazy(() => import('./OwnerTrialLocked.tsx'));
 const UpgradeRequest = lazy(() => import('./UpgradeRequest.tsx'));
+// Plan y facturación: card checkout through Recurrente (wave 2, design §4.4)
+const OwnerPlan = lazy(() => import('./OwnerPlan.tsx'));
 // operations (wave 15b)
 const OwnerJobs = lazy(() => import('./OwnerJobs.tsx'));
 const OwnerAlerts = lazy(() => import('./OwnerAlerts.tsx'));
@@ -230,24 +233,41 @@ function Merchant({ staff }) {
   const [dirty, setDirty] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [focusSection,setFocusSection]=useState(null);
-  const plan = useResource("/api/admin/plan", refresh);
+  // Billing changes (payment confirmed, plan changed or canceled) re-read plan and trial under
+  // their own key and keep the last plan snapshot, so the open page stays mounted (no Loading gate).
+  const [billingRevision, setBillingRevision] = useState(0);
+  const plan = useResource("/api/admin/plan", `${refresh}:${billingRevision}`);
+  const planCache = useRef(null);
+  if (plan.data) planCache.current = plan.data;
+  const planData = plan.data || (billingRevision > 0 ? planCache.current : null);
   const region = useResource("/api/admin/region", refresh);
   if (region.data) setMerchantRegion(region.data.region);
   const enrollment = useResource("/api/admin/customer-enrollment");
   // Trial state: GET /api/admin/trial, or the additive trial/billing fields on /api/admin/plan.
   // A 404 (feature not deployed) or a legacy business yields null and nothing is shown.
-  const trialResource = useResource("/api/admin/trial", refresh);
+  const trialResource = useResource("/api/admin/trial", `${refresh}:${billingRevision}`);
   const [lockedBy, setLockedBy] = useState(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  // Recurrente returns to `#plan?checkout=<id>&resultado=…`; read it before the hash is normalised.
+  const [billingReturn] = useState(() => parseBillingReturn(location.hash));
   useEffect(() => {
     const onLock = (event) => setLockedBy(event.detail || {});
     window.addEventListener(trialLockedEvent, onLock);
     return () => window.removeEventListener(trialLockedEvent, onLock);
   }, []);
-  const trialState = normalizeTrial(trialResource.data) || normalizeTrial(plan.data);
+  const trialState = normalizeTrial(trialResource.data) || normalizeTrial(planData);
   const trialLocked = trialPhase(trialState) === "locked" || lockedBy !== null;
-  const planLabel = trialState?.plan_name || planDisplayName(plan.data?.plan);
-  const openUpgrade = () => setUpgradeOpen(true);
+  const planLabel = trialState?.plan_name || planDisplayName(planData?.plan);
+  // With card checkout available, every "Mejorar plan" leads to #plan; otherwise the request form.
+  const upgradeAvailable = !!trialState?.upgrade_available;
+  const openUpgrade = () => {
+    if (upgradeAvailable) navigate("plan");
+    else setUpgradeOpen(true);
+  };
+  const billingChanged = () => {
+    setLockedBy(null);
+    setBillingRevision((v) => v + 1);
+  };
   const { toggleColorScheme } = useMantineColorScheme();
   const colorScheme = useComputedColorScheme("light", { getInitialValueInEffect: false });
   useEffect(() => {
@@ -367,9 +387,9 @@ function Merchant({ staff }) {
             </Text>
             {compactNavigation && <Button ref={navigationToggle} variant="outline" fullWidth aria-expanded={navigationOpen} aria-controls="merchant-navigation" onClick={() => setNavigationOpen(v => !v)}>{navigationOpen ? "Cerrar menú del negocio" : "Cambiar sección del negocio"}</Button>}
             <div id="merchant-navigation" hidden={compactNavigation && !navigationOpen}>
-            <MerchantNavigation page={page} visible={!compactNavigation || navigationOpen} onNavigate={navigate} features={plan.data?.features} />
+            <MerchantNavigation page={page} visible={!compactNavigation || navigationOpen} onNavigate={navigate} features={planData?.features} />
             <div className="sidebar-secondary">
-              {plan.data?.features?.analytics && (
+              {planData?.features?.analytics && (
                 <Anchor component="button" type="button" onClick={() => navigate("analytics")}>
                   Informes detallados
                 </Anchor>
@@ -407,17 +427,17 @@ function Merchant({ staff }) {
             )}
             {isDemo && <DemoGuide page={page} mode={demoMode} onNavigate={navigate} />}
             {!trialLocked && <TrialBanner state={trialState} onUpgrade={openUpgrade} />}
-            {trialLocked && page !== "overview" && (
+            {trialLocked && page !== "overview" && page !== "plan" && (
               <Suspense fallback={null}>
                 <OwnerTrialLocked compact state={trialState} onUpgrade={openUpgrade} />
               </Suspense>
             )}
             <Modal opened={upgradeOpen} onClose={() => setUpgradeOpen(false)} title="Mejorar plan" size="lg" closeButtonProps={{ "aria-label": "Cerrar ventana" }}>
               <Suspense fallback={<Loading label="Preparando la solicitud…" />}>
-                <UpgradeRequest request={api} currentPlan={trialState?.plan || plan.data?.plan || null} onDone={() => setUpgradeOpen(false)} />
+                <UpgradeRequest request={api} currentPlan={trialState?.plan || planData?.plan || null} onDone={() => setUpgradeOpen(false)} upgradeAvailable={upgradeAvailable} onOpenPlan={() => { setUpgradeOpen(false); navigate("plan"); }} />
               </Suspense>
             </Modal>
-            {isDemo && demoMode === "inicio" ? <DemoWelcome onNavigate={navigate} /> : plan.loading || region.loading ? (
+            {isDemo && demoMode === "inicio" ? <DemoWelcome onNavigate={navigate} /> : (plan.loading && !planData) || region.loading ? (
               <Loading />
             ) : plan.error || region.error ? (
               <Failure
@@ -429,36 +449,38 @@ function Merchant({ staff }) {
                 {trialLocked && page === "overview" ? (
                   <OwnerTrialLocked state={trialState} onUpgrade={openUpgrade} onNavigate={navigate} />
                 ) : page === "overview" ? (
-                  <><ActivationSetup region={region.data} features={plan.data?.features||{}} onNavigate={navigate} onConfigure={section=>{setFocusSection(section);navigate('automations');}}/>
-                  <Overview features={plan.data?.features || {}} onNavigate={navigate}/></>
+                  <><ActivationSetup region={region.data} features={planData?.features||{}} onNavigate={navigate} onConfigure={section=>{setFocusSection(section);navigate('automations');}}/>
+                  <Overview features={planData?.features || {}} onNavigate={navigate}/></>
                 ) : page === "progress" ? (
-                  <OwnerProgress staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                  <OwnerProgress staff={staff} features={planData?.features || {}} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "customers" ? (
-                  <OwnerCustomers staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                  <OwnerCustomers staff={staff} features={planData?.features || {}} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "team" ? (
-                  <OwnerTeam staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                  <OwnerTeam staff={staff} features={planData?.features || {}} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "branches" ? (
-                  <OwnerBranches staff={staff} features={plan.data?.features || {}} limits={plan.data?.limits || {}} onDirty={setDirty} onNavigate={navigate} />
+                  <OwnerBranches staff={staff} features={planData?.features || {}} limits={planData?.limits || {}} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "settings" ? (
-                  <OwnerSettings staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                  <OwnerSettings staff={staff} features={planData?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                ) : page === "plan" ? (
+                  <OwnerPlan staff={staff} features={planData?.features || {}} onNavigate={navigate} trialState={trialState} checkoutReturn={billingReturn} onBillingChanged={billingChanged} />
                 ) : page === "branding" ? (
-                  <OwnerBranding staff={staff} features={plan.data?.features || {}} plan={plan.data?.plan} onDirty={setDirty} onNavigate={navigate} />
+                  <OwnerBranding staff={staff} features={planData?.features || {}} plan={planData?.plan} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "tiers" ? (
-                  <OwnerTiers staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                  <OwnerTiers staff={staff} features={planData?.features || {}} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "gamification" ? (
-                  <OwnerGamification staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                  <OwnerGamification staff={staff} features={planData?.features || {}} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "giftcards" ? (
-                  <OwnerGiftCards staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                  <OwnerGiftCards staff={staff} features={planData?.features || {}} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "reports" ? (
-                  <OwnerReports staff={staff} features={plan.data?.features || {}} limits={plan.data?.limits || {}} usage={plan.data?.usage} onNavigate={navigate} />
+                  <OwnerReports staff={staff} features={planData?.features || {}} limits={planData?.limits || {}} usage={planData?.usage} onNavigate={navigate} />
                 ) : page === "limits" ? (
-                  <OwnerProgramLimits staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                  <OwnerProgramLimits staff={staff} features={planData?.features || {}} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "onboarding" ? (
-                  <OwnerOnboarding staff={staff} features={plan.data?.features || {}} onNavigate={navigate} />
+                  <OwnerOnboarding staff={staff} features={planData?.features || {}} onNavigate={navigate} />
                 ) : page === "analytics" ? (
-                  <OwnerAnalytics staff={staff} features={plan.data?.features || {}} onNavigate={navigate} />
+                  <OwnerAnalytics staff={staff} features={planData?.features || {}} onNavigate={navigate} />
                 ) : page === "redemptions" ? (
-                  <OwnerRewardRedemptions staff={staff} features={plan.data?.features || {}} onNavigate={navigate} />
+                  <OwnerRewardRedemptions staff={staff} features={planData?.features || {}} onNavigate={navigate} />
                 ) : page === "decisions" ? (
                   <Decisions />
                 ) : page === "cases" ? (
@@ -480,47 +502,47 @@ function Merchant({ staff }) {
                 ) : page === "migration" ? (
                   <CustomerMigration onDirty={setDirty} />
                 ) : page === "audiences" ? (
-                  <Audiences features={plan.data?.features || {}} onDirty={setDirty} />
+                  <Audiences features={planData?.features || {}} onDirty={setDirty} />
                 ) : page === "automations" ? (
-                  <Automations features={plan.data?.features || {}} onDirty={setDirty} focusSection={focusSection} />
+                  <Automations features={planData?.features || {}} onDirty={setDirty} focusSection={focusSection} />
                 ) : page === "acquisition" ? (
-                  <Acquisition features={plan.data?.features || {}} staff={staff} onDirty={setDirty} />
+                  <Acquisition features={planData?.features || {}} staff={staff} onDirty={setDirty} />
                 ) : page === "rewards" ? (
                   <RewardsWorkspace onDirty={setDirty} />
                 ) : page === "fulfillment" ? (
                   <Fulfillment />
                 ) : page === "economics" ? (
-                  <Economics features={plan.data?.features || {}} />
+                  <Economics features={planData?.features || {}} />
                 ) : page === "operations" ? (
                   <Operations />
                 ) : page === "pilot" ? (
-                  <Pilot features={plan.data?.features || {}} onDirty={setDirty} />
+                  <Pilot features={planData?.features || {}} onDirty={setDirty} />
                 ) : page === "launch" ? (
-                  <Launch staff={staff} features={plan.data?.features || {}} onDirty={setDirty} />
+                  <Launch staff={staff} features={planData?.features || {}} onDirty={setDirty} />
                 ) : page === "growth" ? (
-                  <GrowthCampaigns features={plan.data?.features || {}} onDirty={setDirty} />
+                  <GrowthCampaigns features={planData?.features || {}} onDirty={setDirty} />
                 ) : page === "brand" ? (
-                  <BrandedQr features={plan.data?.features || {}} staff={staff} />
+                  <BrandedQr features={planData?.features || {}} staff={staff} />
                 ) : page === "referrals" ? (
-                  <Referrals features={plan.data?.features || {}} staff={staff} onDirty={setDirty} />
+                  <Referrals features={planData?.features || {}} staff={staff} onDirty={setDirty} />
                 ) : page === "pos" ? (
-                  <PosConnect features={plan.data?.features || {}} onDirty={setDirty} />
+                  <PosConnect features={planData?.features || {}} onDirty={setDirty} />
                 ) : page === "recovery" ? (
                   <Recovery
-                    features={plan.data?.features || {}}
+                    features={planData?.features || {}}
                     onDirty={setDirty}
                   />
                 ) : /* operations (wave 15b) */ page === "jobs" ? (
-                  <OwnerJobs staff={staff} features={plan.data?.features || {}} onNavigate={navigate} />
+                  <OwnerJobs staff={staff} features={planData?.features || {}} onNavigate={navigate} />
                 ) : page === "alerts" ? (
-                  <OwnerAlerts staff={staff} features={plan.data?.features || {}} onNavigate={navigate} />
+                  <OwnerAlerts staff={staff} features={planData?.features || {}} onNavigate={navigate} />
                 ) : page === "ledger" ? (
-                  <OwnerLedger staff={staff} features={plan.data?.features || {}} onDirty={setDirty} onNavigate={navigate} />
+                  <OwnerLedger staff={staff} features={planData?.features || {}} onDirty={setDirty} onNavigate={navigate} />
                 ) : page === "audit" ? (
-                  <OwnerAudit staff={staff} features={plan.data?.features || {}} onNavigate={navigate} />
+                  <OwnerAudit staff={staff} features={planData?.features || {}} onNavigate={navigate} />
                 ) : (
                   <Campaigns
-                    features={plan.data?.features || {}}
+                    features={planData?.features || {}}
                     onDirty={setDirty}
                   />
                 )}

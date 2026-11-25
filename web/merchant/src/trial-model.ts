@@ -27,6 +27,8 @@ export interface TrialState {
   plan: string | null;
   plan_name: string | null;
   upgrade_url: string | null;
+  /** True once the billing adapter offers card checkout (wave 2): "Mejorar plan" opens #plan. */
+  upgrade_available: boolean;
 }
 export interface TrialBannerCopy {
   title: string;
@@ -123,7 +125,8 @@ export function normalizeTrial(payload: unknown, now: Date = new Date()): TrialS
     },
     plan,
     plan_name: asString(root.plan_name) ?? planDisplayName(plan),
-    upgrade_url: asString(root.upgrade_url),
+    upgrade_url: asString(root.upgrade_url) ?? asString(trialNode?.upgrade_url),
+    upgrade_available: [trialNode?.upgrade_available, billingNode?.upgrade_available, root.upgrade_available].some((flag) => flag === true),
   };
 }
 

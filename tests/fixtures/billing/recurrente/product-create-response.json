@@ -1,0 +1,40 @@
+{
+  "id": "prod_negocio_usd",
+  "status": "active",
+  "tax_category": "service",
+  "name": "PuntosFieles Impulsa (USD)",
+  "description": "Plan Impulsa de PuntosFieles: USD 79 por sucursal al mes.",
+  "billing_info_requirement": "optional",
+  "phone_requirement": "optional",
+  "address_requirement": "none",
+  "has_dynamic_pricing": false,
+  "adjustable_quantity": false,
+  "payment_method_types": [
+    "card"
+  ],
+  "available_installments": [],
+  "inventory_quantity": null,
+  "prices": [
+    {
+      "id": "price_negocio_usd",
+      "status": "active",
+      "amount_in_cents": 7900,
+      "currency": "USD",
+      "charge_type": "recurring",
+      "billing_interval": "month",
+      "billing_interval_count": 1,
+      "periods_before_automatic_cancellation": null,
+      "free_trial_interval": null,
+      "free_trial_interval_count": null,
+      "proration_behavior": "none",
+      "billing_cycle_anchor_day": null,
+      "defer_to_billing_day": false
+    }
+  ],
+  "storefront_link": "https://app.recurrente.com/s/puntosfieles/impulsa-usd",
+  "metadata": {
+    "plan": "NEGOCIO",
+    "currency": "USD",
+    "source": "puntosfieles"
+  }
+}

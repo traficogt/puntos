@@ -25,6 +25,7 @@ import { closeJobQueueRedis } from "./services/job-service.js";
 import { API, runStartupMaintenance, startScheduler, stopScheduler } from "./scheduler.js";
 import { mountPgClient } from "../middleware/pg-client.js";
 import { metricsMiddleware } from "../middleware/metrics.js";
+import { mountRawBody } from "../middleware/raw-body.js";
 import { closeRateLimitRedis, globalApiRateLimit } from "../middleware/rate-limit.js";
 import { isAllowedApiOrigin } from "../utils/cors-origin.js";
 import { resolveHostSplitRedirect, runtimeConfigForHost } from "../utils/app-host-routing.js";
@@ -141,6 +142,9 @@ app.use(
   "/api",
   globalApiRateLimit((req) => isProbePath(req.path)),
 );
+// Provider webhooks keep their exact bytes for signature verification (raw-body.js);
+// express.json skips bodies already read.
+mountRawBody(app);
 app.use(
   express.json({
     limit: "1mb",

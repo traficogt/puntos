@@ -15,6 +15,7 @@ import {
   WalletLocationService,
   WalletLocationSchema,
 } from "../../services/native-wallet/locations.js";
+import { subscriptionService } from "../../services/billing/subscription-service.js";
 
 /** @typedef {import("../_request-types.js").Response} Response */
 /** @typedef {import("../_request-types.js").TenantRequest} TenantRequest */
@@ -69,7 +70,15 @@ adminBranchRoutes.post(
         code: v.data.code ?? `${business.slug}-${crypto.randomBytes(3).toString("hex")}`,
       });
 
-      return res.json({ ok: true, branch });
+      // A paid plan bills per branch (design section 6): re-take the count and move the
+      // subscription quantity now (`now_and_charge`). Failure tolerant: the branch exists
+      // whatever the provider answers; the service logs and records sync_failed.
+      const billing = await subscriptionService().syncBranchQuantity({
+        businessId: req.tenantId,
+        reason: "branch_added",
+      });
+
+      return res.json({ ok: true, branch, billing });
     },
   ),
 );

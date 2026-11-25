@@ -11,6 +11,7 @@ sources:
 - web/merchant/src/TrialBanner.tsx
 - web/merchant/src/OwnerTrialLocked.tsx
 - web/merchant/src/UpgradeRequest.tsx
+- web/merchant/src/OwnerPlan.tsx
 ---
 
 # Empezar la prueba gratis de 14 días y elegir plan
@@ -30,11 +31,11 @@ Ten a mano un correo que todavía no tenga cuenta en PuntosFieles, una contrase�
 3. Escribe el **Código de 6 dígitos** que llega por SMS y pulsa **Verificar y crear mi negocio**. Si no llega, espera el contador y usa **Reenviar código**; **Cambiar teléfono** vuelve al paso anterior.
 4. La página muestra **¡Tu negocio está listo!** con el enlace de registro para tus clientes y abre tu panel con sesión de propietario. Allí eliges cómo premiar en **Preparar mi programa** y sigues la lista de **Tu progreso**.
 5. Durante la prueba, el aviso **Prueba gratis** del panel indica los días que quedan y se vuelve amarillo en los últimos cuatro días. **Ver planes y precios** abre la comparación.
-6. Para contratar, pulsa **Mejorar plan**, elige Conecta, Impulsa o Expande, escribe un **Teléfono o WhatsApp** y pulsa **Enviar solicitud**. Te contactamos para activar el plan y confirmar el cobro; el pago con tarjeta desde el panel llegará más adelante.
+6. Para contratar, pulsa **Mejorar plan**. Si el pago con tarjeta está activo en tu servidor, se abre **Plan y facturación**: elige Conecta, Impulsa o Expande y pulsa **Pagar con tarjeta** para pagar en la página segura de Recurrente; sigue [Pagar con tarjeta, cambiar o cancelar tu plan](/ayuda/negocio/pagar-y-cambiar-plan/). Si todavía no está activo, aparece la solicitud: elige el plan, escribe un **Teléfono o WhatsApp** y pulsa **Enviar solicitud**; te contactamos para activar el plan y confirmar el cobro.
 
 ## Qué debe pasar
 
-Al terminar el registro quedas con sesión de propietario y el negocio existe con el plan Conecta en prueba; el panel es el mismo que usarás después. Al día 14 sin plan elegido, el panel pasa a **modo de lectura**: puedes ver clientes, reportes y movimientos y exportar tus datos, pero no registrar puntos ni canjes ni cambiar el programa; tampoco se envían mensajes automáticos ni campañas. Tus clientes siguen viendo su tarjeta con saldo e historial, aunque no suman puntos nuevos ni reciben recompensas. La pantalla **Tu prueba terminó** indica hasta qué fecha se conservan los datos (30 días después del bloqueo); después se eliminan de forma definitiva. Al activar un plan, el panel vuelve a operar con la misma información.
+Al terminar el registro quedas con sesión de propietario y el negocio existe con el plan Conecta en prueba; el panel es el mismo que usarás después. Al día 14 sin plan elegido, el panel pasa a **modo de lectura**: puedes ver clientes, reportes y movimientos y exportar tus datos, pero no registrar puntos ni canjes ni cambiar el programa; tampoco se envían mensajes automáticos ni campañas. Tus clientes siguen viendo su tarjeta con saldo e historial, aunque no suman puntos nuevos ni reciben recompensas. La pantalla **Tu prueba terminó** indica hasta qué fecha se conservan los datos (30 días después del bloqueo); después se eliminan de forma definitiva. Al activar un plan (con tarjeta desde **Plan y facturación** o por acuerdo directo), el panel vuelve a operar con la misma información.
 
 ## Si algo no funciona
 

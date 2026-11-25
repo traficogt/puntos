@@ -49,6 +49,12 @@ const runners = [
     "trial-browser.spec.mjs",
     /Trial browser:.*lock screen, compact notice and axe at 1280\/390 passed\./,
   ],
+  // self-serve trial wave 2: Plan y facturación (card checkout through Recurrente, design §4.4)
+  [
+    "plan and billing",
+    "plan-browser.spec.mjs",
+    /Plan browser:.*change and cancel dialogs.*banner CTA and axe at 1280\/390 passed\./,
+  ],
 ];
 
 for (const [name, file, completion] of runners) {

@@ -25,6 +25,12 @@ test('the nested GET /api/admin/trial shape, the plan-response shape and a busin
   assert.equal(nested.trial.days_left, 9);
   assert.equal(nested.billing.status, 'trialing');
   assert.equal(nested.plan_name, 'Conecta');
+  assert.equal(nested.upgrade_available, false, 'wave 1 servers offer no card checkout');
+  const withCheckout = normalizeTrial({ trial: { status: 'active', ends_at: day(9), upgrade_available: true, upgrade_url: '/negocio/#plan' }, billing: { status: 'trialing' } }, now);
+  assert.equal(withCheckout.upgrade_available, true);
+  assert.equal(withCheckout.upgrade_url, '/negocio/#plan', 'the url may live under trial');
+  assert.equal(normalizeTrial({ trial: { status: 'active' }, billing: { status: 'trialing', upgrade_available: true } }, now).upgrade_available, true);
+  assert.equal(normalizeTrial({ trial: { status: 'active', upgrade_available: 'yes' } }, now).upgrade_available, false, 'only a boolean true counts');
   const row = normalizeTrial({ trial_status: 'expired', trial_ends_at: day(-3), billing_status: 'locked', purge_after: day(27), plan: 'EMPRENDEDOR' }, now);
   assert.equal(row.billing.status, 'locked');
   assert.equal(row.billing.purge_after, day(27));

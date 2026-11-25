@@ -3,7 +3,14 @@ import { createSessionEpoch, revokeServerSession } from "../session-epoch.js";
 
 /** @typedef {import("./types.js").SuperPageContext} SuperPageContext */
 
-const PRIVATE_CARDS = ["#planes", "#seguridad", "#pruebas", "#negocios", "#salud"];
+const PRIVATE_CARDS = [
+  "#planes",
+  "#seguridad",
+  "#pruebas",
+  "#suscripciones",
+  "#negocios",
+  "#salud",
+];
 
 /**
  * Super-admin session: login, logout with the cross-tab pending-logout

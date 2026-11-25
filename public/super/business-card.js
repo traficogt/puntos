@@ -36,6 +36,8 @@ export function renderBusinessCard(ctx, business, { plans, reloadBusinesses }) {
   const { api, toast, run } = ctx;
   const card = document.createElement("div");
   card.className = "card compact-card mb-8";
+  // Anchor for the subscription list ("Suscripciones y cobro") and other sections to link here.
+  card.id = `negocio-${business.id}`;
 
   const title = document.createElement("div");
   const strong = document.createElement("strong");

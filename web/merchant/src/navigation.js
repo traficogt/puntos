@@ -5,6 +5,8 @@ const fragments = {
   team: "personal",
   branches: "sucursales",
   settings: "configuracion",
+  // Plan y facturación (self-serve trial wave 2); Recurrente returns to #plan?checkout=…
+  plan: "plan",
   decisions: "decisiones",
   cases: "casos",
   demand: "pedidos-de-clientes",
@@ -48,7 +50,8 @@ const fragments = {
 };
 export const merchantPages = Object.keys(fragments);
 export function pageFromHash(hash) {
-  const value = hash.replace(/^#/, "");
+  // A hash may carry a query (`#plan?checkout=…`, the payment return); the page is the part before it.
+  const value = hash.replace(/^#/, "").split("?")[0];
   return (
     Object.keys(fragments).find(
       (key) => fragments[key] === value || key === value,

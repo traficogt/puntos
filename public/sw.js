@@ -1,5 +1,5 @@
 // BEGIN GENERATED (npm run sw:build)
-const CACHE = "pf-cfe0fe0db622";
+const CACHE = "pf-4b610388dd52";
 const CORE_ASSETS = [
   "/",
   "/admin",
@@ -121,6 +121,8 @@ const CORE_ASSETS = [
   "/styles/wallet-enrollment.css?v=fb2d4cea",
   "/super.js?v=63fb525d",
   "/super/account-security.js",
+  "/super/billing-model.js",
+  "/super/billing.js",
   "/super/business-card.js",
   "/super/businesses.js",
   "/super/index.js",
