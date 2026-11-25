@@ -43,6 +43,12 @@ const runners = [
     "owner-analytics-browser.spec.mjs",
     /Analytics browser:.*redemption ledger detail, axe at 1280\/390 passed\./,
   ],
+  // self-serve trial (docs/product/2026-11-25-self-serve-trial.md §7.3)
+  [
+    "trial banner and lock",
+    "trial-browser.spec.mjs",
+    /Trial browser:.*lock screen, compact notice and axe at 1280\/390 passed\./,
+  ],
 ];
 
 for (const [name, file, completion] of runners) {

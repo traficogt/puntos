@@ -24,6 +24,36 @@ fix), including the quality waves of 2026-11-23 (`919d3dc`, `0b2a428`, `cfc1932`
   it widens the three batch-count CHECKs on `customer_migration_batches` to 200 rows. Import
   batches of 101–200 rows fail with a database error until it runs.
 
+### Published prices and a 14-day free trial on the website (2026-11-25)
+- `/precios` publishes the three plans with their prices: Conecta USD 39, Impulsa USD 79 and
+  Expande USD 129 per branch per month, with each plan's caps and included features. The page
+  reads `GET /api/public/plans` and re-renders from the server catalog when it answers with
+  published pricing; otherwise the same numbers stay as static copy. "Los precios están en
+  revisión" is gone. Prices are shown in USD before taxes; the GTQ amount and the IVA treatment
+  are confirmed in writing when a plan is chosen, and nothing is charged from the page.
+- New public signup at `/prueba/` ("Prueba gratis 14 días", also the landing hero's primary
+  call to action next to "Ver la demo"): business data, phone verification by SMS code with a
+  Turnstile challenge, then business creation and the usual hand-off to `/negocio/`. It calls
+  `GET /api/public/trial/config`, `POST /api/public/trial/request-code`, `POST
+  /api/public/trial/verify` and `POST /api/public/trial/signup`, and explains in Spanish when
+  the server does not serve them yet. `/crear-negocio/` stays the internal page. The server
+  must map `/prueba/` to `prueba.html` in `src/middleware/spanish-web.js` and `browserRoutes`.
+- Owner app: a "Prueba gratis · te quedan N días" banner fed by `GET /api/admin/trial` (or the
+  additive `trial`/`billing` fields of `/api/admin/plan`), yellow in the last four days, with
+  "Mejorar plan". When the trial is locked (`billing.status = locked`, or a mutation answers
+  `402 TRIAL_LOCKED`/`TRIAL_EXPIRED`), the home shows "Tu prueba terminó" (what still works,
+  what customers see, the deletion date) and other pages keep reading behind a compact notice.
+  No payment provider is wired in this wave: "Mejorar plan" sends an upgrade request through
+  the owner-authenticated `POST /api/admin/concierge-request` and says card payment is coming.
+  Without the trial endpoint (404) nothing is shown. Demo: `/demostracion/?prueba=activa`,
+  `?prueba=ultimos-dias`, `?prueba=bloqueada`.
+- Super console: a "Pruebas" section lists trials (status, days left, verified phone, source,
+  dates) with filters and the actions `…/trial/extend { days }`, `…/trial/lock` and
+  `…/billing/manual-activate { plan, note }`, each behind a confirmation; a notice replaces the
+  list while the server does not expose the trial columns.
+- Help center: owner guide "Empezar la prueba gratis de 14 días y elegir plan"; the landing FAQ
+  answers "¿Puedo probarlo gratis antes de contratar?".
+
 ### Owner dashboard: the vanilla `/administracion/` is retired (2026-11-25)
 - The owner dashboard is the merchant app at `/negocio/`. `/administracion/`, `/administracion`,
   `/admin-dashboard` and `/admin-dashboard.html` now redirect permanently (308) there; saved

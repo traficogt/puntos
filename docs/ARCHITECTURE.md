@@ -40,8 +40,12 @@ defaults now assume the owner's central DB VM.
 
 1. **Vanilla-JS PWA** in `public/`: customer wallet (`/mi-tarjeta/` → `customer.html`),
    staff scanner (`/equipo/escaner/` → `staff.html`), staff login (`/equipo/ingresar/`),
-   business signup (`/crear-negocio/` → `admin.html`), super console (`/plataforma/` →
-   `super.html`), join/sign-in pages, marketing pages, calculator and status page. Spanish
+   internal business signup (`/crear-negocio/` → `admin.html`), self-serve 14-day trial
+   signup (`/prueba/` → `prueba.html` + `trial-signup.js`, calling `/api/public/trial/*`),
+   super console (`/plataforma/` → `super.html`, including the "Pruebas" section over
+   `/api/super/businesses` trial columns), join/sign-in pages, marketing pages (`/precios`
+   is rendered by `src/middleware/public-plans.js` from `precios.html` and re-rendered
+   client-side from `GET /api/public/plans` by `precios.js`), calculator and status page. Spanish
    document routes live in `src/middleware/spanish-web.js`; English legacy paths (`/staff`,
    `/c`, `/super`, ...) are still served by `server.js`. The former vanilla owner dashboard
    (`/administracion/`, `/admin-dashboard`) was retired on 2026-11-25: both paths now 308 to
@@ -50,7 +54,10 @@ defaults now assume the owner's central DB VM.
    `/negocio/#analitica`, `?configurar=punto-de-venta` → `/negocio/#conectar-caja`).
 2. **React 19 + Mantine 9 merchant app** in `web/merchant/` (Vite, `base: "/negocio/"`,
    build output committed to `public/merchant`): the only owner dashboard. Owners land here
-   after login; managers and cashiers land on the staff scanner. `src/middleware/merchant-web.js`
+   after login; managers and cashiers land on the staff scanner. The shell reads
+   `GET /api/admin/trial` (`trial-model.ts`) for the trial banner, the soft-lock screen and
+   the upgrade request (`TrialBanner.tsx`, `OwnerTrialLocked.tsx`, `UpgradeRequest.tsx`); a
+   404 means the trial feature is not deployed and nothing is shown. `src/middleware/merchant-web.js`
    injects a per-response nonce for Mantine's style tags. The service worker never caches
    `/merchant/`, `/negocio/` or `/demostracion/` documents.
 3. **Expo native app** in `apps/customer/` (Expo ~57, version 0.1.0). Frozen per

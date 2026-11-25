@@ -6,6 +6,7 @@ import { createPlans } from "./plans.js";
 import { createOwnerProgressSettings } from "./owner-progress-settings.js";
 import { createMagicLinks } from "./magic-links.js";
 import { createBusinesses } from "./businesses.js";
+import { createTrials } from "./trials.js";
 import { createSecurityPosture } from "./security-posture.js";
 import { bindAccountSecurity } from "./account-security.js";
 
@@ -27,7 +28,8 @@ export async function initSuperPage({ api, $, toast }) {
   const plans = createPlans(ctx, { reloadBusinesses: () => businesses.loadBusinesses() });
   const ownerProgress = createOwnerProgressSettings(ctx);
   const magicLinks = createMagicLinks(ctx);
-  const businesses = createBusinesses(ctx, { plans, magicLinks });
+  const trials = createTrials(ctx, { plans, reloadBusinesses: () => businesses.loadBusinesses() });
+  const businesses = createBusinesses(ctx, { plans, magicLinks, onLoaded: () => trials.render() });
   const posture = createSecurityPosture(ctx, {
     reloadBusinesses: () => businesses.loadBusinesses(),
   });
@@ -43,6 +45,8 @@ export async function initSuperPage({ api, $, toast }) {
       await posture.loadSecurityPosture();
       if (!current()) return;
       await businesses.loadBusinesses();
+      if (!current()) return;
+      await trials.loadSummary();
       if (!current()) return;
       await platformHealth.load();
     },

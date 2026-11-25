@@ -69,6 +69,20 @@ import { badRequest, HttpError, tooManyRequests, unauthorized } from "../../util
  * }} MobileAccessRepoLike
  */
 /**
+ * The code-storage slice of {@link MobileAccessRepoLike} the shared phone proof needs.
+ * @typedef {Pick<MobileAccessRepoLike,
+ *   "lockPhone" | "requestCounts" | "createCode" | "invalidateCode" | "latestCode" | "failCode" | "consumeCode">} PhoneProofRepoLike
+ */
+/**
+ * Collaborators of {@link createPhoneProof}.
+ * @typedef {{
+ *   repo: PhoneProofRepoLike,
+ *   runWithDbContext: typeof runWithDbContext,
+ *   withTransaction: <T>(fn: (client: TxClient) => Promise<T>) => Promise<T>,
+ *   sendMessage: (message: Parameters<typeof sendMessage>[0]) => Promise<{ ok?: boolean }>,
+ * }} PhoneProofDeps
+ */
+/**
  * Collaborators; unit tests inject fakes, so only the members used here are typed.
  * @typedef {{
  *   repo: MobileAccessRepoLike,
@@ -85,14 +99,19 @@ import { badRequest, HttpError, tooManyRequests, unauthorized } from "../../util
 const customerFields = ["id", "name", "phone", "points", "pending_points", "lifetime_points"];
 const invalidCredential = () =>
   unauthorized("Código o acceso inválido o vencido. Solicita un código nuevo.");
-/** @param {unknown} value */
-function verifiedPhone(value) {
+/**
+ * Digits-only phone the platform phone proof accepts (8-15 digits, GT local numbers
+ * gain the 502 dial code). Throws a 400 for anything else.
+ * @param {unknown} value
+ */
+export function normalizeProofPhone(value) {
   if (typeof value !== "string" || value.length > 30 || !/^[+\d\s()-]+$/.test(value))
     throw badRequest("Teléfono inválido");
   const phone = normalizePhone(value);
   if (!/^\d{8,15}$/.test(phone)) throw badRequest("Teléfono inválido");
   return phone;
 }
+const verifiedPhone = normalizeProofPhone;
 const defaults = {
   repo: MobileAccessRepo,
   runWithDbContext,
@@ -101,10 +120,14 @@ const defaults = {
   sendMessage,
 };
 
-/** @param {Partial<MobileAccessDeps>} [overrides] */
-export function createMobileAccessService(overrides = {}) {
-  /** @type {MobileAccessDeps} */
-  const deps = { ...defaults, ...overrides };
+/**
+ * Platform-wide phone proof shared by the customer card lookup and the self-serve trial
+ * signup: one-time codes in `mobile_access_codes` (bcrypt, 10-minute expiry, 1 request
+ * per minute and 5 per hour per phone, 5 attempts) delivered with the fixed SMS body the
+ * security message log accepts. Callers decide what a verified phone unlocks.
+ * @param {PhoneProofDeps} deps
+ */
+export function createPhoneProof(deps) {
   // Discard all request context, including caller-supplied tenant identity. A new
   // transaction owns these settings and clears them when its client is released.
   /**
@@ -116,36 +139,14 @@ export function createMobileAccessService(overrides = {}) {
     deps.runWithDbContext({ tenantId: null, platformAdmin: true, webhookIngest: false }, () =>
       deps.withTransaction(fn),
     );
-
-  /**
-   * @param {MobileAccessMembership} membership
-   * @param {TxClient} client
-   * @returns {Promise<MobileAccessSignedIn>}
-   */
-  async function signIn(membership, client) {
-    const { customer, business } = membership;
-    const { token, session } = await deps.createBrowserSession(
-      {
-        actorType: "CUSTOMER",
-        actorId: customer.id,
-        businessId: business.id,
-        meta: { business_slug: business.slug },
-      },
-      client.query.bind(client),
-    );
-    return {
-      status: "signed_in",
-      token,
-      expiresAt: new Date(session.absolute_expires_at).toISOString(),
-      customer: Object.fromEntries(customerFields.map((key) => [key, customer[key]])),
-      business,
-    };
-  }
-
   return {
-    /** @param {{ phone: unknown }} input */
-    async requestCode({ phone: input }) {
-      const phone = verifiedPhone(input);
+    transaction,
+    /**
+     * Issues and sends a code. Resolves to the plaintext code so a development caller
+     * can surface it (the dev provider delivers nothing); production callers drop it.
+     * @param {string} phone already normalized by normalizeProofPhone
+     */
+    async requestCode(phone) {
       const code = random6();
       const codeHash = await bcrypt.hash(code, 10);
       const id = crypto.randomUUID();
@@ -181,6 +182,65 @@ export function createMobileAccessService(overrides = {}) {
         await transaction(() => deps.repo.invalidateCode(id));
         throw new HttpError(503, "No se pudo enviar el código. Intenta de nuevo en unos minutos.");
       }
+      return { ok: true, code };
+    },
+    /**
+     * Checks and consumes the phone's active code. Must run inside `transaction` so the
+     * failed-attempt increment commits even when the caller then rejects the request.
+     * @param {string} phone already normalized
+     * @param {unknown} code
+     */
+    async verifyCode(phone, code) {
+      if (typeof code !== "string" || !/^\d{6}$/.test(code)) return false;
+      await deps.repo.lockPhone(phone);
+      const record = await deps.repo.latestCode(phone);
+      if (!record) return false;
+      if (!(await bcrypt.compare(code, record.code_hash))) {
+        await deps.repo.failCode(record.id);
+        return false;
+      }
+      return deps.repo.consumeCode(record.id);
+    },
+  };
+}
+
+/** @param {Partial<MobileAccessDeps>} [overrides] */
+export function createMobileAccessService(overrides = {}) {
+  /** @type {MobileAccessDeps} */
+  const deps = { ...defaults, ...overrides };
+  const proof = createPhoneProof(deps);
+  const { transaction } = proof;
+
+  /**
+   * @param {MobileAccessMembership} membership
+   * @param {TxClient} client
+   * @returns {Promise<MobileAccessSignedIn>}
+   */
+  async function signIn(membership, client) {
+    const { customer, business } = membership;
+    const { token, session } = await deps.createBrowserSession(
+      {
+        actorType: "CUSTOMER",
+        actorId: customer.id,
+        businessId: business.id,
+        meta: { business_slug: business.slug },
+      },
+      client.query.bind(client),
+    );
+    return {
+      status: "signed_in",
+      token,
+      expiresAt: new Date(session.absolute_expires_at).toISOString(),
+      customer: Object.fromEntries(customerFields.map((key) => [key, customer[key]])),
+      business,
+    };
+  }
+
+  return {
+    /** @param {{ phone: unknown }} input */
+    async requestCode({ phone: input }) {
+      await proof.requestCode(verifiedPhone(input));
+      // The plaintext code never leaves the card flow, not even in development.
       return { ok: true };
     },
 
@@ -193,15 +253,8 @@ export function createMobileAccessService(overrides = {}) {
       if (typeof code !== "string" || !/^\d{6}$/.test(code)) throw invalidCredential();
       /** @type {MobileAccessResult} */
       const result = await transaction(async (client) => {
-        await deps.repo.lockPhone(phone);
-        const record = await deps.repo.latestCode(phone);
-        if (!record) return { error: invalidCredential() };
-        if (!(await bcrypt.compare(code, record.code_hash))) {
-          await deps.repo.failCode(record.id);
-          // Return instead of throwing so the failed-attempt increment commits.
-          return { error: invalidCredential() };
-        }
-        if (!(await deps.repo.consumeCode(record.id))) return { error: invalidCredential() };
+        // Return instead of throwing so a failed-attempt increment commits.
+        if (!(await proof.verifyCode(phone, code))) return { error: invalidCredential() };
         const cards = await deps.repo.listCards(phone);
         if (!cards.length) return { status: "no_cards" };
         if (cards.length === 1) {

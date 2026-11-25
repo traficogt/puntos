@@ -75,7 +75,8 @@ import {
 /**
  * Row of the `/super/businesses` listing (aggregates cast to int in SQL).
  * @typedef {Pick<import("../repositories/business-repository.js").BusinessRow,
- *   "id" | "name" | "slug" | "email" | "plan" | "created_at"> & { customers: number, staff: number }} SuperBusinessRow
+ *   "id" | "name" | "slug" | "email" | "plan" | "created_at" | "signup_source" | "trial_status"
+ *   | "billing_status" | "trial_started_at" | "trial_ends_at" | "locked_at" | "purge_after"> & { customers: number, staff: number }} SuperBusinessRow
  */
 
 /**
@@ -405,6 +406,13 @@ superRoutes.get(
        b.email,
        b.plan,
        b.created_at,
+       b.signup_source,
+       b.trial_status,
+       b.billing_status,
+       b.trial_started_at,
+       b.trial_ends_at,
+       b.locked_at,
+       b.purge_after,
        COUNT(DISTINCT c.id)::int AS customers,
        COUNT(DISTINCT s.id)::int AS staff
      FROM businesses b

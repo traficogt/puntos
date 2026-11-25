@@ -2,8 +2,11 @@ import {staffLoginHref} from "../../../public/staff-return-path.js";
 import {trackDemoEvent} from './demo-analytics.js';
 import { api as baseApi } from "/lib.js";
 import { useEffect, useState } from "react";
+import { isTrialLockError } from "./trial-model.ts";
 export const isDemo = location.pathname.replace(/\/$/, "") === "/demostracion" || new URLSearchParams(location.search).get("demo") === "1";
 export const sessionEvent = "pf:merchant-session-invalid";
+/** Fired with the 402 TRIAL_LOCKED / TRIAL_EXPIRED error as `detail`; the shell shows the lock screen. */
+export const trialLockedEvent = "pf:merchant-trial-locked";
 export function stored(key) {
   if (isDemo) return "";
   try {
@@ -18,6 +21,15 @@ export function blockSession() {
   window.dispatchEvent(new Event(sessionEvent));
 }
 export async function api(path, options = {}) {
+  try {
+    return await transport(path, options);
+  } catch (error) {
+    if (isTrialLockError(error))
+      window.dispatchEvent(new CustomEvent(trialLockedEvent, { detail: error }));
+    throw error;
+  }
+}
+async function transport(path, options = {}) {
   if (isDemo) { const result=await (await import("./demo-api.js")).demoApi(path, options); if(options.method&&options.method!=="GET")trackDemoEvent("demo_action_completed"); return result; }
   const epoch = stored("pf_staff_epoch");
   if (blocked || stored("pf_staff_logout_pending") === "1")

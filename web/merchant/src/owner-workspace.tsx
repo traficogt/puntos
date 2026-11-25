@@ -49,6 +49,7 @@ export function useOwnerDirty(dirty: boolean, onDirty: (dirty:boolean)=>void = n
 export function mayDiscard(dirty: boolean) {return !dirty || window.confirm('Tienes cambios sin guardar. ¿Quieres descartarlos?');}
 export function OwnerLoading({label='Cargando información…'}:{label?:string}) {return <Stack role="status" aria-label={label} gap="sm"><Text>{label}</Text><Skeleton height={42}/><Skeleton height={42}/><Skeleton height={42}/></Stack>;}
 function errorMessage(error:OwnerFailure) {
+  if(error.status===402||error.code==='TRIAL_LOCKED'||error.code==='TRIAL_EXPIRED')return 'Tu prueba terminó. Elige un plan para seguir operando.';
   if(error.code==='REAUTH_VERIFICATION_FAILED')return 'No pudimos verificar tu identidad. Revisa la contraseña y el código de verificación.';
   if(error.message.startsWith('Email already used'))return 'Ese correo ya tiene una cuenta. Usa otro correo para crear el acceso.';
   if(error.message.startsWith('Password'))return 'Elige una contraseña de 8 a 128 caracteres que no sea común ni incluya el nombre, correo o teléfono de la cuenta.';

@@ -18,13 +18,112 @@ export interface AdminSignupResponse {
   };
 }
 
+/** Trial status as the owner app reasons about it (src/app/services/trial-state.js). */
+export type TrialStatus = "active" | "expiring" | "locked" | "converted" | "none";
+
+/** `billing` block shared by /api/admin/plan and /api/admin/trial. */
+export interface OwnerBillingState {
+  /** none | trialing | locked | active | past_due | canceled */
+  status: string;
+  currency: string | null;
+  /** recurrente | stripe | manual | null */
+  provider: string | null;
+  subscription: {
+    plan: string;
+    quantity: number;
+    currency: string;
+    unit_amount_minor: number;
+    status: string;
+    current_period_end: string | null;
+    cancel_at: string | null;
+  } | null;
+  purge_after: string | null;
+}
+
 export interface AdminPlanResponse {
   ok: true;
   plan: string;
+  /** Display name (Conecta / Impulsa / Expande); additive, absent on older servers. */
+  plan_name?: string;
   limits: Record<string, unknown>;
   features: Record<string, boolean>;
   /** Soft-cap usage; active_customers is null if the count could not be computed. */
   usage?: { active_customers: number | null };
+  /** Additive trial summary for the Mantine banner; absent on older servers. */
+  trial?: {
+    status: TrialStatus;
+    started_at: string | null;
+    ends_at: string | null;
+    days_left: number | null;
+    upgrade_url: string;
+  };
+  billing?: OwnerBillingState;
+}
+
+export interface AdminTrialResponse {
+  ok: true;
+  trial: {
+    status: TrialStatus;
+    days_left: number | null;
+    started_at: string | null;
+    ends_at: string | null;
+    /** Long Spanish date of the trial end in the business timezone. */
+    ends_on: string | null;
+    locked_at: string | null;
+    purge_after: string | null;
+    purge_on: string | null;
+    plan: string;
+    plan_name: string;
+    upgrade_url: string;
+    /** False until the billing adapter (wave 2) offers online checkout. */
+    upgrade_available: boolean;
+    copy: {
+      banner: string;
+      banner_cta: string;
+      locked_title: string;
+      locked_body: string;
+      locked_still_works: readonly string[];
+      retention: string;
+      upgrade_pending: string;
+    };
+  };
+  billing: OwnerBillingState;
+}
+
+/** Body of POST /api/public/trial/signup. */
+export interface PublicTrialSignupPayload {
+  grant: string;
+  businessName: string;
+  email: string;
+  password: string;
+  category?: string;
+  turnstileToken: string;
+  /** Plan the visitor intended to buy (remembered for the upgrade step). */
+  plan?: "EMPRENDEDOR" | "NEGOCIO" | "EMPRESA";
+}
+
+export interface PublicTrialSignupResponse {
+  ok: true;
+  business: { id: string; slug: string; name: string; plan: string; plan_name: string };
+  trial: {
+    status: TrialStatus;
+    days_left: number | null;
+    started_at: string | null;
+    ends_at: string | null;
+  };
+  intended_plan: string | null;
+  join_url: string;
+  next_url: string;
+}
+
+/** The 402 body every staff mutation receives while a trial is locked. */
+export interface TrialLockedError {
+  error: string;
+  code: "TRIAL_LOCKED";
+  trial_status: "locked";
+  trial_ends_at: string | null;
+  purge_after: string | null;
+  upgrade_url: string;
 }
 
 export interface AdminProgramResponse {

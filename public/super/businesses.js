@@ -10,9 +10,9 @@ import { renderBusinessCard } from "./business-card.js";
 /**
  * Business directory plus the two creation forms (business, business user).
  * @param {SuperPageContext} ctx
- * @param {{ plans: ReturnType<typeof import("./plans.js").createPlans>, magicLinks: ReturnType<typeof import("./magic-links.js").createMagicLinks> }} deps
+ * @param {{ plans: ReturnType<typeof import("./plans.js").createPlans>, magicLinks: ReturnType<typeof import("./magic-links.js").createMagicLinks>, onLoaded?: () => void }} deps
  */
-export function createBusinesses(ctx, { plans, magicLinks }) {
+export function createBusinesses(ctx, { plans, magicLinks, onLoaded }) {
   const { api, $, toast, state, run, element, input, select } = ctx;
 
   async function loadBusinesses() {
@@ -25,6 +25,7 @@ export function createBusinesses(ctx, { plans, magicLinks }) {
         state.businessList = rows;
         const box = element("#businesses");
         box.replaceChildren();
+        onLoaded?.();
         if (!rows.length) {
           box.textContent = "No hay negocios.";
           magicLinks.renderMagicBusinessOptions();

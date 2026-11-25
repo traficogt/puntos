@@ -36,6 +36,7 @@ export function createSpanishWeb(publicDir) {
   });
   const documents = {
     "/crear-negocio/": "admin.html",
+    "/prueba/": "prueba.html",
     "/equipo/ingresar/": "staff-login.html",
     "/equipo/escaner/": "staff.html",
     "/mi-tarjeta/": "customer.html",

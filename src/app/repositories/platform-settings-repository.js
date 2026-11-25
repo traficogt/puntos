@@ -99,6 +99,40 @@ export const PlatformSettingsRepo = {
     );
   },
 
+  // Published prices and provider price ids (docs/product/2026-11-25-self-serve-trial.md,
+  // section 3.4). Platform-owned; read in a self-contained platform-admin transaction so
+  // the public /precios page and owner requests never elevate their own context.
+  async getBillingCatalog() {
+    return withTransaction(
+      /** @param {DbClient} client */
+      async (client) => {
+        await client.query("SELECT set_config('app.platform_admin', 'true', true)");
+        const { rows } = await client.query(
+          "SELECT value FROM platform_settings WHERE key = 'billing_catalog'",
+        );
+        return rows[0]?.value ?? {};
+      },
+    );
+  },
+
+  /** @param {Record<string, unknown>} value */
+  async setBillingCatalog(value) {
+    return withTransaction(
+      /** @param {DbClient} client */
+      async (client) => {
+        await client.query("SELECT set_config('app.platform_admin', 'true', true)");
+        const { rows } = await client.query(
+          `INSERT INTO platform_settings (key, value, updated_at)
+         VALUES ('billing_catalog', $1, now())
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()
+         RETURNING value`,
+          [value],
+        );
+        return rows[0]?.value ?? value;
+      },
+    );
+  },
+
   /**
    * @param {string} businessId
    * @param {Record<string, unknown>} patch merged over the business's current settings

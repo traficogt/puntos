@@ -38,6 +38,7 @@ const facts = (overrides = {}) => ({
   pilot: false,
   award_weeks: [],
   todo_weeks: [],
+  trial: { status: "none", billing_status: "none", started_at: null, ends_at: null },
   ...overrides,
 });
 const full = (f, extra = {}) =>

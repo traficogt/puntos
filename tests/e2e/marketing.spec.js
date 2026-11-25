@@ -56,6 +56,79 @@ test("demo request validates missing fields and submits existing payload", async
   });
 });
 
+test("hero offers the free trial first and the demo second; the FAQ explains the trial", async ({
+  page,
+}) => {
+  await page.goto("/?sw=off", { waitUntil: "domcontentloaded" });
+  const hero = page.locator(".marketing-hero");
+  await expect(hero.getByRole("link", { name: "Prueba gratis 14 días" })).toHaveAttribute(
+    "href",
+    "/prueba/",
+  );
+  await expect(hero.getByRole("link", { name: "Ver la demo" })).toHaveAttribute(
+    "href",
+    "/demostracion/",
+  );
+  await expect(hero).toContainText("Sin tarjeta para empezar");
+  await page.getByText("¿Puedo probarlo gratis antes de contratar?", { exact: true }).click();
+  await expect(page.locator("#preguntas")).toContainText("14 días");
+  await expect(page.locator("#preguntas a[href='/prueba/']")).toBeVisible();
+});
+
+test("pricing page publishes USD prices with the trial call to action even without the plans API", async ({
+  page,
+}) => {
+  await page.route("**/api/public/plans", (route) =>
+    route.fulfill({ status: 404, json: { error: "Not found" } }),
+  );
+  await page.goto("/precios?sw=off", { waitUntil: "domcontentloaded" });
+  const pricing = page.locator("#planes");
+  for (const amount of ["USD 39", "USD 79", "USD 129"])
+    await expect(pricing.getByText(amount, { exact: true })).toBeVisible();
+  await expect(pricing.getByRole("link", { name: "Prueba 14 días gratis" })).toHaveAttribute(
+    "href",
+    "/prueba/",
+  );
+  await expect(pricing.getByRole("link", { name: "Empezar con Impulsa" })).toHaveAttribute(
+    "href",
+    "/prueba/?plan=NEGOCIO",
+  );
+  await expect(pricing).toContainText("IVA (12 %)");
+  await expect(page.locator("main")).not.toContainText("en revisión");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});
+
+test("pricing page re-renders published prices from the plans API", async ({ page }) => {
+  await page.route("**/api/public/plans", (route) =>
+    route.fulfill({
+      json: {
+        pricing_status: "published",
+        comparison_currency: "USD",
+        plans: [
+          {
+            id: "EMPRENDEDOR",
+            name: "Conecta",
+            pricing: { currency: "USD", per: "branch_month", monthly: 41 },
+            limits: { activeCustomers: 300, branches: 1, rewards: 5 },
+            features: { rewards: true, staff_management: true, analytics: false },
+            reference_gtq: { monthly: 320, as_of: "2026-11-25" },
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/precios?sw=off", { waitUntil: "domcontentloaded" });
+  const conecta = page.locator('[data-plan="EMPRENDEDOR"]');
+  await expect(conecta.getByText("USD 41", { exact: true })).toBeVisible();
+  await expect(conecta).toContainText("Referencia: Q320");
+  await expect(
+    page.locator('[data-plan="NEGOCIO"]').getByText("USD 79", { exact: true }),
+  ).toBeVisible();
+});
+
 test("mobile navigation and FAQ work without horizontal overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/?sw=off", { waitUntil: "domcontentloaded" });

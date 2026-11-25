@@ -48,6 +48,10 @@ const { initCustomerAuthEntry } = await import(
       .replace(
         '"./session-epoch.js"',
         JSON.stringify(new URL("../../public/session-epoch.js", import.meta.url).href),
+      )
+      .replace(
+        '"./otp-cooldown.js"',
+        JSON.stringify(new URL("../../public/otp-cooldown.js", import.meta.url).href),
       ),
   )
 );

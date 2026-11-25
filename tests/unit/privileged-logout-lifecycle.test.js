@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 
 import { loadBrowserModule } from "../helpers/browser-module-graph.js";
 
+// The super "Pruebas" module (public/super/trials.js) confirms its actions through the shared
+// modal helpers; the stub never opens anything.
 const library =
-  "export const setBrowserRegion=()=>{}, registerServiceWorker=async()=>{}, setHidden=(el,hidden)=>{if(el)el.hidden=hidden;}, isStrongPassword=()=>true, passwordRequirementsText=()=>'';";
+  "export const setBrowserRegion=()=>{}, registerServiceWorker=async()=>{}, setHidden=(el,hidden)=>{if(el)el.hidden=hidden;}, isStrongPassword=()=>true, passwordRequirementsText=()=>'', modalConfirm=async()=>false, modalPrompt=async()=>null;";
 const stubs = {
   "/lib.js": library,
   "./operations-health.js":

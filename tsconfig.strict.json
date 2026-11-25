@@ -39,7 +39,13 @@
     "public/super/plans.js",
     "public/super/security-posture.js",
     "public/super/session.js",
+    "public/super/trials-model.js",
+    "public/super/trials.js",
     "public/super/types.ts",
+    "public/otp-cooldown.js",
+    "public/precios.js",
+    "public/trial-signup-model.js",
+    "public/trial-signup.js",
     "public/types.ts"
   ]
 }

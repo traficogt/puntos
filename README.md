@@ -7,7 +7,7 @@ Loyalty platform for Guatemala, operated as a hosted service at `app.puntosfiele
 - Express 5 (API and worker processes)
 - PostgreSQL 17 on the central database VM (`APP_DB_HOST`, default `10.10.1.51` in `docker-compose.yml`); PostgreSQL 16 in the test and e2e compose stacks
 - Redis 7, optional (`RATE_LIMIT_DRIVER=redis`, `JOB_QUEUE_DRIVER=redis`)
-- Vanilla HTML/CSS/JS PWA in `public/` (customer wallet, staff scanner, signup, super console); React 19 + Mantine 9 merchant app in `web/merchant` (the owner dashboard at `/negocio/`; the vanilla `/administracion/` was retired on 2026-11-25 and redirects there); Expo native app in `apps/customer` (frozen, see `AGENTS.md`)
+- Vanilla HTML/CSS/JS PWA in `public/` (customer wallet, staff scanner, internal signup at `/crear-negocio/`, self-serve 14-day trial signup at `/prueba/`, published prices at `/precios`, super console); React 19 + Mantine 9 merchant app in `web/merchant` (the owner dashboard at `/negocio/`; the vanilla `/administracion/` was retired on 2026-11-25 and redirects there); Expo native app in `apps/customer` (frozen, see `AGENTS.md`)
 - Playwright
 - Docker Compose
 

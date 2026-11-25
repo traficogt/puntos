@@ -19,7 +19,8 @@ async function scope(businessId, branchId, now) {
   if (!(now instanceof Date) || !Number.isFinite(now.getTime()))
     throw badRequest("Fecha no válida.");
   const { rows } = await dbQuery(
-    "SELECT program_json,owner_progress_variant FROM businesses WHERE id=$1",
+    `SELECT program_json,owner_progress_variant,trial_status,billing_status,trial_started_at,trial_ends_at
+     FROM businesses WHERE id=$1`,
     [businessId],
   );
   if (!rows[0]) throw notFound("Negocio no disponible.");
@@ -38,6 +39,16 @@ async function scope(businessId, branchId, now) {
     // "Tu progreso" variant (treatment | holdout | null before first read) so activation
     // can be compared by variant; see docs/product/2026-11-23-owner-progress.md.
     owner_progress_variant: rows[0].owner_progress_variant ?? null,
+    // Trial facts beside the variant (design section 9) so activation can be read per
+    // trial cohort as well; legacy businesses report status "none".
+    trial: {
+      status: rows[0].trial_status ?? "none",
+      billing_status: rows[0].billing_status ?? "none",
+      started_at: rows[0].trial_started_at
+        ? new Date(rows[0].trial_started_at).toISOString()
+        : null,
+      ends_at: rows[0].trial_ends_at ? new Date(rows[0].trial_ends_at).toISOString() : null,
+    },
   };
 }
 
@@ -98,11 +109,12 @@ export async function getRewardExposure({ businessId, branchId = null, now = new
   ]);
   const row = rows[0],
     cost = row.cost_per_point_q === null ? null : Number(row.cost_per_point_q);
-  const { owner_progress_variant, ...regionOnly } = region;
+  const { owner_progress_variant, trial, ...regionOnly } = region;
   return {
     ok: true,
     region: regionOnly,
     owner_progress_variant,
+    trial,
     currency: region.currency,
     timezone: region.timezone,
     generated_at: now.toISOString(),
@@ -189,11 +201,12 @@ export async function getStaffActivity({ businessId, branchId = null, now = new 
     region.timezone,
   ]);
   const row = rows[0];
-  const { owner_progress_variant, ...regionOnly } = region;
+  const { owner_progress_variant, trial, ...regionOnly } = region;
   return {
     ok: true,
     region: regionOnly,
     owner_progress_variant,
+    trial,
     currency: region.currency,
     timezone: region.timezone,
     generated_at: now.toISOString(),

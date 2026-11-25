@@ -263,6 +263,8 @@ try {
       const pathname = new URL(route.request().url()).pathname;
       requests.push(pathname);
       assert.equal(route.request().method(), "GET");
+      // A server without the self-serve trial answers 404; the shell then shows no trial banner.
+      if (pathname === "/api/admin/trial") return route.fulfill({ status: 404, json: { error: "Not found" } });
       assert.ok(Object.hasOwn(fixtures, pathname), `Unexpected fixture request: ${pathname}`);
       await route.fulfill({ json: fixtures[pathname] });
     });

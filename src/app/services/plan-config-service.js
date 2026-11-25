@@ -1,5 +1,5 @@
 import { PlatformSettingsRepo } from "../repositories/platform-settings-repository.js";
-import { listPlans, mergePlanFeatures } from "../../utils/plan.js";
+import { listPlans, mergePlanFeatures, resolveBillingCatalog } from "../../utils/plan.js";
 
 const PLAN_FEATURES_KEY = "plan_features";
 
@@ -28,8 +28,17 @@ export const PlanConfigService = {
     return saved[plan] || null;
   },
 
+  /** Published prices with platform overrides applied (never throws: defaults on failure). */
+  async getBillingCatalog() {
+    const raw = await PlatformSettingsRepo.getBillingCatalog().catch(() => ({}));
+    return resolveBillingCatalog(raw);
+  },
+
   async listPlans() {
-    const overrides = await this.getPlanFeatureOverrides();
-    return listPlans(overrides);
+    const [overrides, catalog] = await Promise.all([
+      this.getPlanFeatureOverrides(),
+      this.getBillingCatalog(),
+    ]);
+    return listPlans(overrides, catalog);
   },
 };

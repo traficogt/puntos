@@ -13,6 +13,7 @@ import {
   Anchor,
   Button,
   Group,
+  Modal,
   NativeSelect,
   Stack,
   Text,
@@ -24,13 +25,15 @@ import {
 import "@mantine/core/styles.css";
 import "@mantine/charts/styles.css";
 import "./styles.css";
-import { isDemo, useResource, sessionEvent, stored, logout } from "./api.js";
+import { api, isDemo, useResource, sessionEvent, stored, logout, trialLockedEvent } from "./api.js";
 import { pageFromHash, hashForPage } from "./navigation.js";
 import MerchantNavigation from "./MerchantNavigation.jsx";
 import DemoGuide, { DemoWelcome } from "./DemoGuide.jsx";
 import { demoView, demoLocation } from "./demo-guide.js";
 import { demoThemeOptions, demoThemeKey } from "./demo-catalog.js";
 import { Loading, Failure, BusinessLink } from "./ui.jsx";
+import TrialBanner from "./TrialBanner.tsx";
+import { normalizeTrial, planDisplayName, trialPhase } from "./trial-model.ts";
 import { setMerchantRegion } from './region.js';
 const OwnerCustomers = lazy(() => import('./OwnerCustomers.tsx'));
 const OwnerTeam = lazy(() => import('./OwnerTeam.tsx'));
@@ -44,6 +47,9 @@ const OwnerReports = lazy(() => import('./OwnerReports.tsx'));
 const OwnerProgramLimits = lazy(() => import('./OwnerProgramLimits.tsx'));
 const OwnerOnboarding = lazy(() => import('./OwnerOnboarding.tsx'));
 const OwnerProgress = lazy(() => import('./OwnerProgress.tsx'));
+// self-serve trial (docs/product/2026-11-25-self-serve-trial.md §7.3)
+const OwnerTrialLocked = lazy(() => import('./OwnerTrialLocked.tsx'));
+const UpgradeRequest = lazy(() => import('./UpgradeRequest.tsx'));
 // operations (wave 15b)
 const OwnerJobs = lazy(() => import('./OwnerJobs.tsx'));
 const OwnerAlerts = lazy(() => import('./OwnerAlerts.tsx'));
@@ -228,6 +234,20 @@ function Merchant({ staff }) {
   const region = useResource("/api/admin/region", refresh);
   if (region.data) setMerchantRegion(region.data.region);
   const enrollment = useResource("/api/admin/customer-enrollment");
+  // Trial state: GET /api/admin/trial, or the additive trial/billing fields on /api/admin/plan.
+  // A 404 (feature not deployed) or a legacy business yields null and nothing is shown.
+  const trialResource = useResource("/api/admin/trial", refresh);
+  const [lockedBy, setLockedBy] = useState(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  useEffect(() => {
+    const onLock = (event) => setLockedBy(event.detail || {});
+    window.addEventListener(trialLockedEvent, onLock);
+    return () => window.removeEventListener(trialLockedEvent, onLock);
+  }, []);
+  const trialState = normalizeTrial(trialResource.data) || normalizeTrial(plan.data);
+  const trialLocked = trialPhase(trialState) === "locked" || lockedBy !== null;
+  const planLabel = trialState?.plan_name || planDisplayName(plan.data?.plan);
+  const openUpgrade = () => setUpgradeOpen(true);
   const { toggleColorScheme } = useMantineColorScheme();
   const colorScheme = useComputedColorScheme("light", { getInitialValueInEffect: false });
   useEffect(() => {
@@ -357,9 +377,7 @@ function Merchant({ staff }) {
               <BusinessLink href="/equipo/escaner/">Abrir escáner</BusinessLink>
             </div>
             <Text size="xs" c="dimmed" className="plan-name">
-              {plan.data?.plan
-                ? `Plan ${plan.data.plan}`
-                : "Administración del negocio"}
+              {planLabel ? `Plan ${planLabel}` : "Administración del negocio"}
             </Text>
             </div>
           </aside>
@@ -388,6 +406,17 @@ function Merchant({ staff }) {
               </Alert>
             )}
             {isDemo && <DemoGuide page={page} mode={demoMode} onNavigate={navigate} />}
+            {!trialLocked && <TrialBanner state={trialState} onUpgrade={openUpgrade} />}
+            {trialLocked && page !== "overview" && (
+              <Suspense fallback={null}>
+                <OwnerTrialLocked compact state={trialState} onUpgrade={openUpgrade} />
+              </Suspense>
+            )}
+            <Modal opened={upgradeOpen} onClose={() => setUpgradeOpen(false)} title="Mejorar plan" size="lg" closeButtonProps={{ "aria-label": "Cerrar ventana" }}>
+              <Suspense fallback={<Loading label="Preparando la solicitud…" />}>
+                <UpgradeRequest request={api} currentPlan={trialState?.plan || plan.data?.plan || null} onDone={() => setUpgradeOpen(false)} />
+              </Suspense>
+            </Modal>
             {isDemo && demoMode === "inicio" ? <DemoWelcome onNavigate={navigate} /> : plan.loading || region.loading ? (
               <Loading />
             ) : plan.error || region.error ? (
@@ -397,7 +426,9 @@ function Merchant({ staff }) {
               />
             ) : (
               <Suspense fallback={<Loading />}>
-                {page === "overview" ? (
+                {trialLocked && page === "overview" ? (
+                  <OwnerTrialLocked state={trialState} onUpgrade={openUpgrade} onNavigate={navigate} />
+                ) : page === "overview" ? (
                   <><ActivationSetup region={region.data} features={plan.data?.features||{}} onNavigate={navigate} onConfigure={section=>{setFocusSection(section);navigate('automations');}}/>
                   <Overview features={plan.data?.features || {}} onNavigate={navigate}/></>
                 ) : page === "progress" ? (

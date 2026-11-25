@@ -1,0 +1,25 @@
+/* Self-serve trial signup (/prueba/) on top of customer-modern.css. Hand-written page styles
+   only; the entry-shell grid, cards, inputs and step pills come from the shared stylesheet. */
+.page-trial .trial-honeypot { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+.page-trial .trial-includes { margin: 28px 0 0; }
+.page-trial .trial-includes h2 { margin: 0 0 10px; font-size: 15px; }
+.page-trial .trial-includes ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.65; }
+.page-trial .trial-includes li { margin-bottom: 4px; }
+.page-trial .trial-after { margin-top: 20px; font-size: 14px; line-height: 1.6; color: var(--muted); }
+.page-trial .trial-plan-note { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; }
+.page-trial .onboarding-steps { display: flex; align-items: stretch; gap: 0; margin: 0 0 8px; }
+.page-trial .entry-stage-form section { padding-top: 8px; }
+.page-trial .entry-stage-form section h2 { margin: 0 0 12px; }
+.page-trial .trial-challenge { margin: 16px 0 8px; min-height: 65px; }
+.page-trial .trial-challenge:empty { min-height: 0; margin: 0; }
+.page-trial .trial-code-input { font-variant-numeric: tabular-nums; letter-spacing: .15em; }
+.page-trial .trial-actions { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin-top: 12px; }
+.page-trial .trial-legal { margin-top: 24px; line-height: 1.6; }
+.page-trial .trial-unavailable { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; }
+.page-trial [aria-invalid="true"] { border-color: #c6453d; box-shadow: 0 0 0 1px #c6453d; }
+.page-trial .entry-result-card h2:focus { outline: none; }
+.page-trial .entry-result-card code { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .page-trial .trial-includes { margin-top: 20px; }
+  .page-trial .trial-actions { flex-direction: column; align-items: flex-start; }
+}

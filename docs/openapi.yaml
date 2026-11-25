@@ -4837,6 +4837,29 @@ paths:
       x-required-roles:
         - OWNER
       parameters: undefined
+  /api/v1/admin/trial:
+    get:
+      summary: "Trial and billing state for the owner app banner and lock screen"
+      responses:
+        200:
+          description: "Trial state"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminTrialResponse"
+        401:
+          description: "Not authenticated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - staffAuth:
+            []
+      x-tenant-context: true
+      x-required-roles:
+        - OWNER
+      parameters: undefined
   /api/v1/admin/webhooks:
     get:
       summary: "List webhook endpoints for the current business"
@@ -6098,6 +6121,17 @@ paths:
           required: true
           schema:
             type: string
+  /api/v1/public/plans:
+    get:
+      summary: "Published plan catalog: USD prices per branch per month, caps, features and the trial"
+      responses:
+        200:
+          description: "Catalog as /precios renders it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicPlansResponse"
+      parameters: undefined
   /api/v1/public/pos/{slug}/catalog/sync:
     post:
       summary: "Derived POST /api/v1/public/pos/{slug}/catalog/sync"
@@ -6323,6 +6357,102 @@ paths:
           description: Success
       x-csrf-required: true
       parameters: undefined
+  /api/v1/public/trial/config:
+    get:
+      summary: "Self-serve trial configuration for the /prueba/ page (Turnstile site key, trial terms)"
+      responses:
+        200:
+          description: "Trial configuration"
+      parameters: undefined
+  /api/v1/public/trial/request-code:
+    post:
+      summary: "Send the owner's phone verification code for a self-serve trial (Turnstile required)"
+      responses:
+        200:
+          description: "Code sent (dev_code only with the development provider)"
+        400:
+          description: "Validation error, Turnstile failed or dial code not allowed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        429:
+          description: "Rate limited (per IP and per phone)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        503:
+          description: "Signup unavailable or daily SMS cap reached"
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicTrialRequestCodeRequest"
+  /api/v1/public/trial/signup:
+    post:
+      summary: "Create the trial business on Conecta (14 days, no card); sets the owner session cookie"
+      responses:
+        200:
+          description: Success
+        201:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicTrialSignupResponse"
+          description: "Business created; cookie __Host-pf_staff is set"
+        400:
+          description: "Validation error or Turnstile failed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: "Grant invalid or expired"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        409:
+          description: "Email or phone already registered"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicTrialSignupRequest"
+  /api/v1/public/trial/verify:
+    post:
+      summary: "Verify the phone code and receive a single-use 5-minute signup grant"
+      responses:
+        200:
+          description: "Grant issued"
+        401:
+          description: "Code invalid or expired"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        409:
+          description: "A trial already exists for this phone"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicTrialVerifyRequest"
   /api/v1/ready:
     get:
       summary: "Readiness probe"
@@ -6354,6 +6484,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        402:
+          description: "Trial locked: the business is past its trial end without a plan. Reads keep working; every staff mutation answers this body (code TRIAL_LOCKED)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrialLockedError"
         403:
           description: "Permission denied"
           content:
@@ -7165,6 +7301,38 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/StaffSyncAwardsRequest"
+  /api/v1/super/billing/catalog:
+    get:
+      summary: "Published prices and provider price ids (platform setting billing_catalog)"
+      responses:
+        200:
+          description: Catalog
+      security:
+        - superAuth:
+            []
+      parameters: undefined
+    put:
+      summary: "Replace the billing catalog"
+      responses:
+        200:
+          description: "Catalog saved"
+        400:
+          description: "Payload invalid"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      x-csrf-required: true
+      parameters: undefined
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuperBillingCatalogRequest"
   /api/v1/super/businesses:
     get:
       summary: "List businesses visible to the super admin"
@@ -7209,6 +7377,34 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/SuperCreateBusinessRequest"
+  /api/v1/super/businesses/{businessId}/billing/manual-activate:
+    post:
+      summary: "Activate a paid plan by hand (provider manual) and record who did it"
+      responses:
+        200:
+          description: "Plan active"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      parameters:
+        - in: path
+          name: businessId
+          required: true
+          schema:
+            type: string
+      x-csrf-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuperManualActivateRequest"
   /api/v1/super/businesses/{businessId}/customers:
     get:
       summary: "Derived GET /api/v1/super/businesses/{businessId}/customers"
@@ -7274,6 +7470,62 @@ paths:
           required: true
           schema:
             type: string
+  /api/v1/super/businesses/{businessId}/trial/extend:
+    post:
+      summary: "Extend (or re-open) a trial by N days"
+      responses:
+        200:
+          description: "Trial extended"
+        404:
+          description: "Business not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        409:
+          description: "Not a trial"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      parameters:
+        - in: path
+          name: businessId
+          required: true
+          schema:
+            type: string
+      x-csrf-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuperTrialExtendRequest"
+  /api/v1/super/businesses/{businessId}/trial/lock:
+    post:
+      summary: "Lock a trialing business now"
+      responses:
+        200:
+          description: Locked
+        409:
+          description: "Not trialing"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - superAuth:
+            []
+      parameters:
+        - in: path
+          name: businessId
+          required: true
+          schema:
+            type: string
+      x-csrf-required: true
   /api/v1/super/businesses/{businessId}/users:
     get:
       summary: "List staff users for a business"
@@ -7717,6 +7969,53 @@ paths:
             []
       x-csrf-required: true
       parameters: undefined
+  /api/v1/super/trials:
+    get:
+      summary: "List trials with status, days left, phone verification and activation facts"
+      responses:
+        200:
+          description: "Trial listing"
+      security:
+        - superAuth:
+            []
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum:
+              - all
+              - trialing
+              - expiring
+              - locked
+              - converted
+              - purge
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+  /api/v1/super/trials/purge-candidates:
+    get:
+      summary: "Dry-run purge report: locked businesses past retention and the rows a purge would remove"
+      responses:
+        200:
+          description: "Dry-run report; nothing is deleted"
+      security:
+        - superAuth:
+            []
+      parameters: undefined
+  /api/v1/super/trials/summary:
+    get:
+      summary: "Weekly trial cohorts (starts, activated, converted, locked, purge candidates)"
+      responses:
+        200:
+          description: "Cohort table"
+      security:
+        - superAuth:
+            []
+      parameters: undefined
   /api/v1/wallet/apple/v1/devices/{device}/registrations/{passType}:
     get:
       summary: "Derived GET /api/v1/wallet/apple/v1/devices/{device}/registrations/{passType}"
@@ -7816,6 +8115,591 @@ components:
       in: cookie
       name: __Host-pf_super
   schemas:
+    PublicTrialRequestCodeRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 8
+          maxLength: 30
+        turnstileToken:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        website:
+          type: string
+          maxLength: 200
+      required:
+        - phone
+        - turnstileToken
+      additionalProperties: false
+    PublicTrialVerifyRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 8
+          maxLength: 30
+        code:
+          type: string
+          pattern: "^\\d{6}$"
+      required:
+        - phone
+        - code
+      additionalProperties: false
+    PublicTrialSignupRequest:
+      type: object
+      properties:
+        grant:
+          type: string
+          minLength: 43
+          maxLength: 43
+        businessName:
+          type: string
+          minLength: 2
+          maxLength: 120
+        email:
+          type: string
+          maxLength: 254
+          format: email
+          pattern: "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+        category:
+          type: string
+          maxLength: 50
+        turnstileToken:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        plan:
+          type: string
+          enum:
+            - EMPRENDEDOR
+            - NEGOCIO
+            - EMPRESA
+        website:
+          type: string
+          maxLength: 200
+      required:
+        - grant
+        - businessName
+        - email
+        - password
+        - turnstileToken
+      additionalProperties: false
+    PublicTrialSignupResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+        business:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+            slug:
+              type: string
+            name:
+              type: string
+            plan:
+              type: string
+            plan_name:
+              type: string
+          required:
+            - id
+            - slug
+            - name
+            - plan
+            - plan_name
+          additionalProperties: false
+        trial:
+          type: object
+          properties:
+            status:
+              type: string
+              enum:
+                - active
+                - expiring
+                - locked
+                - converted
+                - none
+            days_left:
+              nullable: true
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            started_at:
+              nullable: true
+              type: string
+            ends_at:
+              nullable: true
+              type: string
+          required:
+            - status
+            - days_left
+            - started_at
+            - ends_at
+          additionalProperties: false
+        intended_plan:
+          nullable: true
+          type: string
+        join_url:
+          type: string
+        next_url:
+          type: string
+      required:
+        - ok
+        - business
+        - trial
+        - intended_plan
+        - join_url
+        - next_url
+      additionalProperties: false
+    PublicPlansResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+        pricing_status:
+          type: string
+          enum:
+            - published
+        comparison_currency:
+          type: string
+          enum:
+            - USD
+        pricing_unit:
+          type: string
+          enum:
+            - branch_month
+        published_at:
+          type: string
+        reference_gtq:
+          nullable: true
+          type: object
+          properties:
+            rate:
+              type: number
+            as_of:
+              type: string
+          required:
+            - rate
+            - as_of
+          additionalProperties: false
+        trial:
+          type: object
+          properties:
+            days:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            plan:
+              type: string
+            plan_name:
+              type: string
+            requires_card:
+              type: boolean
+            url:
+              type: string
+          required:
+            - days
+            - plan
+            - plan_name
+            - requires_card
+            - url
+          additionalProperties: false
+        plans:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              pricing:
+                type: object
+                properties:
+                  currency:
+                    type: string
+                    enum:
+                      - USD
+                  per:
+                    type: string
+                    enum:
+                      - branch_month
+                  monthly:
+                    type: number
+                  reference_gtq_monthly:
+                    nullable: true
+                    type: number
+                required:
+                  - currency
+                  - per
+                  - monthly
+                  - reference_gtq_monthly
+                additionalProperties: false
+              limits:
+                type: object
+                properties:
+                  activeCustomers:
+                    type: number
+                  branches:
+                    type: number
+                  rewards:
+                    type: number
+                required:
+                  - activeCustomers
+                  - branches
+                  - rewards
+                additionalProperties: false
+              features:
+                type: object
+                additionalProperties:
+                  type: boolean
+              feature_list:
+                type: array
+                items:
+                  type: string
+              cta:
+                type: object
+                properties:
+                  trial_url:
+                    type: string
+                  trial_label:
+                    type: string
+                  contact_url:
+                    type: string
+                required:
+                  - trial_url
+                  - trial_label
+                  - contact_url
+                additionalProperties: false
+            required:
+              - id
+              - name
+              - pricing
+              - limits
+              - features
+              - feature_list
+              - cta
+            additionalProperties:
+              {}
+      required:
+        - ok
+        - pricing_status
+        - comparison_currency
+        - pricing_unit
+        - published_at
+        - reference_gtq
+        - trial
+        - plans
+      additionalProperties: false
+    AdminTrialResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+        trial:
+          type: object
+          properties:
+            status:
+              type: string
+              enum:
+                - active
+                - expiring
+                - locked
+                - converted
+                - none
+            days_left:
+              nullable: true
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            started_at:
+              nullable: true
+              type: string
+            ends_at:
+              nullable: true
+              type: string
+            ends_on:
+              nullable: true
+              type: string
+            locked_at:
+              nullable: true
+              type: string
+            purge_after:
+              nullable: true
+              type: string
+            purge_on:
+              nullable: true
+              type: string
+            plan:
+              type: string
+            plan_name:
+              type: string
+            upgrade_url:
+              type: string
+            upgrade_available:
+              type: boolean
+            copy:
+              type: object
+              additionalProperties:
+                {}
+          required:
+            - status
+            - days_left
+            - started_at
+            - ends_at
+            - ends_on
+            - locked_at
+            - purge_after
+            - purge_on
+            - plan
+            - plan_name
+            - upgrade_url
+            - upgrade_available
+            - copy
+          additionalProperties:
+            {}
+        billing:
+          type: object
+          properties:
+            status:
+              type: string
+            currency:
+              nullable: true
+              type: string
+            provider:
+              nullable: true
+              type: string
+            subscription:
+              nullable: true
+              type: object
+              properties:
+                plan:
+                  type: string
+                quantity:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                currency:
+                  type: string
+                unit_amount_minor:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                status:
+                  type: string
+                current_period_end:
+                  nullable: true
+                  type: string
+                cancel_at:
+                  nullable: true
+                  type: string
+              required:
+                - plan
+                - quantity
+                - currency
+                - unit_amount_minor
+                - status
+                - current_period_end
+                - cancel_at
+              additionalProperties: false
+            purge_after:
+              nullable: true
+              type: string
+          required:
+            - status
+            - currency
+            - provider
+            - subscription
+            - purge_after
+          additionalProperties: false
+      required:
+        - ok
+        - trial
+        - billing
+      additionalProperties: false
+    TrialLockedError:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum:
+            - TRIAL_LOCKED
+        trial_status:
+          type: string
+          enum:
+            - locked
+        trial_ends_at:
+          nullable: true
+          type: string
+        purge_after:
+          nullable: true
+          type: string
+        upgrade_url:
+          type: string
+      required:
+        - error
+        - code
+        - trial_status
+        - trial_ends_at
+        - purge_after
+        - upgrade_url
+      additionalProperties: false
+    SuperTrialExtendRequest:
+      type: object
+      properties:
+        days:
+          type: integer
+          minimum: 1
+          maximum: 90
+        note:
+          type: string
+          maxLength: 500
+      required:
+        - days
+      additionalProperties: false
+    SuperManualActivateRequest:
+      type: object
+      properties:
+        plan:
+          type: string
+          minLength: 3
+          maxLength: 40
+        currency:
+          type: string
+          enum:
+            - GTQ
+            - USD
+        note:
+          type: string
+          maxLength: 500
+      required:
+        - plan
+      additionalProperties: false
+    SuperBillingCatalogRequest:
+      type: object
+      properties:
+        published_at:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        usd:
+          type: object
+          properties:
+            EMPRENDEDOR:
+              type: integer
+              minimum: 1
+              maximum: 1000000
+            NEGOCIO:
+              type: integer
+              minimum: 1
+              maximum: 1000000
+            EMPRESA:
+              type: integer
+              minimum: 1
+              maximum: 1000000
+          required:
+            - EMPRENDEDOR
+            - NEGOCIO
+            - EMPRESA
+          additionalProperties: false
+        gtq:
+          nullable: true
+          type: object
+          properties:
+            EMPRENDEDOR:
+              type: integer
+              minimum: 1
+              maximum: 1000000
+            NEGOCIO:
+              type: integer
+              minimum: 1
+              maximum: 1000000
+            EMPRESA:
+              type: integer
+              minimum: 1
+              maximum: 1000000
+          required:
+            - EMPRENDEDOR
+            - NEGOCIO
+            - EMPRESA
+          additionalProperties: false
+        gtq_reference:
+          nullable: true
+          type: object
+          properties:
+            rate:
+              type: number
+              minimum: 0
+              exclusiveMinimum: true
+              maximum: 1000
+            as_of:
+              type: string
+              pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+          required:
+            - rate
+            - as_of
+          additionalProperties: false
+        providers:
+          type: object
+          properties:
+            recurrente:
+              type: object
+              properties:
+                price_ids:
+                  type: object
+                  properties:
+                    GTQ:
+                      type: object
+                      additionalProperties:
+                        type: string
+                        minLength: 1
+                        maxLength: 120
+                    USD:
+                      type: object
+                      additionalProperties:
+                        type: string
+                        minLength: 1
+                        maxLength: 120
+                  additionalProperties: false
+              required:
+                - price_ids
+              additionalProperties: false
+            stripe:
+              type: object
+              properties:
+                price_ids:
+                  type: object
+                  properties:
+                    USD:
+                      type: object
+                      additionalProperties:
+                        type: string
+                        minLength: 1
+                        maxLength: 120
+                  additionalProperties: false
+              required:
+                - price_ids
+              additionalProperties: false
+          additionalProperties: false
+      required:
+        - usd
+      additionalProperties: false
     StaffLoginRequest:
       type: object
       properties:

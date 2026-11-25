@@ -1,5 +1,5 @@
 // BEGIN GENERATED (npm run sw:build)
-const CACHE = "pf-d6b21b28dfd3";
+const CACHE = "pf-cfe0fe0db622";
 const CORE_ASSETS = [
   "/",
   "/admin",
@@ -15,6 +15,8 @@ const CORE_ASSETS = [
   "/join.html",
   "/mi-tarjeta/",
   "/plataforma/",
+  "/prueba.html",
+  "/prueba/",
   "/registro/",
   "/staff",
   "/staff-login.html",
@@ -73,6 +75,8 @@ const CORE_ASSETS = [
   "/join.js?v=06ba109b",
   "/lib.js",
   "/manifest.webmanifest?v=8e2efbf1",
+  "/otp-cooldown.js",
+  "/prueba.js?v=d5744af8",
   "/session-epoch.js",
   "/staff-login.js?v=0db1a138",
   "/staff-return-path.js",
@@ -113,6 +117,7 @@ const CORE_ASSETS = [
   "/styles/operations-modern.css?v=ec77c77b",
   "/styles/pages.css?v=41d809fe",
   "/styles/responsive.css?v=862f5cc1",
+  "/styles/trial.css?v=1e0118db",
   "/styles/wallet-enrollment.css?v=fb2d4cea",
   "/super.js?v=63fb525d",
   "/super/account-security.js",
@@ -126,12 +131,18 @@ const CORE_ASSETS = [
   "/super/plans.js",
   "/super/security-posture.js",
   "/super/session.js",
+  "/super/trials-model.js",
+  "/super/trials.js",
   "/theme.js?v=0e43be14",
+  "/trial-signup-model.js",
+  "/trial-signup.js",
 ];
 // END GENERATED (npm run sw:build)
 const NETWORK_FIRST_DESTINATIONS = new Set(["document", "script", "style", "worker", "font"]);
 const NAVIGATION_FALLBACKS = new Map([
   ["/crear-negocio", "/crear-negocio/"],
+  ["/prueba", "/prueba/"],
+  ["/prueba/", "/prueba.html"],
   ["/equipo/ingresar", "/equipo/ingresar/"],
   ["/equipo/escaner", "/equipo/escaner/"],
   ["/mi-tarjeta", "/mi-tarjeta/"],

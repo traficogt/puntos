@@ -139,6 +139,14 @@ export const APP_TABLE_PRIVILEGES = {
   platform_settings: ["SELECT", "INSERT", "UPDATE"],
   owner_progress_milestones: ["SELECT", "INSERT", "UPDATE"],
   owner_progress_state: ["SELECT", "INSERT", "UPDATE"],
+  // Self-serve trial and provider-agnostic billing (docs/product/2026-11-25-self-serve-trial.md).
+  trial_phone_grants: ["SELECT", "INSERT", "UPDATE"],
+  billing_customers: ["SELECT", "INSERT", "UPDATE"],
+  billing_checkouts: ["SELECT", "INSERT", "UPDATE"],
+  billing_subscriptions: ["SELECT", "INSERT", "UPDATE"],
+  billing_provider_events: ["SELECT", "INSERT", "UPDATE"],
+  // Extending a trial clears its reminder markers so the new window re-notifies.
+  trial_notifications: ["SELECT", "INSERT", "DELETE"],
   loyalty_tiers: ["SELECT", "INSERT", "UPDATE", "DELETE"],
   customer_tiers: ["SELECT", "INSERT", "UPDATE"],
   tier_history: ["SELECT", "INSERT"],

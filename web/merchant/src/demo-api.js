@@ -1,5 +1,6 @@
 import {DEMO_CATALOG} from './demo-catalog.js';
 import {demoOwnerWorkspace} from './demo-owner-workspace.ts';
+import {demoTrial} from './demo-trial.ts';
 import {demoOwnerProgram} from './demo-owner-program.ts';
 import {demoOwnerProgress} from './demo-owner-progress.ts';
 import {demoOwnerOperations} from './demo-owner-operations.ts';
@@ -126,6 +127,9 @@ function overview(url) {
 export async function demoApi(path, options = {}) {
   if (options.signal?.aborted) throw new DOMException("Aborted", "AbortError");
   const url = new URL(path, "https://preview.invalid");
+  // Trial state from ?prueba= (docs/product/2026-11-25-self-serve-trial.md): 404 without it.
+  const trialResponse = demoTrial(url, options);
+  if (trialResponse !== undefined) return structuredClone(trialResponse);
   const ownerResponse = demoOwnerWorkspace(url, options);
   if (ownerResponse !== undefined) return structuredClone(ownerResponse);
   const programResponse = demoOwnerProgram(url, options);

@@ -2,6 +2,7 @@ import { normalizeHostHeader } from "../utils/app-host-routing.js";
 import { Router } from "express";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { config } from "../config/index.js";
 import { PlanConfigService } from "../app/services/plan-config-service.js";
 import { publicPlanCatalog, renderPlanComparison } from "../app/services/public-plan-service.js";
 
@@ -11,6 +12,8 @@ import { publicPlanCatalog, renderPlanComparison } from "../app/services/public-
  *   marketingOrigin?: string | null,
  *   appOrigin?: string | null,
  *   listPlans?: () => ReturnType<typeof PlanConfigService.listPlans>,
+ *   getBillingCatalog?: () => ReturnType<typeof PlanConfigService.getBillingCatalog>,
+ *   trialDays?: number,
  * }} options
  */
 export function createPublicPlans({
@@ -18,6 +21,8 @@ export function createPublicPlans({
   marketingOrigin = null,
   appOrigin = null,
   listPlans = () => PlanConfigService.listPlans(),
+  getBillingCatalog = () => PlanConfigService.getBillingCatalog(),
+  trialDays = config.TRIAL_DAYS,
 }) {
   const router = Router({ strict: true });
   router.use(["/precios", "/precios/", "/precios.html"], (req, res, next) => {
@@ -37,7 +42,11 @@ export function createPublicPlans({
   router.get(["/precios/", "/precios.html"], (_req, res) => res.redirect(301, "/precios"));
   router.get("/precios", async (_req, res, next) => {
     try {
-      const catalog = publicPlanCatalog(await listPlans());
+      const [plans, billing] = await Promise.all([listPlans(), getBillingCatalog()]);
+      const catalog = publicPlanCatalog(plans, {
+        trialDays,
+        gtqReference: billing.gtq_reference,
+      });
       // eslint-disable-next-line security/detect-non-literal-fs-filename -- Fixed template beneath the configured public directory.
       const html = await readFile(path.join(publicDir, "precios.html"), "utf8");
       res

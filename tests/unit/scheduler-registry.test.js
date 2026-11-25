@@ -47,6 +47,7 @@ test("daily maintenance keeps the business-calendar hour and orders the worker-o
   assert.deepEqual(names(forRole(dailySteps, WORKER)), [
     "support.purge-expired-attachments",
     "lifecycle.daily",
+    "trial.daily",
     "mfa.prune-counters",
     "ledger.reconcile-and-certify",
   ]);

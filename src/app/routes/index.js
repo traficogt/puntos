@@ -18,6 +18,9 @@ import { createServiceRecoveryRoutes } from "./service-recovery-routes.js";
 import { merchantDecisionsRoutes } from "./merchant-decisions-routes.js";
 import { ownerProgressRoutes } from "./owner-progress-routes.js";
 import { superOwnerProgressRoutes } from "./super-owner-progress-routes.js";
+import { publicPlanRoutes } from "./public-plan-routes.js";
+import { publicTrialRoutes } from "./public-trial-routes.js";
+import { superTrialRoutes } from "./super-trial-routes.js";
 const serviceRecoveryRoutes = createServiceRecoveryRoutes();
 import { createCustomerAudienceRouter } from "./customer-audience-routes.js";
 import { customerMigrationRoutes } from "./admin/customer-migration-routes.js";
@@ -123,6 +126,8 @@ const mountRoutes = (basePath) => {
   mountApiRoute(basePath, customerGrowthOffersRoutes);
   mountApiRoute(basePath, growthMessagingRoutes);
   mountApiRoute(basePath, publicRoutes);
+  mountApiRoute(basePath, publicPlanRoutes);
+  mountApiRoute(basePath, publicTrialRoutes);
   mountApiRoute(basePath, staffRoutes);
   mountApiRoute(basePath, adminRoutes);
   mountApiRoute(basePath, customerRoutes);
@@ -134,6 +139,7 @@ const mountRoutes = (basePath) => {
   mountApiRoute(basePath, analyticsRoutes);
   mountApiRoute(basePath, superRoutes);
   mountApiRoute(basePath, superOwnerProgressRoutes);
+  mountApiRoute(basePath, superTrialRoutes);
   mountApiRoute(basePath, superMagicLinkRoutes);
   mountApiRoute(basePath, paymentWebhookRoutes);
   mountApiRoute(basePath, posRoutes);

@@ -11,8 +11,42 @@ import { setCurrentTenant, withTransaction, withDbClientContext } from "../datab
 import { hashPassword } from "../../utils/password-hash.js";
 import { assertPasswordAllowed } from "../../utils/password-policy.js";
 import { errorMessage, isErrorLike } from "../../utils/error-shape.js";
+import { computeTrialEnd, DEFAULT_TRIAL_TIMEZONE } from "./trial-state.js";
 
 /** @typedef {import("../../types/db.js").DbQueryClient} TxClient */
+/**
+ * How the business was created and whether it starts a trial. `trial_days` set means a
+ * self-serve trial: trial_status 'active', billing_status 'trialing' and an end computed in
+ * the business timezone (docs/product/2026-11-25-self-serve-trial.md, section 4.1).
+ * @typedef {{
+ *   source: "internal" | "self_serve" | "super" | "api",
+ *   trial_phone?: string | null,
+ *   trial_days?: number | null,
+ *   now?: Date,
+ *   timezone?: string
+ * }} BusinessSignupOptions
+ */
+
+/**
+ * @param {BusinessSignupOptions | null | undefined} signup
+ * @returns {import("../repositories/business-repository.js").BusinessSignupColumns | null}
+ */
+export function signupColumns(signup) {
+  if (!signup) return null;
+  const days = signup.trial_days ?? null;
+  const now = signup.now ?? new Date();
+  const trial = Number.isInteger(days) && Number(days) > 0;
+  return {
+    signup_source: signup.source,
+    trial_status: trial ? "active" : "none",
+    trial_started_at: trial ? now : null,
+    trial_ends_at: trial
+      ? computeTrialEnd(now, Number(days), signup.timezone ?? DEFAULT_TRIAL_TIMEZONE)
+      : null,
+    trial_phone: signup.trial_phone ?? null,
+    billing_status: trial ? "trialing" : "none",
+  };
+}
 
 function id() {
   return crypto.randomUUID();
@@ -54,7 +88,8 @@ const DEFAULT_REFERRAL_SETTINGS = {
  *   program_type?: string,
  *   program_json?: Record<string, unknown>,
  *   slug?: string | null,
- *   plan?: string | undefined
+ *   plan?: string | undefined,
+ *   signup?: BusinessSignupOptions | null
  * }} input
  */
 export async function createBusinessWithOwner({
@@ -67,7 +102,9 @@ export async function createBusinessWithOwner({
   program_json,
   slug: providedSlug,
   plan: providedPlan = undefined,
+  signup = null,
 }) {
+  const signupState = signupColumns(signup);
   const slugBase = providedSlug || slugify(businessName);
   if (!slugBase) throw badRequest("Nombre de negocio no válido", "VALIDATION_ERROR");
   let slug = slugBase;
@@ -116,6 +153,7 @@ export async function createBusinessWithOwner({
           plan,
           program_type: programType,
           program_json: programJson,
+          signup: signupState,
         });
 
         const branchCode = `${slug}-main`;

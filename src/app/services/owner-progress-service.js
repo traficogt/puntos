@@ -504,6 +504,7 @@ const genuine = `${reportingPurchase("t")} AND c.deleted_at IS NULL`;
 const awardTime = "COALESCE(t.purchase_occurred_at, t.created_at)";
 const factsSql = `SELECT
  b.program_type, b.program_json, b.customer_branding_json,
+ b.trial_status, b.billing_status, b.trial_started_at, b.trial_ends_at,
  (SELECT count(*)::int FROM rewards r WHERE r.business_id=b.id AND r.active) AS active_rewards,
  (SELECT count(*)::int FROM acquisition_sources s WHERE s.business_id=b.id) AS enrollment_sources,
  (SELECT min(s.created_at) FROM acquisition_sources s WHERE s.business_id=b.id) AS first_source_at,
@@ -573,6 +574,14 @@ export async function loadOwnerProgressFacts(query, businessId, timezone = "Amer
     pilot: row.pilot === true,
     award_weeks: Array.isArray(row.award_weeks) ? row.award_weeks : [],
     todo_weeks: Array.isArray(row.todo_weeks) ? row.todo_weeks : [],
+    // Trial facts (docs/product/2026-11-25-self-serve-trial.md, section 9): activation is
+    // read as milestones reached before trial_ends_at. Legacy businesses report "none".
+    trial: {
+      status: String(row.trial_status ?? "none"),
+      billing_status: String(row.billing_status ?? "none"),
+      started_at: iso(row.trial_started_at),
+      ends_at: iso(row.trial_ends_at),
+    },
   };
 }
 

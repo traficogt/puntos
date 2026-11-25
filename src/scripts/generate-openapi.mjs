@@ -74,6 +74,11 @@ const {
 } = await import("../app/routes/super-support.js");
 const { RedeemSchema, RefundSchema, SyncSchema } = await import("../app/routes/staff-routes.js");
 const { TierCreateSchema, TierUpdateSchema } = await import("../app/routes/tier-routes.js");
+const { TrialRequestCodeSchema, TrialVerifySchema, TrialSignupSchema } =
+  await import("../app/routes/public-trial-routes.js");
+const { TrialExtendSchema, ManualActivateSchema } =
+  await import("../app/routes/super-trial-routes.js");
+const { BillingCatalogSchema } = await import("../app/services/billing-catalog-service.js");
 
 const TimestampSchema = z.string();
 const JsonRecordSchema = z.record(z.string(), z.any());
@@ -332,7 +337,118 @@ const PublicContactIdentifierUnlinkResponseSchema = okEnvelope({
   identifier: ContactIdentifierResourceSchema,
 }).passthrough();
 
+const TrialStatusSchema = z.enum(["active", "expiring", "locked", "converted", "none"]);
+const OwnerBillingStateSchema = z.object({
+  status: z.string(),
+  currency: z.string().nullable(),
+  provider: z.string().nullable(),
+  subscription: z
+    .object({
+      plan: z.string(),
+      quantity: z.number().int(),
+      currency: z.string(),
+      unit_amount_minor: z.number().int(),
+      status: z.string(),
+      current_period_end: TimestampSchema.nullable(),
+      cancel_at: TimestampSchema.nullable(),
+    })
+    .nullable(),
+  purge_after: TimestampSchema.nullable(),
+});
+const PublicTrialSignupResponseSchema = okEnvelope({
+  business: z.object({
+    id: z.guid(),
+    slug: z.string(),
+    name: z.string(),
+    plan: z.string(),
+    plan_name: z.string(),
+  }),
+  trial: z.object({
+    status: TrialStatusSchema,
+    days_left: z.number().int().nullable(),
+    started_at: TimestampSchema.nullable(),
+    ends_at: TimestampSchema.nullable(),
+  }),
+  intended_plan: z.string().nullable(),
+  join_url: z.string(),
+  next_url: z.string(),
+});
+const AdminTrialResponseSchema = okEnvelope({
+  trial: z
+    .object({
+      status: TrialStatusSchema,
+      days_left: z.number().int().nullable(),
+      started_at: TimestampSchema.nullable(),
+      ends_at: TimestampSchema.nullable(),
+      ends_on: z.string().nullable(),
+      locked_at: TimestampSchema.nullable(),
+      purge_after: TimestampSchema.nullable(),
+      purge_on: z.string().nullable(),
+      plan: z.string(),
+      plan_name: z.string(),
+      upgrade_url: z.string(),
+      upgrade_available: z.boolean(),
+      copy: z.record(z.string(), z.any()),
+    })
+    .passthrough(),
+  billing: OwnerBillingStateSchema,
+});
+const PublicPlansResponseSchema = okEnvelope({
+  pricing_status: z.literal("published"),
+  comparison_currency: z.literal("USD"),
+  pricing_unit: z.literal("branch_month"),
+  published_at: z.string(),
+  reference_gtq: z.object({ rate: z.number(), as_of: z.string() }).nullable(),
+  trial: z.object({
+    days: z.number().int(),
+    plan: z.string(),
+    plan_name: z.string(),
+    requires_card: z.boolean(),
+    url: z.string(),
+  }),
+  plans: z.array(
+    z
+      .object({
+        id: z.string(),
+        name: z.string(),
+        pricing: z.object({
+          currency: z.literal("USD"),
+          per: z.literal("branch_month"),
+          monthly: z.number(),
+          reference_gtq_monthly: z.number().nullable(),
+        }),
+        limits: z.object({
+          activeCustomers: z.number(),
+          branches: z.number(),
+          rewards: z.number(),
+        }),
+        features: z.record(z.string(), z.boolean()),
+        feature_list: z.array(z.string()),
+        cta: z.object({ trial_url: z.string(), trial_label: z.string(), contact_url: z.string() }),
+      })
+      .passthrough(),
+  ),
+});
+const TrialLockedErrorSchema = z.object({
+  error: z.string(),
+  code: z.literal("TRIAL_LOCKED"),
+  trial_status: z.literal("locked"),
+  trial_ends_at: TimestampSchema.nullable(),
+  purge_after: TimestampSchema.nullable(),
+  upgrade_url: z.string(),
+});
+
 const schemas = {
+  PublicTrialRequestCodeRequest: TrialRequestCodeSchema,
+  PublicTrialVerifyRequest: TrialVerifySchema,
+  PublicTrialSignupRequest: TrialSignupSchema,
+  PublicTrialSignupResponse: PublicTrialSignupResponseSchema,
+  PublicPlansResponse: PublicPlansResponseSchema,
+  AdminTrialResponse: AdminTrialResponseSchema,
+  TrialLockedError: TrialLockedErrorSchema,
+  SuperTrialExtendRequest: TrialExtendSchema,
+  SuperManualActivateRequest: ManualActivateSchema,
+  SuperBillingCatalogRequest: BillingCatalogSchema,
   StaffLoginRequest: staffLoginSchema,
   AwardPointsRequest: awardPointsSchema,
   StaffRedeemRequest: RedeemSchema,
@@ -697,6 +813,30 @@ const routeSchemaBindings = {
   "/api/v1/super/plans/{plan}/features": {
     put: { body: "SuperPlanFeaturesRequest" },
   },
+  "/api/v1/public/plans": {
+    get: { responses: { 200: "PublicPlansResponse" } },
+  },
+  "/api/v1/public/trial/request-code": {
+    post: { body: "PublicTrialRequestCodeRequest" },
+  },
+  "/api/v1/public/trial/verify": {
+    post: { body: "PublicTrialVerifyRequest" },
+  },
+  "/api/v1/public/trial/signup": {
+    post: { body: "PublicTrialSignupRequest", responses: { 201: "PublicTrialSignupResponse" } },
+  },
+  "/api/v1/admin/trial": {
+    get: { responses: { 200: "AdminTrialResponse" } },
+  },
+  "/api/v1/super/businesses/{businessId}/trial/extend": {
+    post: { body: "SuperTrialExtendRequest" },
+  },
+  "/api/v1/super/businesses/{businessId}/billing/manual-activate": {
+    post: { body: "SuperManualActivateRequest" },
+  },
+  "/api/v1/super/billing/catalog": {
+    put: { body: "SuperBillingCatalogRequest" },
+  },
   "/api/v1/super/businesses": {
     post: { body: "SuperCreateBusinessRequest" },
   },
@@ -855,7 +995,142 @@ const publicHmacHeaderParameter = {
   description: "Hex HMAC-SHA256 signature for the exact raw request body bytes.",
 };
 
+const trialLockedResponse = {
+  description:
+    "Trial locked: the business is past its trial end without a plan. Reads keep working; every staff mutation answers this body (code TRIAL_LOCKED).",
+  content: { "application/json": { schema: { $ref: "#/components/schemas/TrialLockedError" } } },
+};
+
 const curatedPaths = {
+  "/api/v1/public/plans": {
+    get: {
+      summary:
+        "Published plan catalog: USD prices per branch per month, caps, features and the trial",
+      responses: { 200: { description: "Catalog as /precios renders it" } },
+    },
+  },
+  "/api/v1/public/trial/config": {
+    get: {
+      summary:
+        "Self-serve trial configuration for the /prueba/ page (Turnstile site key, trial terms)",
+      responses: { 200: { description: "Trial configuration" } },
+    },
+  },
+  "/api/v1/public/trial/request-code": {
+    post: {
+      summary:
+        "Send the owner's phone verification code for a self-serve trial (Turnstile required)",
+      responses: {
+        200: { description: "Code sent (dev_code only with the development provider)" },
+        400: { description: "Validation error, Turnstile failed or dial code not allowed" },
+        429: { description: "Rate limited (per IP and per phone)" },
+        503: { description: "Signup unavailable or daily SMS cap reached" },
+      },
+    },
+  },
+  "/api/v1/public/trial/verify": {
+    post: {
+      summary: "Verify the phone code and receive a single-use 5-minute signup grant",
+      responses: {
+        200: { description: "Grant issued" },
+        401: { description: "Code invalid or expired" },
+        409: { description: "A trial already exists for this phone" },
+      },
+    },
+  },
+  "/api/v1/public/trial/signup": {
+    post: {
+      summary:
+        "Create the trial business on Conecta (14 days, no card); sets the owner session cookie",
+      responses: {
+        201: { description: "Business created; cookie __Host-pf_staff is set" },
+        400: { description: "Validation error or Turnstile failed" },
+        401: { description: "Grant invalid or expired" },
+        409: { description: "Email or phone already registered" },
+      },
+    },
+  },
+  "/api/v1/admin/trial": {
+    get: {
+      summary: "Trial and billing state for the owner app banner and lock screen",
+      security: [{ staffAuth: [] }],
+      responses: { 200: { description: "Trial state" }, 401: { description: "Not authenticated" } },
+    },
+  },
+  "/api/v1/super/trials": {
+    get: {
+      summary: "List trials with status, days left, phone verification and activation facts",
+      security: [{ superAuth: [] }],
+      parameters: [
+        {
+          in: "query",
+          name: "status",
+          required: false,
+          schema: {
+            type: "string",
+            enum: ["all", "trialing", "expiring", "locked", "converted", "purge"],
+          },
+        },
+        { in: "query", name: "limit", required: false, schema: { type: "integer" } },
+      ],
+      responses: { 200: { description: "Trial listing" } },
+    },
+  },
+  "/api/v1/super/trials/summary": {
+    get: {
+      summary: "Weekly trial cohorts (starts, activated, converted, locked, purge candidates)",
+      security: [{ superAuth: [] }],
+      responses: { 200: { description: "Cohort table" } },
+    },
+  },
+  "/api/v1/super/trials/purge-candidates": {
+    get: {
+      summary:
+        "Dry-run purge report: locked businesses past retention and the rows a purge would remove",
+      security: [{ superAuth: [] }],
+      responses: { 200: { description: "Dry-run report; nothing is deleted" } },
+    },
+  },
+  "/api/v1/super/businesses/{businessId}/trial/extend": {
+    post: {
+      summary: "Extend (or re-open) a trial by N days",
+      security: [{ superAuth: [] }],
+      responses: {
+        200: { description: "Trial extended" },
+        404: { description: "Business not found" },
+        409: { description: "Not a trial" },
+      },
+    },
+  },
+  "/api/v1/super/businesses/{businessId}/trial/lock": {
+    post: {
+      summary: "Lock a trialing business now",
+      security: [{ superAuth: [] }],
+      responses: { 200: { description: "Locked" }, 409: { description: "Not trialing" } },
+    },
+  },
+  "/api/v1/super/businesses/{businessId}/billing/manual-activate": {
+    post: {
+      summary: "Activate a paid plan by hand (provider manual) and record who did it",
+      security: [{ superAuth: [] }],
+      responses: {
+        200: { description: "Plan active" },
+        404: { description: "Business not found" },
+      },
+    },
+  },
+  "/api/v1/super/billing/catalog": {
+    get: {
+      summary: "Published prices and provider price ids (platform setting billing_catalog)",
+      security: [{ superAuth: [] }],
+      responses: { 200: { description: "Catalog" } },
+    },
+    put: {
+      summary: "Replace the billing catalog",
+      security: [{ superAuth: [] }],
+      responses: { 200: { description: "Catalog saved" }, 400: { description: "Payload invalid" } },
+    },
+  },
   "/api/v1/health": {
     get: {
       summary: "Service health probe",
@@ -957,6 +1232,7 @@ const curatedPaths = {
         200: { description: "Points awarded" },
         400: { description: "Validation error" },
         401: { description: "Not authenticated" },
+        402: trialLockedResponse,
         403: { description: "Permission denied" },
       },
     },

@@ -11,6 +11,7 @@ import {
 import { renderNativeWallet } from "./customer/native-wallet.js";
 import { walletDestination } from "./customer/wallet-navigation.js";
 import { createSessionEpoch } from "./session-epoch.js";
+import { createCooldown, cooldownLabel } from "./otp-cooldown.js";
 
 const returningSlugKey = "pf_customer_joined_slug";
 const session = createSessionEpoch("customer");
@@ -36,8 +37,6 @@ function setStep(step) {
 }
 
 function startCooldown($, seconds = 60) {
-  const endsAt = Date.now() + seconds * 1000;
-  let cooldownTimer = null;
   const codeButton = $("#btnCode");
   const resendButton = $("#btnResendCode");
   const cooldownInfo = $("#codeCooldownInfo");
@@ -45,24 +44,17 @@ function startCooldown($, seconds = 60) {
 
   codeButton.disabled = true;
   if (resendButton) resendButton.disabled = true;
-  const tick = () => {
-    const cooldownLeft = Math.ceil((endsAt - Date.now()) / 1000);
-    if (cooldownLeft <= 0) {
+  return createCooldown({
+    seconds,
+    onTick: (cooldownLeft) => {
+      if (cooldownInfo) cooldownInfo.textContent = cooldownLabel(cooldownLeft);
+    },
+    onDone: () => {
       codeButton.disabled = false;
       if (resendButton) resendButton.disabled = false;
       if (cooldownInfo) cooldownInfo.textContent = "";
-      clearInterval(cooldownTimer);
-      cooldownTimer = null;
-      return;
-    }
-    if (cooldownInfo) cooldownInfo.textContent = `Puedes reenviar en ${cooldownLeft}s`;
-  };
-
-  cooldownTimer = setInterval(tick, 1000);
-  tick();
-  return () => {
-    clearInterval(cooldownTimer);
-  };
+    },
+  });
 }
 
 function setModeCopy(mode, businessName, entryReason) {

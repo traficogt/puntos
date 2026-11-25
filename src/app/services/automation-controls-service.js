@@ -367,7 +367,8 @@ export async function runGuidedAutomationsOnce({ businessId = null, now = new Da
     ? [businessId]
     : await withDbClientContext({ platformAdmin: true, tenantId: null }, async () => {
         const { rows } = await dbQuery(
-          `SELECT id FROM businesses WHERE program_json->'lifecycle'->>'birthday_enabled'='true' OR program_json->'lifecycle'->>'winback_enabled'='true'`,
+          `SELECT id FROM businesses WHERE (program_json->'lifecycle'->>'birthday_enabled'='true' OR program_json->'lifecycle'->>'winback_enabled'='true')
+           AND billing_status <> 'locked'`,
         );
         return rows.map((/** @type {{ id: string }} */ row) => row.id);
       });

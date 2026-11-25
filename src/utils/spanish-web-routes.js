@@ -17,6 +17,7 @@ const browserRoutes = [
   ],
   ["/demostracion/", ["/demostracion/index.html"]],
   ["/crear-negocio/", ["/admin", "/admin.html"]],
+  ["/prueba/", ["/prueba", "/prueba.html"]],
   ["/equipo/ingresar/", ["/staff/login", "/staff-login", "/staff-login.html"]],
   ["/equipo/escaner/", ["/staff", "/staff.html"]],
   ["/mi-tarjeta/", ["/c", "/customer", "/customer.html"]],

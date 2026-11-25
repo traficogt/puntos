@@ -34,14 +34,44 @@ export interface SuperWalletBroadcast {
   channelPolicy: string;
 }
 
+export type SuperTrialStatus = "none" | "active" | "expired" | "converted";
+export type SuperBillingStatus = "none" | "trialing" | "active" | "past_due" | "canceled" | "locked";
+
 export interface SuperBusinessRow {
   id: string;
   name: string;
   slug?: string | null;
+  email?: string | null;
   plan: string;
+  created_at?: string;
   customers?: number;
   staff?: number;
   wallet_broadcast?: SuperWalletBroadcast;
+  /** Self-serve trial columns (docs/product/2026-11-25-self-serve-trial.md §3.1); absent on older servers. */
+  signup_source?: "internal" | "self_serve" | "super" | "api" | string;
+  trial_status?: SuperTrialStatus;
+  trial_started_at?: string | null;
+  trial_ends_at?: string | null;
+  trial_phone?: string | null;
+  billing_status?: SuperBillingStatus;
+  locked_at?: string | null;
+  purge_after?: string | null;
+}
+
+export interface SuperTrialCohort {
+  week?: string;
+  period_start?: string;
+  starts?: number;
+  activated?: number;
+  converted?: number;
+  locked?: number;
+  purged?: number;
+}
+
+export interface SuperTrialsSummaryResponse {
+  ok?: boolean;
+  cohorts?: SuperTrialCohort[];
+  median_days_to_first_customer?: number | null;
 }
 
 export interface SuperStaffRow {

@@ -9,6 +9,7 @@ import {
 } from "../app/services/auth-session-service.js";
 import { StaffRepo } from "../app/repositories/staff-repository.js";
 import { SuperAdminAuthRepo } from "../app/repositories/super-admin-auth-repository.js";
+import { enforceTrialLock } from "./billing-status.js";
 
 const RECENT_REAUTH_WINDOW_MS = config.RECENT_REAUTH_WINDOW_MS;
 
@@ -77,9 +78,17 @@ export async function requireStaff(req, res, next) {
       branch_id: staff.branch_id ? String(staff.branch_id) : null,
       impersonated_by: session.impersonated_by ? String(session.impersonated_by) : null,
     };
-    return next();
   } catch {
     return rejectAuth(req, res, config.STAFF_COOKIE_NAME, "AUTH_REQUIRED");
+  }
+  // Soft lock after a trial (middleware/billing-status.js): every staff mutation of a
+  // locked business answers 402 TRIAL_LOCKED; reads and the exempt session, trial and
+  // billing routes continue. Runs after the tenant is set so the business read uses RLS.
+  try {
+    if (await enforceTrialLock(req, res)) return;
+    return next();
+  } catch (error) {
+    return next(error);
   }
 }
 requireStaff.__openapi = { auth: "staff" };

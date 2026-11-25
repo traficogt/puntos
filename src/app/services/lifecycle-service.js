@@ -188,6 +188,8 @@ export async function runLifecycleOnce({ businessId = null } = {}, injected = {}
       const entry = await deps.context({ tenantId: bid, platformAdmin: false }, async () => {
         const business = await deps.getBusiness(bid);
         if (!business) return null;
+        // A soft-locked trial sends nothing on the business's behalf (design section 4.3).
+        if (business.billing_status === "locked") return { businessId: bid, skipped: "locked" };
         const lifecycleCfg = business.program_json?.lifecycle ?? {};
         const tierPolicy = business.program_json?.tier_policy ?? {};
         // Each incentive checks its own saved schedule. Daily maintenance must

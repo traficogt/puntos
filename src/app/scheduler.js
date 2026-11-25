@@ -19,6 +19,7 @@ import { processPendingJobsOnce } from "./services/job-service.js";
 import { runLifecycleOnce, createMarketingTick } from "./services/lifecycle-service.js";
 import { runSecondVisitAutomationsOnce } from "./services/second-visit-service.js";
 import { processWeeklyOwnerBriefsOnce } from "./services/weekly-owner-brief-service.js";
+import { runTrialDailyOnce } from "./services/trial-lifecycle-service.js";
 import { purgeExpiredSupportAttachments } from "./services/support-case-maintenance.js";
 import { pruneExpiredMfaCounters } from "./services/account-security-service.js";
 import { runLedgerReconciliation } from "./services/ledger-reconciliation-service.js";
@@ -223,6 +224,9 @@ export const startupTasks = Object.freeze([
 export const dailySteps = Object.freeze([
   { name: "support.purge-expired-attachments", runsIn: WORKER_ONLY, run: purgeSupportImages },
   { name: "lifecycle.daily", runsIn: BOTH, run: () => runLifecycleOnce() },
+  // Trial reminders, the day-14 soft lock and the purge dry run
+  // (docs/product/2026-11-25-self-serve-trial.md, section 4.2).
+  { name: "trial.daily", runsIn: WORKER_ONLY, run: () => runTrialDailyOnce() },
   { name: "mfa.prune-counters", runsIn: WORKER_ONLY, run: pruneMfaCounters },
   { name: "ledger.reconcile-and-certify", runsIn: WORKER_ONLY, run: reconcileAndCertifyLedger },
 ]);

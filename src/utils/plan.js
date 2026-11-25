@@ -12,8 +12,22 @@ const PLAN_LIMITS = {
   EMPRESA: { activeCustomers: 999999, rewards: 9999, branches: 9999 },
 };
 
-/** @type {Record<PlanName, { monthly: number, yearly: number, notes: string }>} */
-const PLAN_PRICING_GTQ = {
+/**
+ * Published list prices: USD per branch per month (owner decision, 2026-11-25; design of
+ * record docs/product/2026-11-25-self-serve-trial.md). The platform setting
+ * `billing_catalog` may override the amounts; see resolveBillingCatalog.
+ * @type {Readonly<Record<PlanName, number>>}
+ */
+export const PLAN_PRICING_USD = Object.freeze({ EMPRENDEDOR: 39, NEGOCIO: 79, EMPRESA: 129 });
+/** Billing unit of every published price. */
+export const PRICING_UNIT = "branch_month";
+
+/**
+ * Provisional GTQ figures kept only for the super console until the owner decides the
+ * quetzal list amounts (design section 12). Never published on /precios.
+ * @type {Record<PlanName, { monthly: number, yearly: number, notes: string }>}
+ */
+const PROVISIONAL_PRICING_GTQ = {
   EMPRENDEDOR: {
     monthly: 149,
     yearly: 1490,
@@ -30,6 +44,112 @@ const PLAN_PRICING_GTQ = {
     notes: "Para cadenas y operaciones multi-sucursal con integraciones avanzadas.",
   },
 };
+
+/**
+ * The `platform_settings.billing_catalog` document after defaults are applied.
+ * @typedef {{
+ *   published_at: string,
+ *   usd: Record<PlanName, number>,
+ *   gtq: Record<PlanName, number> | null,
+ *   gtq_reference: { rate: number, as_of: string } | null,
+ *   providers: {
+ *     recurrente: { price_ids: { GTQ: Record<string, string>, USD: Record<string, string> } },
+ *     stripe: { price_ids: { USD: Record<string, string> } }
+ *   }
+ * }} BillingCatalog
+ */
+
+/** @type {Readonly<BillingCatalog>} */
+export const DEFAULT_BILLING_CATALOG = Object.freeze({
+  published_at: "2026-11-25",
+  usd: { ...PLAN_PRICING_USD },
+  gtq: null,
+  gtq_reference: null,
+  providers: {
+    recurrente: { price_ids: { GTQ: {}, USD: {} } },
+    stripe: { price_ids: { USD: {} } },
+  },
+});
+
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Per-plan positive integer amounts; a plan missing or invalid falls back to `fallback`
+ * (or the whole map to null when `fallback` is null and nothing valid was supplied).
+ * @param {unknown} raw
+ * @param {Record<PlanName, number> | null} fallback
+ * @returns {Record<PlanName, number> | null}
+ */
+function planAmounts(raw, fallback) {
+  if (!isRecord(raw)) return fallback ? { ...fallback } : null;
+  /** @type {Partial<Record<PlanName, number>>} */
+  const out = {};
+  for (const plan of PLAN_ORDER) {
+    const n = Number(raw[plan]);
+    if (Number.isInteger(n) && n > 0 && n <= 1_000_000) out[plan] = n;
+    else if (fallback) out[plan] = fallback[plan];
+  }
+  if (Object.keys(out).length !== PLAN_ORDER.length) return fallback ? { ...fallback } : null;
+  return /** @type {Record<PlanName, number>} */ (out);
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {Record<string, string>}
+ */
+function priceIdMap(raw) {
+  if (!isRecord(raw)) return {};
+  /** @type {Record<string, string>} */
+  const out = {};
+  for (const [plan, id] of Object.entries(raw)) {
+    const p = normalizePlan(plan);
+    if (isPlanName(p) && typeof id === "string" && id.trim()) out[p] = id.trim();
+  }
+  return out;
+}
+
+/**
+ * Applies defaults to a stored `billing_catalog` document. Unknown keys are dropped,
+ * invalid amounts fall back to the code defaults, and the GTQ reference is kept only
+ * when both a positive rate and a dated `as_of` are present (never spot FX).
+ * @param {unknown} [raw] the platform setting as stored (or a super-console submission)
+ * @returns {BillingCatalog}
+ */
+export function resolveBillingCatalog(raw = {}) {
+  const input = isRecord(raw) ? raw : {};
+  const reference = isRecord(input.gtq_reference) ? input.gtq_reference : null;
+  const rate = reference ? Number(reference.rate) : NaN;
+  const asOf = reference && typeof reference.as_of === "string" ? reference.as_of.trim() : "";
+  const providers = isRecord(input.providers) ? input.providers : {};
+  const recurrente = isRecord(providers.recurrente) ? providers.recurrente : {};
+  const stripe = isRecord(providers.stripe) ? providers.stripe : {};
+  const recurrentePrices = isRecord(recurrente.price_ids) ? recurrente.price_ids : {};
+  const stripePrices = isRecord(stripe.price_ids) ? stripe.price_ids : {};
+  return {
+    published_at:
+      typeof input.published_at === "string" && /^\d{4}-\d{2}-\d{2}/.test(input.published_at)
+        ? input.published_at
+        : DEFAULT_BILLING_CATALOG.published_at,
+    usd: /** @type {Record<PlanName, number>} */ (planAmounts(input.usd, PLAN_PRICING_USD)),
+    gtq: planAmounts(input.gtq, null),
+    gtq_reference:
+      Number.isFinite(rate) && rate > 0 && /^\d{4}-\d{2}-\d{2}$/.test(asOf)
+        ? { rate: Math.round(rate * 10000) / 10000, as_of: asOf }
+        : null,
+    providers: {
+      recurrente: {
+        price_ids: { GTQ: priceIdMap(recurrentePrices.GTQ), USD: priceIdMap(recurrentePrices.USD) },
+      },
+      stripe: { price_ids: { USD: priceIdMap(stripePrices.USD) } },
+    },
+  };
+}
 
 /** @type {Record<PlanName, { included_messages: number, overage_per_message_q: number }>} */
 const PLAN_MESSAGING_GTQ = {
@@ -218,18 +338,26 @@ export function suggestedPlanForFeature(feature) {
 }
 
 /**
- * Every plan with its limits, features (overrides applied) and GTQ pricing,
- * cheapest first. `plan` is widened to `string` because callers compare it with
- * user-supplied plan names.
+ * Every plan with its limits, features (overrides applied) and pricing, cheapest
+ * first. `pricing_usd` is the published price (catalog defaults unless the platform
+ * setting overrides it); `pricing_gtq` stays the provisional super-console figure.
+ * `plan` is widened to `string` because callers compare it with user-supplied names.
  * @param {unknown} [overrides] see mergePlanFeatures
+ * @param {BillingCatalog} [catalog] see resolveBillingCatalog
  */
-export function listPlans(overrides = {}) {
+export function listPlans(overrides = {}, catalog = DEFAULT_BILLING_CATALOG) {
   const merged = mergePlanFeatures(overrides);
   return PLAN_ORDER.map((plan) => ({
     plan: /** @type {string} */ (plan),
     limits: PLAN_LIMITS[plan],
     features: merged[plan],
-    pricing_gtq: PLAN_PRICING_GTQ[plan],
+    pricing_usd: {
+      currency: "USD",
+      per: PRICING_UNIT,
+      monthly: catalog.usd[plan],
+      ...(catalog.gtq ? { gtq_monthly: catalog.gtq[plan] } : {}),
+    },
+    pricing_gtq: PROVISIONAL_PRICING_GTQ[plan],
     messaging_gtq: PLAN_MESSAGING_GTQ[plan],
   }));
 }

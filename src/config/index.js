@@ -395,6 +395,14 @@ export const config = {
 
   // Plans
   DEFAULT_PLAN: envValue("DEFAULT_PLAN", "EMPRENDEDOR"),
+
+  // Self-serve trial (docs/product/2026-11-25-self-serve-trial.md). No payment
+  // provider is configured here: wave 1 ends in a soft lock, not a charge.
+  TRIAL_DAYS: Number(process.env.TRIAL_DAYS ?? 14),
+  TRIAL_RETENTION_DAYS: Number(process.env.TRIAL_RETENTION_DAYS ?? 30),
+  // Platform circuit breaker on signup SMS codes per calendar day (UTC); 0 disables signup codes.
+  TRIAL_OTP_DAILY_CAP: Number(process.env.TRIAL_OTP_DAILY_CAP ?? 200),
+  TRIAL_ALLOWED_DIAL_CODES: parseCsv(envValue("TRIAL_ALLOWED_DIAL_CODES", "502")),
   ENFORCE_TENANT_CONTEXT: (process.env.ENFORCE_TENANT_CONTEXT ?? "true") !== "false",
 
   // Schema extensions (tiers/referrals/gamification/analytics)

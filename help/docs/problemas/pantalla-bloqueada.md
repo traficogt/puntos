@@ -1,11 +1,12 @@
 ---
 title: Una pantalla no carga o no permite guardar
 description: Conserva el trabajo y el mensaje de error antes de volver a intentarlo.
-reviewed: '2026-11-16'
+reviewed: '2026-11-25'
 kind: task
 sources:
 - public/staff/award-queue.js
 - web/merchant/src/owner-workspace.tsx
+- web/merchant/src/OwnerTrialLocked.tsx
 - web/merchant/src/RewardsWorkspace.jsx
 ---
 
@@ -33,7 +34,7 @@ Una consulta vuelve a cargar o conserva un error identificable. Un reintento de 
 
 ## Si algo no funciona
 
-**No borres datos del sitio si hay compras pendientes en caja.** **Conflicto de versión:** carga la versión actual y revisa los cambios. **Formulario largo sin guardar:** conserva lo que necesites por un medio seguro antes de salir; una recarga puede descartar la edición.
+**No borres datos del sitio si hay compras pendientes en caja.** **Conflicto de versión:** carga la versión actual y revisa los cambios. **Formulario largo sin guardar:** conserva lo que necesites por un medio seguro antes de salir; una recarga puede descartar la edición. **Tu prueba terminó: el panel está en modo de lectura:** la prueba gratis de 14 días venció; puedes consultar y exportar, pero ningún guardado se acepta hasta elegir un plan. Sigue [Empezar la prueba gratis de 14 días y elegir plan](/ayuda/negocio/prueba-gratis/).
 
 ## Continúa con otra tarea
 
@@ -41,4 +42,4 @@ Una consulta vuelve a cargar o conserva un error identificable. Un reintento de 
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/estado). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/estado). Revisión del 25 de noviembre de 2026.

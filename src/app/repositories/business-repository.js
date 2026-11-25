@@ -36,9 +36,31 @@ import {
  *   program_json: BusinessProgramJson,
  *   customer_branding_json: Record<string, unknown>,
  *   owner_progress_variant: string | null,
+ *   signup_source: string,
+ *   trial_status: string,
+ *   trial_started_at: Date | null,
+ *   trial_ends_at: Date | null,
+ *   trial_phone: string | null,
+ *   billing_status: string,
+ *   billing_currency: string | null,
+ *   locked_at: Date | null,
+ *   purge_after: Date | null,
  *   created_at: Date,
  *   updated_at: Date
  * }} BusinessRow
+ */
+
+/**
+ * Trial and access state written at creation (migration 2026-11-26-a). Omitted for
+ * internal/super creation, which keeps the column defaults ('internal', 'none', 'none').
+ * @typedef {{
+ *   signup_source: string,
+ *   trial_status: string,
+ *   trial_started_at: Date | null,
+ *   trial_ends_at: Date | null,
+ *   trial_phone: string | null,
+ *   billing_status: string
+ * }} BusinessSignupColumns
  */
 
 /**
@@ -58,7 +80,8 @@ import {
  *   category?: string | null,
  *   plan: string,
  *   program_type: string,
- *   program_json: BusinessProgramJson
+ *   program_json: BusinessProgramJson,
+ *   signup?: BusinessSignupColumns | null
  * }} BusinessCreateInput
  */
 
@@ -93,25 +116,58 @@ export const BusinessRepo = {
     plan,
     program_type,
     program_json,
+    signup = null,
   }) {
     const storedProgram = encryptProgramSecrets(program_json);
+    const columns = [
+      "id",
+      "name",
+      "slug",
+      "email",
+      "phone",
+      "password_hash",
+      "category",
+      "plan",
+      "program_type",
+      "program_json",
+    ];
+    /** @type {unknown[]} */
+    const values = [
+      id,
+      name,
+      slug,
+      email,
+      phone ?? null,
+      password_hash,
+      category ?? null,
+      plan,
+      program_type,
+      storedProgram,
+    ];
+    if (signup) {
+      columns.push(
+        "signup_source",
+        "trial_status",
+        "trial_started_at",
+        "trial_ends_at",
+        "trial_phone",
+        "billing_status",
+      );
+      values.push(
+        signup.signup_source,
+        signup.trial_status,
+        signup.trial_started_at,
+        signup.trial_ends_at,
+        signup.trial_phone,
+        signup.billing_status,
+      );
+    }
     return normalizeBusinessRecord(
       await one(
-        `INSERT INTO businesses (id, name, slug, email, phone, password_hash, category, plan, program_type, program_json)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        `INSERT INTO businesses (${columns.join(", ")})
+       VALUES (${columns.map((_, index) => `$${index + 1}`).join(",")})
        RETURNING *`,
-        [
-          id,
-          name,
-          slug,
-          email,
-          phone ?? null,
-          password_hash,
-          category ?? null,
-          plan,
-          program_type,
-          storedProgram,
-        ],
+        values,
       ),
     );
   },

@@ -113,6 +113,10 @@ export interface AppConfig {
   BUILD_TIMESTAMP: string;
 
   DEFAULT_PLAN: string;
+  TRIAL_DAYS: number;
+  TRIAL_RETENTION_DAYS: number;
+  TRIAL_OTP_DAILY_CAP: number;
+  TRIAL_ALLOWED_DIAL_CODES: string[];
   ENFORCE_TENANT_CONTEXT: boolean;
   AUTO_APPLY_SCHEMA_EXTENSIONS: boolean;
   AUTO_APPLY_MIGRATIONS: boolean;

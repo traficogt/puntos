@@ -85,8 +85,9 @@ class Links(HTMLParser):
             if attrs.get(key): self.links.append(attrs[key])
 
 # Public application contracts; the parent release verifies their server responses.
-APP_ROUTES={'/':'index.html','/equipo/ingresar/':'staff-login.html','/equipo/escaner/':'staff.html','/mi-tarjeta/':'customer.html','/privacidad':'privacidad.html','/preferencias-de-mensajes/':'marketing-preferences.html'}
-INTEGRATION_ROUTES={'/soporte','/estado','/calculadora','/guias/'}
+APP_ROUTES={'/':'index.html','/equipo/ingresar/':'staff-login.html','/equipo/escaner/':'staff.html','/mi-tarjeta/':'customer.html','/privacidad':'privacidad.html','/preferencias-de-mensajes/':'marketing-preferences.html','/prueba/':'prueba.html'}
+# /precios is rendered by src/middleware/public-plans.js from public/precios.html.
+INTEGRATION_ROUTES={'/soporte','/estado','/calculadora','/guias/','/precios'}
 
 def validate_output(site):
     parsed={}
