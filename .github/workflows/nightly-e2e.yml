@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "0 9 * * *"
   workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: "Re-record the visual baselines with CI's Chromium and upload them as an artifact"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -45,6 +50,8 @@ jobs:
       SUPER_ADMIN_EMAIL: super@example.com
       SUPER_ADMIN_PASSWORD: ci-super-${{ github.run_id }}-${{ github.run_attempt }}-nightly
       MESSAGE_PROVIDER: dev
+      AUTO_APPLY_MIGRATIONS: "true"
+      LOG_LEVEL: info
       CORS_ORIGIN: http://localhost:3001
       APP_ORIGIN: http://localhost:3001
       TRUST_PROXY: 1
@@ -254,6 +261,8 @@ jobs:
       SUPER_ADMIN_EMAIL: super@example.com
       SUPER_ADMIN_PASSWORD: ci-super-${{ github.run_id }}-${{ github.run_attempt }}-visual
       MESSAGE_PROVIDER: dev
+      AUTO_APPLY_MIGRATIONS: "true"
+      LOG_LEVEL: info
       CORS_ORIGIN: http://localhost:3001
       APP_ORIGIN: http://localhost:3001
       TRUST_PROXY: 1
@@ -302,7 +311,20 @@ jobs:
           exit 1
 
       - name: Run visual regression suite
+        if: ${{ !inputs.update_snapshots }}
         run: npm run test:e2e:visual
+
+      - name: Re-record visual baselines
+        if: ${{ inputs.update_snapshots }}
+        run: npm run test:e2e:visual:update
+
+      - name: Upload re-recorded baselines
+        if: ${{ inputs.update_snapshots }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: visual-snapshots
+          path: tests/e2e/visual.spec.js-snapshots
+          if-no-files-found: error
 
       - name: Upload visual artifacts on failure
         if: failure()

@@ -608,10 +608,12 @@ Design of record: `docs/product/2026-11-23-owner-progress.md` (v2). Landed in `8
   staff login page's handling, so it stays.
 - **`LEDGER_RECONCILE_HOUR_LOCAL`** is configured and passed to the worker but unused; the
   daily job runs at `CHURN_SEND_HOUR_LOCAL`.
-- **Third-party analytics on authenticated pages.** `https://privatrack.com` is allowed by
-  the CSP and referenced from the hand-written HTML pages including `staff.html`,
-  `super.html` and `customer.html`. Whether an analytics script belongs on authenticated
-  screens is a product and privacy decision for the owner, not an engineering default.
+- **Third-party analytics on authenticated pages.** `https://privatrack.com` (a cookieless,
+  Umami-compatible page-view counter) is allowed by the CSP and referenced from the
+  hand-written HTML pages including `staff.html`, `super.html` and `customer.html`, and from
+  the Mantine owner app. **Owner decision 2026-11-26: allowed.** It records page views and
+  the named `data-umami-event` interactions only; no customer identifiers, phone numbers or
+  balances are sent, and the privacy page discloses the measurement.
 - **Hard limits to know.** Campaign audience snapshots are capped at 200 customers
   (`growth-campaign-service.js:203`, `LIMIT 200 FOR SHARE` at line 279); customer imports
   commit in chunks of 100 rows per job tick (`customer-import-job-service.js:233`).
