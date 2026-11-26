@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
@@ -84,3 +85,10 @@ for (const [name, file, completion] of runners) {
       );
   });
 }
+
+// The browser specs build their fixtures into public/merchant/recursos with emptyOutDir, so
+// the committed bundle is gone once they finish. Restore it here: a commit staged after the
+// gate must never ship an index.html whose chunks do not exist (blank owner app).
+test.after(() => {
+  execFileSync("npm", ["--prefix", "web/merchant", "run", "build"], { cwd, stdio: "ignore" });
+});

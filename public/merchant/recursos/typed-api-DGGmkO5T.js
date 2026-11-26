@@ -1,0 +1,1 @@
+import{V as e,W as t}from"./index-EoCy8Y7F.js";function n(e){return{async get(t,n){return await e(t,n)},async put(t,n,r){return await e(t,{...r,method:`PUT`,body:JSON.stringify(n)})},async post(t,n,r){return await e(t,{...r,method:`POST`,body:JSON.stringify(n)})}}}var r=e,i=n(e),a=t;export{n as i,r as n,a as r,i as t};
