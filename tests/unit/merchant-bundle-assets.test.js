@@ -15,6 +15,7 @@ test("every bundle asset referenced by the merchant index.html exists on disk", 
   const refs = [...html.matchAll(/(?:src|href)="\/negocio\/recursos\/([^"]+)"/g)].map((m) => m[1]);
   assert.ok(refs.length >= 2, "index.html should reference the entry script and stylesheet");
   const missing = refs.filter(
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- repo-relative test path
     (file) => !existsSync(path.join(root, "public/merchant/recursos", file)),
   );
   assert.deepEqual(
