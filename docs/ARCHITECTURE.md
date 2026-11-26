@@ -610,8 +610,9 @@ Design of record: `docs/product/2026-11-23-owner-progress.md` (v2). Landed in `8
   daily job runs at `CHURN_SEND_HOUR_LOCAL`.
 - **Third-party analytics on authenticated pages.** `https://privatrack.com` (a cookieless,
   Umami-compatible page-view counter) is allowed by the CSP and referenced from the
-  hand-written HTML pages including `staff.html`, `super.html` and `customer.html`, and from
-  the Mantine owner app. **Owner decision 2026-11-26: allowed.** It records page views and
+  hand-written HTML pages including `staff.html`, `super.html` and `customer.html`; the Mantine owner app stays script-free because its
+  browser gate enforces a strict content security policy. **Owner decision 2026-11-26: allowed
+  on those pages.** It records page views and
   the named `data-umami-event` interactions only; no customer identifiers, phone numbers or
   balances are sent, and the privacy page discloses the measurement.
 - **Hard limits to know.** Campaign audience snapshots are capped at 200 customers
