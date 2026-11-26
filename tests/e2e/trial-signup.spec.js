@@ -53,7 +53,7 @@ test("the signup verifies the phone, posts the documented bodies and hands off t
   await page.getByLabel("Contraseña", { exact: true }).fill("OrchardLanternMarble2026!");
   await page.getByRole("button", { name: "Continuar" }).click();
   await expect(page.getByRole("heading", { name: "Verifica tu teléfono" })).toBeVisible();
-  await page.getByLabel("Teléfono").fill("5555 1234");
+  await page.getByRole("textbox", { name: "Teléfono" }).fill("5555 1234");
   await page.getByRole("button", { name: "Enviar código" }).click();
   await expect(page.getByRole("heading", { name: "Escribe el código" })).toBeVisible();
   await expect(page.locator("#verificationPhone")).toContainText("1234");
@@ -88,7 +88,7 @@ test("a server without the trial API explains it in Spanish and keeps the contac
   await page.getByLabel("Correo para entrar a tu panel").fill("owner-e2e@example.com");
   await page.getByLabel("Contraseña", { exact: true }).fill("OrchardLanternMarble2026!");
   await page.getByRole("button", { name: "Continuar" }).click();
-  await page.getByLabel("Teléfono").fill("55551234");
+  await page.getByRole("textbox", { name: "Teléfono" }).fill("55551234");
   await page.getByRole("button", { name: "Enviar código" }).click();
   await expect(page.locator("#trialPhoneFeedback")).toContainText("todavía no está disponible");
   await expect(page.locator("#trialUnavailable a[href='/#contacto']")).toBeVisible();

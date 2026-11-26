@@ -71,7 +71,9 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm ci --ignore-scripts --prefix web/merchant
 
       - name: Generate QR keys for tests
         run: |
@@ -305,7 +307,9 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm ci --ignore-scripts --prefix web/merchant
 
       - name: Generate QR keys for tests
         run: |
