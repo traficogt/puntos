@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-25T06:06:12.669Z",
+  "generated_at": "2026-11-26T02:16:18.122Z",
   "files": {
     "001_add_transactions_type.sql": "34e119c91fa5c744920b65a77dedeb89276bfd86a1b45e9a7edd59d73e8ffefc",
     "002_reward_branch_scope.sql": "5a076cc3a0b4df04031c5dc6d8ec26f75ebf44e648ca14a234dd8dfea08af401",
@@ -92,6 +92,7 @@
     "2026-11-24-import-batch-200.sql": "33bc5c0dd87dd35ec5d7f30e6413be030459e525783d135b7a4aa8aa1fb04fba",
     "2026-11-26-a-trial-state.sql": "99fc43c5969d6bc77c8a0f54814ce1b1794bc7e9b6bae91eedf5a3a794c1c28e",
     "2026-11-26-b-trial-phone-grants.sql": "d853d85dc98bd40ee7302c114005c7e1f70abec26cda013dd0495867f4284ec6",
-    "2026-11-26-c-billing-subscriptions.sql": "6657d510b06e3f0075aec84eb3ee5dd12474c398d530d39c5327143dd9d291b9"
+    "2026-11-26-c-billing-subscriptions.sql": "6657d510b06e3f0075aec84eb3ee5dd12474c398d530d39c5327143dd9d291b9",
+    "2026-11-26-d-customer-test-accounts.sql": "658b034da44c0f401c4d8cf11c21ab4d876259e90cfb6937c6ba8bf8e3c5a6ba"
   }
 }

@@ -131,6 +131,9 @@ customerRoutes.get(
           lifetime_points: customer.lifetime_points,
           created_at: customer.created_at,
           last_visit_at: customer.last_visit_at,
+          // "Cuenta de prueba": the card shows a small label so the owner's own phone is
+          // never mistaken for a real customer. Additive; older clients ignore it.
+          is_test: customer.is_test === true,
         },
         stamp_card: stamp
           ? {

@@ -55,7 +55,7 @@ async function scope(businessId, branchId, now) {
 const exposureSql = `WITH issued AS (
  SELECT e.approved_cost,c.unit_cost_q
  FROM hospitality_entitlements e
- JOIN customers customer ON customer.id=e.customer_id AND customer.business_id=e.business_id AND customer.deleted_at IS NULL
+ JOIN customers customer ON customer.id=e.customer_id AND customer.business_id=e.business_id AND customer.deleted_at IS NULL AND NOT customer.is_test
  LEFT JOIN reward_unit_costs c ON c.business_id=e.business_id AND c.reward_id=e.reward_id
  WHERE e.business_id=$1 AND ($2::uuid IS NULL OR e.branch_id=$2)
  AND e.issued_at<=$3::timestamptz AND e.expires_at>$3::timestamptz
@@ -63,7 +63,7 @@ const exposureSql = `WITH issued AS (
 ), choices AS (
  SELECT cycle.id,COUNT(*) AS alternatives,BOOL_OR(cost.unit_cost_q IS NULL) AS missing_cost
  FROM reward_promise_cycles cycle
- JOIN customers customer ON customer.id=cycle.customer_id AND customer.business_id=cycle.business_id AND customer.deleted_at IS NULL
+ JOIN customers customer ON customer.id=cycle.customer_id AND customer.business_id=cycle.business_id AND customer.deleted_at IS NULL AND NOT customer.is_test
  JOIN customer_reward_promises p ON p.cycle_id=cycle.id AND p.business_id=cycle.business_id
  LEFT JOIN reward_unit_costs cost ON cost.business_id=p.business_id AND cost.reward_id=p.reward_id
  WHERE cycle.business_id=$1 AND cycle.completed_at IS NULL AND cycle.observed_at<=$3::timestamptz
@@ -73,12 +73,12 @@ const exposureSql = `WITH issued AS (
  SELECT COALESCE(SUM(GREATEST(cb.points,0)),0) AS outstanding,
  COALESCE(SUM(cb.pending_points),0) AS pending,COALESCE(SUM(LEAST(cb.points,0)),0) AS negative
  FROM customer_balances cb JOIN customers c ON c.id=cb.customer_id
- WHERE c.business_id=$1 AND c.deleted_at IS NULL
+ WHERE c.business_id=$1 AND c.deleted_at IS NULL AND NOT c.is_test
 ), bounds AS (
  SELECT ((($3::timestamptz AT TIME ZONE $4)::date-29)::timestamp AT TIME ZONE $4) AS start_at
 ), completed AS (
  SELECT s.unit_cost_q FROM redemptions r
- JOIN customers c ON c.id=r.customer_id AND c.business_id=r.business_id
+ JOIN customers c ON c.id=r.customer_id AND c.business_id=r.business_id AND NOT c.is_test
  LEFT JOIN redemption_cost_snapshots s ON s.business_id=r.business_id AND s.redemption_id=r.id
  CROSS JOIN bounds b
  WHERE r.business_id=$1 AND r.status='REDEEMED' AND ($2::uuid IS NULL OR r.branch_id=$2)
@@ -164,14 +164,14 @@ const activitySql = `WITH bounds AS (
  (t.source IN('online','offline','external','order') AND (t.type='PURCHASE' OR t.type IS NULL)
  AND t.original_transaction_id IS NULL AND (t.amount_q>0 OR t.visits>0 OR t.items>0)) AS purchase,
  (t.points>0 AND t.source NOT IN('reversal','redeem','migration') AND COALESCE(t.type,'PURCHASE') NOT IN('REFUND','OPENING_BALANCE')) AS award
- FROM transactions t JOIN customers c ON c.id=t.customer_id AND c.business_id=t.business_id CROSS JOIN bounds b
+ FROM transactions t JOIN customers c ON c.id=t.customer_id AND c.business_id=t.business_id AND NOT c.is_test CROSS JOIN bounds b
  WHERE t.business_id=$1 AND ($2::uuid IS NULL OR t.branch_id=$2)
  AND t.created_at>=b.start_at AND t.created_at<$3::timestamptz
  AND t.status IN('POSTED','PENDING','REVERSED','EXPIRED') AND t.source<>'redeem'
  AND COALESCE(t.type,'PURCHASE')<>'OPENING_BALANCE'
  UNION ALL
  SELECT a.created_by_staff_id,'ledger_correction',a.delta_points,0,a.delta_pending_points,'adjustment',false,false
- FROM ledger_balance_adjustments a JOIN customers c ON c.id=a.customer_id AND c.business_id=a.business_id CROSS JOIN bounds b
+ FROM ledger_balance_adjustments a JOIN customers c ON c.id=a.customer_id AND c.business_id=a.business_id AND NOT c.is_test CROSS JOIN bounds b
  WHERE a.business_id=$1 AND $2::uuid IS NULL AND a.created_at>=b.start_at AND a.created_at<$3::timestamptz
 ), attributed AS (
  SELECT a.*,${activityAttributionSql} AS actor_group,s.name,s.active,

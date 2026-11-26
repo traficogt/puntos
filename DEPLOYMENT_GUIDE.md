@@ -253,13 +253,9 @@ npm run ops:alerts:check -- --scope api --base-url https://your-domain.example -
 npm run ops:alerts:check -- --scope worker --worker-base-url https://worker.example.internal:3002 --metrics-token <token> --mode evaluate
 ```
 
-## 11. Billing (Recurrente)
+## 11. Subscription billing
 
-Self-serve subscriptions (design of record `docs/product/2026-11-25-self-serve-trial.md`,
-wave 2) charge the published USD prices through Recurrente. Nothing is charged until the
-key is configured: without it every checkout route answers `503 BILLING_UNAVAILABLE`,
-`GET /api/admin/billing` reports `upgrade_available: false`, and the super console's manual
-activation keeps working.
+New subscriptions use Recurrente for quetzales in Guatemala and Stripe for US dollars elsewhere. Published monthly amounts include IVA. Each existing subscription continues with its original processor. With the selected provider or its catalog unavailable, the owner can request manual activation.
 
 ### Environment
 
@@ -319,6 +315,23 @@ checkout with `Idempotency-Key` replay, then, after you pay the printed URL with
 `now_and_charge`, the design's riskiest assumption), a quantity change and the cancel at period
 end. Nothing secret is printed. The printed price ids can be pasted into the catalog if you prefer
 not to run the sync against the Sandbox.
+
+### Stripe USD checkout and webhooks
+
+Mount the Stripe API key and the endpoint signing secret into both the API and worker through `STRIPE_SECRET_KEY_FILE` and `STRIPE_WEBHOOK_SECRET_FILE`. The existing production destination is `https://app.puntosfieles.com/api/public/billing/webhooks/stripe`. In Stripe Workbench the destination should receive these snapshot events on the same account and in the same mode as the stored key:
+
+- `checkout.session.completed`, `checkout.session.expired`
+- `invoice.paid`, `invoice.payment_failed`
+- `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`
+- `charge.refunded`, `charge.dispute.created`
+
+For a sandbox, use separate test keys, a sandbox destination, and its signing secret. The following command creates or reuses three sandbox prices, creates a test customer and prints their hosted Checkout URL. With the flags shown it waits for a test payment, checks the subscription, and cancels it. It exits before contacting Stripe if the supplied key is live.
+
+```bash
+STRIPE_SECRET_KEY_FILE=/path/to/stripe-test-key node src/scripts/billing-stripe-check.mjs --wait-seconds 600 --cancel
+```
+
+The script uses synthetic IDs and exercises the provider directly. To verify that the app itself activates a plan, start checkout from **Plan y facturación** in a staging tenant with USD billing, pay with a Stripe test card, and confirm both an active plan and a processed invoice webhook. In each environment sync prices using **Sincronizar Stripe (USD)** in the super console, or send `{"provider":"stripe"}` to `POST /api/super/billing/catalog/sync` as the super admin. The owner sees card checkout when all three price IDs are present. The return URL alone never grants access.
 
 ### Jobs and observability
 

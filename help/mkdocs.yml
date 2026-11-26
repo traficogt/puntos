@@ -48,6 +48,7 @@ nav:
   - Crear o editar una recompensa: negocio/recompensas.md
   - Vincular un artículo a una recompensa: negocio/catalogo.md
   - Buscar un cliente y corregir su nombre: negocio/clientes.md
+  - Marcar una cuenta de prueba: negocio/cuentas-de-prueba.md
   - Crear una cuenta para el equipo: negocio/personal.md
   - Cambiar permisos o desactivar una cuenta: negocio/cambiar-acceso.md
   - Agregar una sucursal: negocio/sucursales.md

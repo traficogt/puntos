@@ -172,13 +172,16 @@ export const TxnRepo = {
       params.push(branchId);
       branchClause = " AND branch_id = $3";
     }
+    // Basic reporting: movements of test accounts (customers.is_test) stay out of the
+    // 30-day figures; the ledger and the customer history still list them.
     const r = await one(
       `SELECT
          COUNT(*)::int AS tx_count,
          COALESCE(SUM(amount_q),0)::numeric(10,2) AS amount_sum,
          COALESCE(SUM(points),0)::int AS points_sum
        FROM transactions
-       WHERE business_id=$1 AND created_at >= now() - ($2 || ' days')::interval${branchClause}`,
+       WHERE business_id=$1 AND created_at >= now() - ($2 || ' days')::interval${branchClause}
+         AND NOT EXISTS (SELECT 1 FROM customers c WHERE c.id = transactions.customer_id AND c.is_test)`,
       params,
     );
     return r ?? { tx_count: 0, amount_sum: "0.00", points_sum: 0 };

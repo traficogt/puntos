@@ -215,3 +215,16 @@ test("customer statement uses identity-scoped cache and labels cached responses 
   );
   assert.equal(h.events.find((row) => row[0] === "statement")[3].isLive, false);
 });
+
+test("wallet renders the test label only for the current marked account, including cached cards", async (t) => {
+  const h = setup(t);
+  const context = { ...h, api: async () => ({}) };
+  const marked = { ...me, customer: { ...me.customer, is_test: true } };
+  for (const [card, hidden] of [
+    [marked, false],
+    [me, true],
+  ]) {
+    await renderFromMe(context, card, false, { sections: { me: card } });
+    assert.equal(h.$("#testAccountLabel").hidden, hidden);
+  }
+});

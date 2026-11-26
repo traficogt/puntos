@@ -2,7 +2,7 @@
 title: Consultar la auditoría del negocio
 description: Filtra los eventos de auditoría por fechas e impersonación, abre el detalle
   de un evento y descarga el CSV.
-reviewed: '2026-11-25'
+reviewed: '2026-11-26'
 kind: task
 sources:
 - web/merchant/src/OwnerAudit.tsx
@@ -32,7 +32,7 @@ Ingresa con la cuenta del dueño; la pantalla requiere un plan con análisis ava
 
 ## Qué debe pasar
 
-La auditoría es de solo lectura: filtrar, abrir detalles o descargar no cambia nada. Las acciones de la plataforma aparecen como **Plataforma** sin detalle interno; las de tu equipo muestran la cuenta que las realizó. El CSV respeta los filtros aplicados en pantalla.
+La auditoría es de solo lectura: filtrar, abrir detalles o descargar no cambia nada. Las acciones de la plataforma aparecen como **Plataforma** sin detalle interno; las de tu equipo muestran la cuenta que las realizó. Cuando se marca o desmarca una cuenta de prueba, el detalle identifica la cuenta y el valor de la marca. El CSV respeta los filtros aplicados en pantalla.
 
 ## Si algo no funciona
 
@@ -46,4 +46,4 @@ La auditoría es de solo lectura: filtrar, abrir detalles o descargar no cambia 
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#auditoria). Revisión del 25 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#auditoria). Revisión del 26 de noviembre de 2026.

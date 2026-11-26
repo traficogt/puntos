@@ -15,15 +15,15 @@ they were read from, and anything not read from a primary source is marked "not 
 | Trial | 14 days, no card, Conecta features, open to anyone passing Turnstile + phone OTP | New public signup flow; trial state on `businesses` |
 | End of trial | Soft lock at day 14: owner app read-only with an upgrade call to action; customers' cards keep working read-only | New entitlement middleware for owner/staff mutations; customer and public endpoints untouched |
 | Retention | Data kept 30 days after the lock, then the existing deletion/retention rules | There is no existing business-deletion rule (§3.6); a purge job must be built and is gated behind a dry run |
-| Billing | Adapter interface; Recurrente first (GTQ cards, recurring), Stripe later for USD customers; nothing wired today | `src/app/services/billing/` with a provider contract; Recurrente mapping verified against its docs; Stripe sketched |
+| Billing | Monthly subscriptions through Recurrente (GTQ) and Stripe (USD), plus manual activation | `src/app/services/billing/` with provider-specific adapters, verified webhooks and tenant-owned checkouts |
 
 Decisions added on 2026-11-26 (owner):
 
 | Topic | Decision (owner, 2026-11-26) | Design consequence |
 | --- | --- | --- |
 | GTQ list prices | Conecta **Q300**, Impulsa **Q630**, Expande **Q1,030** per branch per month (USD × 8 rounded to a round number; USD stays 39 / 79 / 129) | `PLAN_PRICING_GTQ` in `src/utils/plan.js` is the code default of `billing_catalog.gtq`; the super console may still override it; `PROVISIONAL_PRICING_GTQ` (149 / 399 / 999) is retired and `pricing_gtq` comes from the catalog |
-| Currency per customer | Guatemalan businesses pay GTQ through Recurrente; businesses outside Guatemala pay USD (Recurrente today, Stripe later) | `businessPaysInGtq` / `defaultCurrency` in `subscription-service.js` (§6); `GET /api/admin/billing` `catalog.currency` follows the rule; the catalog sync creates six products |
-| IVA | The published amounts, USD and GTQ, include IVA (12%) | `iva_included: true` on the catalog and the public payload (`tax`); every "sin impuestos / se confirman por escrito" copy is replaced by "Precios con IVA incluido. El comprobante fiscal (FEL) lo emite Recurrente por cada cobro." |
+| Currency per customer | Guatemalan businesses pay GTQ through Recurrente; businesses outside Guatemala pay USD through Stripe | `businessPaysInGtq` / `defaultCurrency` in `subscription-service.js` (§6); `GET /api/admin/billing` `catalog.currency` follows the rule; catalog sync selects one processor per request |
+| IVA | The published amounts, USD and GTQ, include IVA (12%) | `iva_included: true` on the catalog and the public payload (`tax`); every "sin impuestos / se confirman por escrito" copy is replaced by "Precios con IVA incluido. Por ahora no se emite factura electrónica (FEL)." |
 | `/precios` presentation | Lead with the quetzal price for the Guatemalan audience and keep USD alongside ("Q300 al mes por sucursal", "USD 39 fuera de Guatemala") | `pricing.monthly` stays USD for compatibility, `pricing.gtq_monthly` is added; the dated FX reference is no longer rendered (a fixed list price needs no conversion) |
 
 Still open (see §12): Recurrente account/KYC status, refund policy, Stripe availability for a
@@ -282,9 +282,11 @@ carries `iva_included: true`; `PROVISIONAL_PRICING_GTQ` is deleted.
 ### 3.5 Config keys (`src/config/index.js`)
 
 `TRIAL_DAYS` (14), `TRIAL_RETENTION_DAYS` (30), `TRIAL_OTP_DAILY_CAP` (platform circuit breaker,
-e.g. 200), `TRIAL_ALLOWED_DIAL_CODES` (default `502`), `BILLING_PROVIDER_DEFAULT` (`recurrente`),
-`RECURRENTE_SECRET_KEY`, `RECURRENTE_WEBHOOK_SECRET`, `RECURRENTE_LIVE`, `STRIPE_SECRET_KEY`,
-`STRIPE_WEBHOOK_SECRET`; all read through `envValue` so `_FILE` secrets work.
+e.g. 200), and `TRIAL_ALLOWED_DIAL_CODES` (default `502`). `BILLING_PROVIDER` defaults to
+`recurrente` for existing deployments. Both processors may be configured together.
+`manual` disables online processing. The API and worker read `RECURRENTE_SECRET_KEY`,
+`RECURRENTE_WEBHOOK_SECRET`, `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` via `envValue`,
+including mounted `_FILE` secrets. A checkout requires its processor's API and signing keys.
 
 ### 3.6 Retention and deletion
 
@@ -371,21 +373,17 @@ campaigns skip locked businesses (`runLifecycleOnce` and `marketing.tick` check
    `quantity = countBranches(business)` (min 1) and the monthly total.
 2. `POST /api/admin/billing/checkout` `{ plan, currency }` (owner only, `csrfProtect`,
    idempotent per `(business_id, plan, quantity, currency)` while an `open` checkout exists).
-   The service resolves the provider (`GTQ → recurrente`; `USD → stripe` when available, else
-   `recurrente`), calls `createCustomer` if no `billing_customers` row exists, then
-   `createCheckout`, stores `billing_checkouts` and returns `checkout_url`.
-3. Owner pays on the hosted page. `success_url` returns to `/negocio/#plan?checkout=<id>`, which
-   polls `GET /api/admin/billing/subscription` ("Confirmando pago…") until the webhook lands. The
-   redirect itself never activates anything.
-4. Webhook `POST /api/public/billing/webhooks/:provider` (no `csrfProtect`; raw body from
-   `req.rawBody`, which `express.json` already keeps): `verifyWebhook` → insert
-   `billing_provider_events` (duplicate `provider_event_id` → 200 and stop) → `parseEvent` →
-   match `metadata.business_id`/`checkout_id` to `billing_checkouts` and compare `currency`,
-   `quantity`, `unit_amount_minor`, `live_mode` → on `subscription_created`/`payment_succeeded`:
-   upsert `billing_subscriptions`, `UPDATE businesses SET plan=$plan, billing_status='active',
-   trial_status='converted', billing_currency=$cur, locked_at=NULL, purge_after=NULL`,
-   `emitBillingEvent("subscription.activated")`, email `activada`. All inside `withTransaction`
-   under a platform context; the handler answers 2xx quickly and emails go to `background_jobs`.
+   The server selects the processor from the merchant's region (§6), checks the plan's branch
+   limit and saves the provider customer and hosted checkout. A matching open checkout is reused.
+   A different purchase while a Stripe session is open returns 409 `BILLING_CHECKOUT_PENDING`.
+3. The owner returns from the hosted page and polls `GET /api/admin/billing/checkout/:id`.
+   The poll reports the tenant's stored checkout state. Both return URLs are navigation only.
+4. The processor sends a signed event to `POST /api/public/billing/webhooks/:provider`.
+   The service verifies the raw request, then processes a delivery under a database lock.
+   First activation requires a successful payment, a matching local checkout and customer,
+   and an eligible subscription read from the same processor. Checkout completion and
+   subscription creation alone leave the trial state unchanged. The transaction records
+   the payment, closes the checkout, activates the business and finishes the event together.
 5. Renewals: `payment_succeeded` updates `current_period_*`; `payment_failed` /
    `subscription_past_due` set `billing_status='past_due'` (§4.6); `subscription_canceled` sets
    `billing_status='canceled'` and schedules the lock at `current_period_end` (paid access
@@ -478,23 +476,47 @@ remove + add with `now_and_charge` (the docs describe item changes, not a price 
 product); fallback is `cancel_at_period_end` on the old subscription plus a new checkout that
 starts at the period end.
 
-### 5.3 Stripe sketch (for USD customers, wave 3)
+### 5.3 Stripe USD subscriptions
 
-Verified: `POST /v1/checkout/sessions` with `mode=subscription`, `line_items[0][price]`,
-`line_items[0][quantity]`, `customer` or `customer_email`, `success_url`, `cancel_url`,
-`client_reference_id`, `metadata`, `subscription_data`, `locale` (`es-419` listed), `expires_at`
-30 min–24 h; the response has `url` (https://docs.stripe.com/api/checkout/sessions/create).
-Webhooks: `Stripe-Signature` header with a `whsec_` secret over the raw body, 5-minute default
-tolerance, exponential-backoff retries for up to three days in live mode, no ordering guarantee,
-dedupe by event id; a subscription creation emits `customer.subscription.created`,
-`invoice.created`, `invoice.paid`, `charge.created` (https://docs.stripe.com/webhooks). Mapping:
-`checkout.session.completed` → `checkout_completed`, `invoice.paid` → `payment_succeeded`,
-`invoice.payment_failed` → `payment_failed`, `customer.subscription.updated/deleted` →
-`subscription_updated/canceled`; quantity changes via the Subscriptions API with
-`proration_behavior`. **Not verified**: whether a Guatemalan entity can open a Stripe account
-(https://stripe.com/global refused automated fetches; the owner must check) and the customer
-portal. Until then USD customers can be charged through Recurrente, which supports USD prices
-and international cards.
+The server pins outgoing API requests to `2026-11-18.endive`. The live webhook destination
+inherits the account's `2023-10-16` snapshot format. The invoice parser accepts both
+formats. Stripe Checkout uses a monthly USD price, one unit per
+branch, with the PF checkout identifier in both session and subscription metadata.
+Adaptive pricing and automatic tax are disabled. Prices include IVA. A hosted invoice URL
+is a processor receipt and uses the existing `tax_invoice_url` response field.
+[Checkout Sessions](https://docs.stripe.com/api/checkout/sessions/create) · [API versioning](https://docs.stripe.com/api/versioning)
+
+The destination is `POST /api/public/billing/webhooks/stripe` (also under `/api/v1`).
+The signing secret authenticates the original UTF-8 body with a five-minute timestamp
+tolerance. The signed event ID scopes deduplication to Stripe. A failed provider read
+returns 500 for redelivery. An authenticated duplicate returns 200. Unrelated deliveries
+retain their event ID, time, type, mode and processing outcome. Matched events can also
+retain the processor identifiers, amount, currency and receipt link used by billing.
+[Stripe webhook deliveries](https://docs.stripe.com/events/manage-webhook-endpoints)
+
+| Stripe event | Server behavior |
+| --- | --- |
+| `checkout.session.completed`, `customer.subscription.created` | Wait for payment before granting new access. |
+| `checkout.session.expired` | Expire the matching open checkout. |
+| `invoice.paid` | Check the positive USD payment against the current paid invoice and active monthly subscription. First payment also requires a matching paid Checkout Session, business, customer, plan, quantity and total. |
+| `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted` | Read current subscription state. Apply the existing renewal grace, cancellation and lock rules. |
+| `charge.refunded`, `charge.dispute.created` | Record the outcome when the processor customer maps to a business. |
+
+Upgrades and added units use `always_invoice` with `error_if_incomplete`. Downgrades and
+removed units use the next renewal price with proration disabled. The subscription metadata
+retains the previously paid plan and quantity until the cycle turns. Owner cancellation
+sets `cancel_at_period_end`. [Subscription updates](https://docs.stripe.com/api/subscriptions/update)
+
+**Super catalog contract.** Send an authenticated, CSRF-protected
+`POST /api/super/billing/catalog/sync` with JSON `{"provider":"stripe","force":false}`.
+Both fields are optional. The defaults are `recurrente` and `false`. Stripe syncs three
+monthly USD prices. Recurrente keeps its three GTQ and three historical USD prices.
+Existing local IDs go in `kept` unless forced. The server saves the selected processor's
+price map and preserves the other processor's IDs. The 200 response includes `ok`,
+`provider`, `live_mode`, `catalog`, `created` (currency, plan, price_id, product_id) and
+`kept` (currency, plan, price_id). An unsupported provider gives 400 `VALIDATION_ERROR`.
+Missing API credentials give 503 `BILLING_UNAVAILABLE`. Checkout also checks the remote
+Stripe price against the published amount and monthly USD terms before redirecting the owner.
 
 ## 6. Plan math
 
@@ -510,29 +532,19 @@ and international cards.
 - Proration: upgrades and added branches charge the prorated remainder now (`now_and_charge`);
   downgrades and removed branches apply next cycle. Neither provider refunds unused time by
   default and Recurrente rejects `prorate: true`.
-- Currency and processor (owner decision 2026-11-26): GT customers pay **GTQ through Recurrente**
-  at the fixed list amounts stored in `billing_catalog.gtq` (code default `PLAN_PRICING_GTQ`, not
-  spot FX, per `docs/product/pricing-usd-planning.md`); customers outside GT pay USD through
-  Recurrente today and Stripe when available. The rule lives in `subscription-service.js`
-  (`businessPaysInGtq`, `defaultCurrency`): a business is Guatemalan when it already pays in GTQ
-  (`billing_currency`), when its regional settings resolve to `America/Guatemala` (the default
-  region when none is set), or when its verified trial phone starts with the 502 dial code. Such
-  a business checks out in GTQ by default when GTQ is ready (amounts plus Recurrente GTQ price
-  ids for every plan); otherwise, and for every other business, USD. The owner can still choose
-  the currency explicitly; an explicit GTQ request while GTQ is not ready answers 400
-  `BILLING_CURRENCY_UNAVAILABLE`. `GET /api/admin/billing` `catalog.currency` follows the same
-  rule (an active subscription keeps its own currency); the super manual activation defaults the
-  same way; the catalog sync always creates six Recurrente products (three USD, three GTQ).
-  `/precios` leads with the quetzal price and keeps USD alongside; the dated
-  `billing_catalog.gtq_reference` stays in the public payload for compatibility but is no
-  longer rendered.
-- IVA 12% (owner decision 2026-11-26): option (a). The published amounts, USD and GTQ, are
-  IVA-inclusive ("Precios con IVA incluido"); the Recurrente DTE is the invoice and breaks out
-  `base = total / 1.12` exactly as `src/app/routes/admin/billing.js` does for merchant sales. The
-  catalog carries `iva_included: true` (`DEFAULT_BILLING_CATALOG`, the normalizer, the public
-  payload as `tax: { iva_included: true, rate: 0.12 }`) so every surface reads one statement.
-  USD charges to non-GT customers are an export of services; how they are documented for SAT
-  stays with the accountant (§12).
+- New checkouts use the explicitly configured regional country. Guatemala uses GTQ through
+  Recurrente. Every other supported country uses USD through Stripe. When the region is
+  unknown, use the verified phone dial code, then the stored billing currency, then GTQ.
+  A Guatemalan phone on a business explicitly operating abroad still routes to Stripe.
+  An explicit request for a different currency returns 400 `BILLING_CURRENCY_UNAVAILABLE`.
+  Missing processor credentials or price IDs leave the manual contact path available.
+- Existing contracts retain their stored currency and processor for changes, cancellation,
+  branch updates and reconciliation, including historical Recurrente USD contracts.
+  The billing overview, trial and plan endpoints use the same per-business checkout rule.
+  The overview's `cancel_available` is independent of catalog readiness for a manageable
+  active or past-due online subscription. Its `change_available` also requires price IDs.
+- Published USD and GTQ totals include IVA (12%). PF does not issue FEL or collect a NIT
+  for subscription billing. The catalog carries `iva_included: true`.
 - Processor cost per Recurrente card charge: 4.5% + Q2 (Q15.50 on Q300, 5.2%; no FEL cost because PF does not issue FEL).
   Record the webhook's `details.fee` in `billing_subscriptions.metadata` for margin reporting.
 
@@ -557,8 +569,8 @@ and international cards.
   `tests/unit/public-plans.test.js` (the three assertions that pin `quotation`, `Solicitar
   cotización` and the GTQ regex) and `docs/openapi`. **2026-11-26:** the basis reads "Precio al
   mes por sucursal: en quetzales para negocios en Guatemala y en dólares (USD) fuera de
-  Guatemala, con IVA incluido" and the tax note is "Precios con IVA (12 %) incluido. El
-  comprobante fiscal (FEL) lo emite Recurrente por cada cobro."; the landing FAQ, `/prueba/`,
+  Guatemala, con IVA incluido" and the tax note is "Precios con IVA (12 %) incluido. Por ahora
+  no se emite factura electrónica (FEL)."; the landing FAQ, `/prueba/`,
   the trial emails and the owner upgrade form quote "desde Q300 al mes por sucursal con IVA
   incluido (USD 39 fuera de Guatemala)".
 - Umami events: `trial_start_click` (location), existing `plan_quote` stays for the contact
@@ -591,6 +603,13 @@ todas las funciones de Conecta." Error copy reuses the `createBusinessWithOwner`
   seguir operando."
 
 ### 7.4 Super console (`/plataforma/`)
+
+`GET /api/super/billing/subscriptions` includes flat `business_id`, `business_name` and
+`slug` fields alongside the nested `business`. `GET /api/super/billing/events` includes
+`occurred_at`, normalized `type`, `amount_minor`, `currency` and `tax_invoice_url`
+alongside the provider's `event_type` and the existing `summary`. Amount and receipt
+fields are nullable. A super cancellation honors `{"at_period_end":true}`.
+
 
 - `GET /api/super/businesses` returns the new columns; `public/super/businesses.js` gains filter
   chips (En prueba, Vencen en 3 días, Bloqueados, Convertidos, Por eliminar) and
@@ -637,7 +656,7 @@ milestones), the same numbers the weekly brief uses.
   uses `passwordSchema` and `assertPasswordAllowed`; CSRF does not apply before a session
   exists, matching `/api/admin/signup`.
 - Webhooks: signature over the raw body, 5-minute timestamp tolerance, `live_mode` must equal
-  `RECURRENTE_LIVE`, dedupe on `provider_event_id`, and the event must match a stored
+  the configured processor key mode, dedupe on the provider and event ID, and the event must match a stored
   `billing_checkouts` row (currency, quantity, amount) before any entitlement changes. The route
   has no `csrfProtect`, is mounted next to `paymentWebhookRoutes` in `src/app/routes/index.js`
   and is rate-limited leniently; secrets come from `envValue` `_FILE` mounts.
@@ -701,8 +720,8 @@ payment list appears in the app.
    activation.
 
 **Wave 3 — Stripe for USD customers.** Owner-visible: a non-GT business pays in USD.
-`stripe-provider.js`, `/api/public/billing/webhooks/stripe`, Stripe prices, Stripe CLI fixtures;
-gated on the availability check in §12.
+The server adapter, price sync and webhook use synthetic fixtures in unit and
+disposable PostgreSQL tests. A hosted test payment requires a separate Stripe sandbox key.
 
 Each wave is a website/server deployment; none touches `apps/customer` or the data the native
 apps read (`business_public` and `/api/public/business/:slug` are unchanged).
@@ -733,8 +752,8 @@ apps read (`business_public` and `/api/public/business/:slug` are unchanged).
 - Refund policy (Recurrente refunds via `POST /refunds` are manual; no proration refunds) and
   dispute text for `/terminos`; terms and privacy updates for "sin tarjeta" and the 30-day
   retention.
-- Stripe availability for a Guatemalan entity (not verified) or whether a US entity would hold
-  the Stripe account.
+- The configured US Stripe account reported charges and payouts enabled on 2026-11-26.
+  Its live webhook destination subscribes to the nine events in §5.3.
 - Trial scope confirmation: Conecta features and 1 branch (current `PLAN_LIMITS`); whether
   pilots ("Piloto" feature) are exempt from locks; whether cashier awards continue during the
   soft lock (§11.2).
@@ -743,10 +762,10 @@ apps read (`business_public` and `/api/public/business/:slug` are unchanged).
   cancelación", "Reembolsos", "Suspensión por falta de pago"; "Vigente desde el 26 de noviembre
   de 2026") and `public/privacidad.html` ("Facturación y prueba gratis del negocio"), pinned by
   `tests/unit/customer-legal-contract.test.js`. It states IVA-inclusive published prices, GTQ
-  for businesses in Guatemala and USD elsewhere, Recurrente's FEL per charge, no card numbers
+  for businesses in Guatemala and USD elsewhere, processor receipts without FEL, no card numbers
   stored, prorated upgrades / next-cycle downgrades, cancellation at period end, no refunds for
   partial periods (duplicate or erroneous charges refunded once verified), a 7-day grace period
   and the 30-day retention. It is a product draft, not legal advice: it names no legal entity,
   jurisdiction or statute and needs legal review (consumer-protection and tax wording, refund
-  policy, the IVA presentation that `/precios` still shows as "sin impuestos") before it is
+  policy and the IVA-inclusive prices published at `/precios`) before it is
   treated as final.

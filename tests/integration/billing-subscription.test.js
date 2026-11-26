@@ -81,8 +81,11 @@ integrationDescribe("Subscription billing integration (fake provider, real datab
     const { closeDatabase, withDbClientContext } = await import("../../src/app/database.js");
     const { createSubscriptionService } =
       await import("../../src/app/services/billing/subscription-service.js");
-    const { createFakeProvider, fixtureCatalog, loadFixture } =
-      await import("../fixtures/billing/memory-billing-repo.mjs");
+    const {
+      createFakeProvider,
+      gtqFixtureCatalog: fixtureCatalog,
+      loadGtqFixture: loadFixture,
+    } = await import("../fixtures/billing/memory-billing-repo.mjs");
     try {
       const anon = new Map(),
         ownerJar = new Map(),
@@ -128,7 +131,7 @@ integrationDescribe("Subscription billing integration (fake provider, real datab
       assert.equal(billing.data.billing.provider, null);
       assert.deepEqual(
         billing.data.catalog.plans.map((p) => p.unit_amount_minor),
-        [3900, 7900, 12900],
+        [30000, 63000, 103000],
       );
       assert.equal(billing.data.branches, 1);
       const unavailable = await request(ownerJar, "/api/admin/billing/checkout", {
@@ -163,14 +166,14 @@ integrationDescribe("Subscription billing integration (fake provider, real datab
 
       // The service with a fake provider but the real repository and database contexts.
       const catalog = fixtureCatalog();
-      const provider = createFakeProvider({ catalog });
+      const provider = createFakeProvider({ catalog, currency: "GTQ" });
       // The fixtures are dated December 2026 to February 2027; the service clock follows
       // them so period ends and cancellations are evaluated against those dates.
       const clock = { now: new Date() };
       const service = createSubscriptionService({
         provider,
         getCatalog: async () => catalog,
-        setCatalog: async (c) => c,
+        stripeProvider: null,
         now: () => clock.now,
       });
       const asOwner = (fn) =>
@@ -178,7 +181,7 @@ integrationDescribe("Subscription billing integration (fake provider, real datab
 
       const started = await asOwner(() => service.startCheckout({ businessId, plan: "NEGOCIO" }));
       assert.equal(started.reused, false);
-      assert.equal(started.checkout.unit_amount_minor, 7900);
+      assert.equal(started.checkout.unit_amount_minor, 63000);
       const checkoutId = started.checkout.id;
       const reused = await asOwner(() => service.startCheckout({ businessId, plan: "NEGOCIO" }));
       assert.equal(reused.reused, true, "the open checkout is reused (tenant RLS read)");
@@ -217,7 +220,7 @@ integrationDescribe("Subscription billing integration (fake provider, real datab
       assert.equal(row.plan, "NEGOCIO");
       assert.equal(row.billing_status, "active");
       assert.equal(row.trial_status, "converted");
-      assert.equal(row.billing_currency, "USD");
+      assert.equal(row.billing_currency, "GTQ");
       assert.equal(row.purge_after, null);
       const sub = (
         await admin.query("SELECT * FROM billing_subscriptions WHERE business_id=$1", [businessId])
@@ -226,7 +229,7 @@ integrationDescribe("Subscription billing integration (fake provider, real datab
       assert.equal(sub[0].status, "active");
       assert.equal(sub[0].provider_subscription_id, "su_fixture01");
       assert.equal(sub[0].checkout_id, checkoutId);
-      assert.equal(Number(sub[0].unit_amount_minor), 7900);
+      assert.equal(Number(sub[0].unit_amount_minor), 63000);
       assert.equal(sub[0].metadata.first_payment_at, "2026-12-01T14:03:21.000Z");
       const events = (
         await admin.query(
@@ -273,7 +276,7 @@ integrationDescribe("Subscription billing integration (fake provider, real datab
       assert.equal(billing.data.billing.status, "active");
       assert.equal(billing.data.billing.subscription.plan, "NEGOCIO");
       assert.equal(billing.data.billing.subscription.quantity, 1);
-      assert.equal(billing.data.billing.monthly_total_minor, 7900);
+      assert.equal(billing.data.billing.monthly_total_minor, 63000);
       assert.equal(
         billing.data.billing.latest_tax_invoice_url,
         "https://app.recurrente.com/fel/in_fixture001",
@@ -287,7 +290,7 @@ integrationDescribe("Subscription billing integration (fake provider, real datab
       assert.equal(invoices.status, 200);
       assert.equal(invoices.data.invoices.length, 1);
       assert.equal(invoices.data.invoices[0].status, "paid");
-      assert.equal(invoices.data.invoices[0].amount_minor, 7900);
+      assert.equal(invoices.data.invoices[0].amount_minor, 63000);
       assert.equal(
         invoices.data.invoices[0].tax_invoice_url,
         "https://app.recurrente.com/fel/in_fixture001",
@@ -362,7 +365,7 @@ integrationDescribe("Subscription billing integration (fake provider, real datab
         2,
       );
       billing = await request(ownerJar, "/api/admin/billing");
-      assert.equal(billing.data.billing.monthly_total_minor, 15800);
+      assert.equal(billing.data.billing.monthly_total_minor, 126000);
 
       // Daily reconcile: a past-due read older than the grace period locks without a purge date.
       provider.program("subscription-get-past-due.json", { businessId, checkoutId });
@@ -479,6 +482,79 @@ integrationDescribe("Subscription billing integration (fake provider, real datab
       });
       assert.equal(noSub.status, 404);
       assert.equal(noSub.data.code, "BILLING_NO_SUBSCRIPTION");
+
+      // After the old contract closes, concurrent USD attempts share one hosted
+      // session. An authenticated retry commits one conversion and one invoice.
+      await admin.query(
+        `UPDATE businesses SET billing_currency='USD',
+        program_json=jsonb_set(COALESCE(program_json,'{}'),'{region}', $2::jsonb) WHERE id=$1`,
+        [
+          businessId,
+          JSON.stringify({ country: "SV", timezone: "America/El_Salvador", currency: "USD" }),
+        ],
+      );
+      const { stripeCatalog, stripeFixture } = await import("../fixtures/billing/stripe.mjs");
+      const usdCatalog = stripeCatalog();
+      const stripe = stripeFixture({ now: () => clock.now, catalog: usdCatalog });
+      const usdService = createSubscriptionService({
+        provider,
+        stripeProvider: stripe.provider,
+        getCatalog: async () => usdCatalog,
+        now: () => clock.now,
+      });
+      const attempts = await Promise.all(
+        [1, 2].map(() => asOwner(() => usdService.startCheckout({ businessId, plan: "NEGOCIO" }))),
+      );
+      assert.deepEqual(attempts.map((x) => x.reused).sort(), [false, true]);
+      assert.equal(attempts[0].checkout.id, attempts[1].checkout.id);
+      await assert.rejects(
+        asOwner(() => usdService.startCheckout({ businessId, plan: "EMPRESA" })),
+        { code: "BILLING_CHECKOUT_PENDING" },
+      );
+      const signed = stripe.signed(stripe.event("invoice.paid", stripe.invoice));
+      stripe.failNextRead();
+      assert.equal((await usdService.handleWebhook(signed)).status, 500);
+      const results = await Promise.all([
+        usdService.handleWebhook(signed),
+        usdService.handleWebhook(signed),
+      ]);
+      assert.ok(
+        results.every((r) => r.status === 200),
+        JSON.stringify(results),
+      );
+      assert.equal(results.filter((r) => r.body.handled).length, 1, JSON.stringify(results));
+      assert.equal(results.filter((r) => r.body.duplicate).length, 1);
+      const anotherDelivery = await usdService.handleWebhook(
+        stripe.signed(stripe.event("invoice.paid", stripe.invoice)),
+      );
+      assert.equal(anotherDelivery.body.note, "invoice_already_recorded");
+      assert.equal((await hook("intent-succeeded-renewal.json", 9)).body.handled, false);
+      const active = (
+        await admin.query(
+          "SELECT provider,currency FROM billing_subscriptions WHERE business_id=$1 AND status='active'",
+          [businessId],
+        )
+      ).rows;
+      assert.deepEqual(active, [{ provider: "stripe", currency: "USD" }]);
+      assert.equal(
+        (
+          await admin.query(
+            "SELECT count(*)::int AS n FROM billing_events WHERE business_id=$1 AND metadata->>'invoice_id'=$2",
+            [businessId, stripe.invoice.id],
+          )
+        ).rows[0].n,
+        1,
+      );
+      const displayed = await request(
+        superJar,
+        `/api/super/billing/events?business_id=${businessId}`,
+      );
+      const payment = displayed.data.events.find((e) => e.event_type === "invoice.paid");
+      assert.equal(payment.type, "payment_succeeded");
+      assert.equal(payment.amount_minor, stripe.invoice.amount_paid);
+      assert.equal(payment.currency, "USD");
+      assert.equal(payment.tax_invoice_url, stripe.invoice.hosted_invoice_url);
+      assert.equal(payment.occurred_at, clock.now.toISOString());
     } finally {
       await admin.end().catch(() => {});
       await closeDatabase().catch(() => {});

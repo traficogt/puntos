@@ -8,6 +8,8 @@ import { reportingPurchase } from "./reporting-purchase.js";
 // Require recorded sale/visit/item activity; an empty award is not a purchase.
 // OPENING_BALANCE/migration is excluded by both source and type. Imported
 // customers' subsequent genuine purchases must still contribute normally.
+// Test accounts (customers.is_test: the owner's or PF staff's own phones during
+// pilots and demos) are excluded from every figure; the directory keeps them.
 // A single statement gives every aggregate the same database snapshot.
 const OVERVIEW_SQL = `
 WITH clock AS (
@@ -26,7 +28,7 @@ WITH clock AS (
 ), purchases AS (
   SELECT w.period, t.customer_id, t.amount_q, (t.created_at AT TIME ZONE $4)::date AS date
   FROM transactions t
-  JOIN customers c ON c.id = t.customer_id AND c.business_id = $1::uuid
+  JOIN customers c ON c.id = t.customer_id AND c.business_id = $1::uuid AND NOT c.is_test
   JOIN windows w ON t.created_at >= w.start_at AND t.created_at < w.end_at
   WHERE t.business_id = $1::uuid
     AND ($2::uuid IS NULL OR t.branch_id = $2::uuid)
@@ -37,7 +39,7 @@ WITH clock AS (
 ), redeemed AS (
   SELECT w.period, r.reward_id, rw.name, r.points_cost
   FROM redemptions r
-  JOIN customers c ON c.id = r.customer_id AND c.business_id = $1::uuid
+  JOIN customers c ON c.id = r.customer_id AND c.business_id = $1::uuid AND NOT c.is_test
   JOIN rewards rw ON rw.id = r.reward_id AND rw.business_id = $1::uuid
   JOIN windows w ON COALESCE(r.redeemed_at, r.created_at) >= w.start_at
     AND COALESCE(r.redeemed_at, r.created_at) < w.end_at

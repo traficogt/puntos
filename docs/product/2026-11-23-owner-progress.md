@@ -48,6 +48,29 @@ merchant profit or PF retention; the pilots are the test.
 - Program review: an explicit owner action in the UI ("Mantener" or
   "Ajustar"), recorded with a timestamp; viewing a report does not count.
 
+Test accounts (note of 2026-11-26). "Not from a test or pilot-seed account"
+now has a marker: `customers.is_test` (migration
+`2026-11-26-d-customer-test-accounts.sql`). The owner marks or unmarks an
+account from the customer profile ("Marcar como cuenta de prueba",
+`PATCH /api/admin/customers/:id/test-account`, audited as
+`customer.test_account.update`); the platform owner can do the same from the
+super business card using the customer ID (`PATCH /api/super/businesses/:businessId/customers/:customerId/test-account`).
+The marker is read, never acted upon: points, balances and history are left
+exactly as they are, and the account stays in the directory (with a "Cuenta de
+prueba" badge), the ledger, the audits and the customer's own card (small
+label). What excludes marked accounts: every fact and the momentum of this
+design (`genuine` awards, returning customers, redemptions, `active_customers`),
+so a milestone can never be reached by a test phone; activation insights
+(reward exposure, staff activity); the trial activation facts derived from
+these milestones and the trial customer counts shown to the platform owner
+(`primer_cliente_at`, `customers`) plus the day-10 trial reminder figures; the
+plan soft-cap usage (`/api/admin/plan` `usage.active_customers`); the basic report (`/api/admin/analytics/overview`, `/api/admin/analytics/summary`)
+and the advanced dashboard; the weekly owner brief purchase counts; the pilot
+evidence metrics. Marking an account after it already reached a milestone does
+not revoke the stored milestone (milestones are first-reached timestamps), so
+mark test phones before rehearsing with them. Holdout and treatment are
+compared on the same filtered facts.
+
 ## The launch path ("Programa en marcha")
 
 | key | label | satisfied when |

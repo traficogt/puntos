@@ -498,9 +498,11 @@ export function buildOwnerProgress(facts, options) {
 // refunds, reversal links and expired-only states), never imported history (source
 // 'migration' is not a purchase source) and never a practice session (rehearsals are
 // fictional state in staff_rehearsals and write no transactions). Deleted customers are
-// excluded like every other owner report. There is no marker for test or pilot-seed
-// accounts in the data, so they cannot be excluded here (documented limitation).
-const genuine = `${reportingPurchase("t")} AND c.deleted_at IS NULL`;
+// excluded like every other owner report, and so are test accounts: customers.is_test marks
+// the owner's or PF staff's own phones and pilot seeds (design note of 2026-11-26), so
+// their awards, redemptions and head count never reach a milestone or momentum.
+const realCustomer = "c.deleted_at IS NULL AND NOT c.is_test";
+const genuine = `${reportingPurchase("t")} AND ${realCustomer}`;
 const awardTime = "COALESCE(t.purchase_occurred_at, t.created_at)";
 const factsSql = `SELECT
  b.program_type, b.program_json, b.customer_branding_json,
@@ -519,12 +521,12 @@ const factsSql = `SELECT
    SELECT t.customer_id FROM transactions t JOIN customers c ON c.id=t.customer_id AND c.business_id=t.business_id
    WHERE t.business_id=b.id AND ${genuine}
    GROUP BY t.customer_id HAVING count(DISTINCT (${awardTime} AT TIME ZONE $2)::date)>=2) rc) AS returning_customers,
- (SELECT count(*)::int FROM redemptions d JOIN customers c ON c.id=d.customer_id AND c.business_id=d.business_id AND c.deleted_at IS NULL WHERE d.business_id=b.id AND d.status='REDEEMED') AS genuine_redemptions,
- (SELECT min(COALESCE(d.redeemed_at,d.created_at)) FROM redemptions d JOIN customers c ON c.id=d.customer_id AND c.business_id=d.business_id AND c.deleted_at IS NULL WHERE d.business_id=b.id AND d.status='REDEEMED') AS first_redemption_at,
- (SELECT count(*)::int FROM customers c WHERE c.business_id=b.id AND c.deleted_at IS NULL) AS active_customers,
+ (SELECT count(*)::int FROM redemptions d JOIN customers c ON c.id=d.customer_id AND c.business_id=d.business_id AND ${realCustomer} WHERE d.business_id=b.id AND d.status='REDEEMED') AS genuine_redemptions,
+ (SELECT min(COALESCE(d.redeemed_at,d.created_at)) FROM redemptions d JOIN customers c ON c.id=d.customer_id AND c.business_id=d.business_id AND ${realCustomer} WHERE d.business_id=b.id AND d.status='REDEEMED') AS first_redemption_at,
+ (SELECT count(*)::int FROM customers c WHERE c.business_id=b.id AND ${realCustomer}) AS active_customers,
  (SELECT count(*)::int FROM growth_measurement_reports m WHERE m.business_id=b.id
    AND m.payload#>>'{results,measurement,state}' IN ('insufficient_sample','positive_difference','negative_difference','inconclusive')) AS campaigns_measured,
- (SELECT count(*)::int FROM native_wallet_passes p WHERE p.business_id=b.id AND p.revoked_at IS NULL) AS wallet_passes,
+ (SELECT count(*)::int FROM native_wallet_passes p JOIN customers c ON c.id=p.customer_id AND c.business_id=p.business_id AND NOT c.is_test WHERE p.business_id=b.id AND p.revoked_at IS NULL) AS wallet_passes,
  EXISTS(SELECT 1 FROM merchant_pilots p WHERE p.business_id=b.id AND p.status IN ('active','completed')) AS pilot,
  COALESCE((SELECT array_agg(DISTINCT to_char(date_trunc('week', ${awardTime} AT TIME ZONE $2),'YYYY-MM-DD'))
    FROM transactions t JOIN customers c ON c.id=t.customer_id AND c.business_id=t.business_id WHERE t.business_id=b.id AND ${genuine}),'{}') AS award_weeks,

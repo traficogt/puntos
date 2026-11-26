@@ -20,7 +20,7 @@ export interface OwnerPageProps {
 export interface OwnerFailure {message: string; status?: number; code?: string}
 export interface Branch {id: string; name: string; address: string | null; code: string}
 export interface TeamMember {id: string; name: string; email: string; phone?: string | null; role: 'OWNER' | 'MANAGER' | 'CASHIER'; active: boolean; branch_id: string | null; can_manage_gift_cards: boolean}
-export interface Customer {id: string; name: string | null; phone: string; created_at: string; last_visit_at: string | null; points: number; pending_points: number; lifetime_points: number}
+export interface Customer {id: string; name: string | null; phone: string; created_at: string; last_visit_at: string | null; points: number; pending_points: number; lifetime_points: number; /** "Cuenta de prueba": excluded from progress, reports and plan usage; absent on older servers. */ is_test?: boolean}
 export interface CustomerPage {customers: Customer[]; total: number; page: number; limit: number; total_pages: number}
 const noop = () => {};
 export function failure(error: unknown): OwnerFailure {

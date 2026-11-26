@@ -2,7 +2,7 @@
 title: Buscar un cliente y corregir su nombre
 description: Encuentra la cuenta por nombre o teléfono y consulta su saldo antes de
   atender una duda.
-reviewed: '2026-11-16'
+reviewed: '2026-11-26'
 kind: task
 sources:
 - web/merchant/src/OwnerCustomers.tsx
@@ -28,11 +28,12 @@ Ingresa como dueño. El teléfono identifica la cuenta; este formulario corrige 
 2. Abre el nombre del cliente. Revisa **Puntos disponibles**, **Puntos pendientes** y **Última visita**.
 3. Para una corrección, cambia **Nombre del cliente** y pulsa **Guardar nombre**.
 4. Comprueba **Nombre actualizado**. Usa **Volver al directorio** para continuar.
-5. Si tu plan lo permite, **Exportar CSV (hasta 5,000)** descarga el directorio; guarda el archivo únicamente donde corresponda para el trabajo del negocio.
+5. Si la cuenta es tu propio teléfono o una tarjeta de demostración, usa la sección **Cuenta de prueba** del perfil (**Marcar como cuenta de prueba**) para que no cuente en el progreso ni en los reportes; la fila mostrará la insignia **Cuenta de prueba**. El detalle está en [Marcar una cuenta de prueba](/ayuda/negocio/cuentas-de-prueba/).
+6. Si tu plan lo permite, **Exportar CSV (hasta 5,000)** descarga el directorio, con la columna `is_test` para las cuentas de prueba; guarda el archivo únicamente donde corresponda para el trabajo del negocio.
 
 ## Qué debe pasar
 
-El perfil conserva el nombre corregido sin cambiar el teléfono ni los saldos. El directorio tiene paginación; usa **Anterior** y **Siguiente** para recorrerlo.
+El perfil conserva el nombre corregido sin cambiar el teléfono ni los saldos. El directorio tiene paginación; usa **Anterior** y **Siguiente** para recorrerlo. Las cuentas de prueba siguen apareciendo en el directorio con su insignia y sus puntos.
 
 ## Si algo no funciona
 
@@ -45,4 +46,4 @@ El perfil conserva el nombre corregido sin cambiar el teléfono ni los saldos. E
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#clientes). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#clientes). Revisión del 26 de noviembre de 2026.

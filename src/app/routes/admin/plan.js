@@ -39,7 +39,7 @@ adminPlanRoutes.get(
       const subscription = await TrialRepo.activeSubscription(req.tenantId).catch(() => null);
       const { trial, billing } = ownerTrialPayload(business, {
         subscription,
-        upgradeAvailable: subscriptionService().isConfigured(),
+        upgradeAvailable: await subscriptionService().upgradeAvailable(business, subscription),
       });
       /** @type {AdminPlanResponse} */
       const response = {

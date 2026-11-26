@@ -71,6 +71,8 @@ export interface CustomerCardProfile {
   pending_points?: number;
   lifetime_points?: number;
   last_visit_at?: string;
+  /** "Cuenta de prueba": the owner's or PF staff's own account; absent on older servers. */
+  is_test?: boolean;
 }
 
 export interface CustomerMeResponse {

@@ -1,1 +1,0 @@
-import{T as e,m as t,x as n}from"./jsx-dev-runtime-B_cppDJ-.js";import{ot as r}from"./index-EoCy8Y7F.js";var i=e(),a=t(e=>{let t=n([`Input`,`InputWrapper`,`TextInput`],null,e);return(0,i.jsx)(r,{component:`input`,...t,__staticSelector:`TextInput`})});a.classes=r.classes,a.displayName=`@mantine/core/TextInput`;export{a as t};

@@ -128,6 +128,7 @@ suite("activation insights on read-only tenant PostgreSQL", () => {
       "../../src/app/migrations/2026-11-11-reward-promises-hospitality.sql",
       "../../src/app/migrations/2026-11-23-owner-progress.sql",
       "../../src/app/migrations/2026-11-26-a-trial-state.sql",
+      "../../src/app/migrations/2026-11-26-d-customer-test-accounts.sql",
     ]) {
       // Repository-owned constant fixture paths only.
       // eslint-disable-next-line security/detect-non-literal-fs-filename

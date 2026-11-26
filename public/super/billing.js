@@ -92,7 +92,13 @@ export function createBilling(ctx, { reloadBusinesses }) {
     const ids = catalogPriceIds(catalog);
     const table = node("table", "", "compact-table");
     const head = node("tr", "");
-    for (const label of ["Plan", "USD publicado", "GTQ (lista)", "Price id USD", "Price id GTQ"])
+    for (const label of [
+      "Plan",
+      "USD publicado",
+      "GTQ (lista)",
+      "Precio Stripe (USD)",
+      "Precio Recurrente (GTQ)",
+    ])
       head.append(node("th", label));
     table.append(head);
     /** @type {Record<string, HTMLInputElement>} */
@@ -114,7 +120,7 @@ export function createBilling(ctx, { reloadBusinesses }) {
       gtqInputs[plan] = input;
       gtqCell.append(input);
       tr.append(gtqCell);
-      tr.append(node("td", ids.USD[plan] || "—", "small"));
+      tr.append(node("td", catalog.providers?.stripe?.price_ids?.USD?.[plan] || "—", "small"));
       tr.append(node("td", ids.GTQ[plan] || "—", "small"));
       table.append(tr);
     }
@@ -122,7 +128,7 @@ export function createBilling(ctx, { reloadBusinesses }) {
     box.append(
       node(
         "div",
-        `Los montos en USD son los publicados en /precios (${catalog.published_at ? `desde ${catalog.published_at}` : "código"}) y solo cambian en el código; se cobran a negocios fuera de Guatemala. Los montos en quetzales son precios de lista fijos elegidos por el dueño (Q300, Q630 y Q1,030 por defecto), no una conversión; se cobran a negocios de Guatemala. Deja los tres vacíos para volver a los valores del código. Todos los montos incluyen IVA. Los price ids los crea "Sincronizar productos".`,
+        `Los montos en USD son los publicados en /precios (${catalog.published_at ? `desde ${catalog.published_at}` : "código"}) y solo cambian en el código; se cobran a negocios fuera de Guatemala. Los montos en quetzales son precios de lista fijos elegidos por el dueño (Q300, Q630 y Q1,030 por defecto), no una conversión; se cobran a negocios de Guatemala. Deja los tres vacíos para volver a los valores del código. Todos los montos incluyen IVA. Usa el botón de cada procesador para sincronizar sus precios.`,
         "small mt-6",
       ),
     );
@@ -160,10 +166,16 @@ export function createBilling(ctx, { reloadBusinesses }) {
         as_of: asOf.input.value,
       }),
     );
-    const sync = node("button", "Sincronizar productos");
-    sync.type = "button";
-    sync.addEventListener("click", syncCatalog);
-    actions.append(save, sync);
+    actions.append(save);
+    for (const provider of /** @type {const} */ (["recurrente", "stripe"])) {
+      const sync = node(
+        "button",
+        provider === "stripe" ? "Sincronizar Stripe (USD)" : "Sincronizar Recurrente",
+      );
+      sync.type = "button";
+      sync.addEventListener("click", () => syncCatalog(provider));
+      actions.append(sync);
+    }
     box.append(actions);
   }
 
@@ -206,20 +218,27 @@ export function createBilling(ctx, { reloadBusinesses }) {
     );
   }
 
-  async function syncCatalog() {
+  /** @param {"stripe" | "recurrente"} provider */
+  async function syncCatalog(provider) {
+    const name = provider === "stripe" ? "Stripe" : "Recurrente";
     const ok = await modalConfirm(
-      "Crear o actualizar en Recurrente los productos de los tres planes en las dos monedas (seis productos: USD para negocios fuera de Guatemala y GTQ para Guatemala) con los precios del catálogo. Los price ids resultantes se guardan aquí; los productos ya existentes no cambian de precio.",
+      provider === "stripe"
+        ? "Sincronizar los tres precios mensuales en dólares con Stripe."
+        : "Sincronizar los precios en quetzales con Recurrente y los precios en dólares de sus suscripciones anteriores.",
       { title: "Sincronizar productos", confirmText: "Sincronizar" },
     );
     if (!ok) return;
     await run(
       async () => {
         const out = /** @type {SuperBillingCatalogResponse} */ (
-          await api("/api/super/billing/catalog/sync", { method: "POST", body: "{}" })
+          await api("/api/super/billing/catalog/sync", {
+            method: "POST",
+            body: JSON.stringify({ provider }),
+          })
         );
         catalog = out.catalog || catalog;
         renderCatalog(null);
-        toast("Productos sincronizados con Recurrente.");
+        toast(`Productos sincronizados con ${name}.`);
       },
       (error) => {
         toast(billingUnavailableNotice(error) || `No se pudo sincronizar: ${error.message}`);
@@ -280,7 +299,7 @@ export function createBilling(ctx, { reloadBusinesses }) {
   async function cancel(row) {
     const name = row.business_name || row.slug || row.business_id;
     const ok = await modalConfirm(
-      `Cancelar la suscripción de ${name} en Recurrente. No se reembolsa lo ya pagado; el negocio conserva el acceso hasta el final del período pagado y después su panel pasa a solo lectura. La acción queda en la auditoría de plataforma.`,
+      `Cancelar la suscripción de ${name} al final del período. No se reembolsa lo ya pagado; el negocio conserva el acceso hasta el final del período pagado y después su panel pasa a solo lectura. La acción queda en la auditoría de plataforma.`,
       { title: "Cancelar suscripción", confirmText: "Cancelar suscripción" },
     );
     if (!ok) return;
@@ -288,9 +307,9 @@ export function createBilling(ctx, { reloadBusinesses }) {
       async () => {
         await api(`/api/super/businesses/${encodeURIComponent(row.business_id)}/billing/cancel`, {
           method: "POST",
-          body: "{}",
+          body: JSON.stringify({ at_period_end: true }),
         });
-        toast(`Suscripción de ${name} cancelada.`);
+        toast(`Cancelación de ${name} programada para el final del período.`);
         await loadSubscriptions();
         await reloadBusinesses();
       },

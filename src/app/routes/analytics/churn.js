@@ -61,6 +61,7 @@ analyticsChurnRoutes.get(
          JOIN branch_customers bc ON bc.customer_id = c.id
          WHERE c.business_id = $1
            AND c.deleted_at IS NULL
+           AND NOT c.is_test
            AND cl.churn_risk_score >= $3
          ORDER BY cl.churn_risk_score DESC, cl.total_spend DESC
          LIMIT $4`,

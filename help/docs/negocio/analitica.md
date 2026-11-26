@@ -3,7 +3,7 @@ title: Leer la analítica avanzada y exportar el CSV de IVA
 description: Recorre el resumen ejecutivo, los segmentos RFM, la tendencia, las
   sucursales, las cohortes y los clientes en riesgo, y descarga la facturación local para
   tu contador.
-reviewed: '2026-11-25'
+reviewed: '2026-11-26'
 kind: task
 sources:
 - web/merchant/src/OwnerAnalytics.tsx
@@ -40,7 +40,7 @@ Ingresa con la cuenta del dueño; la pantalla requiere un plan con análisis ava
 
 ## Qué debe pasar
 
-Toda la pantalla es de solo lectura; descargar el CSV no modifica nada. La tasa que acompaña a los canjes se expresa como canjes por cada 100 compras: PuntosFieles no calcula rentabilidad ni retorno del programa. El CSV de IVA usa los precios registrados como precios con IVA incluido y separa la base y el impuesto redondeando una vez al centavo, de modo que las tres columnas de cada fila suman exactamente; la fecha se escribe como año-mes-día.
+Toda la pantalla es de solo lectura; descargar el CSV no modifica nada. La tasa que acompaña a los canjes se expresa como canjes por cada 100 compras: PuntosFieles no calcula rentabilidad ni retorno del programa. Las cuentas marcadas como **Cuenta de prueba** en **Clientes** quedan fuera del resumen ejecutivo, el comparativo, los segmentos, la tendencia, el rendimiento por sucursal, las cohortes y la lista de clientes en riesgo; consulta [Marcar una cuenta de prueba](/ayuda/negocio/cuentas-de-prueba/). El CSV de IVA usa los precios registrados como precios con IVA incluido y separa la base y el impuesto redondeando una vez al centavo, de modo que las tres columnas de cada fila suman exactamente; la fecha se escribe como año-mes-día.
 
 ## Si algo no funciona
 
@@ -54,4 +54,4 @@ Toda la pantalla es de solo lectura; descargar el CSV no modifica nada. La tasa 
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#analitica). Revisión del 25 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#analitica). Revisión del 26 de noviembre de 2026.

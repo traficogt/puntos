@@ -30,7 +30,7 @@ export default function UpgradeRequest({request, currentPlan, initialPlan, onDon
   if (upgradeAvailable && onOpenPlan)
     return (
       <Stack gap="sm" data-testid="upgrade-checkout-available">
-        <Text size="sm">Ya puedes pagar con tarjeta desde el panel: elige Conecta, Impulsa o Expande, revisa el cobro mensual por sucursal y paga en la página segura de Recurrente. El plan se activa en cuanto se confirma el pago.</Text>
+        <Text size="sm">Ya puedes pagar con tarjeta desde el panel: elige Conecta, Impulsa o Expande, revisa el cobro mensual por sucursal y paga en la página segura del procesador indicado. El plan se activa en cuanto se confirma el pago.</Text>
         <Group>
           <Button onClick={onOpenPlan}>Ir a Plan y facturación</Button>
           {onDone && <Button variant="default" onClick={onDone}>Cerrar</Button>}

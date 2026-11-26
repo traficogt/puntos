@@ -243,7 +243,7 @@ export const BusinessRepo = {
     const r = await one(
       `SELECT COUNT(*)::int AS c
        FROM customers
-       WHERE business_id=$1 AND deleted_at IS NULL
+       WHERE business_id=$1 AND deleted_at IS NULL AND NOT is_test
        AND (
          (last_visit_at IS NOT NULL AND last_visit_at >= now() - interval '90 days')
          OR

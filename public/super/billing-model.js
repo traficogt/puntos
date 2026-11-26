@@ -154,7 +154,10 @@ export function subscriptionDatesLine(row) {
 /** Whether the super console may cancel this subscription now. @param {SuperBillingSubscriptionRow} row */
 export function canCancelSubscription(row) {
   const status = String(row.status || "").toLowerCase();
-  return (status === "active" || status === "past_due") && row.provider !== "manual";
+  return (
+    (status === "active" || status === "past_due") &&
+    (row.provider === "stripe" || row.provider === "recurrente")
+  );
 }
 
 /** Oldest last; failed payments keep their sign. @param {SuperBillingEvent[]} events */
@@ -272,6 +275,6 @@ export function billingUnavailableNotice(error) {
   if (!error) return null;
   if (error.status === 404) return "El servidor aún no expone esta parte del API de cobro (ola 2).";
   if (error.status === 503 || error.code === "BILLING_UNAVAILABLE")
-    return "El proveedor de cobro (Recurrente) no está configurado en este servidor: faltan la clave o el secreto de webhooks.";
+    return "El proveedor de cobro no está configurado en este servidor: faltan la clave o el secreto de webhooks.";
   return null;
 }

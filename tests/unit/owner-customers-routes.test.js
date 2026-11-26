@@ -50,6 +50,7 @@ before(async () => {
       calls.push(args);
       return { customers: [], page: args.page, limit: args.limit, total: 0, total_pages: 1 };
     },
+    setTestAccount: async () => assert.fail("Unexpected marker update"),
     get: async (args) => {
       calls.push(args);
       return args.customerId === id ? { id, name: "Ana" } : null;

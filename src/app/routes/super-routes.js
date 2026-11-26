@@ -76,7 +76,7 @@ import {
  * Row of the `/super/businesses` listing (aggregates cast to int in SQL).
  * @typedef {Pick<import("../repositories/business-repository.js").BusinessRow,
  *   "id" | "name" | "slug" | "email" | "plan" | "created_at" | "signup_source" | "trial_status"
- *   | "billing_status" | "trial_started_at" | "trial_ends_at" | "locked_at" | "purge_after"> & { customers: number, staff: number }} SuperBusinessRow
+ *   | "billing_status" | "trial_started_at" | "trial_ends_at" | "locked_at" | "purge_after"> & { customers: number, test_customers: number, staff: number }} SuperBusinessRow
  */
 
 /**
@@ -409,11 +409,11 @@ superRoutes.get(
        b.signup_source,
        b.trial_status,
        b.billing_status,
-       b.trial_started_at,
-       b.trial_ends_at,
+       b.trial_started_at, b.trial_ends_at,
        b.locked_at,
        b.purge_after,
-       COUNT(DISTINCT c.id)::int AS customers,
+       COUNT(DISTINCT c.id) FILTER (WHERE NOT c.is_test)::int AS customers,
+       COUNT(DISTINCT c.id) FILTER (WHERE c.is_test)::int AS test_customers,
        COUNT(DISTINCT s.id)::int AS staff
      FROM businesses b
      LEFT JOIN customers c ON c.business_id = b.id AND c.deleted_at IS NULL

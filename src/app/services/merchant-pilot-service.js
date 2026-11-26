@@ -331,7 +331,7 @@ export async function getPilot({ businessId, pilotId }, injected = {}) {
  bounds AS(SELECT started_at AS start_at,GREATEST(started_at,LEAST(planned_end_at,COALESCE(closed_at,$3),$3)) AS end_at FROM pilot),
  windows AS(SELECT 'current' AS period,start_at,end_at FROM bounds UNION ALL SELECT 'previous',start_at-(end_at-start_at),start_at FROM bounds),
  purchases AS(SELECT w.period,t.customer_id,t.amount_q FROM transactions t
- JOIN customers c ON c.business_id=$1 AND c.id=t.customer_id AND c.deleted_at IS NULL
+ JOIN customers c ON c.business_id=$1 AND c.id=t.customer_id AND c.deleted_at IS NULL AND NOT c.is_test
  JOIN windows w ON t.created_at>=w.start_at AND t.created_at<w.end_at
  WHERE t.business_id=$1 AND ${reportingPurchase("t")}),
  customer_counts AS(SELECT period,customer_id,count(*) AS purchases FROM purchases GROUP BY period,customer_id),
@@ -340,8 +340,8 @@ export async function getPilot({ businessId, pilotId }, injected = {}) {
  'recorded_sales_q',COALESCE((SELECT sum(amount_q) FROM purchases p WHERE p.period=w.period),0),
  'active_customers',(SELECT count(*)::int FROM customer_counts c WHERE c.period=w.period),
  'repeat_customers',(SELECT count(*)::int FROM customer_counts c WHERE c.period=w.period AND c.purchases>=2),
- 'new_customers',(SELECT count(*)::int FROM customers c WHERE c.business_id=$1 AND c.deleted_at IS NULL AND c.imported_at IS NULL AND c.created_at>=w.start_at AND c.created_at<w.end_at),
- 'redemptions',(SELECT count(*)::int FROM redemptions r JOIN customers c ON c.id=r.customer_id AND c.business_id=$1 AND c.deleted_at IS NULL WHERE r.business_id=$1 AND r.status='REDEEMED' AND COALESCE(r.redeemed_at,r.created_at)>=w.start_at AND COALESCE(r.redeemed_at,r.created_at)<w.end_at)
+ 'new_customers',(SELECT count(*)::int FROM customers c WHERE c.business_id=$1 AND c.deleted_at IS NULL AND NOT c.is_test AND c.imported_at IS NULL AND c.created_at>=w.start_at AND c.created_at<w.end_at),
+ 'redemptions',(SELECT count(*)::int FROM redemptions r JOIN customers c ON c.id=r.customer_id AND c.business_id=$1 AND c.deleted_at IS NULL AND NOT c.is_test WHERE r.business_id=$1 AND r.status='REDEEMED' AND COALESCE(r.redeemed_at,r.created_at)>=w.start_at AND COALESCE(r.redeemed_at,r.created_at)<w.end_at)
  ) AS data FROM windows w)
  SELECT to_jsonb(p) AS pilot,to_jsonb(b) AS bounds,
  (SELECT jsonb_object_agg(period,data) FROM periods) AS metrics,

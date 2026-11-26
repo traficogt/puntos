@@ -67,6 +67,11 @@ const auditQuerySchema = z.object({
  * }} AuditLinkedRecords
  */
 
+const platformTestMarker =
+  "a.actor_type = 'SUPER_ADMIN' AND a.action = 'super.customer.test_account.update'";
+const publicMarkerMeta =
+  "jsonb_build_object('customer_id', a.meta->'customer_id', 'is_test', a.meta->'is_test')";
+
 /**
  * @param {string} businessId
  * @param {Pick<AuditQuery, "limit" | "from" | "to"> & { impersonatedOnly: AuditQuery["impersonated_only"] }} filters
@@ -101,10 +106,12 @@ async function listAuditEvents(businessId, { limit, impersonatedOnly, from, to }
        END AS actor_type,
        a.actor_id,
        CASE
+         WHEN ${platformTestMarker} THEN 'platform.customer.test_account.update'
          WHEN a.actor_type = 'SUPER_ADMIN' AND a.action = 'super.plan.update' THEN 'platform.plan.update'
          ELSE a.action
        END AS action,
        CASE
+         WHEN ${platformTestMarker} THEN ${publicMarkerMeta}
          WHEN a.actor_type = 'SUPER_ADMIN' THEN '{}'::jsonb
          ELSE a.meta
        END AS meta,
@@ -121,7 +128,7 @@ async function listAuditEvents(businessId, { limit, impersonatedOnly, from, to }
      WHERE a.business_id = $1
        AND (
          (COALESCE(a.actor_type, '') <> 'SUPER_ADMIN' AND a.action NOT LIKE 'super.%')
-         OR a.action = 'super.plan.update'
+         OR a.action = 'super.plan.update' OR (${platformTestMarker})
        )
        ${dateClause}
        ${impersonatedClause}
@@ -141,11 +148,11 @@ async function getAuditEventDetail(businessId, eventId) {
     `SELECT
        a.id,
        a.created_at,
-       a.actor_type,
+       CASE WHEN ${platformTestMarker} THEN 'PLATFORM' ELSE a.actor_type END AS actor_type,
        a.actor_id,
-       a.action,
-       a.meta,
-       s.name AS actor_name,
+       CASE WHEN ${platformTestMarker} THEN 'platform.customer.test_account.update' ELSE a.action END AS action,
+       CASE WHEN ${platformTestMarker} THEN ${publicMarkerMeta} ELSE a.meta END AS meta,
+       CASE WHEN ${platformTestMarker} THEN 'Plataforma' ELSE s.name END AS actor_name,
        s.email AS actor_email
      FROM audit_logs a
      LEFT JOIN staff_users s ON s.id = a.actor_id

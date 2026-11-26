@@ -69,4 +69,11 @@ temp/
 apps/
 web/
 .worktrees/
+.claude/
+.codex/
+.agents/
+.aws/
+artifacts/
+test-results/
+playwright-report/
 .impeccable/

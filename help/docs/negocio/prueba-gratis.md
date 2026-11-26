@@ -31,7 +31,7 @@ Ten a mano un correo que todavía no tenga cuenta en PuntosFieles, una contrase�
 3. Escribe el **Código de 6 dígitos** que llega por SMS y pulsa **Verificar y crear mi negocio**. Si no llega, espera el contador y usa **Reenviar código**; **Cambiar teléfono** vuelve al paso anterior.
 4. La página muestra **¡Tu negocio está listo!** con el enlace de registro para tus clientes y abre tu panel con sesión de propietario. Allí eliges cómo premiar en **Preparar mi programa** y sigues la lista de **Tu progreso**.
 5. Durante la prueba, el aviso **Prueba gratis** del panel indica los días que quedan y se vuelve amarillo en los últimos cuatro días. **Ver planes y precios** abre la comparación.
-6. Para contratar, pulsa **Mejorar plan**. Si el pago con tarjeta está activo en tu servidor, se abre **Plan y facturación**: elige Conecta, Impulsa o Expande y pulsa **Pagar con tarjeta** para pagar en la página segura de Recurrente; sigue [Pagar con tarjeta, cambiar o cancelar tu plan](/ayuda/negocio/pagar-y-cambiar-plan/). Si todavía no está activo, aparece la solicitud: elige el plan, escribe un **Teléfono o WhatsApp** y pulsa **Enviar solicitud**; te contactamos para activar el plan y confirmar el cobro.
+6. Para contratar, pulsa **Mejorar plan**. Si el pago con tarjeta está activo en tu servidor, se abre **Plan y facturación**: elige Conecta, Impulsa o Expande y pulsa **Pagar con tarjeta** para pagar en la página segura del procesador indicado; sigue [Pagar con tarjeta, cambiar o cancelar tu plan](/ayuda/negocio/pagar-y-cambiar-plan/). Si todavía no está activo, aparece la solicitud: elige el plan, escribe un **Teléfono o WhatsApp** y pulsa **Enviar solicitud**; te contactamos para activar el plan y confirmar el cobro.
 
 ## Qué debe pasar
 

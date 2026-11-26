@@ -63,6 +63,7 @@ adminInsightsRoutes.get(
           `SELECT COUNT(*)::int AS tx_count, COALESCE(SUM(amount_q),0)::numeric(10,2) AS revenue
          FROM transactions
          WHERE business_id = $1
+           AND NOT EXISTS (SELECT 1 FROM customers c WHERE c.business_id=$1 AND c.id=transactions.customer_id AND c.is_test)
            AND created_at >= now() - ($2 || ' days')::interval`,
           [businessId, String(days)],
         ),
@@ -70,6 +71,7 @@ adminInsightsRoutes.get(
           `SELECT COUNT(*)::int AS tx_count, COALESCE(SUM(amount_q),0)::numeric(10,2) AS revenue
          FROM transactions
          WHERE business_id = $1
+           AND NOT EXISTS (SELECT 1 FROM customers c WHERE c.business_id=$1 AND c.id=transactions.customer_id AND c.is_test)
            AND created_at >= now() - (($2 * 2) || ' days')::interval
            AND created_at < now() - ($2 || ' days')::interval`,
           [businessId, String(days)],
@@ -80,13 +82,14 @@ adminInsightsRoutes.get(
            COUNT(*) FILTER (WHERE COALESCE(last_visit_at, created_at) >= now() - ($2 || ' days')::interval)::int AS customers_active
          FROM customers
          WHERE business_id = $1
-           AND deleted_at IS NULL`,
+           AND deleted_at IS NULL AND NOT is_test`,
           [businessId, String(days)],
         ),
         dbQuery(
           `SELECT COUNT(*)::int AS redemptions
          FROM redemptions
          WHERE business_id = $1
+           AND NOT EXISTS (SELECT 1 FROM customers c WHERE c.business_id=$1 AND c.id=redemptions.customer_id AND c.is_test)
            AND created_at >= now() - ($2 || ' days')::interval`,
           [businessId, String(days)],
         ),

@@ -1,8 +1,8 @@
 // Provider webhooks for subscription billing (design section 4.4, step 4). No CSRF:
-// the Svix signature over the raw body (src/middleware/raw-body.js) authenticates the
+// the provider signature over the raw body (src/middleware/raw-body.js) authenticates the
 // sender. 401 on a bad signature, 200 `{ ok, duplicate: true }` on a redelivery, never
 // 5xx for an unknown event type (stored as `ignored`); a processing failure answers 500
-// so Recurrente redelivers (immediately, 1 min, 5 min, 30 min, 2 h, 6 h).
+// so the provider retries the event.
 import { Router } from "express";
 import { asyncRoute } from "../../middleware/common.js";
 import { moderateRateLimit } from "../../middleware/rate-limit.js";

@@ -119,7 +119,7 @@ export interface PublicTrialSignupResponse {
 /** One subscription as GET /api/admin/billing and its mutations return it. */
 export interface AdminBillingSubscription {
   id: string;
-  /** recurrente | manual */
+  /** recurrente | stripe | manual */
   provider: string;
   plan: string;
   plan_name: string;
@@ -164,6 +164,7 @@ export interface AdminBillingResponse {
     upgrade_available: boolean;
     /** POST /api/admin/billing/change applies (active provider subscription). */
     change_available: boolean;
+    cancel_available: boolean;
     checkout_pending: { id: string; url: string; expires_at: string | null } | null;
     /** Why billing_status is locked: trial_expired | payment_failed | canceled; null otherwise. */
     lock_reason: "trial_expired" | "payment_failed" | "canceled" | null;

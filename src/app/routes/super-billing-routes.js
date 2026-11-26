@@ -14,6 +14,8 @@ import { BusinessRepo } from "../repositories/business-repository.js";
 import { SecurityEventRepo } from "../repositories/security-event-repository.js";
 import { BillingSubscriptionRepo } from "../repositories/billing-subscription-repository.js";
 import { subscriptionService, subscriptionView } from "../services/billing/subscription-service.js";
+import { RECURRENTE_EVENT_MAP } from "../services/billing/recurrente-provider.js";
+import { STRIPE_EVENT_MAP } from "../services/billing/stripe-provider.js";
 import { planDisplayName } from "../services/trial-entitlement.js";
 import { withDbClientContext } from "../database.js";
 import { logSuperAudit } from "./super-support.js";
@@ -39,7 +41,10 @@ export const SuperBillingCancelSchema = z
   .object({ at_period_end: z.boolean().default(false), note: z.string().max(500).optional() })
   .strict();
 export const SuperBillingCatalogSyncSchema = z
-  .object({ force: z.boolean().default(false) })
+  .object({
+    provider: z.enum(["recurrente", "stripe"]).default("recurrente"),
+    force: z.boolean().default(false),
+  })
   .strict();
 
 /** @typedef {z.infer<typeof SuperBillingSubscriptionsQuerySchema>} SubscriptionsQuery */
@@ -48,23 +53,38 @@ export const SuperBillingCatalogSyncSchema = z
 /** @param {unknown} payload */
 function payloadSummary(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return {};
-  const body = /** @type {Record<string, unknown>} */ (payload);
-  const checkout =
-    body.checkout && typeof body.checkout === "object"
-      ? /** @type {Record<string, unknown>} */ (body.checkout)
-      : null;
+  const body = /** @type {Record<string, any>} */ (payload);
+  const stripe = body.data?.object;
+  const source = stripe && typeof stripe === "object" ? stripe : body;
+  const seconds = Number(body.created);
+  const when = stripe ? new Date(seconds * 1000) : new Date(body.created_at);
+  const amount = stripe
+    ? source.object === "invoice"
+      ? body.type === "invoice.payment_failed"
+        ? source.amount_due
+        : source.amount_paid
+      : body.type === "charge.refunded"
+        ? source.amount_refunded
+        : (source.amount_total ?? source.amount)
+    : source.amount_in_cents;
   const subscription =
-    body.subscription && typeof body.subscription === "object"
-      ? /** @type {Record<string, unknown>} */ (body.subscription)
-      : null;
+    source.object === "subscription"
+      ? source.id
+      : (source.parent?.subscription_details?.subscription ?? source.subscription);
   return {
-    id: typeof body.id === "string" ? body.id : null,
-    status: typeof body.status === "string" ? body.status : null,
-    amount_in_cents: typeof body.amount_in_cents === "number" ? body.amount_in_cents : null,
-    currency: typeof body.currency === "string" ? body.currency : null,
-    checkout_id: checkout && typeof checkout.id === "string" ? checkout.id : null,
-    subscription_id: subscription && typeof subscription.id === "string" ? subscription.id : null,
-    tax_invoice_url: typeof body.tax_invoice_url === "string" ? body.tax_invoice_url : null,
+    id: typeof source.id === "string" ? source.id : null,
+    status: typeof source.status === "string" ? source.status : null,
+    occurred_at: Number.isFinite(when.getTime()) ? when.toISOString() : null,
+    amount_in_cents: typeof amount === "number" ? amount : null,
+    currency: typeof source.currency === "string" ? source.currency.toUpperCase() : null,
+    checkout_id: source.object === "checkout.session" ? source.id : (source.checkout?.id ?? null),
+    subscription_id: typeof subscription === "string" ? subscription : (subscription?.id ?? null),
+    tax_invoice_url:
+      typeof source.hosted_invoice_url === "string"
+        ? source.hosted_invoice_url
+        : typeof source.tax_invoice_url === "string"
+          ? source.tax_invoice_url
+          : null,
   };
 }
 
@@ -122,6 +142,9 @@ export function createSuperBillingRoutes({
           provider_configured: service().isConfigured(),
           subscriptions: rows.map((row) => ({
             ...subscriptionView(row),
+            business_id: row.business_id,
+            business_name: row.business_name,
+            slug: row.business_slug,
             business: {
               id: row.business_id,
               name: row.business_name,
@@ -151,20 +174,30 @@ export function createSuperBillingRoutes({
         );
         res.json({
           ok: true,
-          events: rows.map((row) => ({
-            id: row.id,
-            provider: row.provider,
-            provider_event_id: row.provider_event_id,
-            event_type: row.event_type,
-            status: row.status,
-            error: row.error,
-            live_mode: row.live_mode,
-            business_id: row.business_id,
-            subscription_id: row.subscription_id,
-            received_at: new Date(row.received_at).toISOString(),
-            processed_at: row.processed_at ? new Date(row.processed_at).toISOString() : null,
-            summary: payloadSummary(row.payload),
-          })),
+          events: rows.map((row) => {
+            const summary = payloadSummary(row.payload);
+            /** @type {Readonly<Record<string, string>>} */
+            const types = row.provider === "stripe" ? STRIPE_EVENT_MAP : RECURRENTE_EVENT_MAP;
+            return {
+              type: Object.hasOwn(types, row.event_type) ? types[row.event_type] : row.event_type,
+              occurred_at: summary.occurred_at ?? new Date(row.received_at).toISOString(),
+              amount_minor: summary.amount_in_cents ?? null,
+              currency: summary.currency ?? null,
+              tax_invoice_url: summary.tax_invoice_url ?? null,
+              id: row.id,
+              provider: row.provider,
+              provider_event_id: row.provider_event_id,
+              event_type: row.event_type,
+              status: row.status,
+              error: row.error,
+              live_mode: row.live_mode,
+              business_id: row.business_id,
+              subscription_id: row.subscription_id,
+              received_at: new Date(row.received_at).toISOString(),
+              processed_at: row.processed_at ? new Date(row.processed_at).toISOString() : null,
+              summary,
+            };
+          }),
         });
       },
     ),
@@ -180,12 +213,13 @@ export function createSuperBillingRoutes({
         const parsed = SuperBillingCatalogSyncSchema.safeParse(req.body ?? {});
         if (!parsed.success)
           return res.status(400).json({ error: "Payload inválido", code: "VALIDATION_ERROR" });
-        const out = await service().syncCatalog({ force: parsed.data.force });
+        const out = await service().syncCatalog(parsed.data);
         await audit({
           req,
           action: "super.billing_catalog.sync",
           businessId: null,
           meta: {
+            provider: out.provider,
             created: out.created.map((c) => `${c.currency}:${c.plan}`),
             kept: out.kept.length,
             live_mode: out.live_mode,

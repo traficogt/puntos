@@ -37,6 +37,7 @@ const {
 const { ProgramSchema, CampaignRulesSchema, ExternalAwardsSchema } =
   await import("../app/routes/admin/program-support.js");
 const { StaffCreateSchema, StaffUpdateSchema } = await import("../app/routes/admin/staff.js");
+const { CustomerTestAccountSchema } = await import("../app/routes/admin/customers.js");
 const { WebhookSchema } = await import("../app/routes/admin/webhooks.js");
 const { CohortRetentionQuerySchema, TopCustomersQuerySchema } =
   await import("../app/routes/analytics/cohorts.js");
@@ -487,6 +488,7 @@ const AdminBillingResponseSchema = okEnvelope({
     latest_tax_invoice_url: z.string().nullable(),
     upgrade_available: z.boolean(),
     change_available: z.boolean(),
+    cancel_available: z.boolean(),
     checkout_pending: z
       .object({ id: z.guid(), url: z.string(), expires_at: TimestampSchema.nullable() })
       .nullable(),
@@ -606,6 +608,7 @@ const schemas = {
       pending_points: z.number(),
       lifetime_points: z.number(),
       created_at: z.string(),
+      is_test: z.boolean().optional(),
       last_visit_at: z.string().nullable(),
     }),
   }),
@@ -628,6 +631,13 @@ const schemas = {
   BranchCreateRequest: BranchSchema,
   StaffCreateRequest: StaffCreateSchema,
   StaffUpdateRequest: StaffUpdateSchema,
+  CustomerTestAccountRequest: CustomerTestAccountSchema,
+  CustomerTestAccountResponse: z
+    .object({
+      ok: z.literal(true),
+      customer: z.object({ id: z.guid(), is_test: z.boolean() }).strict(),
+    })
+    .strict(),
   WebhookCreateRequest: WebhookSchema,
   RewardResource: RewardResourceSchema,
   GiftCardCreateRequest: CreateGiftCardSchema,
@@ -1110,6 +1120,12 @@ const routeSchemaBindings = {
   "/api/v1/super/platform-settings/owner-progress": {
     put: { body: "OwnerProgressSettingsRequest" },
   },
+  "/api/v1/admin/customers/{id}/test-account": {
+    patch: { body: "CustomerTestAccountRequest" },
+  },
+  "/api/v1/super/businesses/{businessId}/customers/{customerId}/test-account": {
+    patch: { body: "CustomerTestAccountRequest" },
+  },
   "/api/v1/admin/analytics/cohorts": {
     get: { query: "AnalyticsCohortsQuery" },
   },
@@ -1360,19 +1376,40 @@ const curatedPaths = {
   },
   "/api/v1/public/billing/webhooks/{provider}": {
     post: {
-      summary: "Payment provider webhook (Recurrente, Svix-signed raw body)",
+      summary: "Payment provider webhook (Recurrente or Stripe, signed raw body)",
       description:
-        "No CSRF; the svix-id, svix-timestamp and svix-signature headers authenticate the sender. 401 on a bad signature, 200 { ok, duplicate: true } on a redelivery, 200 { type: ignored } for unknown event types, 500 when processing failed so the provider redelivers, 503 when no provider is configured.",
+        "The selected provider authenticates the raw body: Recurrente requires svix-id, svix-timestamp and svix-signature, and Stripe requires Stripe-Signature. 401 on a bad signature, 200 { ok, duplicate: true } on a redelivery, 200 { type: ignored } for unknown event types, 500 when processing failed so the provider redelivers, 503 when no provider is configured.",
       parameters: [
         {
           in: "path",
           name: "provider",
           required: true,
-          schema: { type: "string", enum: ["recurrente"] },
+          schema: { type: "string", enum: ["recurrente", "stripe"] },
         },
-        { in: "header", name: "svix-id", required: true, schema: { type: "string" } },
-        { in: "header", name: "svix-timestamp", required: true, schema: { type: "string" } },
-        { in: "header", name: "svix-signature", required: true, schema: { type: "string" } },
+        {
+          in: "header",
+          name: "Stripe-Signature",
+          description: "Required for Stripe",
+          schema: { type: "string" },
+        },
+        {
+          in: "header",
+          name: "svix-id",
+          description: "Required for Recurrente",
+          schema: { type: "string" },
+        },
+        {
+          in: "header",
+          name: "svix-timestamp",
+          description: "Required for Recurrente",
+          schema: { type: "string" },
+        },
+        {
+          in: "header",
+          name: "svix-signature",
+          description: "Required for Recurrente",
+          schema: { type: "string" },
+        },
       ],
       responses: {
         200: { description: "Event processed, ignored or duplicate" },
@@ -1402,8 +1439,7 @@ const curatedPaths = {
   },
   "/api/v1/super/billing/catalog/sync": {
     post: {
-      summary:
-        "Create the Recurrente products (USD, plus GTQ when amounts exist) and store their price ids in billing_catalog",
+      summary: "Sync the selected payment provider and store its price ids in billing_catalog",
       security: [{ superAuth: [] }],
       responses: {
         200: { description: "Created and kept price ids" },
@@ -2631,6 +2667,50 @@ const curatedPaths = {
         400: { description: "Validation error" },
         401: { description: "Not authenticated" },
         403: { description: "CSRF token required" },
+      },
+    },
+  },
+  "/api/v1/admin/customers/{id}/test-account": {
+    patch: {
+      summary: 'Mark or unmark a customer as a test account ("cuenta de prueba")',
+      description:
+        "Owner role. Marked accounts keep their points, history and directory entry but are excluded from owner progress, activation insights, trial activation facts, the plan soft-cap usage, the basic report and the weekly owner brief purchase counts. Audited as customer.test_account.update.",
+      security: [{ staffAuth: [] }],
+      responses: {
+        200: {
+          description: "Customer ID and saved test-account marker",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CustomerTestAccountResponse" },
+            },
+          },
+        },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "Owner role or CSRF token required" },
+        404: { description: "Customer not found in this business" },
+      },
+    },
+  },
+  "/api/v1/super/businesses/{businessId}/customers/{customerId}/test-account": {
+    patch: {
+      summary: "Mark or unmark a business customer as a test account (platform owner)",
+      description:
+        "Same semantics as the owner route; audited in the business trail as super.customer.test_account.update.",
+      security: [{ superAuth: [] }],
+      responses: {
+        200: {
+          description: "Customer ID and saved test-account marker",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CustomerTestAccountResponse" },
+            },
+          },
+        },
+        400: { description: "Validation error" },
+        401: { description: "Not authenticated" },
+        403: { description: "CSRF token required" },
+        404: { description: "Business or customer not found" },
       },
     },
   },

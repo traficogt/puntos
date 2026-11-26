@@ -82,6 +82,12 @@ or `{type="invalid_signature"}` grows.
    checkout (owners see 502 `BILLING_PROVIDER_ERROR`) and branch additions log
    `subscription.sync_failed` instead of blocking. Reconcile once it is back.
 
+### Stripe payment received while an owner still sees the trial
+
+Find the subscription and its invoice in Stripe Workbench, and check **Event deliveries** for the PF destination. Match the Stripe event ID to the delivery in **Suscripciones y cobro**. Check `invoice.paid`, its USD price, the PF checkout metadata and the current subscription status before granting any entitlement manually. Standalone invoices or checkouts from another application on the same Stripe account can be ignored legitimately.
+
+A 401 means signature verification failed. Match the destination's signing secret and environment to the deployed API and check the server clock. A 503 indicates missing provider configuration. A 5xx can be retried after correcting the underlying error. Use Workbench to resend the original delivery, then confirm one recorded payment and the expected access for the tenant. Sandbox `stripe trigger` events can exercise signature handling, but synthetic events without a matching PF checkout do not verify conversion.
+
 ## Backups
 
 ```bash

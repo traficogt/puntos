@@ -48,6 +48,7 @@ LIVE_INTEGRATION_FILES=(
   tests/integration/transaction-pool-isolation.test.js
   tests/integration/trial-signup.test.js
   tests/integration/billing-subscription.test.js
+  tests/integration/customer-test-accounts.test.js
 )
 if [[ $# -gt 0 ]]; then
   LIVE_INTEGRATION_FILES=("$@")

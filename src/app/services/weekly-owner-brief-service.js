@@ -289,12 +289,15 @@ async function ownerProgressLine(client, business, now, deps, transactional) {
 async function buildBrief(client, business, now, deps, { transactional = false } = {}) {
   const since = new Date(now.getTime() - 7 * 86400000),
     businessId = business.id;
-  // Weekly activity is read in one statement; each outcome carries its own window.
+  // Weekly activity is read in one statement; each outcome carries its own window. Test
+  // accounts (customers.is_test) never count as purchases in the brief.
+  const realCustomer =
+    "JOIN customers c ON c.id=t.customer_id AND c.business_id=t.business_id AND NOT c.is_test";
   const values = (
     await client.query(
       `SELECT
-  (SELECT count(*)::int FROM transactions t WHERE t.business_id=$1 AND t.created_at>=$2 AND t.created_at<$3 AND ${reportingPurchase("t")} AND t.status IN ('POSTED','EXPIRED')) AS posted_purchases,
-  (SELECT count(*)::int FROM transactions t WHERE t.business_id=$1 AND t.created_at>=$2 AND t.created_at<$3 AND ${reportingPurchase("t")} AND t.status='PENDING') AS pending_purchases,
+  (SELECT count(*)::int FROM transactions t ${realCustomer} WHERE t.business_id=$1 AND t.created_at>=$2 AND t.created_at<$3 AND ${reportingPurchase("t")} AND t.status IN ('POSTED','EXPIRED')) AS posted_purchases,
+  (SELECT count(*)::int FROM transactions t ${realCustomer} WHERE t.business_id=$1 AND t.created_at>=$2 AND t.created_at<$3 AND ${reportingPurchase("t")} AND t.status='PENDING') AS pending_purchases,
   (SELECT count(*)::int FROM second_visit_enrollments WHERE business_id=$1 AND created_at>=$2 AND created_at<$3) AS second_visit_offers,
   (SELECT count(*)::int FROM second_visit_enrollments e JOIN growth_campaign_members m ON m.business_id=e.business_id AND m.campaign_id=e.campaign_id WHERE e.business_id=$1 AND e.created_at>=$2 AND e.created_at<$3 AND m.claimed_at IS NOT NULL) AS second_visit_claims,
   (SELECT count(*)::int FROM growth_message_outbox WHERE business_id=$1 AND created_at>=$2 AND created_at<$3 AND status IN ('failed','uncertain'))+

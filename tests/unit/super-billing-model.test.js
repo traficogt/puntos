@@ -138,7 +138,7 @@ test("labels, money and date lines read in Spanish", () => {
   assert.equal(billingEventLabel(null), "Evento");
 });
 
-test("only Recurrente subscriptions that are active or past due can be canceled from the console", () => {
+test("only online subscriptions that are active or past due can be canceled from the console", () => {
   assert.equal(canCancelSubscription(rows[0]), true);
   assert.equal(canCancelSubscription(rows[1]), true);
   assert.equal(canCancelSubscription(rows[2]), false);
@@ -148,6 +148,7 @@ test("only Recurrente subscriptions that are active or past due can be canceled 
     "manual activations are not provider subscriptions",
   );
   assert.equal(canCancelSubscription(rows[4]), false);
+  assert.equal(canCancelSubscription({ ...rows[0], provider: "stripe" }), true);
   const events = sortBillingEvents([
     { occurred_at: day(-30), type: "payment_succeeded", amount_minor: 7900 },
     { occurred_at: day(-1), type: "payment_failed", amount_minor: 7900 },
@@ -232,7 +233,7 @@ test("the catalog payload keeps USD as published, validates GTQ and the dated re
 
 test("404 and 503 end in a notice; other errors fall back to the generic toast", () => {
   assert.match(billingUnavailableNotice({ status: 404 }), /aún no expone/);
-  assert.match(billingUnavailableNotice({ status: 503 }), /Recurrente.*no está configurado/);
+  assert.match(billingUnavailableNotice({ status: 503 }), /proveedor de cobro no está configurado/);
   assert.match(
     billingUnavailableNotice({ status: 400, code: "BILLING_UNAVAILABLE" }),
     /no está configurado/,

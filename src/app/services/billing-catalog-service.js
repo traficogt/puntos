@@ -60,6 +60,13 @@ export const BillingCatalogService = {
     return resolveBillingCatalog(await PlatformSettingsRepo.getBillingCatalog());
   },
 
+  /** @param {"stripe"|"recurrente"} provider @param {ReturnType<typeof resolveBillingCatalog>} catalog */
+  async saveProviderPrices(provider, catalog) {
+    return resolveBillingCatalog(
+      await PlatformSettingsRepo.saveBillingProviderPrices(provider, catalog.providers[provider]),
+    );
+  },
+
   /** @param {BillingCatalogInput} input validated by BillingCatalogSchema */
   async set(input) {
     const resolved = resolveBillingCatalog(input);

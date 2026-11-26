@@ -8,7 +8,7 @@ CREATE TABLE staff_users (id uuid PRIMARY KEY, business_id uuid NOT NULL REFEREN
 CREATE TABLE customers (
   id uuid PRIMARY KEY, business_id uuid NOT NULL REFERENCES businesses(id), name text,
   phone text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), last_visit_at timestamptz,
-  deleted_at timestamptz, UNIQUE(business_id,phone)
+  deleted_at timestamptz, is_test boolean NOT NULL DEFAULT false, UNIQUE(business_id,phone)
 );
 CREATE TABLE customer_balances (
   customer_id uuid PRIMARY KEY REFERENCES customers(id), points integer NOT NULL DEFAULT 0,

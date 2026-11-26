@@ -551,6 +551,26 @@ Design of record: `docs/product/2026-11-23-owner-progress.md` (v2). Landed in `8
   `getOwnerProgress`, `acknowledgeOwnerProgressMilestones`, `setOwnerProgressGoal`,
   `recordOwnerProgressReview`, `setOwnerProgressVisibility` persist the owner's choices and
   audit them; `ownerProgressBriefLine` feeds the weekly owner brief for treatment businesses.
+- **Test accounts** (`customers.is_test`, migration `2026-11-26-d-customer-test-accounts.sql`,
+  additive with a partial index; design note of 2026-11-26 in the design doc). The owner marks
+  an account from the customer profile (`PATCH /api/admin/customers/:id/test-account`, owner
+  role, CSRF, body `{ is_test }`, `CustomerDirectoryRepo.setTestAccount`, audited as
+  `customer.test_account.update`); the platform owner uses **Administrar cuentas de prueba** on the business card with a customer UUID through
+  `PATCH /api/super/businesses/:businessId/customers/:customerId/test-account`
+  (`super.customer.test_account.update`). The flag is read-only data for every counting
+  surface and never changes points: excluded from the owner-progress facts and momentum
+  (`realCustomer` in `owner-progress-service.js`, hence from the trial activation facts and
+  the day-10 trial reminder), activation insights, `BusinessRepo.activeCustomerCount` (plan
+  soft-cap usage), `businessSummary` and `TxnRepo.summaryByBusiness`
+  (`/api/admin/analytics/summary`), `getMerchantOverview` (`/api/admin/analytics/overview`,
+  Reportes), the advanced dashboard, the weekly owner brief purchase counts, the pilot
+  evidence metrics, and the customer counts of the super business and trial listings
+  (`test_customers` is reported apart). Kept: the directory (badge), CSV export (`is_test`
+  column), ledger, audits, `churnCandidates`, and the customer's own card (`is_test` on
+  `GET /api/customer/me`, label rendered by `public/customer/me.js`). Mantine:
+  `OwnerCustomers.tsx` badge and toggle; demo fixture row 3 is a test account. Help article:
+  `help/docs/negocio/cuentas-de-prueba.md`. Real-DB coverage:
+  `tests/integration/customer-test-accounts.test.js`.
 - **Routes** `src/app/routes/owner-progress-routes.js`: `GET /api/admin/owner-progress` and
   `POST /api/admin/owner-progress/{acknowledge,goal,review,visibility}` (`requireStaff`,
   `requireOwner`, `tenantContext`, CSRF on writes, `validateRequest` with strict zod bodies,
@@ -608,21 +628,16 @@ Design of record: `docs/product/2026-11-23-owner-progress.md` (v2). Landed in `8
   staff login page's handling, so it stays.
 - **`LEDGER_RECONCILE_HOUR_LOCAL`** is configured and passed to the worker but unused; the
   daily job runs at `CHURN_SEND_HOUR_LOCAL`.
-- **Third-party analytics on authenticated pages.** `https://privatrack.com` (a cookieless,
-  Umami-compatible page-view counter) is allowed by the CSP and referenced from the
-  hand-written HTML pages including `staff.html`, `super.html` and `customer.html`; the Mantine owner app stays script-free because its
-  browser gate enforces a strict content security policy. **Owner decision 2026-11-26: allowed
-  on those pages.** It records page views and
-  the named `data-umami-event` interactions only; no customer identifiers, phone numbers or
-  balances are sent, and the privacy page discloses the measurement.
+- **Application page views.** Application screens send a fixed page category directly to Privatrack using `public/area-pageview.js`. The request omits credentials, the referrer, parameters, fragments and account data. It runs on the production app origin, honors browser privacy signals, and skips the public demo. Public marketing pages use Privatrack's script for their named events.
+
 - **Hard limits to know.** Campaign audience snapshots are capped at 200 customers
   (`growth-campaign-service.js:203`, `LIMIT 200 FOR SHARE` at line 279); customer imports
   commit in chunks of 100 rows per job tick (`customer-import-job-service.js:233`).
-- **No marker for test or pilot-seed customer accounts.** Owner progress counts "genuine"
-  awards by excluding reversals, rehearsals and imported history, but a customer created
-  for a test or a pilot seed is indistinguishable from a real one (`owner-progress-service.js`,
-  help article). A plain branded-QR download is likewise not persisted, so it cannot satisfy
-  the card step on its own.
+- **Test accounts are a manual marker.** `customers.is_test` (section 10) excludes an
+  account from customer participation metrics, but nothing sets it automatically: a demo phone
+  that is never marked still counts, and marking an account after it reached a milestone
+  does not revoke the stored first-reached timestamp. A plain branded-QR download is
+  likewise not persisted, so it cannot satisfy the card step on its own.
 - **Holdout applies only to businesses not yet read.** The owner-progress variant is
   persisted on first read and never reassigned (section 10); raising `holdout_pct` later
   does not move existing treatment businesses into the holdout.

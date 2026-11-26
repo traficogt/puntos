@@ -10,6 +10,7 @@ import { conflict, notFound } from "../../utils/http-error.js";
  *   phone: string,
  *   created_at: Date,
  *   last_visit_at: Date | null,
+ *   is_test: boolean,
  *   points: number,
  *   pending_points: number,
  *   lifetime_points: number
@@ -26,7 +27,7 @@ import { conflict, notFound } from "../../utils/http-error.js";
  * }} CustomerDirectoryPage
  */
 
-const fields = `c.id, c.name, c.phone, c.created_at, c.last_visit_at,
+const fields = `c.id, c.name, c.phone, c.created_at, c.last_visit_at, c.is_test,
   COALESCE(b.points, 0) AS points, COALESCE(b.pending_points, 0) AS pending_points,
   COALESCE(b.lifetime_points, 0) AS lifetime_points`;
 
@@ -81,6 +82,47 @@ export const CustomerDirectoryRepo = {
     if (!customer) throw notFound("No encontramos este cliente en tu negocio.");
     if (!updated)
       throw conflict("El nombre cambió en otra sesión. Vuelve a abrir el perfil antes de guardar.");
+    return customer;
+  },
+  /**
+   * Record the marker and its audit entry in one statement. A missing, deleted or
+   * foreign customer produces neither an update nor an audit event.
+   * @param {{ businessId: string, customerId: string, isTest: boolean }} params
+   * @param {{ type: "STAFF" | "SUPER_ADMIN", id?: string, email?: string, impersonatedBy?: string | null, ip: string | null, ua: string | null }} actor
+   */
+  async setTestAccount({ businessId, customerId, isTest }, actor) {
+    const action =
+      actor.type === "SUPER_ADMIN"
+        ? "super.customer.test_account.update"
+        : "customer.test_account.update";
+    const meta = {
+      customer_id: customerId,
+      is_test: isTest,
+      ...(actor.email ? { super_admin_email: actor.email } : {}),
+      ...(actor.impersonatedBy ? { impersonated_by_super_admin_email: actor.impersonatedBy } : {}),
+    };
+    const customer = await one(
+      `WITH marked AS (
+         UPDATE customers SET is_test = $3
+         WHERE business_id = $1 AND id = $2 AND deleted_at IS NULL
+         RETURNING business_id
+       )
+       INSERT INTO audit_logs (id, business_id, actor_type, actor_id, action, ip, ua, meta)
+       SELECT gen_random_uuid(), business_id, $4, $5, $6, $7, $8, $9::jsonb FROM marked
+       RETURNING $2::uuid AS id, $3::boolean AS is_test`,
+      [
+        businessId,
+        customerId,
+        isTest,
+        actor.type,
+        actor.id ?? null,
+        action,
+        actor.ip,
+        actor.ua,
+        JSON.stringify(meta),
+      ],
+    );
+    if (!customer) throw notFound("No encontramos este cliente en tu negocio.");
     return customer;
   },
 };

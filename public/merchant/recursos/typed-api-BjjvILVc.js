@@ -1,0 +1,1 @@
+import{G as e,H as t}from"./index-Cz6_KQu4.js";function n(e){return{async get(t,n){return await e(t,n)},async put(t,n,r){return await e(t,{...r,method:`PUT`,body:JSON.stringify(n)})},async post(t,n,r){return await e(t,{...r,method:`POST`,body:JSON.stringify(n)})}}}var r=t,i=n(t),a=e;export{n as i,r as n,a as r,i as t};

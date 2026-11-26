@@ -9,12 +9,13 @@
  *   quantity: number, currency: "GTQ"|"USD", unitAmountMinor: number, currentPeriodStart: string|null,
  *   currentPeriodEnd: string|null, cancelAt: string|null, metadata: Record<string,string> }} SubscriptionSnapshot */
 /** @typedef {{ id: string, liveMode: boolean, occurredAt: string, metadata: Record<string,string>, raw: unknown,
- *   type: "checkout_completed"|"subscription_created"|"payment_succeeded"|"payment_failed"|"subscription_past_due"
- *       |"subscription_updated"|"subscription_canceled"|"refund_created"|"dispute_opened"|"ignored",
+ *   type: "checkout_completed"|"checkout_expired"|"subscription_created"|"payment_succeeded"|"payment_failed"
+ *       |"subscription_past_due"|"subscription_updated"|"subscription_canceled"|"refund_created"|"dispute_opened"|"ignored",
  *   providerSubscriptionId?: string, providerCheckoutId?: string, providerCustomerId?: string,
- *   amountMinor?: number, currency?: "GTQ"|"USD", feeMinor?: number, taxInvoiceUrl?: string|null }} BillingEvent */
+ *   providerChargeId?: string, invoiceId?: string, amountMinor?: number, currency?: "GTQ"|"USD", feeMinor?: number, taxInvoiceUrl?: string|null }} BillingEvent */
 /**
  * @typedef {object} BillingProvider
+ * @property {boolean} [webhookConfigured]
  * @property {ProviderName} name
  * @property {(input: { businessId: string, email: string, name: string, phone?: string|null, taxId?: string|null }) => Promise<BillingCustomerRef>} createCustomer
  * @property {(input: { customer: BillingCustomerRef, plan: string, quantity: number, currency: "GTQ"|"USD", successUrl: string,
@@ -33,6 +34,7 @@ export const PROVIDER_NAMES = Object.freeze(["recurrente", "stripe", "manual"]);
 /** Every normalized event type a provider may emit. */
 export const BILLING_EVENT_TYPES = Object.freeze([
   "checkout_completed",
+  "checkout_expired",
   "subscription_created",
   "payment_succeeded",
   "payment_failed",

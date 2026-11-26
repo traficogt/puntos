@@ -2,7 +2,7 @@
 title: Leer el reporte básico y la capacidad del plan
 description: Consulta la participación registrada en 7, 30 o 90 días, los premios más
   usados y cuánto margen te queda en el límite de clientes de tu plan.
-reviewed: '2026-11-25'
+reviewed: '2026-11-26'
 kind: task
 sources:
 - web/merchant/src/OwnerReports.tsx
@@ -32,7 +32,7 @@ Ingresa con la cuenta del dueño. **Reportes** está incluido en todos los plane
 
 ## Qué debe pasar
 
-Los indicadores cuentan la actividad registrada dentro del período: **Clientes que volvieron** son quienes tienen al menos dos compras registradas en ese período y **Premios usados** cuenta solo canjes completados por su fecha de uso. Los saldos iniciales importados no cuentan como compras, visitas ni clientes activos; las compras sin sucursal asignada se incluyen únicamente al consultar todas las sucursales. Las notas al pie del reporte repiten estas definiciones.
+Los indicadores cuentan la actividad registrada dentro del período: **Clientes que volvieron** son quienes tienen al menos dos compras registradas en ese período y **Premios usados** cuenta solo canjes completados por su fecha de uso. Los saldos iniciales importados no cuentan como compras, visitas ni clientes activos; las compras sin sucursal asignada se incluyen únicamente al consultar todas las sucursales. Las cuentas marcadas como **Cuenta de prueba** en **Clientes** quedan fuera de todos los indicadores y de la **Capacidad del plan**, aunque sigan en el directorio con sus puntos; consulta [Marcar una cuenta de prueba](/ayuda/negocio/cuentas-de-prueba/). Las notas al pie del reporte repiten estas definiciones.
 
 La **Capacidad del plan** usa otra regla: cuenta clientes con visita o inscripción en los últimos 90 días, la misma del límite del plan. Ese límite es blando: superarlo no bloquea ninguna venta ni rechaza clientes en caja; la nota solo te avisa para planificar. Si tu plan incluye el análisis completo, **Ver el análisis completo en Inicio** abre el resumen con gráficos y comparaciones.
 
@@ -48,4 +48,4 @@ La **Capacidad del plan** usa otra regla: cuenta clientes con visita o inscripci
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#reportes). Revisión del 25 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#reportes). Revisión del 26 de noviembre de 2026.

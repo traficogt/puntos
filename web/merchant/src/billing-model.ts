@@ -13,8 +13,9 @@ import { PLAN_DISPLAY_NAMES, PLAN_ORDER, planDisplayName } from "./trial-model.t
 
 export type PlanCode = "EMPRENDEDOR" | "NEGOCIO" | "EMPRESA";
 export type BillingCurrency = "USD" | "GTQ";
-export type SubscriptionStatus = "none" | "trial" | "active" | "past_due" | "canceled" | "manual";
-export type BillingProvider = "recurrente" | "manual" | null;
+export type SubscriptionStatus =
+  "none" | "trial" | "active" | "past_due" | "canceled" | "manual" | "locked";
+export type BillingProvider = "recurrente" | "stripe" | "manual" | null;
 export type CheckoutStatus = "pending" | "completed" | "expired" | "canceled";
 export type BillingTrialStatus = "none" | "active" | "expiring" | "locked" | "converted";
 export type CheckoutResult = "exito" | "cancelado";
@@ -40,6 +41,9 @@ export interface BillingSubscription {
   next_payment_attempt_at: string | null;
   latest_tax_invoice_url: string | null;
   upgrade_available: boolean;
+  change_available: boolean;
+  cancel_available: boolean;
+  lock_reason: string | null;
   checkout_pending: CheckoutPending | null;
 }
 export interface CatalogPlan {
@@ -128,6 +132,7 @@ const STATUSES: readonly SubscriptionStatus[] = [
   "past_due",
   "canceled",
   "manual",
+  "locked",
 ];
 const TRIAL_STATUSES: readonly BillingTrialStatus[] = [
   "none",
@@ -152,7 +157,9 @@ const BILLING_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   BILLING_ALREADY_ACTIVE:
     "Tu negocio ya tiene un plan activo. Vuelve a cargar la página para ver el estado actual.",
   BILLING_CURRENCY_UNAVAILABLE:
-    "Esa moneda aún no está habilitada para pago en línea. Elige USD o escríbenos.",
+    "El pago en línea aún no está disponible en la moneda de tu negocio. Escríbenos para activar el plan.",
+  BILLING_CHECKOUT_PENDING:
+    "Ya hay un pago en curso. Retómalo desde el panel o espera a que venza.",
   BILLING_CHECKOUT_NOT_FOUND:
     "No encontramos ese intento de pago. Vuelve a elegir el plan para generar uno nuevo.",
   BILLING_NO_SUBSCRIPTION:
@@ -268,7 +275,13 @@ export function normalizeBilling(payload: unknown): BillingView | null {
   const root = asRecord(payload);
   const node = asRecord(root?.billing);
   if (!root || !node) return null;
-  const status = asOneOf(node.status, STATUSES);
+  const provider = asOneOf(node.provider, ["recurrente", "stripe", "manual"] as const);
+  const status =
+    node.status === "trialing"
+      ? "trial"
+      : node.status === "active" && provider === "manual"
+        ? "manual"
+        : asOneOf(node.status, STATUSES);
   if (status === null) return null;
   const currency =
     asOneOf(node.currency, CURRENCIES) ??
@@ -277,7 +290,8 @@ export function normalizeBilling(payload: unknown): BillingView | null {
   const plan = planCode(node.plan);
   const quantity = Math.max(1, asInteger(node.quantity) ?? 1);
   const unit = asInteger(node.unit_amount_minor);
-  const providerText = asString(node.provider)?.toLowerCase() ?? null;
+  const checkoutAvailable = asBoolean(node.upgrade_available) ?? false;
+  const canManage = asBoolean(node.change_available) ?? checkoutAvailable;
   const pendingNode = asRecord(node.checkout_pending);
   const pendingId = asString(pendingNode?.id);
   const pendingUrl = asString(pendingNode?.url);
@@ -285,7 +299,7 @@ export function normalizeBilling(payload: unknown): BillingView | null {
   return {
     billing: {
       status,
-      provider: providerText === "recurrente" || providerText === "manual" ? providerText : null,
+      provider,
       currency,
       plan,
       plan_name: asString(node.plan_name) ?? planDisplayName(plan),
@@ -299,7 +313,10 @@ export function normalizeBilling(payload: unknown): BillingView | null {
       past_due_since: asString(node.past_due_since),
       next_payment_attempt_at: asString(node.next_payment_attempt_at),
       latest_tax_invoice_url: asString(node.latest_tax_invoice_url),
-      upgrade_available: asBoolean(node.upgrade_available) ?? false,
+      upgrade_available: checkoutAvailable,
+      change_available: canManage,
+      cancel_available: asBoolean(node.cancel_available) ?? canManage,
+      lock_reason: asString(node.lock_reason),
       checkout_pending:
         pendingId && pendingUrl
           ? { id: pendingId, url: pendingUrl, expires_at: asString(pendingNode?.expires_at) }
@@ -308,7 +325,10 @@ export function normalizeBilling(payload: unknown): BillingView | null {
     catalog: normalizeCatalog(root.catalog, currency),
     branches: Math.max(1, asInteger(root.branches) ?? 1),
     trial: {
-      status: asOneOf(trialNode?.status, TRIAL_STATUSES) ?? "none",
+      status:
+        trialNode?.status === "expired"
+          ? "locked"
+          : (asOneOf(trialNode?.status, TRIAL_STATUSES) ?? "none"),
       days_left: asInteger(trialNode?.days_left),
       ends_at: asString(trialNode?.ends_at),
     },
@@ -411,6 +431,12 @@ export function formatBillingDate(
   return new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone }).format(date);
 }
 
+export function processorName(provider: BillingProvider): string {
+  if (provider === "stripe") return "Stripe";
+  if (provider === "recurrente") return "Recurrente";
+  return "el procesador de pagos";
+}
+
 /** Status card copy: what the owner pays, when, and what happens next, in plain Spanish. */
 export function billingStatusCopy(view: BillingView): StatusCopy {
   const { billing, trial } = view;
@@ -419,11 +445,18 @@ export function billingStatusCopy(view: BillingView): StatusCopy {
   const periodEnd = formatBillingDate(billing.current_period_end);
   switch (billing.status) {
     case "active":
+      if (billing.cancel_at)
+        return {
+          badge: "Cancelación programada",
+          color: "gray",
+          title: `Plan ${name} activo hasta el ${formatBillingDate(billing.cancel_at)}`,
+          body: "La cancelación ya está programada. Puedes seguir usando el plan hasta esa fecha.",
+        };
       return {
         badge: "Activo",
         color: "teal",
         title: `Plan ${name} activo`,
-        body: `${periodEnd ? `Próximo cobro el ${periodEnd}: ` : "Cobro mensual: "}${total} (${billing.quantity} ${billing.quantity === 1 ? "sucursal" : "sucursales"} × ${formatMinor(billing.unit_amount_minor, billing.currency)}). Se cobra a la tarjeta registrada en Recurrente.`,
+        body: `${periodEnd ? `Próximo cobro el ${periodEnd}: ` : "Cobro mensual: "}${total} (${billing.quantity} ${billing.quantity === 1 ? "sucursal" : "sucursales"} × ${formatMinor(billing.unit_amount_minor, billing.currency)}). Se cobra a la tarjeta registrada con ${processorName(billing.provider)}.`,
       };
     case "past_due": {
       const since = formatBillingDate(billing.past_due_since);
@@ -432,7 +465,7 @@ export function billingStatusCopy(view: BillingView): StatusCopy {
         badge: "Pago pendiente",
         color: "orange",
         title: "El último cobro no se completó",
-        body: `${since ? `El cobro del ${since} fue rechazado. ` : ""}Recurrente volverá a intentar con la misma tarjeta${next ? ` el ${next}` : " en los próximos días"}. Tu panel sigue operando; si el pago no se completa en 7 días, pasa a modo de lectura hasta que el cobro se complete.`,
+        body: `${since ? `El cobro del ${since} fue rechazado. ` : ""}${processorName(billing.provider)} volverá a intentar con la misma tarjeta${next ? ` el ${next}` : " en los próximos días"}. Tu panel sigue operando; si el pago no se completa en 7 días, pasa a modo de lectura hasta que el cobro se complete.`,
       };
     }
     case "canceled": {
@@ -451,10 +484,22 @@ export function billingStatusCopy(view: BillingView): StatusCopy {
         title: `Plan ${name} por acuerdo directo`,
         body: "Tu plan se activó por transferencia o factura, sin cobro con tarjeta. Para cambios o comprobantes, escríbenos a soporte.",
       };
+    case "locked":
     case "trial":
     case "none":
     default: {
-      if (trial.status === "locked")
+      if (
+        billing.status === "locked" &&
+        billing.lock_reason !== "trial_expired" &&
+        (billing.lock_reason || trial.status !== "locked")
+      )
+        return {
+          badge: "Solo lectura",
+          color: "red",
+          title: "Tu panel está en modo de lectura",
+          body: "Revisa el estado de tus pagos. Si necesitas ayuda para reactivar el plan, contáctanos.",
+        };
+      if (billing.lock_reason === "trial_expired" || trial.status === "locked")
         return {
           badge: "Prueba terminada",
           color: "red",
@@ -491,7 +536,7 @@ export function planChangeCopy(view: BillingView, next: PlanQuote): ChangeCopy {
     return {
       kind,
       title: `Cambiar a ${next.name} ahora`,
-      body: `Hoy se cobra solo la diferencia proporcional por los días que faltan de tu período actual, y desde el próximo cobro pagas ${total} al mes. Las funciones de ${next.name} se activan en cuanto Recurrente confirma el cobro.`,
+      body: `Hoy se cobra solo la diferencia proporcional por los días que faltan de tu período actual, y desde el próximo cobro pagas ${total} al mes. Las funciones de ${next.name} se activan en cuanto ${processorName(view.billing.provider)} confirma el cobro.`,
       confirm: `Cambiar a ${next.name} y pagar la diferencia`,
     };
   if (kind === "downgrade")
@@ -579,7 +624,7 @@ export function pollingCopy(
     case "completed":
       return {
         title: planName ? `Tu plan ${planName} está activo` : "Tu plan está activo",
-        body: "El pago se confirmó y el panel ya opera con el nuevo plan. Cada cobro aparece abajo cuando Recurrente lo confirma.",
+        body: "El pago se confirmó y el panel ya opera con el nuevo plan. Puedes consultar los cobros en esta página.",
         tone: "teal",
       };
     case "expired":
@@ -591,13 +636,13 @@ export function pollingCopy(
     case "canceled":
       return {
         title: "Pago cancelado",
-        body: "Cancelaste el pago en la página de Recurrente. Puedes intentarlo de nuevo cuando quieras; no se hizo ningún cobro.",
+        body: "Saliste de la página de pago. Si ya ves el cargo en tu tarjeta, actualiza esta página antes de volver a intentarlo.",
         tone: "orange",
       };
     case "timeout":
       return {
         title: "Seguimos esperando la confirmación",
-        body: "Recurrente todavía no nos confirmó el pago. Suele tardar menos de un minuto; vuelve a cargar esta página en unos minutos. Si tu tarjeta ya muestra el cargo, el plan se activará solo.",
+        body: "El procesador todavía no nos confirmó el pago. Suele tardar menos de un minuto; vuelve a cargar esta página en unos minutos. Si tu tarjeta ya muestra el cargo, el plan se activará solo.",
         tone: "orange",
       };
     case "unavailable":
@@ -609,7 +654,7 @@ export function pollingCopy(
     default:
       return {
         title: "Confirmando tu pago…",
-        body: "Estamos esperando la confirmación de Recurrente. No cierres esta página; tarda unos segundos.",
+        body: "Estamos esperando la confirmación del pago. No cierres esta página; tarda unos segundos.",
         tone: "blue",
       };
   }
@@ -630,23 +675,27 @@ export function billingErrorMessage(error: unknown): string | null {
 export function canStartCheckout(view: BillingView): boolean {
   return (
     view.billing.upgrade_available &&
-    (view.billing.status === "trial" || view.billing.status === "none")
+    (["trial", "none", "locked", "canceled"] as SubscriptionStatus[]).includes(view.billing.status)
   );
 }
 
 export function canChangePlan(view: BillingView): boolean {
   return (
-    view.billing.upgrade_available &&
+    !view.billing.cancel_at &&
+    view.billing.change_available &&
     view.billing.status === "active" &&
-    view.billing.provider === "recurrente"
+    (view.billing.provider === "recurrente" || view.billing.provider === "stripe")
   );
 }
 
 export function canCancel(view: BillingView): boolean {
   return (
-    view.billing.upgrade_available &&
-    (view.billing.status === "active" || view.billing.status === "past_due") &&
-    view.billing.provider === "recurrente"
+    !view.billing.cancel_at &&
+    view.billing.cancel_available &&
+    (view.billing.status === "active" ||
+      view.billing.status === "past_due" ||
+      view.billing.status === "locked") &&
+    (view.billing.provider === "recurrente" || view.billing.provider === "stripe")
   );
 }
 
@@ -654,6 +703,7 @@ export function showsInvoices(view: BillingView): boolean {
   return (
     view.billing.status === "active" ||
     view.billing.status === "past_due" ||
-    view.billing.status === "canceled"
+    view.billing.status === "canceled" ||
+    view.billing.status === "locked"
   );
 }

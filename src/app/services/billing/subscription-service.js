@@ -9,14 +9,8 @@
 //   unless the platform setting overrides them): Q300 / Q630 / Q1,030 per branch per month
 //   for Guatemalan businesses, USD 39 / 79 / 129 for businesses outside Guatemala. Both
 //   include IVA (12%); nothing here computes tax.
-// - Currency per customer (see businessPaysInGtq / defaultCurrency): a business counts as
-//   Guatemalan when it already pays in GTQ (`billing_currency`), when its regional settings
-//   resolve to the America/Guatemala timezone (the default region when none is set), or
-//   when its verified trial phone carries the +502 dial code. Such a business checks out in
-//   GTQ by default when GTQ is ready (catalog amounts AND Recurrente GTQ price ids for every
-//   plan); otherwise, and for every other business, the default is USD. The owner may still
-//   choose the currency explicitly; an explicit GTQ request while GTQ is not ready answers
-//   400 BILLING_CURRENCY_UNAVAILABLE. USD runs through Recurrente today, Stripe later.
+// - New subscriptions use the merchant's operating country: GTQ through Recurrente
+//   in Guatemala, USD through Stripe elsewhere. Existing contracts keep their processor.
 // - No FEL invoice is issued (owner decision 2026-11-26); the app still stores any `tax_invoice_url` the payment
 //   webhook carries and shows it to the owner.
 // - No annual plans; one monthly subscription per business.
@@ -51,6 +45,8 @@ import { createManualProvider } from "./manual-provider.js";
 import { MAX_QUANTITY, MIN_QUANTITY } from "./provider.js";
 import { createRecurrenteProvider, headerValue } from "./recurrente-provider.js";
 
+import { createStripeProvider } from "./stripe-provider.js";
+
 /** @typedef {import("./provider.js").BillingProvider} BillingProvider */
 /** @typedef {import("./provider.js").BillingEvent} BillingEvent */
 /** @typedef {import("./provider.js").SubscriptionSnapshot} SubscriptionSnapshot */
@@ -68,8 +64,9 @@ import { createRecurrenteProvider, headerValue } from "./recurrente-provider.js"
  *   getBusiness: (id: string) => Promise<BusinessRow | null>,
  *   countBranches: (businessId: string) => Promise<number>,
  *   getCatalog: () => Promise<ResolvedCatalog>,
- *   setCatalog: (catalog: ResolvedCatalog) => Promise<ResolvedCatalog>,
+ *   saveCatalogPrices: (provider: "stripe"|"recurrente", catalog: ResolvedCatalog) => Promise<ResolvedCatalog>,
  *   provider: OnlineProvider | null,
+ *   stripeProvider: import("./stripe-provider.js").StripeProvider | null,
  *   manualProvider: BillingProvider,
  *   platform: <T>(fn: () => Promise<T>) => Promise<T>,
  *   tenant: <T>(businessId: string, fn: () => Promise<T>) => Promise<T>,
@@ -130,7 +127,7 @@ const meta = (metadata) => (isRecord(metadata) ? metadata : {});
  * @param {string} webhookSecret
  */
 function onlineProvider(secretKey, webhookSecret) {
-  if (config.BILLING_PROVIDER !== "recurrente" || !secretKey) return null;
+  if (!["recurrente", "stripe"].includes(config.BILLING_PROVIDER) || !secretKey) return null;
   return createRecurrenteProvider({
     fetch: (url, init) => globalThis.fetch(url, init),
     config: {
@@ -149,8 +146,21 @@ function defaultDeps() {
     getBusiness: (id) => BusinessRepo.getById(id),
     countBranches: (id) => BusinessRepo.countBranches(id),
     getCatalog: () => BillingCatalogService.get(),
-    setCatalog: (catalog) => BillingCatalogService.set(catalog),
+    saveCatalogPrices: (provider, catalog) =>
+      BillingCatalogService.saveProviderPrices(provider, catalog),
     provider: onlineProvider(config.RECURRENTE_SECRET_KEY, config.RECURRENTE_WEBHOOK_SECRET),
+    stripeProvider:
+      ["recurrente", "stripe"].includes(config.BILLING_PROVIDER) && config.STRIPE_SECRET_KEY
+        ? createStripeProvider({
+            fetch: globalThis.fetch,
+            config: {
+              secretKey: config.STRIPE_SECRET_KEY,
+              webhookSecret: config.STRIPE_WEBHOOK_SECRET,
+              apiBase: config.STRIPE_API_BASE,
+              getCatalog: () => BillingCatalogService.get(),
+            },
+          })
+        : null,
     manualProvider: createManualProvider({
       getSubscription: (id) => BillingSubscriptionRepo.getSubscriptionByProviderId("manual", id),
     }),
@@ -197,10 +207,16 @@ export function prorationMode({ fromPlan, toPlan, fromQuantity, toQuantity }) {
 /**
  * Catalog readiness per currency: amounts and Recurrente price ids for every plan.
  * @param {ResolvedCatalog} catalog
+ * @param {string} [usdProvider]
  */
-export function catalogReadiness(catalog) {
+export function catalogReadiness(catalog, usdProvider = "stripe") {
   const priceIds = catalog.providers.recurrente.price_ids;
-  const usd = PLAN_NAMES.every((plan) => Boolean(priceIds.USD[plan]) && catalog.usd[plan] > 0);
+  const usd = PLAN_NAMES.every(
+    (plan) =>
+      Boolean(
+        (usdProvider === "recurrente" ? priceIds : catalog.providers.stripe.price_ids).USD[plan],
+      ) && catalog.usd[plan] > 0,
+  );
   const gtq =
     Boolean(catalog.gtq) &&
     PLAN_NAMES.every((plan) => Boolean(priceIds.GTQ[plan]) && Number(catalog.gtq?.[plan]) > 0);
@@ -208,28 +224,27 @@ export function catalogReadiness(catalog) {
 }
 
 /**
- * Whether the business is Guatemalan for billing purposes (header rule): it already pays
- * in quetzales, its regional settings resolve to Guatemala's timezone (the default region
- * when none was chosen), or its verified trial phone carries the 502 dial code
- * (`trial_phone` is stored as digits, country code first).
+ * Explicit operating country wins. Use the verified phone when the region is
+ * unknown, then a stored billing currency or the platform's Guatemala default.
  * @param {Pick<BusinessRow, "billing_currency" | "program_json" | "trial_phone">} business
  */
 export function businessPaysInGtq(business) {
-  if (business.billing_currency === "GTQ") return true;
-  if (regionTimezone(business) === REGIONAL_COUNTRIES.GT.timezone) return true;
-  return String(business.trial_phone ?? "").startsWith(REGIONAL_COUNTRIES.GT.dialCode);
+  const country = meta(business.program_json?.region).country;
+  if (typeof country === "string" && Object.hasOwn(REGIONAL_COUNTRIES, country))
+    return country === "GT";
+  const phone = String(business.trial_phone ?? "").replace(/^\+/, "");
+  if (phone) return phone.startsWith(REGIONAL_COUNTRIES.GT.dialCode);
+  return business.billing_currency !== "USD";
 }
 
 /**
- * Default checkout and catalog currency when the owner has not chosen one: GTQ for a
- * Guatemalan business while GTQ is ready, USD otherwise. An active subscription keeps its
- * own currency so plan changes are quoted in what the business already pays.
- * @param {{ business: Pick<BusinessRow, "billing_currency" | "program_json" | "trial_phone">, catalog: ResolvedCatalog, active?: { currency: string } | null }} input
+ * Currency for a new checkout or an existing contract's plan changes.
+ * @param {{ business: Pick<BusinessRow, "billing_currency" | "program_json" | "trial_phone">, catalog?: ResolvedCatalog, active?: { currency: string } | null }} input
  * @returns {Currency}
  */
-export function defaultCurrency({ business, catalog, active = null }) {
+export function defaultCurrency({ business, active = null }) {
   if (active) return active.currency === "GTQ" ? "GTQ" : "USD";
-  return businessPaysInGtq(business) && catalogReadiness(catalog).gtq ? "GTQ" : "USD";
+  return businessPaysInGtq(business) ? "GTQ" : "USD";
 }
 
 /**
@@ -298,19 +313,38 @@ export function subscriptionView(row) {
 export function createSubscriptionService(overrides = {}) {
   /** @type {SubscriptionServiceDeps} */
   const deps = { ...defaultDeps(), ...overrides };
-  const providerName = deps.provider?.name ?? deps.config.BILLING_PROVIDER;
+  const isConfigured = () => Boolean(deps.provider || deps.stripeProvider);
 
-  const isConfigured = () => Boolean(deps.provider);
-
-  function requireProvider() {
-    if (!deps.provider) throw unavailable();
-    return deps.provider;
+  /** @param {string} name */
+  function onlineFor(name) {
+    if (name === "recurrente") return deps.provider;
+    if (name === "stripe") return deps.stripeProvider;
+    return null;
   }
 
   /** @param {string} name */
   function providerFor(name) {
-    if (name === "manual") return deps.manualProvider;
-    return deps.provider && deps.provider.name === name ? deps.provider : null;
+    return name === "manual" ? deps.manualProvider : onlineFor(name);
+  }
+
+  /** @param {Currency} currency */
+  function checkoutProvider(currency) {
+    const provider = currency === "GTQ" ? deps.provider : deps.stripeProvider;
+    return provider?.webhookConfigured === false ? null : provider;
+  }
+
+  /** @param {BusinessRow} business @param {BillingSubscriptionRow | null} active @param {ResolvedCatalog} catalog */
+  function canStartCheckout(business, active, catalog) {
+    const currency = defaultCurrency({ business, catalog });
+    const ready = catalogReadiness(catalog);
+    return (
+      !active && Boolean(checkoutProvider(currency)) && (currency === "USD" ? ready.usd : ready.gtq)
+    );
+  }
+
+  /** @param {BusinessRow} business @param {BillingSubscriptionRow | null} active */
+  async function upgradeAvailable(business, active) {
+    return isConfigured() && !active && canStartCheckout(business, active, await deps.getCatalog());
   }
 
   /** @param {Date} now */
@@ -325,6 +359,16 @@ export function createSubscriptionService(overrides = {}) {
    */
   const countBranches = (businessId) =>
     deps.tenant(businessId, () => deps.countBranches(businessId));
+
+  /** @template T @param {string} businessId @param {() => Promise<T>} fn */
+  function withBillingLock(businessId, fn) {
+    return deps.platform(() =>
+      deps.transaction(async () => {
+        await deps.repo.lockBusinessForBilling(businessId);
+        return fn();
+      }),
+    );
+  }
 
   /** @param {string} plan */
   function requirePlan(plan) {
@@ -344,26 +388,19 @@ export function createSubscriptionService(overrides = {}) {
   }
 
   /**
-   * Currency for a checkout: the owner's explicit request, else the header rule
-   * (defaultCurrency: GTQ for a Guatemalan business when GTQ is ready, USD otherwise).
    * @param {{ requested: string | null | undefined, business: BusinessRow, catalog: ResolvedCatalog }} input
    * @returns {Currency}
    */
   function resolveCurrency({ requested, business, catalog }) {
+    const currency = defaultCurrency({ business });
+    if (requested && requested !== currency)
+      throw badRequest(
+        "Esta moneda no está disponible para tu negocio.",
+        "BILLING_CURRENCY_UNAVAILABLE",
+      );
     const ready = catalogReadiness(catalog);
-    if (requested === "GTQ") {
-      if (!ready.gtq)
-        throw badRequest(
-          "El cobro en quetzales aún no está disponible; el plan se cobra en USD.",
-          "BILLING_CURRENCY_UNAVAILABLE",
-        );
-      return "GTQ";
-    }
-    if (requested && requested !== "USD")
-      throw badRequest("Moneda inválida", "BILLING_CURRENCY_UNAVAILABLE");
-    if (!requested && defaultCurrency({ business, catalog }) === "GTQ") return "GTQ";
-    if (!ready.usd) throw unavailable();
-    return "USD";
+    if (!(currency === "GTQ" ? ready.gtq : ready.usd)) throw unavailable();
+    return currency;
   }
 
   /**
@@ -405,12 +442,17 @@ export function createSubscriptionService(overrides = {}) {
     ]);
     /** @type {BillingSubscriptionRow | null} */
     const subscription = active ?? (await deps.repo.latestSubscription(businessId));
-    const ready = catalogReadiness(catalog);
     // The plan page quotes in the currency the business pays or will pay (header rule).
     const currency = defaultCurrency({ business, catalog, active });
-    const catalogReady = currency === "GTQ" ? ready.gtq : ready.usd;
+    const manageable = Boolean(
+      active && onlineFor(active.provider) && ["active", "past_due"].includes(active.status),
+    );
+    const activeReady = catalogReadiness(catalog, active?.provider);
+    const canChange = manageable && (currency === "GTQ" ? activeReady.gtq : activeReady.usd);
+    const canCheckout = canStartCheckout(business, active, catalog);
     const state = trialState(business, { now, timezone: regionTimezone(business) });
     const view = subscription ? subscriptionView(subscription) : null;
+    const currentView = active ? view : null;
     const lockReason =
       business.billing_status !== "locked"
         ? null
@@ -422,39 +464,38 @@ export function createSubscriptionService(overrides = {}) {
     return {
       billing: {
         status: business.billing_status,
-        provider: active?.provider ?? (isConfigured() ? providerName : null),
+        provider: active?.provider ?? checkoutProvider(currency)?.name ?? null,
         currency,
         plan: business.plan,
         plan_name: planDisplayName(business.plan),
-        quantity: view?.quantity ?? quantityForBranches(branches).quantity,
+        quantity: currentView?.quantity ?? quantityForBranches(branches).quantity,
         unit_amount_minor:
-          view?.unit_amount_minor ??
+          currentView?.unit_amount_minor ??
           catalogPlans(catalog, currency).find((p) => p.id === normalizePlan(business.plan))
             ?.unit_amount_minor ??
           null,
-        monthly_total_minor: view?.monthly_total_minor ?? null,
+        monthly_total_minor: currentView?.monthly_total_minor ?? null,
         current_period_start: view?.current_period_start ?? null,
         current_period_end: view?.current_period_end ?? null,
         cancel_at: view?.cancel_at ?? null,
         past_due_since: view?.past_due_since ?? null,
         next_payment_attempt_at: view?.next_payment_attempt_at ?? null,
         latest_tax_invoice_url: view?.latest_tax_invoice_url ?? null,
-        upgrade_available: isConfigured() && catalogReady && !active,
-        change_available:
-          isConfigured() &&
-          catalogReady &&
-          Boolean(active) &&
-          active.provider === providerName &&
-          (active.status === "active" || active.status === "past_due"),
-        checkout_pending: pending
-          ? { id: pending.id, url: pending.checkout_url, expires_at: iso(pending.expires_at) }
-          : null,
+        upgrade_available: canCheckout,
+        change_available: canChange,
+        cancel_available: manageable,
+        checkout_pending:
+          pending &&
+          pending.currency === currency &&
+          pending.provider === (currency === "GTQ" ? "recurrente" : "stripe")
+            ? { id: pending.id, url: pending.checkout_url, expires_at: iso(pending.expires_at) }
+            : null,
         lock_reason: lockReason,
         subscription: view,
       },
       catalog: {
         currency,
-        currencies: [...(ready.usd ? ["USD"] : []), ...(ready.gtq ? ["GTQ"] : [])],
+        currencies: canChange || canCheckout ? [currency] : [],
         iva_included: catalog.iva_included,
         plans: catalogPlans(catalog, currency),
       },
@@ -490,25 +531,36 @@ export function createSubscriptionService(overrides = {}) {
 
   /** @param {{ businessId: string, plan: string, currency?: string | null }} input */
   async function startCheckout({ businessId, plan, currency = null }) {
-    const provider = requireProvider();
+    return withBillingLock(businessId, () => createCheckout(businessId, plan, currency));
+  }
+
+  /** @param {string} businessId @param {string} plan @param {string | null} currency */
+  async function createCheckout(businessId, plan, currency) {
     const now = deps.now();
     const business = await deps.getBusiness(businessId);
     if (!business) throw notFound("Negocio no encontrado");
     const planKey = requirePlan(plan);
     const catalog = await deps.getCatalog();
-    const chosen = resolveCurrency({ requested: currency, business, catalog });
     const active = await deps.repo.activeSubscription(businessId);
     if (active)
       throw conflict(
         "Tu negocio ya tiene un plan activo; cambia de plan en lugar de iniciar otro pago.",
         "BILLING_ALREADY_ACTIVE",
       );
+    const chosen = resolveCurrency({ requested: currency, business, catalog });
+    const provider = checkoutProvider(chosen);
+    if (!provider) throw unavailable();
     const branches = await countBranches(businessId);
     const quantity = quantityForBranches(branches);
     if (!quantity.ok)
       throw conflict(
         `El pago en línea cubre hasta ${MAX_QUANTITY} sucursales; escríbenos para un plan a medida.`,
         "BILLING_QUANTITY_LIMIT",
+      );
+    if (branches > planLimits(planKey).branches)
+      throw conflict(
+        `El plan ${PLAN_DISPLAY_NAMES[planKey]} admite hasta ${planLimits(planKey).branches} sucursales.`,
+        "BILLING_PLAN_LIMITS",
       );
     const pending = await deps.repo.findOpenCheckout({
       businessId,
@@ -517,7 +569,15 @@ export function createSubscriptionService(overrides = {}) {
       currency: chosen,
       quantity: quantity.quantity,
     });
-    if (pending) return { reused: true, checkout: checkoutView(pending) };
+    if (pending?.provider === provider.name)
+      return { reused: true, checkout: checkoutView(pending) };
+
+    const open = await deps.repo.findOpenCheckout({ businessId, now });
+    if (open && (provider.name === "stripe" || open.provider === "stripe"))
+      throw conflict(
+        "Ya hay un pago pendiente. Complétalo o espera a que venza.",
+        "BILLING_CHECKOUT_PENDING",
+      );
 
     let customer = await deps.platform(() => deps.repo.getCustomer(businessId, provider.name));
     if (!customer) {
@@ -599,7 +659,8 @@ export function createSubscriptionService(overrides = {}) {
     return {
       status,
       checkout: checkoutView(row),
-      subscription: subscription ? subscriptionView(subscription) : null,
+      subscription:
+        subscription?.checkout_id === checkoutId ? subscriptionView(subscription) : null,
     };
   }
 
@@ -608,61 +669,62 @@ export function createSubscriptionService(overrides = {}) {
 
   /** @param {{ businessId: string, plan: string }} input */
   async function changePlan({ businessId, plan }) {
-    const planKey = requirePlan(plan);
-    const sub = await deps.repo.activeSubscription(businessId);
-    if (!sub) throw notFound("Tu negocio no tiene un plan activo.", "BILLING_NO_SUBSCRIPTION");
-    const provider = providerFor(sub.provider);
-    if (!provider || sub.provider === "manual")
-      throw conflict(
-        "Tu plan actual lo gestiona el equipo de PuntosFieles; escríbenos para cambiarlo.",
-        "BILLING_PROVIDER_MISMATCH",
-      );
-    if (normalizePlan(sub.plan) === planKey) return subscriptionView(sub);
-    const catalog = await deps.getCatalog();
-    const ready = catalogReadiness(catalog);
-    if (!(sub.currency === "GTQ" ? ready.gtq : ready.usd)) throw unavailable();
-    const branches = await countBranches(businessId);
-    const limits = planLimits(planKey);
-    if (branches > limits.branches)
-      throw conflict(
-        `El plan ${PLAN_DISPLAY_NAMES[planKey]} admite ${limits.branches} ${limits.branches === 1 ? "sucursal" : "sucursales"}; tu negocio tiene ${branches}.`,
-        "BILLING_PLAN_LIMITS",
-      );
-    const mode = prorationMode({
-      fromPlan: sub.plan,
-      toPlan: planKey,
-      fromQuantity: Number(sub.quantity),
-      toQuantity: Number(sub.quantity),
+    return withBillingLock(businessId, async () => {
+      const planKey = requirePlan(plan);
+      const sub = await deps.repo.activeSubscription(businessId);
+      if (!sub) throw notFound("Tu negocio no tiene un plan activo.", "BILLING_NO_SUBSCRIPTION");
+      const provider = providerFor(sub.provider);
+      if (!provider || sub.provider === "manual")
+        throw conflict(
+          "Tu plan actual lo gestiona el equipo de PuntosFieles; escríbenos para cambiarlo.",
+          "BILLING_PROVIDER_MISMATCH",
+        );
+      if (!["active", "past_due"].includes(sub.status)) throw unavailable();
+      if (normalizePlan(sub.plan) === planKey && !meta(sub.metadata).pending_plan)
+        return subscriptionView(sub);
+      const catalog = await deps.getCatalog();
+      const ready = catalogReadiness(catalog, sub.provider);
+      if (!(sub.currency === "GTQ" ? ready.gtq : ready.usd)) throw unavailable();
+      const branches = await countBranches(businessId);
+      const limits = planLimits(planKey);
+      if (branches > limits.branches)
+        throw conflict(
+          `El plan ${PLAN_DISPLAY_NAMES[planKey]} admite ${limits.branches} ${limits.branches === 1 ? "sucursal" : "sucursales"}; tu negocio tiene ${branches}.`,
+          "BILLING_PLAN_LIMITS",
+        );
+      const mode = prorationMode({
+        fromPlan: sub.plan,
+        toPlan: planKey,
+        fromQuantity: Number(sub.quantity),
+        toQuantity: Number(sub.quantity),
+      });
+      const snapshot = await provider.changeSubscription(sub.provider_subscription_id, {
+        plan: planKey,
+        ...(sub.provider === "stripe" ? {} : { quantity: Number(sub.quantity) }),
+        mode,
+      });
+      const applied =
+        normalizePlan(snapshot.plan) === planKey &&
+        (sub.provider !== "stripe" || stripePaid(snapshot, deps.now()));
+      const updated = await deps.repo.updateSubscription(sub.id, {
+        ...patchFromSnapshot(sub, snapshot, {
+          pending_plan: applied ? null : planKey,
+          pending_mode: applied ? null : mode,
+          unit_amount_minor_pending: applied ? null : snapshot.unitAmountMinor,
+        }),
+        plan: applied ? planKey : sub.plan,
+        unit_amount_minor: applied ? snapshot.unitAmountMinor : Number(sub.unit_amount_minor),
+      });
+      if (applied) await deps.repo.setPlan({ businessId, plan: planKey });
+      await record(businessId, "subscription.changed", {
+        from_plan: sub.plan,
+        to_plan: planKey,
+        mode,
+        applied,
+        quantity: Number(sub.quantity),
+      });
+      return subscriptionView(updated ?? sub);
     });
-    const snapshot = await provider.changeSubscription(sub.provider_subscription_id, {
-      plan: planKey,
-      quantity: Number(sub.quantity),
-      mode,
-    });
-    const applied = normalizePlan(snapshot.plan) === planKey;
-    const updated = await deps.platform(() =>
-      deps.transaction(async () => {
-        const row = await deps.repo.updateSubscription(sub.id, {
-          ...patchFromSnapshot(sub, snapshot, {
-            pending_plan: applied ? null : planKey,
-            pending_mode: applied ? null : mode,
-            unit_amount_minor_pending: applied ? null : snapshot.unitAmountMinor,
-          }),
-          plan: applied ? planKey : sub.plan,
-          unit_amount_minor: applied ? snapshot.unitAmountMinor : Number(sub.unit_amount_minor),
-        });
-        if (applied) await deps.repo.setPlan({ businessId, plan: planKey });
-        return row;
-      }),
-    );
-    await record(businessId, "subscription.changed", {
-      from_plan: sub.plan,
-      to_plan: planKey,
-      mode,
-      applied,
-      quantity: Number(sub.quantity),
-    });
-    return subscriptionView(updated ?? sub);
   }
 
   /**
@@ -705,139 +767,94 @@ export function createSubscriptionService(overrides = {}) {
 
   /** @param {{ businessId: string, atPeriodEnd?: boolean, by?: string | null }} input */
   async function cancel({ businessId, atPeriodEnd = true, by = null }) {
-    const now = deps.now();
-    const sub = await deps.repo.activeSubscription(businessId);
-    if (!sub) throw notFound("Tu negocio no tiene un plan activo.", "BILLING_NO_SUBSCRIPTION");
-    const provider = providerFor(sub.provider);
-    if (!provider) throw unavailable();
-    const snapshot = await provider.cancel(sub.provider_subscription_id, {
-      atPeriodEnd,
-      reason: by ? `owner:${by}` : "owner",
-    });
-    if (atPeriodEnd && snapshot.status !== "canceled") {
-      const cancelAt = snapshot.cancelAt ?? iso(sub.current_period_end);
-      const updated = await deps.platform(() =>
-        deps.repo.updateSubscription(sub.id, {
-          ...patchFromSnapshot(sub, snapshot, { cancel_requested_at: now.toISOString() }),
-          cancel_at: cancelAt,
-        }),
-      );
-      await record(businessId, "subscription.cancel_requested", {
-        cancel_at: cancelAt,
-        by: by ?? null,
-      });
-      return subscriptionView(updated ?? sub);
-    }
-    const { row } = await deps.platform(() =>
-      deps.transaction(() => finalizeCancel({ sub, snapshot, reason: "owner", now })),
-    );
-    await record(businessId, "subscription.canceled", { reason: "owner", by: by ?? null });
-    return subscriptionView(row ?? sub);
+    const result = await cancelSubscription(businessId, atPeriodEnd, by, "owner");
+    return result.subscription;
   }
 
   /** @param {{ businessId: string, atPeriodEnd?: boolean, by?: string | null }} input */
   async function superCancel({ businessId, atPeriodEnd = false, by = null }) {
-    const now = deps.now();
-    const sub = await deps.platform(() => deps.repo.activeSubscription(businessId));
-    if (!sub) throw notFound("El negocio no tiene un plan activo.", "BILLING_NO_SUBSCRIPTION");
-    const provider = providerFor(sub.provider);
-    if (!provider) throw unavailable();
-    const snapshot = await provider.cancel(sub.provider_subscription_id, {
-      atPeriodEnd,
-      reason: `super:${by ?? "platform"}`,
-    });
-    if (atPeriodEnd && snapshot.status !== "canceled") {
-      const cancelAt = snapshot.cancelAt ?? iso(sub.current_period_end);
-      const updated = await deps.platform(() =>
-        deps.repo.updateSubscription(sub.id, {
+    return cancelSubscription(businessId, atPeriodEnd, by, "super");
+  }
+
+  /** @param {string} businessId @param {boolean} atPeriodEnd @param {string|null} by @param {"owner"|"super"} actor */
+  function cancelSubscription(businessId, atPeriodEnd, by, actor) {
+    return withBillingLock(businessId, async () => {
+      const now = deps.now();
+      const sub = await deps.repo.activeSubscription(businessId);
+      if (!sub) throw notFound("El negocio no tiene un plan activo.", "BILLING_NO_SUBSCRIPTION");
+      const provider = providerFor(sub.provider);
+      if (!provider) throw unavailable();
+      const snapshot = await provider.cancel(sub.provider_subscription_id, {
+        atPeriodEnd,
+        reason: by ? `${actor}:${by}` : actor,
+      });
+      if (atPeriodEnd && snapshot.status !== "canceled") {
+        const cancelAt = snapshot.cancelAt ?? iso(sub.current_period_end);
+        const updated = await deps.repo.updateSubscription(sub.id, {
           ...patchFromSnapshot(sub, snapshot, { cancel_requested_at: now.toISOString() }),
           cancel_at: cancelAt,
-        }),
-      );
-      await record(businessId, "subscription.cancel_requested", { cancel_at: cancelAt, by });
-      return { subscription: subscriptionView(updated ?? sub), ended: false };
-    }
-    const { row, ended } = await deps.platform(() =>
-      deps.transaction(() => finalizeCancel({ sub, snapshot, reason: "super", now })),
-    );
-    await record(businessId, "subscription.canceled", { reason: "super", by });
-    return { subscription: subscriptionView(row ?? sub), ended };
+        });
+        await record(businessId, "subscription.cancel_requested", { cancel_at: cancelAt, by });
+        return { subscription: subscriptionView(updated ?? sub), ended: false };
+      }
+      const { row, ended } = await finalizeCancel({ sub, snapshot, reason: actor, now });
+      await record(businessId, "subscription.canceled", { reason: actor, by });
+      return { subscription: subscriptionView(row ?? sub), ended };
+    });
   }
 
   // ---------------------------------------------------------------------------------
   // Webhook state machine
 
   /**
-   * Creates the local subscription and activates the business from a paid checkout
-   * (or, when the checkout row is gone, from the metadata the checkout carried).
-   * @param {{
-   *   businessId: string, checkout: BillingCheckoutRow | null, providerSubscriptionId: string,
-   *   snapshot: SubscriptionSnapshot | null, event: BillingEvent, now: Date
-   * }} input
+   * @param {{ checkout: BillingCheckoutRow, snapshot: SubscriptionSnapshot, event: BillingEvent, now: Date }} input
    */
-  async function activate({ businessId, checkout, providerSubscriptionId, snapshot, event, now }) {
+  async function activate({ checkout, snapshot, event, now }) {
+    const {
+      business_id: businessId,
+      provider,
+      quantity,
+      currency,
+      unit_amount_minor: unitAmountMinor,
+      plan,
+    } = checkout;
     const business = await deps.getBusiness(businessId);
     if (!business) return null;
-    const plan = normalizePlan(
-      checkout?.plan ?? snapshot?.plan ?? event.metadata.plan ?? business.plan,
-    );
-    if (!isPlanName(plan)) return null;
-    /** @type {Currency} */
-    const currency =
-      checkout?.currency === "GTQ" || snapshot?.currency === "GTQ" || event.currency === "GTQ"
-        ? "GTQ"
-        : "USD";
-    const quantity = Math.max(
-      MIN_QUANTITY,
-      Number(checkout?.quantity ?? snapshot?.quantity ?? event.metadata.quantity ?? 1) || 1,
-    );
-    const catalog = await deps.getCatalog();
-    const unitAmountMinor = Number(
-      checkout?.unit_amount_minor ??
-        snapshot?.unitAmountMinor ??
-        catalogPlans(catalog, currency).find((p) => p.id === plan)?.unit_amount_minor ??
-        0,
-    );
-    const expected = unitAmountMinor * quantity;
+    const providerSubscriptionId = snapshot.providerSubscriptionId;
     /** @type {Record<string, unknown>} */
     const metadata = {
-      checkout_id: checkout?.id ?? event.metadata.checkout_id ?? null,
+      checkout_id: checkout.id,
       activated_at: now.toISOString(),
       activated_by_event: event.type,
       live_mode: event.liveMode,
-      ...(event.amountMinor !== undefined && event.amountMinor !== expected
-        ? { first_amount_mismatch: { expected, received: event.amountMinor } }
-        : {}),
     };
-    if (snapshot)
-      for (const [key, value] of Object.entries(snapshot.metadata))
-        if (key.startsWith("provider_")) metadata[key] = value;
-    const wasTrial = business.trial_status !== "none";
+    for (const [key, value] of Object.entries(snapshot.metadata))
+      if (key.startsWith("provider_")) metadata[key] = value;
+    const wasTrial = business.trial_status === "active" || business.trial_status === "expired";
     const row = await deps.repo.insertSubscription({
       id: deps.uuid(),
       businessId,
-      provider: event.providerCustomerId && deps.provider ? deps.provider.name : providerName,
+      provider,
       providerSubscriptionId,
-      checkoutId: checkout?.id ?? null,
+      checkoutId: checkout.id,
       plan,
       quantity,
       currency,
       unitAmountMinor,
-      status: snapshot?.status === "past_due" ? "past_due" : "active",
+      status: "active",
       currentPeriodStart: snapshot?.currentPeriodStart ?? now,
       currentPeriodEnd: snapshot?.currentPeriodEnd ?? null,
       cancelAt: snapshot?.cancelAt ?? null,
       metadata,
     });
-    await deps.repo.cancelOtherOpenSubscriptions(businessId, row.id, now);
-    if (checkout) await deps.repo.closeCheckout(checkout.id, "paid");
-    await deps.repo.abandonOtherOpenCheckouts(businessId, checkout?.id ?? null);
+
+    await deps.repo.closeCheckout(checkout.id, "paid");
+    await deps.repo.abandonOtherOpenCheckouts(businessId, checkout.id);
     await deps.repo.activateBusiness({ businessId, plan, currency });
-    if (checkout)
-      await record(businessId, "checkout.completed", {
-        checkout_id: checkout.id,
-        provider_checkout_id: checkout.provider_checkout_id,
-      });
+    await record(businessId, "checkout.completed", {
+      checkout_id: checkout.id,
+      provider_checkout_id: checkout.provider_checkout_id,
+    });
     if (wasTrial) {
       deps.countTransition("converted");
       await record(businessId, "trial.converted", {
@@ -865,6 +882,7 @@ export function createSubscriptionService(overrides = {}) {
   async function recordPayment({ businessId, event, outcome }) {
     await record(businessId, `payment.${outcome}`, {
       intent_id: event.id,
+      invoice_id: event.invoiceId ?? null,
       occurred_at: event.occurredAt,
       amount_minor: event.amountMinor ?? null,
       currency: event.currency ?? null,
@@ -906,8 +924,7 @@ export function createSubscriptionService(overrides = {}) {
   }
 
   /**
-   * Successful charge on an existing subscription: a renewal, or the first payment
-   * arriving after `subscription.create` already activated the business.
+   * Record the confirmed first payment or renewal and recover access after a successful retry.
    * @param {{ sub: BillingSubscriptionRow, snapshot: SubscriptionSnapshot | null, event: BillingEvent, now: Date }} input
    */
   async function recordRenewal({ sub, snapshot, event, now }) {
@@ -947,6 +964,18 @@ export function createSubscriptionService(overrides = {}) {
     return row;
   }
 
+  /** @param {SubscriptionSnapshot} snapshot @param {Date} now */
+  function stripePaid(snapshot, now) {
+    return (
+      snapshot.status === "active" &&
+      snapshot.metadata.provider_invoice_paid === "true" &&
+      snapshot.metadata.provider_usd_monthly === "true" &&
+      snapshot.unitAmountMinor > 0 &&
+      snapshot.currentPeriodEnd &&
+      new Date(snapshot.currentPeriodEnd) > now
+    );
+  }
+
   /**
    * Converges a local subscription on a provider snapshot (webhook `subscription.*`
    * events and the daily reconcile share it) and moves the business access state.
@@ -967,8 +996,17 @@ export function createSubscriptionService(overrides = {}) {
       });
       return row;
     }
+    if (sub.provider === "stripe" && snapshot.status === "active" && !stripePaid(snapshot, now))
+      return sub;
+    if (sub.provider === "stripe" && snapshot.status === "paused") {
+      await deps.repo.lockBusiness({ businessId: sub.business_id, now, purgeAfter: null });
+      return deps.repo.updateSubscription(sub.id, patchFromSnapshot(sub, snapshot));
+    }
     const previous = meta(sub.metadata);
-    const planChanged = isPlanName(snapshot.plan) && normalizePlan(sub.plan) !== snapshot.plan;
+    const planChanged =
+      (sub.provider !== "stripe" || stripePaid(snapshot, now)) &&
+      isPlanName(snapshot.plan) &&
+      normalizePlan(sub.plan) !== snapshot.plan;
     const quantityChanged = snapshot.quantity !== Number(sub.quantity);
     const pendingPlan = metaString(previous.pending_plan);
     const pendingQuantity =
@@ -1029,6 +1067,7 @@ export function createSubscriptionService(overrides = {}) {
           await record(sub.business_id, "subscription.locked", { reason: "past_due", since });
         }
       } else if (
+        sub.provider === "stripe" &&
         snapshot.status === "active" &&
         (business.billing_status === "past_due" || business.billing_status === "locked") &&
         (sub.status === "past_due" || business.billing_status === "past_due")
@@ -1040,162 +1079,198 @@ export function createSubscriptionService(overrides = {}) {
   }
 
   /**
-   * Best-effort provider read for a subscription event; a failure here fails the event
-   * so the provider redelivers it later.
-   * @param {string} providerSubscriptionId
-   */
-  async function fetchSnapshot(providerSubscriptionId) {
-    const provider = requireProvider();
-    return provider.fetchSubscription(providerSubscriptionId);
-  }
-
-  /**
-   * Applies one normalized event inside a platform transaction.
-   * @param {BillingEvent} event
+   * Apply a verified delivery under the business row lock. Remote metadata can
+   * identify a checkout to look up, but local rows establish the owner.
+   * @param {BillingEvent} event @param {NonNullable<ReturnType<typeof onlineFor>>} provider
    * @returns {Promise<ApplyOutcome>}
    */
-  async function applyEvent(event) {
+  async function applyEvent(event, provider) {
     const now = deps.now();
-    const provider = requireProvider();
-    if (typeof provider.liveMode === "boolean" && event.liveMode !== provider.liveMode)
-      return { handled: false, note: "live_mode_mismatch" };
-    const sub = event.providerSubscriptionId
+    const stripe = provider.name === "stripe";
+    if (event.liveMode !== provider.liveMode) return { handled: false, note: "live_mode_mismatch" };
+    if (event.type === "ignored") return { handled: false, note: "unmapped_event_type" };
+    const localId = event.metadata.checkout_id;
+    const checkout = event.providerCheckoutId
+      ? await deps.repo.getCheckoutByProviderId(provider.name, event.providerCheckoutId)
+      : localId && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(localId)
+        ? await deps.repo.getCheckout(localId)
+        : null;
+    if (
+      stripe &&
+      event.type === "dispute_opened" &&
+      !event.providerCustomerId &&
+      event.providerChargeId &&
+      deps.stripeProvider
+    )
+      event.providerCustomerId =
+        (await deps.stripeProvider.chargeCustomer(event.providerChargeId)) ?? undefined;
+    if (
+      !stripe &&
+      event.type === "payment_succeeded" &&
+      !event.providerSubscriptionId &&
+      checkout?.provider === provider.name
+    ) {
+      const remote = await provider.fetchCheckout(checkout.provider_checkout_id);
+      if (remote.status === "paid" && remote.subscriptionId)
+        event.providerSubscriptionId = remote.subscriptionId;
+      else throw new Error("Paid checkout awaiting subscription");
+    }
+    const customer = event.providerCustomerId
+      ? await deps.repo.getCustomerByProviderId(provider.name, event.providerCustomerId)
+      : null;
+    let sub = event.providerSubscriptionId
       ? await deps.repo.getSubscriptionByProviderId(provider.name, event.providerSubscriptionId)
       : null;
-    /** @type {BillingCheckoutRow | null} */
-    let checkout = event.providerCheckoutId
-      ? await deps.repo.getCheckoutByProviderId(provider.name, event.providerCheckoutId)
-      : null;
+    const businessId = sub?.business_id ?? checkout?.business_id ?? customer?.business_id;
+    if (!businessId)
+      return {
+        handled: false,
+        note: event.type === "payment_succeeded" ? "unmatched_payment" : "unmatched_event",
+      };
     if (
-      !checkout &&
-      event.metadata.checkout_id &&
-      /^[0-9a-f-]{36}$/i.test(event.metadata.checkout_id)
+      ((stripe || event.providerCustomerId) && !customer) ||
+      (customer && customer.business_id !== businessId) ||
+      (event.metadata.business_id && event.metadata.business_id !== businessId) ||
+      (checkout &&
+        (checkout.provider !== provider.name ||
+          checkout.business_id !== businessId ||
+          (localId && localId !== checkout.id))) ||
+      (sub && checkout && sub.checkout_id !== checkout.id)
     )
-      checkout = await deps.repo.getCheckout(event.metadata.checkout_id);
-    const metadataBusinessId =
-      event.metadata.business_id && /^[0-9a-f-]{36}$/i.test(event.metadata.business_id)
-        ? event.metadata.business_id
-        : null;
-    const businessId = sub?.business_id ?? checkout?.business_id ?? metadataBusinessId ?? null;
+      return { handled: false, note: "ownership_mismatch" };
+
+    await deps.repo.lockBusinessForBilling(businessId);
+    if (event.providerSubscriptionId)
+      sub = await deps.repo.getSubscriptionByProviderId(
+        provider.name,
+        event.providerSubscriptionId,
+      );
+    const active = await deps.repo.activeSubscription(businessId);
+    if (
+      sub &&
+      (sub.business_id !== businessId ||
+        (active && sub.id !== active.id) ||
+        sub.status === "canceled") &&
+      event.type !== "refund_created" &&
+      event.type !== "dispute_opened"
+    )
+      return { handled: false, note: "superseded_subscription", businessId };
 
     switch (event.type) {
       case "payment_succeeded": {
-        if (sub) {
-          const snapshot = await fetchSnapshot(sub.provider_subscription_id).catch(() => null);
-          if (snapshot && snapshot.status === "canceled") {
-            await converge({ sub, snapshot, now, source: "webhook" });
-          } else {
-            const row = await recordRenewal({ sub, snapshot, event, now });
-            if (checkout && checkout.status === "open") {
-              await deps.repo.closeCheckout(checkout.id, "paid");
-              await record(sub.business_id, "checkout.completed", { checkout_id: checkout.id });
-            }
-            await recordPayment({ businessId: sub.business_id, event, outcome: "succeeded" });
-            return {
-              handled: true,
-              businessId: sub.business_id,
-              subscriptionId: row?.id ?? sub.id,
-            };
+        if (
+          !event.providerSubscriptionId ||
+          (!sub && (!checkout || active)) ||
+          !event.amountMinor ||
+          event.amountMinor < 0 ||
+          event.currency !== (sub ?? checkout)?.currency
+        )
+          return { handled: false, note: "unmatched_payment", businessId };
+        const snapshot = await provider.fetchSubscription(event.providerSubscriptionId);
+        if (
+          snapshot.providerSubscriptionId !== event.providerSubscriptionId ||
+          snapshot.status !== "active" ||
+          snapshot.currency !== event.currency ||
+          (snapshot.metadata.business_id && snapshot.metadata.business_id !== businessId) ||
+          (stripe &&
+            (!stripePaid(snapshot, now) ||
+              snapshot.metadata.provider_latest_invoice !== event.invoiceId ||
+              Number(snapshot.metadata.provider_invoice_amount_paid) !== event.amountMinor ||
+              snapshot.metadata.provider_customer_id !== event.providerCustomerId))
+        )
+          return { handled: false, note: "ineligible_subscription", businessId };
+        let row = sub;
+        if (!row) {
+          const current = checkout && (await deps.repo.getCheckout(checkout.id));
+          if (
+            !current ||
+            current.status !== "open" ||
+            !customer ||
+            current.plan !== snapshot.plan ||
+            current.quantity !== snapshot.quantity ||
+            current.unit_amount_minor !== snapshot.unitAmountMinor ||
+            event.amountMinor !== current.unit_amount_minor * current.quantity ||
+            (snapshot.metadata.checkout_id && snapshot.metadata.checkout_id !== current.id)
+          )
+            return { handled: false, note: "checkout_mismatch", businessId };
+          if (await deps.repo.hasContractAfterCheckout(current.id))
+            return { handled: false, note: "superseded_checkout", businessId };
+          const branches = await countBranches(businessId);
+          if (
+            branches > planLimits(current.plan).branches ||
+            Math.max(1, branches) !== current.quantity
+          )
+            return { handled: false, note: "branch_count_changed", businessId };
+          if (stripe) {
+            const session = await provider.fetchCheckout(current.provider_checkout_id);
+            const raw = meta(session.raw);
+            if (
+              session.id !== current.provider_checkout_id ||
+              session.subscriptionId !== snapshot.providerSubscriptionId ||
+              session.status !== "complete" ||
+              raw.payment_status !== "paid" ||
+              raw.customer !== event.providerCustomerId ||
+              raw.mode !== "subscription"
+            )
+              return { handled: false, note: "session_mismatch", businessId };
           }
-          await recordPayment({ businessId: sub.business_id, event, outcome: "succeeded" });
-          return { handled: true, businessId: sub.business_id, subscriptionId: sub.id };
+          row = await activate({ checkout: current, snapshot, event, now });
+          if (!row) return { handled: false, note: "unmatched_business" };
         }
-        if (businessId && event.providerSubscriptionId) {
-          const snapshot = await fetchSnapshot(event.providerSubscriptionId).catch(() => null);
-          const row = await activate({
-            businessId,
-            checkout,
-            providerSubscriptionId: event.providerSubscriptionId,
-            snapshot,
-            event,
-            now,
-          });
-          if (!row) return { handled: false, note: "plan_unresolved", businessId };
-          await deps.repo.updateSubscription(row.id, {
-            metadata: {
-              ...meta(row.metadata),
-              first_payment_at: event.occurredAt,
-              last_payment_at: event.occurredAt,
-              last_fee_minor: event.feeMinor ?? null,
-              latest_tax_invoice_url: event.taxInvoiceUrl ?? null,
-            },
-          });
-          await recordPayment({ businessId, event, outcome: "succeeded" });
-          return { handled: true, businessId, subscriptionId: row.id };
-        }
-        if (checkout && checkout.status === "open") {
-          // A paid checkout whose subscription id has not reached us yet: close the
-          // checkout; subscription.create activates the business.
-          await deps.repo.closeCheckout(checkout.id, "paid");
-          await record(checkout.business_id, "checkout.completed", { checkout_id: checkout.id });
-          await recordPayment({ businessId: checkout.business_id, event, outcome: "succeeded" });
-          return { handled: true, businessId: checkout.business_id, note: "awaiting_subscription" };
-        }
-        return { handled: false, note: "unmatched_payment", businessId };
-      }
-      case "subscription_created": {
-        if (!event.providerSubscriptionId)
-          return { handled: false, note: "missing_subscription_id" };
-        const snapshot = await fetchSnapshot(event.providerSubscriptionId).catch(() => null);
-        if (sub) {
-          const row = snapshot ? await converge({ sub, snapshot, now, source: "webhook" }) : sub;
-          return { handled: true, businessId: sub.business_id, subscriptionId: row?.id ?? sub.id };
-        }
-        if (!businessId) return { handled: false, note: "unmatched_subscription" };
-        const row = await activate({
-          businessId,
-          checkout,
-          providerSubscriptionId: event.providerSubscriptionId,
-          snapshot,
-          event,
-          now,
-        });
-        if (!row) return { handled: false, note: "plan_unresolved", businessId };
-        return { handled: true, businessId, subscriptionId: row.id };
-      }
-      case "payment_failed":
-      case "subscription_past_due": {
-        if (sub) {
-          const snapshot = await fetchSnapshot(sub.provider_subscription_id).catch(() => null);
-          const row = await markPastDue({ sub, snapshot, event, now });
-          if (event.type === "payment_failed")
-            await recordPayment({ businessId: sub.business_id, event, outcome: "failed" });
-          if (snapshot && snapshot.status === "canceled")
-            await converge({ sub: row ?? sub, snapshot, now, source: "webhook" });
-          return { handled: true, businessId: sub.business_id, subscriptionId: sub.id };
-        }
-        if (checkout && event.type === "payment_failed") {
-          // The first charge of a checkout failed: the checkout stays open for a retry.
-          await record(checkout.business_id, "checkout.payment_failed", {
-            checkout_id: checkout.id,
-            amount_minor: event.amountMinor ?? null,
-          });
+        if (
+          stripe &&
+          event.invoiceId &&
+          (await deps.tenant(businessId, () =>
+            deps.repo.hasPaidInvoice(businessId, String(event.invoiceId)),
+          ))
+        )
           return {
             handled: true,
-            businessId: checkout.business_id,
-            note: "checkout_payment_failed",
+            note: "invoice_already_recorded",
+            businessId,
+            subscriptionId: row.id,
           };
-        }
-        return { handled: false, note: "unmatched_failure", businessId };
+        const renewed = await recordRenewal({ sub: row, snapshot, event, now });
+        if (
+          stripe &&
+          renewed &&
+          (renewed.plan !== snapshot.plan || Number(renewed.quantity) !== snapshot.quantity)
+        )
+          await converge({ sub: renewed, snapshot, now, source: "paid_invoice" });
+        await recordPayment({ businessId, event, outcome: "succeeded" });
+        return { handled: true, businessId, subscriptionId: row.id };
       }
+      case "subscription_created":
       case "subscription_updated":
-      case "subscription_canceled": {
-        if (!sub) return { handled: false, note: "unmatched_subscription", businessId };
-        const snapshot = await fetchSnapshot(sub.provider_subscription_id);
-        if (event.type === "subscription_canceled" && snapshot.status !== "canceled") {
-          // The provider says cancelled; trust the event when the read lags behind.
-          snapshot.status = "canceled";
+      case "subscription_canceled":
+      case "subscription_past_due":
+      case "payment_failed": {
+        if (!sub) {
+          if (checkout && event.type === "payment_failed")
+            await record(businessId, "checkout.payment_failed", {
+              checkout_id: checkout.id,
+              amount_minor: event.amountMinor ?? null,
+            });
+          return { handled: false, note: "awaiting_paid_subscription", businessId };
         }
-        const row = await converge({ sub, snapshot, now, source: "webhook" });
-        return { handled: true, businessId: sub.business_id, subscriptionId: row?.id ?? sub.id };
+        const snapshot = await provider.fetchSubscription(sub.provider_subscription_id);
+        if (
+          snapshot.providerSubscriptionId !== sub.provider_subscription_id ||
+          (snapshot.metadata.business_id && snapshot.metadata.business_id !== businessId) ||
+          (stripe && snapshot.metadata.provider_customer_id !== event.providerCustomerId)
+        )
+          return { handled: false, note: "ownership_mismatch", businessId };
+        if (event.type === "payment_failed")
+          await recordPayment({ businessId, event, outcome: "failed" });
+        if (snapshot.status === "past_due") await markPastDue({ sub, snapshot, event, now });
+        else await converge({ sub, snapshot, now, source: "webhook" });
+        return { handled: true, businessId, subscriptionId: sub.id };
       }
       case "refund_created": {
-        if (!businessId) return { handled: false, note: "unmatched_refund" };
         await recordPayment({ businessId, event, outcome: "refunded" });
         return { handled: true, businessId, subscriptionId: sub?.id ?? null };
       }
       case "dispute_opened": {
-        if (!businessId) return { handled: false, note: "unmatched_dispute" };
         await record(businessId, "payment.disputed", {
           intent_id: event.id,
           amount_minor: event.amountMinor ?? null,
@@ -1204,14 +1279,14 @@ export function createSubscriptionService(overrides = {}) {
         });
         return { handled: true, businessId, subscriptionId: sub?.id ?? null };
       }
-      case "checkout_completed": {
+      case "checkout_expired": {
         if (!checkout) return { handled: false, note: "unmatched_checkout" };
-        if (checkout.status === "open") {
-          await deps.repo.closeCheckout(checkout.id, "paid");
-          await record(checkout.business_id, "checkout.completed", { checkout_id: checkout.id });
-        }
-        return { handled: true, businessId: checkout.business_id };
+        const expired = await deps.repo.closeCheckout(checkout.id, "expired");
+        if (expired) await record(businessId, "checkout.expired", { checkout_id: checkout.id });
+        return { handled: true, businessId };
       }
+      case "checkout_completed":
+        return { handled: false, note: "awaiting_paid_invoice", businessId };
       default:
         return { handled: false, note: "ignored" };
     }
@@ -1224,8 +1299,8 @@ export function createSubscriptionService(overrides = {}) {
    * @returns {Promise<WebhookResult>}
    */
   async function handleWebhook({ provider: name, rawBody, headers }) {
-    const provider = deps.provider;
-    if (!provider || provider.name !== name) {
+    const provider = onlineFor(name);
+    if (!provider || provider.webhookConfigured === false) {
       deps.countEvent("unconfigured");
       return {
         status: 503,
@@ -1247,60 +1322,71 @@ export function createSubscriptionService(overrides = {}) {
       };
     }
     const event = provider.parseEvent(rawBody);
-    const eventId = headerValue(flatHeaders, "svix-id") ?? event.id;
-    const raw = isRecord(event.raw) ? event.raw : {};
-    const providerEventType = typeof raw.event_type === "string" ? raw.event_type : event.type;
+    const eventId =
+      name === "stripe" ? event.id : (headerValue(flatHeaders, "svix-id") ?? event.id);
+    const raw = meta(event.raw);
+    const providerEventType = String(raw.event_type ?? raw.type ?? event.type);
     return deps.platform(async () => {
-      let row = await deps.repo.insertProviderEvent({
+      const inserted = await deps.repo.insertProviderEvent({
         id: deps.uuid(),
         provider: provider.name,
         providerEventId: eventId,
         eventType: providerEventType,
         liveMode: event.liveMode,
-        payload: event.raw,
+        payload: name === "stripe" ? { id: event.id, created_at: event.occurredAt } : event.raw,
       });
-      if (!row) {
-        const existing = await deps.repo.getProviderEvent(provider.name, eventId);
-        const reclaimed =
-          existing && existing.status === "failed"
-            ? await deps.repo.reclaimFailedProviderEvent(existing.id)
-            : null;
-        if (!reclaimed) {
-          deps.countEvent("duplicate");
-          return { status: 200, body: { ok: true, duplicate: true } };
-        }
-        row = reclaimed;
-      }
-      if (event.type === "ignored") {
-        await deps.repo.finishProviderEvent(row.id, {
-          status: "ignored",
-          error: "unmapped_event_type",
-        });
-        deps.countEvent("ignored");
-        return { status: 200, body: { ok: true, type: "ignored", event_type: providerEventType } };
-      }
       try {
-        const outcome = await deps.transaction(() => applyEvent(event));
-        await deps.repo.finishProviderEvent(row.id, {
-          status: outcome.handled ? "processed" : "ignored",
-          error: outcome.handled ? null : (outcome.note ?? null),
-          businessId: outcome.businessId ?? null,
-          subscriptionId: outcome.subscriptionId ?? null,
+        return await deps.transaction(async () => {
+          const row = await deps.repo.lockProviderEvent(provider.name, eventId);
+          if (row.status === "processed" || row.status === "ignored") {
+            deps.countEvent("duplicate");
+            return { status: 200, body: { ok: true, duplicate: true } };
+          }
+          const outcome = await applyEvent(event, provider);
+          await deps.repo.finishProviderEvent(row.id, {
+            status: outcome.handled ? "processed" : "ignored",
+            error: outcome.handled ? null : outcome.note,
+            businessId: outcome.businessId,
+            subscriptionId: outcome.subscriptionId,
+            ...(name === "stripe" && outcome.handled && outcome.businessId
+              ? {
+                  payload: {
+                    id: event.invoiceId ?? event.id,
+                    created_at: event.occurredAt,
+                    currency: event.currency ?? null,
+                    amount_in_cents: event.amountMinor ?? null,
+                    checkout: event.providerCheckoutId ? { id: event.providerCheckoutId } : null,
+                    subscription: event.providerSubscriptionId
+                      ? { id: event.providerSubscriptionId }
+                      : null,
+                    tax_invoice_url: event.taxInvoiceUrl ?? null,
+                  },
+                }
+              : {}),
+          });
+          deps.countEvent(outcome.handled ? event.type : "ignored");
+          return {
+            status: 200,
+            body:
+              event.type === "ignored"
+                ? { ok: true, type: "ignored", event_type: providerEventType }
+                : {
+                    ok: true,
+                    type: event.type,
+                    handled: outcome.handled,
+                    ...(outcome.note ? { note: outcome.note } : {}),
+                  },
+          };
         });
-        deps.countEvent(outcome.handled ? event.type : "ignored");
-        return {
-          status: 200,
-          body: {
-            ok: true,
-            type: event.type,
-            handled: outcome.handled,
-            ...(outcome.note ? { note: outcome.note } : {}),
-          },
-        };
       } catch (error) {
-        await deps.repo
-          .finishProviderEvent(row.id, { status: "failed", error: errorMessage(error) })
-          .catch(() => {});
+        const row = inserted ?? (await deps.repo.getProviderEvent(provider.name, eventId));
+        if (row)
+          await deps.repo
+            .finishProviderEvent(row.id, {
+              status: "failed",
+              error: name === "stripe" ? "stripe_processing_failed" : errorMessage(error),
+            })
+            .catch(() => {});
         deps.countEvent("failed");
         deps.log.warn(
           { provider: provider.name, eventType: providerEventType, err: errorMessage(error) },
@@ -1325,49 +1411,55 @@ export function createSubscriptionService(overrides = {}) {
    */
   async function syncBranchQuantity({ businessId, reason }) {
     try {
-      const sub = await deps.platform(() => deps.repo.activeSubscription(businessId));
-      if (!sub || sub.provider === "manual") return { skipped: "no_provider_subscription" };
-      const provider = providerFor(sub.provider);
-      if (!provider) return { skipped: "provider_unconfigured" };
-      const branches = await countBranches(businessId);
-      const target = quantityForBranches(branches);
-      if (!target.ok) {
-        await record(businessId, "subscription.sync_failed", {
-          reason,
-          code: "BILLING_QUANTITY_LIMIT",
-          branches,
+      return await withBillingLock(businessId, async () => {
+        const sub = await deps.repo.activeSubscription(businessId);
+        if (!sub || sub.provider === "manual") return { skipped: "no_provider_subscription" };
+        const provider = providerFor(sub.provider);
+        if (!provider) return { skipped: "provider_unconfigured" };
+        const branches = await countBranches(businessId);
+        const target = quantityForBranches(branches);
+        if (!target.ok) {
+          await record(businessId, "subscription.sync_failed", {
+            reason,
+            code: "BILLING_QUANTITY_LIMIT",
+            branches,
+          });
+          return { failed: "BILLING_QUANTITY_LIMIT" };
+        }
+        const pendingQuantity = Number(meta(sub.metadata).pending_quantity) || null;
+        if (target.quantity === (pendingQuantity ?? Number(sub.quantity)))
+          return { skipped: "unchanged" };
+        const mode = prorationMode({
+          fromPlan: sub.plan,
+          toPlan: sub.plan,
+          fromQuantity: Number(sub.quantity),
+          toQuantity: target.quantity,
         });
-        return { failed: "BILLING_QUANTITY_LIMIT" };
-      }
-      if (target.quantity === Number(sub.quantity)) return { skipped: "unchanged" };
-      const mode = prorationMode({
-        fromPlan: sub.plan,
-        toPlan: sub.plan,
-        fromQuantity: Number(sub.quantity),
-        toQuantity: target.quantity,
-      });
-      const snapshot = await provider.changeSubscription(sub.provider_subscription_id, {
-        quantity: target.quantity,
-        mode,
-      });
-      const applied = snapshot.quantity === target.quantity;
-      await deps.platform(() =>
-        deps.repo.updateSubscription(sub.id, {
-          ...patchFromSnapshot(sub, snapshot, {
-            pending_quantity: applied ? null : target.quantity,
-            pending_mode: applied ? null : mode,
+        const snapshot = await provider.changeSubscription(sub.provider_subscription_id, {
+          quantity: target.quantity,
+          mode,
+        });
+        const applied =
+          snapshot.quantity === target.quantity &&
+          (sub.provider !== "stripe" || stripePaid(snapshot, deps.now()));
+        await deps.platform(() =>
+          deps.repo.updateSubscription(sub.id, {
+            ...patchFromSnapshot(sub, snapshot, {
+              pending_quantity: applied ? null : target.quantity,
+              pending_mode: applied ? null : mode,
+            }),
+            quantity: applied ? target.quantity : Number(sub.quantity),
           }),
-          quantity: applied ? target.quantity : Number(sub.quantity),
-        }),
-      );
-      await record(businessId, "subscription.changed", {
-        reason,
-        from_quantity: Number(sub.quantity),
-        to_quantity: target.quantity,
-        mode,
-        applied,
+        );
+        await record(businessId, "subscription.changed", {
+          reason,
+          from_quantity: Number(sub.quantity),
+          to_quantity: target.quantity,
+          mode,
+          applied,
+        });
+        return { changed: true, quantity: target.quantity, mode, applied };
       });
-      return { changed: true, quantity: target.quantity, mode, applied };
     } catch (error) {
       deps.log.warn(
         { businessId, reason, err: errorMessage(error) },
@@ -1410,11 +1502,26 @@ export function createSubscriptionService(overrides = {}) {
         continue;
       }
       try {
-        const snapshot = await provider.fetchSubscription(sub.provider_subscription_id);
-        await deps.platform(() =>
-          deps.transaction(() => converge({ sub, snapshot, now, source: "reconcile" })),
-        );
-        summary.subscriptions_checked += 1;
+        await withBillingLock(sub.business_id, async () => {
+          const current = await deps.repo.activeSubscription(sub.business_id);
+          if (current?.id !== sub.id) {
+            summary.subscriptions_skipped += 1;
+            return;
+          }
+          const snapshot = await provider.fetchSubscription(sub.provider_subscription_id);
+          if (snapshot.providerSubscriptionId !== sub.provider_subscription_id)
+            throw new Error("Subscription ID mismatch");
+          if (sub.provider === "stripe") {
+            const customer = await deps.repo.getCustomer(sub.business_id, "stripe");
+            if (
+              !customer ||
+              customer.provider_customer_id !== snapshot.metadata.provider_customer_id
+            )
+              throw new Error("Subscription customer mismatch");
+          }
+          await converge({ sub: current, snapshot, now, source: "reconcile" });
+          summary.subscriptions_checked += 1;
+        });
       } catch (error) {
         summary.failures += 1;
         deps.log.warn(
@@ -1426,13 +1533,15 @@ export function createSubscriptionService(overrides = {}) {
     const ended = await deps.platform(() => deps.repo.listCanceledPastEnd(now));
     for (const sub of ended) {
       try {
-        const locked = await deps.platform(() =>
-          deps.repo.lockBusiness({
+        const locked = await withBillingLock(sub.business_id, async () => {
+          const latest = await deps.repo.latestSubscription(sub.business_id);
+          if (latest?.id !== sub.id || latest.status !== "canceled") return null;
+          return deps.repo.lockBusiness({
             businessId: sub.business_id,
             now,
             purgeAfter: retentionDate(now),
-          }),
-        );
+          });
+        });
         if (locked) {
           summary.locked_after_cancel += 1;
           deps.countTransition("locked");
@@ -1458,13 +1567,11 @@ export function createSubscriptionService(overrides = {}) {
   // Super: catalog sync
 
   /**
-   * Creates the Recurrente products for both currencies (three USD plans for businesses
-   * outside Guatemala, three GTQ plans for Guatemalan businesses: six products) and stores
-   * their price ids in `billing_catalog`. Existing ids are kept unless `force`.
-   * @param {{ force?: boolean }} [options]
+   * @param {{ provider?: "stripe"|"recurrente", force?: boolean }} [options]
    */
-  async function syncCatalog({ force = false } = {}) {
-    const provider = requireProvider();
+  async function syncCatalog({ provider: name = "recurrente", force = false } = {}) {
+    const provider = onlineFor(name);
+    if (!provider) throw unavailable();
     const catalog = await deps.getCatalog();
     /** @type {Array<{ currency: Currency, plan: PlanName, price_id: string, product_id: string }>} */
     const created = [];
@@ -1472,35 +1579,42 @@ export function createSubscriptionService(overrides = {}) {
     const kept = [];
     const next = structuredClone(catalog);
     /** @type {Currency[]} */
-    const currencies = ["USD", "GTQ"];
+    const currencies = name === "stripe" ? ["USD"] : ["USD", "GTQ"];
     for (const currency of currencies) {
       const amounts = currency === "GTQ" ? catalog.gtq : catalog.usd;
       if (!amounts) continue;
       for (const plan of PLAN_NAMES) {
-        const existing = next.providers.recurrente.price_ids[currency][plan];
+        const priceIds =
+          currency === "GTQ"
+            ? next.providers.recurrente.price_ids.GTQ
+            : next.providers[name].price_ids.USD;
+        const existing = priceIds[plan];
         if (existing && !force) {
           kept.push({ currency, plan, price_id: existing });
           continue;
         }
-        const product = await provider.createProduct({
-          name: `PuntosFieles ${PLAN_DISPLAY_NAMES[plan]} (${currency})`,
-          description: `Plan ${PLAN_DISPLAY_NAMES[plan]} de PuntosFieles: ${currency} ${amounts[plan]} por sucursal al mes, IVA incluido.`,
-          plan,
-          currency,
-          unitAmountMinor: Math.round(Number(amounts[plan]) * 100),
-          billingInfoRequired: false, // PF does not issue FEL invoices (2026-11-26): never collect the NIT
-        });
-        next.providers.recurrente.price_ids[currency][plan] = product.priceId;
+        const product = await provider.createProduct(
+          {
+            name: `PuntosFieles ${PLAN_DISPLAY_NAMES[plan]} (${currency})`,
+            description: `Plan ${PLAN_DISPLAY_NAMES[plan]} de PuntosFieles: ${currency} ${amounts[plan]} por sucursal al mes, IVA incluido.`,
+            plan,
+            currency,
+            unitAmountMinor: Math.round(Number(amounts[plan]) * 100),
+            billingInfoRequired: false, // PF does not issue FEL invoices (2026-11-26): never collect the NIT
+          },
+          { reuse: !force, previousPriceId: existing ?? null },
+        );
+        priceIds[plan] = product.priceId;
         created.push({ currency, plan, price_id: product.priceId, product_id: product.productId });
       }
     }
-    const saved = created.length ? await deps.setCatalog(next) : catalog;
+    const saved = created.length ? await deps.saveCatalogPrices(name, next) : catalog;
     deps.countEvent("catalog.synced");
-    return { created, kept, catalog: saved, live_mode: provider.liveMode };
+    return { provider: name, created, kept, catalog: saved, live_mode: provider.liveMode };
   }
 
   return {
-    providerName,
+    upgradeAvailable,
     isConfigured,
     overview,
     invoices,
@@ -1510,7 +1624,6 @@ export function createSubscriptionService(overrides = {}) {
     cancel,
     superCancel,
     handleWebhook,
-    applyEvent,
     syncBranchQuantity,
     reconcileOnce,
     syncCatalog,

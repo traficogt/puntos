@@ -2,6 +2,9 @@ import { BusinessRepo } from "../repositories/business-repository.js";
 import { TxnRepo } from "../repositories/transaction-repository.js";
 import { many, one } from "../repositories/base.js";
 
+// Participation counts omit deleted and test customers. Historical movement totals
+// retain their existing treatment of deletions and exclude transactions of marked accounts.
+const realCustomer = "c.deleted_at IS NULL AND NOT c.is_test";
 /** @param {string} businessId @param {string | null} [branchId] */
 export async function businessSummary(businessId, branchId = null) {
   let customers;
@@ -10,12 +13,14 @@ export async function businessSummary(businessId, branchId = null) {
 
   if (!branchId) {
     customers = await one(
-      `SELECT COUNT(*)::int AS c FROM customers WHERE business_id=$1 AND deleted_at IS NULL`,
+      `SELECT COUNT(*)::int AS c FROM customers c WHERE c.business_id=$1 AND ${realCustomer}`,
       [businessId],
     );
     active = await BusinessRepo.activeCustomerCount(businessId);
     red30 = await one(
-      `SELECT COUNT(*)::int AS c FROM redemptions WHERE business_id=$1 AND created_at >= now() - interval '30 days'`,
+      `SELECT COUNT(*)::int AS c FROM redemptions r
+       JOIN customers c ON c.id = r.customer_id AND c.business_id = r.business_id AND NOT c.is_test
+       WHERE r.business_id=$1 AND r.created_at >= now() - interval '30 days'`,
       [businessId],
     );
   } else {
@@ -24,7 +29,7 @@ export async function businessSummary(businessId, branchId = null) {
        FROM customers c
        JOIN transactions t ON t.customer_id = c.id
        WHERE c.business_id=$1
-         AND c.deleted_at IS NULL
+         AND ${realCustomer}
          AND t.branch_id = $2`,
       [businessId, branchId],
     );
@@ -33,17 +38,18 @@ export async function businessSummary(businessId, branchId = null) {
        FROM customers c
        JOIN transactions t ON t.customer_id = c.id
        WHERE c.business_id=$1
-         AND c.deleted_at IS NULL
+         AND ${realCustomer}
          AND t.branch_id = $2
          AND COALESCE(c.last_visit_at, c.created_at) >= now() - interval '90 days'`,
       [businessId, branchId],
     );
     red30 = await one(
       `SELECT COUNT(*)::int AS c
-       FROM redemptions
-       WHERE business_id=$1
-         AND branch_id=$2
-         AND created_at >= now() - interval '30 days'`,
+       FROM redemptions r
+       JOIN customers c ON c.id = r.customer_id AND c.business_id = r.business_id AND NOT c.is_test
+       WHERE r.business_id=$1
+         AND r.branch_id=$2
+         AND r.created_at >= now() - interval '30 days'`,
       [businessId, branchId],
     );
   }

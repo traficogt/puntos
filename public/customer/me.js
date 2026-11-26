@@ -178,6 +178,7 @@ export async function renderFromMe(
 
   if (bizName) bizName.textContent = branding.walletHeadline;
   if (who) who.textContent = `${c?.name || "Cliente"} • ${c?.phone || ""} • ID: ${c?.id || ""}`;
+  setHidden(safeEl($, "#testAccountLabel"), c?.is_test !== true);
   if (points) points.textContent = String(c?.points ?? 0);
   if (pendingPoints) pendingPoints.textContent = String(c?.pending_points ?? 0);
   if (lifetime) lifetime.textContent = String(c?.lifetime_points ?? 0);

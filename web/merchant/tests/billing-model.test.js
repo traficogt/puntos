@@ -271,3 +271,21 @@ test('what each state offers: checkout for trials, change and cancel for Recurre
   assert.equal(invoiceStatusLabel('custom'), 'custom');
   assert.deepEqual(normalizeInvoices({ ok: true }), []);
 });
+
+test('production trial and billing states use separate checkout and subscription permissions', () => {
+  const duringTrial = normalizeBilling(response({ status: 'trialing', provider: 'stripe', upgrade_available: true }));
+  assert.equal(canStartCheckout(duringTrial), true);
+  const expired = normalizeBilling(response({status: 'locked', lock_reason: 'trial_expired', upgrade_available: true}));
+  assert.equal(canStartCheckout(expired), true);
+  assert.equal(billingStatusCopy(expired).title, 'Tu prueba terminó');
+  const paid = normalizeBilling(response({...active, provider: 'stripe', upgrade_available: false, change_available: true}));
+  assert.match(billingStatusCopy(paid).body, /Stripe/);
+  assert.equal(canChangePlan(paid), true);
+  assert.equal(canCancel(paid), true);
+  const cancelOnly = normalizeBilling(response({...active, provider: 'stripe', upgrade_available: false, change_available: false, cancel_available: true}));
+  assert.equal(canChangePlan(cancelOnly), false);
+  assert.equal(canCancel(cancelOnly), true);
+  const scheduled = normalizeBilling(response({...active, provider: 'stripe', cancel_at: day(5), cancel_available: true}));
+  assert.equal(canCancel(scheduled), false);
+  assert.match(billingStatusCopy(scheduled).title, /activo hasta el/);
+});

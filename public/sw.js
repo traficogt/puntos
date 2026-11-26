@@ -1,5 +1,5 @@
 // BEGIN GENERATED (npm run sw:build)
-const CACHE = "pf-2fb5482ad635";
+const CACHE = "pf-aaebbd9b486e";
 const CORE_ASSETS = [
   "/",
   "/admin",
@@ -27,6 +27,7 @@ const CORE_ASSETS = [
   "/acquisition-entry.js",
   "/admin.js?v=e1fd16fc",
   "/apple-touch-icon.png?v=7667ce12",
+  "/area-pageview.js?v=3ba1b59c",
   "/customer-auth-entry.js",
   "/customer-branding.js",
   "/customer.js?v=9563dcf1",
@@ -133,6 +134,7 @@ const CORE_ASSETS = [
   "/super/plans.js",
   "/super/security-posture.js",
   "/super/session.js",
+  "/super/test-account-form.js",
   "/super/trials-model.js",
   "/super/trials.js",
   "/theme.js?v=0e43be14",

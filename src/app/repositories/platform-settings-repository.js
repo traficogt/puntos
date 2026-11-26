@@ -1,5 +1,5 @@
 import { one, exec } from "./base.js";
-import { withTransaction } from "../database.js";
+import { getDbContext, withTransaction } from "../database.js";
 
 /** @typedef {import("./base.js").DbClient} DbClient */
 
@@ -103,16 +103,34 @@ export const PlatformSettingsRepo = {
   // section 3.4). Platform-owned; read in a self-contained platform-admin transaction so
   // the public /precios page and owner requests never elevate their own context.
   async getBillingCatalog() {
+    const sql = "SELECT value FROM platform_settings WHERE key = 'billing_catalog'";
+    const context = getDbContext();
+    if (context?.platformAdmin && context.client) return (await one(sql))?.value ?? {};
     return withTransaction(
       /** @param {DbClient} client */
       async (client) => {
         await client.query("SELECT set_config('app.platform_admin', 'true', true)");
-        const { rows } = await client.query(
-          "SELECT value FROM platform_settings WHERE key = 'billing_catalog'",
-        );
+        const { rows } = await client.query(sql);
         return rows[0]?.value ?? {};
       },
     );
+  },
+
+  /** Merge only the selected processor into the latest catalog, including on concurrent syncs.
+   * @param {"stripe"|"recurrente"} provider @param {Record<string, unknown>} prices */
+  async saveBillingProviderPrices(provider, prices) {
+    return withTransaction(async (client) => {
+      await client.query("SELECT set_config('app.platform_admin', 'true', true)");
+      const { rows } = await client.query(
+        `INSERT INTO platform_settings (key, value, updated_at)
+         VALUES ('billing_catalog', jsonb_build_object('providers', jsonb_build_object($1::text, $2::jsonb)), now())
+         ON CONFLICT (key) DO UPDATE SET value = jsonb_set(platform_settings.value, '{providers}',
+           COALESCE(platform_settings.value->'providers', '{}'::jsonb) || (EXCLUDED.value->'providers')),
+           updated_at=now() RETURNING value`,
+        [provider, prices],
+      );
+      return rows[0].value;
+    });
   },
 
   /** @param {Record<string, unknown>} value */

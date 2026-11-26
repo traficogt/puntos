@@ -12,7 +12,8 @@ import { conflict } from "../../utils/http-error.js";
  *   created_at: Date,
  *   last_visit_at: Date | null,
  *   deleted_at: Date | null,
- *   imported_at: Date | null
+ *   imported_at: Date | null,
+ *   is_test: boolean
  * }} CustomerRow
  */
 
@@ -36,7 +37,7 @@ import { conflict } from "../../utils/http-error.js";
 
 /**
  * Directory projection returned by {@link CustomerRepo.listByBusiness}.
- * @typedef {Pick<CustomerRow, "id" | "phone" | "name" | "created_at" | "last_visit_at">
+ * @typedef {Pick<CustomerRow, "id" | "phone" | "name" | "created_at" | "last_visit_at" | "is_test">
  *   & Pick<CustomerBalanceRow, "points" | "pending_points" | "lifetime_points">} CustomerListRow
  */
 
@@ -186,7 +187,7 @@ export const CustomerRepo = {
    */
   async listByBusiness(businessId, limit = 200) {
     return many(
-      `SELECT c.id, c.phone, c.name, c.created_at, c.last_visit_at,
+      `SELECT c.id, c.phone, c.name, c.created_at, c.last_visit_at, c.is_test,
               b.points, b.pending_points, b.lifetime_points
        FROM customers c
        JOIN customer_balances b ON b.customer_id=c.id

@@ -1,3 +1,6 @@
+import { CustomerDirectoryRepo } from "../repositories/customer-directory-repository.js";
+import { CustomerTestAccountSchema } from "./admin/customers.js";
+import { getRequestIp } from "../../utils/request-ip.js";
 import { Router } from "express";
 import { config } from "../../config/index.js";
 import { z } from "zod";
@@ -64,6 +67,44 @@ superMagicLinkRoutes.get(
       if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
       const rows = await CustomerRepo.listByBusiness(businessId, 200);
       res.json({ ok: true, rows });
+    },
+  ),
+);
+
+// Platform-owner counterpart of PATCH /api/admin/customers/:id/test-account: PF staff mark
+// their own demo phones and pilot seeds without impersonating the owner. Same repository
+// method, same semantics (points untouched), audited in the business's trail.
+superMagicLinkRoutes.patch(
+  "/super/businesses/:businessId/customers/:customerId/test-account",
+  csrfProtect,
+  requireSuperAdmin,
+  asyncRoute(
+    /** @param {Request} req @param {Response} res @returns {HandlerResult} */
+    async (req, res) => {
+      const parsed = CustomerTestAccountSchema.safeParse(req.body);
+      const businessId = String(req.params.businessId || ""),
+        customerId = String(req.params.customerId || "");
+      if (
+        !parsed.success ||
+        !z.guid().safeParse(businessId).success ||
+        !z.guid().safeParse(customerId).success
+      )
+        return res.status(400).json({ error: "Payload inválido", code: "VALIDATION_ERROR" });
+      const customer = await CustomerDirectoryRepo.setTestAccount(
+        {
+          businessId,
+          customerId,
+          isTest: parsed.data.is_test,
+        },
+        {
+          type: "SUPER_ADMIN",
+          email: req.superAdmin.email,
+          ip: getRequestIp(req),
+          ua: req.get("user-agent") ?? null,
+        },
+      );
+      res.set("Cache-Control", "no-store");
+      res.json({ ok: true, customer });
     },
   ),
 );

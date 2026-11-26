@@ -1,7 +1,7 @@
 ---
 title: Organizar y documentar una prueba real
 description: Registra lo que tu equipo comprobó antes de ampliar el programa.
-reviewed: '2026-11-16'
+reviewed: '2026-11-26'
 kind: task
 sources:
 - web/merchant/src/Pilot.jsx
@@ -16,7 +16,7 @@ Registra lo que tu equipo comprobó antes de ampliar el programa. (PuntosFieles,
 
 ## Antes de empezar
 
-Define responsable y cuentas de prueba. La lista contiene declaraciones del responsable; PF no ejecuta ni certifica automáticamente esas pruebas.
+Define responsable y [marca las cuentas de prueba](/ayuda/negocio/cuentas-de-prueba/) antes de ensayar para que sus compras no se sumen a los indicadores del piloto. La lista contiene declaraciones del responsable; PF no ejecuta ni certifica automáticamente esas pruebas.
 
 ## Paso a paso
 
@@ -41,4 +41,4 @@ Queda un registro del recorrido comprobado por el equipo y una ventana de observ
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#piloto). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/negocio/#piloto). Revisión del 26 de noviembre de 2026.

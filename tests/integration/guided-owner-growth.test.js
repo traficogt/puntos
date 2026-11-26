@@ -50,6 +50,7 @@ suite("second visit and weekly owner brief on isolated PostgreSQL", () => {
       "../../src/app/migrations/2026-11-10-automation-controls.sql",
       "../../src/app/migrations/2026-11-10-reward-economics.sql",
       "../../src/app/migrations/2026-11-11-campaign-expansion.sql",
+      "../../src/app/migrations/2026-11-26-d-customer-test-accounts.sql",
     ])
       await db.query(await read(p));
     let migration = "";

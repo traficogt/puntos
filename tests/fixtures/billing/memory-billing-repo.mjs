@@ -29,6 +29,18 @@ export function loadFixture(
   );
 }
 
+/** Same Recurrente examples with the Guatemalan price and currency. */
+export function loadGtqFixture(name, ids = {}) {
+  return JSON.parse(JSON.stringify(loadFixture(name, ids)), (_key, value) => {
+    if (value === "USD") return "GTQ";
+    if (typeof value === "string" && value.endsWith("_usd")) return value.replace(/_usd$/, "_gtq");
+    return value === 7900 ? 63000 : value;
+  });
+}
+
+export const gtqFixtureCatalog = () =>
+  fixtureCatalog({ gtq: { EMPRENDEDOR: 300, NEGOCIO: 630, EMPRESA: 1030 } });
+
 /** A resolved catalog with Recurrente price ids for USD (and GTQ when amounts are given). */
 export function fixtureCatalog({ gtq = null } = {}) {
   return resolveBillingCatalog({
@@ -85,6 +97,29 @@ export function createMemoryBillingRepo(seed = {}) {
       return (
         state.customers.find((c) => c.business_id === businessId && c.provider === provider) ?? null
       );
+    },
+    async getCustomerByProviderId(provider, id) {
+      return copy(
+        state.customers.find((c) => c.provider === provider && c.provider_customer_id === id),
+      );
+    },
+    async lockBusinessForBilling() {},
+    async hasContractAfterCheckout(checkoutId) {
+      const checkout = await repo.getCheckout(checkoutId);
+      return state.subscriptions.some(
+        (s) => s.business_id === checkout.business_id && s.created_at >= checkout.created_at,
+      );
+    },
+    async hasPaidInvoice(businessId, invoiceId) {
+      return state.paymentEvents.some(
+        (e) =>
+          e.business_id === businessId &&
+          e.metadata.invoice_id === invoiceId &&
+          e.event_type === "payment.succeeded",
+      );
+    },
+    async lockProviderEvent(provider, id) {
+      return repo.getProviderEvent(provider, id);
     },
     async upsertCustomer({
       businessId,
@@ -298,19 +333,14 @@ export function createMemoryBillingRepo(seed = {}) {
         ) ?? null
       );
     },
-    async reclaimFailedProviderEvent(id) {
-      const row = state.providerEvents.find((e) => e.id === id && e.status === "failed");
-      if (!row) return null;
-      Object.assign(row, { status: "received", error: null });
-      return row;
-    },
     async finishProviderEvent(
       id,
-      { status, error = null, businessId = null, subscriptionId = null },
+      { status, error = null, businessId = null, subscriptionId = null, payload },
     ) {
       const row = state.providerEvents.find((e) => e.id === id);
       if (row)
         Object.assign(row, {
+          ...(payload === undefined ? {} : { payload }),
           status,
           error,
           business_id: businessId ?? row.business_id,
@@ -374,13 +404,14 @@ export function createMemoryBillingRepo(seed = {}) {
  * A provider double shaped like the Recurrente adapter: it signs nothing (the
  * `x-fixture-signature` header decides verification), parses payloads with the real
  * parser, and answers subscription reads from programmable snapshots.
- * @param {{ catalog?: ReturnType<typeof fixtureCatalog>, now?: () => Date, liveMode?: boolean }} [options]
+ * @param {{ catalog?: ReturnType<typeof fixtureCatalog>, now?: () => Date, liveMode?: boolean, currency?: "GTQ"|"USD" }} [options]
  * @returns {any} shaped like the Recurrente adapter plus `calls`, `snapshots`, `program` and `failNext`
  */
 export function createFakeProvider({
   catalog = fixtureCatalog(),
   now = () => new Date(),
   liveMode = false,
+  currency = "USD",
 } = {}) {
   /** @type {Map<string, any>} */
   const snapshots = new Map();
@@ -396,7 +427,10 @@ export function createFakeProvider({
     snapshots,
     /** Programs the read of a subscription from a GET /subscriptions/{id} fixture. */
     program(name, ids) {
-      const snap = subscriptionSnapshot(loadFixture(name, ids), { catalog, now: now() });
+      const snap = subscriptionSnapshot(
+        (currency === "USD" ? loadFixture : loadGtqFixture)(name, ids),
+        { catalog, now: now() },
+      );
       snapshots.set(snap.providerSubscriptionId, snap);
       return snap;
     },

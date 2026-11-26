@@ -34,6 +34,7 @@ adminCustomerRoutes.get(
         "last_visit_at",
         "points",
         "lifetime_points",
+        "is_test",
       ]);
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader("Content-Disposition", 'attachment; filename="customers.csv"');
@@ -46,6 +47,7 @@ adminCustomerRoutes.get(
 import { z } from "zod";
 import { csrfProtect } from "../../../middleware/csrf.js";
 import { CustomerDirectoryRepo } from "../../repositories/customer-directory-repository.js";
+import { getRequestIp } from "../../../utils/request-ip.js";
 const Name = z
   .string()
   .trim()
@@ -61,6 +63,12 @@ const Query = z
   .strict();
 const Empty = z.object({}).strict();
 const Profile = z.object({ name: Name, previous_name: z.string().max(120).nullable() }).strict();
+/**
+ * Body of PATCH /admin/customers/:id/test-account (and the super counterpart): marks or
+ * unmarks a "cuenta de prueba". Design note of 2026-11-26 in
+ * docs/product/2026-11-23-owner-progress.md.
+ */
+export const CustomerTestAccountSchema = z.object({ is_test: z.boolean() }).strict();
 const Id = z.guid();
 /** @param {Response} res */
 const invalid = (res) =>
@@ -68,7 +76,9 @@ const invalid = (res) =>
     error: "Revisa el nombre, la búsqueda y el número de página.",
     code: "VALIDATION_ERROR",
   });
-/** @param {Pick<typeof CustomerDirectoryRepo, "list" | "get" | "updateName">} [repo] */
+/**
+ * @param {Pick<typeof CustomerDirectoryRepo, "list" | "get" | "updateName" | "setTestAccount">} [repo]
+ */
 export function createCustomerDirectoryRouter(repo = CustomerDirectoryRepo) {
   const router = Router();
   router.use(
@@ -129,6 +139,43 @@ export function createCustomerDirectoryRouter(repo = CustomerDirectoryRepo) {
           name: body.data.name,
           previousName: body.data.previous_name,
         });
+        return res.json({ ok: true, customer });
+      },
+    ),
+  );
+  // "Cuenta de prueba": the owner marks their own phone or a pilot seed so it stops counting
+  // in "Tu progreso", activation insights, trial activation, the plan soft cap and the basic
+  // report. The account, its points and its history are untouched; the flag is audited.
+  router.patch(
+    "/admin/customers/:id/test-account",
+    csrfProtect,
+    asyncRoute(
+      /** @param {TenantRequest<{ id: string }>} req @param {Response} res */
+      async (req, res) => {
+        const body = CustomerTestAccountSchema.safeParse(req.body);
+        if (
+          !body.success ||
+          !Id.safeParse(req.params.id).success ||
+          !Empty.safeParse(req.query).success
+        )
+          return res.status(400).json({
+            error: "Indica si la cuenta es de prueba (is_test: true o false).",
+            code: "VALIDATION_ERROR",
+          });
+        const customer = await repo.setTestAccount(
+          {
+            businessId: req.tenantId,
+            customerId: req.params.id,
+            isTest: body.data.is_test,
+          },
+          {
+            type: "STAFF",
+            id: req.staff.id,
+            impersonatedBy: req.staff.impersonated_by,
+            ip: getRequestIp(req),
+            ua: req.get("user-agent") ?? null,
+          },
+        );
         return res.json({ ok: true, customer });
       },
     ),

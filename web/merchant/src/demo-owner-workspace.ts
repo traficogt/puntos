@@ -2,7 +2,7 @@ import type {Branch, TeamMember} from './owner-workspace';
 import {createDemoCustomerStore, demoCustomerStore} from './demo-customer-store.js';
 const branchId='22222222-2222-4222-8222-222222222222';
 const uuid=(value:number)=>`55555555-5555-4555-8555-${String(value).padStart(12,'0')}`;
-interface DemoInput {name?:string;previous_name?:string|null;email?:string;phone?:string;role?:'CASHIER'|'MANAGER';branch_id?:string|null;active?:boolean;can_manage_gift_cards?:boolean;address?:string;code?:string}
+interface DemoInput {name?:string;previous_name?:string|null;is_test?:boolean;email?:string;phone?:string;role?:'CASHIER'|'MANAGER';branch_id?:string|null;active?:boolean;can_manage_gift_cards?:boolean;address?:string;code?:string}
 export function createOwnerDemoApi(store = createDemoCustomerStore()) {
  const {customers} = store;
  const branches:Branch[]=[{id:branchId,name:'Zona 4 · demo',address:'Zona 4, Ciudad de Guatemala',code:'jacaranda-centro'}];
@@ -15,6 +15,12 @@ export function createOwnerDemoApi(store = createDemoCustomerStore()) {
    const query=(url.searchParams.get('q')||'').toLocaleLowerCase('es-GT'),page=Number(url.searchParams.get('page')||1),limit=Number(url.searchParams.get('limit')||25);
    const rows=customers.filter(customer=>`${customer.name} ${customer.phone}`.toLocaleLowerCase('es-GT').includes(query));
    return structuredClone({ok:true,customers:rows.slice((page-1)*limit,page*limit),total:rows.length,page,limit,total_pages:Math.max(1,Math.ceil(rows.length/limit))});
+  }
+  if(path.startsWith('/api/admin/customers/')&&path.endsWith('/test-account')){
+   // "Cuenta de prueba": same contract as PATCH /api/admin/customers/:id/test-account; points stay as they are.
+   const customer=customers.find(row=>row.id===path.split('/').at(-2));if(!customer)throw Object.assign(new Error('No encontramos este cliente.'),{status:404});
+   if(method!=='PATCH'||typeof input.is_test!=='boolean'||Object.keys(input).length!==1)throw Object.assign(new Error('Indica si la cuenta es de prueba (is_test: true o false).'),{status:400});
+   customer.is_test=input.is_test;return {ok:true,customer:{id:customer.id,is_test:customer.is_test}};
   }
   if(path.startsWith('/api/admin/customers/')){
    const customer=customers.find(row=>row.id===path.split('/').at(-1));if(!customer)throw Object.assign(new Error('No encontramos este cliente.'),{status:404});

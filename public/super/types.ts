@@ -45,7 +45,10 @@ export interface SuperBusinessRow {
   email?: string | null;
   plan: string;
   created_at?: string;
+  /** Real customers (soft-deleted and test accounts excluded). */
   customers?: number;
+  /** Accounts marked "cuenta de prueba"; absent on older servers. */
+  test_customers?: number;
   staff?: number;
   wallet_broadcast?: SuperWalletBroadcast;
   /** Self-serve trial columns (docs/product/2026-11-25-self-serve-trial.md §3.1); absent on older servers. */

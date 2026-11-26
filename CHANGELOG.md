@@ -24,6 +24,16 @@ fix), including the quality waves of 2026-11-23 (`919d3dc`, `0b2a428`, `cfc1932`
   it widens the three batch-count CHECKs on `customer_migration_batches` to 200 rows. Import
   batches of 101–200 rows fail with a database error until it runs.
 
+- Apply `2026-11-26-d-customer-test-accounts.sql` before the server update. Existing accounts and older clients default to ordinary customer counting.
+- Owners can mark pilot phones in **Clientes**. The platform owner can also set the audited marker per business. Marked accounts keep their cards, points and ledger entries. Pilot evidence, owner progress, active plan usage and customer participation reports exclude them. Previously recorded milestones retain their dates.
+
+### USD subscription checkout and application analytics (2026-11-26)
+
+- Eligible businesses can pay in USD with Stripe Checkout. Signed invoice notifications confirm payment before access changes. Existing subscriptions keep their original processor. Super administrators sync the USD catalog separately from the GTQ catalog.
+- The owner plan page handles trial activation, receipts and period-end cancellation using the provider and permissions returned by the API. Guatemala's published quetzal amounts and the USD amounts include IVA.
+- Application page views use a fixed screen category and omit the referrer, query string, fragment and account identifiers. The authenticated pages send this event from local code.
+- The nightly offline navigation test disconnects the browser's origin before checking the wallet and staff aliases.
+
 ### Quetzal list prices, currency per customer and IVA included (2026-11-26)
 - Published list prices in quetzales for Guatemalan businesses: Conecta Q300, Impulsa Q630 and
   Expande Q1,030 per branch per month (USD stays 39 / 79 / 129 for businesses outside

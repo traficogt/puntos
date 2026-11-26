@@ -36,7 +36,7 @@ analyticsDashboardRoutes.get(
          LEFT JOIN customer_balances cb ON cb.customer_id = c.id
          LEFT JOIN customer_ltv cl ON cl.customer_id = c.id
          WHERE c.business_id = $1
-           AND c.deleted_at IS NULL`,
+           AND c.deleted_at IS NULL AND NOT c.is_test`,
           [businessId],
         );
         summary = rows;
@@ -53,7 +53,7 @@ analyticsDashboardRoutes.get(
          FROM customer_ltv cl
          JOIN customers c ON c.id = cl.customer_id
          WHERE c.business_id = $1
-           AND c.deleted_at IS NULL
+           AND c.deleted_at IS NULL AND NOT c.is_test
          GROUP BY segment`,
           [businessId],
         );
@@ -66,7 +66,7 @@ analyticsDashboardRoutes.get(
            COUNT(*) AS transactions,
            COALESCE(SUM(t.amount_q), 0) AS revenue
          FROM transactions t
-         JOIN customers c ON c.id = t.customer_id
+         JOIN customers c ON c.id = t.customer_id AND c.business_id = t.business_id AND NOT c.is_test
          WHERE c.business_id = $1
            AND t.source <> 'migration' AND COALESCE(t.type,'PURCHASE') <> 'OPENING_BALANCE'
            AND t.created_at > now() - interval '30 days'
@@ -99,12 +99,14 @@ analyticsDashboardRoutes.get(
            WHERE branch_id = b.id
              AND source <> 'migration' AND COALESCE(type,'PURCHASE') <> 'OPENING_BALANCE'
              AND created_at > now() - interval '30 days'
+             AND NOT EXISTS (SELECT 1 FROM customers c WHERE c.id = transactions.customer_id AND c.is_test)
          ) tx ON true
          LEFT JOIN LATERAL (
            SELECT COUNT(*) AS redemptions_30d
            FROM redemptions
            WHERE branch_id = b.id
              AND created_at > now() - interval '30 days'
+             AND NOT EXISTS (SELECT 1 FROM customers c WHERE c.id = redemptions.customer_id AND c.is_test)
          ) rd ON true
          WHERE b.business_id = $1
          ORDER BY revenue_30d DESC, tx_30d DESC, b.name ASC`,
@@ -114,20 +116,22 @@ analyticsDashboardRoutes.get(
       } else {
         const { rows } = await dbQuery(
           `WITH branch_customers AS (
-           SELECT DISTINCT customer_id
-           FROM transactions
-           WHERE business_id = $1
-             AND branch_id = $2
-             AND source <> 'migration' AND COALESCE(type,'PURCHASE') <> 'OPENING_BALANCE'
+           SELECT DISTINCT t.customer_id
+           FROM transactions t
+           JOIN customers c ON c.id = t.customer_id AND c.business_id = t.business_id AND NOT c.is_test
+           WHERE t.business_id = $1
+             AND t.branch_id = $2
+             AND t.source <> 'migration' AND COALESCE(t.type,'PURCHASE') <> 'OPENING_BALANCE'
          )
          SELECT
            (SELECT COUNT(*) FROM branch_customers) AS total_customers,
            (SELECT COUNT(*)
-            FROM customers c
-            JOIN branch_customers bc ON bc.customer_id = c.id
+            FROM branch_customers bc
+            JOIN customers c ON c.id = bc.customer_id
             WHERE c.imported_at IS NULL AND c.created_at > now() - interval '30 days') AS new_customers_30d,
            (SELECT COALESCE(SUM(points), 0)
             FROM transactions t
+            JOIN customers c ON c.id=t.customer_id AND c.business_id=t.business_id AND NOT c.is_test
             WHERE t.business_id = $1
               AND t.branch_id = $2
               AND t.points > 0) AS total_points_issued,
@@ -150,11 +154,12 @@ analyticsDashboardRoutes.get(
 
         const { rows: rRows } = await dbQuery(
           `WITH branch_customers AS (
-           SELECT DISTINCT customer_id
-           FROM transactions
-           WHERE business_id = $1
-             AND branch_id = $2
-             AND source <> 'migration' AND COALESCE(type,'PURCHASE') <> 'OPENING_BALANCE'
+           SELECT DISTINCT t.customer_id
+           FROM transactions t
+           JOIN customers c ON c.id = t.customer_id AND c.business_id = t.business_id AND NOT c.is_test
+           WHERE t.business_id = $1
+             AND t.branch_id = $2
+             AND t.source <> 'migration' AND COALESCE(t.type,'PURCHASE') <> 'OPENING_BALANCE'
          )
          SELECT
            CASE
@@ -178,6 +183,7 @@ analyticsDashboardRoutes.get(
            COUNT(*) AS transactions,
            COALESCE(SUM(t.amount_q), 0) AS revenue
          FROM transactions t
+         JOIN customers c ON c.id = t.customer_id AND c.business_id = t.business_id AND NOT c.is_test
          WHERE t.business_id = $1
            AND t.branch_id = $2
            AND t.source <> 'migration' AND COALESCE(t.type,'PURCHASE') <> 'OPENING_BALANCE'
@@ -211,12 +217,14 @@ analyticsDashboardRoutes.get(
            WHERE branch_id = b.id
              AND source <> 'migration' AND COALESCE(type,'PURCHASE') <> 'OPENING_BALANCE'
              AND created_at > now() - interval '30 days'
+             AND NOT EXISTS (SELECT 1 FROM customers c WHERE c.id = transactions.customer_id AND c.is_test)
          ) tx ON true
          LEFT JOIN LATERAL (
            SELECT COUNT(*) AS redemptions_30d
            FROM redemptions
            WHERE branch_id = b.id
              AND created_at > now() - interval '30 days'
+             AND NOT EXISTS (SELECT 1 FROM customers c WHERE c.id = redemptions.customer_id AND c.is_test)
          ) rd ON true
          WHERE b.business_id = $1
            AND b.id = $2`,

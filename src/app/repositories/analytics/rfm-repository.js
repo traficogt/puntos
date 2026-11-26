@@ -26,7 +26,7 @@ export const rfmRepository = {
            COALESCE(SUM(t.amount_q), 0) as monetary
          FROM customers c
          LEFT JOIN transactions t ON t.customer_id = c.id AND t.amount_q IS NOT NULL
-         WHERE c.business_id = $1 AND c.deleted_at IS NULL
+         WHERE c.business_id = $1 AND c.deleted_at IS NULL AND NOT c.is_test
          GROUP BY c.id
        ),
        rfm_quartiles AS (
@@ -124,7 +124,7 @@ export const rfmRepository = {
        FROM customer_ltv cl
        JOIN customers c ON c.id = cl.customer_id
        WHERE c.business_id = $1
-         AND c.deleted_at IS NULL
+         AND c.deleted_at IS NULL AND NOT c.is_test
          AND cl.predicted_ltv > 0
        ORDER BY cl.predicted_ltv DESC
        LIMIT $2`,

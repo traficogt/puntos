@@ -45,6 +45,16 @@ suite("merchant pilots in disposable PostgreSQL", () => {
         "utf8",
       ),
     );
+    await db.query(
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- Fixed managed migration.
+      await readFile(
+        new URL(
+          "../../src/app/migrations/2026-11-26-d-customer-test-accounts.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
     service = await import("../../src/app/services/merchant-pilot-service.js");
     deps = {
       query: db.query.bind(db),
@@ -197,6 +207,37 @@ suite("merchant pilots in disposable PostgreSQL", () => {
     assert.equal(results.current.recorded_sales_q, 100);
     assert.equal(results.previous.recorded_sales_q, 40);
     assert.equal(results.current.purchases, 1);
+    await db.query("UPDATE customers SET is_test=true WHERE id=$1", [customerId]);
+    const marked = await service.getPilot({ businessId, pilotId: pilot.id }, deps);
+    for (const period of [marked.results.current, marked.results.previous]) {
+      assert.equal(period.recorded_sales_q, 0);
+      assert.equal(period.purchases, 0);
+      assert.equal(period.active_customers, 0);
+    }
+    const ordinary = randomUUID();
+    await db.query(
+      "INSERT INTO customers(id,business_id,name,phone,created_at) VALUES ($1,$2,'Real','50255550001','2026-11-09')",
+      [ordinary, businessId],
+    );
+    await db.query(
+      "INSERT INTO transactions(id,business_id,customer_id,amount_q,created_at) VALUES($1,$2,$3,25,'2026-11-09')",
+      [randomUUID(), businessId, ordinary],
+    );
+    for (const id of [customerId, ordinary]) {
+      await db.query(
+        "INSERT INTO redemptions(id,business_id,customer_id,status,redeemed_at) VALUES($1,$2,$3,'REDEEMED','2026-11-09')",
+        [randomUUID(), businessId, id],
+      );
+    }
+    const mixed = await service.getPilot({ businessId, pilotId: pilot.id }, deps);
+    assert.deepEqual(mixed.results.current, {
+      recorded_sales_q: 25,
+      purchases: 1,
+      active_customers: 1,
+      new_customers: 1,
+      repeat_customers: 0,
+      redemptions: 1,
+    });
     assert.equal(
       Date.parse(results.period.end) - Date.parse(results.period.start),
       Date.parse(results.period.previous_end) - Date.parse(results.period.previous_start),

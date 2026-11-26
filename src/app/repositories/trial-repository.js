@@ -228,7 +228,7 @@ export const TrialRepo = {
   async listTrials({ limit = 200 } = {}) {
     return many(
       `SELECT ${TRIAL_COLUMNS},
-         (SELECT count(*)::int FROM customers c WHERE c.business_id=b.id AND c.deleted_at IS NULL) AS customers,
+         (SELECT count(*)::int FROM customers c WHERE c.business_id=b.id AND c.deleted_at IS NULL AND NOT c.is_test) AS customers,
          (SELECT m.reached_at FROM owner_progress_milestones m WHERE m.business_id=b.id AND m.key='programa_en_marcha') AS programa_en_marcha_at,
          (SELECT m.reached_at FROM owner_progress_milestones m WHERE m.business_id=b.id AND m.key='primer_cliente') AS primer_cliente_at
        FROM businesses b

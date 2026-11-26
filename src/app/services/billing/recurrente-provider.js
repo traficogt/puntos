@@ -449,6 +449,7 @@ export function createRecurrenteProvider({ fetch, config }) {
 
   return {
     name: "recurrente",
+    webhookConfigured: Boolean(webhookSecret),
     liveMode,
 
     async testConnection() {

@@ -102,6 +102,18 @@ export const BillingSubscriptionRepo = {
     ]);
   },
   /**
+   * Reverse lookup for webhook payloads that only name the provider's customer (Stripe
+   * charges and refunds). Resolves to `BillingCustomerRow | null`.
+   * @param {string} provider
+   * @param {string} providerCustomerId
+   */
+  async getCustomerByProviderId(provider, providerCustomerId) {
+    return one(`SELECT * FROM billing_customers WHERE provider=$1 AND provider_customer_id=$2`, [
+      provider,
+      providerCustomerId,
+    ]);
+  },
+  /**
    * Resolves to `BillingCustomerRow`.
    * @param {{ businessId: string, provider: string, providerCustomerId: string, email: string, taxId?: string | null, taxName?: string | null }} input
    */
@@ -409,28 +421,61 @@ export const BillingSubscriptionRepo = {
       providerEventId,
     ]);
   },
-  /**
-   * Re-opens a failed delivery for another attempt. Resolves to the row when it moved.
-   * @param {string} id
-   */
-  async reclaimFailedProviderEvent(id) {
+  /** Called inside the transaction that also applies and finishes the delivery.
+   * @param {string} provider @param {string} eventId */
+  async lockProviderEvent(provider, eventId) {
     return one(
-      `UPDATE billing_provider_events SET status='received', error=NULL WHERE id=$1 AND status='failed' RETURNING *`,
-      [id],
+      "SELECT * FROM billing_provider_events WHERE provider=$1 AND provider_event_id=$2 FOR UPDATE",
+      [provider, eventId],
+    );
+  },
+
+  /** @param {string} businessId */
+  async lockBusinessForBilling(businessId) {
+    await one("SELECT id FROM businesses WHERE id=$1 FOR UPDATE", [businessId]);
+  },
+
+  /** A later online or manual contract may already have ended by the time the webhook arrives.
+   * @param {string} checkoutId */
+  async hasContractAfterCheckout(checkoutId) {
+    return Boolean(
+      await one(
+        `SELECT 1 FROM billing_checkouts c JOIN billing_subscriptions s
+      ON s.business_id=c.business_id AND s.created_at >= c.created_at WHERE c.id=$1 LIMIT 1`,
+        [checkoutId],
+      ),
+    );
+  },
+
+  /** @param {string} businessId @param {string} invoiceId */
+  async hasPaidInvoice(businessId, invoiceId) {
+    return Boolean(
+      await one(
+        `SELECT 1 FROM billing_events WHERE business_id=$1 AND event_type='payment.succeeded'
+      AND metadata->>'invoice_id'=$2 LIMIT 1`,
+        [businessId, invoiceId],
+      ),
     );
   },
   /**
    * @param {string} id
-   * @param {{ status: "processed" | "ignored" | "failed", error?: string | null, businessId?: string | null, subscriptionId?: string | null }} outcome
+   * @param {{ status: "processed" | "ignored" | "failed", payload?: unknown, error?: string | null, businessId?: string | null, subscriptionId?: string | null }} outcome
    */
   async finishProviderEvent(
     id,
-    { status, error = null, businessId = null, subscriptionId = null },
+    { status, error = null, businessId = null, subscriptionId = null, payload },
   ) {
     await exec(
       `UPDATE billing_provider_events SET status=$2, error=$3, business_id=COALESCE($4, business_id),
-         subscription_id=COALESCE($5, subscription_id), processed_at=now() WHERE id=$1`,
-      [id, status, error ? String(error).slice(0, 500) : null, businessId, subscriptionId],
+         subscription_id=COALESCE($5, subscription_id), payload=COALESCE($6::jsonb, payload), processed_at=now() WHERE id=$1 AND status IN ('received','failed')`,
+      [
+        id,
+        status,
+        error ? String(error).slice(0, 500) : null,
+        businessId,
+        subscriptionId,
+        payload === undefined ? null : JSON.stringify(payload),
+      ],
     );
   },
   /**

@@ -1,12 +1,13 @@
 ---
 title: Proteger mi cuenta y mis datos
 description: Usa tu tarjeta sin compartir los códigos que permiten entrar a tu cuenta.
-reviewed: '2026-11-16'
+reviewed: '2026-11-26'
 kind: task
 sources:
 - public/customer.html
 - public/customer/index.js
 - public/privacidad.html
+- public/area-pageview.js
 - public/customer/native-wallet.js
 ---
 
@@ -32,6 +33,8 @@ Conserva acceso a tu teléfono. Si usas un dispositivo prestado, comprueba que p
 
 Cerrar sesión limita el acceso desde ese navegador. Desactivar las tarjetas guardadas conserva la cuenta y los puntos, pero invalida esas tarjetas para uso posterior.
 
+Al abrir tu tarjeta, el contador de visitas envía a Privatrack la categoría de la pantalla. El conteo omite tu nombre, teléfono, identificador de cuenta, datos del formulario y parámetros de la dirección. Privatrack recibe la dirección IP de la conexión. Si tu navegador tiene activada la señal Do Not Track o Global Privacy Control, la tarjeta omite el envío.
+
 ## Si algo no funciona
 
 **No puedes recibir el código del teléfono registrado:** pide ayuda al negocio antes de crear otra cuenta. **Solicitud sobre datos personales:** evita enviar documentos o información adicional sin que se necesite; el equipo indicará cómo tramitarla.
@@ -42,4 +45,4 @@ Cerrar sesión limita el acceso desde ese navegador. Desactivar las tarjetas gua
 
 ## Referencia
 
-PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/privacidad). Revisión del 16 de noviembre de 2026.
+PuntosFieles. (2026). *PuntosFieles: aplicación web* [Software]. [Pantalla verificada](/privacidad). Revisión del 26 de noviembre de 2026.

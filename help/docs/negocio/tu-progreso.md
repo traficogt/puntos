@@ -2,7 +2,7 @@
 title: Seguir tu progreso como dueño
 description: Entiende la puesta en marcha, la meta sugerida, los logros del negocio y el
   impulso semanal que PF calcula con tus propios registros.
-reviewed: '2026-11-25'
+reviewed: '2026-11-26'
 kind: task
 sources:
 - src/app/services/owner-progress-service.js
@@ -34,7 +34,7 @@ Ingresa con la cuenta del dueño. **Tu progreso** aparece en el menú **Día a d
 
 La barra de puesta en marcha solo cuenta pasos cumplidos y se expresa como **N de 5 pasos**; PF no calcula una puntuación compuesta. Los hitos muestran la primera fecha en que se alcanzaron y un aviso hasta que los marcas como vistos. El **impulso** aparece como una línea con las semanas seguidas con actividad, si esta semana ya cuenta y las pausas disponibles. Cuenta semanas seguidas, de lunes a domingo en la zona horaria del negocio, con al menos una compra real con puntos; una semana sin compras pero sin pendientes que atender también cuenta, y cada ocho semanas dispones de una semana de pausa que conserva la racha sin sumarla. La semana en curso aparece como "en progreso" y nunca rompe la racha.
 
-Solo cuenta la actividad genuina: compras no reversadas de clientes no eliminados. Las prácticas del equipo no crean compras, los saldos importados de otro sistema no cuentan como compras y los canjes cancelados no cuentan como recompensas entregadas. PF no distingue cuentas de prueba creadas como clientes reales: si registras compras de prueba con una cuenta de cliente, aparecerán en el progreso.
+Solo cuenta la actividad genuina: compras no reversadas de clientes no eliminados. Las prácticas del equipo no crean compras, los saldos importados de otro sistema no cuentan como compras y los canjes cancelados no cuentan como recompensas entregadas. Las cuentas marcadas como **Cuenta de prueba** en **Clientes** (tu teléfono, el del equipo o una tarjeta de demostración) tampoco cuentan: sus compras, canjes y su propia inscripción quedan fuera de los pasos, los hitos y el impulso. Marca esas cuentas antes de ensayar, porque un hito ya alcanzado conserva su fecha; consulta [Marcar una cuenta de prueba](/ayuda/negocio/cuentas-de-prueba/).
 
 ## Si algo no funciona
 
@@ -49,4 +49,4 @@ Solo cuenta la actividad genuina: compras no reversadas de clientes no eliminado
 
 ## Referencia
 
-PuntosFieles. (2026). *Tu progreso: puesta en marcha, metas, logros e impulso del negocio* [Software]. [Tu progreso](/negocio/#tu-progreso). Revisión del 25 de noviembre de 2026.
+PuntosFieles. (2026). *Tu progreso: puesta en marcha, metas, logros e impulso del negocio* [Software]. [Tu progreso](/negocio/#tu-progreso). Revisión del 26 de noviembre de 2026.

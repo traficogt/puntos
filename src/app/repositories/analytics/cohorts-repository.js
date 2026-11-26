@@ -113,7 +113,11 @@ export const cohortRepository = {
          SELECT
            cc.cohort_date,
            cc.cohort_name,
-           cc.customer_count as cohort_size,
+           GREATEST(0, cc.customer_count - (
+             SELECT COUNT(*)::int FROM customer_cohort_assignments cca
+             JOIN customers c ON c.id=cca.customer_id AND c.business_id=cc.business_id
+             WHERE cca.cohort_id=cc.id AND c.is_test
+           )) AS cohort_size,
            generate_series(0, $2) as month_number
          FROM customer_cohorts cc
          WHERE cc.business_id = $1
@@ -133,7 +137,8 @@ export const cohortRepository = {
            WHERE business_id = $1
              AND cohort_date = cm.cohort_date
          )
-         LEFT JOIN transactions t ON t.customer_id = cca.customer_id
+         LEFT JOIN transactions t ON t.customer_id = cca.customer_id AND t.business_id=$1
+           AND NOT EXISTS (SELECT 1 FROM customers c WHERE c.business_id=$1 AND c.id=t.customer_id AND c.is_test)
            AND DATE_TRUNC('month', t.created_at) = cm.cohort_date + (cm.month_number || ' months')::interval
          GROUP BY cm.cohort_name, cm.cohort_date, cm.cohort_size, cm.month_number
        )

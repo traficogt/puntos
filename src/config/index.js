@@ -403,9 +403,8 @@ export const config = {
   // Platform circuit breaker on signup SMS codes per calendar day (UTC); 0 disables signup codes.
   TRIAL_OTP_DAILY_CAP: Number(process.env.TRIAL_OTP_DAILY_CAP ?? 200),
   TRIAL_ALLOWED_DIAL_CODES: parseCsv(envValue("TRIAL_ALLOWED_DIAL_CODES", "502")),
-  // Subscription billing, wave 2 (design section 5). Secrets follow the `_FILE` pattern
-  // of JWT_SECRET. Without a Recurrente key every checkout route answers 503
-  // BILLING_UNAVAILABLE and the owner app keeps the contact path behind "Elegir plan".
+  // Keep the deployed selector as the default. Both online adapters can coexist;
+  // the manual setting disables online billing.
   BILLING_PROVIDER: envValue("BILLING_PROVIDER", "recurrente"),
   // Where the hosted checkout sends the owner back; the owner app origin by default.
   BILLING_RETURN_ORIGIN:
@@ -415,6 +414,15 @@ export const config = {
   ).replace(/\/+$/, ""),
   RECURRENTE_SECRET_KEY: envValue("RECURRENTE_SECRET_KEY", ""),
   RECURRENTE_WEBHOOK_SECRET: envValue("RECURRENTE_WEBHOOK_SECRET", ""),
+  // Stripe, wave 3 (design section 5.3): USD for businesses outside Guatemala. Registered
+  // when the API key is present. Checkout also requires the signing secret. GTQ uses
+  // Recurrente. Same `_FILE` convention (STRIPE_SECRET_KEY_FILE, STRIPE_WEBHOOK_SECRET_FILE).
+  STRIPE_API_BASE: String(envValue("STRIPE_API_BASE", "https://api.stripe.com")).replace(
+    /\/+$/,
+    "",
+  ),
+  STRIPE_SECRET_KEY: envValue("STRIPE_SECRET_KEY", ""),
+  STRIPE_WEBHOOK_SECRET: envValue("STRIPE_WEBHOOK_SECRET", ""),
   ENFORCE_TENANT_CONTEXT: (process.env.ENFORCE_TENANT_CONTEXT ?? "true") !== "false",
 
   // Schema extensions (tiers/referrals/gamification/analytics)

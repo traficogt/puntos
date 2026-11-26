@@ -1,3 +1,4 @@
+import { testAccountForm } from "./test-account-form.js";
 /** @typedef {import("./types.js").SuperBusinessRow} SuperBusinessRow */
 /** @typedef {import("./types.js").SuperPageContext} SuperPageContext */
 
@@ -50,7 +51,10 @@ export function renderBusinessCard(ctx, business, { plans, reloadBusinesses }) {
 
   const meta = document.createElement("div");
   meta.className = "small";
-  meta.textContent = `Plan actual: ${business.plan} • Clientes: ${business.customers} • Staff: ${business.staff}`;
+  // `customers` counts real accounts; test accounts ("cuenta de prueba") are shown apart so a
+  // demo seeded with the owner's phones never reads as traction.
+  const testAccounts = Number(business.test_customers) || 0;
+  meta.textContent = `Plan actual: ${business.plan} • Clientes: ${business.customers}${testAccounts ? ` (+${testAccounts} de prueba)` : ""} • Staff: ${business.staff}`;
   card.appendChild(meta);
 
   const planInfo = document.createElement("div");
@@ -109,6 +113,8 @@ export function renderBusinessCard(ctx, business, { plans, reloadBusinesses }) {
   row.appendChild(impersonateBtn);
 
   card.appendChild(row);
+
+  card.appendChild(testAccountForm(ctx, business.id, reloadBusinesses));
 
   // Wallet broadcast: platform-owner-only opt-in + channel policy. Merchants have
   // no such control; this governs the shared Apple/Google wallet account for this business.

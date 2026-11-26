@@ -3396,6 +3396,94 @@
         ]
       }
     },
+    "/api/v1/admin/customers/{id}/test-account": {
+      "patch": {
+        "summary": "Mark or unmark a customer as a test account (\"cuenta de prueba\")",
+        "responses": {
+          "200": {
+            "description": "Customer ID and saved test-account marker",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerTestAccountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Owner role or CSRF token required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer not found in this business",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staffAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "x-tenant-context": true,
+        "x-required-roles": [
+          "OWNER"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerTestAccountRequest"
+              }
+            }
+          }
+        },
+        "description": "Owner role. Marked accounts keep their points, history and directory entry but are excluded from owner progress, activation insights, trial activation facts, the plan soft-cap usage, the basic report and the weekly owner brief purchase counts. Audited as customer.test_account.update."
+      }
+    },
     "/api/v1/admin/data-health": {
       "get": {
         "summary": "Derived GET /api/v1/admin/data-health",
@@ -8787,7 +8875,7 @@
     },
     "/api/v1/public/billing/webhooks/{provider}": {
       "post": {
-        "summary": "Payment provider webhook (Recurrente, Svix-signed raw body)",
+        "summary": "Payment provider webhook (Recurrente or Stripe, signed raw body)",
         "responses": {
           "200": {
             "description": "Event processed, ignored or duplicate"
@@ -8834,14 +8922,23 @@
             "schema": {
               "type": "string",
               "enum": [
-                "recurrente"
+                "recurrente",
+                "stripe"
               ]
             }
           },
           {
             "in": "header",
+            "name": "Stripe-Signature",
+            "description": "Required for Stripe",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
             "name": "svix-id",
-            "required": true,
+            "description": "Required for Recurrente",
             "schema": {
               "type": "string"
             }
@@ -8849,7 +8946,7 @@
           {
             "in": "header",
             "name": "svix-timestamp",
-            "required": true,
+            "description": "Required for Recurrente",
             "schema": {
               "type": "string"
             }
@@ -8857,13 +8954,13 @@
           {
             "in": "header",
             "name": "svix-signature",
-            "required": true,
+            "description": "Required for Recurrente",
             "schema": {
               "type": "string"
             }
           }
         ],
-        "description": "No CSRF; the svix-id, svix-timestamp and svix-signature headers authenticate the sender. 401 on a bad signature, 200 { ok, duplicate: true } on a redelivery, 200 { type: ignored } for unknown event types, 500 when processing failed so the provider redelivers, 503 when no provider is configured."
+        "description": "The selected provider authenticates the raw body: Recurrente requires svix-id, svix-timestamp and svix-signature, and Stripe requires Stripe-Signature. 401 on a bad signature, 200 { ok, duplicate: true } on a redelivery, 200 { type: ignored } for unknown event types, 500 when processing failed so the provider redelivers, 503 when no provider is configured."
       }
     },
     "/api/v1/public/business/{slug}": {
@@ -11640,7 +11737,7 @@
     },
     "/api/v1/super/billing/catalog/sync": {
       "post": {
-        "summary": "Create the Recurrente products (USD, plus GTQ when amounts exist) and store their price ids in billing_catalog",
+        "summary": "Sync the selected payment provider and store its price ids in billing_catalog",
         "responses": {
           "200": {
             "description": "Created and kept price ids"
@@ -11931,6 +12028,98 @@
             }
           }
         ]
+      }
+    },
+    "/api/v1/super/businesses/{businessId}/customers/{customerId}/test-account": {
+      "patch": {
+        "summary": "Mark or unmark a business customer as a test account (platform owner)",
+        "responses": {
+          "200": {
+            "description": "Customer ID and saved test-account marker",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerTestAccountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF token required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business or customer not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "superAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-csrf-required": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerTestAccountRequest"
+              }
+            }
+          }
+        },
+        "description": "Same semantics as the owner route; audited in the business trail as super.customer.test_account.update."
       }
     },
     "/api/v1/super/businesses/{businessId}/plan": {
@@ -13984,6 +14173,9 @@
               "change_available": {
                 "type": "boolean"
               },
+              "cancel_available": {
+                "type": "boolean"
+              },
               "checkout_pending": {
                 "nullable": true,
                 "type": "object",
@@ -14141,6 +14333,7 @@
               "latest_tax_invoice_url",
               "upgrade_available",
               "change_available",
+              "cancel_available",
               "checkout_pending",
               "lock_reason",
               "subscription"
@@ -14747,6 +14940,14 @@
       "SuperBillingCatalogSyncRequest": {
         "type": "object",
         "properties": {
+          "provider": {
+            "default": "recurrente",
+            "type": "string",
+            "enum": [
+              "recurrente",
+              "stripe"
+            ]
+          },
           "force": {
             "default": false,
             "type": "boolean"
@@ -15308,6 +15509,9 @@
               "created_at": {
                 "type": "string"
               },
+              "is_test": {
+                "type": "boolean"
+              },
               "last_visit_at": {
                 "nullable": true,
                 "type": "string"
@@ -15866,6 +16070,52 @@
             "type": "boolean"
           }
         },
+        "additionalProperties": false
+      },
+      "CustomerTestAccountRequest": {
+        "type": "object",
+        "properties": {
+          "is_test": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "is_test"
+        ],
+        "additionalProperties": false
+      },
+      "CustomerTestAccountResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "customer": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+              },
+              "is_test": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "is_test"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "customer"
+        ],
         "additionalProperties": false
       },
       "WebhookCreateRequest": {

@@ -31,7 +31,7 @@ adminTrialRoutes.get(
         ok: true,
         ...ownerTrialPayload(business, {
           subscription,
-          upgradeAvailable: subscriptionService().isConfigured(),
+          upgradeAvailable: await subscriptionService().upgradeAvailable(business, subscription),
         }),
       };
       res.set("Cache-Control", "no-store");

@@ -47,6 +47,7 @@ import {
   normalizeInvoices,
   planChangeCopy,
   pollingCopy,
+  processorName,
   quoteLine,
   quotePlans,
   responsePlanName,
@@ -354,14 +355,15 @@ export default function OwnerPlan({
           body: JSON.stringify({ plan: quote.plan }),
         }),
       (body) => {
-        const name = responsePlanName(body) ?? quote.name;
+        const name =
+          copy.kind === "downgrade" ? quote.name : (responsePlanName(body) ?? quote.name);
         setChangeTarget(null);
         setNotice(
           copy.kind === "upgrade"
             ? {
                 tone: "teal",
                 title: `Tu plan ${name} está activo`,
-                body: "La diferencia proporcional se cobró a tu tarjeta y las funciones del nuevo plan ya están disponibles.",
+                body: "Puedes consultar las funciones del plan y los cobros confirmados en tu panel.",
               }
             : {
                 tone: "blue",
@@ -401,14 +403,20 @@ export default function OwnerPlan({
   const offersChange = view !== null && canChangePlan(view);
   const manual = view?.billing.status === "manual";
   const showRequestForm =
-    !manual && (unavailable || (view !== null && !view.billing.upgrade_available));
+    !manual &&
+    (unavailable ||
+      (view !== null &&
+        !view.billing.cancel_at &&
+        !offersCheckout &&
+        !offersChange &&
+        !canCancel(view)));
 
   return (
     <Stack gap="xl" maw={940}>
       <div>
         <Title order={1}>Plan y facturación</Title>
         <Text c="dimmed" mt="sm">
-          Tu plan, el cobro mensual por sucursal, el pago con tarjeta y los comprobantes fiscales.
+          Tu plan, el cobro mensual por sucursal, el pago con tarjeta y los comprobantes de pago.
         </Text>
       </div>
       {returnNotice && <BillingNotice notice={returnNotice} testId="checkout-result" />}
@@ -433,7 +441,7 @@ export default function OwnerPlan({
               data-testid="checkout-pending"
             >
               <Text size="sm">
-                Abriste la página de pago de Recurrente y todavía no se confirmó.
+                Ya abriste la página de pago. Aún esperamos la confirmación.
                 {view.billing.checkout_pending.expires_at
                   ? ` Puedes retomarla hasta el ${formatBillingDate(view.billing.checkout_pending.expires_at)}.`
                   : ""}{" "}
@@ -526,6 +534,7 @@ export default function OwnerPlan({
                               fullWidth
                               mt="sm"
                               loading={mutation.busy}
+                              disabled={quote.single_branch && view.branches > 1}
                               onClick={() => startCheckout(quote)}
                               aria-label={`Pagar con tarjeta el plan ${quote.name}`}
                             >
@@ -551,9 +560,9 @@ export default function OwnerPlan({
               </SimpleGrid>
               {offersCheckout && (
                 <Text size="xs" c="dimmed" mt="sm">
-                  Al pulsar "Pagar con tarjeta" vas a la página segura de Recurrente, que te pide la
-                  tarjeta y tus datos de contacto. Vuelves aquí al terminar y el plan se activa
-                  cuando el pago se confirma.
+                  Al pulsar "Pagar con tarjeta" vas a la página segura de{" "}
+                  {processorName(view.billing.provider)}, que te pide la tarjeta y tus datos de
+                  contacto. Vuelves aquí al terminar y el plan se activa cuando el pago se confirma.
                 </Text>
               )}
             </section>
@@ -576,8 +585,7 @@ export default function OwnerPlan({
                 Cobros y comprobantes
               </Title>
               <Text size="sm" c="dimmed" mb="sm">
-                {IVA_NOTE} {FEL_NOTE} En el estado de cuenta de tu tarjeta el cargo aparece a nombre
-                de Recurrente.
+                {IVA_NOTE} {FEL_NOTE}
               </Text>
               <InvoicesTable path="/api/admin/billing/invoices" revision={revision} send={send} />
             </section>

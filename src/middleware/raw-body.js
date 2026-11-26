@@ -1,9 +1,11 @@
-// Raw request bodies for provider webhooks. The Svix signature covers the exact bytes
-// Recurrente sent, so these paths are parsed by express.raw() ahead of express.json()
+// Raw request bodies for provider webhooks. Each provider signature covers the exact bytes
+// the provider sent, so these paths are parsed by express.raw() ahead of express.json()
 // (src/app/server.js) and the text is kept on `req.rawBody`; the route verifies the
 // signature first and parses JSON afterwards. `req.body` becomes an empty object so the
 // body-size and complexity middleware downstream see nothing to inspect.
 import express from "express";
+import { isUtf8 } from "node:buffer";
+import { HttpError } from "../utils/http-error.js";
 
 /** Paths (both API prefixes) whose bodies arrive raw. */
 export const RAW_BODY_PATHS = Object.freeze([
@@ -18,6 +20,7 @@ export const RAW_BODY_PATHS = Object.freeze([
  */
 export function captureRawBody(req, _res, next) {
   if (Buffer.isBuffer(req.body)) {
+    if (!isUtf8(req.body)) return next(new HttpError(400, "Se requiere JSON UTF-8", "BAD_JSON"));
     req.rawBody = req.body.toString("utf8");
     req.body = {};
   }
@@ -31,5 +34,9 @@ export function captureRawBody(req, _res, next) {
  * @param {{ limit?: string }} [options]
  */
 export function mountRawBody(app, { limit = "1mb" } = {}) {
-  app.use([...RAW_BODY_PATHS], express.raw({ type: () => true, limit }), captureRawBody);
+  app.use(
+    [...RAW_BODY_PATHS],
+    express.raw({ type: () => true, limit, inflate: false }),
+    captureRawBody,
+  );
 }

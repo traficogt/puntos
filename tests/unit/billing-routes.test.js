@@ -17,13 +17,15 @@ import {
   createMemoryBillingRepo,
   FIXTURE_BUSINESS_ID as BIZ,
   FIXTURE_CHECKOUT_ID as CHK,
-  fixtureCatalog,
-  loadFixture,
+  gtqFixtureCatalog as fixtureCatalog,
+  loadGtqFixture as loadFixture,
 } from "../fixtures/billing/memory-billing-repo.mjs";
+
+import { stripeCatalog, stripeFixture } from "../fixtures/billing/stripe.mjs";
 
 const now = new Date("2026-12-01T14:10:00.000Z");
 
-function build({ configured }) {
+function build({ configured, stripe = false }) {
   /** @type {Map<string, any>} */
   const businesses = new Map([
     [
@@ -46,16 +48,21 @@ function build({ configured }) {
       },
     ],
   ]);
+  const catalog = stripe ? stripeCatalog() : fixtureCatalog();
+  const processor = stripe ? stripeFixture({ catalog, now: () => now }) : null;
   const repo = createMemoryBillingRepo({ businesses });
-  const provider = configured ? createFakeProvider({ now: () => now }) : null;
+  const provider = configured
+    ? createFakeProvider({ currency: "GTQ", catalog: fixtureCatalog(), now: () => now })
+    : null;
   const ids = [CHK];
   const service = createSubscriptionService({
     repo,
     getBusiness: async (id) => businesses.get(id) ?? null,
     countBranches: async () => 1,
-    getCatalog: async () => fixtureCatalog(),
-    setCatalog: async (c) => c,
+    getCatalog: async () => catalog,
+    saveCatalogPrices: async (_name, c) => c,
     provider,
+    stripeProvider: processor?.provider ?? null,
     manualProvider: createManualProvider({
       getSubscription: (id) => repo.getSubscriptionByProviderId("manual", id),
     }),
@@ -112,7 +119,7 @@ function build({ configured }) {
     }),
   );
   app.use(errorHandler);
-  return { app, service, repo, provider, businesses, securityEvents };
+  return { app, service, repo, provider, processor, businesses, securityEvents };
 }
 
 async function listen(app) {
@@ -313,7 +320,7 @@ test("owner routes with a provider: checkout 201 then 200 reused, status polling
     const completed = await call(`/api/admin/billing/checkout/${CHK}`);
     assert.equal(completed.data.status, "completed");
     assert.equal(completed.data.subscription.plan, "NEGOCIO");
-    assert.equal(completed.data.subscription.monthly_total_minor, 7900);
+    assert.equal(completed.data.subscription.monthly_total_minor, 63000);
     const after = await call("/api/admin/billing");
     assert.equal(after.data.billing.status, "active");
     assert.equal(after.data.billing.upgrade_available, false);
@@ -446,6 +453,9 @@ test("super routes: listings, catalog sync and the immediate cancel with audit",
     assert.equal(list.data.subscriptions.length, 1);
     const entry = list.data.subscriptions[0];
     assert.equal(entry.business.id, BIZ);
+    assert.equal(entry.business_id, BIZ);
+    assert.equal(entry.business_name, entry.business.name);
+    assert.equal(entry.slug, entry.business.slug);
     assert.equal(entry.business.billing_status, "active");
     assert.equal(entry.provider_subscription_id, "su_fixture01");
     assert.equal(entry.plan_name, "Impulsa");
@@ -463,7 +473,7 @@ test("super routes: listings, catalog sync and the immediate cancel with audit",
     assert.equal(events.data.events.length, 1);
     assert.equal(events.data.events[0].event_type, "intent.succeeded");
     assert.equal(events.data.events[0].status, "processed");
-    assert.equal(events.data.events[0].summary.amount_in_cents, 7900);
+    assert.equal(events.data.events[0].summary.amount_in_cents, 63000);
     assert.equal(events.data.events[0].summary.subscription_id, "su_fixture01");
     assert.equal(
       "payload" in events.data.events[0],
@@ -478,12 +488,8 @@ test("super routes: listings, catalog sync and the immediate cancel with audit",
       body: { force: false },
     });
     assert.equal(sync.status, 200);
-    assert.equal(sync.data.kept.length, 3, "the three USD products already had price ids");
-    assert.deepEqual(
-      sync.data.created.map((c) => `${c.currency}:${c.plan}`),
-      ["GTQ:EMPRENDEDOR", "GTQ:NEGOCIO", "GTQ:EMPRESA"],
-      "the quetzal products are created from the catalog defaults",
-    );
+    assert.equal(sync.data.kept.length, 6);
+    assert.equal(sync.data.provider, "recurrente");
     assert.equal(security.at(-1).event_type, "super.billing_catalog.sync");
 
     const missing = await call(
@@ -519,6 +525,43 @@ test("super routes: listings, catalog sync and the immediate cancel with audit",
     });
     assert.equal(none.status, 404);
     assert.equal(none.data.code, "BILLING_NO_SUBSCRIPTION");
+  } finally {
+    server.close();
+  }
+});
+
+test("Stripe raw signatures on both API prefixes and provider selection on the existing super endpoint", async (t) => {
+  t.mock.method(SecurityEventRepo, "log", async () => {});
+  const { app, processor: f, securityEvents } = build({ configured: false, stripe: true });
+  const { server, call } = await listen(app);
+  try {
+    const signed = f.signed(f.event("invoice.created", f.invoice));
+    const webhook = { method: "POST", role: "", raw: signed.rawBody, headers: signed.headers };
+    assert.equal(
+      (await call("/api/public/billing/webhooks/stripe", { ...webhook, raw: signed.rawBody + " " }))
+        .status,
+      401,
+    );
+    assert.equal(securityEvents.length, 1);
+    assert.equal((await call("/api/public/billing/webhooks/stripe", webhook)).data.type, "ignored");
+    assert.equal(
+      (
+        await call("/api/v1/public/billing/webhooks/stripe", {
+          ...webhook,
+          headers: { ...signed.headers, "svix-id": "new" },
+        })
+      ).data.duplicate,
+      true,
+    );
+    const sync = (body) =>
+      call("/api/super/billing/catalog/sync", { method: "POST", superAdmin: true, body });
+    assert.equal((await sync({ provider: "manual" })).status, 400);
+    assert.equal((await sync({})).status, 503);
+    const out = await sync({ provider: "stripe", force: true });
+    assert.equal(out.status, 200);
+    assert.equal(out.data.provider, "stripe");
+    assert.equal(out.data.created.length, 3);
+    assert.ok(out.data.created.every((p) => p.currency === "USD"));
   } finally {
     server.close();
   }

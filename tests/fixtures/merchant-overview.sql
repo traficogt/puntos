@@ -2,7 +2,7 @@
 -- no RLS: the overview must enforce tenant isolation in its own SQL too.
 CREATE TEMP TABLE businesses (id uuid PRIMARY KEY,program_json jsonb DEFAULT '{}');
 CREATE TEMP TABLE branches (id uuid PRIMARY KEY, business_id uuid NOT NULL);
-CREATE TEMP TABLE customers (id uuid PRIMARY KEY, business_id uuid NOT NULL, deleted_at timestamptz);
+CREATE TEMP TABLE customers (id uuid PRIMARY KEY, business_id uuid NOT NULL, deleted_at timestamptz, is_test boolean NOT NULL DEFAULT false);
 CREATE TEMP TABLE transactions (
   id uuid PRIMARY KEY, business_id uuid NOT NULL, branch_id uuid,
   customer_id uuid NOT NULL, type text DEFAULT 'PURCHASE',
