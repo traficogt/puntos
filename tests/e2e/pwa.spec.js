@@ -1,3 +1,6 @@
+import http from "node:http";
+import https from "node:https";
+import { once } from "node:events";
 import { test, expect } from "@playwright/test";
 import { errorMessage } from "../../src/utils/error-shape.js";
 
@@ -24,7 +27,7 @@ async function gotoStable(page, url, options) {
   throw lastError;
 }
 
-async function waitForServiceWorker(page) {
+async function waitForServiceWorker(page, origin = baseUrl) {
   const fixtures = {
     me: { staff: { id: "staff-install", business_id: "biz-install", role: "OWNER" } },
     permissions: { matrix: { OWNER: ["staff.award", "staff.sync", "staff.redeem"] } },
@@ -41,7 +44,10 @@ async function waitForServiceWorker(page) {
     return route.fulfill({ json: fixtures[key] || { ok: true } });
   });
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    await gotoStable(page, appUrl("/staff"), { waitUntil: "domcontentloaded", timeout: 20_000 });
+    await gotoStable(page, origin + "/staff?sw=noreload", {
+      waitUntil: "domcontentloaded",
+      timeout: 20_000,
+    });
     await page.waitForFunction(
       async () => {
         if (!("serviceWorker" in navigator)) return false;
@@ -63,12 +69,48 @@ async function waitForServiceWorker(page) {
   throw new Error("Service worker activated but did not take control of the page");
 }
 
+// Firefox's offline emulation can still let a service worker reach the server. Give this
+// browser its own origin, then disconnect it after the real application has been cached.
+async function createOfflineTestOrigin() {
+  const upstream = new URL(baseUrl);
+  const transport = upstream.protocol === "https:" ? https : http;
+  const server = http.createServer((req, res) => {
+    const proxy = transport.request(
+      upstream,
+      { path: req.url, method: req.method, headers: { ...req.headers, host: upstream.host } },
+      (response) => {
+        res.writeHead(response.statusCode, response.headers);
+        response.pipe(res);
+      },
+    );
+    proxy.on("error", () => res.destroy());
+    req.pipe(proxy);
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  return {
+    origin: `http://127.0.0.1:${server.address().port}`,
+    async disconnect() {
+      if (!server.listening) return;
+      const stopped = once(server, "close");
+      server.close();
+      server.closeAllConnections();
+      await stopped;
+    },
+  };
+}
+
 test.describe("PWA coverage", () => {
   test("offline documents support canonical Spanish paths and legacy redirect aliases", async ({
     page,
     context,
   }) => {
-    await waitForServiceWorker(page);
+    const local = await createOfflineTestOrigin();
+    try {
+      await waitForServiceWorker(page, local.origin);
+    } finally {
+      await local.disconnect();
+    }
     await context.setOffline(true);
     for (const [pathname, title] of [
       ["/mi-tarjeta/?return=keep%2Bme&sw=noreload", /Mi tarjeta/],
@@ -78,7 +120,7 @@ test.describe("PWA coverage", () => {
       ["/staff/login?return=keep%2Bme&sw=noreload", /Ingreso del equipo/],
       ["/staff-login.html", /Ingreso del equipo/],
     ]) {
-      const target = `${baseUrl}${pathname}`;
+      const target = `${local.origin}${pathname}`;
       await gotoStable(page, target, { waitUntil: "domcontentloaded", timeout: 20_000 });
       await expect(page).toHaveTitle(title);
       expect(page.url()).toBe(target);
