@@ -171,7 +171,13 @@ test("owner routes without a configured provider: overview says no upgrade, muta
     assert.equal(overview.data.billing.checkout_pending, null);
     assert.equal(overview.data.billing.subscription, null);
     assert.equal(overview.data.billing.plan_name, "Conecta");
-    assert.deepEqual(Object.keys(overview.data.catalog), ["currency", "currencies", "plans"]);
+    assert.deepEqual(Object.keys(overview.data.catalog), [
+      "currency",
+      "currencies",
+      "iva_included",
+      "plans",
+    ]);
+    assert.equal(overview.data.catalog.iva_included, true);
     assert.equal(overview.data.catalog.plans.length, 3);
     assert.equal(overview.data.branches, 1);
     assert.equal(overview.data.trial.status, "active");
@@ -472,8 +478,12 @@ test("super routes: listings, catalog sync and the immediate cancel with audit",
       body: { force: false },
     });
     assert.equal(sync.status, 200);
-    assert.equal(sync.data.kept.length, 3);
-    assert.equal(sync.data.created.length, 0);
+    assert.equal(sync.data.kept.length, 3, "the three USD products already had price ids");
+    assert.deepEqual(
+      sync.data.created.map((c) => `${c.currency}:${c.plan}`),
+      ["GTQ:EMPRENDEDOR", "GTQ:NEGOCIO", "GTQ:EMPRESA"],
+      "the quetzal products are created from the catalog defaults",
+    );
     assert.equal(security.at(-1).event_type, "super.billing_catalog.sync");
 
     const missing = await call(

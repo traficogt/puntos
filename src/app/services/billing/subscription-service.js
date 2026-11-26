@@ -4,13 +4,21 @@
 // this module owns the checkout, the webhook state machine, the branch-count hooks, the
 // daily reconcile and the owner/super views.
 //
-// Owner assumptions encoded here (2026-11-25):
-// - Prices are the published USD amounts (39 / 79 / 129 per branch per month, platform
-//   setting `billing_catalog.usd`) charged through Recurrente in USD by default. GTQ
-//   products are used only when `billing_catalog.gtq` amounts AND Recurrente GTQ price
-//   ids exist; a GTQ checkout request without them answers 400 BILLING_CURRENCY_UNAVAILABLE.
-// - IVA is handled by Recurrente's FEL DTE: nothing here computes tax; the app stores the
-//   `tax_invoice_url` the payment webhook carries and shows it to the owner.
+// Owner decisions encoded here (2026-11-25, currency and tax revised 2026-11-26):
+// - Prices are the published list amounts of `billing_catalog` (src/utils/plan.js defaults
+//   unless the platform setting overrides them): Q300 / Q630 / Q1,030 per branch per month
+//   for Guatemalan businesses, USD 39 / 79 / 129 for businesses outside Guatemala. Both
+//   include IVA (12%); nothing here computes tax.
+// - Currency per customer (see businessPaysInGtq / defaultCurrency): a business counts as
+//   Guatemalan when it already pays in GTQ (`billing_currency`), when its regional settings
+//   resolve to the America/Guatemala timezone (the default region when none is set), or
+//   when its verified trial phone carries the +502 dial code. Such a business checks out in
+//   GTQ by default when GTQ is ready (catalog amounts AND Recurrente GTQ price ids for every
+//   plan); otherwise, and for every other business, the default is USD. The owner may still
+//   choose the currency explicitly; an explicit GTQ request while GTQ is not ready answers
+//   400 BILLING_CURRENCY_UNAVAILABLE. USD runs through Recurrente today, Stripe later.
+// - No FEL invoice is issued (owner decision 2026-11-26); the app still stores any `tax_invoice_url` the payment
+//   webhook carries and shows it to the owner.
 // - No annual plans; one monthly subscription per business.
 // - Proration (section 6): upgrades and added branches apply now and charge the prorated
 //   remainder (`now_and_charge`); downgrades and removed branches apply at the next cycle
@@ -30,7 +38,7 @@ import { BusinessRepo } from "../../repositories/business-repository.js";
 import { BillingCatalogService } from "../billing-catalog-service.js";
 import { emitBillingEvent } from "../billing-service.js";
 import { PLAN_DISPLAY_NAMES } from "../public-plan-service.js";
-import { regionTimezone } from "../regional-settings.js";
+import { REGIONAL_COUNTRIES, regionTimezone } from "../regional-settings.js";
 import { planDisplayName } from "../trial-entitlement.js";
 import { countTrialTransition } from "../trial-metrics.js";
 import { trialState } from "../trial-state.js";
@@ -200,6 +208,31 @@ export function catalogReadiness(catalog) {
 }
 
 /**
+ * Whether the business is Guatemalan for billing purposes (header rule): it already pays
+ * in quetzales, its regional settings resolve to Guatemala's timezone (the default region
+ * when none was chosen), or its verified trial phone carries the 502 dial code
+ * (`trial_phone` is stored as digits, country code first).
+ * @param {Pick<BusinessRow, "billing_currency" | "program_json" | "trial_phone">} business
+ */
+export function businessPaysInGtq(business) {
+  if (business.billing_currency === "GTQ") return true;
+  if (regionTimezone(business) === REGIONAL_COUNTRIES.GT.timezone) return true;
+  return String(business.trial_phone ?? "").startsWith(REGIONAL_COUNTRIES.GT.dialCode);
+}
+
+/**
+ * Default checkout and catalog currency when the owner has not chosen one: GTQ for a
+ * Guatemalan business while GTQ is ready, USD otherwise. An active subscription keeps its
+ * own currency so plan changes are quoted in what the business already pays.
+ * @param {{ business: Pick<BusinessRow, "billing_currency" | "program_json" | "trial_phone">, catalog: ResolvedCatalog, active?: { currency: string } | null }} input
+ * @returns {Currency}
+ */
+export function defaultCurrency({ business, catalog, active = null }) {
+  if (active) return active.currency === "GTQ" ? "GTQ" : "USD";
+  return businessPaysInGtq(business) && catalogReadiness(catalog).gtq ? "GTQ" : "USD";
+}
+
+/**
  * @param {ResolvedCatalog} catalog
  * @param {Currency} currency
  */
@@ -311,8 +344,8 @@ export function createSubscriptionService(overrides = {}) {
   }
 
   /**
-   * Currency for a checkout: the owner's explicit request, else the currency the
-   * business already pays in, else USD (owner assumption above).
+   * Currency for a checkout: the owner's explicit request, else the header rule
+   * (defaultCurrency: GTQ for a Guatemalan business when GTQ is ready, USD otherwise).
    * @param {{ requested: string | null | undefined, business: BusinessRow, catalog: ResolvedCatalog }} input
    * @returns {Currency}
    */
@@ -328,7 +361,7 @@ export function createSubscriptionService(overrides = {}) {
     }
     if (requested && requested !== "USD")
       throw badRequest("Moneda inválida", "BILLING_CURRENCY_UNAVAILABLE");
-    if (!requested && business.billing_currency === "GTQ" && ready.gtq) return "GTQ";
+    if (!requested && defaultCurrency({ business, catalog }) === "GTQ") return "GTQ";
     if (!ready.usd) throw unavailable();
     return "USD";
   }
@@ -373,11 +406,8 @@ export function createSubscriptionService(overrides = {}) {
     /** @type {BillingSubscriptionRow | null} */
     const subscription = active ?? (await deps.repo.latestSubscription(businessId));
     const ready = catalogReadiness(catalog);
-    /** @type {Currency} */
-    const currency =
-      active?.currency === "GTQ" || (business.billing_currency === "GTQ" && ready.gtq)
-        ? "GTQ"
-        : "USD";
+    // The plan page quotes in the currency the business pays or will pay (header rule).
+    const currency = defaultCurrency({ business, catalog, active });
     const catalogReady = currency === "GTQ" ? ready.gtq : ready.usd;
     const state = trialState(business, { now, timezone: regionTimezone(business) });
     const view = subscription ? subscriptionView(subscription) : null;
@@ -425,6 +455,7 @@ export function createSubscriptionService(overrides = {}) {
       catalog: {
         currency,
         currencies: [...(ready.usd ? ["USD"] : []), ...(ready.gtq ? ["GTQ"] : [])],
+        iva_included: catalog.iva_included,
         plans: catalogPlans(catalog, currency),
       },
       branches,
@@ -1427,8 +1458,9 @@ export function createSubscriptionService(overrides = {}) {
   // Super: catalog sync
 
   /**
-   * Creates the Recurrente products (three USD plans, plus GTQ when amounts exist) and
-   * stores their price ids in `billing_catalog`. Existing ids are kept unless `force`.
+   * Creates the Recurrente products for both currencies (three USD plans for businesses
+   * outside Guatemala, three GTQ plans for Guatemalan businesses: six products) and stores
+   * their price ids in `billing_catalog`. Existing ids are kept unless `force`.
    * @param {{ force?: boolean }} [options]
    */
   async function syncCatalog({ force = false } = {}) {
@@ -1440,7 +1472,7 @@ export function createSubscriptionService(overrides = {}) {
     const kept = [];
     const next = structuredClone(catalog);
     /** @type {Currency[]} */
-    const currencies = ["USD", ...(catalog.gtq ? /** @type {Currency[]} */ (["GTQ"]) : [])];
+    const currencies = ["USD", "GTQ"];
     for (const currency of currencies) {
       const amounts = currency === "GTQ" ? catalog.gtq : catalog.usd;
       if (!amounts) continue;
@@ -1452,11 +1484,11 @@ export function createSubscriptionService(overrides = {}) {
         }
         const product = await provider.createProduct({
           name: `PuntosFieles ${PLAN_DISPLAY_NAMES[plan]} (${currency})`,
-          description: `Plan ${PLAN_DISPLAY_NAMES[plan]} de PuntosFieles: ${currency} ${amounts[plan]} por sucursal al mes.`,
+          description: `Plan ${PLAN_DISPLAY_NAMES[plan]} de PuntosFieles: ${currency} ${amounts[plan]} por sucursal al mes, IVA incluido.`,
           plan,
           currency,
           unitAmountMinor: Math.round(Number(amounts[plan]) * 100),
-          billingInfoRequired: currency === "GTQ",
+          billingInfoRequired: false, // PF does not issue FEL invoices (2026-11-26): never collect the NIT
         });
         next.providers.recurrente.price_ids[currency][plan] = product.priceId;
         created.push({ currency, plan, price_id: product.priceId, product_id: product.productId });

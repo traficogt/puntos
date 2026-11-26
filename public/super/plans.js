@@ -41,14 +41,15 @@ const PLAN_POSITIONING = {
 };
 
 /**
- * @param {{ monthly?: number; yearly?: number } | undefined} pricing
+ * "Q300/mes por sucursal (IVA incluido)": the quetzal list price the catalog publishes.
+ * @param {{ monthly?: number; currency?: string } | undefined} pricing
  * @returns {string}
  */
 function priceSummary(pricing) {
-  if (!pricing) return "Precio no configurado";
-  const monthly = Number(pricing.monthly || 0).toLocaleString("es-GT");
-  const yearly = Number(pricing.yearly || 0).toLocaleString("es-GT");
-  return `Q${monthly}/mes • Q${yearly}/año`;
+  if (!pricing || !Number(pricing.monthly)) return "Precio no configurado";
+  const monthly = Number(pricing.monthly).toLocaleString("en-US");
+  const prefix = String(pricing.currency || "GTQ").toUpperCase() === "GTQ" ? "Q" : "USD ";
+  return `${prefix}${monthly}/mes por sucursal (IVA incluido)`;
 }
 
 /**

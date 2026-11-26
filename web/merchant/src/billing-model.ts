@@ -49,7 +49,10 @@ export interface CatalogPlan {
   monthly: number;
 }
 export interface BillingCatalog {
+  /** GTQ for Guatemalan businesses, USD outside Guatemala (server rule); the quotes follow it. */
   currency: BillingCurrency;
+  /** Published amounts include IVA (owner decision 2026-11-26); the server says so explicitly. */
+  iva_included: boolean;
   plans: CatalogPlan[];
 }
 export interface BillingTrial {
@@ -110,7 +113,9 @@ export interface ChangeCopy {
 }
 
 export const BILLING_UNAVAILABLE_MESSAGE = "El pago con tarjeta estará disponible pronto";
-export const FEL_NOTE = "El comprobante fiscal (FEL) lo emite Recurrente.";
+export const FEL_NOTE =
+  "Por ahora no se emite factura electrónica (FEL); cada cobro queda registrado aquí.";
+export const IVA_NOTE = "Precios con IVA incluido.";
 export const CHECKOUT_RETURN_PAGE = "plan";
 export const POLL_INTERVAL_MS = 3_000;
 export const POLL_TIMEOUT_MS = 120_000;
@@ -219,9 +224,22 @@ export function currencyLabel(currency: BillingCurrency | string | null | undefi
   return asOneOf(currency, CURRENCIES) === "GTQ" ? "quetzales (GTQ)" : "dólares (USD)";
 }
 
+/**
+ * Intro line of the plan picker: "Precio al mes por sucursal en quetzales (GTQ), con IVA
+ * incluido; tu negocio tiene 2 sucursales." The tax clause follows the catalog flag.
+ */
+export function catalogPricingNote(view: Pick<BillingView, "catalog" | "branches">): string {
+  const tax = view.catalog.iva_included ? "con IVA incluido" : "más IVA";
+  const branches = `${view.branches} ${view.branches === 1 ? "sucursal" : "sucursales"}`;
+  return `Precio al mes por sucursal en ${currencyLabel(view.catalog.currency)}, ${tax}; tu negocio tiene ${branches}.`;
+}
+
 function normalizeCatalog(raw: unknown, fallbackCurrency: BillingCurrency): BillingCatalog {
   const root = asRecord(raw);
   const currency = asOneOf(root?.currency, CURRENCIES) ?? fallbackCurrency;
+  // Servers before 2026-11-26 did not send the flag; the published amounts were already
+  // IVA-inclusive by then, so the default is true.
+  const ivaIncluded = asBoolean(root?.iva_included) ?? true;
   const plans: CatalogPlan[] = [];
   const list = Array.isArray(root?.plans) ? root.plans : [];
   for (const entry of list) {
@@ -239,7 +257,7 @@ function normalizeCatalog(raw: unknown, fallbackCurrency: BillingCurrency): Bill
     });
   }
   plans.sort((a, b) => PLAN_ORDER.indexOf(a.id) - PLAN_ORDER.indexOf(b.id));
-  return { currency, plans };
+  return { currency, iva_included: ivaIncluded, plans };
 }
 
 /**
@@ -561,7 +579,7 @@ export function pollingCopy(
     case "completed":
       return {
         title: planName ? `Tu plan ${planName} está activo` : "Tu plan está activo",
-        body: "El pago se confirmó y el panel ya opera con el nuevo plan. El comprobante fiscal aparece abajo cuando Recurrente lo emite.",
+        body: "El pago se confirmó y el panel ya opera con el nuevo plan. Cada cobro aparece abajo cuando Recurrente lo confirma.",
         tone: "teal",
       };
     case "expired":

@@ -404,8 +404,10 @@ const AdminTrialResponseSchema = okEnvelope({
 const PublicPlansResponseSchema = okEnvelope({
   pricing_status: z.literal("published"),
   comparison_currency: z.literal("USD"),
+  local_currency: z.literal("GTQ"),
   pricing_unit: z.literal("branch_month"),
   published_at: z.string(),
+  tax: z.object({ iva_included: z.literal(true), rate: z.number() }),
   reference_gtq: z.object({ rate: z.number(), as_of: z.string() }).nullable(),
   trial: z.object({
     days: z.number().int(),
@@ -423,6 +425,7 @@ const PublicPlansResponseSchema = okEnvelope({
           currency: z.literal("USD"),
           per: z.literal("branch_month"),
           monthly: z.number(),
+          gtq_monthly: z.number(),
           reference_gtq_monthly: z.number().nullable(),
         }),
         limits: z.object({
@@ -493,6 +496,7 @@ const AdminBillingResponseSchema = okEnvelope({
   catalog: z.object({
     currency: z.enum(["GTQ", "USD"]),
     currencies: z.array(z.string()),
+    iva_included: z.boolean(),
     plans: z.array(
       z.object({
         id: z.string(),
@@ -1350,7 +1354,7 @@ const curatedPaths = {
   },
   "/api/v1/admin/billing/invoices": {
     get: {
-      summary: "Payment outcomes of the subscription with the Recurrente FEL invoice links",
+      summary: "Payment outcomes of the subscription with the processor receipt links when present",
       responses: { 200: { description: "Payments, newest first" } },
     },
   },

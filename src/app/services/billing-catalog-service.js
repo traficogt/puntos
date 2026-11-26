@@ -20,9 +20,13 @@ export const BillingCatalogSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .optional(),
     usd: amounts,
-    // Fixed quetzal list amounts chosen by the owner (not spot FX); null until decided.
+    // Fixed quetzal list amounts chosen by the owner (not spot FX). Null or absent restores
+    // the code list prices (PLAN_PRICING_GTQ: 300 / 630 / 1,030).
     gtq: amounts.nullable().optional(),
-    // Dated reference rate shown on /precios only when set.
+    // Published amounts always include IVA (owner decision, 2026-11-26); accepted so a
+    // resolved catalog round-trips, never switchable from the console.
+    iva_included: z.literal(true).optional(),
+    // Dated reference rate, informational only (public API); /precios shows the list price.
     gtq_reference: z
       .object({
         rate: z.number().positive().max(1000),

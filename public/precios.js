@@ -1,7 +1,8 @@
-// /precios: the page ships the published prices (USD 39 / 79 / 129 per branch per month) as
-// static markup; when GET /api/public/plans answers with `pricing_status: "published"` the cards
-// are re-rendered from the server catalog (docs/product/2026-11-25-self-serve-trial.md §7.1).
-// Any failure leaves the static fallback in place.
+// /precios: the page ships the published prices (Q300 / Q630 / Q1,030 per branch per month for
+// Guatemala, USD 39 / 79 / 129 outside Guatemala, IVA included) as static markup; when
+// GET /api/public/plans answers with `pricing_status: "published"` the cards are re-rendered
+// from the server catalog (docs/product/2026-11-25-self-serve-trial.md §7.1). Any failure
+// leaves the static fallback in place.
 
 /** @type {Record<string, string>} the comparison rows public-plan-service.js exposes */
 export const PLAN_FEATURE_LABELS = {
@@ -15,20 +16,33 @@ export const PLAN_FEATURE_LABELS = {
   external_awards: "Puntos desde sistemas externos",
 };
 
+/** @param {number} value whole amounts as published; fixed en-US grouping ("1,030") */
+const formatAmount = (value) =>
+  Number.isInteger(value) ? value.toLocaleString("en-US") : value.toFixed(2);
+
 /**
- * @param {{ currency?: string, monthly?: number, per?: string } | null | undefined} pricing
- * @returns {{ amount: string, unit: string } | null}
+ * The price row of a card. With a quetzal amount (`gtq_monthly`) the quetzal price leads and
+ * the USD price becomes the aside for businesses outside Guatemala; without one the catalog's
+ * own currency is shown and the aside is empty (older catalogs).
+ * @param {{ currency?: string, monthly?: number, gtq_monthly?: number, per?: string } | null | undefined} pricing
+ * @returns {{ amount: string, unit: string, aside: string } | null}
  */
 export function formatPlanPrice(pricing) {
   if (!pricing || typeof pricing.monthly !== "number" || !Number.isFinite(pricing.monthly))
     return null;
+  const unit = pricing.per === "branch_month" || !pricing.per ? "al mes por sucursal" : "al mes";
   const currency = String(pricing.currency || "USD").toUpperCase();
-  const amount = Number.isInteger(pricing.monthly)
-    ? String(pricing.monthly)
-    : pricing.monthly.toFixed(2);
+  const gtq = pricing.gtq_monthly;
+  if (typeof gtq === "number" && Number.isFinite(gtq) && gtq > 0 && currency === "USD")
+    return {
+      amount: `Q${formatAmount(gtq)}`,
+      unit,
+      aside: `USD ${formatAmount(pricing.monthly)} fuera de Guatemala`,
+    };
   return {
-    amount: `${currency} ${amount}`,
-    unit: pricing.per === "branch_month" || !pricing.per ? "por sucursal al mes" : "al mes",
+    amount: `${currency === "GTQ" ? "Q" : `${currency} `}${formatAmount(pricing.monthly)}`,
+    unit,
+    aside: "",
   };
 }
 
@@ -54,17 +68,9 @@ export function formatPlanLimits(limits, id) {
 }
 
 /**
- * @param {{ monthly?: number, amount?: number, as_of?: string, rate?: number } | null | undefined} reference
- */
-export function formatGtqReference(reference) {
-  const value = reference?.monthly ?? reference?.amount;
-  if (typeof value !== "number" || !Number.isFinite(value)) return "";
-  const date = reference?.as_of ? ` (tipo de cambio del ${reference.as_of})` : "";
-  return `Referencia: Q${value.toLocaleString("es-GT")} al mes por sucursal${date}. El cobro en quetzales se confirma al elegir plan.`;
-}
-
-/**
  * Updates every `[data-plan]` card in `root` from the catalog. Returns how many cards changed.
+ * The dated FX reference some catalogs carry (`reference_gtq`) is ignored: the quetzal amount
+ * is a fixed list price, not a conversion.
  * @param {ParentNode} root
  * @param {unknown} catalog
  */
@@ -76,7 +82,7 @@ export function applyPlanCatalog(root, catalog) {
   let updated = 0;
   for (const entry of data.plans) {
     const plan =
-      /** @type {{ id?: string, pricing?: any, limits?: any, features?: Record<string, boolean>, reference_gtq?: any }} */ (
+      /** @type {{ id?: string, pricing?: any, limits?: any, features?: Record<string, boolean> }} */ (
         entry
       );
     const card = plan?.id ? root.querySelector(`[data-plan="${plan.id}"]`) : null;
@@ -86,6 +92,11 @@ export function applyPlanCatalog(root, catalog) {
     const unit = card.querySelector("[data-plan-unit]");
     if (amount) amount.textContent = price.amount;
     if (unit) unit.textContent = price.unit;
+    const aside = card.querySelector("[data-plan-price-usd]");
+    if (aside) {
+      aside.textContent = price.aside;
+      aside.toggleAttribute("hidden", !price.aside);
+    }
     const limits = card.querySelector("[data-plan-limits]");
     const limitsText = formatPlanLimits(plan.limits, String(plan.id));
     if (limits && limitsText) limits.textContent = limitsText;
@@ -98,12 +109,6 @@ export function applyPlanCatalog(root, catalog) {
         item.textContent = label;
         list.appendChild(item);
       }
-    }
-    const reference = card.querySelector("[data-plan-reference]");
-    if (reference) {
-      const text = formatGtqReference(plan.reference_gtq);
-      reference.textContent = text;
-      reference.toggleAttribute("hidden", !text);
     }
     updated += 1;
   }

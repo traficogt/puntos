@@ -1,6 +1,6 @@
 // Owner billing surface for "Plan y facturación" (design sections 4.4, 4.5 and 7.3):
 // overview, hosted checkout, checkout polling, plan change, cancel at period end and
-// the payment list with the FEL invoice links. Owner role only; every path under
+// the payment list with the processor's receipt links when present. Owner role only; every path under
 // /admin/billing/ is exempt from the trial lock (middleware/billing-status.js) because
 // it is the way out of the lock.
 import { Router } from "express";

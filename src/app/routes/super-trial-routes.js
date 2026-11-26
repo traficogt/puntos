@@ -16,6 +16,7 @@ import {
   BillingCatalogService,
 } from "../services/billing-catalog-service.js";
 import { emitBillingEvent } from "../services/billing-service.js";
+import { businessPaysInGtq } from "../services/billing/subscription-service.js";
 import { regionTimezone } from "../services/regional-settings.js";
 import { planDisplayName } from "../services/trial-entitlement.js";
 import { purgeDryRun } from "../services/trial-lifecycle-service.js";
@@ -305,15 +306,16 @@ superTrialRoutes.post(
       /** @type {ManualActivateInput} */
       const payload = parsed.data;
       const plan = requireSupportedPlan(payload.plan);
-      const currency = payload.currency ?? "USD";
       const businessId = String(req.params.businessId || "");
       const business = await BusinessRepo.getById(businessId);
       if (!business) return res.status(404).json({ error: "Negocio no encontrado" });
+      // Same rule as the online checkout: Guatemalan businesses pay in quetzales, the rest
+      // in USD, unless the super admin chooses explicitly (manual activation needs no price ids).
+      const currency = payload.currency ?? (businessPaysInGtq(business) ? "GTQ" : "USD");
       const now = new Date();
       const catalog = await BillingCatalogService.get();
       const planKey = /** @type {keyof typeof catalog.usd} */ (plan);
-      const unitAmount =
-        currency === "GTQ" && catalog.gtq ? catalog.gtq[planKey] : catalog.usd[planKey];
+      const unitAmount = currency === "GTQ" ? catalog.gtq[planKey] : catalog.usd[planKey];
       const quantity = Math.max(1, await BusinessRepo.countBranches(businessId));
       const wasTrial = business.trial_status !== "none";
       const updated = await TrialRepo.convert({ businessId, plan, currency });

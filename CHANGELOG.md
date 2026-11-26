@@ -24,13 +24,49 @@ fix), including the quality waves of 2026-11-23 (`919d3dc`, `0b2a428`, `cfc1932`
   it widens the three batch-count CHECKs on `customer_migration_batches` to 200 rows. Import
   batches of 101–200 rows fail with a database error until it runs.
 
+### Quetzal list prices, currency per customer and IVA included (2026-11-26)
+- Published list prices in quetzales for Guatemalan businesses: Conecta Q300, Impulsa Q630 and
+  Expande Q1,030 per branch per month (USD stays 39 / 79 / 129 for businesses outside
+  Guatemala). They are the code default of `billing_catalog.gtq` (`PLAN_PRICING_GTQ` in
+  `src/utils/plan.js`); the super console may still override them and an empty GTQ block
+  restores the defaults instead of leaving GTQ unset. The provisional Q149 / Q399 / Q999 figures
+  are retired everywhere, including the super console plan cards.
+- Currency per customer: a business pays in GTQ through Recurrente when it is Guatemalan (it
+  already pays in GTQ, its regional settings resolve to `America/Guatemala`, which is the
+  default region, or its verified trial phone starts with +502) and GTQ is ready (amounts plus
+  Recurrente GTQ price ids for every plan); otherwise, and for every other business, in USD.
+  The owner can still choose the currency on checkout; an explicit GTQ request while GTQ is not
+  ready keeps answering `400 BILLING_CURRENCY_UNAVAILABLE`. `GET /api/admin/billing` reports
+  `catalog.currency` by the same rule (plus `catalog.iva_included`), so "Plan y facturación"
+  quotes Guatemalan businesses in quetzales ("Q630.00 × 2 sucursales = Q1,260.00 al mes").
+  "Sincronizar productos" now creates six Recurrente products (three USD, three GTQ) from the
+  catalog. The super manual activation defaults to the same currency rule.
+- IVA included: the published amounts, USD and GTQ, include IVA (12 %). The catalog carries
+  `iva_included: true` and `GET /api/public/plans` adds `tax: { iva_included: true, rate: 0.12 }`,
+  `local_currency: "GTQ"` and `pricing.gtq_monthly` (`pricing.monthly` stays the USD amount).
+  Every "sin impuestos / se confirma por escrito" sentence is replaced by "Precios con IVA (12 %)
+  incluido. Cada cobro queda registrado en tu panel; por ahora no se emite factura electrónica (FEL)." on `/precios`
+  (static copy, API re-render and the server-rendered comparison), in "Plan y facturación", in
+  the help guides "Pagar con tarjeta, cambiar o cancelar tu plan" and "Empezar la prueba
+  gratis", and in the design of record (§6, §12).
+- `/precios` leads with the quetzal price for the Guatemalan audience ("Q300 al mes por
+  sucursal") with "USD 39 fuera de Guatemala" as the secondary line; the comparison table has
+  the rows "Precio en Guatemala", "Fuera de Guatemala" and "Impuestos". The dated FX reference a
+  platform admin may record stays in the API payload but is no longer rendered. The landing FAQ,
+  `/prueba/`, the trial reminder email and the owner upgrade request form quote "desde Q300 al
+  mes por sucursal con IVA incluido (USD 39 fuera de Guatemala)".
+- The service-worker precache and asset hashes must be regenerated (`npm run sw:build`) for
+  `precios.js`, `precios.html`, `plans.css`, `index.html`, `prueba.html` and the super-console
+  files; `docs/openapi.*` is regenerated with `npm run openapi:generate`.
+
 ### Published prices and a 14-day free trial on the website (2026-11-25)
 - `/precios` publishes the three plans with their prices: Conecta USD 39, Impulsa USD 79 and
   Expande USD 129 per branch per month, with each plan's caps and included features. The page
   reads `GET /api/public/plans` and re-renders from the server catalog when it answers with
   published pricing; otherwise the same numbers stay as static copy. "Los precios están en
-  revisión" is gone. Prices are shown in USD before taxes; the GTQ amount and the IVA treatment
-  are confirmed in writing when a plan is chosen, and nothing is charged from the page.
+  revisión" is gone. Prices were shown in USD before taxes, with the GTQ amount and the IVA
+  treatment confirmed in writing when a plan was chosen (superseded on 2026-11-26, above:
+  quetzal list prices and IVA included); nothing is charged from the page.
 - New public signup at `/prueba/` ("Prueba gratis 14 días", also the landing hero's primary
   call to action next to "Ver la demo"): business data, phone verification by SMS code with a
   Turnstile challenge, then business creation and the usual hand-off to `/negocio/`. It calls
@@ -60,7 +96,7 @@ fix), including the quality waves of 2026-11-23 (`919d3dc`, `0b2a428`, `cfc1932`
   plan and status (trial days left; active with the next charge date; past due with the next
   attempt; canceled with the end date; manual activations), the three tiers with per-branch math
   (`unit × branches`, in the catalog currency, "USD 79.00" formatting, Conecta fixed at one
-  branch) and the note "El comprobante fiscal (FEL) lo emite Recurrente". "Pagar con tarjeta"
+  branch) and the note that no FEL invoice is issued for now. "Pagar con tarjeta"
   calls `POST /api/admin/billing/checkout { plan, currency }` and sends the owner to the hosted
   Recurrente page; the return URL `/negocio/#plan?checkout=<id>&resultado=exito|cancelado` is
   read before the hash is normalised and the page polls `GET /api/admin/billing/checkout/:id`
@@ -69,7 +105,7 @@ fix), including the quality waves of 2026-11-23 (`919d3dc`, `0b2a428`, `cfc1932`
   (upgrade: prorated charge now; downgrade: next cycle, limits must fit) and calls
   `POST /api/admin/billing/change { plan }`; "Cancelar al final del período" shows the end date
   and calls `POST /api/admin/billing/cancel { at_period_end: true }`; "Cobros y comprobantes"
-  lists `GET /api/admin/billing/invoices` with the FEL links. A pending checkout can be resumed
+  lists `GET /api/admin/billing/invoices` with the processor's receipt links when present. A pending checkout can be resumed
   ("Continuar el pago").
 - Compatibility: when the billing API is absent (404) or the provider is unconfigured
   (`503 BILLING_UNAVAILABLE`), or the server reports `upgrade_available: false`, the page shows
@@ -87,13 +123,17 @@ fix), including the quality waves of 2026-11-23 (`919d3dc`, `0b2a428`, `cfc1932`
   a "Movimientos" drawer per business (`GET /api/super/billing/events?business_id=`). 404 and
   503 end in notices, never in a broken section.
 - Help center: new owner guide "Pagar con tarjeta, cambiar o cancelar tu plan" (how the payment
-  works, what the card statement shows, the FEL invoice, change/cancel, failed payments);
+  works, what the card statement shows, that no FEL invoice is issued for now, change/cancel, failed payments);
   "Empezar la prueba gratis" and "Encontrar los ajustes" updated.
 - Tests: merchant unit tests for the billing model and demo fixtures, the `plan-browser`
   Playwright smoke in the merchant browser gate, super-console model tests and
   `tests/e2e/plan.spec.js` (fresh trial sees the fallback copy while billing is unconfigured).
   The service-worker precache must be regenerated (`npm run sw:build`) for the new lazy module
   and the super-console files.
+- Legal pages (draft pending legal review, vigente desde 2026-11-26): `/terminos` gains "Para
+  negocios afiliados", "Prueba gratis", "Planes, precios y facturación", "Cambios de plan y
+  cancelación", "Reembolsos" and "Suspensión por falta de pago"; `/privacidad` describes the
+  billing data shared with the payment processor and the 30-day retention after a trial ends.
 
 ### Owner dashboard: the vanilla `/administracion/` is retired (2026-11-25)
 - The owner dashboard is the merchant app at `/negocio/`. `/administracion/`, `/administracion`,

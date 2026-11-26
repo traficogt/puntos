@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import express from "express";
 import {
   DEFAULT_BILLING_CATALOG,
+  IVA_RATE,
   listPlans,
+  PLAN_PRICING_GTQ,
   PLAN_PRICING_USD,
   resolveBillingCatalog,
 } from "../../src/utils/plan.js";
@@ -11,19 +13,38 @@ import { BillingCatalogSchema } from "../../src/app/services/billing-catalog-ser
 import { createPublicPlanRoutes } from "../../src/app/routes/public-plan-routes.js";
 import { ownerTrialPayload } from "../../src/app/services/trial-entitlement.js";
 
-test("the code default publishes USD 39/79/129 per branch per month and listPlans carries it beside the provisional GTQ figures", () => {
+test("the code default publishes Q300/630/1,030 and USD 39/79/129 per branch per month, IVA included, and listPlans reads both from the catalog", () => {
   assert.deepEqual(PLAN_PRICING_USD, { EMPRENDEDOR: 39, NEGOCIO: 79, EMPRESA: 129 });
+  assert.deepEqual(PLAN_PRICING_GTQ, { EMPRENDEDOR: 300, NEGOCIO: 630, EMPRESA: 1030 });
+  assert.equal(IVA_RATE, 0.12);
+  assert.equal(DEFAULT_BILLING_CATALOG.iva_included, true);
+  assert.deepEqual(DEFAULT_BILLING_CATALOG.gtq, PLAN_PRICING_GTQ);
   const plans = listPlans();
   assert.deepEqual(
-    plans.map((p) => [p.plan, p.pricing_usd]),
+    plans.map((p) => [p.plan, p.pricing_usd, p.pricing_gtq, p.iva_included]),
     [
-      ["EMPRENDEDOR", { currency: "USD", per: "branch_month", monthly: 39 }],
-      ["NEGOCIO", { currency: "USD", per: "branch_month", monthly: 79 }],
-      ["EMPRESA", { currency: "USD", per: "branch_month", monthly: 129 }],
+      [
+        "EMPRENDEDOR",
+        { currency: "USD", per: "branch_month", monthly: 39, gtq_monthly: 300 },
+        { currency: "GTQ", per: "branch_month", monthly: 300 },
+        true,
+      ],
+      [
+        "NEGOCIO",
+        { currency: "USD", per: "branch_month", monthly: 79, gtq_monthly: 630 },
+        { currency: "GTQ", per: "branch_month", monthly: 630 },
+        true,
+      ],
+      [
+        "EMPRESA",
+        { currency: "USD", per: "branch_month", monthly: 129, gtq_monthly: 1030 },
+        { currency: "GTQ", per: "branch_month", monthly: 1030 },
+        true,
+      ],
     ],
   );
-  // The super console still reads the provisional quetzal figures; nothing public does.
-  assert.equal(plans[0].pricing_gtq.monthly, 149);
+  // The provisional 2026-11-25 figures (Q149/399/999, yearly amounts) are retired everywhere.
+  assert.doesNotMatch(JSON.stringify(plans), /\b(149|399|999|1490|3990|9990)\b|yearly/);
   assert.equal(plans[1].messaging_gtq.included_messages, 1000);
 });
 
@@ -41,14 +62,25 @@ test("the platform billing catalog overrides amounts, falls back on invalid valu
   assert.equal(custom.published_at, "2026-12-01");
   assert.deepEqual(custom.usd, { EMPRENDEDOR: 49, NEGOCIO: 79, EMPRESA: 129 });
   assert.deepEqual(custom.gtq, { EMPRENDEDOR: 300, NEGOCIO: 600, EMPRESA: 999 });
+  assert.equal(custom.iva_included, true);
   assert.deepEqual(custom.gtq_reference, { rate: 7.68, as_of: "2026-11-25" });
   assert.deepEqual(custom.providers.recurrente.price_ids.GTQ, { EMPRENDEDOR: "price_a" });
   assert.deepEqual(custom.providers.stripe.price_ids.USD, {});
   assert.equal("unknown" in custom, false);
+  assert.deepEqual(
+    resolveBillingCatalog({ gtq: { EMPRENDEDOR: 350 } }).gtq,
+    { EMPRENDEDOR: 350, NEGOCIO: 630, EMPRESA: 1030 },
+    "a partial GTQ override keeps the list price for the other plans",
+  );
+  assert.deepEqual(
+    resolveBillingCatalog({ gtq: null }).gtq,
+    PLAN_PRICING_GTQ,
+    "a cleared GTQ block restores the list prices, never null",
+  );
   assert.equal(
-    resolveBillingCatalog({ gtq: { EMPRENDEDOR: 300 } }).gtq,
-    null,
-    "partial GTQ is not published",
+    resolveBillingCatalog({ iva_included: false }).iva_included,
+    true,
+    "IVA inclusion is not a switch",
   );
   assert.equal(
     resolveBillingCatalog({ gtq_reference: { rate: 7.7 } }).gtq_reference,
@@ -120,12 +152,19 @@ test("GET /api/public/plans serves the published catalog as JSON with a short pu
   const body = await response.json();
   assert.equal(body.ok, true);
   assert.equal(body.pricing_status, "published");
+  assert.deepEqual(body.tax, { iva_included: true, rate: 0.12 });
   assert.deepEqual(
-    body.plans.map((p) => [p.id, p.name, p.pricing.monthly, p.pricing.reference_gtq_monthly]),
+    body.plans.map((p) => [
+      p.id,
+      p.name,
+      p.pricing.gtq_monthly,
+      p.pricing.monthly,
+      p.pricing.reference_gtq_monthly,
+    ]),
     [
-      ["EMPRENDEDOR", "Conecta", 39, 300],
-      ["NEGOCIO", "Impulsa", 79, 608],
-      ["EMPRESA", "Expande", 129, 993],
+      ["EMPRENDEDOR", "Conecta", 300, 39, 300],
+      ["NEGOCIO", "Impulsa", 630, 79, 608],
+      ["EMPRESA", "Expande", 1030, 129, 993],
     ],
   );
   assert.deepEqual(body.trial, {

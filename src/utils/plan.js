@@ -14,43 +14,38 @@ const PLAN_LIMITS = {
 
 /**
  * Published list prices: USD per branch per month (owner decision, 2026-11-25; design of
- * record docs/product/2026-11-25-self-serve-trial.md). The platform setting
- * `billing_catalog` may override the amounts; see resolveBillingCatalog.
+ * record docs/product/2026-11-25-self-serve-trial.md). Charged to businesses outside
+ * Guatemala. The platform setting `billing_catalog` may override the amounts; see
+ * resolveBillingCatalog.
  * @type {Readonly<Record<PlanName, number>>}
  */
 export const PLAN_PRICING_USD = Object.freeze({ EMPRENDEDOR: 39, NEGOCIO: 79, EMPRESA: 129 });
+/**
+ * Published list prices: quetzales per branch per month, charged to Guatemalan businesses
+ * through Recurrente (owner decision, 2026-11-26: USD × 8 rounded to a round number, not
+ * spot FX). Fixed list amounts, never converted at charge time. The platform setting
+ * `billing_catalog.gtq` may override them from the super console.
+ * @type {Readonly<Record<PlanName, number>>}
+ */
+export const PLAN_PRICING_GTQ = Object.freeze({ EMPRENDEDOR: 300, NEGOCIO: 630, EMPRESA: 1030 });
 /** Billing unit of every published price. */
 export const PRICING_UNIT = "branch_month";
-
 /**
- * Provisional GTQ figures kept only for the super console until the owner decides the
- * quetzal list amounts (design section 12). Never published on /precios.
- * @type {Record<PlanName, { monthly: number, yearly: number, notes: string }>}
+ * Every published amount, USD and GTQ, already includes Guatemala's IVA (owner decision,
+ * 2026-11-26). The number on /precios is the number on the card statement; Recurrente's
+ * No FEL invoice is issued for now (owner decision 2026-11-26); IVA-inclusive is a pricing statement.
  */
-const PROVISIONAL_PRICING_GTQ = {
-  EMPRENDEDOR: {
-    monthly: 149,
-    yearly: 1490,
-    notes: "Ideal para cafeterias pequenas y negocios en etapa inicial.",
-  },
-  NEGOCIO: {
-    monthly: 399,
-    yearly: 3990,
-    notes: "Para negocios con varias sedes, equipo y automatizaciones.",
-  },
-  EMPRESA: {
-    monthly: 999,
-    yearly: 9990,
-    notes: "Para cadenas y operaciones multi-sucursal con integraciones avanzadas.",
-  },
-};
+export const IVA_RATE = 0.12;
 
 /**
  * The `platform_settings.billing_catalog` document after defaults are applied.
+ * `iva_included` is always true (owner decision above); it travels with the catalog so
+ * every surface reads the same statement instead of hardcoding it.
  * @typedef {{
  *   published_at: string,
  *   usd: Record<PlanName, number>,
- *   gtq: Record<PlanName, number> | null,
+ *   gtq: Record<PlanName, number>,
+ *   iva_included: true,
  *   gtq_reference: { rate: number, as_of: string } | null,
  *   providers: {
  *     recurrente: { price_ids: { GTQ: Record<string, string>, USD: Record<string, string> } },
@@ -61,9 +56,10 @@ const PROVISIONAL_PRICING_GTQ = {
 
 /** @type {Readonly<BillingCatalog>} */
 export const DEFAULT_BILLING_CATALOG = Object.freeze({
-  published_at: "2026-11-25",
+  published_at: "2026-11-26",
   usd: { ...PLAN_PRICING_USD },
-  gtq: null,
+  gtq: { ...PLAN_PRICING_GTQ },
+  iva_included: true,
   gtq_reference: null,
   providers: {
     recurrente: { price_ids: { GTQ: {}, USD: {} } },
@@ -116,8 +112,9 @@ function priceIdMap(raw) {
 
 /**
  * Applies defaults to a stored `billing_catalog` document. Unknown keys are dropped,
- * invalid amounts fall back to the code defaults, and the GTQ reference is kept only
- * when both a positive rate and a dated `as_of` are present (never spot FX).
+ * invalid or missing amounts (USD and GTQ alike) fall back to the code list prices, IVA
+ * is always marked as included, and the GTQ reference is kept only when both a positive
+ * rate and a dated `as_of` are present (never spot FX).
  * @param {unknown} [raw] the platform setting as stored (or a super-console submission)
  * @returns {BillingCatalog}
  */
@@ -137,7 +134,8 @@ export function resolveBillingCatalog(raw = {}) {
         ? input.published_at
         : DEFAULT_BILLING_CATALOG.published_at,
     usd: /** @type {Record<PlanName, number>} */ (planAmounts(input.usd, PLAN_PRICING_USD)),
-    gtq: planAmounts(input.gtq, null),
+    gtq: /** @type {Record<PlanName, number>} */ (planAmounts(input.gtq, PLAN_PRICING_GTQ)),
+    iva_included: true,
     gtq_reference:
       Number.isFinite(rate) && rate > 0 && /^\d{4}-\d{2}-\d{2}$/.test(asOf)
         ? { rate: Math.round(rate * 10000) / 10000, as_of: asOf }
@@ -339,8 +337,10 @@ export function suggestedPlanForFeature(feature) {
 
 /**
  * Every plan with its limits, features (overrides applied) and pricing, cheapest
- * first. `pricing_usd` is the published price (catalog defaults unless the platform
- * setting overrides it); `pricing_gtq` stays the provisional super-console figure.
+ * first. Both price blocks come from the catalog (code list prices unless the platform
+ * setting overrides them): `pricing_usd` for businesses outside Guatemala, `pricing_gtq`
+ * for Guatemalan businesses; `pricing_usd.gtq_monthly` repeats the quetzal amount for
+ * callers that read one block. Amounts include IVA (`iva_included`).
  * `plan` is widened to `string` because callers compare it with user-supplied names.
  * @param {unknown} [overrides] see mergePlanFeatures
  * @param {BillingCatalog} [catalog] see resolveBillingCatalog
@@ -355,9 +355,10 @@ export function listPlans(overrides = {}, catalog = DEFAULT_BILLING_CATALOG) {
       currency: "USD",
       per: PRICING_UNIT,
       monthly: catalog.usd[plan],
-      ...(catalog.gtq ? { gtq_monthly: catalog.gtq[plan] } : {}),
+      gtq_monthly: catalog.gtq[plan],
     },
-    pricing_gtq: PROVISIONAL_PRICING_GTQ[plan],
+    pricing_gtq: { currency: "GTQ", per: PRICING_UNIT, monthly: catalog.gtq[plan] },
+    iva_included: catalog.iva_included,
     messaging_gtq: PLAN_MESSAGING_GTQ[plan],
   }));
 }

@@ -57,8 +57,18 @@ export const ENDING_SOON_DAYS = 4;
 export const TRIAL_LOCK_CODES: ReadonlySet<string> = new Set(['TRIAL_LOCKED', 'TRIAL_EXPIRED']);
 export const TRIAL_LOCK_MESSAGE = 'Tu prueba terminó. Elige un plan para seguir operando.';
 export const PLAN_DISPLAY_NAMES: Readonly<Record<string, string>> = { EMPRENDEDOR: 'Conecta', NEGOCIO: 'Impulsa', EMPRESA: 'Expande' };
-/** Published list prices (design §1): per branch, per month, USD. */
+/** Published list prices (design §1, §6): per branch, per month, IVA included. USD for businesses outside Guatemala. */
 export const PLAN_PRICES_USD: Readonly<Record<string, number>> = { EMPRENDEDOR: 39, NEGOCIO: 79, EMPRESA: 129 };
+/** Quetzal list prices Guatemalan businesses pay (owner decision 2026-11-26; fixed amounts, not FX). */
+export const PLAN_PRICES_GTQ: Readonly<Record<string, number>> = { EMPRENDEDOR: 300, NEGOCIO: 630, EMPRESA: 1030 };
+
+/** "Q300 al mes por sucursal (USD 39 fuera de Guatemala)" for the request form and its note. */
+export function planPriceLine(code: string): string {
+  const gtq = PLAN_PRICES_GTQ[code];
+  const usd = PLAN_PRICES_USD[code];
+  if (!gtq || !usd) return '';
+  return `Q${gtq.toLocaleString('en-US')} al mes por sucursal (USD ${usd} fuera de Guatemala)`;
+}
 export const PLAN_ORDER: readonly string[] = ['EMPRENDEDOR', 'NEGOCIO', 'EMPRESA'];
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -177,7 +187,7 @@ export function formatTrialDate(value: string | null | undefined, locale = 'es-G
 export function upgradePlanOptions(): Array<{ value: string; label: string }> {
   return PLAN_ORDER.map((code) => ({
     value: code,
-    label: `${PLAN_DISPLAY_NAMES[code]} · USD ${PLAN_PRICES_USD[code]} por sucursal al mes`,
+    label: `${PLAN_DISPLAY_NAMES[code]} · ${planPriceLine(code)}`,
   }));
 }
 
@@ -195,10 +205,10 @@ export function suggestedUpgradePlan(currentPlan: string | null | undefined): st
 export function upgradeRequestPayload(input: UpgradeRequestInput): UpgradeRequestPayload {
   const code = String(input.plan || '').toUpperCase();
   const name = planDisplayName(code) ?? code;
-  const price = PLAN_PRICES_USD[code];
+  const price = planPriceLine(code);
   const current = planDisplayName(input.currentPlan ?? null);
   const lines = [
-    `Plan solicitado: ${name} (${code})${price ? ` · USD ${price} por sucursal al mes` : ''}.`,
+    `Plan solicitado: ${name} (${code})${price ? ` · ${price}` : ''}.`,
     current ? `Plan actual: ${current}.` : '',
     String(input.note || '').trim(),
   ].filter(Boolean);

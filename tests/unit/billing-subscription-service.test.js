@@ -2,8 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import {
+  businessPaysInGtq,
   catalogReadiness,
   createSubscriptionService,
+  defaultCurrency,
   prorationMode,
   quantityForBranches,
   PAST_DUE_GRACE_DAYS,
@@ -266,6 +268,146 @@ test("checkout: reuse while pending, quantity limit, already active and the crea
   await assert.rejects(
     many.service.startCheckout({ businessId: BIZ, plan: "EMPRESA" }),
     (e) => err(e).statusCode === 409 && err(e).code === "BILLING_QUANTITY_LIMIT",
+  );
+});
+
+test("currency rule: Guatemalan businesses pay GTQ when it is ready, the rest USD, an explicit choice wins", async () => {
+  const gtq = { EMPRENDEDOR: 300, NEGOCIO: 630, EMPRESA: 1030 };
+  const ready = fixtureCatalog({ gtq });
+  // Region defaults to Guatemala when the business never chose one.
+  assert.equal(
+    businessPaysInGtq({ billing_currency: null, program_json: {}, trial_phone: null }),
+    true,
+  );
+  assert.equal(
+    businessPaysInGtq({
+      billing_currency: null,
+      program_json: { region: { country: "SV", currency: "USD", timezone: "America/El_Salvador" } },
+      trial_phone: null,
+    }),
+    false,
+  );
+  assert.equal(
+    businessPaysInGtq({
+      billing_currency: null,
+      program_json: { region: { country: "SV", currency: "USD", timezone: "America/El_Salvador" } },
+      trial_phone: "50255512345",
+    }),
+    true,
+    "a +502 verified phone marks the business as Guatemalan",
+  );
+  assert.equal(
+    businessPaysInGtq({
+      billing_currency: "GTQ",
+      program_json: { region: { country: "MX", currency: "MXN", timezone: "America/Mexico_City" } },
+      trial_phone: "5215512345678",
+    }),
+    true,
+    "a business already paying in quetzales keeps GTQ",
+  );
+  assert.equal(
+    businessPaysInGtq({
+      billing_currency: "USD",
+      program_json: { region: { country: "MX", currency: "MXN", timezone: "America/Mexico_City" } },
+      trial_phone: "5215512345678",
+    }),
+    false,
+  );
+  assert.equal(
+    defaultCurrency({
+      business: { billing_currency: null, program_json: {}, trial_phone: null },
+      catalog: ready,
+    }),
+    "GTQ",
+  );
+  assert.equal(
+    defaultCurrency({
+      business: { billing_currency: null, program_json: {}, trial_phone: null },
+      catalog: fixtureCatalog(),
+    }),
+    "USD",
+    "GTQ amounts without Recurrente GTQ price ids are not ready",
+  );
+  assert.equal(
+    defaultCurrency({
+      business: { billing_currency: null, program_json: {}, trial_phone: null },
+      catalog: fixtureCatalog(),
+      active: { currency: "GTQ" },
+    }),
+    "GTQ",
+    "an active subscription keeps its currency",
+  );
+
+  // Guatemalan business, GTQ ready: GTQ by default, Q630 for Impulsa, the plan page agrees.
+  const gt = harness({ catalog: ready, business: { trial_phone: "50255512345" } });
+  const gtOverview = await gt.service.overview(BIZ);
+  assert.equal(gtOverview.catalog.currency, "GTQ");
+  assert.equal(gtOverview.billing.currency, "GTQ");
+  assert.equal(gtOverview.catalog.iva_included, true);
+  assert.deepEqual(gtOverview.catalog.currencies, ["USD", "GTQ"]);
+  assert.deepEqual(
+    gtOverview.catalog.plans.map((p) => [p.id, p.unit_amount_minor]),
+    [
+      ["EMPRENDEDOR", 30000],
+      ["NEGOCIO", 63000],
+      ["EMPRESA", 103000],
+    ],
+  );
+  assert.equal(gtOverview.billing.unit_amount_minor, 30000, "the trial plan quoted in GTQ");
+  const gtCheckout = await gt.service.startCheckout({ businessId: BIZ, plan: "NEGOCIO" });
+  assert.equal(gtCheckout.checkout.currency, "GTQ");
+  assert.equal(gtCheckout.checkout.unit_amount_minor, 63000);
+  const gtCall = gt.provider.calls.find((c) => c.method === "createCheckout").args[0];
+  assert.equal(gtCall.currency, "GTQ");
+  assert.equal(gtCall.metadata.currency, "GTQ");
+
+  // Explicit USD from a Guatemalan business wins.
+  const explicit = harness({ catalog: ready });
+  const usdCheckout = await explicit.service.startCheckout({
+    businessId: BIZ,
+    plan: "NEGOCIO",
+    currency: "USD",
+  });
+  assert.equal(usdCheckout.checkout.currency, "USD");
+  assert.equal(usdCheckout.checkout.unit_amount_minor, 7900);
+
+  // Business outside Guatemala: USD by default even though GTQ is ready; explicit GTQ still allowed.
+  const abroad = harness({
+    catalog: ready,
+    business: {
+      trial_phone: "50371234567",
+      program_json: { region: { country: "SV", currency: "USD", timezone: "America/El_Salvador" } },
+    },
+  });
+  const abroadOverview = await abroad.service.overview(BIZ);
+  assert.equal(abroadOverview.catalog.currency, "USD");
+  assert.equal(abroadOverview.catalog.plans[1].unit_amount_minor, 7900);
+  const abroadCheckout = await abroad.service.startCheckout({ businessId: BIZ, plan: "NEGOCIO" });
+  assert.equal(abroadCheckout.checkout.currency, "USD");
+  const abroadGtq = harness({
+    catalog: ready,
+    business: {
+      program_json: { region: { country: "SV", currency: "USD", timezone: "America/El_Salvador" } },
+    },
+  });
+  const chosen = await abroadGtq.service.startCheckout({
+    businessId: BIZ,
+    plan: "NEGOCIO",
+    currency: "GTQ",
+  });
+  assert.equal(chosen.checkout.currency, "GTQ");
+
+  // Guatemalan business while GTQ is not ready: USD silently; the 400 only on an explicit request.
+  const notReady = harness({ business: { trial_phone: "50255512345" } });
+  const fallback = await notReady.service.overview(BIZ);
+  assert.equal(fallback.catalog.currency, "USD");
+  assert.deepEqual(fallback.catalog.currencies, ["USD"]);
+  const usdByFallback = await notReady.service.startCheckout({ businessId: BIZ, plan: "NEGOCIO" });
+  assert.equal(usdByFallback.checkout.currency, "USD");
+  const another = harness({ business: { trial_phone: "50255512345" } });
+  await assert.rejects(
+    another.service.startCheckout({ businessId: BIZ, plan: "NEGOCIO", currency: "GTQ" }),
+    (e) => err(e).statusCode === 400 && err(e).code === "BILLING_CURRENCY_UNAVAILABLE",
   );
 });
 
@@ -715,39 +857,57 @@ test("super cancel ends a provider or manual subscription now and locks with the
   );
 });
 
-test("catalog sync creates the USD products (and GTQ when amounts exist), keeps existing ids unless forced", async () => {
+test("catalog sync creates the six products (USD and GTQ for every plan) from the code defaults, keeps existing ids unless forced", async () => {
   const empty = harness({ catalog: resolveBillingCatalog({}) });
   const first = await empty.service.syncCatalog();
   assert.deepEqual(
     first.created.map((c) => `${c.currency}:${c.plan}`),
-    ["USD:EMPRENDEDOR", "USD:NEGOCIO", "USD:EMPRESA"],
+    [
+      "USD:EMPRENDEDOR",
+      "USD:NEGOCIO",
+      "USD:EMPRESA",
+      "GTQ:EMPRENDEDOR",
+      "GTQ:NEGOCIO",
+      "GTQ:EMPRESA",
+    ],
   );
   assert.equal(first.kept.length, 0);
   assert.equal(first.live_mode, false);
   assert.equal(empty.getCatalog().providers.recurrente.price_ids.USD.NEGOCIO, "price_negocio_usd");
+  assert.equal(empty.getCatalog().providers.recurrente.price_ids.GTQ.NEGOCIO, "price_negocio_gtq");
   const products = empty.provider.calls
     .filter((c) => c.method === "createProduct")
     .map((c) => c.args[0]);
   assert.equal(products[1].unitAmountMinor, 7900);
   assert.equal(products[1].billingInfoRequired, false);
   assert.match(products[1].name, /Impulsa \(USD\)/);
+  assert.match(products[1].description, /USD 79 por sucursal al mes, IVA incluido/);
+  const gtqProduct = products.find((p) => p.currency === "GTQ");
+  assert.equal(
+    gtqProduct.billingInfoRequired,
+    false,
+    "the NIT is never collected: PF does not issue FEL",
+  );
+  assert.equal(gtqProduct.unitAmountMinor, 30000, "Q300 list price from the code default");
+  assert.deepEqual(
+    products.filter((p) => p.currency === "GTQ").map((p) => p.unitAmountMinor),
+    [30000, 63000, 103000],
+  );
+  assert.deepEqual(catalogReadiness(empty.getCatalog()), { usd: true, gtq: true });
 
   const second = await empty.service.syncCatalog();
   assert.equal(second.created.length, 0);
-  assert.equal(second.kept.length, 3);
+  assert.equal(second.kept.length, 6);
 
   const withGtq = harness({
-    catalog: resolveBillingCatalog({ gtq: { EMPRENDEDOR: 300, NEGOCIO: 600, EMPRESA: 999 } }),
+    catalog: resolveBillingCatalog({ gtq: { EMPRENDEDOR: 350, NEGOCIO: 600, EMPRESA: 999 } }),
   });
   const six = await withGtq.service.syncCatalog();
   assert.equal(six.created.length, 6);
-  assert.equal(six.created.filter((c) => c.currency === "GTQ").length, 3);
-  const gtqProduct = withGtq.provider.calls
+  const overridden = withGtq.provider.calls
     .filter((c) => c.method === "createProduct")
     .find((c) => c.args[0].currency === "GTQ").args[0];
-  assert.equal(gtqProduct.billingInfoRequired, true, "NIT is collected for FEL on GTQ products");
-  assert.equal(gtqProduct.unitAmountMinor, 30000);
-  assert.deepEqual(catalogReadiness(withGtq.getCatalog()), { usd: true, gtq: true });
+  assert.equal(overridden.unitAmountMinor, 35000, "the platform setting overrides the default");
 
   const forced = await withGtq.service.syncCatalog({ force: true });
   assert.equal(forced.created.length, 6);

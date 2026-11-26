@@ -125,6 +125,7 @@ test("day 10 and day 13 reminders go out once per business and carry the owner's
     genuine_redemptions: 2,
   });
   assert.equal(state.emails[0].context.priceUsd, 39);
+  assert.equal(state.emails[0].context.priceGtq, 300);
   assert.equal(state.emails[0].context.planName, "Conecta");
   assert.equal(state.emails[0].context.joinUrl, "https://app.puntosfieles.com/registro/negocio-a");
   assert.deepEqual(
@@ -252,6 +253,7 @@ test("every trial email is Spanish, branded and carries the dates in the busines
     timezone: "America/Guatemala",
     planName: "Conecta",
     priceUsd: 39,
+    priceGtq: 300,
     progress: { active_customers: 12, genuine_awards: 1, genuine_redemptions: 0 },
   };
   const welcome = renderTrialEmail("welcome", context);
@@ -262,8 +264,16 @@ test("every trial email is Spanish, branded and carries the dates in the busines
   const day10 = renderTrialEmail("day10", context);
   assert.equal(day10.subject, "Te quedan 4 días de prueba");
   assert.match(day10.text, /12 clientes registrados, 1 compra con puntos y 0 canjes/);
-  assert.match(day10.text, /USD 39 por sucursal al mes/);
+  assert.match(
+    day10.text,
+    /Conecta: Q300 al mes por sucursal, IVA incluido \(USD 39 fuera de Guatemala\)/,
+  );
   assert.match(day10.html, /Elegir plan/);
+  assert.match(
+    renderTrialEmail("day10", { ...context, priceGtq: undefined }).text,
+    /Conecta: USD 39 al mes por sucursal, IVA incluido/,
+    "an older context without the quetzal amount still renders",
+  );
   assert.equal(renderTrialEmail("day13", context).subject, "Mañana termina tu prueba");
   const locked = renderTrialEmail("locked", context);
   assert.equal(locked.subject, "Tu prueba terminó");

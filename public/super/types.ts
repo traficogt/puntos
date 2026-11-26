@@ -10,8 +10,9 @@ export interface SuperPlanLimits {
 }
 
 export interface SuperPlanPricing {
+  currency?: string;
+  per?: string;
   monthly?: number;
-  yearly?: number;
 }
 
 export interface SuperPlanMessaging {

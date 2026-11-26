@@ -2,7 +2,7 @@
 title: Empezar la prueba gratis de 14 días y elegir plan
 description: Crea tu negocio desde la web sin tarjeta, usa Conecta durante 14 días y elige
   un plan antes de que el panel pase a solo lectura.
-reviewed: '2026-11-25'
+reviewed: '2026-11-26'
 kind: task
 sources:
 - public/prueba.html
@@ -22,7 +22,7 @@ Crea tu negocio desde la web sin tarjeta, usa Conecta durante 14 días y elige u
 
 ## Antes de empezar
 
-Ten a mano un correo que todavía no tenga cuenta en PuntosFieles, una contraseña nueva de 8 a 128 caracteres y un teléfono móvil que reciba SMS: cada teléfono y cada correo pueden iniciar una sola prueba. Por ahora la verificación acepta números de Guatemala (+502). La prueba usa el plan **Conecta** (hasta 300 clientes activos, 1 sucursal y 5 recompensas); si quieres Impulsa o Expande, la misma prueba sirve y eliges el plan al terminar. Revisa antes [los planes y precios](/precios): USD 39, 79 y 129 por sucursal al mes, sin cobro desde la página.
+Ten a mano un correo que todavía no tenga cuenta en PuntosFieles, una contraseña nueva de 8 a 128 caracteres y un teléfono móvil que reciba SMS: cada teléfono y cada correo pueden iniciar una sola prueba. Por ahora la verificación acepta números de Guatemala (+502). La prueba usa el plan **Conecta** (hasta 300 clientes activos, 1 sucursal y 5 recompensas); si quieres Impulsa o Expande, la misma prueba sirve y eliges el plan al terminar. Revisa antes [los planes y precios](/precios): Q300, Q630 y Q1,030 al mes por sucursal con IVA incluido para negocios en Guatemala (USD 39, 79 y 129 fuera de Guatemala), sin cobro desde la página.
 
 ## Paso a paso
 

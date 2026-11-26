@@ -201,7 +201,7 @@ export interface AdminBillingCheckoutStatusResponse {
   subscription: AdminBillingSubscription | null;
 }
 
-/** GET /api/admin/billing/invoices: payment outcomes with the FEL invoice link. */
+/** GET /api/admin/billing/invoices: payment outcomes with the processor's receipt link when present. */
 export interface AdminBillingInvoicesResponse {
   ok: true;
   invoices: Array<{

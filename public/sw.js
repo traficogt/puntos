@@ -1,5 +1,5 @@
 // BEGIN GENERATED (npm run sw:build)
-const CACHE = "pf-4b610388dd52";
+const CACHE = "pf-2fb5482ad635";
 const CORE_ASSETS = [
   "/",
   "/admin",

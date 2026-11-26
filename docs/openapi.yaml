@@ -1542,7 +1542,7 @@ paths:
       parameters: undefined
   /api/v1/admin/billing/invoices:
     get:
-      summary: "Payment outcomes of the subscription with the Recurrente FEL invoice links"
+      summary: "Payment outcomes of the subscription with the processor receipt links when present"
       responses:
         200:
           description: "Payments, newest first"
@@ -8609,12 +8609,29 @@ components:
           type: string
           enum:
             - USD
+        local_currency:
+          type: string
+          enum:
+            - GTQ
         pricing_unit:
           type: string
           enum:
             - branch_month
         published_at:
           type: string
+        tax:
+          type: object
+          properties:
+            iva_included:
+              type: boolean
+              enum:
+                - true
+            rate:
+              type: number
+          required:
+            - iva_included
+            - rate
+          additionalProperties: false
         reference_gtq:
           nullable: true
           type: object
@@ -8671,6 +8688,8 @@ components:
                       - branch_month
                   monthly:
                     type: number
+                  gtq_monthly:
+                    type: number
                   reference_gtq_monthly:
                     nullable: true
                     type: number
@@ -8678,6 +8697,7 @@ components:
                   - currency
                   - per
                   - monthly
+                  - gtq_monthly
                   - reference_gtq_monthly
                 additionalProperties: false
               limits:
@@ -8730,8 +8750,10 @@ components:
         - ok
         - pricing_status
         - comparison_currency
+        - local_currency
         - pricing_unit
         - published_at
+        - tax
         - reference_gtq
         - trial
         - plans
@@ -8971,6 +8993,10 @@ components:
             - NEGOCIO
             - EMPRESA
           additionalProperties: false
+        iva_included:
+          type: boolean
+          enum:
+            - true
         gtq_reference:
           nullable: true
           type: object
@@ -9273,6 +9299,8 @@ components:
               type: array
               items:
                 type: string
+            iva_included:
+              type: boolean
             plans:
               type: array
               items:
@@ -9297,6 +9325,7 @@ components:
           required:
             - currency
             - currencies
+            - iva_included
             - plans
           additionalProperties: false
         branches:

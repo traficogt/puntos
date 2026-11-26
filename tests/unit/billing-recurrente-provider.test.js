@@ -392,7 +392,7 @@ test("createProduct builds the recurring monthly price and testConnection reads 
   assert.deepEqual(product, { productId: "prod_negocio_usd", priceId: "price_negocio_usd" });
   assert.equal(calls[0].url, `${RECURRENTE_API_BASE}/products`);
   assert.equal(calls[0].body.product.tax_category, "service");
-  assert.equal(calls[0].body.product.billing_info_requirement, "required");
+  assert.equal(calls[0].body.product.billing_info_requirement, "optional");
   assert.deepEqual(calls[0].body.product.prices_attributes, [
     {
       amount_in_cents: 60000,

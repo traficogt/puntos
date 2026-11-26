@@ -28,6 +28,7 @@ export const TRIAL_EMAIL_KINDS = Object.freeze(["welcome", "day10", "day13", "lo
  *   timezone?: string,
  *   planName: string,
  *   priceUsd: number,
+ *   priceGtq?: number,
  *   progress?: { active_customers: number, genuine_awards: number, genuine_redemptions: number } | null
  * }} TrialEmailContext
  */
@@ -66,7 +67,10 @@ export function renderTrialEmail(kind, ctx) {
   const tz = ctx.timezone;
   const endDate = formatTrialDate(ctx.endsAt, tz);
   const purgeDate = formatTrialDate(ctx.purgeAfter ?? null, tz);
-  const price = `${ctx.planName}: USD ${ctx.priceUsd} por sucursal al mes`;
+  // Trials are Guatemalan (+502 phones): the quetzal list price leads, USD is the aside.
+  const price = ctx.priceGtq
+    ? `${ctx.planName}: Q${ctx.priceGtq.toLocaleString("en-US")} al mes por sucursal, IVA incluido (USD ${ctx.priceUsd} fuera de Guatemala)`
+    : `${ctx.planName}: USD ${ctx.priceUsd} al mes por sucursal, IVA incluido`;
   /** @type {{ subject: string, title: string, eyebrow: string, lines: string[], cta: { label: string, url: string } }} */
   let email;
   switch (kind) {

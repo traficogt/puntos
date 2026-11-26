@@ -17,8 +17,17 @@ they were read from, and anything not read from a primary source is marked "not 
 | Retention | Data kept 30 days after the lock, then the existing deletion/retention rules | There is no existing business-deletion rule (§3.6); a purge job must be built and is gated behind a dry run |
 | Billing | Adapter interface; Recurrente first (GTQ cards, recurring), Stripe later for USD customers; nothing wired today | `src/app/services/billing/` with a provider contract; Recurrente mapping verified against its docs; Stripe sketched |
 
-Not decided here (see §12): the GTQ list amounts, whether published prices are IVA-inclusive,
-Recurrente account/KYC status, refund policy, Stripe availability for a Guatemalan entity.
+Decisions added on 2026-11-26 (owner):
+
+| Topic | Decision (owner, 2026-11-26) | Design consequence |
+| --- | --- | --- |
+| GTQ list prices | Conecta **Q300**, Impulsa **Q630**, Expande **Q1,030** per branch per month (USD × 8 rounded to a round number; USD stays 39 / 79 / 129) | `PLAN_PRICING_GTQ` in `src/utils/plan.js` is the code default of `billing_catalog.gtq`; the super console may still override it; `PROVISIONAL_PRICING_GTQ` (149 / 399 / 999) is retired and `pricing_gtq` comes from the catalog |
+| Currency per customer | Guatemalan businesses pay GTQ through Recurrente; businesses outside Guatemala pay USD (Recurrente today, Stripe later) | `businessPaysInGtq` / `defaultCurrency` in `subscription-service.js` (§6); `GET /api/admin/billing` `catalog.currency` follows the rule; the catalog sync creates six products |
+| IVA | The published amounts, USD and GTQ, include IVA (12%) | `iva_included: true` on the catalog and the public payload (`tax`); every "sin impuestos / se confirman por escrito" copy is replaced by "Precios con IVA incluido. El comprobante fiscal (FEL) lo emite Recurrente por cada cobro." |
+| `/precios` presentation | Lead with the quetzal price for the Guatemalan audience and keep USD alongside ("Q300 al mes por sucursal", "USD 39 fuera de Guatemala") | `pricing.monthly` stays USD for compatibility, `pricing.gtq_monthly` is added; the dated FX reference is no longer rendered (a fixed list price needs no conversion) |
+
+Still open (see §12): Recurrente account/KYC status, refund policy, Stripe availability for a
+Guatemalan entity, how USD charges to non-GT customers are documented for SAT.
 
 ## 2. Current state (verified)
 
@@ -51,8 +60,9 @@ Recurrente account/KYC status, refund policy, Stripe availability for a Guatemal
 - `src/utils/plan.js`: `PLAN_ORDER = ["EMPRENDEDOR","NEGOCIO","EMPRESA"]`; `PLAN_LIMITS` active
   customers 300 / 2000 / 999999 (soft), branches 1 / 3 / 9999, rewards 5 / 9999 / 9999;
   `DEFAULT_PLAN_FEATURES`; `PLAN_PRICING_GTQ` 149 / 399 / 999 monthly (provisional, consumed
-  only by `public/super/plans.js` and pinned as withheld by `tests/unit/public-plans.test.js`);
-  `PLAN_MESSAGING_GTQ`.
+  only by `public/super/plans.js` and pinned as withheld by `tests/unit/public-plans.test.js`;
+  since 2026-11-26 the same constant holds the decided list prices 300 / 630 / 1,030 and the
+  provisional figures are gone, see §1); `PLAN_MESSAGING_GTQ`.
 - Display names Conecta / Impulsa / Expande live in `src/app/services/public-plan-service.js`
   (`PLAN_DISPLAY_NAMES`); the owner app footer still prints the raw code (`Plan
   ${plan.data.plan}`, `web/merchant/src/main.jsx:359-361`).
@@ -265,7 +275,9 @@ One jsonb document `platform_settings.billing_catalog`, edited from the super co
 "USD": {} } }, "stripe": { "price_ids": { "USD": {} } } } }`. `src/utils/plan.js` gains
 `PLAN_PRICING_USD` (39/79/129, `per: "branch_month"`) as the code default; `PLAN_PRICING_GTQ` is
 renamed `PROVISIONAL_PRICING_GTQ` and kept only for the super console until the GTQ amounts are
-decided (§12).
+decided (§12). **2026-11-26:** the amounts are decided; `PLAN_PRICING_GTQ` (300 / 630 / 1,030)
+is the code default of `gtq`, the normalizer falls back to it (never null) and the document
+carries `iva_included: true`; `PROVISIONAL_PRICING_GTQ` is deleted.
 
 ### 3.5 Config keys (`src/config/index.js`)
 
@@ -459,8 +471,8 @@ pure HTTP mappers with injected `fetch` and `config`, unit-tested with recorded 
 
 Mapping decisions: six Recurrente products (3 plans × GTQ/USD) created once per environment and
 stored as `price_ids` in `billing_catalog`; `metadata = { business_id, checkout_id, plan,
-quantity, currency }` on every checkout; `billing_info_requirement: "required"` on the GTQ
-products so the NIT is collected for FEL; `success_url`/`cancel_url` point at the owner app.
+quantity, currency }` on every checkout; `billing_info_requirement: "optional"` on every
+product (owner decision 2026-11-26: PF does not issue FEL invoices, so no NIT is collected); `success_url`/`cancel_url` point at the owner app.
 **To verify in the Sandbox before wave 2 ships**: that a plan change can be done as `items`
 remove + add with `now_and_charge` (the docs describe item changes, not a price swap on the same
 product); fallback is `cancel_at_period_end` on the old subscription plus a new checkout that
@@ -490,24 +502,38 @@ and international cards.
   1, maximum 9 at checkout (Recurrente's initial-quantity limit; a tenth branch goes through
   `changeSubscription`, to be verified in the Sandbox). The count is taken when the checkout is
   created and re-taken on every branch create/delete.
-- Monthly totals (USD): Conecta 39 × n, Impulsa 79 × n, Expande 129 × n. Conecta's branch
-  limit is 1 (`PLAN_LIMITS`), so it is always quantity 1 unless the limit changes. Annual plans
-  are not offered in v1 (the docs' 10–15% discount idea is deferred).
+- Monthly totals: Guatemala (GTQ) Conecta 300 × n, Impulsa 630 × n, Expande 1,030 × n; outside
+  Guatemala (USD) Conecta 39 × n, Impulsa 79 × n, Expande 129 × n (owner decision 2026-11-26:
+  the quetzal amounts are USD × 8 rounded to a round number, fixed, never converted at charge
+  time). Conecta's branch limit is 1 (`PLAN_LIMITS`), so it is always quantity 1 unless the
+  limit changes. Annual plans are not offered in v1 (the docs' 10–15% discount idea is deferred).
 - Proration: upgrades and added branches charge the prorated remainder now (`now_and_charge`);
   downgrades and removed branches apply next cycle. Neither provider refunds unused time by
   default and Recurrente rejects `prorate: true`.
-- Currency and processor: GT customers pay **GTQ through Recurrente** at fixed GTQ amounts chosen
-  by the owner and stored in `billing_catalog.gtq` (not spot FX, per
-  `docs/product/pricing-usd-planning.md`); customers outside GT pay USD through Stripe when
-  available, otherwise USD through Recurrente. `/precios` shows USD; a dated GTQ "precio de
-  referencia" appears only when `billing_catalog.gtq_reference` is set.
-- IVA 12%: the Recurrente DTE is the invoice. Options for the owner (§12): (a) published amounts
-  are IVA-inclusive ("IVA incluido") and the DTE breaks out `base = total / 1.12` exactly as
-  `src/app/routes/admin/billing.js` does for merchant sales; (b) amounts are "+ IVA" and the GTQ
-  price carries `amount × 1.12`. Recommendation: (a) for GTQ, because Guatemalan consumer
-  pricing is inclusive and the number on `/precios` is the number on the card statement. USD
-  charges to non-GT customers are an export of services; the accountant decides the DTE type.
-- Processor cost per Recurrente card charge: 4.5% + Q2 + Q0.25 FEL (Q15.75 on Q300, 5.25%).
+- Currency and processor (owner decision 2026-11-26): GT customers pay **GTQ through Recurrente**
+  at the fixed list amounts stored in `billing_catalog.gtq` (code default `PLAN_PRICING_GTQ`, not
+  spot FX, per `docs/product/pricing-usd-planning.md`); customers outside GT pay USD through
+  Recurrente today and Stripe when available. The rule lives in `subscription-service.js`
+  (`businessPaysInGtq`, `defaultCurrency`): a business is Guatemalan when it already pays in GTQ
+  (`billing_currency`), when its regional settings resolve to `America/Guatemala` (the default
+  region when none is set), or when its verified trial phone starts with the 502 dial code. Such
+  a business checks out in GTQ by default when GTQ is ready (amounts plus Recurrente GTQ price
+  ids for every plan); otherwise, and for every other business, USD. The owner can still choose
+  the currency explicitly; an explicit GTQ request while GTQ is not ready answers 400
+  `BILLING_CURRENCY_UNAVAILABLE`. `GET /api/admin/billing` `catalog.currency` follows the same
+  rule (an active subscription keeps its own currency); the super manual activation defaults the
+  same way; the catalog sync always creates six Recurrente products (three USD, three GTQ).
+  `/precios` leads with the quetzal price and keeps USD alongside; the dated
+  `billing_catalog.gtq_reference` stays in the public payload for compatibility but is no
+  longer rendered.
+- IVA 12% (owner decision 2026-11-26): option (a). The published amounts, USD and GTQ, are
+  IVA-inclusive ("Precios con IVA incluido"); the Recurrente DTE is the invoice and breaks out
+  `base = total / 1.12` exactly as `src/app/routes/admin/billing.js` does for merchant sales. The
+  catalog carries `iva_included: true` (`DEFAULT_BILLING_CATALOG`, the normalizer, the public
+  payload as `tax: { iva_included: true, rate: 0.12 }`) so every surface reads one statement.
+  USD charges to non-GT customers are an export of services; how they are documented for SAT
+  stays with the accountant (§12).
+- Processor cost per Recurrente card charge: 4.5% + Q2 (Q15.50 on Q300, 5.2%; no FEL cost because PF does not issue FEL).
   Record the webhook's `details.fee` in `billing_subscriptions.metadata` for margin reporting.
 
 ## 7. Surfaces
@@ -520,11 +546,21 @@ and international cards.
   días gratis" link to `/prueba/` on the Conecta column (and "Empezar con Impulsa/Expande" links
   that start the same trial and remember the intended plan in `?plan=`), keeps "Hablar con
   nosotros".
+- **2026-11-26:** the payload adds `local_currency: "GTQ"`, `tax: { iva_included: true, rate:
+  0.12 }` and `pricing.gtq_monthly: 300|630|1030` (`pricing.monthly` stays USD for
+  compatibility). The cards and the comparison lead with the quetzal price ("Q300 al mes por
+  sucursal") and keep USD alongside ("USD 39 fuera de Guatemala", row "Fuera de Guatemala"); a
+  row "Impuestos" says "IVA (12 %) incluido". The dated FX reference is no longer rendered.
 - `public/precios.html`: replace the "en revisión" paragraph with the pricing basis ("Precio por
   sucursal, al mes, en dólares. Sin tarjeta para empezar; 14 días de prueba con Conecta. El
   cobro en quetzales se confirma al elegir plan.") and keep the demo section. Update
   `tests/unit/public-plans.test.js` (the three assertions that pin `quotation`, `Solicitar
-  cotización` and the GTQ regex) and `docs/openapi`.
+  cotización` and the GTQ regex) and `docs/openapi`. **2026-11-26:** the basis reads "Precio al
+  mes por sucursal: en quetzales para negocios en Guatemala y en dólares (USD) fuera de
+  Guatemala, con IVA incluido" and the tax note is "Precios con IVA (12 %) incluido. El
+  comprobante fiscal (FEL) lo emite Recurrente por cada cobro."; the landing FAQ, `/prueba/`,
+  the trial emails and the owner upgrade form quote "desde Q300 al mes por sucursal con IVA
+  incluido (USD 39 fuera de Guatemala)".
 - Umami events: `trial_start_click` (location), existing `plan_quote` stays for the contact
   link.
 
@@ -651,9 +687,9 @@ stranger creates a trial from the website; trials lock on day 14.
    after one week of dry-run logs.
 
 **Wave 2 — Recurrente.** Owner-visible: a trial pays with a GTQ card and becomes Impulsa; the
-FEL invoice link appears in the app.
+payment list appears in the app.
 
-1. Owner tasks first: Recurrente business account verified, FEL activated, Sandbox created, TEST
+1. Owner tasks first: Recurrente business account verified, Sandbox created, TEST
    key and signing secret stored as `_FILE` secrets, GTQ amounts decided (§12).
 2. `src/app/services/billing/` (`provider.js`, `recurrente-provider.js`,
    `subscription-service.js`), migration C, `billing_catalog`, products created in the Sandbox
@@ -685,11 +721,15 @@ apps read (`business_public` and `/api/public/business/:slug` are unchanged).
 
 ## 12. Open questions for the owner
 
-- GTQ list amounts for the three plans (fixed numbers, not FX) and whether `/precios` shows a
-  dated GTQ reference at all; IVA presentation (inclusive or "+ IVA", §6) and how USD charges to
-  non-GT customers are documented for SAT.
-- Recurrente account status: business account verified, FEL automatic invoicing activated (RTU +
-  Agencia Virtual SAT), which NIT issues the DTE, who handles `soporte@` escalations.
+- ~~GTQ list amounts for the three plans (fixed numbers, not FX) and whether `/precios` shows a
+  dated GTQ reference at all; IVA presentation (inclusive or "+ IVA", §6)~~ **Decided
+  2026-11-26** (§1, §6): Q300 / Q630 / Q1,030 per branch per month, IVA included in every
+  published amount (USD too); `/precios` leads with the quetzal price and keeps USD alongside,
+  without an FX reference; Guatemalan businesses pay GTQ, the rest USD. Still open: how USD
+  charges to non-GT customers are documented for SAT.
+- Recurrente account status: business account verified, who handles `soporte@` escalations.
+  **Decided 2026-11-26:** PF cannot issue or work with FEL; no FEL automatic invoicing, no NIT
+  collection, and every surface says "por ahora no se emite factura electrónica (FEL)".
 - Refund policy (Recurrente refunds via `POST /refunds` are manual; no proration refunds) and
   dispute text for `/terminos`; terms and privacy updates for "sin tarjeta" and the 30-day
   retention.
@@ -698,3 +738,15 @@ apps read (`business_public` and `/api/public/business/:slug` are unchanged).
 - Trial scope confirmation: Conecta features and 1 branch (current `PLAN_LIMITS`); whether
   pilots ("Piloto" feature) are exempt from locks; whether cashier awards continue during the
   soft lock (§11.2).
+- Terms and privacy text (2026-11-26): a draft now exists in `public/terminos.html` ("Para
+  negocios afiliados", "Prueba gratis", "Planes, precios y facturación", "Cambios de plan y
+  cancelación", "Reembolsos", "Suspensión por falta de pago"; "Vigente desde el 26 de noviembre
+  de 2026") and `public/privacidad.html` ("Facturación y prueba gratis del negocio"), pinned by
+  `tests/unit/customer-legal-contract.test.js`. It states IVA-inclusive published prices, GTQ
+  for businesses in Guatemala and USD elsewhere, Recurrente's FEL per charge, no card numbers
+  stored, prorated upgrades / next-cycle downgrades, cancellation at period end, no refunds for
+  partial periods (duplicate or erroneous charges refunded once verified), a 7-day grace period
+  and the 30-day retention. It is a product draft, not legal advice: it names no legal entity,
+  jurisdiction or statute and needs legal review (consumer-protection and tax wording, refund
+  policy, the IVA presentation that `/precios` still shows as "sin impuestos") before it is
+  treated as final.

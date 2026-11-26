@@ -84,12 +84,12 @@ test('plan names, suggestions and the upgrade request payload stay within the co
   assert.equal(suggestedUpgradePlan('EMPRENDEDOR'), 'NEGOCIO');
   assert.equal(suggestedUpgradePlan('EMPRESA'), 'EMPRESA');
   assert.equal(suggestedUpgradePlan(null), 'NEGOCIO');
-  assert.deepEqual(upgradePlanOptions().map((o) => o.label), ['Conecta · USD 39 por sucursal al mes', 'Impulsa · USD 79 por sucursal al mes', 'Expande · USD 129 por sucursal al mes']);
+  assert.deepEqual(upgradePlanOptions().map((o) => o.label), ['Conecta · Q300 al mes por sucursal (USD 39 fuera de Guatemala)', 'Impulsa · Q630 al mes por sucursal (USD 79 fuera de Guatemala)', 'Expande · Q1,030 al mes por sucursal (USD 129 fuera de Guatemala)']);
   const payload = upgradeRequestPayload({ plan: 'NEGOCIO', phone: ' 5555 1234 ', preferredTime: 'tardes', note: 'Dos sucursales', currentPlan: 'EMPRENDEDOR' });
   assert.equal(payload.phone, '5555 1234');
   assert.equal(payload.business_type, 'Mejorar plan');
   assert.equal(payload.preferred_time, 'tardes');
-  assert.equal(payload.note, 'Plan solicitado: Impulsa (NEGOCIO) · USD 79 por sucursal al mes.\nPlan actual: Conecta.\nDos sucursales');
+  assert.equal(payload.note, 'Plan solicitado: Impulsa (NEGOCIO) · Q630 al mes por sucursal (USD 79 fuera de Guatemala).\nPlan actual: Conecta.\nDos sucursales');
   const long = upgradeRequestPayload({ plan: 'EMPRESA', phone: '1'.repeat(40), preferredTime: 'x'.repeat(200), note: 'y'.repeat(2000) });
   assert.equal(long.phone.length, 25);
   assert.equal(long.preferred_time.length, 120);

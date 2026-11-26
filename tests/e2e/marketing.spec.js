@@ -75,7 +75,7 @@ test("hero offers the free trial first and the demo second; the FAQ explains the
   await expect(page.locator("#preguntas a[href='/prueba/']")).toBeVisible();
 });
 
-test("pricing page publishes USD prices with the trial call to action even without the plans API", async ({
+test("pricing page publishes the quetzal prices with USD alongside and the trial call to action even without the plans API", async ({
   page,
 }) => {
   await page.route("**/api/public/plans", (route) =>
@@ -83,8 +83,12 @@ test("pricing page publishes USD prices with the trial call to action even witho
   );
   await page.goto("/precios?sw=off", { waitUntil: "domcontentloaded" });
   const pricing = page.locator("#planes");
-  for (const amount of ["USD 39", "USD 79", "USD 129"])
+  for (const amount of ["Q300", "Q630", "Q1,030"])
     await expect(pricing.getByText(amount, { exact: true })).toBeVisible();
+  for (const amount of ["USD 39", "USD 79", "USD 129"])
+    await expect(pricing.getByText(`${amount} fuera de Guatemala`, { exact: true })).toBeVisible();
+  await expect(pricing).toContainText("Precios con IVA (12 %) incluido");
+  await expect(page.locator("main")).not.toContainText("sin impuestos");
   await expect(pricing.getByRole("link", { name: "Prueba 14 días gratis" })).toHaveAttribute(
     "href",
     "/prueba/",
@@ -107,14 +111,15 @@ test("pricing page re-renders published prices from the plans API", async ({ pag
       json: {
         pricing_status: "published",
         comparison_currency: "USD",
+        local_currency: "GTQ",
+        tax: { iva_included: true, rate: 0.12 },
         plans: [
           {
             id: "EMPRENDEDOR",
             name: "Conecta",
-            pricing: { currency: "USD", per: "branch_month", monthly: 41 },
+            pricing: { currency: "USD", per: "branch_month", monthly: 41, gtq_monthly: 320 },
             limits: { activeCustomers: 300, branches: 1, rewards: 5 },
             features: { rewards: true, staff_management: true, analytics: false },
-            reference_gtq: { monthly: 320, as_of: "2026-11-25" },
           },
         ],
       },
@@ -122,10 +127,14 @@ test("pricing page re-renders published prices from the plans API", async ({ pag
   );
   await page.goto("/precios?sw=off", { waitUntil: "domcontentloaded" });
   const conecta = page.locator('[data-plan="EMPRENDEDOR"]');
-  await expect(conecta.getByText("USD 41", { exact: true })).toBeVisible();
-  await expect(conecta).toContainText("Referencia: Q320");
+  await expect(conecta.getByText("Q320", { exact: true })).toBeVisible();
+  await expect(conecta.getByText("USD 41 fuera de Guatemala", { exact: true })).toBeVisible();
+  await expect(conecta).not.toContainText("Referencia");
   await expect(
-    page.locator('[data-plan="NEGOCIO"]').getByText("USD 79", { exact: true }),
+    page.locator('[data-plan="NEGOCIO"]').getByText("Q630", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator('[data-plan="NEGOCIO"]').getByText("USD 79 fuera de Guatemala", { exact: true }),
   ).toBeVisible();
 });
 

@@ -1,5 +1,11 @@
 # Propuesta de precios (Guatemala)
 
+> **Superado el 2026-11-26.** Los precios de lista vigentes son Conecta **Q300**, Impulsa
+> **Q630** y Expande **Q1,030** por sucursal al mes, **con IVA incluido** (USD 39 / 79 / 129
+> fuera de Guatemala), sin planes anuales. Las cifras Q149 / Q399 / Q999 "sin IVA" de este
+> documento son la propuesta histórica; la decisión de registro está en
+> `docs/product/2026-11-25-self-serve-trial.md` (§1, §6) y el código en `src/utils/plan.js`.
+
 Base de referencia para SaaS de lealtad en Guatemala y LATAM:
 
 - Plan de entrada accesible para micro y pequenos negocios.

@@ -12,6 +12,7 @@ import {
   canChangePlan,
   canStartCheckout,
   cancelCopy,
+  catalogPricingNote,
   checkoutUrl,
   formatMinor,
   invoiceStatusLabel,
@@ -58,6 +59,33 @@ test('money in minor units formats as "USD 79.00" / "Q600.00" with fixed groupin
   assert.equal(formatMinor(1234, 'eur'), 'USD 12.34', 'unknown currencies fall back to USD');
   assert.equal(formatMinor(null, 'USD'), '—');
   assert.equal(formatMinor(Number.NaN, 'USD'), '—');
+});
+
+test('a Guatemalan business sees the quetzal list prices on the plan page: Q300.00 / Q630.00 / Q1,030.00 with IVA included', () => {
+  const gtqCatalog = {
+    currency: 'GTQ',
+    iva_included: true,
+    plans: [
+      { id: 'EMPRENDEDOR', name: 'Conecta', unit_amount_minor: 30000, monthly: 300 },
+      { id: 'NEGOCIO', name: 'Impulsa', unit_amount_minor: 63000, monthly: 630 },
+      { id: 'EMPRESA', name: 'Expande', unit_amount_minor: 103000, monthly: 1030 },
+    ],
+  };
+  const view = normalizeBilling(response({ ...active, currency: 'GTQ', unit_amount_minor: 63000, monthly_total_minor: 126000 }, { catalog: gtqCatalog, branches: 2 }));
+  assert.equal(view.catalog.currency, 'GTQ');
+  assert.equal(view.catalog.iva_included, true);
+  const quotes = quotePlans(view);
+  assert.deepEqual(quotes.map((quote) => [quote.plan, formatMinor(quote.unit_amount_minor, quote.currency)]), [['EMPRENDEDOR', 'Q300.00'], ['NEGOCIO', 'Q630.00'], ['EMPRESA', 'Q1,030.00']]);
+  assert.equal(quoteLine(quotes[0]), 'Q300.00 al mes · 1 sucursal');
+  assert.equal(quoteLine(quotes[1]), 'Q630.00 × 2 sucursales = Q1,260.00 al mes');
+  assert.equal(quoteLine(quotes[2]), 'Q1,030.00 × 2 sucursales = Q2,060.00 al mes');
+  assert.equal(catalogPricingNote(view), 'Precio al mes por sucursal en quetzales (GTQ), con IVA incluido; tu negocio tiene 2 sucursales.');
+  assert.match(billingStatusCopy(view).body, /Q1,260\.00 \(2 sucursales × Q630\.00\)/);
+  const usdView = normalizeBilling(response(active));
+  assert.equal(usdView.catalog.iva_included, true, 'servers without the flag published IVA-inclusive amounts');
+  assert.equal(catalogPricingNote(usdView), 'Precio al mes por sucursal en dólares (USD), con IVA incluido; tu negocio tiene 1 sucursal.');
+  const plusIva = normalizeBilling(response(active, { catalog: { ...catalog, iva_included: false } }));
+  assert.equal(catalogPricingNote(plusIva), 'Precio al mes por sucursal en dólares (USD), más IVA; tu negocio tiene 1 sucursal.');
 });
 
 test('the GET /api/admin/billing body normalises status, provider, totals and the pending checkout', () => {

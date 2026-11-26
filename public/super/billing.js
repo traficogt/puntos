@@ -122,7 +122,7 @@ export function createBilling(ctx, { reloadBusinesses }) {
     box.append(
       node(
         "div",
-        `Los montos en USD son los publicados en /precios (${catalog.published_at ? `desde ${catalog.published_at}` : "código"}) y solo cambian en el código. Los montos en quetzales son precios de lista fijos elegidos por el dueño, no una conversión; se cobran a negocios de Guatemala. Los price ids los crea "Sincronizar productos".`,
+        `Los montos en USD son los publicados en /precios (${catalog.published_at ? `desde ${catalog.published_at}` : "código"}) y solo cambian en el código; se cobran a negocios fuera de Guatemala. Los montos en quetzales son precios de lista fijos elegidos por el dueño (Q300, Q630 y Q1,030 por defecto), no una conversión; se cobran a negocios de Guatemala. Deja los tres vacíos para volver a los valores del código. Todos los montos incluyen IVA. Los price ids los crea "Sincronizar productos".`,
         "small mt-6",
       ),
     );
@@ -146,7 +146,7 @@ export function createBilling(ctx, { reloadBusinesses }) {
     box.append(
       node(
         "div",
-        "La tasa con fecha solo se muestra en /precios como referencia; no cambia ningún cobro.",
+        "La tasa con fecha es solo informativa (se expone en el API público de planes); /precios muestra el precio de lista en quetzales y no cambia ningún cobro.",
         "small mt-6",
       ),
     );
@@ -208,7 +208,7 @@ export function createBilling(ctx, { reloadBusinesses }) {
 
   async function syncCatalog() {
     const ok = await modalConfirm(
-      "Crear o actualizar en Recurrente los productos de los tres planes (USD y, si hay montos, GTQ) con los precios del catálogo. Los price ids resultantes se guardan aquí; los productos ya existentes no cambian de precio.",
+      "Crear o actualizar en Recurrente los productos de los tres planes en las dos monedas (seis productos: USD para negocios fuera de Guatemala y GTQ para Guatemala) con los precios del catálogo. Los price ids resultantes se guardan aquí; los productos ya existentes no cambian de precio.",
       { title: "Sincronizar productos", confirmText: "Sincronizar" },
     );
     if (!ok) return;
@@ -253,7 +253,7 @@ export function createBilling(ctx, { reloadBusinesses }) {
     }
     const table = node("table", "", "compact-table");
     const head = node("tr", "");
-    for (const label of ["Fecha", "Evento", "Monto", "Comisión", "FEL"])
+    for (const label of ["Fecha", "Evento", "Monto", "Comisión", "Comprobante"])
       head.append(node("th", label));
     table.append(head);
     for (const event of events) {
@@ -262,15 +262,15 @@ export function createBilling(ctx, { reloadBusinesses }) {
       tr.append(node("td", billingEventLabel(event.type)));
       tr.append(node("td", formatMinor(event.amount_minor, event.currency)));
       tr.append(node("td", formatMinor(event.fee_minor, event.currency)));
-      const fel = node("td", "");
+      const receipt = node("td", "");
       if (event.tax_invoice_url) {
-        const link = node("a", "Ver DTE");
+        const link = node("a", "Ver comprobante");
         link.href = event.tax_invoice_url;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
-        fel.append(link);
-      } else fel.textContent = "—";
-      tr.append(fel);
+        receipt.append(link);
+      } else receipt.textContent = "—";
+      tr.append(receipt);
       table.append(tr);
     }
     box.append(table);

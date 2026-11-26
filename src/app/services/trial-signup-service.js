@@ -18,7 +18,7 @@ import { PLAN_DISPLAY_NAMES, TRIAL_PLAN } from "./public-plan-service.js";
 import { countTrialSignupStep } from "./trial-metrics.js";
 import { sendTrialEmail, trialEmailReady } from "./trial-email-service.js";
 import { DEFAULT_TRIAL_TIMEZONE, trialState } from "./trial-state.js";
-import { isPlanName, normalizePlan, PLAN_PRICING_USD } from "../../utils/plan.js";
+import { isPlanName, normalizePlan, PLAN_PRICING_GTQ, PLAN_PRICING_USD } from "../../utils/plan.js";
 import { badRequest, conflict, HttpError, unauthorized } from "../../utils/http-error.js";
 import { errorMessage, isErrorLike } from "../../utils/error-shape.js";
 import { logger } from "../../utils/logger.js";
@@ -189,6 +189,7 @@ export function createTrialSignupService(overrides = {}) {
           timezone,
           planName: PLAN_DISPLAY_NAMES[TRIAL_PLAN],
           priceUsd: PLAN_PRICING_USD[TRIAL_PLAN],
+          priceGtq: PLAN_PRICING_GTQ[TRIAL_PLAN],
           progress: null,
         },
       });

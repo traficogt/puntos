@@ -19,7 +19,7 @@ import {
   TRIAL_REMINDER_DAYS,
   DEFAULT_TRIAL_TIMEZONE,
 } from "./trial-state.js";
-import { isPlanName, normalizePlan, PLAN_PRICING_USD } from "../../utils/plan.js";
+import { isPlanName, normalizePlan, PLAN_PRICING_GTQ, PLAN_PRICING_USD } from "../../utils/plan.js";
 import { errorMessage } from "../../utils/error-shape.js";
 import { logger } from "../../utils/logger.js";
 
@@ -43,7 +43,7 @@ const DAY_MS = 86_400_000;
  *   emailReady: () => boolean,
  *   emitBillingEvent: typeof emitBillingEvent,
  *   countTransition: typeof countTrialTransition,
- *   getBillingCatalog: () => Promise<{ usd: Record<string, number> }>,
+ *   getBillingCatalog: () => Promise<{ usd: Record<string, number>, gtq?: Record<string, number> | null }>,
  *   config: Pick<import("../../types/config.js").AppConfig, "APP_ORIGIN" | "TRIAL_RETENTION_DAYS">,
  *   log: { warn: (ctx: object, msg: string) => void, info: (ctx: object, msg: string) => void }
  * }} TrialLifecycleDeps
@@ -97,7 +97,9 @@ export async function runTrialDailyOnce({ now = new Date() } = {}, injected = {}
     purge_mode: "dry_run",
   };
   const origin = String(deps.config.APP_ORIGIN).replace(/\/+$/, "");
-  const catalog = await deps.getBillingCatalog().catch(() => ({ usd: { ...PLAN_PRICING_USD } }));
+  const catalog = await deps
+    .getBillingCatalog()
+    .catch(() => ({ usd: { ...PLAN_PRICING_USD }, gtq: { ...PLAN_PRICING_GTQ } }));
 
   /**
    * @param {TrialBusinessRow} business
@@ -117,6 +119,10 @@ export async function runTrialDailyOnce({ now = new Date() } = {}, injected = {}
       timezone,
       planName: planDisplayName(business.plan),
       priceUsd: isPlanName(plan) ? catalog.usd[plan] : PLAN_PRICING_USD.EMPRENDEDOR,
+      // Older catalog fakes and failed reads carry no quetzal block: the list price applies.
+      priceGtq: isPlanName(plan)
+        ? (catalog.gtq ?? PLAN_PRICING_GTQ)[plan]
+        : PLAN_PRICING_GTQ.EMPRENDEDOR,
       progress: null,
     };
   }

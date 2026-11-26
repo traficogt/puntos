@@ -460,14 +460,7 @@ export function createRecurrenteProvider({ fetch, config }) {
       };
     },
 
-    async createProduct({
-      name,
-      description,
-      plan,
-      currency,
-      unitAmountMinor,
-      billingInfoRequired = false,
-    }) {
+    async createProduct({ name, description, plan, currency, unitAmountMinor }) {
       const body = await request("POST", "/products", {
         body: {
           product: {
@@ -475,7 +468,8 @@ export function createRecurrenteProvider({ fetch, config }) {
             description: description ?? `${name}: suscripción mensual por sucursal`,
             tax_category: "service",
             phone_requirement: "optional",
-            billing_info_requirement: billingInfoRequired ? "required" : "optional",
+            // The owner does not issue FEL invoices (2026-11-26), so the NIT is never required at checkout.
+            billing_info_requirement: "optional",
             prices_attributes: [
               {
                 amount_in_cents: unitAmountMinor,
