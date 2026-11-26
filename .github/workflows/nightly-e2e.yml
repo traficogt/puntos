@@ -105,15 +105,41 @@ jobs:
       - name: Run E2E for ${{ matrix.browser }} (no flaky allowed)
         run: |
           set -euo pipefail
+          set +e
           npx playwright test --project=${{ matrix.browser }} --reporter=json > /tmp/playwright-report-${{ matrix.browser }}.json
-          node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync('/tmp/playwright-report-${{ matrix.browser }}.json','utf8')); const flaky=Number(r?.stats?.flaky||0); if (flaky>0) { console.error('Nightly gate failed: flaky tests detected ->', flaky); process.exit(1); } console.log('No flaky tests detected.');"
+          status=$?
+          set -e
+          # Name every failed or flaky test in the job log before deciding, so a red night is
+          # diagnosable without downloading artifacts.
+          node -e "
+            const fs = require('fs');
+            const r = JSON.parse(fs.readFileSync('/tmp/playwright-report-${{ matrix.browser }}.json', 'utf8'));
+            const rows = [];
+            const walk = (suite, trail) => {
+              for (const spec of suite.specs || []) {
+                for (const t of spec.tests || []) {
+                  if (t.status === 'unexpected' || t.status === 'flaky') rows.push(t.status + '  ' + [...trail, spec.title].join(' › '));
+                }
+              }
+              for (const child of suite.suites || []) walk(child, [...trail, child.title]);
+            };
+            for (const suite of r.suites || []) walk(suite, [suite.title]);
+            console.log('Stats:', JSON.stringify(r.stats || {}));
+            for (const row of rows) console.log(row);
+            const flaky = Number(r?.stats?.flaky || 0);
+            const failed = Number(r?.stats?.unexpected || 0);
+            if (failed > 0 || flaky > 0 || ${status} !== 0) { console.error('Nightly gate failed: failed ->', failed, 'flaky ->', flaky, 'exit ->', ${status}); process.exit(1); }
+            console.log('No failed or flaky tests.');
+          "
 
       - name: Upload API log on failure
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: api-log-${{ matrix.browser }}
-          path: /tmp/puntos-api.log
+          path: |
+            /tmp/puntos-api.log
+            /tmp/playwright-report-${{ matrix.browser }}.json
 
       - name: Job summary
         if: always()
