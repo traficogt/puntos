@@ -214,6 +214,24 @@ fix), including the quality waves of 2026-11-23 (`919d3dc`, `0b2a428`, `cfc1932`
 - Merchant browser gate specs are current (7/7); `test:integration:live` lists the same ten
   suites as the live runner.
 
+### Fixed
+Latent bugs that the strict typing pass of 2026-11-24 surfaced; each one is pinned by a unit
+test.
+- Tenant audit entries require a business id at runtime: `audit_logs.business_id` is NOT
+  NULL, and `logAudit` used to default it to null and turn the failed insert into a warning,
+  so a platform-level call lost its record silently. `AuditRepo.log` and `logAudit` now
+  refuse a missing id before any SQL runs (the JSDoc types already required it); the super
+  account lockdown keeps its record in `security_events`, whose `business_id` is nullable.
+- `PUT /api/admin/tiers/:id` accepts `active`: the whitelist allowed the flag but the zod
+  schema stripped it, so owners could not deactivate a tier (the path `DELETE` points to
+  when a tier still has members).
+- `CustomerRepo.upsertByPhone` returns the customer joined with its balance counters on the
+  conflicting path too, so a repeated mobile join or login no longer projects `undefined`
+  points.
+- Confirmed not bugs, now pinned: the native Wallet membership lookup rejects deleted
+  customers through `CustomerRepo.getById` (`deleted_at IS NULL`), and `points_multiplier`
+  arriving from Postgres as a NUMERIC string multiplies numerically inside `Math.floor`.
+
 ### Database and runtime
 - Schema initialization and managed migrations run under a session-level advisory lock
   (`SCHEMA_LOCK_KEY`), so API, worker and `npm run ops:migrate` starting together no longer

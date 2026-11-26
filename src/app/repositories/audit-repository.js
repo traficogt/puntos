@@ -34,6 +34,14 @@ import { exec } from "./base.js";
 export const AuditRepo = {
   /** @param {AuditLogInput} entry */
   async log({ id, business_id, actor_type, actor_id, action, ip, ua, meta }) {
+    // Fail before the insert: a null id would only surface as a 23502 from Postgres, and
+    // callers that log and continue (logAudit) would hide it. The typedef requires the
+    // id; this keeps untyped JavaScript callers honest at runtime too.
+    if (!business_id) {
+      throw new Error(
+        `audit_logs.business_id is required for "${action}"; platform-level events belong in security_events`,
+      );
+    }
     await exec(
       `INSERT INTO audit_logs (id, business_id, actor_type, actor_id, action, ip, ua, meta)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,

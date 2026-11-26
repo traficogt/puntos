@@ -109,6 +109,13 @@ export async function logAudit({
   ip = null,
   ua = null,
 }) {
+  // Outside the warning catch below on purpose: a missing tenant id is a routing mistake
+  // (the event belongs in security_events), not a transient write failure to tolerate.
+  if (!businessId) {
+    throw new Error(
+      `logAudit("${action}") requires a businessId; use logSecurity for platform-level events`,
+    );
+  }
   await AuditRepo.log({
     id: id(),
     business_id: businessId,
