@@ -88,8 +88,10 @@ async function createOfflineTestOrigin() {
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Expected a TCP listener");
   return {
-    origin: `http://127.0.0.1:${server.address().port}`,
+    origin: `http://127.0.0.1:${address.port}`,
     async disconnect() {
       if (!server.listening) return;
       const stopped = once(server, "close");
