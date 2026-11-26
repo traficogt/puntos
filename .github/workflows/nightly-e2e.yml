@@ -28,7 +28,7 @@ jobs:
         image: postgres:16.15-alpine@sha256:aa6cb33cf4c19c765cefcf48d96176258800870a9a1e930ad126200f9d825139
         env:
           POSTGRES_DB: puntos
-          POSTGRES_USER: loyalty
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ci-postgres-${{ github.run_id }}-${{ github.run_attempt }}-nightly
         ports:
           - 5432:5432
@@ -44,7 +44,7 @@ jobs:
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
       DB_NAME: puntos
-      DB_USER: loyalty
+      DB_USER: postgres
       DB_PASSWORD: ci-postgres-${{ github.run_id }}-${{ github.run_attempt }}-nightly
       JWT_SECRET: ci-jwt-${{ github.run_id }}-${{ github.run_attempt }}-nightly
       SUPER_ADMIN_EMAIL: super@example.com
@@ -239,7 +239,7 @@ jobs:
         image: postgres:16.15-alpine@sha256:aa6cb33cf4c19c765cefcf48d96176258800870a9a1e930ad126200f9d825139
         env:
           POSTGRES_DB: puntos
-          POSTGRES_USER: loyalty
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ci-postgres-${{ github.run_id }}-${{ github.run_attempt }}-visual
         ports:
           - 5432:5432
@@ -255,7 +255,7 @@ jobs:
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
       DB_NAME: puntos
-      DB_USER: loyalty
+      DB_USER: postgres
       DB_PASSWORD: ci-postgres-${{ github.run_id }}-${{ github.run_attempt }}-visual
       JWT_SECRET: ci-jwt-${{ github.run_id }}-${{ github.run_attempt }}-visual
       SUPER_ADMIN_EMAIL: super@example.com
