@@ -183,9 +183,12 @@ async function precacheAsset(cache, asset) {
 
 function cachedResponseFor(request, response) {
   // Precache follows canonical document redirects. Navigations use redirect
-  // mode "manual", which rejects replaying that redirected response. Preserve
-  // its document and security headers without replaying the redirect history.
-  if (request.mode === "navigate" && response.redirected) {
+  // mode "manual", which rejects replaying that redirected response, and
+  // Firefox adopts a cached response's own URL as the document URL, so a
+  // legacy alias such as /c would land on /mi-tarjeta/ while offline. Every
+  // navigation served from the cache is rebuilt from its body and headers,
+  // which keeps the document and security headers and drops the URL history.
+  if (request.mode === "navigate") {
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
